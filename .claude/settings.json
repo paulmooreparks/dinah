@@ -1,0 +1,55 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python scripts/hooks/deny-destructive-git.py",
+            "timeout": 10,
+            "statusMessage": "Checking git command against the main-checkout guard (andon-650)"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python scripts/hooks/andoneer-session-tokens.py",
+            "timeout": 10,
+            "statusMessage": "Reporting this session's model tokens to Andoneer (andon-734)"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__andoneer__list_cards_brief",
+      "mcp__andoneer__list_cards",
+      "mcp__andoneer__list_columns",
+      "mcp__andoneer__list_card_links",
+      "mcp__andoneer__list_comments",
+      "mcp__andoneer__list_levels",
+      "mcp__andoneer__list_projects",
+      "mcp__andoneer__list_transitions",
+      "mcp__andoneer__get_card",
+      "mcp__andoneer__get_project",
+      "mcp__andoneer__search_cards",
+      "mcp__andoneer__claim_card",
+      "mcp__andoneer__release_card",
+      "mcp__andoneer__move_card",
+      "mcp__andoneer__add_card",
+      "mcp__andoneer__add_comment",
+      "mcp__andoneer__add_checklist_item",
+      "mcp__andoneer__update_checklist_item",
+      "mcp__andoneer__delete_checklist_item",
+      "mcp__andoneer__update_card",
+      "mcp__andoneer__link_cards",
+      "mcp__andoneer__unlink_cards"
+    ]
+  }
+}
