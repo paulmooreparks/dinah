@@ -8,7 +8,7 @@ Andoneer is a separate, hosted, multi-seat implementation of the same protocol. 
 
 ## Status
 
-This repository currently contains a skeleton: a Go module, a placeholder binary that prints an identification line, and the build tooling and agent guardrails the project runs under. No protocol commands are implemented yet. That work starts with a later card.
+This repository currently contains a skeleton: a Go module, a placeholder binary that prints an identification line, and the build tooling and agent guardrails the project runs under. No protocol commands are implemented yet; that work has not started.
 
 ## Name
 
@@ -19,12 +19,12 @@ This repository currently contains a skeleton: a Go module, a placeholder binary
 This is a Go module. From the repository root:
 
 ```
-go build ./...
+go build -o yokoten ./cmd/yokoten
 go vet ./...
 go test ./...
 ```
 
-The build produces a single binary at `cmd/yokoten`.
+The first command produces a single binary named `yokoten` (`yokoten.exe` on Windows) at the repository root; naming it explicitly with `-o` avoids depending on Go's default output-file rule for a module with a single command package.
 
 ## License
 

@@ -1,8 +1,8 @@
 // Command yokoten is the yokoten reference implementation's binary.
 //
-// This is a skeleton (yokoten-1): it prints an identification line and
-// exits. No protocol verb, subcommand, or file format is implemented
-// yet. That work belongs to yokoten-2 and later cards.
+// This is a skeleton: it prints an identification line and exits. No
+// protocol verb, subcommand, or file format is implemented yet. That
+// work belongs to a later stage of the project.
 package main
 
 import (
