@@ -24,7 +24,7 @@ go vet ./...
 go test ./...
 ```
 
-The first command produces a single binary named `yokoten` (`yokoten.exe` on Windows) at the repository root; naming it explicitly with `-o` avoids depending on Go's default output-file rule for a module with a single command package.
+The first command produces a single binary named `yokoten` at the repository root; naming it explicitly with `-o` avoids depending on Go's default output-file rule for a module with a single command package.
 
 ## License
 
