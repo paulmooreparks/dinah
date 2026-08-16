@@ -3,7 +3,7 @@ title: Spec
 kind: work
 operator_owned: false
 ---
-Write the spec: the contract another reader could implement without further questions, against the yokoten codebase, a single-binary Go CLI. UX-touching cards include a UX sketch: a command transcript or `--help` text sketch showing the intended behaviour. Spawn related cards as they surface; inherit workstream membership on each, and file them into Intake unless the card says otherwise.
+Write the spec: the contract another reader could implement without further questions, against the Dinah codebase, a single-binary Go CLI. UX-touching cards include a UX sketch: a command transcript or `--help` text sketch showing the intended behaviour. Spawn related cards as they surface; inherit workstream membership on each, and file them into Intake unless the card says otherwise.
 
 Field discipline: description stays a one-paragraph framing, spec carries the contract, body absorbs rationale and alternatives. Acceptance criteria, open questions, and decisions go in structured checklist items (kind=acceptance_criterion / open_question / decision), never as prose headings in the spec field. A description that arrives carrying spec content (acceptance criteria, out-of-scope lists, implementation prescriptions, enumerable deliverables) goes back to Design Queue with a suggested one-paragraph rewrite; a merely thin description gets refined in place.
 

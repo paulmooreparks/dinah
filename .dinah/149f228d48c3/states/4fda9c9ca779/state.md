@@ -3,7 +3,7 @@ title: Implement
 kind: work
 operator_owned: false
 ---
-Where specs become code in the yokoten codebase, a single-binary Go CLI. card-implement works in an isolated worktree on a branch named after the card, self-tests, pushes the branch, then moves the card on. The trunk does not see this work until Merge.
+Where specs become code in the Dinah codebase, a single-binary Go CLI. card-implement works in an isolated worktree on a branch named after the card, self-tests, pushes the branch, then moves the card on. The trunk does not see this work until Merge.
 
 ### What arrives, and what the clarity gate asks
 
