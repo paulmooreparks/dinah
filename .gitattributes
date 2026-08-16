@@ -1,0 +1,5 @@
+# The on-disk format and the profile checker both mandate LF. Declaring it
+# here makes the contract the repository's own instead of an assumption about
+# each machine's core.autocrlf; without this, Windows checkouts convert text
+# files to CRLF and TestHouseStyle correctly fails on the carriage returns.
+* text=auto eol=lf
