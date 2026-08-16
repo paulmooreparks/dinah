@@ -151,6 +151,10 @@ validity, archiving, fsck coverage) therefore applies to every entity kind
 with no special cases, and a new entity kind added later inherits the whole
 rulebook by construction.
 
+Fsck's name and job are both borrowed: the Unix file system consistency
+check of the same name, whose checking role Dinah's bench checker inherits
+along with its spelling.
+
 The anchor file is what makes the hex directory an entity, the way `.git`
 makes a directory a repository. A card directory without `card.md` is
 garbage by definition, which gives fsck a free validity rule and gives
@@ -177,7 +181,7 @@ mechanism is declaration rather than code: a `kinds:` block in
 `workbench.md` names each extension kind, its anchor filename, and which
 of the standard mount points (bench, card, workstream) its collection may
 hang from. Extension kind and collection names are dotted,
-`<namespace>.<name>` (gk.assumption, acme.milestone), and core names never
+`<namespace>.<name>` (acme.assumption, acme.milestone), and core names never
 contain a dot, so collision with future core vocabulary is unrepresentable
 rather than managed. The no-exceptions entity shape is what makes
 extensions safe: an implementation that does not understand a declared

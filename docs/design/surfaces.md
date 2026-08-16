@@ -20,6 +20,10 @@ the CLI verbs, an MCP server (`dinah mcp`, stdio), an HTTP server
 (`dinah serve`), and an LSP (`dinah lsp`). There is exactly one
 implementation of every verb no matter which protocol asked.
 
+Fsck is named for the Unix file system consistency check; Dinah's checker
+borrows the name and the role, structural checking, and applies both to a
+bench instead of a filesystem.
+
 The cautionary tale is git, which was never embeddable, so the ecosystem
 reimplemented it (libgit2 for embedders, JGit for the JVM), each lagging
 canonical git for years, while GUIs shelled out and scraped output. Dinah
@@ -168,8 +172,8 @@ an extension entity means, and when agents act on it, is method text in
 the bench, with no CLI involvement. Rung two is the deferred hook design
 generalized to entity lifecycle: when determinism is wanted, an on-event
 hook runs a command with the entity's JSON on stdin. Rung three is git's
-external-subcommand convention: `dinah gk-report` dispatches to a
-`dinah-gk-report` binary found on PATH, a companion process speaking the
+external-subcommand convention: `dinah acme-report` dispatches to a
+`dinah-acme-report` binary found on PATH, a companion process speaking the
 frozen canonical-JSON verb contract like any other client, which makes
 third-party tooling first-class without touching the core.
 
