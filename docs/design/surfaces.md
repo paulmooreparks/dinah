@@ -207,6 +207,62 @@ already has for the external system. Deterministic per-state hooks
 for mechanical projections, held out of the first cut so experience decides
 which projections deserve determinism.
 
+## The verb surfaces: first pass
+
+The library owns behavior once. A bench handle is opened by discovery, and
+on it live the reads (resolve, list, serve-instructions, pull-next under
+the deterministic ordering) and the mutations (create, claim, release,
+move, block, comment, attach, archive), each taking a required actor and
+an optional basis, each executing as one transaction (card lock,
+write-temp-rename, journal append), and each returning a receipt: what
+happened, the resulting position, and the served instructions with the
+legal next moves, because the hosted product proved the claim response is
+where agent behavior is shaped. Errors are the trichotomy as types
+(refused with a coded reason; stale carrying the current revision), never
+strings the heads would have to parse. Fsck and template init/extract
+round out the surface.
+
+Two of those mutations sit outside the core profile deliberately, and a
+reader comparing the two documents should know it is deliberate. The profile
+rules free prose attached to a card, and anything attached to a card as a
+file, out of the core, so `comment` and `attach` are this tool's own work
+rather than contract obligations. Under the profile they are layer material,
+and a second implementation conforms without either of them. The surface is
+wider than the contract on purpose: the contract is the part another tool has
+to match, and the rest is what makes this one worth using.
+
+The CLI is subcommand porcelain over the library: `--json` emits the
+frozen canonical form, default output renders through the locale
+catalogs, and exit codes carry the trichotomy distinctly, because a
+driver loop's control flow hangs on never confusing no, not-yet, and
+could-not-ask.
+
+REST follows Fielding with no invented verbs, and the format design
+turns out to have converged on REST's own mechanics already: the basis
+guard is ETag and If-Match, stale is 412, refused is 403 or 409, and
+entity revisions serve as ETags throughout. The claim is a resource, not
+an action: POST to a card's claim creates it (409 when held), DELETE
+releases it, a lease renewal is a PUT on it. A move is a change to the
+card's state and rides PATCH, with a Dinah-defined media type
+(application/dinah.move+json) rather than generic merge-patch: the media
+type's definition is where the board semantics live in the contract (WIP
+refusal on entry, operator-owned stations offering agents no such
+request, mandatory If-Match), per Fielding's own instruction that a REST
+API spends its descriptive effort on media types and hypermedia. The
+pattern generalizes: any mutation whose refusal rules are the interesting
+part gets its own small media type; creations and deletions that are
+already unambiguous do not. Journals are GET-only, since events are the
+server's witness. Every representation lists only the legal next
+transitions and names the media type each accepts, so illegal actions are
+absent from the representation and legal ones arrive with their paperwork
+attached; the contract version rides in the media type.
+
+MCP mirrors the verbs one to one as tools, canonical JSON both ways, the
+working agreement in the initialize instructions, guides as resources,
+and the same affordances block in every tool response, so an agent on
+either machine surface sees the identical statement of what it may do
+next.
+
 ## Findings from the first hand-executed run
 
 A complete card (the fsck mini-concept) was run through a five-state bench
@@ -263,12 +319,13 @@ frontmatter.
 
 ## Open questions
 
-- The CLI verb set and its grammar, from the gedankenexperiment: what does
-  an idle agent type to learn what it may do, and to take work?
+- The exact CLI grammar and flag conventions, now that the verb set and
+  exit-code contract are settled in the first pass above.
 - The MCP tool naming and how closely it tracks Andoneer's tool surface,
   including which Andoneer MCP improvements (the expected-revision guard
   among them) are adopted here first.
-- The HTTP surface's shape: whether it is verb-mapped only or also serves
-  the mirror/interchange representations.
+- The full media-type roster for REST (which mutations earn a dedicated
+  type beyond move) and whether the HTTP surface also serves the
+  mirror/interchange representations.
 - LSP scope: registry-driven diagnostics and completion first; what else.
 - GUI timing: which milestone it enters after the CLI and MCP heads exist.

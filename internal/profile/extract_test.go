@@ -1,0 +1,405 @@
+package profile
+
+import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+// profilePath is the published core profile this package guards.
+const profilePath = "../../docs/spec/core-profile.md"
+
+// tradeTerms is the profile's first excluded list: the vocabulary of one
+// trade, whose presence in a normative statement would tell every workbench
+// outside that trade the profile was not written for it. The word "release"
+// is deliberately absent, because it names one of the profile's own verbs.
+var tradeTerms = []string{
+	"repository", "branch", "commit", "build", "deploy", "merge",
+	"pull request", "code", "bug", "ticket", "sprint", "backlog grooming",
+	"continuous integration", "issue", "test suite", "developer", "engineer",
+}
+
+// productTerms is the profile's second excluded list: the product vocabulary
+// of tools that already implement work like this one, which a reader of the
+// profile alone has no way to interpret.
+var productTerms = []string{
+	"lane", "gate", "loop limit", "column", "station", "swimlane", "zone",
+	"persona", "capability tier", "shopping queue", "external wait",
+	"workstream",
+}
+
+func readProfile(t *testing.T) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.FromSlash(profilePath))
+	if err != nil {
+		t.Fatalf("reading the profile: %v", err)
+	}
+	return string(b)
+}
+
+func extractProfile(t *testing.T) *Document {
+	t.Helper()
+	doc, err := Extract(strings.NewReader(readProfile(t)))
+	if err != nil {
+		t.Fatalf("extracting the profile: %v", err)
+	}
+	return doc
+}
+
+// TestExtractReadsAStatement is the unit check on the extractor itself,
+// independent of any published document.
+func TestExtractReadsAStatement(t *testing.T) {
+	src := "prose without a keyword\n" +
+		"[CORE-CLAIM-3] A tool MUST refuse a claim on a held card.\n" +
+		"```\nMUST inside a fence is vocabulary\n```\n" +
+		"[ACTOR-1] An owner MAY rest.\n"
+
+	doc, err := Extract(strings.NewReader(src))
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(doc.Statements) != 2 {
+		t.Fatalf("got %d statements, want 2", len(doc.Statements))
+	}
+	first := doc.Statements[0]
+	if first.ID != "CORE-CLAIM-3" || first.Keyword != "MUST" || first.Class != "CORE" || first.Line != 2 {
+		t.Errorf("first statement read as %+v", first)
+	}
+	if got := doc.Statements[1].Class; got != "ACTOR" {
+		t.Errorf("second statement class %q, want ACTOR", got)
+	}
+	if len(doc.StrayKeywords) != 0 {
+		t.Errorf("a keyword inside a fence was reported stray: %v", doc.StrayKeywords)
+	}
+}
+
+// TestExtractReportsDefects arms the extractor: each fault it exists to catch
+// is fed to it deliberately and has to come back.
+func TestExtractReportsDefects(t *testing.T) {
+	src := "A stray MUST in prose.\n" +
+		"[CORE-A-1] A tool MUST and also MAY.\n" +
+		"[CORE-A-1] A tool MUST be named once.\n"
+
+	doc, err := Extract(strings.NewReader(src))
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(doc.StrayKeywords) != 1 {
+		t.Errorf("got %d stray keywords, want 1", len(doc.StrayKeywords))
+	}
+	if len(doc.KeywordCounts) != 1 {
+		t.Errorf("got %d keyword-count defects, want 1", len(doc.KeywordCounts))
+	}
+	if len(doc.Duplicates) != 1 {
+		t.Errorf("got %d duplicates, want 1", len(doc.Duplicates))
+	}
+	if len(doc.Fences) != 0 {
+		t.Errorf("a document with no fence at all reported %d fence defects", len(doc.Fences))
+	}
+}
+
+// TestUnclosedFenceIsADefect arms the fence check. A fence that never closes
+// turns keyword detection off for the rest of the document, so the extractor
+// reports the fence rather than reporting the document clean.
+func TestUnclosedFenceIsADefect(t *testing.T) {
+	src := "[CORE-A-1] A tool MUST do the thing.\n" +
+		"```\n" +
+		"A stray MUST hidden under an open fence.\n"
+
+	doc, err := Extract(strings.NewReader(src))
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(doc.Fences) != 1 {
+		t.Fatalf("got %d fence defects, want 1", len(doc.Fences))
+	}
+	if doc.Fences[0].Line != 2 {
+		t.Errorf("fence defect reported at line %d, want 2", doc.Fences[0].Line)
+	}
+
+	closed := src + "```\n"
+	doc, err = Extract(strings.NewReader(closed))
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(doc.Fences) != 0 {
+		t.Errorf("a closed fence was reported as a defect: %v", doc.Fences)
+	}
+}
+
+// TestExcludedTermsSpanLineBreaks arms the whitespace normalization. A banned
+// two-word phrase used to escape the check whenever the paragraph wrapped
+// between its words, which made the width of a line decide whether the rule
+// applied.
+func TestExcludedTermsSpanLineBreaks(t *testing.T) {
+	wrapped := "the florist's pull\nrequest was declined"
+	if hits := Excluded(wrapped, []string{"pull request"}); len(hits) != 1 {
+		t.Errorf("a banned phrase split by a line break was not found: %v", hits)
+	}
+	if hits := Excluded("the pull   request", []string{"pull request"}); len(hits) != 1 {
+		t.Errorf("a banned phrase split by several spaces was not found: %v", hits)
+	}
+	if hits := Excluded("nothing to see", []string{"pull request"}); len(hits) != 0 {
+		t.Errorf("a phrase that is absent was reported present: %v", hits)
+	}
+	if hits := Excluded("she pulls requests from the queue", []string{"pull request"}); len(hits) != 0 {
+		t.Errorf("whole-word matching was lost in normalization: %v", hits)
+	}
+}
+
+// TestNegatedKeywordCountsOnce checks the longest-first rule the notation
+// section states, which is what keeps a negated keyword from reading as two.
+func TestNegatedKeywordCountsOnce(t *testing.T) {
+	doc, err := Extract(strings.NewReader("[CORE-A-1] A tool MUST NOT do it.\n"))
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(doc.KeywordCounts) != 0 {
+		t.Fatalf("MUST NOT counted as more than one keyword: %v", doc.KeywordCounts)
+	}
+	if got := doc.Statements[0].Keyword; got != "MUST NOT" {
+		t.Errorf("keyword %q, want MUST NOT", got)
+	}
+}
+
+// TestProfileExtractsCleanly asserts the profile's own notation rules over
+// the published document: unique identifiers, one keyword each, and no
+// keyword loose in prose.
+func TestProfileExtractsCleanly(t *testing.T) {
+	doc := extractProfile(t)
+
+	if len(doc.Statements) == 0 {
+		t.Fatal("the profile returned no statements")
+	}
+	for _, d := range doc.Duplicates {
+		t.Errorf("duplicate identifier: %s", d)
+	}
+	for _, d := range doc.KeywordCounts {
+		t.Errorf("keyword count: %s", d)
+	}
+	for _, d := range doc.StrayKeywords {
+		t.Errorf("stray keyword: %s", d)
+	}
+	for _, d := range doc.Fences {
+		t.Errorf("unterminated fence: %s", d)
+	}
+	for _, s := range doc.Statements {
+		switch s.Class {
+		case "CORE", "DOC", "ACTOR", "SUITE":
+		default:
+			t.Errorf("line %d: identifier %s carries an unknown class", s.Line, s.ID)
+		}
+	}
+}
+
+// TestExcludedTermsAreAbsent checks the two excluded lists over the three
+// places the profile's notation section binds them to.
+func TestExcludedTermsAreAbsent(t *testing.T) {
+	text := readProfile(t)
+	doc := extractProfile(t)
+
+	both := append(append([]string{}, tradeTerms...), productTerms...)
+
+	for _, s := range doc.Statements {
+		if hits := Excluded(s.Text, both); len(hits) > 0 {
+			t.Errorf("line %d: %s carries excluded terms %v", s.Line, s.ID, hits)
+		}
+	}
+
+	vocab := section(text, "## 4. Core vocabulary")
+	if vocab == "" {
+		t.Fatal("section 4 not found")
+	}
+	if hits := Excluded(vocab, both); len(hits) > 0 {
+		t.Errorf("the core vocabulary carries excluded terms %v", hits)
+	}
+
+	walk := section(text, "### 10.1 Walking a wedding through the whole profile")
+	if walk == "" {
+		t.Fatal("section 10.1 not found")
+	}
+	if hits := Excluded(walk, both); len(hits) > 0 {
+		t.Errorf("the walkthrough carries excluded terms %v", hits)
+	}
+}
+
+// TestIndexMatchesTheExtraction asserts that the index of section 11 carries
+// one row per extracted identifier, in document order, with the keyword the
+// statement itself carries.
+func TestIndexMatchesTheExtraction(t *testing.T) {
+	text := readProfile(t)
+	doc := extractProfile(t)
+
+	index := section(text, "## 11. Index of normative statements")
+	if index == "" {
+		t.Fatal("section 11 not found")
+	}
+
+	row := regexp.MustCompile(`^\| ([A-Z][A-Z0-9-]*) \| (must not|should not|must|should|may) \| (tool|document|history|suite) \| (.+) \|$`)
+	var ids, keywords []string
+	for _, line := range strings.Split(index, "\n") {
+		m := row.FindStringSubmatch(strings.TrimSpace(line))
+		if m == nil {
+			continue
+		}
+		ids = append(ids, m[1])
+		keywords = append(keywords, m[2])
+	}
+
+	if len(ids) != len(doc.Statements) {
+		t.Fatalf("the index carries %d rows and the extraction returns %d statements", len(ids), len(doc.Statements))
+	}
+	for i, s := range doc.Statements {
+		if ids[i] != s.ID {
+			t.Errorf("index row %d names %s, the extraction returns %s", i+1, ids[i], s.ID)
+			continue
+		}
+		if want := strings.ToLower(s.Keyword); keywords[i] != want {
+			t.Errorf("index row for %s carries keyword %q, the statement carries %q", s.ID, keywords[i], want)
+		}
+	}
+}
+
+// TestBoundaryTableRulesEveryStatement asserts the four properties section 10
+// claims for its table: a row rules its concept in or out and carries a
+// reason, an excluded concept carries a reopen condition and no statement, an
+// included concept carries statements and no reopen condition, and the
+// statements named across the ruled-in rows are exactly the statements the
+// document publishes, each named once.
+func TestBoundaryTableRulesEveryStatement(t *testing.T) {
+	text := readProfile(t)
+	doc := extractProfile(t)
+
+	rows := BoundaryTable(text)
+	if len(rows) == 0 {
+		t.Fatal("the boundary table returned no rows")
+	}
+
+	claimed := map[string]int{}
+	for _, r := range rows {
+		if r.Reason == "" {
+			t.Errorf("line %d: row %q carries no reason", r.Line, r.Item)
+		}
+		switch r.Ruling {
+		case "out":
+			if r.Reopen == "" {
+				t.Errorf("line %d: row %q is ruled out with no reopen condition", r.Line, r.Item)
+			}
+			if len(r.Statements) > 0 {
+				t.Errorf("line %d: row %q is ruled out but names statements %v", r.Line, r.Item, r.Statements)
+			}
+		case "in":
+			if r.Reopen != "" {
+				t.Errorf("line %d: row %q is ruled in but carries a reopen condition", r.Line, r.Item)
+			}
+			if len(r.Statements) == 0 {
+				t.Errorf("line %d: row %q is ruled in but names no statement", r.Line, r.Item)
+			}
+			for _, id := range r.Statements {
+				if prior, ok := claimed[id]; ok {
+					t.Errorf("line %d: %s is claimed by two rows, the earlier at line %d", r.Line, id, prior)
+				}
+				claimed[id] = r.Line
+			}
+		}
+	}
+
+	published := map[string]bool{}
+	for _, s := range doc.Statements {
+		published[s.ID] = true
+		if _, ok := claimed[s.ID]; !ok {
+			t.Errorf("line %d: %s rests on a concept no row rules in", s.Line, s.ID)
+		}
+	}
+	for id, line := range claimed {
+		if !published[id] {
+			t.Errorf("line %d: the boundary table names %s, which the document does not publish", line, id)
+		}
+	}
+}
+
+// TestBoundaryTableCatchesADefect arms the boundary check against each fault
+// it exists to catch, since the published table passing says nothing about
+// whether the check would notice if it stopped.
+func TestBoundaryTableCatchesADefect(t *testing.T) {
+	cases := map[string]string{
+		"an exclusion with no reopen condition": "| A thing | out | Because. | | |\n",
+		"an inclusion naming no statement":      "| A thing | in | Because. | | |\n",
+		"a row with no reason":                  "| A thing | in |  | | CORE-A-1 |\n",
+	}
+	for name, row := range cases {
+		rows := BoundaryTable(row)
+		if len(rows) != 1 {
+			t.Fatalf("%s: parsed %d rows, want 1", name, len(rows))
+		}
+		r := rows[0]
+		var caught bool
+		switch {
+		case r.Reason == "":
+			caught = true
+		case r.Ruling == "out" && (r.Reopen == "" || len(r.Statements) > 0):
+			caught = true
+		case r.Ruling == "in" && (r.Reopen != "" || len(r.Statements) == 0):
+			caught = true
+		}
+		if !caught {
+			t.Errorf("%s: the row parsed as well formed", name)
+		}
+	}
+
+	good := BoundaryTable("| A thing | in | Because. | | CORE-A-1, CORE-A-2 |\n")
+	if len(good) != 1 || len(good[0].Statements) != 2 || good[0].Reopen != "" {
+		t.Errorf("a well-formed row parsed as %+v", good)
+	}
+}
+
+// TestHouseStyle asserts the typographic rules the profile's style section
+// states, which a reviewer should never have to check by eye.
+func TestHouseStyle(t *testing.T) {
+	text := readProfile(t)
+	banned := map[string]string{
+		"—": "em-dash",
+		"–": "en-dash",
+		"−": "minus sign",
+		"‘": "left single quotation mark",
+		"’": "right single quotation mark",
+		"“": "left double quotation mark",
+		"”": "right double quotation mark",
+	}
+	for _, line := range strings.Split(text, "\n") {
+		if strings.Contains(line, "\r") {
+			t.Errorf("carriage return in %q", line)
+		}
+		for r, name := range banned {
+			if strings.Contains(line, r) {
+				t.Errorf("%s in %q", name, line)
+			}
+		}
+	}
+}
+
+// section returns the text of the document from the given heading up to the
+// next heading at the same level or shallower, exclusive.
+func section(text, heading string) string {
+	lines := strings.Split(text, "\n")
+	depth := len(heading) - len(strings.TrimLeft(heading, "#"))
+	start := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == heading {
+			start = i + 1
+			continue
+		}
+		if start < 0 || !strings.HasPrefix(line, "#") {
+			continue
+		}
+		if d := len(line) - len(strings.TrimLeft(line, "#")); d <= depth {
+			return strings.Join(lines[start:i], "\n")
+		}
+	}
+	if start < 0 {
+		return ""
+	}
+	return strings.Join(lines[start:], "\n")
+}
