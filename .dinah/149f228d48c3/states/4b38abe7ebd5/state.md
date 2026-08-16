@@ -43,6 +43,16 @@ When you catch a defect whose class is not yet in the corpus, and the same class
 
 The workbench document **"Prose standard"** governs any prose this diff touches: README and docs changes, user-facing copy, comments in card fields, and the WHAT SHIPPED note itself. Hold that prose against the standard's tell list and tag violations as findings. Its hard constraint cuts both ways here. A diff that rewrites existing prose gets checked for meaning drift word by word: a dropped qualifier, a deleted negative clause, or a weakened commitment is a [major] even when the style improved, because the antithesis a rewrite is tempted to cut is often the specification. And a finding you write asking for a prose fix must itself say what to remove without removing what the sentence promises. Name the tell when you tag one; "reads machine-written" is not actionable.
 
+## Go style and reuse
+
+The workbench document **"Go style standard"** is the rule set for Go source in the diff, and this column is where it is enforced. Take the mechanical floor first, since `gofmt -l .` settles that part without judgement, then read for the judged rules.
+
+Weight findings the way that document weights them. A file gofmt would reformat is a [major]. So is a new function duplicating one the codebase already has, or a second solution to a problem the codebase already solves a particular way. The judged rules covering line density, argument breaking, guard clauses, doc comments and error strings are [minor] findings, recorded in the findings comment and not on their own a reason to send the card back. Where a [minor] will outlive the card, the same document says what becomes of it.
+
+Check the reuse claim and not only the code. WHAT SHIPPED either names a helper that was reused or asserts none existed, and that assertion is checkable in one grep. A claim absent altogether is itself a finding.
+
+Cite the rule you are applying. A style finding the document does not state is out of scope here, and the way to raise one is to propose it as an addition to the document.
+
 ## Copy references are load-bearing
 
 For every user-facing string that names a destination (a URL, a page, a button, a route, a command, a "see X", a "configured under X"), grep that the destination exists or is created in this diff. A plausible reference to vapor is a [blocker]; the copy gets corrected or the destination gets a follow-on card.
