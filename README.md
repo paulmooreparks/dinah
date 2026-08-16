@@ -2,6 +2,12 @@
 
 <img src="logo/dinah-lantern.svg" align="right" width="256" alt="The Dinah lantern">
 
+[![CI](https://img.shields.io/github/actions/workflow/status/paulmooreparks/dinah/ci.yml?branch=main&label=CI)](https://github.com/paulmooreparks/dinah/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/paulmooreparks/dinah)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/paulmooreparks/dinah)](go.mod)
+[![Latest release](https://img.shields.io/github/v/release/paulmooreparks/dinah?include_prereleases&sort=semver&label=latest)](https://github.com/paulmooreparks/dinah/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/paulmooreparks/dinah/total)](https://github.com/paulmooreparks/dinah/releases)
+
 Dinah is a reference implementation of a shared coordination contract for board-based work: workbench definitions, states and transitions, per-state instruction serving, and the claim, move, release, and block actions an agent or a person takes on a unit of work. It exists as a single, minimal binary rather than a hosted service.
 
 <br clear="right">
