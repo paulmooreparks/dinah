@@ -3,17 +3,21 @@ title: Implement
 kind: work
 operator_owned: false
 ---
-Where specs become code in the Dinah codebase, a single-binary Go CLI. card-implement works in an isolated worktree on a branch named after the card, self-tests, pushes the branch, then moves the card on. The trunk does not see this work until Merge.
+Where specs become code in the Dinah codebase, a single-binary Go CLI. card-implement works in an isolated worktree on a branch named after the card, self-tests, pushes the branch, opens its pull request, then moves the card on. The trunk does not see this work until Merge.
 
 ### What arrives, and what the clarity gate asks
 
 Read the spec, the checklist and the latest move-comment before writing code. What the gate demands depends on how the card got here.
 
-**A card that came through Spec arrives with a reviewed contract.** If that contract is ambiguous, missing or self-contradictory, do not start: push back one column with a note naming the ambiguity. If the ambiguity is a ruling only the operator can give, block in place with `kind="operator_decision"` instead.
+**A card that came through Spec arrives with a reviewed contract.** If that contract is ambiguous, missing or self-contradictory, do not start: push back one column with a note naming the ambiguity. If the ambiguity is a ruling only the operator can give and no work can proceed without it, block in place with `kind="operator_decision"` instead.
 
 **A card routed straight from Triage arrives with no spec, by design.** That is the fast path, and its contract is meant to be obvious from the card alone. So the gate here is different: ask whether you can state, in one sentence, exactly what is changing and how, with no judgement calls left. If you can, build it. If you cannot, the routing call was wrong rather than the card being unclear, so move it to Design Queue with a note naming what a spec would have to settle. Re-routing a misclassified card to the head of its proper path is the one sanctioned exception to the one-column-back rule; never push a spec-less card back where it came from, because nothing there will change.
 
 Don't reinterpret silently and don't expand scope: a dependency the spec missed becomes a new card (spawned_from, workstreams inherited), and a problem bigger than this card's scope is filed separately, not fixed in the same diff.
+
+### A question for the operator that the work can survive
+
+Not every ruling has to stop the build. When a question is genuinely the operator's but you can finish the card despite it, meaning you made a defensible call and want it ratified or redirected, file it as an open question with `owner="operator"`, put your call and its tradeoffs in the note, and carry on. On lanes that run the operator stations it gets answered at Operator Code Review, two stages ahead; name it in your handoff note so the reviewer and then the operator see it coming. On the Fix lane there is no station ahead, so a question for the operator blocks the card here instead; a Fix-lane card that needs a ruling has usually outgrown its lane anyway. A question you cannot build around blocks in place on every lane, per the gate above.
 
 ## Delivering an implementation means delivering a test
 
@@ -27,7 +31,7 @@ If a test already covers the behaviour you changed, extending it satisfies this 
 
 ## Prose ships under the prose standard
 
-Any prose this card produces (README and docs changes, user-facing copy, error text with sentences in it, and the WHAT SHIPPED note) is written to the workbench document **"Prose standard"**. Code Review holds it against that standard's tell list, so write to it the first time. When the card rewrites existing prose, the standard's hard constraint applies before style does: meaning cannot change, and the negative clause you are tempted to cut is often the requirement.
+Any prose this card produces (README and docs changes, user-facing copy, error text with sentences in it, and the WHAT SHIPPED note) is written to the workbench document **"Prose standard"**. Agent Code Review holds it against that standard's tell list, so write to it the first time. When the card rewrites existing prose, the standard's hard constraint applies before style does: meaning cannot change, and the negative clause you are tempted to cut is often the requirement.
 
 ## A diff that outgrows its lane goes back rather than forward
 
@@ -81,14 +85,25 @@ Never `--force`, never `--no-verify`. Confirm the branch is on the remote with `
 
 A workbench whose `Push-policy` directive says `worktree-push` keeps the older contract: commit, pull, `git push origin HEAD:main`, and record no branch name. Read the directive before you assume which one you are on.
 
+## Every branch gets a pull request
+
+After the push, make sure the card's pull request exists. It is the operator's window onto the diff, on every lane including Fix, and CI runs its checks against it for free:
+
+```
+gh pr view <branch> --json number,url 2>NUL   # an existing PR's number and URL; errors when none exists
+gh pr create --head <branch> --title "<human-id>: <one-line summary>" --body "<mirrors WHAT SHIPPED>"
+```
+
+Create only when the view found nothing; a re-entry after a push-back already has its PR, and the new commits appear on it. Either way, put the URL in your handoff move-note as a Markdown link, `[PR #<n>](<url>)`, so the operator and any PR-reading tool navigate straight to it from the card. A pushed branch with no PR is an incomplete handoff.
+
 ## Reference verification
 
 Every user-facing string that names a destination (a URL, a page, a button, a route, a command, a settings location, a card ID, a "see X") must point at something that exists in the codebase or in this diff. Otherwise correct the copy, or file the destination as a follow-on card and record its absence in WHAT I CUT.
 
 ## Exits
 
-**Forward: take the destination from the lane, never from this column.** Read the lane block on your claim response and move to the stage after Implement on the lane this card is actually on. That is Code Review on every lane today. When lane data and prose disagree, the lane data wins.
+**Forward: take the destination from the lane, never from this column.** Read the lane block on your claim response and move to the stage after Implement on the lane this card is actually on. That is Agent Code Review on every lane today. When lane data and prose disagree, the lane data wins.
 
-The handoff move-note carries `## WHAT SHIPPED` and `## WHAT I CUT` as Markdown headings on their own lines (the exit gate rejects bare prefixes); the cuts are the reviewer's and tester's map of what is NOT verified.
+The handoff move-note carries `## WHAT SHIPPED` and `## WHAT I CUT` as Markdown headings on their own lines (the exit gate rejects bare prefixes); the cuts are the reviewer's and tester's map of what is NOT verified. The same note carries the `[PR #<n>](<url>)` link and lists any pending `owner="operator"` questions, so the reviewer and then the operator's station see them coming.
 
-**Back:** one column, with a note. **Halt:** block in place for an operator ruling.
+**Back:** one column, with a note. **Halt:** block in place for an operator ruling the work cannot proceed without.

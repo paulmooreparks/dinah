@@ -7,7 +7,7 @@ Write the spec: the contract another reader could implement without further ques
 
 Field discipline: description stays a one-paragraph framing, spec carries the contract, body absorbs rationale and alternatives. Acceptance criteria, open questions, and decisions go in structured checklist items (kind=acceptance_criterion / open_question / decision), never as prose headings in the spec field. A description that arrives carrying spec content (acceptance criteria, out-of-scope lists, implementation prescriptions, enumerable deliverables) goes back to Design Queue with a suggested one-paragraph rewrite; a merely thin description gets refined in place.
 
-Write every prose surface to the workbench document **"Prose standard"** from the first draft: the spec field, checklist text, documents, published copy. Agent Review holds prose against that standard's tell list, so a spec written without it buys a review cycle a first draft would have avoided. Its meaning-preservation rules matter here in the authoring direction too: when the contract needs an exclusion, write the "X, not Y" and keep it, because the standard protects load-bearing antitheses rather than banning them.
+Write every prose surface to the workbench document **"Prose standard"** from the first draft: the spec field, checklist text, documents, published copy. Agent Design Review holds prose against that standard's tell list, so a spec written without it buys a review cycle a first draft would have avoided. Its meaning-preservation rules matter here in the authoring direction too: when the contract needs an exclusion, write the "X, not Y" and keep it, because the standard protects load-bearing antitheses rather than banning them.
 
 ### Open questions, and who they belong to
 
@@ -15,7 +15,7 @@ Don't fabricate; record an open question instead. Every question you leave pendi
 
 The note still carries the reasoning, the recommendation and the tradeoffs, and it is no longer where the addressee lives. Prose cannot be filtered, counted or routed, which is how a card raising five questions for its own next implementer adds five items to the operator's queue.
 
-An `owner="operator"` question is answered at Operator Review, not at the end of the pipeline. When you finish with such a question still pending, route the card sideways to Operator Review/Ready with the questions named in the move-note, exactly as you would for an artifact awaiting acceptance; the question's default gate on the board's output queue stays as a backstop, never as the plan. Pass `gate_column=""` at file time when the question is deliberately non-blocking; that is an ordinary act rather than a workaround.
+An `owner="operator"` question is answered at Operator Design Review, which the lane places two stages ahead of you, directly after Agent Design Review. A question the spec can be finished around simply rides the card forward and gets answered at that station; name it in your move-note so the reviewer and then the operator see it coming. The question's default gate on the board's output queue stays as a backstop, never as the plan. Pass `gate_column=""` at file time when the question is deliberately non-blocking; that is an ordinary act rather than a workaround.
 
 A question that makes the spec undeliverable does not travel at all: file it, then `block_card(card_id, kind="operator_decision", reason=<the question, posed so it can be answered without opening the card>)` before the card moves anywhere. The block clears your claim and halts the card here; only the operator lifts it, so nothing follows the block, no move and no release.
 
@@ -25,7 +25,7 @@ A `decision` item records a call that has already been made. Filing one closes t
 
 Two tests apply before you file. Ask first whether the call commits the operator to something durable and awkward to reverse, such as the shape of their repository's history, a published interface, a stored data format, a price, or anything a customer will see. Ask second what your stated justification rests on. If it contains a claim about the operator's world that you have not verified, meaning what their trunk actually looks like, how they run another project, or what they would prefer, then you are guessing and the guess is carrying the argument.
 
-A call that fails either test is an open question. File it as one, stamp it `owner="operator"`, put your recommendation and its tradeoffs in the note, and let the operator rule. When the operator agrees with you, asking cost one line of confirmation. When a wrong call ships as a resolved decision, it costs an implementation, because nobody downstream questions a decision that already reads as settled.
+A call that fails either test is an open question. File it as one, stamp it `owner="operator"`, put your recommendation and its tradeoffs in the note, and let the operator rule at their station. When the operator agrees with you, asking cost one line of confirmation. When a wrong call ships as a resolved decision, it costs an implementation, because nobody downstream questions a decision that already reads as settled.
 
 Verify claims about this repository before you rest a decision on one. Most of them are a `git log` away. Put the count in the note.
 
@@ -39,21 +39,17 @@ The branch belongs to the card rather than to a stage, and whichever stage first
 
 ### Artifacts the operator will have to accept
 
-If this card produced something whose form nobody can test until a person accepts it, say so explicitly in the move-note and name the acceptance criterion that approval would create. A UX sketch is the common case; an external interface, a change to how the board itself works, published copy and a customer-facing schema are the others.
+If this card produced something whose form nobody can test until a person accepts it, the operator will rule on it at Operator Design Review, which every lane through this column runs. Your job is to name the cargo, not to route it: say in the move-note what the artifact SHOWS and state the one-line acceptance criterion the operator's approval would create. A UX sketch is the common case; an external interface, a change to how the board itself works, published copy and a customer-facing schema are the others.
 
-**Move the card to Operator Review/Ready yourself when you produced such an artifact.** You are closer to it than anyone downstream, and on lanes with no Agent Review stage you are the only stage that can route it. Do not rely on a later reviewer to notice.
+Say what the artifact shows, not only where it lives. A path tells the operator a file exists and leaves them to find out what is in it, which is how a ruling gets given on a summary instead of on the thing. Name the sections, name what differs between the options, and name the detail that decides it.
 
-Say what the artifact SHOWS, not only where it lives. A path tells the operator a file exists and leaves them to find out what is in it, which is how a ruling gets given on a summary instead of on the thing. Name the sections, name what differs between the options, and name the detail that decides it.
-
-Naming it is not optional politeness. If you produced a UX sketch and say nothing, the card can reach an implementer with no criterion governing the form it builds.
+Naming it is not optional politeness. If you produced a UX sketch and say nothing, the operator waves the card through their station blind, and it reaches an implementer with no criterion governing the form it builds.
 
 ### Exits
 
-**Forward: take the destination from the lane, never from this column.** Read the lane block on your claim response and move the card to the stage after Spec on the lane it is actually on. That is Agent Review on most lanes and Build Queue on lanes that have no review stage. When the lane data and any prose disagree about a neighbour, the lane data wins.
+**Forward: take the destination from the lane, never from this column.** Read the lane block on your claim response and move the card to the stage after Spec on the lane it is actually on. That is Agent Design Review on the lanes that run this column. When the lane data and any prose disagree about a neighbour, the lane data wins.
 
-Move forward when the spec stands: the contract is complete, every criterion is testable, and every question is resolved or carries an owner. The move-note summarises the contract in two sentences and names any artifact awaiting approval, along with the branch it is on.
-
-**Sideways:** to Operator Review/Ready when this card produced an artifact the operator must accept, or carries a pending `owner="operator"` question, per the sections above.
+Move forward when the spec stands: the contract is complete, every criterion is testable, and every question is resolved or carries an owner. The move-note summarises the contract in two sentences, lists any pending operator questions, and names any artifact awaiting approval along with the branch it is on and the criterion its approval would create.
 
 **Back:** push to Design Queue when the card's shape is wrong, meaning it is really two cards, or a duplicate, or its description carries spec content.
 

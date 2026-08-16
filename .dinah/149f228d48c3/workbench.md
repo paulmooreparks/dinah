@@ -5,19 +5,20 @@ levels:
   severity: [trivial, minor, major, critical]
   priority: [later, soon, next, now]
 groups:
-  DESIGN: [2f6c18c9f5d0, ca3badf49985, 0d86ad99cdbc]
-  BUILD: [0789fd2dbefd, 4fda9c9ca779, 4b38abe7ebd5]
+  DESIGN: [2f6c18c9f5d0, ca3badf49985, 0d86ad99cdbc, 5729d4578008]
+  BUILD: [0789fd2dbefd, 4fda9c9ca779, 4b38abe7ebd5, ee29487fad76]
   VERIFY: [c9428b3bc921, 6c5b9d6f4414, b69abf918c42]
 states:
   - 5ea2db0272fc   # Intake
   - a2eb2436b77d   # Triage
   - 2f6c18c9f5d0   # Design Queue
   - ca3badf49985   # Spec
-  - 0d86ad99cdbc   # Agent Review
-  - 5729d4578008   # Operator Review
+  - 0d86ad99cdbc   # Agent Design Review
+  - 5729d4578008   # Operator Design Review
   - 0789fd2dbefd   # Build Queue
   - 4fda9c9ca779   # Implement
-  - 4b38abe7ebd5   # Code Review
+  - 4b38abe7ebd5   # Agent Code Review
+  - ee29487fad76   # Operator Code Review
   - c9428b3bc921   # Test
   - 6c5b9d6f4414   # Merge
   - b69abf918c42   # Acceptance
@@ -25,9 +26,9 @@ states:
 ---
 This bench holds the definition of the hosted board on which Dinah itself is
 being built, extracted by hand into the on-disk format this repository
-specifies. It carries that board's thirteen states in board order, the three
-groups that file nine of those states (Intake, Triage, Operator Review and
-Done sit in none), and its two level sets. It carries no
+specifies. It carries that board's fourteen states in board order, the three
+groups that file eleven of those states (Intake, Triage and Done sit in
+none), and its two level sets. It carries no
 cards, and it is not a mirror of anything happening now. The hosted board
 stays the arbiter of live work until somebody deliberately cuts over, so a
 reader who wants to know where a piece of work actually stands should look
