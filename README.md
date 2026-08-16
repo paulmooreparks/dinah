@@ -20,9 +20,7 @@ Under the hood, Dinah is a reference implementation of a shared coordination con
 
 Dinah is a recursive acronym: **Dinah Is Not A Harness.**
 
-The expansion is the scope statement. Dinah coordinates work: it knows which card is where, who holds it, what the instructions at each station say, and what moves are legal. It does not run agents, call models, or manage anyone's tools; the harness around the agents is deliberately somebody else's job, and any harness can drive a Dinah workbench.
-
-The project was developed under the code name yokoten, the Toyota Production System term for deploying a practice proven in one place horizontally to everywhere it applies. The name moved on, and the practice stayed. A workbench definition is a working method made portable, and every shipped template began as a live board that already worked somewhere.
+Dinah coordinates work. It knows which card is where, who holds it, what the instructions at each station say, and which moves are legal. Running agents, calling models, and managing tools are deliberately left to the harness, and any harness can drive a Dinah workbench.
 
 ## Status
 
