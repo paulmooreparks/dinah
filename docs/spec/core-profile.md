@@ -592,11 +592,11 @@ statement that names it:
 
 ```
 unknown-card, unknown-state, unsupported-version, held, not-requester,
-blocked, not-holder, at-capacity, not-operator, no-operator, no-owner,
-no-reason, terminal, malformed, layer-collision
+blocked, not-blocked, not-holder, at-capacity, not-operator,
+no-operator, no-owner, no-reason, terminal, malformed, layer-collision
 ```
 
-One of the fifteen is general where the others are particular. Something
+One of the sixteen is general where the others are particular. Something
 offered to a tool without what section 5 requires it to carry is refused as
 `malformed`, because a separate name for each missing title and each absent
 member would leave a caller holding a dozen names it cannot act on
@@ -835,9 +835,20 @@ workbench, and an owner that could block and unblock at will would be pausing
 its own work privately rather than raising an obstacle anybody else has to
 see.
 
+An unblock asked of a card that is not blocked is refused rather than
+granted quietly. The verb lifts an obstacle, and a card carrying no
+obstacle has nothing to lift, so a tool reporting success would tell its
+caller the request had an effect the card never received. The caller most
+likely to ask is an automated one working from knowledge that has gone out
+of date, and a refusal tells it what it got wrong where a success would
+hide it. The condition is evaluated after the one naming the operator, so
+an owner that is not the operator is refused `not-operator` whatever the
+card's substate.
+
 ```
-1  the card exists                 unknown-card
-2  whoever asks is the operator    not-operator
+1  the card exists                     unknown-card
+2  whoever asks is the operator        not-operator
+3  the card's substate is `blocked`    not-blocked
 ```
 
 Effect: the substate becomes `ready`.
@@ -847,6 +858,8 @@ Effect: the substate becomes `ready`.
 [CORE-UNBLOCK-2] A tool MUST refuse an unblock asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
 
 [CORE-UNBLOCK-3] A tool MUST NOT set a card's substate away from `blocked` as a consequence of any verb other than unblock.
+
+[CORE-UNBLOCK-4] A tool MUST refuse an unblock of a card whose substate is not `blocked`, reporting the refusal name `not-blocked`.
 
 ### 6.8 History
 
@@ -993,7 +1006,7 @@ quietly.
 | Card identity and required fields | in | A card handed between tools has to survive the trip, and the four required fields are the fewest that keep its position meaningful. | | CORE-CARD-1, CORE-CARD-2, CORE-CARD-3, CORE-CARD-4, CORE-CARD-8, CORE-CARD-9 |
 | The substate, and the claim's dependence on it | in | Waiting and being worked are different situations, and a claim that ignored the difference would let two owners take up one card. | | CORE-CARD-5, CORE-CARD-6, CORE-CARD-7, CORE-CLAIM-1, CORE-CLAIM-6, CORE-MOVE-2 |
 | The pull invariant | in | Work here is taken and never handed out, which is what makes a flow pull rather than push. The invariant is stated as a rule about agency rather than about capacity, because a rule about capacity binds only the workbenches that declare a limit, and a tool declaring none would otherwise conform while pushing work at people. CORE-CLAIM-7 carries it: the owner that asks is the owner the claim names, so nobody assigns a card to anybody else. The limit below is the capacity layer built on top of that, not the invariant itself. | | CORE-CLAIM-7 |
-| The unblock verb, reserved to the operator | in | A block with no defined lift is a one-way door, and reserving the lift is what keeps a block from becoming a private pause the blocker alone can end. | | CORE-UNBLOCK-1, CORE-UNBLOCK-2, CORE-UNBLOCK-3 |
+| The unblock verb, reserved to the operator | in | A block with no defined lift is a one-way door, and reserving the lift is what keeps a block from becoming a private pause the blocker alone can end. The verb's answer when there is nothing to lift belongs to the same row, because a caller that cannot tell a lift from a request that changed nothing cannot drive the verb without watching it. | | CORE-UNBLOCK-1, CORE-UNBLOCK-2, CORE-UNBLOCK-3, CORE-UNBLOCK-4 |
 | The reason on a block, as free prose | in | The obstacles that stop real work are various, and a closed list would send whoever hits an unlisted one to the nearest wrong answer. | | CORE-BLOCK-1, CORE-BLOCK-2, CORE-BLOCK-5 |
 | The kind on a block, as an open value | in | Counting obstacles by class is worth having, and leaving the values open costs nothing because no rule hangs on them. | | CORE-BLOCK-4 |
 | The owner and operator identity model | in | Every act names who took it, and several rules turn on whether that owner is the operator, so the concept cannot be deferred, and a workbench that designates none has reserved acts nobody can take. Whether a name is proved is left to deployment, which is what lets one tool serve one person and another serve many. | | CORE-OWNER-1, CORE-OWNER-2, CORE-OWNER-3 |
@@ -1244,6 +1257,7 @@ themselves carry meaning.
 | CORE-UNBLOCK-1 | must | tool | The tool offers a verb after which a `blocked` card reads `ready`. |
 | CORE-UNBLOCK-2 | must | tool | An unblock asked for by an owner that is not the operator is refused with `not-operator`. |
 | CORE-UNBLOCK-3 | must not | tool | No verb other than unblock leaves a card that was `blocked` in another substate. |
+| CORE-UNBLOCK-4 | must | tool | An unblock of a card whose substate is not `blocked` is refused with `not-blocked`. |
 | CORE-HIST-1 | must | tool | After each of the five verbs, the card's history carries an entry with a time, an owner and the verb's name. |
 | CORE-HIST-2 | must | tool | After a claim lapses, the history carries an entry with the time, attributed to the owner whose claim lapsed. |
 | CORE-HIST-3 | must not | tool | History read after later acts still carries every earlier act unchanged. |
@@ -1267,7 +1281,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 115 rows, which is the number of identifiers an extraction
+The index carries 116 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
