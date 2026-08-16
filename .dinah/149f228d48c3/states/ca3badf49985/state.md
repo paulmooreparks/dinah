@@ -7,6 +7,8 @@ Write the spec: the contract another reader could implement without further ques
 
 Field discipline: description stays a one-paragraph framing, spec carries the contract, body absorbs rationale and alternatives. Acceptance criteria, open questions, and decisions go in structured checklist items (kind=acceptance_criterion / open_question / decision), never as prose headings in the spec field. A description that arrives carrying spec content (acceptance criteria, out-of-scope lists, implementation prescriptions, enumerable deliverables) goes back to Design Queue with a suggested one-paragraph rewrite; a merely thin description gets refined in place.
 
+Write every prose surface to the workbench document **"Prose standard"** from the first draft: the spec field, checklist text, documents, published copy. Agent Review holds prose against that standard's tell list, so a spec written without it buys a review cycle a first draft would have avoided. Its meaning-preservation rules matter here in the authoring direction too: when the contract needs an exclusion, write the "X, not Y" and keep it, because the standard protects load-bearing antitheses rather than banning them.
+
 ### Open questions, and who they belong to
 
 Don't fabricate; record an open question instead. Every question you leave pending must carry an **owner**, which is a stored field rather than a sentence: file it with `owner="holder"` when whoever works the card next answers it in the course of the work, and with `owner="operator"` when the ruling is genuinely the operator's. An unstamped question is read everywhere downstream as needing the operator, so leaving the owner off is a decision to put the card in his queue rather than an absence of one. Make that decision here.

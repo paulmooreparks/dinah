@@ -40,6 +40,10 @@ Two carry a specific exit, so treat them as procedure rather than judgement.
 
 Name the rules you checked in your findings comment, and say which surfaces the card touches and which documents you read for them. A review that names neither has not done this step.
 
+## The prose standard is a review dimension
+
+The workbench document **"Prose standard"** governs every prose surface a spec produces: the spec field, checklist item text, documents, and any published copy the card designs. Read it, hold the arriving prose against its tell list, and tag violations as findings like any other class. Two of its rules bind you specifically. When a finding asks for a rewrite of existing prose, the standard's hard constraint applies to the fix you are requesting: meaning cannot change, and an "X, not Y" antithesis is often the specification, so the finding must say what to remove without removing what the sentence promises. And name the tell when you push back ("colon-splice as default shape", "aphoristic closer"), because a finding that just says "reads machine-written" is not actionable.
+
 ### What else to review against
 
 The three-field discipline, testable acceptance criteria, resolved-or-routed open questions, real linked dependencies, explicit out-of-scope cuts, and the workbench's product framing; you are the primary gate for that framing.

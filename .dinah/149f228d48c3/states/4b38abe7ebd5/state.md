@@ -33,6 +33,10 @@ Report the result in your findings comment: which entries you checked, and which
 
 When you catch a defect whose class is not yet in the corpus, and the same class has now been caught twice, append it as a new wrong/right pair. That promotion practice is what keeps the corpus worth reading, and it is the only mechanism this board has for turning a lesson into something the next reviewer inherits.
 
+## Prose in the diff is reviewed against the prose standard
+
+The workbench document **"Prose standard"** governs any prose this diff touches: README and docs changes, user-facing copy, comments in card fields, and the WHAT SHIPPED note itself. Hold that prose against the standard's tell list and tag violations as findings. Its hard constraint cuts both ways here. A diff that rewrites existing prose gets checked for meaning drift word by word: a dropped qualifier, a deleted negative clause, or a weakened commitment is a [major] even when the style improved, because the antithesis a rewrite is tempted to cut is often the specification. And a finding you write asking for a prose fix must itself say what to remove without removing what the sentence promises. Name the tell when you tag one; "reads machine-written" is not actionable.
+
 ## Copy references are load-bearing
 
 For every user-facing string that names a destination (a URL, a page, a button, a route, a command, a "see X", a "configured under X"), grep that the destination exists or is created in this diff. A plausible reference to vapor is a [blocker]; the copy gets corrected or the destination gets a follow-on card.
