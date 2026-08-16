@@ -14,6 +14,16 @@ import (
 // CORE-OUT-6 makes observable: the two workbench-level checks first, then the
 // card's existence, then the basis, then the verb's own list in the order
 // section 6 declares it.
+//
+// The whole of that evaluation happens under the card's lock, which is what
+// makes a mutation one transaction rather than a decision followed by a write.
+// The reference is resolved first, because the lock lives inside the card's
+// own directory and there is nothing to lock until the card is found; the
+// card is then read again under the lock, so the revision the basis is
+// compared against and the substate every precondition reads are the ones on
+// disk at the moment of the write rather than a snapshot taken before it. Two
+// processes reaching the same card therefore cannot both see it ready, since
+// the second is refused the lock outright.
 func (l *Library) Do(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -22,9 +32,20 @@ func (l *Library) Do(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	card := found.Card
+	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	card, err := bench.LoadCard(l.Bench.CardsRoot(), found.Card.ID)
+	if err != nil {
+		return l.FromError(req, err)
+	}
 	if err := l.lapse(card); err != nil {
 		return l.FromError(req, err)
+	}
+	if l.Interleave != nil {
+		l.Interleave()
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
 		response := &Response{
@@ -65,6 +86,10 @@ func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 // lapse applies an expired claim. Expiry is evaluated at the moment any verb
 // or read touches the card, because a single-seat local tool runs no
 // background process, and the lapse is journaled when it is noticed.
+//
+// It writes, so its caller holds the card's lock. A verb calls it inside its
+// own transaction; a read calls it through lapseRead, which takes the lock
+// itself.
 func (l *Library) lapse(card *bench.Card) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
@@ -295,14 +320,42 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 	return response
 }
 
-// commit writes a mutation as one transaction: the card lock, the anchor
-// write through a temporary and a rename, and the journal append.
-func (l *Library) commit(req *Request, card *bench.Card, ev bench.Event) (*Response, error) {
-	lock, err := bench.Acquire(card.Dir, req.Actor, bench.Stamp(l.Now()))
+// lapseRead applies an expired claim from a read path, taking the card's lock
+// for the write and re-reading the card under it.
+//
+// A lock another process holds means somebody is mid-transaction on this
+// card, and that transaction lapses the claim itself, so the read leaves the
+// card alone rather than failing: a read has no business refusing because a
+// write is in flight.
+func (l *Library) lapseRead(card *bench.Card) error {
+	if !card.Lapsed(l.Now()) {
+		return nil
+	}
+	lock, err := bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	defer lock.Release()
+	fresh, err := bench.LoadCard(l.Bench.CardsRoot(), card.ID)
+	if err != nil {
+		return nil
+	}
+	if !fresh.Lapsed(l.Now()) {
+		*card = *fresh
+		return nil
+	}
+	if err := l.lapse(fresh); err != nil {
+		return err
+	}
+	*card = *fresh
+	return nil
+}
+
+// commit finishes a mutation inside the transaction its caller opened: the
+// anchor write through a temporary and a rename, then the journal append. The
+// card's lock is already held by Do, which is what keeps the decision and the
+// write on the same side of it.
+func (l *Library) commit(req *Request, card *bench.Card, ev bench.Event) (*Response, error) {
 	if err := card.Save(); err != nil {
 		return nil, err
 	}

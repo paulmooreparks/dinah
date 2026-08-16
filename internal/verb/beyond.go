@@ -93,6 +93,14 @@ func (l *Library) Comment(req *Request) *Response {
 		return l.refuse(req, found.Card, contract.Malformed, "text")
 	}
 	now := bench.Stamp(l.Now())
+	// The comment is its own entity, so its identifier needs no lock, but the
+	// event lands in the card's journal and that journal belongs to the card,
+	// so the write happens under the card's own lock like any other.
+	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
 	comment, err := bench.AddComment(found.Card.Dir, req.Actor, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)

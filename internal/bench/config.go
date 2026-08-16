@@ -181,3 +181,35 @@ func GlobalInstructions(home string) string {
 	}
 	return text
 }
+
+// SlugPattern is the shape a workbench slug has to take, as the reference
+// grammar fixes it: an ASCII letter followed by ASCII letters and digits.
+// The slug is the half of a card reference a person types, so it stays inside
+// the character set every filesystem and every shell agrees about.
+const SlugPattern = "^[a-z][a-z0-9]*$"
+
+// Slugify derives a conforming slug from a name that need not conform, which
+// is what a bench created in a directory called "My Project" needs. Letters
+// lowercase by ASCII rules, digits survive, everything else is dropped, and a
+// leading run of digits goes with it, since the grammar wants a letter first.
+//
+// A name yielding nothing usable returns the empty string, and the caller
+// refuses rather than inventing a name of its own.
+func Slugify(name string) string {
+	lowered := asciiLower(name)
+	var kept []byte
+	for i := 0; i < len(lowered); i++ {
+		c := lowered[i]
+		letter := c >= 'a' && c <= 'z'
+		digit := c >= '0' && c <= '9'
+		if letter || (digit && len(kept) > 0) {
+			kept = append(kept, c)
+		}
+	}
+	return string(kept)
+}
+
+// ValidSlug reports whether a slug already conforms to SlugPattern.
+func ValidSlug(slug string) bool {
+	return slug != "" && Slugify(slug) == slug
+}

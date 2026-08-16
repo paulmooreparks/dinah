@@ -18,6 +18,13 @@ type Library struct {
 	// Now is the clock. It is a field so that a test can advance time past
 	// a recorded expiry without waiting for it.
 	Now func() time.Time
+	// Interleave, when set, is called inside a mutation's transaction, after
+	// the card has been read under its lock and before any precondition is
+	// evaluated against it. It exists so that a test can drive a second
+	// process into the middle of a transaction and observe that the lock
+	// refuses it there, which is the window a lock taken only around the
+	// write would leave open.
+	Interleave func()
 }
 
 // New returns a library over an opened bench, on the real clock.

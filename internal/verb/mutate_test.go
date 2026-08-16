@@ -17,8 +17,8 @@ import (
 //
 // Each case also drives the refusal it lands on, so the table covers
 // CORE-VERB-1, CORE-VERB-2, CORE-CLAIM-1, CORE-CLAIM-2, CORE-CLAIM-7,
-// CORE-MOVE-1, CORE-MOVE-2, CORE-MOVE-3, CORE-MOVE-6, CORE-BLOCK-2,
-// CORE-BLOCK-6 and CORE-UNBLOCK-2 as well.
+// CORE-MOVE-1, CORE-MOVE-2, CORE-MOVE-3, CORE-MOVE-6, CORE-MOVE-11,
+// CORE-BLOCK-2, CORE-BLOCK-6 and CORE-UNBLOCK-2 as well.
 func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -54,7 +54,10 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 			why:     "not-requester precedes blocked",
 		},
 		{
-			name: "claim reports the block before the held card",
+			// Not an ordering case: a block clears the claim, so no card is
+			// ever both blocked and active and the two checks cannot compete.
+			// This pins the refusal itself.
+			name: "claim on a blocked card reports blocked",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
 				h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "bob"})
@@ -62,7 +65,7 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 				return &Request{Verb: Claim, Card: ref, Actor: "alka"}
 			},
 			refusal: contract.Blocked,
-			why:     "blocked precedes held",
+			why:     "a blocked card is refused blocked whoever asks",
 		},
 		{
 			name: "move reports the destination before the override marker",
@@ -172,8 +175,9 @@ func TestWorkbenchChecksPrecedeEveryVerb(t *testing.T) {
 	}
 }
 
-// TestClaimTakesUpACard asserts CORE-CLAIM-3: a claim that succeeds sets the
-// substate to active and records the holder and the time.
+// TestClaimTakesUpACard asserts CORE-CLAIM-3 and CORE-CARD-6: a claim that
+// succeeds sets the substate to active and records the holder and the time,
+// which is also what makes an active card one that carries both.
 func TestClaimTakesUpACard(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("claimable")
@@ -281,13 +285,21 @@ func TestForwardMoveOutOfDoneIsTerminal(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("finished")
 	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: finished})
+	// CORE-STATE-9: the same card is offered no forward move at all, so the
+	// refusal below is not the only place the rule shows.
+	for _, move := range h.library.legalMoves(h.card(ref)) {
+		if move.Direction == Forward {
+			t.Errorf("CORE-STATE-9: a card in a done state was offered the forward move %s", move.State)
+		}
+	}
 	response := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", State: aftercare})
 	if response.Refusal != contract.Terminal {
 		t.Fatalf("wanted terminal on a forward move out of a done state, got %s %s", response.Outcome, response.Refusal)
 	}
 }
 
-// TestReleaseGivesTheCardBack asserts CORE-RELEASE-1 and CORE-RELEASE-2.
+// TestReleaseGivesTheCardBack asserts CORE-RELEASE-1 and CORE-RELEASE-2, and
+// with them the half of CORE-CARD-7 that says a ready card carries no holder.
 func TestReleaseGivesTheCardBack(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("releasable")
@@ -302,9 +314,10 @@ func TestReleaseGivesTheCardBack(t *testing.T) {
 	}
 }
 
-// TestBlockRaisesAnObstacle asserts CORE-BLOCK-3, CORE-BLOCK-4 and
-// CORE-BLOCK-5: the effect, the optional kind, and the reason not being
-// restricted to any closed set.
+// TestBlockRaisesAnObstacle asserts CORE-BLOCK-1, CORE-BLOCK-3, CORE-BLOCK-4
+// and CORE-BLOCK-5: the reason a blocked card carries, the effect, the
+// optional kind, and the reason not being restricted to any closed set. The
+// removed holder is the other half of CORE-CARD-7.
 func TestBlockRaisesAnObstacle(t *testing.T) {
 	h := newHarness(t)
 	for _, reason := range []string{"the printer is on fire", "waiting on the caterer"} {
@@ -381,7 +394,18 @@ func TestInstructionsAreServedAsThreeLayers(t *testing.T) {
 		t.Errorf("state layer: got %q", served.Instructions.State)
 	}
 	if len(served.LegalMoves) == 0 {
-		t.Error("CORE-INSTR-7: wanted the legal moves alongside the instructions")
+		t.Fatal("CORE-INSTR-7: wanted the legal moves alongside the instructions")
+	}
+	// CORE-STATE-7: the moves reported include one to the next state in the
+	// declared list, which is the departure a flow exists to offer.
+	next := false
+	for _, move := range served.LegalMoves {
+		if move.State == doing && move.Direction == Forward {
+			next = true
+		}
+	}
+	if !next {
+		t.Errorf("CORE-STATE-7: the legal moves omit the next state: %+v", served.LegalMoves)
 	}
 
 	global := filepath.Join(h.home, bench.UserBaseName, bench.InstructionsName)
@@ -498,7 +522,8 @@ func TestTiesBreakByIdentifier(t *testing.T) {
 	}
 }
 
-// TestHistoryNeverResolvesAgainstTheBench asserts CORE-HIST-4 to CORE-HIST-6:
+// TestHistoryNeverResolvesAgainstTheBench asserts CORE-HIST-1 and CORE-HIST-4
+// to CORE-HIST-6:
 // the recorded acts keep their order and carry the titles as they stood, so a
 // state renamed after a move still reads under its old title.
 func TestHistoryNeverResolvesAgainstTheBench(t *testing.T) {
@@ -569,5 +594,102 @@ func TestNextOffersWithoutTaking(t *testing.T) {
 		if offer.State != h.library.Bench.States[i].ID {
 			t.Errorf("position %d: wanted %s, got %s", i, h.library.Bench.States[i].ID, offer.State)
 		}
+	}
+}
+
+// TestTheCardLockCoversTheWholeTransaction asserts that a mutation decides and
+// writes on the same side of the card's lock.
+//
+// The Interleave hook drives a second library, over the same bench and so
+// standing for a second process, into the middle of the first one's
+// transaction: after the card has been read under its lock and before any
+// precondition is evaluated. That is the window a lock taken only around the
+// write would leave open, and a second claim landing in it would read the card
+// as ready, be admitted, and then be overwritten by the first write, changing
+// the holder by a path CORE-CLAIM-6 does not admit.
+func TestTheCardLockCoversTheWholeTransaction(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("contested")
+
+	second, err := bench.Open(h.root)
+	if err != nil {
+		t.Fatalf("open a second view of the bench: %v", err)
+	}
+	other := New(second, h.home)
+	other.Now = h.library.Now
+
+	var intruder *Response
+	h.library.Interleave = func() {
+		intruder = other.Do(&Request{Verb: Claim, Card: ref, Actor: "bob"})
+	}
+	first := h.library.Do(&Request{Verb: Claim, Card: ref, Actor: "alka"})
+	h.library.Interleave = nil
+	h.reopen()
+
+	if first.Outcome != contract.OutcomeOK {
+		t.Fatalf("the first claim: wanted ok, got %s %s", first.Outcome, first.Refusal)
+	}
+	if intruder == nil {
+		t.Fatal("the interleaved claim never ran, so this test proves nothing")
+	}
+	if intruder.Outcome != contract.OutcomeRefused || intruder.Refusal != contract.Locked {
+		t.Errorf("the interleaved claim: wanted %s, got %s %s", contract.Locked, intruder.Outcome, intruder.Refusal)
+	}
+	card := h.card(ref)
+	if card.Holder != "alka" {
+		t.Errorf("holder: wanted alka, got %q", card.Holder)
+	}
+	claims := 0
+	for _, ev := range h.events(ref) {
+		if ev.Event == contract.EventClaimed {
+			claims++
+		}
+	}
+	if claims != 1 {
+		t.Errorf("wanted one claim recorded, got %d", claims)
+	}
+}
+
+// TestALapseNoticedByAReadTakesTheLock asserts that a read noticing an expired
+// claim writes under the card's lock like any other mutation, and that a read
+// finding the lock held leaves the card alone rather than failing, since the
+// process holding it lapses the claim itself.
+func TestALapseNoticedByAReadTakesTheLock(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("leased")
+	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "bob", Expires: time.Hour})
+	h.advance(2 * time.Hour)
+	h.reopen()
+
+	// With the card's lock held by somebody else, the read reports what it
+	// found and writes nothing.
+	held, err := bench.Acquire(h.card(ref).Dir, "someone", bench.Stamp(h.clock))
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	if _, err := h.library.List(&Request{Verb: "ls"}); err != nil {
+		t.Fatalf("a read against a locked card should not fail: %v", err)
+	}
+	if card := h.card(ref); card.Substate != contract.SubstateActive {
+		t.Errorf("the read wrote through another process's lock, leaving %s", card.Substate)
+	}
+	held.Release()
+
+	// With the lock free, the same read applies the lapse and journals it.
+	if _, err := h.library.List(&Request{Verb: "ls"}); err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	card := h.card(ref)
+	if card.Substate != contract.SubstateReady || card.Holder != "" {
+		t.Errorf("after the lapse: wanted ready with no holder, got %s %q", card.Substate, card.Holder)
+	}
+	lapses := 0
+	for _, ev := range h.events(ref) {
+		if ev.Event == contract.EventExpired {
+			lapses++
+		}
+	}
+	if lapses != 1 {
+		t.Errorf("wanted one expiry recorded, got %d", lapses)
 	}
 }

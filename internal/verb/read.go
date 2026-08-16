@@ -66,6 +66,9 @@ func (l *Library) Status(req *Request) (*Status, error) {
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
+		if err := l.lapseRead(card); err != nil {
+			return nil, err
+		}
 		counts[card.State]++
 		if card.Holder != "" && card.Holder == req.Actor {
 			status.Holding = append(status.Holding, *l.view(card))
@@ -139,6 +142,9 @@ func (l *Library) List(req *Request) (*Listing, error) {
 		if wanted != nil && card.State != wanted.ID {
 			continue
 		}
+		if err := l.lapseRead(card); err != nil {
+			return nil, err
+		}
 		if req.ReadyOnly && card.Substate != contract.SubstateReady {
 			continue
 		}
@@ -176,6 +182,11 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 			return nil, contract.Refuse(contract.UnknownState, req.State)
 		}
 		states = []*bench.State{wanted}
+	}
+	for _, card := range cards {
+		if err := l.lapseRead(card); err != nil {
+			return nil, err
+		}
 	}
 	offers := make([]Offer, 0, len(states))
 	for _, state := range states {
@@ -248,7 +259,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		return nil, text, nil
 	}
 	card := found.Card
-	if err := l.lapse(card); err != nil {
+	if err := l.lapseRead(card); err != nil {
 		return nil, "", err
 	}
 	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}

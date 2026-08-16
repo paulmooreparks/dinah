@@ -351,3 +351,98 @@ func TestLockRefusesRatherThanBreaking(t *testing.T) {
 	}
 	second.Release()
 }
+
+// TestLanguageLadderResolvesFirstHitWins asserts the display-language ladder
+// the format's own section fixes: the flag, then DINAH_LANG, then the user
+// config, then the operating system locale as a hint, then English, with each
+// layer set in turn while the layers above it are unset.
+func TestLanguageLadderResolvesFirstHitWins(t *testing.T) {
+	cases := []struct {
+		name   string
+		flag   string
+		env    map[string]string
+		config string
+		wanted string
+	}{
+		{name: "English when no layer carries one", wanted: "en"},
+		{name: "the OS locale as a hint, region and all", env: map[string]string{"LANG": "cs_CZ.UTF-8"}, wanted: "cs-CZ"},
+		{
+			name:   "the config beats the OS locale",
+			env:    map[string]string{"LANG": "cs_CZ.UTF-8"},
+			config: "es",
+			wanted: "es",
+		},
+		{
+			name:   "DINAH_LANG beats the config",
+			env:    map[string]string{"LANG": "cs_CZ.UTF-8", "DINAH_LANG": "de"},
+			config: "es",
+			wanted: "de",
+		},
+		{
+			name:   "the flag beats every layer below it",
+			flag:   "hi",
+			env:    map[string]string{"LANG": "cs_CZ.UTF-8", "DINAH_LANG": "de"},
+			config: "es",
+			wanted: "hi",
+		},
+		{
+			name:   "a regional tag keeps its region in the catalogs' spelling",
+			flag:   "en-uk",
+			wanted: "en-GB",
+		},
+		{
+			name:   "the C locale describes no reader, so it is not a hint",
+			env:    map[string]string{"LANG": "C.UTF-8"},
+			wanted: "en",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			for _, name := range []string{"DINAH_LANG", "LC_ALL", "LC_MESSAGES", "LANG"} {
+				t.Setenv(name, c.env[name])
+			}
+			settings := LoadConfig(t.TempDir())
+			if c.config != "" {
+				if err := settings.Set("lang", c.config); err != nil {
+					t.Fatalf("config: %v", err)
+				}
+			}
+			if got := ResolveLang(c.flag, settings); got != c.wanted {
+				t.Errorf("wanted %s, got %s", c.wanted, got)
+			}
+		})
+	}
+}
+
+// TestSlugsAreDerivedToTheGrammar asserts that a slug taken from a directory
+// name is made to conform to the reference grammar, and that a name yielding
+// nothing usable yields nothing rather than something invented.
+func TestSlugsAreDerivedToTheGrammar(t *testing.T) {
+	cases := []struct {
+		name   string
+		wanted string
+	}{
+		{name: "proj", wanted: "proj"},
+		{name: "My Project", wanted: "myproject"},
+		{name: "dinah-3", wanted: "dinah3"},
+		{name: "2026-notes", wanted: "notes"},
+		{name: "PROJ", wanted: "proj"},
+		{name: "...", wanted: ""},
+		{name: "42", wanted: ""},
+	}
+	for _, c := range cases {
+		got := Slugify(c.name)
+		if got != c.wanted {
+			t.Errorf("%q: wanted %q, got %q", c.name, c.wanted, got)
+		}
+		if got != "" && !ValidSlug(got) {
+			t.Errorf("%q: the derived slug %q does not conform", c.name, got)
+		}
+	}
+	if ValidSlug("") {
+		t.Error("an empty slug should not be valid")
+	}
+	if ValidSlug("My Project") {
+		t.Error("a slug outside the grammar should not be valid")
+	}
+}
