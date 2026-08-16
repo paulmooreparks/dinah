@@ -9,6 +9,8 @@ Landing a change and observing it are different things, and this column is the g
 
 Claim the card while you are reviewing it. The rule against working an unclaimed card covers operators too.
 
+A card arriving here with a pending `owner="operator"` open question was misrouted: questions are answered at Operator Review, or at the block where they arose, and never presented for acceptance. If you are the operator, answer the question before judging the card; anyone else blocks the card with the question as the reason rather than working around it.
+
 ### What acceptance means here
 
 Something has to have used the change. A command has been run, a changed path has carried real work rather than a fixture. A card whose change nothing has touched has not been accepted; it has merely aged, and moving it on records a confidence nobody earned.

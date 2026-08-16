@@ -15,7 +15,7 @@ Don't fabricate; record an open question instead. Every question you leave pendi
 
 The note still carries the reasoning, the recommendation and the tradeoffs, and it is no longer where the addressee lives. Prose cannot be filtered, counted or routed, which is how a card raising five questions for its own next implementer adds five items to the operator's queue.
 
-An `owner="operator"` question takes the board's output queue as its default gate, so the card runs its pipeline and stops before it ships rather than halting where it stands. Pass `gate_column=""` at file time when the question is deliberately non-blocking; that is an ordinary act rather than a workaround.
+An `owner="operator"` question is answered at Operator Review, not at the end of the pipeline. When you finish with such a question still pending, route the card sideways to Operator Review/Ready with the questions named in the move-note, exactly as you would for an artifact awaiting acceptance; the question's default gate on the board's output queue stays as a backstop, never as the plan. Pass `gate_column=""` at file time when the question is deliberately non-blocking; that is an ordinary act rather than a workaround.
 
 A question that makes the spec undeliverable does not travel at all: file it, then `block_card(card_id, kind="operator_decision", reason=<the question, posed so it can be answered without opening the card>)` before the card moves anywhere. The block clears your claim and halts the card here; only the operator lifts it, so nothing follows the block, no move and no release.
 
@@ -53,7 +53,7 @@ Naming it is not optional politeness. If you produced a UX sketch and say nothin
 
 Move forward when the spec stands: the contract is complete, every criterion is testable, and every question is resolved or carries an owner. The move-note summarises the contract in two sentences and names any artifact awaiting approval, along with the branch it is on.
 
-**Sideways:** to Operator Review/Ready when this card produced an artifact the operator must accept, per the section above.
+**Sideways:** to Operator Review/Ready when this card produced an artifact the operator must accept, or carries a pending `owner="operator"` question, per the sections above.
 
 **Back:** push to Design Queue when the card's shape is wrong, meaning it is really two cards, or a duplicate, or its description carries spec content.
 
