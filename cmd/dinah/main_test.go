@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestPrintIdentification asserts that the identification line names dinah and
+// says that no contract verbs are implemented yet.
 func TestPrintIdentification(t *testing.T) {
 	var buf bytes.Buffer
 	printIdentification(&buf)

@@ -33,6 +33,14 @@ If a test already covers the behaviour you changed, extending it satisfies this 
 
 Any prose this card produces (README and docs changes, user-facing copy, error text with sentences in it, and the WHAT SHIPPED note) is written to the workbench document **"Prose standard"**. Agent Code Review holds it against that standard's tell list, so write to it the first time. When the card rewrites existing prose, the standard's hard constraint applies before style does: meaning cannot change, and the negative clause you are tempted to cut is often the requirement.
 
+## Go source is written to the Go style standard
+
+The workbench document **"Go style standard"** governs every Go file this card touches, and reading it belongs before the code rather than after a review returns it.
+
+Two of its rules produce work at this stage. Run `gofmt -l .` before you hand off and fix whatever it names, because the gofmt job on the pull request runs the same command and any file it lists fails the workflow. And search for prior art before writing a new function, which on a tree this size is `grep -rn '^func ' cmd internal`, then say in WHAT SHIPPED which existing helper you reused or that you searched and none existed. A WHAT SHIPPED silent on reuse is an incomplete handoff.
+
+A new module dependency is named in WHAT SHIPPED together with the standard-library route you rejected and what made it insufficient.
+
 ## A diff that outgrows its lane goes back rather than forward
 
 A Fix-lane card is entitled to skip Test because its blast radius is bounded. When the work turns out to touch schema, migrations, auth, a published contract, or more than one behavioural surface, that entitlement is gone: move the card to Design Queue with a note naming what a spec would have to settle, rather than finishing it on the short path.

@@ -62,11 +62,17 @@ type Document struct {
 
 // Defect is one mechanical fault, reported with enough context to fix it.
 type Defect struct {
+	// Line is the one-based line number the fault was found on.
 	Line int
+	// Text is the offending line, or the identifier itself when the fault
+	// is a duplicate identifier.
 	Text string
-	Why  string
+	// Why names the fault, phrased for a reader who is about to fix it.
+	Why string
 }
 
+// String renders the defect as a single line carrying its line number, the
+// fault, and the text it was found in.
 func (d Defect) String() string {
 	return fmt.Sprintf("line %d: %s: %s", d.Line, d.Why, d.Text)
 }
