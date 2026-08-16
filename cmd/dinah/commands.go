@@ -71,7 +71,6 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		State:       parsed.value("state"),
 		Kind:        parsed.value("kind"),
 		Description: parsed.value("description"),
-		Basis:       parsed.value("basis"),
 		Override:    parsed.has("override"),
 		Replace:     parsed.has("replace"),
 		Confirm:     parsed.has("yes"),
@@ -346,7 +345,16 @@ func runInit(s *session, parsed *arguments) int {
 	if operator == "" {
 		return s.fail(contract.NoOwner, "")
 	}
-	slug := bench.Ladder(parsed.value("slug"), filepath.Base(root))
+	// A slug given by hand is taken as given and checked; one derived from
+	// the directory name is made to conform, since a directory is named by
+	// whoever made it and the grammar is not theirs to satisfy.
+	slug := parsed.value("slug")
+	if slug == "" {
+		slug = bench.Slugify(filepath.Base(root))
+	}
+	if !bench.ValidSlug(slug) {
+		return s.fail(contract.Malformed, "slug")
+	}
 	if err := verb.Init(root, slug, operator, parsed.value("from")); err != nil {
 		return reportError(s.errw, s.r, err)
 	}

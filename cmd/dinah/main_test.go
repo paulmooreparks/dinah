@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/profile"
 	"dinah/internal/verb"
@@ -139,6 +140,14 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a delete carrying no confirmation", argv: []string{"delete", "fx-1"}, code: 2, token: contract.Unconfirmed},
 		{name: "a guide topic nothing answers to", argv: []string{"guide", "nothing"}, code: 2, token: contract.UnknownGuide},
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
+		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath},
+		{name: "an archive of a state cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
+		{name: "an init into a directory that already holds a bench", argv: []string{"init"}, code: 2, token: contract.Exists},
+		{name: "an extract into a directory that already holds one", argv: []string{"extract", "."}, code: 2, token: contract.Exists},
+		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
+		// The explicit basis arrives with the remote arbiter, so this head
+		// offers no way to write one and the flag is not understood.
+		{name: "an explicit basis, which v0 does not offer", argv: []string{"claim", "fx-1", "--basis", "sha256:0000"}, code: 2, token: contract.Usage},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -441,5 +450,205 @@ func TestEveryCatalogKeyTheCodeNamesExists(t *testing.T) {
 				t.Errorf("%s: the code renders the key %q, which the base catalog does not carry", entry.Name(), key)
 			}
 		}
+	}
+}
+
+// limitedDefinition is a flow with a capacity limit and a station past the
+// done station, which is what the refusals below need and the default flow
+// `init` writes does not carry.
+const limitedDefinition = `{
+  "profile": "dinah-core/1.0",
+  "title": "Limited",
+  "states": [
+    { "id": "b00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "b00000000002", "title": "Doing", "kind": "work", "capacity": 1 },
+    { "id": "b00000000003", "title": "Finished", "kind": "done" },
+    { "id": "b00000000004", "title": "Aftercare", "kind": "work" }
+  ]
+}`
+
+// TestTheRemainingRefusalsLeadStderr sweeps the refusal names the first table
+// cannot reach without a fixture of their own, so that between the two every
+// name a CLI invocation can provoke is asserted through stderr.
+//
+// Four names are structurally unreachable here and are driven at the library
+// level instead: not-requester, because the cli head's claim takes no holder
+// argument and so can never name one other than the asker; layer-collision,
+// because v0 validates no layer declaration; dinah.locked, which needs a
+// second process holding the card mid-transaction; and dinah.no-editor, which
+// needs an environment carrying no editor at any rung and no fallback binary
+// on the path.
+func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
+	cases := []struct {
+		name  string
+		build func(*testing.T) (string, []string)
+		token string
+	}{
+		{
+			name: "a destination that has reached its limit",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				runCLI(t, root, "add", "First")
+				runCLI(t, root, "add", "Second")
+				runCLI(t, root, "move", "lim-1", "Doing")
+				return root, []string{"move", "lim-2", "Doing"}
+			},
+			token: contract.AtCapacity,
+		},
+		{
+			name: "a forward move out of a done state",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				runCLI(t, root, "add", "First")
+				runCLI(t, root, "move", "lim-1", "Finished")
+				return root, []string{"move", "lim-1", "Aftercare"}
+			},
+			token: contract.Terminal,
+		},
+		{
+			name: "an invocation resolving no owner at any rung",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				runCLI(t, root, "add", "First")
+				t.Setenv("DINAH_ACTOR", "")
+				return root, []string{"claim", "lim-1"}
+			},
+			token: contract.NoOwner,
+		},
+		{
+			name: "a bench designating no operator",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				runCLI(t, root, "add", "First")
+				editAnchor(t, root, "operator: alka\n", "")
+				return root, []string{"claim", "lim-1"}
+			},
+			token: contract.NoOperator,
+		},
+		{
+			name: "a bench declaring a profile major this binary does not implement",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				editAnchor(t, root, "profile: dinah-core/1.0", "profile: dinah-core/9.0")
+				return root, []string{"status"}
+			},
+			token: contract.UnsupportedVer,
+		},
+		{
+			name: "no bench anywhere above the working directory",
+			build: func(t *testing.T) (string, []string) {
+				empty := t.TempDir()
+				t.Setenv("DINAH_HOME", filepath.Join(empty, "home"))
+				t.Setenv("DINAH_BENCH", "")
+				return empty, []string{"status"}
+			},
+			token: contract.NoBench,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir, argv := c.build(t)
+			got := runCLI(t, dir, argv...)
+			if got.code != 2 {
+				t.Errorf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+			}
+			leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+			if leading != c.token {
+				t.Errorf("leading token: wanted %s, got %q", c.token, got.errw)
+			}
+		})
+	}
+}
+
+// newLimitedBench builds a bench from limitedDefinition and returns its
+// directory.
+func newLimitedBench(t *testing.T) string {
+	t.Helper()
+	base := t.TempDir()
+	root := filepath.Join(base, "bench")
+	source := filepath.Join(base, "definition.json")
+	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+	t.Setenv("DINAH_LANG", "")
+	t.Setenv("DINAH_FORMAT", "")
+	t.Setenv("DINAH_BENCH", "")
+	if err := os.WriteFile(source, []byte(limitedDefinition), 0o644); err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, root, "init", "--from", source, "--slug", "lim", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	return root
+}
+
+// editAnchor rewrites the workbench anchor, which is how the cases above build
+// a bench that a hand edit has put outside what the tool will serve.
+func editAnchor(t *testing.T, root, from, to string) {
+	t.Helper()
+	path := filepath.Join(root, "workbench.md")
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.Contains(string(text), from) {
+		t.Fatalf("the anchor carries no %q", from)
+	}
+	edited := strings.Replace(string(text), from, to, 1)
+	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+}
+
+// guideInvocation matches a dinah command line inside a guide's fenced block.
+var guideInvocation = regexp.MustCompile(`(?m)^dinah ([a-z_]+)((?: [^\n]*)?)$`)
+
+// guideFlag matches a long flag inside such a line.
+var guideFlag = regexp.MustCompile(`--([a-z-]+)`)
+
+// TestTheGuidesTeachOnlyDeclaredFlags asserts the reference rule against the
+// shipped guides: every command a guide teaches exists, and every flag it
+// spells is one that command declares or one of the global flags.
+//
+// This is the guard the cycle-one review's third finding wanted. The guide
+// taught `dinah init --slug proj` while the generated help named only
+// `--from`, and nothing in the suite could see the disagreement, because the
+// help fixture counts commands rather than flags.
+func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
+	global := map[string]bool{}
+	for _, flag := range globalFlags {
+		global[flag.name] = true
+	}
+	checked := 0
+	for _, topic := range guide.Topics() {
+		text, err := guide.Text(topic)
+		if err != nil {
+			t.Fatalf("guide %s: %v", topic, err)
+		}
+		for _, invocation := range guideInvocation.FindAllStringSubmatch(text, -1) {
+			name, rest := invocation[1], invocation[2]
+			if _, ok := lookup(name); !ok {
+				t.Errorf("%s: the guide teaches the command %q, which the binary does not offer", topic, name)
+				continue
+			}
+			declared := map[string]bool{}
+			for _, param := range verb.Params(name) {
+				if param.Flag {
+					declared[param.Name] = true
+				}
+			}
+			for _, flag := range guideFlag.FindAllStringSubmatch(rest, -1) {
+				checked++
+				if declared[flag[1]] || global[flag[1]] {
+					continue
+				}
+				t.Errorf("%s: the guide teaches `dinah %s --%s`, which %s does not declare", topic, name, flag[1], name)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no flagged invocation was found in any guide, so this test proves nothing")
 	}
 }

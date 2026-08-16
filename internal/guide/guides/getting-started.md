@@ -7,8 +7,15 @@ put it under git alongside the project it belongs to.
 Create one where the work is:
 
 ```
-dinah init --slug proj
+dinah init --slug proj --operator alka
 ```
+
+The slug is what a card reference is built from, so `proj-1` names the first
+card you file; leave it out and Dinah derives one from the directory name. The
+operator is the owner who answers for the bench, and every bench designates
+one, because blocks are lifted by the operator alone and a bench with nobody
+in that seat has acts nobody can perform. Leave it out and Dinah records
+whoever you are acting as.
 
 That writes `workbench.md`, which carries the flow and the standing
 instructions, and a `states/` directory holding one file per station. Open

@@ -36,7 +36,6 @@ var outOfReach = map[string]string{
 	"CORE-LAYER-1": "a bench-declared extension kind is a definition surface v0 neither writes nor validates",
 	"CORE-LAYER-2": "the same surface, read from the other side: an extension's content is preserved by the frontmatter rule rather than by a layer mechanism v0 implements",
 	"CORE-LAYER-3": "the same surface again: v0 validates no layer declaration, so it can refuse none",
-	"CORE-BLOCK-1": "an obligation on a blocked card rather than on a verb, asserted through the block effect and the fsck invariant",
 	"CORE-STATE-4": "a permission the fixture exercises by declaring an operator-owned state",
 	"CORE-STATE-5": "a permission the fixture exercises by declaring a capacity limit",
 	"CORE-CARD-8":  "a permission the interchange round trip exercises by carrying an undefined field",
@@ -50,16 +49,10 @@ var outOfReach = map[string]string{
 	"CORE-STATE-1": "a duplicate state identifier is refused when the bench is opened, on a definition v0 writes rather than accepts from a caller",
 	"CORE-STATE-2": "a state with no title is refused when the bench is opened",
 	"CORE-STATE-3": "a state whose kind is outside the three is refused when the bench is opened",
-	"CORE-STATE-7": "the legal moves a claim and a move carry include the next state, which the instruction tests assert as a whole rather than statement by statement",
-	"CORE-STATE-9": "the same list carries no forward move out of a done state, asserted through the terminal refusal instead",
 	"CORE-CARD-5":  "every card the tool reports carries one of the three substates by construction, since the reader defaults an absent one to ready",
-	"CORE-CARD-6":  "asserted through the claim effect rather than as a reporting rule of its own",
-	"CORE-CARD-7":  "asserted through the release and block effects, and through the fsck invariant that catches the converse",
 	"CORE-OWNER-1": "every act names its owner by construction, since the journal writer takes the actor from a request the ladder resolved",
 	"CORE-TEXT-1":  "every text the tool writes is UTF-8 by construction, since Go strings are and nothing transcodes",
-	"CORE-HIST-1":  "asserted through the history test, which reads the acts the five verbs record rather than naming this statement per verb",
 	"CORE-HIST-3":  "the journal is append-only by construction: nothing in the tool opens one for rewriting",
-	"CORE-MOVE-11": "asserted through the ordering table, whose override case is refused not-operator",
 }
 
 // TestConformanceReport maps every CORE statement the v0 surface reaches to

@@ -9,9 +9,14 @@ import (
 // valuedFlags are the flags that take a value. Every other flag the tool
 // accepts is a marker, so an unknown flag is refused rather than swallowing
 // the argument behind it.
+//
+// There is no --basis here on purpose. The library carries a basis on every
+// mutating request and computes one automatically, but an explicit basis is
+// the remote arbiter's, and the spec defers the flag to that era, so this head
+// offers no way to write one.
 var valuedFlags = []string{
 	"bench", "lang", "actor", "state", "expires", "kind",
-	"from", "description", "slug", "basis", "operator",
+	"from", "description", "slug", "operator",
 }
 
 // markerFlags are the flags that carry no value.

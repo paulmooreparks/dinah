@@ -25,7 +25,7 @@ READ
   guide [topic]                          the embedded guides, or one of them
 
 BENCH
-  init [--from <source>]                 create a bench here, optionally from a template
+  init [--from <source>] [--slug <slug>] [--operator <actor>] create a bench here, optionally from a template
   export                                 write this bench's interchange form to stdout
   extract <dir>                          copy this bench's definition out as a template
   path <card|path>                       print the file path of a card or of anything below it
