@@ -19,3 +19,19 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
       - run: go test -count=1 ./...
+
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would reformat:"
+            echo "$unformatted"
+            exit 1
+          fi
