@@ -284,7 +284,8 @@ ordered states, and whatever a state carries.
 **Kind.** The nature of a thing, drawn from a declared set. A state's kind is
 one of three and says whether cards enter there, are worked there, or come to
 rest there. A block's kind names the class of the obstacle and is drawn from
-whatever set a workbench finds useful.
+whatever set a workbench finds useful. A link's kind names what one card is
+to another and is drawn from whatever set a workbench finds useful.
 
 **Flow.** The ordered sequence of a workbench's states.
 
@@ -300,6 +301,9 @@ person reads and which may change without changing identity.
 to, unique in its context, which never changes.
 
 **Field.** One named value carried on a card.
+
+**Link.** A reference one card carries to another card of the same workbench,
+naming a kind and the card it points to.
 
 **Substate.** The condition of a card within its state, drawn from a closed
 set of three, which says whether the card is waiting, being worked, or held
@@ -566,6 +570,49 @@ with the meanings RFC 8259 gives them.
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
 [CORE-JSON-8] A tool MAY hold a workbench definition in any form, provided it can produce the interchange form of that definition on request.
+
+### 5.8 Links between cards
+
+A card sometimes has something to say about another card. One card repeats work
+another card already covers, one came out of another, one bears on another. A
+tool that cannot record that leaves its owners to write the other card's
+identifier into a piece of prose, where a second tool reading the same
+workbench finds text rather than a reference.
+
+A link is that record and nothing more. It names a kind and the card it points
+to, and the card it is recorded on is the card that carries it. The profile
+attaches no behaviour to one. No verb consults a link, no queue orders itself
+differently because a card carries one, and no refusal this profile declares
+follows from one. What a workbench does about a link is for the people reading
+it, or for a layer that declares itself and says so under its own name.
+
+The kind is an open value on the same ground as a block's kind. Nothing in the
+contract enforces a meaning for it, so fixing the spellings here would bind
+every workbench to a vocabulary this document cannot justify. Two tools
+exchanging a workbench exchange the kinds they find and leave them alone.
+
+The card a link names is a card of the same workbench. The profile is scoped to
+one workbench throughout, and a reference reaching outside it would be the
+first thing in the model that resolves nowhere. A link naming a card the
+workbench does not carry is refused under the name the profile already uses
+when a verb names one.
+
+A card offered carrying a link with no kind and naming a card the workbench
+does not carry fails two checks at once. The tiers of section 6.1 order them,
+since what a thing names has to exist before anything is evaluated against it,
+so `unknown-card` is reported and `malformed` is not.
+
+[CORE-LINK-1] A card MAY carry links.
+
+[CORE-LINK-2] Every link MUST carry a kind and the identifier of the card it names.
+
+[CORE-LINK-3] A tool MUST refuse a link offered to it naming a card its workbench does not carry, reporting the refusal name `unknown-card`.
+
+[CORE-LINK-4] A tool MUST NOT restrict a link's kind to a closed set of values.
+
+[CORE-LINK-5] A tool MUST NOT report a refusal name this profile declares for a claim, a move, a release, a block or an unblock refused on the ground of a link.
+
+[CORE-LINK-6] A tool MUST NOT add a link to a card as a consequence of a link another card carries.
 
 ## 6. The verbs
 
@@ -1045,7 +1092,8 @@ quietly.
 | Measurement and reporting over a workbench's history | out | History is already in the core, and a measurement is a reading of it. Fixing the measurements would freeze somebody's dashboard into the contract. | Two tools must produce identical numbers from identical history. | |
 | Free prose attached to a card by its readers [comments] | out | The core loses nothing, because no verb consults prose, and a workbench can hold conversation in any field it likes. | A recorded act needs to reference a piece of that prose. | |
 | Structured items on a card recording judgements | out | The core would gain a second bookkeeping model whose vocabulary each workbench defines differently. A real run wanted these badly, which is why the reopen condition is close at hand. | Such an item is used to refuse a move, which would put the refusal in the contract. | |
-| Typed relationships between cards | out | The core gains a simpler model, and a card that names another can already do so in a field the profile does not define. | A relationship must refuse an act, such as one card holding another back. | |
+| The link a card carries to another card | in | Owners record that one card repeats, follows from or bears on another whether or not the contract has a place for it, and a reference kept in prose is text to the second tool rather than a reference. The kind stays open on the same ground as a block's kind, since nothing in the core consults it, and the card a link names stays inside the workbench because the profile is scoped to one throughout. The behaviour such a reference might carry is a separate concept and is ruled out in the row below. | | CORE-LINK-1, CORE-LINK-2, CORE-LINK-3, CORE-LINK-4, CORE-LINK-5, CORE-LINK-6 |
+| Behaviour attached to a reference between cards [dependency ordering, ready-work listing] | out | The core would gain enforcement whose meaning each workbench sets differently, and what a workbench should do about a reference is exactly the judgement that differs between them. A tool that wants one card to hold another back declares a layer and refuses under that layer's own name, which CORE-LINK-5 leaves it free to do. | A relationship must refuse an act, such as one card holding another back. | |
 | Documents belonging to a workbench rather than a card | out | Standing prose already has a home in the workbench's instructions, so a second one would be a slot with no rule attached. | A document must be served differently from the standing instructions. | |
 | A state that buffers for a downstream state | out | The core already has capacity limits and arrival order, which is what a buffer is made of, and the extra kind would add a name without adding a rule. | A buffer needs a rule that a plain state cannot express. | |
 | Charging a downstream state's budget at the moment a card is taken from a buffer | out | The core has no notion of a budget, so there is nothing yet to charge. | A budget enters the core, at which point the moment it is charged matters. | |
@@ -1053,7 +1101,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 32. Rows ruled out: 22. Total rows: 54.
+Rows ruled in: 33. Rows ruled out: 22. Total rows: 55.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1073,6 +1121,11 @@ two quotes and write down why the chosen one won.
 Priya writes a card titled "Flowers for the tables" into Ideas, where it
 waits at substate `ready`. Two others are already waiting there, and the
 queue puts hers third because it arrived last.
+
+Priya notices that a card in Ideas titled "Table centrepieces" covers the same
+work as the flowers card. She records a link on it, of kind `duplicates`,
+naming the flowers card. Nothing about either card changes, both stay where
+they are, and Sam decides later which of the two they keep.
 
 She takes the next card from Ideas, which is the earliest arrival rather than
 hers, and moves it to Deciding. The tool serves her the standing instructions
@@ -1152,8 +1205,9 @@ Also exercised: the capacity count including a card of every substate, the
 pull invariant on a claim, the operator's override and its marker, the
 attribution of an expiry, the claim surviving a move, the queue's arrival
 order, the two layers of instructions served together, the recorded history
-with its titles as of the act, and the interchange form carrying
-unrecognized fields across.
+with its titles as of the act, the link one card carries to another,
+consulted by nothing, and the interchange form carrying unrecognized fields
+across.
 
 ## 11. Index of normative statements
 
@@ -1216,6 +1270,12 @@ themselves carry meaning.
 | CORE-JSON-6 | may | tool | A state object carrying `instructions`, `operator_owned` or `capacity` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
+| CORE-LINK-1 | may | tool | A card offered with a link is accepted. |
+| CORE-LINK-2 | must | tool | A card offered carrying a link with no kind, or a link naming no card, is refused with `malformed`. |
+| CORE-LINK-3 | must | tool | A link naming a card the workbench does not carry is refused with `unknown-card`. |
+| CORE-LINK-4 | must not | tool | Two links carrying unrelated arbitrary kinds are both accepted. |
+| CORE-LINK-5 | must not | tool | A claim, move, release, block or unblock refused because a card carries a link reports no refusal name this profile declares. |
+| CORE-LINK-6 | must not | tool | A card another card's link names carries no link the tool added. |
 | CORE-OUT-1 | must | tool | Every verb response carries exactly one of the four outcome tokens. |
 | CORE-OUT-2 | must | tool | Every response of `refused` carries exactly one refusal name. |
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
@@ -1281,7 +1341,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 116 rows, which is the number of identifiers an extraction
+The index carries 122 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
