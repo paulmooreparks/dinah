@@ -41,8 +41,9 @@ that organize attachments.
 
 Everything else in a bench is one of two lesser things: content (prose
 bodies, attachment payloads), which belongs to the human and carries no
-imposed shape, or declarations (levels, groups, the states list), which are
-configuration inside an entity's anchor and have no identity of their own.
+imposed shape, or declarations (levels, groups, the states list, a card's
+links), which are configuration inside an entity's anchor and have no
+identity of their own.
 An attachment shows the three-way split at its clearest. The entity wraps
 its payload, carrying identity, metadata, and a journaled lifecycle around
 bytes the format never inspects.
@@ -641,6 +642,45 @@ the wedding-planning test trivially. Whether workstreams land in the
 contract core or an extension is a boundary-table ruling; the format
 supports them either way.
 
+## Card-to-card links
+
+A card may record what it is to another card. `card.md` frontmatter carries a
+`links:` sequence, and each entry maps a kind to the id of the card it names.
+
+```yaml
+links:
+  - kind: duplicates
+    to: 4f2c19ab77e0
+  - kind: relates
+    to: 9a01bd44c3f1
+```
+
+A link is a declaration rather than an entity. It has no identity of its own,
+nothing accumulates on it and it bears no journal, so it earns no directory,
+by the reasoning that already keeps a declared level out of one. It is
+card-owned by the single-writer logic that governs position and workstream
+membership, so the card carrying the link is the only file that changes when
+the link is added or removed, and deleting a card takes its links with it.
+
+Nothing in the tool reads a link. Pull order does not consult one, no verb
+refuses because of one, and the CLI shows a card's links and computes nothing
+over them. A bench that wants dependency ordering or a listing of the work
+whose predecessors are done declares an extension under a dotted name and
+builds it there.
+
+The kind is an open enum by the rule that settles the question, since no
+contract behavior hangs on its members. The registry marks it open and carries
+`duplicates` and `relates` as suggested spellings, so that two benches meaning
+the same thing tend to write it the same way. A bench writing something else
+is conforming.
+
+The id a link names is checked the way every other frontmatter reference is:
+fsck reports a `to:` that resolves to no card. The id space spans the live and
+archived halves of the cards collection, so archiving the card a link names
+leaves the link resolvable and deleting that card does not. Deletion is not
+refused on account of an inbound link. Refusing it would be a reference
+refusing an act, which is the thing the profile's boundary table rules out.
+
 ## Severity and priority
 
 Severity and priority are both optional, workbench-declared level sets. A
@@ -888,11 +928,6 @@ point being exercised.
 - The journal event schema, normatively: required fields per event kind
   (the shape is settled by the worked example; the profile still owes the
   normative statement of it).
-- Card-to-card links. The Alka flow already produces a real case (a ticket
-  found to duplicate another), and Andoneer's link kinds with gate semantics
-  are on the excluded-candidate list, so the open question is whether a
-  minimal semantics-free link (kind plus target id in frontmatter) earns a
-  place before lanes and gates do.
 - Branching and lanes, when the linear flow stops being enough; the Alka
   bench already contains one prose shortcut that will eventually force this.
 - Human handles: whether cards get a slug or number alias for CLI ergonomics,
