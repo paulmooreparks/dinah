@@ -49,14 +49,9 @@ is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
 implements.
 
-The identity string itself is provisional, and this paragraph is
-non-normative. `dinah-core` names the contract after the first tool that
-implements it, and whether the published contract keeps that name or takes a
-neutral one belonging to neither implementation is a decision reserved to
-whoever publishes this document. The string rides inside a conformance claim
-and inside the `profile` member of section 5.7, so a reader building against
-this revision should expect the name, and only the name, to be settled before
-the document leaves the `dev` channel.
+The paragraph is non-normative. The identity string names the contract after
+the first tool that implements it. The string rides inside a conformance
+claim and inside the `profile` member of section 5.7.
 
 [CORE-VER-1] A tool that claims conformance MUST name the major number and the minor number of the profile version it conforms to.
 
@@ -97,6 +92,13 @@ A patch increment carries editorial change alone. A minor increment adds
 statements, weakens the keyword of an existing statement, or does both. A
 major increment retires a statement, strengthens one, or carries any change
 the rules below cannot classify.
+
+One thing outside the extracted list is carried by the same discipline. The
+order in which section 6 states its checks decides which refusal name a
+conforming tool reports, so a revision that changes that order takes a major
+increment under DOC-ORDER-1 even though the extraction is unchanged. The
+comparison stays mechanical, because the orders are published as fixed lists
+and two revisions' lists compare as text.
 
 Two rules make the classification mechanical rather than a judgement about
 prose. First, the text of a published statement is frozen, so a change in
@@ -602,6 +604,43 @@ differently. Where a more particular name fits, that name is reported
 instead, so a card naming a state its workbench does not declare is
 `unknown-state` rather than `malformed`.
 
+Two refusals belong to the workbench rather than to any verb, and they are
+evaluated before the verb's own list. CORE-BENCH-4 refuses a workbench whose
+declared major number the tool does not implement, and CORE-OWNER-3 refuses a
+workbench that designates no operator. A tool that cannot read the definition
+cannot evaluate anything a verb requires of it, and a workbench with nobody
+answering for it cannot be acted on whatever the verb is, so both sit ahead
+of every list in 6.3 to 6.7:
+
+```
+1  the workbench declares a major number the tool implements   unsupported-version
+2  the workbench designates an operator                        no-operator
+```
+
+Each verb's list is derived rather than composed. Five tiers order the
+checks: what the request names has to exist before anything can be evaluated
+against it, then the request has to carry what the verb requires it to carry,
+then whoever asks has to be entitled to ask, then the card has to be in a
+condition the verb accepts, and last the destination has to be in a condition
+it accepts. Where two checks compete, the earlier tier decides. A fault in
+the request is reported ahead of a condition of the card, because a caller
+refused for a full destination may wait and ask again, while a caller whose
+request was never legal would meet a second refusal for a reason that was
+already true. The basis sits between the card's existence and the rest of the
+verb's list, as section 6.2 states. The lists in 6.3 to 6.7 govern, and the
+tiers say how each was built and how a verb added by a later revision
+acquires its order.
+
+[CORE-OUT-6] An outcome of `refused` MUST carry the refusal name of the first unsatisfied check in the order section 6 declares, which places the two checks preceding every verb ahead of the preconditions the verb's own subsection states.
+
+[DOC-ORDER-1] A revision that changes the order in which section 6 states a check MUST take a major increment.
+
+The order settles which name comes back when several checks fail together,
+and it settles nothing about which name fits a single failure. A refusal that
+arises from reading a workbench definition, a card or an interchange object
+is named by whichever statement carries it, and CORE-OUT-5 supplies
+`malformed` only where no more particular name does.
+
 ### 6.2 The basis
 
 An owner reads a card, decides something, and asks for a change, and between
@@ -616,6 +655,15 @@ card.
 [CORE-BASIS-3] A tool MUST NOT hold a basis on the card it names.
 
 [CORE-BASIS-4] A tool MUST carry the card's current revision in an outcome it reports as `stale`.
+
+A request may carry an out-of-date basis and fail a check as well. The basis
+is compared once the card has been found and before the rest of the verb's
+list, so an owner that decided on a card it has not read as that card now
+stands is told to read it again rather than told about a card it never saw.
+The revision CORE-BASIS-4 carries in the `stale` outcome is what it reads
+against.
+
+[CORE-BASIS-5] A tool MUST report `stale` for a request whose basis does not name the card's current revision even where a precondition stated by the verb's own subsection, other than the card's existence, is also unsatisfied.
 
 ### 6.3 Claim
 
@@ -634,12 +682,16 @@ much work a state accepts; this rule governs who decides that a piece of it
 begins. A tool wanting to point an owner at a card offers that owner the
 card, and the owner claims it or does not.
 
-Preconditions: the card exists, its substate is `ready`, the request names an
-owner, and the owner it names as holder is the owner asking. Effect: the
-substate becomes `active`, and the card carries its holder and the time.
-Failure modes: `unknown-card`, `no-owner`, `held` when somebody else has it,
-`blocked` when the card is held up, and `not-requester` when the claim names
-somebody other than whoever asked.
+```
+1  the card exists                                  unknown-card
+2  the request names an owner                       no-owner
+3  the owner named as holder is the owner asking    not-requester
+4  the card's substate is not `blocked`             blocked
+5  the card's substate is not `active`              held
+```
+
+Effect: the substate becomes `active`, and the card carries its holder and
+the time.
 
 [CORE-CLAIM-1] A tool MUST refuse a claim on a card whose substate is `blocked`, reporting the refusal name `blocked`.
 
@@ -663,13 +715,18 @@ implementations would otherwise answer opposite ways: a holder who moves a
 card still holds it afterwards, and a waiting card that is moved is still
 waiting.
 
-Preconditions: the card exists, the destination is a state the workbench
-declares, the card is not blocked, whoever asks either holds the card or the
-card is unheld, the destination is below its capacity limit or the request
-carries the operator's override marker, and the departure is legal for
-whoever asks. Effect: the card's state becomes the destination. Failure
-modes: `unknown-card`, `unknown-state`, `blocked`, `held`, `at-capacity`,
-`not-operator` and `terminal`.
+```
+1  the card exists                                      unknown-card
+2  the destination is a state the workbench declares    unknown-state
+3  an override marker, if carried, is the operator's    not-operator
+4  the departure is legal for whoever asks              not-operator
+5  the card's substate is not `blocked`                 blocked
+6  the card is unheld or held by whoever asks           held
+7  the move is not a forward move out of a `done` state terminal
+8  the destination is below its capacity limit          at-capacity
+```
+
+Effect: the card's state becomes the destination.
 
 Capacity is how a state says how much work it will hold. A card enters a
 state because that state has room, so a state whose limit is reached stops
@@ -718,9 +775,12 @@ Releasing gives a card back. An owner that has stopped working a card
 releases it, so that the queue is honest about what is available and nobody
 waits on somebody who has walked away.
 
-Preconditions: the card exists and whoever asks holds it. Effect: the
-substate becomes `ready` and the holder is removed. Failure modes:
-`unknown-card` and `not-holder`.
+```
+1  the card exists                 unknown-card
+2  whoever asks holds the card     not-holder
+```
+
+Effect: the substate becomes `ready` and the holder is removed.
 
 [CORE-RELEASE-1] A tool MUST refuse a release asked for by an owner that does not hold the card, reporting the refusal name `not-holder`.
 
@@ -744,10 +804,15 @@ as it treats a move of a held card. A holder blocks the card it holds, and an
 owner blocks a card nobody holds, but neither strips another owner's claim by
 raising an obstacle on their behalf.
 
-Preconditions: the card exists, the request names an owner, it carries a
-reason, and the card is either unheld or held by whoever asks. Effect: the
-substate becomes `blocked`, the card carries the reason, and the holder is
-removed. Failure modes: `unknown-card`, `no-owner`, `no-reason` and `held`.
+```
+1  the card exists                             unknown-card
+2  the request names an owner                  no-owner
+3  the request carries a reason                no-reason
+4  the card is unheld or held by whoever asks  held
+```
+
+Effect: the substate becomes `blocked`, the card carries the reason, and the
+holder is removed.
 
 [CORE-BLOCK-1] A block MUST carry a reason in prose.
 
@@ -770,9 +835,12 @@ workbench, and an owner that could block and unblock at will would be pausing
 its own work privately rather than raising an obstacle anybody else has to
 see.
 
-Preconditions: the card exists, its substate is `blocked`, and whoever asks
-is the operator. Effect: the substate becomes `ready`. Failure modes:
-`unknown-card` and `not-operator`.
+```
+1  the card exists                 unknown-card
+2  whoever asks is the operator    not-operator
+```
+
+Effect: the substate becomes `ready`.
 
 [CORE-UNBLOCK-1] A tool MUST offer a verb that sets a card whose substate is `blocked` to substate `ready`.
 
@@ -937,13 +1005,14 @@ quietly.
 | The capacity limit on a state | in | This is the capacity layer of the discipline, and it is what stops a state accepting more work than it can hold. It is optional per workbench, which is why the pull invariant above is stated separately rather than resting on it. | | CORE-STATE-5, CORE-MOVE-4, CORE-MOVE-5 |
 | The operator's override of a capacity limit, recorded as an override | in | A limit nobody can ever set aside gets worked around outside the tool, where nothing sees it. Requiring an explicit marker from the operator, and recording the resulting act as an override, keeps the exception inside the record. | | CORE-MOVE-9, CORE-MOVE-10, CORE-MOVE-11 |
 | The closed set of refusal names | in | A caller that cannot tell one refusal from another cannot decide what to do next, and a refusal reported as prose is a refusal nobody can act on. | | CORE-OUT-2, CORE-OUT-3, CORE-OUT-5 |
+| The order in which a tool evaluates its checks | in | Several mandatory refusals can apply to one request, and a caller that cannot predict which name comes back cannot decide what to do with the name it gets. The order fixes which name that is, and DOC-ORDER-1 puts the order under the same version discipline as the statements, so no later revision changes a tool's answer by rearranging a list. | | CORE-OUT-6, DOC-ORDER-1 |
 | The behaviour when an owner acts on a card another owner holds | in | This is the one place where two owners collide, and leaving it undefined would let one tool queue the second owner's request and another grant it. Claim, move, release and block are ruled together, because a block clears the claim and would otherwise be the way around the rule. | | CORE-CLAIM-2, CORE-MOVE-3, CORE-RELEASE-1, CORE-BLOCK-6 |
 | The layer declaration mechanism | in | Section 9 is required structure, and a profile that excluded concerns without saying how to add them back would be telling implementers to fork it. | | CORE-LAYER-1, CORE-LAYER-2, CORE-LAYER-3, DOC-LAYER-1, DOC-LAYER-2 |
 | The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-4 |
 | The conformance claim and what it is evaluated over | in | A claim nobody can check is a claim worth nothing, so the profile fixes what a claim names and which statements a run exercises. | | CORE-VER-1, CORE-VER-2, SUITE-CONF-1 |
 | This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-2, DOC-VER-3, DOC-VER-4, DOC-VER-5, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
 | The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-1, CORE-QUEUE-2 |
-| The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4 |
+| The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4, CORE-BASIS-5 |
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
 | The claim as a lease that may expire | in | An owner that disappears must not be able to hold a card forever, and expiry that is recorded rather than silent keeps the record honest. | | CORE-CLAIM-4, CORE-CLAIM-5, CORE-HIST-2 |
 | The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-6, CORE-JSON-7, CORE-JSON-8 |
@@ -971,7 +1040,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 31. Rows ruled out: 22. Total rows: 53.
+Rows ruled in: 32. Rows ruled out: 22. Total rows: 54.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1139,10 +1208,13 @@ themselves carry meaning.
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
 | CORE-OUT-4 | must | tool | With whatever answers for the workbench made unavailable, a verb reports `unreachable`. |
 | CORE-OUT-5 | must | tool | A definition, state, card or interchange object missing something the profile requires of it is refused with `malformed` wherever no more particular refusal name applies. |
+| CORE-OUT-6 | must | tool | A request failing two checks is refused with the name carried by the earlier of the two in the order section 6 declares. |
+| DOC-ORDER-1 | must | document | Two revisions stating section 6's checks in different orders differ by a major number. |
 | CORE-BASIS-1 | may | tool | A request carrying a basis is accepted. |
 | CORE-BASIS-2 | must | tool | A request whose basis names a superseded revision reports `stale`. |
 | CORE-BASIS-3 | must not | tool | The card written after a request carrying a basis carries no basis. |
 | CORE-BASIS-4 | must | tool | A response of `stale` carries the card's current revision. |
+| CORE-BASIS-5 | must | tool | A request carrying an out-of-date basis and failing a precondition other than the card's existence comes back `stale`. |
 | CORE-CLAIM-1 | must | tool | A claim on a `blocked` card is refused with `blocked`. |
 | CORE-CLAIM-2 | must | tool | A claim on a card another owner holds is refused with `held`. |
 | CORE-CLAIM-3 | must | tool | After a claim, the card reads `active`, names the claiming owner as holder, and carries a claim time. |
@@ -1195,7 +1267,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 112 rows, which is the number of identifiers an extraction
+The index carries 115 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
