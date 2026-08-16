@@ -1,7 +1,7 @@
 # The Dinah surfaces
 
 A note for readers arriving fresh: Andoneer, cited throughout, is the hosted,
-multi-seat implementation of the same coordination protocol, described in this
+multi-seat implementation of the same coordination contract, described in this
 repository's README under "Relationship to Andoneer".
 
 This document captures the architecture of Dinah's implementation and the
@@ -23,7 +23,7 @@ implementation of every verb no matter which protocol asked.
 The cautionary tale is git, which was never embeddable, so the ecosystem
 reimplemented it (libgit2 for embedders, JGit for the JVM), each lagging
 canonical git for years, while GUIs shelled out and scraped output. Dinah
-wants independent implementations of the protocol; it does not want its own
+wants independent implementations of the contract; it does not want its own
 CLI, MCP, HTTP, and LSP surfaces to be four of them.
 
 The language is Go: static single binary, trivial cross-compilation, stdlib

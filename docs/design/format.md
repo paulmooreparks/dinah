@@ -1,13 +1,13 @@
 # The Dinah on-disk format
 
 This document captures the design of Dinah's per-workbench storage as agreed
-in discussion. It is a working document, not the protocol profile; the profile
-will restate the parts of this that are protocol, in normative form, and leave
+in discussion. It is a working document, not the contract profile; the profile
+will restate the parts of this that are contract, in normative form, and leave
 the rest as implementation detail. Decisions recorded here are settled unless
 reopened. Open questions are collected at the end.
 
 A note for readers arriving fresh: Andoneer, cited throughout, is the hosted,
-multi-seat implementation of the same coordination protocol, described in this
+multi-seat implementation of the same coordination contract, described in this
 repository's README under "Relationship to Andoneer". It is cited here as
 design history, because much of this format encodes lessons that
 implementation paid for first, and as the named boundary for concerns this
@@ -227,7 +227,7 @@ when the bench is in a repository, is where the files synchronize: the
 content plane's transport, owned by git's own configuration and never
 duplicated into the bench. The bench's home, an optional `home:` URL in
 `workbench.md` frontmatter, is a live promise rather than a marker. The
-URL must host a Dinah-protocol instance answering on the exposed surfaces
+URL must host a contract-conforming instance answering on the exposed surfaces
 (the canonical-JSON verb contract and the mirror), so every bench that
 calls it home can expect a definitive answer at verb time, per "Verb
 outcomes and staleness", whose refused, stale, and unreachable outcomes
@@ -349,7 +349,7 @@ overlay, not entities and not core: no verb consults a group, and an
 implementation that ignores them loses only visual comfort. A `groups:` map
 in `workbench.md` frontmatter names lists of state ids, kept separate from
 the states list so the single authority for order stays intact; fsck checks
-only that the referenced ids resolve. Whether groups enter the protocol at
+only that the referenced ids resolve. Whether groups enter the contract at
 all is a boundary-table row.
 
 ### What "serve the instructions" composes
@@ -467,7 +467,7 @@ occupies a slot on every card whether the method wants it or not, while a
 collection under absence-means-empty is invisible until used. A board
 whose method never files a criterion carries no checklist anywhere. What
 is fixed is only the shape when used, which is what lets shared method
-packs speak one vocabulary. Whether protocol behavior ever attaches to
+packs speak one vocabulary. Whether contract behavior ever attaches to
 items (gating a move on unresolved items) is a boundary-table ruling, not
 assumed here.
 
@@ -541,7 +541,7 @@ is unrepresentable rather than guarded against.
 
 ## Language independence
 
-The rule is that `ready` is not an English word but a protocol token that
+The rule is that `ready` is not an English word but a contract token that
 happens to be mnemonic in English, the way HTTP's GET and git's commit are.
 Formats that localized their vocabulary are the cautionary tale (Excel
 translates formula names, so spreadsheets break crossing a border). Three
@@ -606,12 +606,12 @@ drift.
 
 ### Closed versus open enums
 
-An enum is closed when the protocol attaches behavior to its members:
+An enum is closed when the contract attaches behavior to its members:
 `substate`, `kind`, and the journal event set are closed, because the tool
 enforces their meanings and a member it has never heard of cannot be
 enforced. Adding a member is a spec change. An enum is open when only humans
 interpret it: severity and priority level sets are the proof case, declared
-per workbench, because no protocol behavior hangs on their members. The
+per workbench, because no contract behavior hangs on their members. The
 registry marks which is which, and this rule is the test that settles every
 future "should this be configurable?" argument.
 
@@ -629,7 +629,7 @@ The real use case is within-bench grouping of concurrent efforts (several
 concepts flowing through one concept bench at once), which is distinct from
 the portfolio machinery the exclusion-candidate list meant, and it passes
 the wedding-planning test trivially. Whether workstreams land in the
-protocol core or an extension is a boundary-table ruling; the format
+contract core or an extension is a boundary-table ruling; the format
 supports them either way.
 
 ## Severity and priority
@@ -681,8 +681,8 @@ Two version numbers with two audiences, never conflated:
   the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
   approximately once) is the model, and the ambition is to never bump it.
-- **Profile version.** The protocol's public promise, with the channel and
-  increment rules recorded with the protocol-profile work. Andoneer never
+- **Profile version.** The contract's public promise, with the channel and
+  increment rules recorded with the contract-profile work. Andoneer never
   reads `format:`; implementations meet through the JSON interchange, which
   declares the profile version it speaks.
 
@@ -775,7 +775,7 @@ arbiter. Turn-taking writers over git transport need none, which is why the
 remote story holds. The live arbiter for many writers is the hosted
 product; that is the product boundary restated. Andoneer never re-platforms
 its coordination storage onto this format, and this format never becomes a
-hosted product's disk layout; the two implementations meet at the protocol,
+hosted product's disk layout; the two implementations meet at the contract,
 the conformance suite, and the interchange. A mirror or export carries
 positions as facts as-of a moment, never as the live "is"; consumers of a
 mirror read history, consumers of the arbiter read the present.
@@ -886,5 +886,5 @@ point being exercised.
 - Human handles: whether cards get a slug or number alias for CLI ergonomics,
   or titles resolved by search are enough.
 - Terminology: whether "workbench", "state", "card" survive into the
-  protocol, coherent with Andoneer either way.
+  contract, coherent with Andoneer either way.
 - The CLI, API, and MCP surfaces, which are the next conversation.

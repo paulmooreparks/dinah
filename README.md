@@ -1,6 +1,6 @@
 # Dinah
 
-Dinah is a reference implementation of a coordination protocol for board-based work: workbench definitions, states and transitions, per-state instruction serving, and the claim, move, release, and block actions an agent or a person takes on a unit of work. It exists as a single, minimal binary rather than a hosted service.
+Dinah is a reference implementation of a shared coordination contract for board-based work: workbench definitions, states and transitions, per-state instruction serving, and the claim, move, release, and block actions an agent or a person takes on a unit of work. It exists as a single, minimal binary rather than a hosted service.
 
 ## Name
 
@@ -12,13 +12,13 @@ The name has not been through a trademark review and should be treated as provis
 
 ## Relationship to Andoneer
 
-Andoneer is a separate, hosted, multi-seat implementation of the same protocol. Dinah and Andoneer share no code. They are kept consistent through a shared conformance suite that exercises both against the same protocol contract, so a change to the protocol has to pass on both implementations before it counts as landed.
+Andoneer is a separate, hosted, multi-seat implementation of the same contract. Dinah and Andoneer share no code. They are kept consistent through a shared conformance suite that exercises both against the same contract, so a change to the contract has to pass on both implementations before it counts as landed.
 
 The project was developed under the code name yokoten, the Toyota Production System term for deploying a practice proven in one place horizontally to everywhere it applies. The name moved on, and the practice stayed. A workbench definition is a working method made portable, and every shipped template began as a live board that already worked somewhere.
 
 ## Status
 
-This repository currently contains a skeleton: a Go module, a placeholder binary that prints an identification line, and the build tooling and agent guardrails the project runs under. The on-disk format and the surface architecture are designed (see `docs/design/`); no protocol commands are implemented yet.
+This repository currently contains a skeleton: a Go module, a placeholder binary that prints an identification line, and the build tooling and agent guardrails the project runs under. The on-disk format and the surface architecture are designed (see `docs/design/`); no contract verbs are implemented yet.
 
 ## Building
 
