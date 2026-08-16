@@ -38,8 +38,8 @@ no-shared-code rule against the temptation that shared language invites).
 ## The machine contract is the verb plus JSON
 
 Git's scriptable surface was never "the CLI" generically but plumbing
-commands with frozen output contracts. Dinah's equivalent: every verb has
-a canonical JSON form, canonical tokens only, carrying the three-outcome
+commands with frozen output contracts. Dinah has an equivalent. Every verb
+has a canonical JSON form, canonical tokens only, carrying the three-outcome
 vocabulary from format.md (refused, stale, unreachable, kept distinct in
 exit codes and payloads). That JSON contract is the frozen surface. The MCP
 tools and HTTP routes are thin mappings of it, and the human-facing CLI
@@ -85,7 +85,7 @@ upgrade path, not a bigger GUI.
 ## Onboarding: guidance is served, templates are instantiated
 
 An agent that has the binary and the MCP wiring must be able to build a
-rich, fully-featured workbench from the word go, which implies a lot of
+rich, fully-featured workbench from the word go, and that implies a lot of
 instruction text. The rule that governs all of it is inherited from the
 hosted product's hardest-won lesson: guidance is served live from the
 binary, so an upgrade updates every agent at once, and is never seeded
@@ -94,34 +94,39 @@ and owned by the bench thereafter, because a starting point that keeps
 moving under its owner is not a starting point. Nothing uses the
 write-once-then-orphaned middle shape.
 
-Four channels. The MCP initialize response's instructions field carries
-the working agreement and orientation, delivered before an agent's first
-tool call. Verb descriptions and response payloads carry per-verb method
-and next-action hints, which is where most agent behavior is actually
-shaped. Embedded guides (bench authoring, instruction-writing conventions,
-operator-station discipline) are served on demand by a guide verb and as
-MCP resources. And shipped templates are complete bench definitions
-embedded in the binary, instantiated by `dinah init`; every shipped
-template must pass fsck and the conformance suite in CI, so the scaffold
-is provably legal, and the experiment benches are the first drafts. The
-machine-surface rule holds throughout: served guidance is content an
-agent reads, but the tokens inside examples stay canonical.
+Guidance reaches an agent through four channels. The MCP initialize
+response's instructions field carries the working agreement and
+orientation, delivered before an agent's first tool call. Verb descriptions
+and response payloads carry per-verb method and next-action hints, and that
+is where most agent behavior is shaped. Embedded guides (bench authoring,
+instruction-writing conventions, operator-station discipline) are served on
+demand by a guide verb and as MCP resources. Shipped templates are complete
+bench definitions embedded in the binary, instantiated by `dinah init`;
+every shipped template must pass fsck and the conformance suite in CI, so
+the scaffold is provably legal, and the experiment benches are the first
+drafts. The machine-surface rule holds throughout: served guidance is
+content an agent reads, but the tokens inside examples stay canonical.
 
 ### Translation
 
 Localization has three layers with different contributors and different
-mechanics. Token display names: one plain YAML file per BCP 47 tag under
-locales/, flat keys derived from the token registry, no toolchain, edited
-in a browser. A generator emits the skeleton (every key, the English
-value, and a context comment explaining the token), a coverage command
-reports what is missing, and CI validates keys against the registry, so
-the only human review a catalog needs is a native reader judging wording.
-Message templates: named placeholders only, never positional, so a
+mechanics.
+
+Token display names live in one plain YAML file per BCP 47 tag under
+locales/, with flat keys derived from the token registry, no toolchain, and
+editing in a browser. A generator emits the skeleton (every key, the
+English value, and a context comment explaining the token), a coverage
+command reports what is missing, and CI validates keys against the
+registry, so the only human review a catalog needs is a native reader
+judging wording.
+
+Message templates carry named placeholders only, never positional, so a
 translator may reorder a sentence around its parameters; plurals follow
 CLDR categories with per-category keys, which Czech makes non-optional
 from the first release; messages are designed to avoid count-dependence
 where possible so the category cost is paid only where counts appear.
-Long prose (guides, shipped template instructions): translated as whole
+
+Long prose (guides, shipped template instructions) is translated as whole
 documents under a per-tag directory, falling back per-document to
 English, because document-level translation produces readable prose and a
 stitched sentence-catalog essay does not. Regional overlays and per-token
@@ -145,9 +150,9 @@ sha and shown to the operator (state list and instruction summaries)
 before instantiation. Instantiate-and-own caps the blast radius: nothing
 upstream can mutate a bench already owned. Provenance (source and sha) is
 recorded in the new bench's workbench.md as display-tier fact. A template
-repository runs fsck and the conformance suite in CI, which makes
-contributed templates machine-checked before a human reads them, the
-second perfectly-shaped community contribution after locale catalogs.
+repository runs fsck and the conformance suite in CI, so contributed
+templates are machine-checked before a human reads them. After locale
+catalogs, they are the second well-shaped community contribution.
 
 Extraction closes the authoring loop: a command copies the definition out
 of a live bench (workbench.md and states/, keeping their identifiers) and
@@ -246,8 +251,7 @@ where agent behavior is shaped. Errors are the trichotomy as types
 strings the heads would have to parse. Fsck and template init/extract
 round out the surface.
 
-Two of those mutations sit outside the core profile deliberately, and a
-reader comparing the two documents should know it is deliberate. The profile
+Two of those mutations sit outside the core profile deliberately. The profile
 rules free prose attached to a card, and anything attached to a card as a
 file, out of the core, so `comment` and `attach` are this tool's own work
 rather than contract obligations. Under the profile they are layer material,

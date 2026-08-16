@@ -178,10 +178,10 @@ Capture group one is the identifier and capture group three is the statement.
 An identifier is uppercase ASCII letters, digits and hyphens, and it names a
 family and a number, as `CORE-CLAIM-3` does.
 
-Three rules bind every statement. It carries exactly one keyword. It carries
-an outcome somebody can observe, which section 11 states for each identifier.
-It is unique in the document, so an extraction over a valid revision returns
-no identifier twice.
+Every statement carries exactly one keyword. It carries an outcome somebody
+can observe, which section 11 states for each identifier, and it is unique
+in the document, so an extraction over a valid revision returns no
+identifier twice.
 
 Uppercase keywords appear nowhere else. A checker treats an uppercase keyword
 found on a line that is neither a statement line nor inside a fenced block as
@@ -242,10 +242,10 @@ finds a noun in a statement that is in none of these groups and not in
 section 4 has found a defect worth reporting.
 
 Two lists of words are excluded from three places, and a checker matches them
-on whole words, without regard to case. The three places
-are every normative statement, section 4, and the walkthrough in section
-10.1. Prose elsewhere may use these words where the subject is the thing the
-word names.
+on whole words, without regard to case. The three places are every
+normative statement, section 4, and the walkthrough in section 10.1. Prose
+elsewhere may use these words where the subject is the thing the word
+names.
 
 The first list is the vocabulary of one trade, and its presence in a
 statement would tell every workbench outside that trade that this profile was
@@ -454,7 +454,7 @@ operator lifts that.
 The profile requires four things of a card and no more: an identifier, a
 title, a state, and a substate. A card may carry anything else a workbench
 needs, and a tool that does not know what a field means keeps it anyway,
-which is what lets one tool hand a workbench to another without loss.
+and that is what lets one tool hand a workbench to another without loss.
 
 [CORE-CARD-1] Every card MUST carry an identifier unique within its workbench.
 
@@ -827,10 +827,9 @@ A workbench carries its method in prose, and the method reaches whoever needs
 it at the moment they need it. Serving is what turns a workbench definition
 from a diagram into working guidance.
 
-Two layers of prose exist. The workbench carries standing instructions that
-apply wherever a card is, and each state carries the instructions of that
-position. They are served together, most general first, and they are never
-copied into one another. A tool that wrote the workbench's standing text into
+The workbench carries standing instructions that apply wherever a card is,
+and each state carries the instructions of that position. They are served
+together, most general first, and they are never copied into one another. A tool that wrote the workbench's standing text into
 each state would freeze a copy that stops tracking its source, and every
 later edit would then reach some readers and not others.
 
@@ -857,7 +856,7 @@ guessing which departures the workbench allows.
 
 The four rules below bind an owner rather than a tool. They are the
 discipline that makes a shared workbench trustworthy, and no tool can be made
-to fail one, which is why section 3.3 puts them outside conformance. Each
+to fail one, so section 3.3 puts them outside conformance. Each
 still names something a reader can check in a workbench's history after the
 fact, so an owner's departure from the agreement leaves a trace.
 
@@ -909,13 +908,12 @@ and an inclusion recorded without a reason cannot be argued with, so both
 carry one.
 
 One item means one concept. Where a familiar phrase bundles two concepts that
-could be ruled differently, the two are separate rows, which is why a
-capacity limit on a state and a limit on who may take up a card are counted
-apart.
+could be ruled differently, the two are separate rows, so a capacity limit
+on a state and a limit on who may take up a card are counted apart.
 
-The reader's guide to the naming: rows ruled in are named in the vocabulary
-of section 4, and rows ruled out are named by a neutral description of the
-concept, with a familiar word following in brackets where one exists.
+Rows ruled in are named in the vocabulary of section 4, and rows ruled out
+are named by a neutral description of the concept, with a familiar word
+following in brackets where one exists.
 
 The last column binds the table to the rest of the document. A row ruled in
 names every statement that carries the concept, and each statement of this
@@ -1062,11 +1060,10 @@ Weeks later they read the card's history. It shows every claim, move,
 release, block and unblock in the order they happened, each with the time and
 who did it, and the expiry of Priya's claim sits among them attributed to
 her, since hers was the claim that lapsed. Sam's overridden move is one act
-marked an override rather than a move and a second entry beside it. The move
-into Deciding still says it came from
-Ideas, even though they have since renamed Ideas to Wishlist, because the
-recorded act carried the title as it stood that day. Nothing in the history
-was ever altered.
+marked an override rather than a move and a second entry beside it. The
+move into Deciding still says it came from Ideas, even though they have
+since renamed Ideas to Wishlist, because the recorded act carried the title
+as it stood that day. Nothing in the history was ever altered.
 
 Priya later opens their workbench in a different tool. The first one hands
 over the workbench definition in the interchange form, naming the profile
@@ -1082,9 +1079,9 @@ served instructions. Every refusal name reached by a person's act: `held`,
 Also exercised: the capacity count including a card of every substate, the
 pull invariant on a claim, the operator's override and its marker, the
 attribution of an expiry, the claim surviving a move, the queue's arrival
-order, the two layers of
-instructions served together, the recorded history with its titles as of the
-act, and the interchange form carrying unrecognized fields across.
+order, the two layers of instructions served together, the recorded history
+with its titles as of the act, and the interchange form carrying
+unrecognized fields across.
 
 ## 11. Index of normative statements
 
@@ -1230,7 +1227,7 @@ refusals section 6 names, claims that name the owner asking for them,
 capacity limits enforced at entry with the operator's marked override as the
 one way past one, instruction serving at claim and at move with the legal
 moves alongside, append-only history with references carried as they stood,
-the four outcomes kept apart, and the interchange form of section 5.7. Nothing previously conformed, so
-nothing ceases to. The document sits on the `dev` channel, so the
-compatibility promise of section 2 does not yet bind, and it starts to bind
-at the recorded promotion to `stable`.
+the four outcomes kept apart, and the interchange form of section 5.7.
+Nothing previously conformed, so nothing ceases to. The document sits on
+the `dev` channel, so the compatibility promise of section 2 does not yet
+bind, and it starts to bind at the recorded promotion to `stable`.
