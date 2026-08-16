@@ -33,17 +33,7 @@ harvest. Section 10.1 walks a wedding through every state, act and refusal
 the profile defines, and that walkthrough is the standing demonstration that
 nothing domain-specific has crept in.
 
-### 1.1 Relationship to Andoneer (non-normative)
-
-Andoneer is a hosted, multi-seat product that implements this same
-coordination contract. This profile is not an export of Andoneer's interface
-and carries none of its names, and Andoneer's conformance is measured against
-this document like anybody else's. Andoneer appears nowhere else in this
-profile, and no statement below depends on it. This paragraph exists so that
-a reader who arrives from that product knows the relationship, and so that a
-reader who does not know the product knows they have missed nothing.
-
-### 1.2 What a layer is for (non-normative)
+### 1.1 What a layer is for (non-normative)
 
 Concerns this profile excludes are not thereby forbidden. A tool that wants
 version-control integration, capability routing, portfolio reporting or any
