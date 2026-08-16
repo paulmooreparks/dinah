@@ -1,5 +1,7 @@
 # Dinah
 
+<img src="logo/dinah-lantern.svg" align="right" width="256" alt="The Dinah lantern">
+
 Dinah is a reference implementation of a shared coordination contract for board-based work: workbench definitions, states and transitions, per-state instruction serving, and the claim, move, release, and block actions an agent or a person takes on a unit of work. It exists as a single, minimal binary rather than a hosted service.
 
 ## Name

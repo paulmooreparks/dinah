@@ -161,6 +161,26 @@ instruction prose travel with the template, and scrubbing them is the
 author's editorial pass, with a lint that flags suspicious fragments as a
 candidate, never a gate.
 
+## The VS Code extension
+
+The bench is made of Markdown files, so VS Code is already half a client,
+and the extension's ladder builds on that rather than on a webview. The
+first rung is the LSP plus verbs: registry-driven validation and
+completion in anchors, and CodeLens actions on a card file (claim, move,
+release) that shell to the CLI and refresh from the receipt. The second
+rung is the sidebar tree the operator asked for by name: benches at the
+top (from the same discovery walk and user base the CLI uses), states
+beneath in definition order, cards beneath those grouped by substate,
+every node opening its anchor on click because every node is a file.
+Substate rides the tree's badge-and-color decorations, a WIP-limited
+state shows its count against the limit, and a node's context menu is the
+affordances block rendered as menu items, so illegal actions are absent
+from the representation here exactly as they are everywhere else. The
+in-binary TUI runs in the integrated terminal at every rung for free, and
+the webview rung comes last, embedding the server-rendered ui pages once
+they exist. The extension speaks to the binary over the machine surfaces
+and never parses human output.
+
 ## Extension processing
 
 The format side of extensions is declaration (dot-named kinds in the bench
