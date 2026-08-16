@@ -20,6 +20,6 @@ func printIdentification(w io.Writer) {
 }
 
 func main() {
-	   printIdentification(os.Stdout)
+	printIdentification(os.Stdout)
 	os.Exit(0)
 }
