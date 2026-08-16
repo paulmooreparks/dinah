@@ -1,5 +1,5 @@
 ---
-title: Code Review
+title: Agent Code Review
 kind: work
 operator_owned: false
 ---
@@ -18,6 +18,12 @@ Expand into execution when, and only when, reading has surfaced a specific probl
 When you expand, record it in the findings comment: what reading could not settle, what you ran, and what it showed. That is the difference between a justified expansion and drifting back into being a second Test.
 
 When you suspect a behavioral defect and choose not to chase it, either push back to Implement with the concrete suspicion, or pass and name the check in your findings comment as a directed verification target for Test ("Test must specifically exercise X"). Named targets are contract that Test picks up. On a lane with no Test stage there is nobody downstream to pick them up, so a suspicion you cannot confirm becomes a push-back rather than a note.
+
+## The operator's station is next, and your move-note briefs it
+
+On lanes that run the operator stations, Operator Code Review sits directly after this column, so a clean card's forward move lands it in front of the operator, who reads the diff on the card's pull request. Verify the `[PR #<n>](<url>)` link from WHAT SHIPPED points at the card's branch and carry the same Markdown link forward in your move-note; a code card whose branch has no pull request is a [major], because the operator's review surface is missing. (A Design-lane card that landed as live content has no branch and no PR, which stays the expected absence.)
+
+The move-note also tells the operator what else awaits: any pending `owner="operator"` questions listed (Implement files these when the work could be finished despite the question, and they ride forward rather than blocking), the one-line acceptance criterion an artifact's approval would create, or the plain statement that nothing awaits them so one approval sends it on. A pending operator question never rides past that station. On the Fix lane there is no station ahead: a ruling need you cannot review around blocks the card in place with `block_card(kind="operator_decision")`, and a card collecting rulings has outgrown its lane.
 
 ## A change without a test is a blocker, not a nit
 
@@ -59,7 +65,7 @@ git diff origin/main...origin/<branch_name>
 git log --oneline origin/main..origin/<branch_name>
 ```
 
-Three dots, not two: that is the diff since the merge base, so it stays correct after the implementer merges the trunk into the branch, which they are told to do. The log gives you the commit series, which is how you see what a second or third round added without re-reading what you already passed.
+Three dots, not two: that is the diff since the merge base, so it stays correct after the implementer merges the trunk into the branch, which they are told to do. The log gives you the commit series, which is how you see what a second or third round added without re-reading what you already passed. `gh pr diff <branch_name>` reads the same diff through the pull request when that is more convenient.
 
 This code is NOT in the trunk. Pushing back costs the trunk nothing, which is the whole reason this stage sits where it does.
 

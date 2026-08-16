@@ -1,24 +1,21 @@
 ---
-title: Agent Review
+title: Agent Design Review
 kind: work
 operator_owned: false
 ---
-Fresh-context review of the spec by card-review. The operator is not in this loop for spec quality; they enter when a card blocks for a ruling, or when it carries something they have to accept.
+Fresh-context review of the spec by card-review. The operator is not in this loop for spec quality; they hold the next station, Operator Design Review, and what you pass forward lands in front of them.
 
 Exit by exactly one, in priority order:
 
 1. **Push back to Spec/Ready** when the contract is structurally unsound: wrong, contradictory, untestable, or scope-crept beyond the description's framing.
 2. **Block the card where it sits** when the spec is contested or undeliverable without a ruling nobody anticipated: the framing itself is in dispute, a sustained review loop, or a question whose answer decides what the card even is. `block_card(card_id, kind="operator_decision", reason=<what needs deciding, posed so the operator can answer it without opening the card>)`. The block clears your claim and halts the card here, and only the operator lifts it, so do not call `move_card` afterwards. Never park such a card in Build Queue.
-3. **Move to Operator Review/Ready** when the card carries anything the operator must handle before downstream work commits: a pending open question stamped `owner="operator"` or left unstamped, or an artifact they have to accept. This is the **expected** case and it is not a block: the card is fine, it has simply reached the operator's station. Questions are answered there and nowhere later, so a pending operator question must never ride the pipeline past that column. A UX sketch is the common artifact; an external interface, a change to how the board itself works, published copy and a customer-facing schema are the others. Spec should have named the cargo in its move-note, and you are the backstop when it did not. Name the onward column in your move-note: Operator Review is off-lane and cannot work out where the card goes next.
-4. **Promote to Build Queue/Ready** on a clean read with nothing left for the operator.
+3. **Move forward to Operator Design Review/Ready** in every other case; the lane places that station directly after this one, and no card routes around it to Build Queue. The move-note tells the operator what awaits them: the pending `owner="operator"` questions listed, the one-line acceptance criterion an artifact's approval would create ("the shipped command output matches the approved transcript on the card's branch"), or the plain statement that the card is clean so one click sends it on. A pending operator question must never ride the pipeline past that station.
 
 ### Telling exit 2 from exit 3
 
-Both end at the operator and they mean different things. A block says work stopped on a dispute nobody anticipated. Operator Review says work reached the operator's station in the ordinary course: a checkpoint everybody expected, or questions filed for their queue.
+Both end at the operator and they mean different things. A block says work stopped on a dispute nobody anticipated, and the operator finds it in their blocked queue with a reason they can answer cold. Exit 3 is the ordinary course: the card reaches the operator's station with its cargo named, whether that cargo is questions, an artifact, or nothing at all. Reserve the block for what genuinely cannot travel; everything else travels.
 
-When the cargo is an artifact, the test for exit 3 is mechanical: **state in one line what acceptance criterion the operator's approval would create.** "The shipped command output matches the approved transcript on the card's branch" is such a line. When the cargo is pending operator questions, the move-note lists them instead. If you can write neither, there is nothing for the operator, so this is not exit 3; either the card is clean (exit 4) or the dispute is the exit-2 kind. Put the line or the list in the move-note, because it is what the operator reads first and what Test verifies against later.
-
-The error here is asymmetric. Routing a card to Operator Review that did not need it costs the operator one glance. Failing to route one means an implementation commits to a form nobody approved, with no criterion downstream to catch it, or a question rides to Acceptance where it has no station. **When in doubt, take exit 3.**
+The move-note is what makes exit 3 cheap for the operator. When the cargo is an artifact, state the acceptance criterion its approval would create; when it is questions, list them; when it is nothing, say so plainly. A note the operator can act on without opening the card is the standard, and Test verifies against the criterion line later.
 
 ## Read what governs the surface this card touches
 
@@ -48,11 +45,11 @@ The workbench document **"Prose standard"** governs every prose surface a spec p
 
 The three-field discipline, testable acceptance criteria, resolved-or-routed open questions, real linked dependencies, explicit out-of-scope cuts, and the workbench's product framing; you are the primary gate for that framing.
 
-**Triage every pending open question before you choose an exit.** A spec agent files an open question whenever it cannot settle something itself, and "itself" is narrower than "anybody": it had one seat, one tool surface and one pass. Some of what it files is a lookup and some belongs to a later stage. Sorting them is your job, and the operator's queue should end up holding only what is genuinely theirs. Read every pending item and place it in one of three.
+**Triage every pending open question before you choose an exit.** A spec agent files an open question whenever it cannot settle something itself, and "itself" is narrower than "anybody": it had one seat, one tool surface and one pass. Some of what it files is a lookup and some belongs to a later stage. Sorting them is your job, and the operator's station should end up holding only what is genuinely theirs. Read every pending item and place it in one of three.
 
 1. **Answerable by fact.** A grep, a `git log`, or one call against a running instance settles it, and no judgement is involved. Answer it and resolve it, putting the evidence in the note rather than the conclusion alone: "no live board stores a column body opening with that heading, checked against the running instance on <date>" is such an answer, and "no" is not.
 2. **Owned by a later stage or another card.** The implementer, Test, or a named successor decides it as a matter of course. Stamp it `owner="holder"` and leave it PENDING: stamping takes it off the operator's queue while the stage that owes it still sees it on the card, which resolving would have hidden. Delegation is not deferral, and the stamp is what makes the owner real; the note carries the reasoning and the recommendation rather than the addressee.
-3. **Genuinely the operator's.** It commits them to something durable and awkward to reverse: a published interface, a stored data format, a price, anything customers will see, the shape of their repository's history, or which of two cards goes first. Stamp it `owner="operator"`, leave it pending, and take exit 3 so it gets answered at Operator Review; take exit 2 instead only when the question is the contested or undeliverable kind.
+3. **Genuinely the operator's.** It commits them to something durable and awkward to reverse: a published interface, a stored data format, a price, anything customers will see, the shape of their repository's history, or which of two cards goes first. Stamp it `owner="operator"`, leave it pending, and take exit 3 so it gets answered at Operator Design Review; take exit 2 instead only when the question is the contested or undeliverable kind.
 
 That is the same test the decision audit below applies, run in the other direction, and the symmetry is the point. What stops an agent from deciding something the operator should decide is also what stops it parking something on the operator it should have handled itself.
 

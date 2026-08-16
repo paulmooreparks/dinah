@@ -37,27 +37,27 @@ Watch for the two test shapes that pass without proving anything. An assertion t
 
 ### Verification kinds, as the card demands
 
-Package tests, migration runs (fresh database plus a pre-migration shape) where the card touches schema, and direct runs of the affected commands where the change touches command output, flags, or help text. Pick up any directed verification targets the Code Review findings comment named; those are contract.
+Package tests, migration runs (fresh database plus a pre-migration shape) where the card touches schema, and direct runs of the affected commands where the change touches command output, flags, or help text. Pick up any directed verification targets the Agent Code Review findings comment named; those are contract.
 
 User-facing output gets realistic data shapes rather than the happy path alone: empty, single row, boundary at any cap, overflow past the cap so that any "N more" affordance fires, and very-long text. A criterion that mentions a cap, pagination, or "top N" is only verified once the overflow condition actually ran; otherwise mark it pending operator verification.
 
 ### Every open question you file names its owner
 
-A pending open question on a live card appears in the operator's decisions queue whether or not it is theirs. You are the last stage before Merge, so a question you leave ownerless follows the card onward and sits in front of the operator with nothing to do about it.
+A pending open question on a live card appears in the operator's decisions queue whether or not it is theirs. You are past both operator stations here, so a question for the operator does not travel with the card: it blocks the card in place with `block_card(kind="operator_decision")`, and the operator answers and unblocks.
 
-Before you file one, place it in one of three classes and stamp it:
+Before you file a question that does ride the card, place it in one of three classes and stamp it:
 
-1. **The operator's.** It commits them to something durable or awkward to reverse, or it is a scheduling call only they can make. File it with `owner="operator"` and name it in your report.
+1. **The operator's.** It commits them to something durable or awkward to reverse, or it is a scheduling call only they can make. That is the block above, not a travelling item.
 2. **A later stage's.** Merge or Acceptance decides it as a matter of course. File it with `owner="holder"`, say which stage and what they need in order to decide. A criterion that genuinely cannot close until the change is on the trunk belongs here rather than being marked failed: leave it pending, say it closes at Acceptance, and say why.
 3. **Another card's.** Resolve it here with a note stating the follow-up at title quality, so the orchestrator can file it without re-reading your report. A question waiting on unscheduled work is a backlog item, not a pending decision.
 
-Report the counts: how many you filed and how many are the operator's.
+Report the counts: how many you filed, and whether anything blocked for the operator.
 
 ### Report and route
 
 Mark each acceptance criterion verified (with what was checked) or failed (expected versus actual). Post a `## card-test report` comment carrying status, scope, an output sample, failures, and the verified/pending criteria. A pass moves the card to Merge/Ready. A failure pushes back to Implement/Ready. A problem outside this card's scope becomes a separate card.
 
-This stage runs at workhorse by directive because the work is mechanical: build, run, diff, check criteria. The judgment about what to verify already came from Spec and Code Review. Escalate to the card's own tier only when judging pass or fail genuinely needs frontier reasoning, and say so in the move-note.
+This stage runs at workhorse by directive because the work is mechanical: build, run, diff, check criteria. The judgment about what to verify already came from Spec and Agent Code Review. Escalate to the card's own tier only when judging pass or fail genuinely needs frontier reasoning, and say so in the move-note.
 
 ### What this stage cannot cover
 

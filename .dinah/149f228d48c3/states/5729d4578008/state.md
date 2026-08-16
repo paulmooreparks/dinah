@@ -1,21 +1,19 @@
 ---
-title: Operator Review
+title: Operator Design Review
 kind: work
 operator_owned: true
 ---
-The operator's own work station, for the reviews that are expected rather than exceptional. A card arrives here because it produced something the operator has to accept before anything downstream commits to it: a UX sketch (a command transcript or --help text), an external interface or published contract, a change to the board's own flow, pricing or positioning copy, a schema customers will depend on. On another board it might be a vendor quote or a permit drawing. The operator knows these are coming, knows the card waits until they look, and can batch them.
+The operator's design-side work station, an ordinary stage on every lane that runs the design half. A card arrives here after Agent Design Review, and what happens next depends on what it brought.
 
-A card also arrives here when it carries pending open questions stamped `owner="operator"`. This column is where those get answered; they never ride the pipeline past it.
+A card carrying pending open questions stamped `owner="operator"` (or left unstamped, which reads the same) waits for the operator to answer them; Spec and Agent Design Review file their questions for this station rather than blocking, whenever the spec can be finished despite the question. A card carrying an artifact the operator has to accept before anything downstream commits to it waits for that acceptance: a UX sketch (a command transcript or --help text), an external interface or published contract, a change to the board's own flow, pricing or positioning copy, a schema customers will depend on; on another board it might be a vendor quote or a permit drawing. A card carrying neither is the common case, and the operator simply moves it on with one glance and one click, minting no criterion.
 
-This is not where unexpected decisions go. When an agent hits a ruling it cannot get and did not anticipate, that is the andon cord: `block_card(card_id, kind="operator_decision", reason=<the call, posed so the operator can answer it without opening the card>)`, which halts the card where it stands. Both mechanisms end with the operator, and they mean different things, so keep them apart. A block says work stopped. Arriving here says work reached a planned checkpoint.
+This is not where unexpected decisions go. When an agent hits a ruling it cannot get and did not anticipate, that is the andon cord: `block_card(card_id, kind="operator_decision", reason=<the call, posed so the operator can answer it without opening the card>)`, which halts the card where it stands. Both mechanisms end with the operator, and they mean different things, so keep them apart. A block says work stopped. Arriving here says work reached a planned station.
 
-### What admits a card, and the test that decides it
+### What the senders owe this station
 
 Approving something is providing a test. When the operator accepts an artifact, the acceptance criterion becomes "the implementation hews to what was approved", and that criterion is verified downstream like any other.
 
-So the agent sending a card here must be able to state, in one line, **what acceptance criterion the operator's approval would create**. If it cannot, there was nothing to approve and the card does not belong here, unless it carries pending operator questions, which admit it on their own; then the move-note lists the questions instead. Put that sentence or that list in the move-note; it is what the operator reads first and what the verifying stage checks against later.
-
-Judge this from what the card actually produces, not from whether the operator would find it interesting. The error is asymmetric: admitting a card that did not need it costs one glance and one click, while failing to admit one means an implementation commits to a form nobody approved and no criterion downstream will catch it. **When in doubt, admit.**
+So the stage sending a card here says in its move-note what awaits: the pending questions listed, the one-line acceptance criterion an artifact's approval would create ("the shipped command output matches the approved transcript on the card's branch"), or the plain statement that the card is clean and one click sends it on. That note is what the operator reads first and what the verifying stage checks against later; a card arriving without it costs the operator the read the sender should have done.
 
 ### The operator accepts the artifact, not a description of it
 
@@ -25,30 +23,20 @@ So a card whose artifact is a file must say where the file is **and what it show
 
 If the operator rules without having looked, say so and offer to re-open. A ruling is cheap to confirm and expensive to discover was uninformed three stages later.
 
-### Sending a card here: name where it goes next
-
-This column sits **off every lane**, so it has no next stage of its own and cannot work one out. The agent that sends a card here must therefore name, in the same move-note, the column the card should go to once the operator accepts. That is normally the stage that would have followed the sender on this card's lane, which the sender reads from the lane block on its own claim response and the operator cannot.
-
-A move-note that names no onward destination leaves the card stranded, so the operator's fallback is to return it to whichever column sent it and let that column route it again. That works, and it costs an extra hop, which is why naming the destination is the sender's job.
-
 ### The work
 
-The operator claims the card, reads the artifact, and either accepts or does not. The dark-work rule applies here as everywhere: claim while reviewing, so the board says what is happening.
+The operator claims the card, reads what it brought, and acts. The dark-work rule applies here as everywhere: claim while reviewing, so the board says what is happening.
 
-**On acceptance**, record the criterion as a real `acceptance_criterion` checklist item naming the artifact ("the shipped command output matches the approved transcript"), then move the card to the destination the sender named. The criterion is the point of the visit; a move without one leaves the implementer guessing at a form that has already been decided.
+**Questions:** answer each pending `owner="operator"` item during the same visit, with `update_checklist_item(item_id, state="resolved", note=<the ruling and its reasoning>)`. Downstream stages act on the note, so it carries the ruling itself rather than a bare yes or no. A card may not leave this column with such a question still pending.
 
-Check before recording it that the criterion actually discriminates. A criterion both candidate options would satisfy is not the test the approval was supposed to create, and it will pass whichever one gets built.
+**On acceptance** of an artifact, record the criterion as a real `acceptance_criterion` checklist item naming the artifact, then move the card forward. The criterion is the point of the visit; a move without one leaves the implementer guessing at a form that has already been decided. Check before recording it that the criterion actually discriminates: a criterion both candidate options would satisfy is not the test the approval was supposed to create, and it will pass whichever one gets built.
 
 **On rejection**, move the card back to the column that sent it, with what is wrong stated concretely enough to act on.
 
+**Forward** is the lane's next stage, Build Queue on both lanes that run this station.
+
 Age here is decision latency, and it measures the operator rather than any supplier, because this is a queue the operator works rather than one the board waits on. Keep it short by batching.
 
-### Questions are answered here, and nothing leaves carrying one
+### Routes that skip this station
 
-Every pending open question stamped `owner="operator"` (or left unstamped) on a card in this column is the operator's to answer during the same visit. Resolve each with `update_checklist_item(item_id, state="resolved", note=<the ruling and its reasoning>)`; downstream stages act on the note, so it carries the ruling itself rather than a bare yes or no. A card may not leave this column with such a question still pending.
-
-Downstream of this column the mechanism changes. A new question for the operator raised at Implement, Code Review, Test, Merge or Acceptance blocks the card where it stands (`block_card`, kind="operator_decision") instead of travelling with it, and the operator answers and unblocks it there. Nothing arrives at Acceptance carrying a pending operator-owned question; a card that does was misrouted, and the fix is routing, never acceptance-around-the-question.
-
-### Skipping
-
-A card may skip this column when speed matters more than the approval, and a card that skipped it can still pull the andon cord if something unexpected arises. A skipped review is not neutral: the implementation proceeds with no criterion governing its form, so say so in the move-note that skips it rather than passing over in silence.
+The Fix lane never stops here, and a fast-tracked traversal is entitled to skip this column by directive. On those routes a question for the operator does not travel: `block_card(kind="operator_decision")` where the question arose, and the operator answers and unblocks it there. Questions raised downstream have their own station: Implement and Agent Code Review file for Operator Code Review, and Test, Merge and Acceptance always block in place. Nothing arrives at Acceptance carrying a pending operator-owned question; a card that does was misrouted, and the fix is routing, never acceptance-around-the-question.
