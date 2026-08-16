@@ -85,16 +85,18 @@ Never `--force`, never `--no-verify`. Confirm the branch is on the remote with `
 
 A workbench whose `Push-policy` directive says `worktree-push` keeps the older contract: commit, pull, `git push origin HEAD:main`, and record no branch name. Read the directive before you assume which one you are on.
 
-## Every branch gets a pull request
+## Every branch gets a pull request, authored by the pipeline
 
-After the push, make sure the card's pull request exists. It is the operator's window onto the diff, on every lane including Fix, and CI runs its checks against it for free:
+After the push, make sure the card's pull request exists. It is the operator's window onto the diff, on every lane including Fix, and CI runs its checks against it for free.
+
+**Create the PR as the pipeline identity, never as the operator.** The machine account `dinah-gh` exists because GitHub refuses to let an author approve their own pull request, and a PR created under the operator's own authentication takes his Approve button away. Its token lives at `$HOME/.dinah-gh-token` (outside every repo; never copy the token itself into any file, note, or output). PR authorship follows the creator, so only the create call needs the identity; pushes and reads stay on the default authentication:
 
 ```
 gh pr view <branch> --json number,url 2>NUL   # an existing PR's number and URL; errors when none exists
-gh pr create --head <branch> --title "<human-id>: <one-line summary>" --body "<mirrors WHAT SHIPPED>"
+GH_TOKEN="$(cat "$HOME/.dinah-gh-token")" gh pr create --head <branch> --title "<human-id>: <one-line summary>" --body "<mirrors WHAT SHIPPED>"
 ```
 
-Create only when the view found nothing; a re-entry after a push-back already has its PR, and the new commits appear on it. Either way, put the URL in your handoff move-note as a Markdown link, `[PR #<n>](<url>)`, so the operator and any PR-reading tool navigate straight to it from the card. A pushed branch with no PR is an incomplete handoff.
+Create only when the view found nothing; a re-entry after a push-back already has its PR, and the new commits appear on it. Either way, put the URL in your handoff move-note as a Markdown link, `[PR #<n>](<url>)`, so the operator and any PR-reading tool navigate straight to it from the card. A pushed branch with no PR is an incomplete handoff, and a PR authored by the operator's own account is a defect of the same class: it silently disables the review the station downstream exists to give.
 
 ## Reference verification
 
