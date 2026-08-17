@@ -244,13 +244,11 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 	return moves
 }
 
-// stateRef is what a person types to reach a state: its own slug when it
-// carries one, its identifier otherwise. Mirrors Card.Ref's own fallback.
+// stateRef is what a person types to reach a state. Thin wrapper over
+// bench.State.Ref so every caller in this package reads the same name it
+// already used before that method existed.
 func stateRef(state *bench.State) string {
-	if state.Slug != "" {
-		return state.Slug
-	}
-	return state.ID
+	return state.Ref()
 }
 
 // affordances names what a caller may do next with a card, which is the same

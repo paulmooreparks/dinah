@@ -98,6 +98,17 @@ type State struct {
 	FM *Frontmatter
 }
 
+// Ref is what a person types to reach this state: its own slug when it
+// carries one, its identifier otherwise. Mirrors Card.Ref's own fallback,
+// with no argument to pass because a state's slug lives on the state
+// itself rather than on the workbench that holds it.
+func (s *State) Ref() string {
+	if s.Slug != "" {
+		return s.Slug
+	}
+	return s.ID
+}
+
 // ErrAborted is what a test's step hook returns to stand for a process that
 // died at that step. The act stops where it is, releasing nothing and
 // unwinding nothing, so the tree is left in the state a crash leaves and the
