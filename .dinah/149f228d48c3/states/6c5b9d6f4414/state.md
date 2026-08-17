@@ -21,25 +21,11 @@ git log origin/main -1 --format="%H %s"
 
 One squashed commit per card, so the trunk reads as one line per card and the hash you record is the card's whole footprint. `--delete-branch` removes the remote branch as part of the merge, and GitHub closes the PR with the operator's approval attached to it, which is the record the pull-request discipline exists to create. Verify the deletion with `git branch -r --list "*<human-id>*"` after the prune, which must come back empty, and confirm the squash commit is the trunk tip. Leave `branch_name` on the card: it is the record of where the work happened, and it stays true after the branch is gone.
 
-A branch with no PR is a process miss rather than a blocker: Implement was told to open one. Merge it by the manual path below, and report the absence in the move-note so the miss is visible.
+**The trunk accepts no direct push.** The repository's ruleset requires a pull request with the four status checks green, blocks force pushes, and restricts deletion of the default branch, with an empty bypass list, so the pull request is the only door and the remote refuses everything else. A branch with no PR is therefore a process miss rather than a blocker: Implement was told to open one. Create the missing PR yourself under the pipeline identity, `GH_TOKEN="$(cat "$HOME/.dinah-gh-token")" gh pr create --head <branch_name> ...` with the title and body a PR should have carried, wait for the required checks to finish, merge it by the PR path above, and report the miss in the move-note so it stays visible.
 
-**The manual path, for a branch with no PR:**
+Two outcomes of the PR path are expected rather than problems. `gh pr view` reporting the PR already MERGED before you touched it is a re-entry after an earlier attempt landed the merge but not the bookkeeping: recover the hash with `git log --oneline --grep=<human-id> origin/main`, record it, and say so in the move-note. And `gh pr merge` refusing because a required check is still running is a wait, not a failure: the checks take about a minute, so poll `gh pr checks <branch_name>` and merge when they settle.
 
-```
-git fetch origin
-git checkout --detach origin/main
-git merge --squash origin/<branch_name>
-git commit -m "<human-id>: <one-line summary>"   # body mirrors WHAT SHIPPED
-git push origin HEAD:main
-git push origin --delete <branch_name>
-git branch -D <branch_name>                       # best-effort housekeeping
-```
-
-On this path the remote deletion is the deletion, and the local one is allowed to fail in two expected ways: `error: branch '<name>' not found` in a fresh worktree that never checked the branch out, and `error: cannot delete branch '<name>' used by worktree at '<path>'` when the implementer's worktree still holds it, which is the normal case. Neither blocks the merge and neither is yours to resolve; do not remove somebody else's worktree to force it.
-
-Two non-conflict outcomes of the manual push are expected too. A `git push origin HEAD:main` rejected non-fast-forward means another card merged in the meantime: re-fetch, re-detach at the new `origin/main`, re-run `git merge --squash`, re-commit and re-push. `git pull` on the detached HEAD is forbidden, whatever git's own hint text recommends, because it lands a two-parent commit on the trunk; it will not even run there, since git answers a detached HEAD with `You are not currently on a branch`. And when `git commit` reports `nothing to commit, working tree clean` straight after a clean `git merge --squash`, the branch is already contained in the trunk, which is what a re-entry looks like when an earlier attempt landed its push before it finished the deletions. Read that as a merge that already happened rather than one that failed: recover the hash with `git log --oneline --grep=<human-id> origin/main`, record it, finish the deletions, and say so in the move-note. Never reach for `--allow-empty`. The same already-merged reading applies when `gh pr view` reports the PR is MERGED before you touched it.
-
-**A card with no branch gets confirmed.** Its code is already on `origin/main` under a trunk-pushing policy. Fetch, confirm the commits carrying the card's human-ID prefix are on `origin/main`, and record the hash. That is the whole gate for such a card.
+**A card with no branch gets confirmed.** Its code is already on `origin/main` under an older trunk-pushing policy. Fetch, confirm the commits carrying the card's human-ID prefix are on `origin/main`, and record the hash. That is the whole gate for such a card.
 
 ### What to check before you merge
 
@@ -63,8 +49,8 @@ COMMIT
 [PR #<n>](<url>)
 ```
 
-The hash is the squash commit, the PR link is the one the merge closed (omit the line only on a no-PR or no-branch card, and say why). Say which path ran (PR merge, manual, or confirm-only), name the branch that was deleted, and note anything expected-but-odd you saw.
+The hash is the squash commit, the PR link is the one the merge closed (omit the line only on a no-branch card, and say why). Say which path ran (PR merge, created-then-merged, or confirm-only), name the branch that was deleted, and note anything expected-but-odd you saw.
 
 A question for the operator raised at this stage blocks the card in place; both operator stations are behind you.
 
-A missing commit gets pushed before claiming, never with `--force`. Secrets or a wrong landing: don't rewrite history from Merge; push back to Implement/Ready with the cleanup described.
+A missing commit gets pushed to the card's BRANCH before claiming, never with `--force`. Secrets or a wrong landing: don't rewrite history from Merge; push back to Implement/Ready with the cleanup described.
