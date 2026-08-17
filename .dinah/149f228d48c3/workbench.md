@@ -2,6 +2,7 @@
 format: 1
 profile: dinah-core/1.0
 title: Dinah development
+operator: paul
 levels:
   severity: [trivial, minor, major, critical]
   priority: [later, soon, next, now]

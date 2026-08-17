@@ -1,5 +1,6 @@
 ---
 title: Triage
+slug: triage
 kind: work
 operator_owned: false
 ---

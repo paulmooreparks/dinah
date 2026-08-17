@@ -1,5 +1,6 @@
 ---
 title: Build Queue
+slug: build-queue
 kind: work
 operator_owned: false
 ---

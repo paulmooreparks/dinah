@@ -1,5 +1,6 @@
 ---
 title: Agent Code Review
+slug: agent-code-review
 kind: work
 operator_owned: false
 ---
