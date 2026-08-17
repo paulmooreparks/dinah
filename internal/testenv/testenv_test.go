@@ -1,8 +1,10 @@
 package testenv
 
 import (
+	"bytes"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -232,5 +234,132 @@ func TestIsolateTempDirIsANoOpOutsideHome(t *testing.T) {
 	restore()
 	if os.Getenv("TMP") != outside {
 		t.Errorf("a no-op restore should still leave TMP untouched, got %s", os.Getenv("TMP"))
+	}
+}
+
+// TestHelperProcess is not a test of its own. It is the subprocess entry
+// point the two tests below spawn, following the standard library's own
+// idiom for exercising a code path that ends in os.Exit from inside a test
+// binary (see os/exec_test.go): go test already runs the compiled test
+// binary as its own process, so an os.Exit call inside it kills only that
+// child process and never touches the shell that invoked go test. Every
+// environment value this subprocess sees is built explicitly by
+// runIsolateTempDirHelper below, never inherited from the real profile
+// running the outer suite, which is what makes it safe to call the real
+// IsolateTempDir here.
+//
+// Guarded behind a marker environment variable so a plain `go test ./...`
+// run, which executes every Test-prefixed function by default, does not
+// call the real IsolateTempDir a second time and exit the whole suite.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("DINAH_TESTENV_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	IsolateTempDir()
+	// Every scenario runIsolateTempDirHelper builds is one IsolateTempDir
+	// should refuse. Reaching this line means it did not, which the parent
+	// test reads as a failure via the exit code, so exit distinctly from
+	// the refusal path's os.Exit(1) rather than falling through to a plain
+	// return (which would itself exit 0, the same code a passed-through bug
+	// produces, but this is clearer about why).
+	os.Exit(0)
+}
+
+// runIsolateTempDirHelper spawns TestHelperProcess as a real child process
+// with an explicitly built environment, so the manipulated home variable
+// this test needs never reaches the process running the suite itself. It
+// strips HOME, USERPROFILE, HOMEDRIVE, HOMEPATH, TMP, TEMP, and TMPDIR from
+// the inherited environment before adding back only what the caller asks
+// for, plus TMP/TEMP/TMPDIR pointed at a scratch directory the test owns,
+// so that even a broken guard that fails to refuse cannot reach past a
+// harmless os.MkdirTemp call under that scratch tree.
+func runIsolateTempDirHelper(t *testing.T, homeVar, homeValue string) (exitCode int, stderr string) {
+	t.Helper()
+	safeTemp := t.TempDir()
+
+	env := make([]string, 0, len(os.Environ())+4)
+	for _, kv := range os.Environ() {
+		key := kv
+		if i := strings.IndexByte(kv, '='); i >= 0 {
+			key = kv[:i]
+		}
+		switch strings.ToUpper(key) {
+		case "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "TMP", "TEMP", "TMPDIR":
+			continue
+		default:
+			env = append(env, kv)
+		}
+	}
+	env = append(env,
+		"DINAH_TESTENV_WANT_HELPER_PROCESS=1",
+		"TMP="+safeTemp,
+		"TEMP="+safeTemp,
+		"TMPDIR="+safeTemp,
+	)
+	if homeVar != "" {
+		env = append(env, homeVar+"="+homeValue)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess")
+	cmd.Env = env
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+
+	exitCode = 0
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode = exitErr.ExitCode()
+		} else {
+			t.Fatalf("helper process failed to start: %v", err)
+		}
+	}
+	return exitCode, errBuf.String()
+}
+
+// TestIsolateTempDirRefusesAnUnresolvedHomeForReal calls the real
+// IsolateTempDir, in a real subprocess, with every home-naming environment
+// variable removed, and asserts it refuses with exit code 1 and the
+// unresolved-home message. Where TestResolveHomeRefusesAnUnresolvedHome
+// (above) only proves the pure resolveHome decision is correct given faked
+// inputs, this proves IsolateTempDir itself still calls that decision, still
+// hands it the unresolved-home branch rather than the stat branch, and
+// still turns a refusal into a real process exit, which is the wiring an
+// earlier review found nothing in this file actually covered.
+func TestIsolateTempDirRefusesAnUnresolvedHomeForReal(t *testing.T) {
+	exitCode, stderr := runIsolateTempDirHelper(t, "", "")
+	if exitCode != 1 {
+		t.Fatalf("expected exit code 1 for an unresolved home, got %d; stderr=%q", exitCode, stderr)
+	}
+	if !strings.Contains(stderr, "could not resolve your home directory") {
+		t.Errorf("expected the unresolved-home message, got stderr=%q", stderr)
+	}
+	if strings.Contains(stderr, "could not confirm it as a real, readable directory") {
+		t.Errorf("got the unverified-home message instead of the unresolved-home one (homeErr/statErr may be swapped); stderr=%q", stderr)
+	}
+}
+
+// TestIsolateTempDirRefusesAnUnverifiableHomeForReal calls the real
+// IsolateTempDir, in a real subprocess, with the platform's home variable
+// pointed at a path that does not exist, and asserts it refuses with exit
+// code 1 and the unverified-home message rather than the unresolved-home
+// one. Complements the test above by covering the second of the two causes
+// resolveHome distinguishes: a home that resolved cleanly but does not
+// stand up under os.Stat.
+func TestIsolateTempDirRefusesAnUnverifiableHomeForReal(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+	exitCode, stderr := runIsolateTempDirHelper(t, homeEnvVar(), missing)
+	if exitCode != 1 {
+		t.Fatalf("expected exit code 1 for a home that fails stat, got %d; stderr=%q", exitCode, stderr)
+	}
+	if !strings.Contains(stderr, "could not confirm it as a real, readable directory") {
+		t.Errorf("expected the unverified-home message, got stderr=%q", stderr)
+	}
+	if strings.Contains(stderr, "could not resolve your home directory") {
+		t.Errorf("got the unresolved-home message instead of the unverified-home one (homeErr/statErr may be swapped); stderr=%q", stderr)
+	}
+	if !strings.Contains(stderr, missing) {
+		t.Errorf("expected the refusal to name the path %q it could not verify, got stderr=%q", missing, stderr)
 	}
 }
