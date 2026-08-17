@@ -846,8 +846,8 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if refusal.Name != contract.AmbiguousBench {
-		t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousBench, refusal.Name)
+	if refusal.Name != contract.AmbiguousWorkbench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousWorkbench, refusal.Name)
 	}
 	if got := refusal.Extra["base"]; got != filepath.Join(inner, UserBaseName) {
 		t.Errorf("the base named: wanted the closest one, got %q", got)
@@ -878,7 +878,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 
 // TestDiscoveryNamesTheDirectoryBenchWasPointedAt asserts that a --workbench
 // override carrying no workbench is refused against the path the caller gave,
-// which is the one scenario dinah.no-bench still covers.
+// which is the one scenario dinah.no-workbench still covers.
 func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	empty := t.TempDir()
 	_, err := Discover(empty, empty, "", "")
@@ -886,8 +886,8 @@ func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if refusal.Name != contract.NoBench {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBench, refusal.Name)
+	if refusal.Name != contract.NoWorkbench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbench, refusal.Name)
 	}
 	if refusal.Detail != empty {
 		t.Errorf("the refusal should name the directory given, wanted %q, got %q", empty, refusal.Detail)
@@ -989,8 +989,8 @@ func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if refusal.Name != contract.NoBenchFound {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
 	}
 	if refusal.Detail != root {
 		t.Errorf("the refusal should name where the search began, wanted %q, got %q", root, refusal.Detail)
@@ -1024,8 +1024,8 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 	if !ok {
 		t.Fatalf("the relocated search should find nothing, got %v", err)
 	}
-	if refusal.Name != contract.NoBenchFound {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
 	}
 	if got := refusal.Extra["home"]; got != filepath.Join(relocated, UserBaseName) {
 		t.Errorf("the refusal should name the relocated user base, wanted %q, got %q", filepath.Join(relocated, UserBaseName), got)
@@ -1114,8 +1114,8 @@ func TestTheBoundaryHoldsAgainstAnotherSpellingOfTheHome(t *testing.T) {
 	if !ok {
 		t.Fatalf("the boundary should hold under the aliased spelling, got %v", err)
 	}
-	if refusal.Name != contract.NoBenchFound {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
 	}
 }
 

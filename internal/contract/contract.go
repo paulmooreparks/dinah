@@ -88,26 +88,26 @@ const (
 	Exists       = LayerPrefix + "exists"
 	UnknownPath  = LayerPrefix + "unknown-path"
 	NoEditor     = LayerPrefix + "no-editor"
-	NoBench      = LayerPrefix + "no-bench"
+	NoWorkbench  = LayerPrefix + "no-workbench"
 	UnknownVerb  = LayerPrefix + "unknown-command"
 	Usage        = LayerPrefix + "usage"
 
-	// NoBenchFound is the walk coming up empty, which NoBench once shared a
-	// sentence with. The two are separated because one template cannot
-	// honestly describe both a path the caller named and a search that
-	// reached the root of the filesystem.
-	NoBenchFound = LayerPrefix + "no-bench-found"
-	// AmbiguousBench is a base directory holding several workbenches with
-	// nothing closer to choose between them. The tool refuses to guess, so
-	// it names the candidates instead.
-	AmbiguousBench = LayerPrefix + "ambiguous-bench"
+	// NoWorkbenchFound is the walk coming up empty, which NoWorkbench once
+	// shared a sentence with. The two are separated because one template
+	// cannot honestly describe both a path the caller named and a search
+	// that reached the root of the filesystem.
+	NoWorkbenchFound = LayerPrefix + "no-workbench-found"
+	// AmbiguousWorkbench is a base directory holding several workbenches
+	// with nothing closer to choose between them. The tool refuses to
+	// guess, so it names the candidates instead.
+	AmbiguousWorkbench = LayerPrefix + "ambiguous-workbench"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
-	UnknownPath, NoEditor, NoBench, UnknownVerb, Usage, Interrupted,
-	NoBenchFound, AmbiguousBench,
+	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
+	NoWorkbenchFound, AmbiguousWorkbench,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

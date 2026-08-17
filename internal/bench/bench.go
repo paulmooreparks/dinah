@@ -178,7 +178,7 @@ func Discover(start, override, home, nativeHome string) (string, error) {
 			return "", err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
-			return "", contract.Refuse(contract.NoBench, abs)
+			return "", contract.Refuse(contract.NoWorkbench, abs)
 		}
 		return abs, nil
 	}
@@ -191,9 +191,9 @@ func Discover(start, override, home, nativeHome string) (string, error) {
 	}
 	if search.base != "" {
 		extra := map[string]string{"base": search.base}
-		return "", contract.RefuseWith(contract.AmbiguousBench, describeCandidates(search.candidates), extra)
+		return "", contract.RefuseWith(contract.AmbiguousWorkbench, describeCandidates(search.candidates), extra)
 	}
-	return "", contract.RefuseWith(contract.NoBenchFound, start, map[string]string{"home": search.userBase})
+	return "", contract.RefuseWith(contract.NoWorkbenchFound, start, map[string]string{"home": search.userBase})
 }
 
 // Reachable reports what Discover's walk finds right now, without turning
