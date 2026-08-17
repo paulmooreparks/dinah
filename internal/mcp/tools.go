@@ -212,7 +212,7 @@ func readExport(l *verb.Library, r *verb.Request) any {
 
 // readFsck answers the fsck tool.
 func readFsck(l *verb.Library, r *verb.Request) any {
-	findings, err := l.Fsck()
+	findings, err := l.Fsck(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}

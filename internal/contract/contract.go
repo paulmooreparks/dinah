@@ -80,6 +80,7 @@ const LayerPrefix = "dinah."
 // specify. Each carries LayerPrefix.
 const (
 	Unconfirmed  = LayerPrefix + "unconfirmed"
+	Interrupted  = LayerPrefix + "interrupted"
 	UnknownGuide = LayerPrefix + "unknown-guide"
 	UnknownKey   = LayerPrefix + "unknown-key"
 	Occupied     = LayerPrefix + "occupied"
@@ -95,7 +96,7 @@ const (
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
-	UnknownPath, NoEditor, NoBench, UnknownVerb, Usage,
+	UnknownPath, NoEditor, NoBench, UnknownVerb, Usage, Interrupted,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -142,6 +143,8 @@ const (
 	EventAttachmentReplaced = "attachment_replaced"
 	EventAttachmentRemoved  = "attachment_removed"
 	EventArchived           = "archived"
+	EventRestored           = "restored"
+	EventDeleted            = "deleted"
 	EventManualCorrection   = "manual_correction"
 )
 

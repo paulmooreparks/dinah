@@ -75,6 +75,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		Replace:     parsed.has("replace"),
 		Confirm:     parsed.has("yes"),
 		ReadyOnly:   parsed.has("ready"),
+		Finish:      parsed.has("finish"),
 	}
 	return req
 }
@@ -459,8 +460,9 @@ func runConfig(s *session, parsed *arguments) int {
 
 // runFsck checks the bench for structural defects.
 func runFsck(s *session, parsed *arguments) int {
+	req := s.request("fsck", parsed)
 	return s.withBench(func(l *verb.Library) int {
-		findings, err := l.Fsck()
+		findings, err := l.Fsck(req)
 		if err != nil {
 			return reportError(s.errw, s.r, err)
 		}

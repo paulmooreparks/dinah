@@ -385,9 +385,17 @@
       "text": "a link names card {detail}, which resolves in neither half of the collection",
       "context": "An fsck finding: a links entry whose to resolves to no card."
     },
+    "fsck.entity-at-both-paths": {
+      "text": "entity {detail} is present in the live collection and in the archive, and fsck will not choose between them",
+      "context": "An fsck finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
+    },
     "fsck.holder-on-unheld": {
       "text": "card {detail} carries a holder while not active",
       "context": "An fsck finding: a ready or blocked card carries no holder."
+    },
+    "fsck.interrupted-act": {
+      "text": "a structural act was interrupted here: {detail}",
+      "context": "An fsck finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
     },
     "fsck.missing-anchor": {
       "text": "directory {detail} carries no anchor file, so it is not an entity",
@@ -508,6 +516,10 @@
     "refusal.dinah.exists": {
       "text": "{detail} already holds a bench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.interrupted": {
+      "text": "the act on {detail} was interrupted after it was recorded, and `dinah fsck --finish` completes it",
+      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.locked": {
       "text": "another process holds this entity's lock; {detail} took it",
@@ -677,6 +689,10 @@
       "text": "created",
       "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.deleted": {
+      "text": "deleted",
+      "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
     "token.done": {
       "text": "done",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
@@ -708,6 +724,10 @@
     "token.released": {
       "text": "released",
       "context": "How the canonical token released is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.restored": {
+      "text": "restored",
+      "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
     "token.unblocked": {
       "text": "unblocked",

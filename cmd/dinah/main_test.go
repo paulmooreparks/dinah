@@ -652,3 +652,37 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 		t.Error("no flagged invocation was found in any guide, so this test proves nothing")
 	}
 }
+
+// TestFsckDeclaresItsFinishFlagOnEverySurface asserts that the flag which
+// completes an interrupted structural act is declared once and projected
+// everywhere: the ratified help block's fsck line names it, the generated help
+// for the command names it from the same definition, and the argument parser
+// accepts it.
+//
+// The change to the fixture's fsck line is a ratified one rather than drift.
+// The MCP head's schema is generated from the same parameter list and is
+// asserted against it by TestToolSurfaceIsTheProjection.
+func TestFsckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
+	fixture, err := os.ReadFile(filepath.Join("testdata", "help.txt"))
+	if err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+	if !strings.Contains(string(fixture), "  fsck [--finish] ") {
+		t.Error("the ratified block's fsck line does not name --finish")
+	}
+	if got := verb.Usage("fsck"); got != "fsck [--finish]" {
+		t.Errorf("the one definition composes %q", got)
+	}
+
+	root := newBench(t)
+	generated := runCLI(t, root, "help", "fsck")
+	if generated.code != 0 {
+		t.Fatalf("help fsck: %d %s", generated.code, generated.errw)
+	}
+	if !strings.Contains(generated.out, "--finish") {
+		t.Errorf("the generated help does not name the flag:\n%s", generated.out)
+	}
+	if got := runCLI(t, root, "fsck", "--finish"); got.code != 0 {
+		t.Errorf("fsck --finish on a clean bench: %d %s", got.code, got.errw)
+	}
+}

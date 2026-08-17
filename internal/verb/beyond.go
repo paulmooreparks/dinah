@@ -49,12 +49,20 @@ func (l *Library) Add(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	dir := filepath.Join(l.Bench.CardsRoot(), id)
+	// A creation takes no lock, so the destination's sibling is read once
+	// mkdir has claimed the identifier and before the anchor lands. Giving
+	// the identifier up means giving up the directory too, since an empty
+	// hex directory makes every listing on the bench fail.
+	if holder, retiring := l.retiring(destination.ID); retiring {
+		os.RemoveAll(dir)
+		return l.refuse(req, nil, contract.Locked, holder)
+	}
 	fm := bench.NewFrontmatter()
 	fm.Set("title", title)
 	fm.Set("number", strconv.Itoa(number))
 	fm.Set("state", destination.ID)
 	fm.Set("substate", contract.SubstateReady)
-	dir := filepath.Join(l.Bench.CardsRoot(), id)
 	if err := bench.WriteText(filepath.Join(dir, bench.CardAnchor), fm.Render(req.Text)); err != nil {
 		return l.FromError(req, err)
 	}
@@ -137,6 +145,18 @@ func (l *Library) Attach(req *Request) *Response {
 		return l.refuse(req, entity.Card, contract.UnknownPath, req.File)
 	}
 	now := bench.Stamp(l.Now())
+	// The new entity is written inside the target's directory and the event
+	// is appended to the journal of the nearest enclosing journal-bearing
+	// entity, so one acquisition covers both writes and nothing lands
+	// before it is taken.
+	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
 	ev := bench.Event{TS: now, Actor: req.Actor}
 	if req.Replace && entity.Kind == "attachment" {
 		attachment, err := bench.ReplaceAttachment(entity.Dir, req.File)
@@ -178,30 +198,23 @@ func (l *Library) Archive(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
-	if entity.Kind == "state" && l.Bench.StateOccupied(entity.ID) {
-		return l.refuse(req, nil, contract.Occupied, entity.ID)
-	}
 	if entity.Kind == "bench" {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
+	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
-	ev := bench.Event{TS: bench.Stamp(l.Now()), Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
-	// An entity's own journal travels with its directory, so the event is
-	// written before the move; a journal outside the directory is written
-	// after it, so a failed move leaves no record of one that did not happen.
-	travels := strings.HasPrefix(journal, entity.Dir+string(filepath.Separator))
-	if travels {
-		if err := bench.AppendEvent(journal, ev); err != nil {
-			return l.FromError(req, err)
-		}
+	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
+	act := &bench.StructuralAct{
+		Dir:     entity.Dir,
+		LockDir: l.lockDirFor(entity),
+		Op:      bench.OpArchive,
+		Actor:   req.Actor,
+		Now:     now,
+		StateID: stateSubject(entity),
+		Record:  func() error { return bench.AppendEvent(journal, ev) },
 	}
-	if _, err := bench.ArchiveEntity(entity.Dir); err != nil {
+	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
-	}
-	if !travels {
-		if err := bench.AppendEvent(journal, ev); err != nil {
-			return l.FromError(req, err)
-		}
 	}
 	response := l.ok(req, nil)
 	response.Detail = entity.ID
@@ -229,27 +242,21 @@ func (l *Library) Delete(req *Request) *Response {
 	if !req.Confirm {
 		return l.refuse(req, entity.Card, contract.Unconfirmed, req.Ref)
 	}
-	if entity.Kind == "state" && l.Bench.StateOccupied(entity.ID) {
-		return l.refuse(req, nil, contract.Occupied, entity.ID)
-	}
 	if entity.Kind == "bench" {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
-	if entity.Kind == "attachment" {
-		ev := bench.Event{
-			TS:         bench.Stamp(l.Now()),
-			Event:      contract.EventAttachmentRemoved,
-			Actor:      req.Actor,
-			Attachment: entity.ID,
-		}
-		if attachment, err := bench.LoadAttachment(entity.Dir); err == nil {
-			ev.Filename = attachment.Filename
-		}
-		if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
-			return l.FromError(req, err)
-		}
+	now := bench.Stamp(l.Now())
+	journal, ev := l.removalRecord(entity, req.Actor, now)
+	act := &bench.StructuralAct{
+		Dir:     entity.Dir,
+		LockDir: l.lockDirFor(entity),
+		Op:      bench.OpDelete,
+		Actor:   req.Actor,
+		Now:     now,
+		StateID: stateSubject(entity),
+		Record:  func() error { return bench.AppendEvent(journal, ev) },
 	}
-	if err := bench.DeleteEntity(entity.Dir); err != nil {
+	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)
@@ -265,6 +272,74 @@ func (l *Library) journalFor(entity *bench.EntityRef) string {
 		return entity.Card.JournalPath()
 	}
 	return l.Bench.JournalPath()
+}
+
+// lockDirFor names the directory whose lock covers a write about an entity,
+// which is the same nearest enclosing journal-bearing entity journalFor
+// names, so the write and the event land on one side of one acquisition.
+func (l *Library) lockDirFor(entity *bench.EntityRef) string {
+	if entity.Card != nil {
+		return entity.Card.Dir
+	}
+	return l.Bench.Root
+}
+
+// retiring names the actor retiring a state, when a structural act's sibling
+// stands beside that state's directory. It is what a write storing a card's
+// state reads before it stores one, so a card cannot enter a station whose
+// retirement is already in flight.
+func (l *Library) retiring(stateID string) (string, bool) {
+	dir := filepath.Join(l.Bench.Root, bench.StatesDir, stateID)
+	path := bench.SiblingPath(dir)
+	if path == "" || !bench.Exists(path) {
+		return "", false
+	}
+	return bench.LockHolder(path), true
+}
+
+// stateSubject names the state a structural act is retiring, and is empty for
+// an act on any other kind. It is what arms the occupancy scan the act runs
+// once its own sibling exists.
+func stateSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "state" {
+		return ""
+	}
+	return entity.ID
+}
+
+// removalRecord composes the event a deletion is recorded by and names the
+// journal it goes to, which has to be one that survives the entity.
+//
+// Deleting a card destroys the journal inside it, so the record goes to the
+// bench's, carrying the identifier and the title as of the event. A deleted
+// attachment keeps the attachment event it has always carried.
+func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (string, bench.Event) {
+	ev := bench.Event{TS: now, Actor: actor, Event: contract.EventDeleted, Note: entity.ID}
+	if entity.Kind == "attachment" {
+		ev.Event = contract.EventAttachmentRemoved
+		ev.Attachment = entity.ID
+		if attachment, err := bench.LoadAttachment(entity.Dir); err == nil {
+			ev.Filename = attachment.Filename
+		}
+		return l.journalFor(entity), ev
+	}
+	ev.Title = l.titleOfEntity(entity)
+	if entity.Kind == "card" {
+		return l.Bench.JournalPath(), ev
+	}
+	return l.journalFor(entity), ev
+}
+
+// titleOfEntity is what a person called the entity at the moment it was
+// deleted, so the bench's history reads without resolving anything.
+func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
+	if entity.Kind == "card" && entity.Card != nil {
+		return entity.Card.Title
+	}
+	if state := l.Bench.State(entity.ID); state != nil {
+		return state.Title
+	}
+	return ""
 }
 
 // Init creates a bench, optionally from a template or another bench's

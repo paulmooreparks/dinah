@@ -110,7 +110,9 @@ var params = map[string][]Param{
 		{Name: "key", Required: true},
 		{Name: "value"},
 	},
-	"fsck":   {},
+	"fsck": {
+		{Name: "finish", Flag: true, Marker: true},
+	},
 	"whoami": {},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},

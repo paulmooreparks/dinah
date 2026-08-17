@@ -31,6 +31,27 @@ const (
 	FindingMissingAnchor      = "fsck.missing-anchor"
 	FindingTornJournal        = "fsck.torn-journal"
 	FindingUnknownSubstate    = "fsck.unknown-substate"
+	FindingInterruptedAct     = "fsck.interrupted-act"
+	FindingEntityAtBothPaths  = "fsck.entity-at-both-paths"
+)
+
+// The directions an interrupted structural act is reported and finished in.
+// The journal decides between the first two, the same way history determines
+// the present everywhere else in this format; the last two are the states the
+// tool reports and refuses to resolve.
+const (
+	// DirectionForward means the act was past its point of record, so the
+	// finish completes the move or the removal.
+	DirectionForward = "forward"
+	// DirectionRollback means nothing observable happened, so the finish
+	// rolls the sibling away and leaves the entity alone.
+	DirectionRollback = "rollback"
+	// DirectionMissing means the directory is at neither path.
+	DirectionMissing = "missing"
+	// DirectionLocked means a lock naming somebody other than the
+	// interrupted act stands inside the directory, so a live process holds
+	// it and the finish stops.
+	DirectionLocked = "locked"
 )
 
 // Fsck checks a bench for the structural defects the format's invariants
@@ -39,6 +60,13 @@ func (b *Bench) Fsck() ([]Finding, error) {
 	var findings []Finding
 	for _, id := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), id)
+		// A card a structural act is in the middle of belongs to the
+		// interrupted-act report below rather than to the card walk, and
+		// the sibling is what tells a half-removed directory from a
+		// directory somebody deleted an anchor out of.
+		if Exists(SiblingPath(dir)) {
+			continue
+		}
 		if !Exists(filepath.Join(dir, CardAnchor)) {
 			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
 			continue
@@ -49,6 +77,9 @@ func (b *Bench) Fsck() ([]Finding, error) {
 			continue
 		}
 		findings = append(findings, b.checkCard(card)...)
+	}
+	for _, standing := range b.interruptions() {
+		findings = append(findings, standing.finding())
 	}
 	return findings, nil
 }
