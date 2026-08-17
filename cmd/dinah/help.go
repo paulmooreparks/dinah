@@ -33,11 +33,11 @@ type command struct {
 	bounded int
 	// openTail says the words after bounded are free text the caller
 	// composed on purpose (a title, a reason, a comment, a config value),
-	// left untouched however they begin. False means the command declares
-	// no open tail, so every word in rest() is checked, not only the first
-	// bounded of them; a stray word beyond the command's own declared arity
-	// is exactly the shape this card closes for the zero-bounded commands,
-	// and the same walking rule holds it closed for every other one.
+	// left untouched however they begin. False means the command declares no
+	// open tail, so every word past bounded is refused, not only one that
+	// looks like a mistyped flag: nothing about a bounded, no-open-tail
+	// command reads or stores a word past what it declares, so any word
+	// there, dash-led or plain, is unread and worth refusing.
 	openTail bool
 }
 
