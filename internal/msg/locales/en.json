@@ -337,6 +337,18 @@
       "text": "the workbench designates an operator",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
     },
+    "check.workbench-slug-assigned": {
+      "text": "Assigned the workbench slug {slug}.",
+      "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench."
+    },
+    "check.workbench-slug-missing": {
+      "text": "the workbench carries no slug, so its cards are reachable only by their identifiers",
+      "context": "A check finding: a workbench written before the workbench-level slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.workbench-slug-underivable": {
+      "text": "the workbench carries a title no slug can be derived from, so the migration gave it none",
+      "context": "A check finding the workbench-slug migration raises: no letter of the workbench's title survives the derivation, so a person retitles the workbench or writes a slug onto its anchor by hand."
+    },
     "cmd.add.summary": {
       "text": "file a new card in the first state",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block."
@@ -716,6 +728,10 @@
     "show.links": {
       "text": "Links:",
       "context": "The label above a card's links."
+    },
+    "slug.missing": {
+      "text": "no slug (run check --migrate-slugs)",
+      "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string."
     },
     "states.operator-owned": {
       "text": "operator-owned",

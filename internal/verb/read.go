@@ -382,6 +382,10 @@ type CheckReport struct {
 	// MigratedSlugs says the slug migration ran, so a caller can tell an
 	// empty list of assignments from a migration nobody asked for.
 	MigratedSlugs bool `json:"migrated_slugs,omitempty"`
+	// AssignedWorkbenchSlug is the slug the workbench-slug migration derived
+	// for the workbench itself, absent when the workbench already carried
+	// one or when no migration was asked for.
+	AssignedWorkbenchSlug *bench.WorkbenchSlugAssignment `json:"assigned_workbench_slug,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -394,7 +398,8 @@ type CheckReport struct {
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback. A request carrying the
 // migrate-slugs marker does the same for the states of a workbench that
-// predate the slug field, and names the slug it gave each one.
+// predate the slug field, names the slug it gave each one, and derives the
+// workbench's own slug when the workbench itself predates that field.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -407,6 +412,12 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
+		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
+		report.AssignedWorkbenchSlug = wsAssigned
+		report.Findings = append(report.Findings, wsReported...)
+		if err != nil {
+			return report, err
+		}
 	}
 	if req != nil && req.MigrateOrdinals {
 		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))

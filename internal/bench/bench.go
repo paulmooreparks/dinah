@@ -536,8 +536,10 @@ type Candidate struct {
 	Title string `json:"title"`
 	// Slug is the short name a card reference carries ahead of its number,
 	// empty on a workbench written before the field or one whose anchor will
-	// not read.
-	Slug string `json:"slug"`
+	// not read. The key is absent rather than an empty string standing in
+	// for the workbench having none, matching the convention StateView.Slug
+	// already carries.
+	Slug string `json:"slug,omitempty"`
 	// Path is the workbench directory, which is what --workbench takes.
 	Path string `json:"path"`
 }

@@ -39,17 +39,22 @@ const (
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
 	FindingIgnoredAnchor      = "check.ignored-anchor"
-	// The last five are raised by a migration rather than by the checker,
+	// FindingWorkbenchSlugMissing names a workbench written before the
+	// workbench-level slug field existed, on the same report-only terms
+	// FindingSlugMissing already reports a state's absence.
+	FindingWorkbenchSlugMissing = "check.workbench-slug-missing"
+	// The last six are raised by a migration rather than by the checker,
 	// because each names something only the run that did the work can know:
 	// which entity it placed by guesswork, which card a lock kept it out of,
 	// which entity it could not write to, which title it could derive no
-	// slug from, and which state anchor it could not write a slug to. None of
-	// them survives on disk for a later check to find.
-	FindingOrdinalGuessed    = "check.ordinal-guessed"
-	FindingOrdinalLocked     = "check.ordinal-locked"
-	FindingOrdinalUnwritable = "check.ordinal-unwritable"
-	FindingSlugUnderivable   = "check.slug-underivable"
-	FindingSlugUnwritable    = "check.slug-unwritable"
+	// slug from, and which state or workbench anchor it could not write a
+	// slug to. None of them survives on disk for a later check to find.
+	FindingOrdinalGuessed           = "check.ordinal-guessed"
+	FindingOrdinalLocked            = "check.ordinal-locked"
+	FindingOrdinalUnwritable        = "check.ordinal-unwritable"
+	FindingSlugUnderivable          = "check.slug-underivable"
+	FindingSlugUnwritable           = "check.slug-unwritable"
+	FindingWorkbenchSlugUnderivable = "check.workbench-slug-underivable"
 )
 
 // The directions an interrupted structural act is reported and finished in.
@@ -99,6 +104,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, b.checkCard(card)...)
 	}
 	findings = append(findings, b.checkStateSlugs()...)
+	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, standing := range b.interruptions() {
 		findings = append(findings, standing.finding())
 	}
@@ -131,6 +137,9 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	}
 	if b.State(card.State) == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownState, Detail: card.State})
+	}
+	if card.Number == 0 {
+		findings = append(findings, Finding{Path: anchor, Key: FindingOrdinalMissing, Detail: card.ID})
 	}
 	for _, link := range card.Links {
 		if b.HasIdentifier(link.To) {
