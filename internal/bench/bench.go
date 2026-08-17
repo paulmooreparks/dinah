@@ -527,6 +527,20 @@ func readAnchor(path string) (anchorState, error) {
 	return anchorForeign, nil
 }
 
+// AnchorRecognized reports whether the workbench.md at path carries Dinah's
+// claim to its directory (Frontmatter.Recognized), the same test benchIn and
+// soleBench apply at every rung of the discovery walk. It answers false for
+// a path with nothing there and false for a file that exists but is
+// somebody else's document; a non-nil error means a file exists and could
+// not be read, and the caller decides how to refuse over that.
+func AnchorRecognized(path string) (bool, error) {
+	state, err := readAnchor(path)
+	if err != nil {
+		return false, err
+	}
+	return state == anchorOurs, nil
+}
+
 // Candidate is one workbench a listing reports: enough of its identity to
 // recognise it, and the path that selects it. The members stop where reading
 // the anchor stops, so a listing never opens a workbench to describe it.

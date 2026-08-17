@@ -343,6 +343,44 @@ func TestInitRefusesADirectoryCarryingABareWorkbench(t *testing.T) {
 	}
 }
 
+// TestInitProceedsPastAForeignWorkbenchFile asserts dinah-84's AC-2: a
+// directory holding a workbench.md that carries none of Dinah's frontmatter
+// keys no longer stops `init`, since init writes into a fresh container
+// beside that file and never touches it. The foreign file is left
+// byte-for-byte unchanged and the new bench lands in the container.
+func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "workbench")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(root, "workbench.md")
+	before := []byte("just a note, not dinah's\n")
+	if err := os.WriteFile(foreign, before, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("init past a foreign anchor: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench, got %v", ids)
+	}
+	written := filepath.Join(root, bench.UserBaseName, ids[0])
+	if _, err := bench.Open(written); err != nil {
+		t.Fatalf("the written workbench should open cleanly: %v", err)
+	}
+	after, err := os.ReadFile(foreign)
+	if err != nil {
+		t.Fatalf("read foreign anchor: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the foreign file should be untouched, wanted %q, got %q", before, after)
+	}
+}
+
 // TestInitHelpKeepsItsRefusalList asserts that the help a person reads before
 // running `init` still summarises the command the same way and still names the
 // refusal creation keeps, since writing into the container removed no check.
@@ -361,6 +399,66 @@ func TestInitHelpKeepsItsRefusalList(t *testing.T) {
 		if !strings.Contains(got.out, carried) {
 			t.Errorf("the help should carry %q, got %q", carried, got.out)
 		}
+	}
+}
+
+// TestExtractStillRefusesOnAForeignWorkbenchFileAndLeavesItAlone asserts
+// dinah-84's AC-4: unlike init, extract keeps its bare existence check.
+// Extract overwrites whatever sits at the target path, so a foreign
+// workbench.md there is exactly as much at risk as a real one, and the
+// refusal (and the file's survival) does not depend on frontmatter
+// recognition. This is the regression guard for the "no silent loss"
+// requirement: it must keep passing since Extract itself does not change.
+func TestExtractStillRefusesOnAForeignWorkbenchFileAndLeavesItAlone(t *testing.T) {
+	root := newBench(t)
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(target, "workbench.md")
+	before := []byte("an unrelated document, not dinah's\n")
+	if err := os.WriteFile(foreign, before, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "extract", target)
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Exists {
+		t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
+	}
+	after, err := os.ReadFile(foreign)
+	if err != nil {
+		t.Fatalf("read foreign anchor: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the foreign file should survive a refused extract, wanted %q, got %q", before, after)
+	}
+}
+
+// TestInitRefusesOnAnUnreadableAnchor asserts dinah-84's AC-5: a
+// workbench.md that exists at init's target root but cannot be read refuses
+// with contract.UnreadableBench rather than contract.Exists. The read is
+// forced to fail by making workbench.md a directory rather than a file,
+// which every platform this tool runs on refuses to read as text, so the
+// failure is provoked the same way on Windows as everywhere else without
+// depending on permission bits (see readAnchorContent's own comment).
+func TestInitRefusesOnAnUnreadableAnchor(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "workbench")
+	if err := os.MkdirAll(filepath.Join(root, "workbench.md"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.UnreadableBench {
+		t.Errorf("leading token: wanted %s, got %q", contract.UnreadableBench, got.errw)
 	}
 }
 
