@@ -1894,3 +1894,81 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 		t.Error("the retired variable should select nothing, and it selected a workbench")
 	}
 }
+
+// TestAForeignWorkbenchFileIsPassedOverByTheClimb asserts AC-7: a directory
+// holding a workbench.md that carries none of profile, format or states,
+// sitting below a real workbench, no longer stops the search. `dinah
+// workbenches`, run from inside the foreign-holding directory, lists the real
+// ancestor workbench by title and does not list the foreign directory.
+func TestAForeignWorkbenchFileIsPassedOverByTheClimb(t *testing.T) {
+	root := newBench(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.MkdirAll(notes, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(notes, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, notes, "workbenches")
+	if got.code != 0 {
+		t.Fatalf("a foreign workbench.md should not stop the search, got %d %q", got.code, got.errw)
+	}
+	listed := listedRows(t, got)
+	if !sameDirs(t, listed, []string{benchDir(t, root)}) {
+		t.Errorf("wanted only the real ancestor workbench, got %v", listed)
+	}
+	if strings.Contains(got.out, "notes") {
+		t.Errorf("the foreign directory should not be listed, got %q", got.out)
+	}
+}
+
+// TestCheckReportsTheForeignAnchorsAWalkPassedOver asserts the CLI half of
+// AC-8: `dinah check`, run against a bench resolved through a foreign
+// workbench.md, reports a check.ignored-anchor finding naming that file's
+// path.
+func TestCheckReportsTheForeignAnchorsAWalkPassedOver(t *testing.T) {
+	root := newBench(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.MkdirAll(notes, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(notes, "workbench.md")
+	if err := os.WriteFile(foreign, []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, notes, "check")
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a workbench carrying a finding exits refused, got %d %q", got.code, got.errw)
+	}
+	catalog := msg.For(msg.Base)
+	if !strings.Contains(got.out, catalog.T(bench.FindingIgnoredAnchor)) || !strings.Contains(got.out, foreign) {
+		t.Errorf("wanted a check.ignored-anchor finding naming %q, got %q", foreign, got.out)
+	}
+}
+
+// TestTheOverrideSkipsRecognitionAndLeavesItToOpen asserts AC-9: --workbench
+// and DINAH_WORKBENCH test only file presence, unchanged. A recognition
+// problem in the pointed-at file (no frontmatter carrying profile, format or
+// states at all) is reported by Open's existing malformed refusal rather than
+// by a refusal the walk's new recognition test would raise.
+func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
+	root := newBench(t)
+	foreign := filepath.Join(root, "notes")
+	if err := os.MkdirAll(foreign, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(foreign, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "show", "--workbench", foreign)
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Malformed {
+		t.Errorf("leading token: wanted %s, got %q (%s)", contract.Malformed, leading, got.errw)
+	}
+}

@@ -213,7 +213,7 @@ func (s *session) reportError(err error) int {
 
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
-	root, err := bench.Discover(s.cwd, s.benchFlag, s.home, s.nativeHome)
+	root, passed, err := bench.Discover(s.cwd, s.benchFlag, s.home, s.nativeHome)
 	if err != nil {
 		return nil, err
 	}
@@ -221,6 +221,7 @@ func (s *session) open() (*verb.Library, error) {
 	if err != nil {
 		return nil, err
 	}
+	opened.Passed = passed
 	return verb.New(opened, s.home), nil
 }
 

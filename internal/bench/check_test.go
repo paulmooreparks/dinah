@@ -855,7 +855,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000003"), "Near one")
 	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000004"), "Near two")
 
-	_, err := Discover(inner, "", filepath.Join(tree, "home"), "")
+	_, _, err := Discover(inner, "", filepath.Join(tree, "home"), "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
@@ -881,7 +881,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	writeWorkbench(t, filepath.Join(sole, UserBaseName, "d00000000005"), "The only one")
-	found, err := Discover(sole, "", filepath.Join(tree, "home"), "")
+	found, _, err := Discover(sole, "", filepath.Join(tree, "home"), "")
 	if err != nil {
 		t.Fatalf("a base holding one workbench should resolve, got %v", err)
 	}
@@ -895,7 +895,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 // which is the one scenario dinah.no-workbench still covers.
 func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	empty := t.TempDir()
-	_, err := Discover(empty, empty, "", "")
+	_, _, err := Discover(empty, empty, "", "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
@@ -994,11 +994,11 @@ func writeWorkbench(t *testing.T, root, title string) {
 func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	tree := t.TempDir()
 	root := filepath.VolumeName(tree) + string(filepath.Separator)
-	if found, ambiguous := benchIn(root, false); found != "" || len(ambiguous) > 0 {
+	if found, ambiguous, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	home := filepath.Join(tree, "home")
-	_, err := Discover(root, "", home, "")
+	_, _, err := Discover(root, "", home, "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
@@ -1033,7 +1033,7 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 	writeWorkbench(t, filepath.Join(native, UserBaseName, "d00000000010"), "The real one")
 	relocated := t.TempDir()
 
-	_, err := Discover(deep, "", relocated, native)
+	_, _, err := Discover(deep, "", relocated, native)
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("the relocated search should find nothing, got %v", err)
@@ -1049,7 +1049,7 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 	// repository-nested convention resolves from the same starting directory.
 	nested := filepath.Join(native, "src", "repos", "project", UserBaseName, "d00000000011")
 	writeWorkbench(t, nested, "The repository one")
-	found, err := Discover(deep, "", relocated, native)
+	found, _, err := Discover(deep, "", relocated, native)
 	if err != nil {
 		t.Fatalf("a .dinah below the native home should still resolve, got %v", err)
 	}
@@ -1065,7 +1065,7 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	writeWorkbench(t, anchored, "Checked out at home")
-	found, err = Discover(inside, "", t.TempDir(), anchored)
+	found, _, err = Discover(inside, "", t.TempDir(), anchored)
 	if err != nil {
 		t.Fatalf("an anchor at the native home should still resolve, got %v", err)
 	}
@@ -1088,7 +1088,7 @@ func TestDiscoveryUnrelocatedStillFindsTheUserBase(t *testing.T) {
 	want := filepath.Join(native, UserBaseName, "d00000000012")
 	writeWorkbench(t, want, "The only one")
 
-	found, err := Discover(deep, "", native, native)
+	found, _, err := Discover(deep, "", native, native)
 	if err != nil {
 		t.Fatalf("an unrelocated search should resolve, got %v", err)
 	}
@@ -1123,7 +1123,7 @@ func TestTheBoundaryHoldsAgainstAnotherSpellingOfTheHome(t *testing.T) {
 	writeWorkbench(t, filepath.Join(native, UserBaseName, "d00000000013"), "The real one")
 	relocated := t.TempDir()
 
-	_, err := Discover(deep, "", relocated, alias)
+	_, _, err := Discover(deep, "", relocated, alias)
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("the boundary should hold under the aliased spelling, got %v", err)
@@ -1184,7 +1184,7 @@ func TestTheUserBaseBeatsABaseAboveTheHome(t *testing.T) {
 	want := filepath.Join(native, UserBaseName, "d00000000015")
 	writeWorkbench(t, want, "The user base one")
 
-	found, err := Discover(deep, "", native, native)
+	found, _, err := Discover(deep, "", native, native)
 	if err != nil {
 		t.Fatalf("the search should resolve to the user base, got %v", err)
 	}

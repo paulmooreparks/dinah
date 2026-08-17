@@ -267,7 +267,7 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 	if got := reopened.States[0].Slug; got != "agent-code-review" {
 		t.Errorf("the state anchor carries slug %q", got)
 	}
-	if body := readAnchor(t, root); !strings.Contains(body, "State text.") {
+	if body := readStateAnchorText(t, root); !strings.Contains(body, "State text.") {
 		t.Errorf("the migration lost the state's own instructions:\n%s", body)
 	}
 	again, reported := reopened.BackfillStateSlugs()
@@ -390,7 +390,7 @@ func TestTheMigrationWritesTheSlugWhereTheWriterPutsIt(t *testing.T) {
 	if _, reported := opened.BackfillStateSlugs(); len(reported) != 0 {
 		t.Fatalf("the migration reported %v", reported)
 	}
-	keys := anchorKeys(readAnchor(t, root))
+	keys := anchorKeys(readStateAnchorText(t, root))
 	wanted := []string{"title", "slug", "kind", "operator_owned"}
 	if strings.Join(keys, ",") != strings.Join(wanted, ",") {
 		t.Errorf("the migrated anchor reads %v, wanted %v", keys, wanted)
@@ -524,8 +524,8 @@ func readDefinition(t *testing.T, text string) *Definition {
 	return definition
 }
 
-// readAnchor reads the anchor of the fixture's first state.
-func readAnchor(t *testing.T, root string) string {
+// readStateAnchorText reads the anchor of the fixture's first state.
+func readStateAnchorText(t *testing.T, root string) string {
 	t.Helper()
 	text, err := ReadText(filepath.Join(root, StatesDir, "b00000000001", StateAnchor))
 	if err != nil {
