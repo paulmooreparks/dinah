@@ -357,12 +357,32 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 // interrupted structural acts first, so nobody finishes an act without the
 // report that named it, and then reports what the bench still carries.
 func (l *Library) Fsck(req *Request) ([]bench.Finding, error) {
-	if req != nil && req.Finish {
-		if _, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now())); err != nil {
-			return nil, err
-		}
+	if req == nil || !req.Finish {
+		return l.Bench.Fsck()
 	}
-	return l.Bench.Fsck()
+	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
+	if err != nil {
+		return nil, err
+	}
+	remaining, err := l.Bench.Fsck()
+	if err != nil {
+		return nil, err
+	}
+	// What the finish would not resolve it has already described more
+	// precisely than a second pass can, so its own finding is the one the
+	// reader gets for that path.
+	reported := map[string]bool{}
+	for _, finding := range unresolved {
+		reported[finding.Path] = true
+	}
+	findings := unresolved
+	for _, finding := range remaining {
+		if reported[finding.Path] {
+			continue
+		}
+		findings = append(findings, finding)
+	}
+	return findings, nil
 }
 
 // Export writes the interchange form of the bench definition.

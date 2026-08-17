@@ -212,7 +212,7 @@ func LockHolder(path string) string {
 // Release removes the lock, which is a plain deletion after the protected
 // write's rename has landed.
 func (l *Lock) Release() {
-	if l == nil {
+	if l == nil || l.path == "" {
 		return
 	}
 	os.Remove(l.path)

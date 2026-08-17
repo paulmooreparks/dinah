@@ -689,6 +689,10 @@
       "text": "बना",
       "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.deleted": {
+      "text": "मिटाया गया",
+      "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
     "token.done": {
       "text": "समाप्त",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
@@ -720,6 +724,10 @@
     "token.released": {
       "text": "छोड़ा",
       "context": "How the canonical token released is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.restored": {
+      "text": "पुनर्स्थापित",
+      "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
     "token.unblocked": {
       "text": "बाधा हटी",

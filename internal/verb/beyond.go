@@ -154,6 +154,9 @@ func (l *Library) Attach(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
 	ev := bench.Event{TS: now, Actor: req.Actor}
 	if req.Replace && entity.Kind == "attachment" {
 		attachment, err := bench.ReplaceAttachment(entity.Dir, req.File)
@@ -203,6 +206,7 @@ func (l *Library) Archive(req *Request) *Response {
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
 	act := &bench.StructuralAct{
 		Dir:     entity.Dir,
+		LockDir: l.lockDirFor(entity),
 		Op:      bench.OpArchive,
 		Actor:   req.Actor,
 		Now:     now,
@@ -245,6 +249,7 @@ func (l *Library) Delete(req *Request) *Response {
 	journal, ev := l.removalRecord(entity, req.Actor, now)
 	act := &bench.StructuralAct{
 		Dir:     entity.Dir,
+		LockDir: l.lockDirFor(entity),
 		Op:      bench.OpDelete,
 		Actor:   req.Actor,
 		Now:     now,

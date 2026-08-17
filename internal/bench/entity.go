@@ -286,6 +286,12 @@ func (b *Bench) StateOccupied(id string) error {
 type StructuralAct struct {
 	// Dir is the entity directory the act moves or removes.
 	Dir string
+	// LockDir is the directory whose lock the act takes at its third step,
+	// which is the nearest enclosing journal-bearing entity: the card's own
+	// directory for a card and for anything below one. An act whose scope
+	// is the bench leaves this empty, since the bench's own lock is the one
+	// already taken at the first step.
+	LockDir string
 	// Op is one of OpArchive, OpRestore and OpDelete.
 	Op string
 	// Actor is the owner the act is attributed to.
@@ -368,11 +374,15 @@ func (b *Bench) Run(act *StructuralAct) error {
 		}
 	}
 
-	entityLock, err := acquireTolerating(act.Dir, act.Actor, act.Now, record)
+	// An entity that vanished between the moment a caller resolved it and
+	// the moment the act reached its lock is reported as the unknown entity
+	// it has become, rather than as whatever error the filesystem raises.
+	if !Exists(act.Dir) {
+		refusal := contract.Refuse(contract.UnknownCard, filepath.Base(act.Dir))
+		return unwind(refusal, sibling, benchLock)
+	}
+	entityLock, err := b.takeEntityLock(act, record)
 	if err != nil {
-		if !Exists(act.Dir) {
-			err = contract.Refuse(contract.UnknownCard, filepath.Base(act.Dir))
-		}
 		return unwind(err, sibling, benchLock)
 	}
 	if err := b.step(3); err != nil {
@@ -407,6 +417,17 @@ func (b *Bench) Run(act *StructuralAct) error {
 	}
 	benchLock.Release()
 	return b.step(8)
+}
+
+// takeEntityLock performs the act's third acquisition, through the acquire
+// that tolerates the one sibling the act itself wrote. An act whose scope is
+// the bench takes nothing here, because the bench's own lock is what covers a
+// write at that scope and the act has held it since its first step.
+func (b *Bench) takeEntityLock(act *StructuralAct, record LockRecord) (*Lock, error) {
+	if act.LockDir == "" || act.LockDir == b.Root {
+		return nil, nil
+	}
+	return acquireTolerating(act.LockDir, act.Actor, act.Now, record)
 }
 
 // step runs the injected failure a test asks for at one numbered step of the

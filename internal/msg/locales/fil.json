@@ -861,6 +861,11 @@
       "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
+    "token.deleted": {
+      "text": "deleted",
+      "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
     "token.done": {
       "text": "done",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling.",
@@ -899,6 +904,11 @@
     "token.released": {
       "text": "released",
       "context": "How the canonical token released is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.restored": {
+      "text": "restored",
+      "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.unblocked": {

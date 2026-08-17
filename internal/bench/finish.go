@@ -25,6 +25,9 @@ type interruption struct {
 	// journal is the journal whose event says whether the act reached its
 	// point of record.
 	journal string
+	// lockDir is the directory whose lock the act took at its third step,
+	// empty for an act whose scope is the bench.
+	lockDir string
 	// direction is what the finish will do, from the journal and the two
 	// paths.
 	direction string
@@ -91,8 +94,27 @@ func (b *Bench) readInterruption(collection, id, path string, record LockRecord)
 		in.target = ""
 	}
 	in.journal = b.decidingJournal(collection, in.source, record.Op)
+	in.lockDir = b.entityLockDir(collection, in.source)
 	in.direction = b.direction(in)
 	return in
+}
+
+// entityLockDir names the directory whose lock the interrupted act took at
+// its third step, which is the same nearest enclosing journal-bearing entity
+// the act itself computed: the card's own directory for a card and for
+// anything below one, and nothing at all for an act whose scope is the bench.
+func (b *Bench) entityLockDir(collection, source string) string {
+	owner := filepath.Dir(collection)
+	if owner == b.Root {
+		if filepath.Base(collection) == CardsDir {
+			return source
+		}
+		return ""
+	}
+	if Exists(filepath.Join(owner, CardAnchor)) {
+		return owner
+	}
+	return ""
 }
 
 // siblingCollections lists the live collection directories a structural act
@@ -265,17 +287,20 @@ func (b *Bench) finish(in interruption) (*Finding, error) {
 // another actor or another process belongs to something live, so the finish
 // stops rather than breaking it.
 func (b *Bench) adoptEntityLock(in interruption) (*Lock, error) {
-	path := filepath.Join(in.source, LockName)
+	if in.lockDir == "" {
+		return adoptLock(""), nil
+	}
+	path := filepath.Join(in.lockDir, LockName)
 	if record, present := ReadLockRecord(path); present {
 		if record.Actor != in.record.Actor || record.PID != in.record.PID {
 			return nil, nil
 		}
 		return adoptLock(path), nil
 	}
-	if !Exists(in.source) {
+	if !Exists(in.lockDir) {
 		return adoptLock(path), nil
 	}
-	lock, err := acquireTolerating(in.source, in.record.Actor, in.record.TS, in.record)
+	lock, err := acquireTolerating(in.lockDir, in.record.Actor, in.record.TS, in.record)
 	if err != nil {
 		return nil, err
 	}
