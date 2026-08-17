@@ -443,18 +443,26 @@ func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 	cases := []struct {
 		name   string
 		states string
+		// detail is what the refusal names, which is the value the author has
+		// to change. A title deriving to nothing never became a slug, so a
+		// refusal calling it one sends the reader looking for a field the
+		// definition does not carry.
+		detail string
 	}{
 		{
 			name:   "an explicit slug outside the grammar",
 			states: `{"id": "b00000000001", "title": "One", "kind": "work", "slug": "Not A Slug"}`,
+			detail: "slug Not A Slug",
 		},
 		{
 			name:   "two explicit slugs asking for one value",
 			states: `{"id": "b00000000001", "title": "One", "kind": "work", "slug": "review"}, {"id": "b00000000002", "title": "Two", "kind": "work", "slug": "review"}`,
+			detail: "slug review",
 		},
 		{
 			name:   "a title no slug can be derived from",
 			states: `{"id": "b00000000001", "title": "---", "kind": "work"}`,
+			detail: "title ---",
 		},
 	}
 	for _, c := range cases {
@@ -463,7 +471,11 @@ func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 			root := filepath.Join(t.TempDir(), "bench")
 			err := Instantiate(root, "fx", "alka", definition)
 			if !refusedMalformed(err) {
-				t.Errorf("wanted malformed, got %v", err)
+				t.Fatalf("wanted malformed, got %v", err)
+			}
+			var refusal *contract.Refusal
+			if errors.As(err, &refusal) && refusal.Detail != c.detail {
+				t.Errorf("the refusal names %q, wanted %q", refusal.Detail, c.detail)
 			}
 		})
 	}
