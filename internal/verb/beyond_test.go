@@ -488,7 +488,7 @@ func TestInitFromATemplateCarriesTheStandingInstruction(t *testing.T) {
 	}
 
 	created := filepath.Join(t.TempDir(), "new-workbench")
-	written, err := Init(created, "again", "alka", template)
+	written, err := Init(created, "again", "alka", template, "", "")
 	if err != nil {
 		t.Fatalf("init --from: %v", err)
 	}

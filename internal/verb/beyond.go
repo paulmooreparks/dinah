@@ -346,6 +346,15 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 // interchange form, inside a fresh directory of the .dinah container under
 // root. It returns the directory it wrote to.
 //
+// override is --workbench or DINAH_WORKBENCH as the session resolved it, and
+// overrideSource is which of the two answered, passed through so Init can
+// refuse it by name rather than silently discard it. Every other verb reads
+// --workbench as the path to an existing workbench to open; Init has no
+// existing workbench to open, so honouring the flag here would give it a
+// second, contradictory meaning depending on which command sits next to it.
+// Init refuses instead, whatever the flag's value and whether or not a root
+// argument was also given.
+//
 // The refusal stays aimed at a bare workbench.md at root rather than at the
 // container, because benchIn resolves a recognized one before it ever looks
 // at that directory's container, so a bench written into the container
@@ -355,7 +364,14 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 // Dinah's frontmatter keys is passed over by the discovery walk exactly as
 // it is everywhere else, so a container written beside it stays reachable
 // and init proceeds rather than refusing over a file it never writes to.
-func Init(root, slug, operator, source string) (string, error) {
+func Init(root, slug, operator, source, override, overrideSource string) (string, error) {
+	if override != "" {
+		spelling := "--workbench"
+		if overrideSource == bench.SourceEnvironment {
+			spelling = "DINAH_WORKBENCH"
+		}
+		return "", contract.RefuseWith(contract.WorkbenchNotApplicable, override, map[string]string{"source": spelling})
+	}
 	anchor := filepath.Join(root, bench.WorkbenchAnchor)
 	recognized, err := bench.AnchorRecognized(anchor)
 	if err != nil {
