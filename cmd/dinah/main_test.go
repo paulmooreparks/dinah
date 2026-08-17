@@ -150,8 +150,7 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
 		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
 		{name: "an archive of a state cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
-		{name: "an init into a directory that already holds a workbench", argv: []string{"init"}, code: 2, token: contract.Exists, sentence: "already holds a workbench"},
-		{name: "an extract into a directory that already holds one", argv: []string{"extract", "."}, code: 2, token: contract.Exists},
+		{name: "an extract into a directory that already holds one", argv: []string{"extract", benchDir(t, root)}, code: 2, token: contract.Exists},
 		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
 		// The explicit basis arrives with the remote arbiter, so this head
 		// offers no way to write one and the flag is not understood.
@@ -180,6 +179,126 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 				t.Errorf("the refusal sentence: wanted %q in %q", c.sentence, got.errw)
 			}
 		})
+	}
+}
+
+// TestInitWritesIntoTheContainerAndSaysWhere asserts what `init` creates and
+// what it reports: a workbench inside the .dinah container of the directory it
+// was run in, named by a generated identifier, with nothing left bare at that
+// directory, and a message naming the directory it actually wrote to. The slug
+// and the title come from the directory rather than from the identifier.
+func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "release-notes")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, root, "init", "--operator", "ana")
+	if got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench, got %v", ids)
+	}
+	written := filepath.Join(root, bench.UserBaseName, ids[0])
+	if wanted := "Workbench created at " + written + ".\n"; got.out != wanted {
+		t.Errorf("the message: wanted %q, got %q", wanted, got.out)
+	}
+	if !bench.Exists(filepath.Join(written, "workbench.md")) {
+		t.Errorf("%s carries no workbench.md", written)
+	}
+	if bench.Exists(filepath.Join(root, "workbench.md")) {
+		t.Error("init wrote a workbench bare at the directory it was run in")
+	}
+	opened, err := bench.Open(written)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if opened.Slug != bench.Slugify("release-notes") || opened.Title != "release-notes" {
+		t.Errorf("the slug and the title should name the directory, got %q and %q", opened.Slug, opened.Title)
+	}
+	if bench.IsID(opened.Slug) || bench.IsID(opened.Title) {
+		t.Error("the slug and the title should not come from the generated identifier")
+	}
+}
+
+// TestASecondInitAddsAWorkbenchBesideTheFirst asserts that a directory whose
+// container already holds a workbench takes another one, and that the search
+// then reports the choice it cannot make rather than picking.
+func TestASecondInitAddsAWorkbenchBesideTheFirst(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "init", "--slug", "second", "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("the second init: %d %s", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 2 {
+		t.Fatalf("the container should hold two workbenches, got %v", ids)
+	}
+	reported := runCLI(t, root, "status")
+	if reported.code != 2 {
+		t.Fatalf("an unqualified status over two workbenches: wanted 2, got %d (%s)", reported.code, reported.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
+	if leading != contract.AmbiguousBench {
+		t.Errorf("leading token: wanted %s, got %q", contract.AmbiguousBench, reported.errw)
+	}
+	for _, id := range ids {
+		if !strings.Contains(reported.errw, id) {
+			t.Errorf("the refusal should name both workbenches, %s is missing from %q", id, reported.errw)
+		}
+	}
+}
+
+// TestInitRefusesADirectoryCarryingABareWorkbench asserts the one refusal
+// creation keeps. A container written beside a bare workbench.md would sit
+// where the climbing search never looks, so `init` refuses there and writes
+// nothing.
+func TestInitRefusesADirectoryCarryingABareWorkbench(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "workbench")
+	definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Bare")))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := bench.Instantiate(root, "bare", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Exists {
+		t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
+	}
+	if !strings.Contains(got.errw, "already holds a workbench") {
+		t.Errorf("the refusal sentence: wanted %q in %q", "already holds a workbench", got.errw)
+	}
+	if bench.Exists(filepath.Join(root, bench.UserBaseName)) {
+		t.Error("the refused init left a container behind")
+	}
+}
+
+// TestInitHelpKeepsItsRefusalList asserts that the help a person reads before
+// running `init` still summarises the command the same way and still names the
+// refusal creation keeps, since writing into the container removed no check.
+func TestInitHelpKeepsItsRefusalList(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "help", "init")
+	if got.code != 0 {
+		t.Fatalf("help init: %d %s", got.code, got.errw)
+	}
+	for _, carried := range []string{
+		"create a workbench here, optionally from a template",
+		"the directory holds no workbench already",
+		contract.Exists,
+		"the source definition carries what the profile requires",
+	} {
+		if !strings.Contains(got.out, carried) {
+			t.Errorf("the help should carry %q, got %q", carried, got.out)
+		}
 	}
 }
 
@@ -591,17 +710,44 @@ func newLimitedBench(t *testing.T) string {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if got := runCLI(t, root, "init", "--from", source, "--slug", "lim", "--operator", "alka"); got.code != 0 {
+	got := runCLI(t, root, "init", "--from", source, "--slug", "lim", "--operator", "alka")
+	if got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
+	// A workbench built from a template lands in the container like any
+	// other, and the message names the directory it landed in, which is
+	// where every later command in these tests reads it from.
+	written := benchDir(t, root)
+	if wanted := "Workbench created at " + written + ".\n"; got.out != wanted {
+		t.Fatalf("the message: wanted %q, got %q", wanted, got.out)
+	}
+	if !bench.Exists(filepath.Join(written, "workbench.md")) {
+		t.Fatalf("%s carries no workbench.md", written)
+	}
 	return root
+}
+
+// benchDir returns the directory holding the workbench that a CLI run in root
+// resolves to: root itself when a bare workbench sits there, and the sole
+// entry of root's container otherwise, which is where `init` writes.
+func benchDir(t *testing.T, root string) string {
+	t.Helper()
+	if bench.Exists(filepath.Join(root, "workbench.md")) {
+		return root
+	}
+	base := filepath.Join(root, bench.UserBaseName)
+	ids := bench.ListIDs(base)
+	if len(ids) != 1 {
+		t.Fatalf("%s holds %d workbenches, wanted one", base, len(ids))
+	}
+	return filepath.Join(base, ids[0])
 }
 
 // editAnchor rewrites the workbench anchor, which is how the cases above build
 // a bench that a hand edit has put outside what the tool will serve.
 func editAnchor(t *testing.T, root, from, to string) {
 	t.Helper()
-	path := filepath.Join(root, "workbench.md")
+	path := filepath.Join(benchDir(t, root), "workbench.md")
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -1149,7 +1295,7 @@ func writeStateSlug(t *testing.T, root string, position int, slug string) (strin
 	if position >= len(states) {
 		t.Fatalf("the workbench carries %d states", len(states))
 	}
-	path := filepath.Join(root, "states", states[position].ID, "state.md")
+	path := filepath.Join(benchDir(t, root), "states", states[position].ID, "state.md")
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
@@ -1174,7 +1320,7 @@ func writeStateSlug(t *testing.T, root string, position int, slug string) (strin
 // the shape a workbench written before the field has on disk.
 func stripSlugs(t *testing.T, root string) {
 	t.Helper()
-	states := filepath.Join(root, "states")
+	states := filepath.Join(benchDir(t, root), "states")
 	entries, err := os.ReadDir(states)
 	if err != nil {
 		t.Fatalf("read states: %v", err)
@@ -1232,7 +1378,11 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			token: contract.Malformed,
 			carries: []string{
 				"profile is missing, empty, or will not parse",
-				filepath.Join("workbench", "workbench.md"),
+				// `init` writes into the container, so the anchor the
+				// refusal names sits under it rather than at the directory
+				// the command was run in.
+				filepath.Join("workbench", bench.UserBaseName),
+				"workbench.md",
 				"dinah check",
 			},
 			context: []string{"path"},
@@ -1263,11 +1413,12 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				rooms := map[string]string{"d00000000001": "one", "d00000000002": "two"}
 				for id, slug := range rooms {
 					room := filepath.Join(tree, ".dinah", id)
-					if err := os.MkdirAll(room, 0o755); err != nil {
-						t.Fatalf("mkdir: %v", err)
+					definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, id)))
+					if err != nil {
+						t.Fatalf("definition: %v", err)
 					}
-					if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
-						t.Fatalf("init: %d %s", got.code, got.errw)
+					if err := bench.Instantiate(room, slug, "alka", definition); err != nil {
+						t.Fatalf("instantiate: %v", err)
 					}
 				}
 				return tree, []string{"status"}
@@ -1356,18 +1507,38 @@ func emptyTree(t *testing.T) string {
 	return tree
 }
 
+// baseDefinition is the flow populateBase writes each workbench from, taking
+// the title as its one argument. It stands in for the flow `init` builds when
+// no source is named.
+const baseDefinition = `{
+  "profile": "dinah-core/1.0",
+  "title": %q,
+  "states": [
+    { "id": "c00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "c00000000002", "title": "Doing", "kind": "work" },
+    { "id": "c00000000003", "title": "Done", "kind": "done" }
+  ]
+}`
+
 // populateBase writes one workbench per slug into a base directory, and
 // returns the directory each one landed in, in the order the slugs were given.
+//
+// Each workbench is instantiated at the directory named for it rather than
+// created through `init`, which writes into a .dinah container under the
+// directory it is given. The discovery these tests exercise reads a base whose
+// entries are workbenches, so they need the deterministic path directly.
 func populateBase(t *testing.T, base string, slugs ...string) []string {
 	t.Helper()
 	rooms := make([]string, 0, len(slugs))
 	for i, slug := range slugs {
-		room := filepath.Join(base, fmt.Sprintf("d0000000000%d", i+1))
-		if err := os.MkdirAll(room, 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
+		name := fmt.Sprintf("d0000000000%d", i+1)
+		room := filepath.Join(base, name)
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, name)))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
 		}
-		if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
-			t.Fatalf("init: %d %s", got.code, got.errw)
+		if err := bench.Instantiate(room, slug, "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
 		}
 		rooms = append(rooms, room)
 	}
@@ -1531,7 +1702,7 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 
 	t.Run("one reachable", func(t *testing.T) {
 		sole := newBench(t)
-		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{sole}) {
+		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{benchDir(t, sole)}) {
 			t.Errorf("wanted the one workbench, got %v", listed)
 		}
 		rows := jsonRows(t, runCLI(t, sole, "--json", "workbenches"))

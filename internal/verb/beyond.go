@@ -343,16 +343,31 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 }
 
 // Init creates a bench, optionally from a template or another bench's
-// interchange form.
-func Init(root, slug, operator, source string) error {
+// interchange form, inside a fresh directory of the .dinah container under
+// root. It returns the directory it wrote to.
+//
+// The refusal stays aimed at a bare workbench.md at root rather than at the
+// container, because benchIn resolves such a file before it ever looks at
+// that directory's container, so a bench written into the container beside
+// it would sit where the climbing search can never reach it.
+func Init(root, slug, operator, source string) (string, error) {
 	if bench.Exists(filepath.Join(root, bench.WorkbenchAnchor)) {
-		return contract.Refuse(contract.Exists, root)
+		return "", contract.Refuse(contract.Exists, root)
 	}
 	definition, err := readSource(root, source)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return bench.Instantiate(root, slug, operator, definition)
+	container := filepath.Join(root, bench.UserBaseName)
+	id, err := bench.ClaimID(container, nil)
+	if err != nil {
+		return "", err
+	}
+	written := filepath.Join(container, id)
+	if err := bench.Instantiate(written, slug, operator, definition); err != nil {
+		return "", err
+	}
+	return written, nil
 }
 
 // readSource reads the definition a new bench is instantiated from: an
