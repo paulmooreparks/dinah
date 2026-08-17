@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // IsolateTempDir points TMP, TEMP, and TMPDIR at a directory outside the
@@ -33,17 +34,30 @@ import (
 // and macos-latest legs of CI.
 //
 // It prints where it looked, what it expected, and what to set instead, then
-// exits the process, when it cannot produce or verify a directory outside
-// home. A test suite that cannot prove its own isolation must not run
-// unisolated and report a pass.
+// exits the process, when it cannot establish a home directory to compare
+// against at all (os.UserHomeDir fails, or the path it names does not stand
+// up as a real, readable directory), or when it cannot produce or verify a
+// directory outside home once it has one. A test suite that cannot prove its
+// own isolation must not run unisolated and report a pass; a case it cannot
+// evaluate is exactly the case where an unprotected run could reach real
+// data, not a case with nothing to protect.
 func IsolateTempDir() (restore func()) {
 	noop := func() {}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		// Nothing to protect: bench.NativeHome() treats the same error the
-		// same way, as an unbounded walk rather than a guess at a boundary.
-		return noop
+	home, homeErr := os.UserHomeDir()
+	var statErr error
+	if homeErr == nil {
+		info, err := os.Stat(home)
+		switch {
+		case err != nil:
+			statErr = err
+		case !info.IsDir():
+			statErr = fmt.Errorf("%s is not a directory", home)
+		}
+	}
+	if ok, message := resolveHome(home, homeErr, statErr); !ok {
+		fmt.Fprintln(os.Stderr, message)
+		os.Exit(1)
 	}
 
 	original := os.TempDir()
@@ -81,6 +95,65 @@ func IsolateTempDir() (restore func()) {
 // depend on which operating system the test runner happens to be.
 func decideIsolation(defaultTemp, home string) bool {
 	return insideHome(defaultTemp, home)
+}
+
+// resolveHome decides whether IsolateTempDir has a home directory it can
+// trust as a boundary, given the raw results of resolving it
+// (os.UserHomeDir) and confirming it stands up as a real, readable directory
+// (os.Stat). Kept separate from those two calls so a unit test can supply
+// both outcomes directly rather than depend on which home this machine
+// actually has, the same reason decideIsolation and verifyIsolation stay
+// separate from the filesystem calls that feed them. A resolution error
+// takes priority in the message when both are present, since a stat was
+// never attempted without a resolved path to stat.
+func resolveHome(home string, homeErr, statErr error) (ok bool, message string) {
+	if homeErr != nil {
+		return false, unresolvedHomeMessage(homeErr)
+	}
+	if statErr != nil {
+		return false, unverifiedHomeMessage(home, statErr)
+	}
+	return true, ""
+}
+
+// homeEnvVar names the environment variable os.UserHomeDir reads to resolve
+// home on this platform, so a refusal can tell the reader exactly which
+// variable to set rather than making them guess.
+func homeEnvVar() string {
+	if runtime.GOOS == "windows" {
+		return "USERPROFILE"
+	}
+	return "HOME"
+}
+
+// unresolvedHomeMessage is the refusal for an os.UserHomeDir error: the
+// guard could not establish where home is at all, so it has no boundary to
+// compare the default temporary directory against and cannot tell whether a
+// test run would reach real data. Follows the same where-looked,
+// what-expected, what-to-set shape as failMessage.
+func unresolvedHomeMessage(cause error) string {
+	v := homeEnvVar()
+	return fmt.Sprintf(
+		"testenv: could not resolve your home directory, so there is no boundary to isolate temporary files from: %v\n"+
+			"testenv: expected %s to be set, on this platform, to your real home directory before any test runs\n"+
+			"testenv: set %s to your home directory yourself, then run the tests again",
+		cause, v, v,
+	)
+}
+
+// unverifiedHomeMessage is the refusal for a stat failure on a resolved
+// home: os.UserHomeDir reported no error, but the path it named does not
+// stand up as a real, readable directory, so the guard has a string with
+// nothing behind it rather than a boundary it can trust. Follows the same
+// where-looked, what-expected, what-to-set shape as failMessage.
+func unverifiedHomeMessage(home string, cause error) string {
+	v := homeEnvVar()
+	return fmt.Sprintf(
+		"testenv: looked for your home directory at %s (resolved from %s), and could not confirm it as a real, readable directory: %v\n"+
+			"testenv: expected %s to name a directory that actually exists and is readable before any test runs\n"+
+			"testenv: set %s to a real, existing directory yourself, then run the tests again",
+		home, v, cause, v, v,
+	)
 }
 
 // verifyIsolation decides whether a directory IsolateTempDir just created can

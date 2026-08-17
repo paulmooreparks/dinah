@@ -59,6 +59,55 @@ func TestDecideIsolationIsANoOpOutsideHome(t *testing.T) {
 	}
 }
 
+// TestResolveHomeRefusesAnUnresolvedHome asserts that resolveHome refuses,
+// rather than reporting nothing to protect, when os.UserHomeDir itself
+// failed, and that the refusal names the cause.
+func TestResolveHomeRefusesAnUnresolvedHome(t *testing.T) {
+	cause := errors.New("%userprofile% is not defined")
+	ok, message := resolveHome("", cause, nil)
+	if ok {
+		t.Fatalf("an unresolved home should not resolve as trustworthy")
+	}
+	if !strings.Contains(message, cause.Error()) {
+		t.Errorf("refusal message should mention the cause %q, got %q", cause.Error(), message)
+	}
+	for _, want := range []string{homeEnvVar(), "set"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("refusal message should mention %q, got %q", want, message)
+		}
+	}
+}
+
+// TestResolveHomeRefusesAHomeThatFailsStat asserts that resolveHome refuses
+// when os.UserHomeDir reported no error but the resolved path failed an
+// os.Stat check, and that the refusal names both the path and the cause.
+func TestResolveHomeRefusesAHomeThatFailsStat(t *testing.T) {
+	home := filepath.Join(string(filepath.Separator), "home", "ghost")
+	cause := errors.New("no such file or directory")
+	ok, message := resolveHome(home, nil, cause)
+	if ok {
+		t.Fatalf("a home that fails a stat check should not resolve as trustworthy")
+	}
+	for _, want := range []string{home, cause.Error(), homeEnvVar(), "set"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("refusal message should mention %q, got %q", want, message)
+		}
+	}
+}
+
+// TestResolveHomeAcceptsAResolvedAndStatableHome asserts the success path:
+// a home that resolved with no error and stated with no error resolves as
+// trustworthy, with no message.
+func TestResolveHomeAcceptsAResolvedAndStatableHome(t *testing.T) {
+	ok, message := resolveHome("/home/paul", nil, nil)
+	if !ok {
+		t.Fatalf("a resolved, statable home should resolve as trustworthy, got message %q", message)
+	}
+	if message != "" {
+		t.Errorf("a trustworthy home should carry no message, got %q", message)
+	}
+}
+
 // TestVerifyIsolationCatchesAnUnhelpfulMkdir asserts that verifyIsolation
 // refuses when MkdirTemp itself failed, without needing a real MkdirTemp
 // call or a real process exit.
