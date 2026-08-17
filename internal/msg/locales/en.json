@@ -681,6 +681,10 @@
       "text": "{detail} was not understood; run dinah help for the list of commands",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.usage.dash-hint": {
+      "text": "Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.",
+      "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does."
+    },
     "refusal.dinah.workbench-not-applicable": {
       "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}). Give init the target directory as a plain argument instead.",
       "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one."
