@@ -593,6 +593,10 @@
       "text": "this is already locked; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.no-configured-workbench": {
+      "text": "the workbench setting names {detail}, which carries no workbench.md; run `dinah config set workbench <path>` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried."
+    },
     "refusal.dinah.no-workbench": {
       "text": "{detail} was named by --workbench, and it carries no workbench.md; point --workbench at a directory that does, or drop --workbench to search upward from here",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
@@ -730,8 +734,8 @@
       "context": "The label above the cards this actor holds."
     },
     "status.workbench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered."
+      "text": "{title}  ({root})  [{source}]",
+      "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it."
     },
     "token.active": {
       "text": "active",
@@ -840,6 +844,10 @@
     "token.restored": {
       "text": "restored",
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.search": {
+      "text": "search",
+      "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling."
     },
     "token.unblocked": {
       "text": "unblocked",

@@ -11,7 +11,7 @@ import (
 // ConfigKeys are the settings v0 knows. A key outside this set is refused,
 // and a key already in the file that the tool does not know survives a write,
 // which is the same reader posture the format asks of every other document.
-var ConfigKeys = []string{"lang", "actor", "editor"}
+var ConfigKeys = []string{"lang", "actor", "editor", "workbench"}
 
 // Config is the user's own settings, held in config.md in the user base.
 type Config struct {
@@ -47,9 +47,27 @@ func (c *Config) Keys() []string {
 }
 
 // Set writes one setting, preserving every key the tool does not recognise.
+//
+// The workbench key gets one special case: a non-empty value is resolved to
+// an absolute path before it is stored. A relative path means one thing at
+// write time, when the current directory supplies it, and a different thing
+// at read time, when a later invocation stands wherever the person or agent
+// happens to be that day; resolving now is what makes the stored value mean
+// the same directory both times. An empty value skips the resolution and
+// clears the setting, exactly as every other key does, and the check has to
+// run before filepath.Abs is called rather than be inferred from its result,
+// since filepath.Abs("") resolves to the current directory instead of to
+// nothing.
 func (c *Config) Set(key, value string) error {
 	if !KnownConfigKey(key) {
 		return contract.Refuse(contract.UnknownKey, key)
+	}
+	if key == "workbench" && strings.TrimSpace(value) != "" {
+		abs, err := filepath.Abs(value)
+		if err != nil {
+			return err
+		}
+		value = abs
 	}
 	c.fm.Set(key, value)
 	return WriteText(c.Path, c.fm.Render(c.body))
@@ -83,11 +101,15 @@ const (
 	SourceVisual      = "visual"
 	SourceEditorVar   = "dinah-editor"
 	SourceConfig      = "config"
-	SourceLocale      = "locale"
-	SourceDefault     = "default"
-	SourceFallback    = "fallback"
-	SourceUnset       = "unset"
-	SourceUnknown     = "unknown"
+	// SourceSearch names the rung a workbench answer came from when the
+	// ancestor walk resolved it, alongside the other rungs a listing or a
+	// status line already names, so the two vocabularies never diverge.
+	SourceSearch   = "search"
+	SourceLocale   = "locale"
+	SourceDefault  = "default"
+	SourceFallback = "fallback"
+	SourceUnset    = "unset"
+	SourceUnknown  = "unknown"
 )
 
 // Layer is one rung of a resolution ladder: what the rung carries, and the
@@ -154,6 +176,37 @@ func ResolveActorSource(flag string, cfg *Config) (string, string) {
 		return "", SourceUnset
 	}
 	return actor, source
+}
+
+// ResolveWorkbenchSource resolves which workbench a session would open right
+// now, without opening it, sharing DiscoverSource's own resolution rather
+// than restating it, so a listing can never report a rung that would not
+// actually answer. flag and env are the two override layers a session
+// resolves ahead of everything else; they are combined here the way session
+// combines them, so the config listing runs the identical ladder a real
+// invocation would.
+//
+// A refusal collapses to an empty value and the unset source. `dinah config`
+// has to keep answering for every other setting even when no workbench is
+// reachable at all or the stored default has gone stale; only an actual
+// workbench-opening command treats that refusal as fatal.
+func ResolveWorkbenchSource(start, flag, env, home, nativeHome, configured string) (string, string) {
+	override, overrideSource := Resolve(
+		Layer{Source: SourceFlag, Value: flag},
+		Layer{Source: SourceEnvironment, Value: env},
+	)
+	root, source, _, err := DiscoverSource(
+		start,
+		override,
+		overrideSource,
+		home,
+		nativeHome,
+		configured,
+	)
+	if err != nil {
+		return "", SourceUnset
+	}
+	return root, source
 }
 
 // ResolveLang resolves the display language, by the ladder the format's

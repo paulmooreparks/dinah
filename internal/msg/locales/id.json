@@ -648,7 +648,7 @@
     },
     "help.tagline": {
       "text": "Dinah keeps work moving.",
-      "context": "The first line of the help block, the tool's one-sentence description.",
+      "context": "The first line of the help block, the tool's one-sentence description. The word Dinah names the product and stays in Latin script; do not respell it.",
       "skeleton": true
     },
     "help.usage": {
@@ -739,6 +739,11 @@
     "refusal.dinah.locked": {
       "text": "this is already locked; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-configured-workbench": {
+      "text": "the workbench setting names {detail}, which carries no workbench.md; run `dinah config set workbench \u003cpath\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried.",
       "skeleton": true
     },
     "refusal.dinah.no-editor": {
@@ -912,8 +917,8 @@
       "skeleton": true
     },
     "status.workbench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered.",
+      "text": "{title}  ({root})  [{source}]",
+      "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it.",
       "skeleton": true
     },
     "token.active": {
@@ -1049,6 +1054,11 @@
     "token.restored": {
       "text": "restored",
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.search": {
+      "text": "search",
+      "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.unblocked": {

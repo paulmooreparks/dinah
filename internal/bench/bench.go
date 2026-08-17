@@ -184,29 +184,67 @@ type Bench struct {
 // than a Dinah workbench, in the order the walk met them. It is nil on the
 // override branch, since --workbench and DINAH_WORKBENCH test only file
 // presence and never run the recognition test (see the card's decisions).
+//
+// Discover is DiscoverSource with no override rung named and no configured
+// default to fall back to, kept at its own four-argument signature so every
+// existing call site and test is untouched.
 func Discover(start, override, home, nativeHome string) (string, []string, error) {
+	root, _, passed, err := DiscoverSource(start, override, "", home, nativeHome, "")
+	return root, passed, err
+}
+
+// DiscoverSource is Discover with two things added: the rung that answered,
+// named alongside the root, and a configured default consulted as the last
+// rung before a refusal.
+//
+// override is the value --workbench or DINAH_WORKBENCH already resolved to,
+// and overrideSource names which of the two produced it (SourceFlag or
+// SourceEnvironment); it is trusted without further scrutiny, the same plain
+// Exists stat the override branch has always run, because an explicit
+// pointer names an exact directory rather than a directory the climb merely
+// stumbled onto. configured is the workbench setting's stored value, tried
+// only once the walk has resolved to nothing at all: a sole workbench or an
+// ambiguous base each still decide the search on their own, and the
+// configured default never breaks a tie an ambiguous base already raised.
+//
+// A configured path that no longer carries a workbench.md refuses by its own
+// name, dinah.no-configured-workbench, naming the path, rather than falling
+// through to dinah.no-workbench-found: falling through would silently run
+// the command against no workbench at all, or against whatever the caller's
+// own working directory happens to be.
+func DiscoverSource(start, override, overrideSource, home, nativeHome, configured string) (string, string, []string, error) {
 	if override != "" {
 		abs, err := filepath.Abs(override)
 		if err != nil {
-			return "", nil, err
+			return "", "", nil, err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
-			return "", nil, contract.Refuse(contract.NoWorkbench, abs)
+			return "", "", nil, contract.Refuse(contract.NoWorkbench, abs)
 		}
-		return abs, nil, nil
+		return abs, overrideSource, nil, nil
 	}
 	search, err := walk(start, home, nativeHome)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
 	if search.sole != "" {
-		return search.sole, search.passed, nil
+		return search.sole, SourceSearch, search.passed, nil
 	}
 	if search.base != "" {
 		extra := map[string]string{"base": search.base}
-		return "", nil, contract.RefuseWith(contract.AmbiguousWorkbench, describeCandidates(search.candidates), extra)
+		return "", "", nil, contract.RefuseWith(contract.AmbiguousWorkbench, describeCandidates(search.candidates), extra)
 	}
-	return "", nil, contract.RefuseWith(contract.NoWorkbenchFound, start, map[string]string{"home": search.userBase})
+	if configured != "" {
+		abs, err := filepath.Abs(configured)
+		if err != nil {
+			return "", "", nil, err
+		}
+		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
+			return "", "", nil, contract.Refuse(contract.NoConfiguredWorkbench, abs)
+		}
+		return abs, SourceConfig, search.passed, nil
+	}
+	return "", "", nil, contract.RefuseWith(contract.NoWorkbenchFound, start, map[string]string{"home": search.userBase})
 }
 
 // Reachable reports what Discover's walk finds right now, without turning
