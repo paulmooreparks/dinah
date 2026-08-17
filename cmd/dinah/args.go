@@ -40,21 +40,36 @@ type arguments struct {
 //
 // A single dash is a word rather than a flag, since it is how a command reads
 // its argument from a pipe.
+//
+// A bare "--" is the POSIX end-of-options marker. The first one seen is
+// consumed rather than added to positional, and every word after it,
+// including a second literal "--", is taken as positional text without being
+// checked against known at all. Nothing about flags already parsed before the
+// marker changes; the marker only closes the flag scan for what follows it.
 func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 	parsed := &arguments{flags: map[string]string{}}
 	known := map[string]bool{}
 	for _, flag := range append(append([]string{}, valuedFlags...), markerFlags...) {
 		known[flag] = true
 	}
+	markerSeen := false
 	for i := 0; i < len(argv); i++ {
 		word := argv[i]
+		if markerSeen {
+			parsed.positional = append(parsed.positional, word)
+			continue
+		}
+		if word == "--" {
+			markerSeen = true
+			continue
+		}
 		if word == "-" || !strings.HasPrefix(word, "--") {
 			parsed.positional = append(parsed.positional, word)
 			continue
 		}
 		name, inline, joined := strings.Cut(strings.TrimPrefix(word, "--"), "=")
 		if !known[name] {
-			return nil, contract.Refuse(contract.Usage, word)
+			return nil, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
 		}
 		if !valued[name] {
 			parsed.flags[name] = ""
@@ -65,7 +80,7 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 			continue
 		}
 		if i+1 >= len(argv) {
-			return nil, contract.Refuse(contract.Usage, word)
+			return nil, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
 		}
 		i++
 		parsed.flags[name] = argv[i]
