@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 1.0`, maturity channel `dev`.
+Version identity: `dinah-core 2.0`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -505,14 +505,14 @@ to the other reorders itself for no reason a reader can see, so the profile
 fixes one order and lets a tool offer others beside it.
 
 The fixed order is arrival: the card that entered the state earliest comes
-first. Ties are broken by ascending identifier, which makes the order total.
-The order deliberately consults nothing about the card except when it arrived,
-because every richer ordering would import a ranking the profile does not
-define.
+first. Ties are broken by ascending creation ordinal, which makes the order
+total. The order deliberately consults nothing about the card except when it
+arrived, because every richer ordering would import a ranking the profile does
+not define.
 
-[CORE-QUEUE-1] The next card of a state MUST be the card in that state whose substate is `ready` that entered the state earliest, with ties broken by ascending card identifier.
+[CORE-QUEUE-3] The next card of a state MUST be the card in that state whose substate is `ready` that entered the state earliest, with ties broken by ascending creation ordinal.
 
-[CORE-QUEUE-2] A tool MAY offer orders beside the one CORE-QUEUE-1 defines, provided the order CORE-QUEUE-1 defines remains available.
+[CORE-QUEUE-4] A tool MAY offer orders beside the one CORE-QUEUE-3 defines, provided the order CORE-QUEUE-3 defines remains available.
 
 ### 5.6 Text
 
@@ -1071,7 +1071,7 @@ quietly.
 | The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-4 |
 | The conformance claim and what it is evaluated over | in | A claim nobody can check is a claim worth nothing, so the profile fixes what a claim names and which statements a run exercises. | | CORE-VER-1, CORE-VER-2, SUITE-CONF-1 |
 | This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-2, DOC-VER-3, DOC-VER-4, DOC-VER-5, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
-| The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-1, CORE-QUEUE-2 |
+| The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
 | The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4, CORE-BASIS-5 |
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
 | The claim as a lease that may expire | in | An owner that disappears must not be able to hold a card forever, and expiry that is recorded rather than silent keeps the record honest. | | CORE-CLAIM-4, CORE-CLAIM-5, CORE-HIST-2 |
@@ -1256,8 +1256,8 @@ themselves carry meaning.
 | CORE-OWNER-3 | must | tool | A verb asked on a workbench that designates no operator is refused with `no-operator`. |
 | CORE-VERB-1 | must | tool | A verb naming a card the workbench does not carry is refused with `unknown-card`. |
 | CORE-VERB-2 | must | tool | A verb naming no owner is refused with `no-owner`. |
-| CORE-QUEUE-1 | must | tool | Over a fixture with known arrival times, the next card is the earliest `ready` arrival, ties broken by ascending identifier. |
-| CORE-QUEUE-2 | may | tool | A tool offering another order still returns the CORE-QUEUE-1 order when asked for it. |
+| CORE-QUEUE-3 | must | tool | Over a fixture with known arrival times, the next card is the earliest `ready` arrival, ties broken by ascending creation ordinal. |
+| CORE-QUEUE-4 | may | tool | A tool offering another order still returns the CORE-QUEUE-3 order when asked for it. |
 | CORE-TEXT-1 | must | tool | Text the tool writes decodes as UTF-8. |
 | CORE-TEXT-2 | must not | tool | Identifier and token comparison gives the same answers under a Turkish locale as under a neutral one. |
 | CORE-TEXT-3 | must not | tool | A machine-readable response carries the canonical token whatever language is asked for. |
@@ -1367,3 +1367,25 @@ the four outcomes kept apart, and the interchange form of section 5.7.
 Nothing previously conformed, so nothing ceases to. The document sits on
 the `dev` channel, so the compatibility promise of section 2 does not yet
 bind, and it starts to bind at the recorded promotion to `stable`.
+
+### 2.0, channel `dev`, 2026-08-17
+
+Identifiers affected: CORE-QUEUE-1, retired. CORE-QUEUE-2, retired.
+CORE-QUEUE-3, introduced, carrying CORE-QUEUE-1's demand with its tie-break
+clause reworded to name ascending creation ordinal instead of ascending card
+identifier. CORE-QUEUE-4, introduced, carrying CORE-QUEUE-2's demand with its
+cross-reference reworded to name CORE-QUEUE-3 instead of the identifier it
+retires. No other identifier in the section 11 index is affected.
+
+Consequence for a caller. A tool computing the next `ready` card in a state
+now breaks a same-arrival-time tie by the card's creation ordinal (the
+`number` field the interchange form and every reference implementation
+already carry) rather than by the card's identifier. A tool that offers
+another order beside the fixed one now checks CORE-QUEUE-4 rather than
+CORE-QUEUE-2 for the rule permitting it, though the two statements ask the
+same thing of a tool under different names. A tool whose fixture data ties on
+arrival time and asserted an identifier-ordered outcome will see a different
+card returned; a tool with no such fixture, and no code that names
+CORE-QUEUE-1 or CORE-QUEUE-2 directly, sees no behavior change beyond the
+renumbering. The document sits on the `dev` channel, so nothing here binds a
+caller who has not already opted into `dinah-core 2.0`.

@@ -1,8 +1,11 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -141,6 +144,33 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			},
 			key: FindingTornJournal,
 		},
+		{
+			name: "an entity carrying no creation ordinal",
+			breakIt: func(t *testing.T, root string) {
+				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 0, "unstamped")
+			},
+			key: FindingOrdinalMissing,
+		},
+		{
+			name: "two entities of one collection sharing an ordinal",
+			breakIt: func(t *testing.T, root string) {
+				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 1, "first")
+				writeComment(t, root, "e00000000002", "2026-08-17T09:02:00Z", 1, "second")
+			},
+			key: FindingOrdinalDuplicate,
+		},
+		{
+			// A deletion leaves a gap, and closing one would renumber every
+			// entity after it and move every positional reference already
+			// written down, so a gap is not a defect. The empty key asserts
+			// that the whole bench reports nothing at all.
+			name: "a gap left where an entity was deleted",
+			breakIt: func(t *testing.T, root string) {
+				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 1, "first")
+				writeComment(t, root, "e00000000003", "2026-08-17T09:03:00Z", 3, "third")
+			},
+			key: "",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -200,6 +230,216 @@ func appendText(t *testing.T, path, text string) {
 	if _, err := f.WriteString(text); err != nil {
 		t.Fatalf("append: %v", err)
 	}
+}
+
+// writeComment puts a comment on the fixture card by hand, which is how a
+// test chooses both the identifier and the ordinal. An ordinal of zero writes
+// no ordinal field, standing for a comment written before the field existed.
+func writeComment(t *testing.T, root, id, ts string, ordinal int, body string) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("ts", ts)
+	fm.Set("author", "alka")
+	if ordinal > 0 {
+		fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	}
+	path := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, id, CommentAnchor)
+	write(t, path, fm.Render(body+"\n"))
+}
+
+// writeAttachment puts an attachment on the fixture card by hand, with the
+// same ordinal convention writeComment uses.
+func writeAttachment(t *testing.T, root, id string, ordinal int) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("filename", id+".txt")
+	fm.Set("provenance", "alka")
+	if ordinal > 0 {
+		fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	}
+	path := filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir, id, AttachmentAnchor)
+	write(t, path, fm.Render(""))
+}
+
+// writeItem puts a checklist item on the fixture card by hand. No verb creates
+// one yet, so the ordinal on an item is a contract on whatever eventually
+// does, and the migration and the checker have to hold it meanwhile.
+func writeItem(t *testing.T, root, id string, ordinal int) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("kind", "decision")
+	fm.Set("state", "pending")
+	if ordinal > 0 {
+		fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	}
+	path := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir, id, ItemAnchor)
+	write(t, path, fm.Render("An item.\n"))
+}
+
+// commentedEvent is the journal line recording that a comment was written,
+// which is what the migration recovers write order from.
+func commentedEvent(id, ts string) string {
+	return `{"ts":"` + ts + `","event":"commented","actor":"alka","comment":"` + id + `"}` + "\n"
+}
+
+// TestPositionFollowsWriteOrderRatherThanIdentifier asserts that a positional
+// reference below a card counts in creation order.
+//
+// The fixture claims its identifiers in the reverse of its write order, so the
+// directory listing and the creation order disagree on every position. That is
+// the whole point: a listing is ascending hex, a hex identifier is random, and
+// a reference that resolved through the listing named a different comment on
+// every workbench.
+func TestPositionFollowsWriteOrderRatherThanIdentifier(t *testing.T) {
+	root := newFixture(t)
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 1, "written first")
+	writeComment(t, root, "e00000000001", "2026-08-17T09:02:00Z", 2, "written second")
+
+	collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
+	if listed := ListIDs(collection); listed[0] != "e00000000001" {
+		t.Fatalf("the fixture no longer disagrees with the listing, which leads with %s", listed[0])
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	wanted := map[string]string{"1": "e00000000009", "2": "e00000000001"}
+	for position, id := range wanted {
+		path, err := opened.ResolvePath("fx-1/" + CommentsDir + "/" + position)
+		if err != nil {
+			t.Fatalf("resolve position %s: %v", position, err)
+		}
+		if got := filepath.Base(filepath.Dir(path)); got != id {
+			t.Errorf("position %s resolved to %s, wanted %s", position, got, id)
+		}
+	}
+
+	comments, err := Comments(filepath.Join(root, CardsDir, "c00000000001"))
+	if err != nil {
+		t.Fatalf("comments: %v", err)
+	}
+	if len(comments) != 2 || !strings.Contains(comments[0].Body, "written first") {
+		t.Errorf("the reading order is not the writing order: %+v", comments)
+	}
+}
+
+// TestOrdinalMigrationReplaysTheJournalAndIsIdempotent asserts the one-time
+// backfill: it recovers write order from the card's journal rather than from
+// the directory listing, it leaves an entity already carrying an ordinal
+// alone, and a second run changes nothing on disk.
+func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
+	root := newFixture(t)
+	journal := filepath.Join(root, CardsDir, "c00000000001", JournalName)
+
+	// The journal records the high identifier first, so a migration reading
+	// the listing instead would number these the other way around.
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "written first")
+	writeComment(t, root, "e00000000001", "2026-08-17T09:02:00Z", 0, "written second")
+	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
+	appendText(t, journal, commentedEvent("e00000000001", "2026-08-17T09:02:00Z"))
+
+	// An attachment the journal never mentions, and a checklist item no verb
+	// creates, both fall to listing order for their own uncovered stretch.
+	writeAttachment(t, root, "f00000000001", 0)
+	writeItem(t, root, "d00000000001", 0)
+	// A comment already stamped keeps the value it carries, and the ordinal
+	// it holds is stepped over rather than handed out twice.
+	writeComment(t, root, "e00000000005", "2026-08-17T09:03:00Z", 3, "already stamped")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if stamped != 4 {
+		t.Errorf("wanted four entities stamped, got %d", stamped)
+	}
+	// The attachment and the checklist item have no creation event, so the
+	// migration placed each of them by the directory listing and has to say
+	// so. The two comments the journal covers are recovered facts and are
+	// not reported.
+	guessed := map[string]bool{}
+	for _, finding := range reported {
+		if finding.Key != FindingOrdinalGuessed {
+			t.Errorf("the backfill reported %s, wanted only guessed ordinals", finding.Key)
+			continue
+		}
+		guessed[finding.Detail] = true
+	}
+	if len(guessed) != 2 || !guessed["f00000000001"] || !guessed["d00000000001"] {
+		t.Errorf("wanted the attachment and the item reported as guessed, got %+v", reported)
+	}
+
+	comments := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
+	wanted := map[string]int{"e00000000009": 1, "e00000000001": 2, "e00000000005": 3}
+	for id, ordinal := range wanted {
+		if got := EntityOrdinal(comments, id, CommentAnchor); got != ordinal {
+			t.Errorf("comment %s carries ordinal %d, wanted %d", id, got, ordinal)
+		}
+	}
+	attachments := filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir)
+	if got := EntityOrdinal(attachments, "f00000000001", AttachmentAnchor); got != 1 {
+		t.Errorf("the attachment carries ordinal %d, wanted 1", got)
+	}
+	checklist := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir)
+	if got := EntityOrdinal(checklist, "d00000000001", ItemAnchor); got != 1 {
+		t.Errorf("the checklist item carries ordinal %d, wanted 1", got)
+	}
+	if findings, err := opened.Check(); err != nil || len(findings) != 0 {
+		t.Errorf("a migrated bench should check clean, got %+v (%v)", findings, err)
+	}
+
+	before := snapshot(t, root)
+	again, reportedAgain, err := opened.BackfillOrdinals("alka", "2026-08-17T11:00:00Z")
+	if err != nil {
+		t.Fatalf("second backfill: %v", err)
+	}
+	if again != 0 {
+		t.Errorf("a second run stamped %d entities, wanted none", again)
+	}
+	if len(reportedAgain) != 0 {
+		t.Errorf("a second run reported %+v, wanted nothing: it stamped nothing, so it guessed nothing", reportedAgain)
+	}
+	after := snapshot(t, root)
+	if len(before) != len(after) {
+		t.Fatalf("the second run changed the file count, %d then %d", len(before), len(after))
+	}
+	for path, text := range before {
+		if after[path] != text {
+			t.Errorf("the second run rewrote %s", path)
+		}
+	}
+}
+
+// snapshot reads every anchor file under a bench, keyed by path relative to
+// the root, which is how the idempotence check compares two runs byte for
+// byte rather than field by field.
+func snapshot(t *testing.T, root string) map[string]string {
+	t.Helper()
+	found := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			return err
+		}
+		text, readErr := ReadText(path)
+		if readErr != nil {
+			return readErr
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		found[filepath.ToSlash(relative)] = text
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	return found
 }
 
 // TestFrontmatterPreservesWhatItDoesNotKnow asserts the reader posture the
@@ -625,5 +865,271 @@ func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	}
 	if got := refusal.Extra["home"]; got != filepath.Join(home, UserBaseName) {
 		t.Errorf("the refusal should name the user base, wanted %q, got %q", filepath.Join(home, UserBaseName), got)
+	}
+}
+
+// TestAWriteBeforeTheMigrationKeepsItsPlaceInTheOrder replays the whole
+// sequence a live workbench is in the middle of: entities written before the
+// ordinal field existed, one new comment written by the tool while the
+// workbench is still unmigrated, and only then the migration.
+//
+// The new comment must not end up first. It is written last, so it takes the
+// ordinal past the members already there, and the migration then numbers the
+// older comments underneath it. Counting only the ordinals in use would hand
+// the new comment 1 and push the two older ones to 2 and 3, which puts the
+// newest comment permanently at the head of the order with nothing to report,
+// and that is the disorder this whole card exists to remove.
+func TestAWriteBeforeTheMigrationKeepsItsPlaceInTheOrder(t *testing.T) {
+	root := newFixture(t)
+	cardDir := filepath.Join(root, CardsDir, "c00000000001")
+	journal := filepath.Join(cardDir, JournalName)
+
+	// The identifiers run against the write order, so the directory listing
+	// cannot accidentally produce the right answer.
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "written first")
+	writeComment(t, root, "e00000000005", "2026-08-17T09:02:00Z", 0, "written second")
+	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
+	appendText(t, journal, commentedEvent("e00000000005", "2026-08-17T09:02:00Z"))
+
+	third, err := AddComment(cardDir, "alka", "2026-08-17T09:03:00Z", "written third")
+	if err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+	appendText(t, journal, commentedEvent(third.ID, "2026-08-17T09:03:00Z"))
+	if third.Ordinal != 3 {
+		t.Errorf("the comment written third took ordinal %d, which lands it ahead of the two it followed", third.Ordinal)
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if stamped != 2 {
+		t.Errorf("wanted the two older comments stamped, got %d", stamped)
+	}
+	if len(reported) != 0 {
+		t.Errorf("the journal covers every comment here, so nothing was guessed, got %+v", reported)
+	}
+
+	collection := filepath.Join(cardDir, CommentsDir)
+	for position, id := range []string{"e00000000009", "e00000000005", third.ID} {
+		if got := EntityOrdinal(collection, id, CommentAnchor); got != position+1 {
+			t.Errorf("comment %s carries ordinal %d, wanted %d", id, got, position+1)
+		}
+	}
+
+	comments, err := Comments(cardDir)
+	if err != nil {
+		t.Fatalf("comments: %v", err)
+	}
+	for position, body := range []string{"written first", "written second", "written third"} {
+		if position >= len(comments) || !strings.Contains(comments[position].Body, body) {
+			t.Fatalf("the reading order is not the writing order: %+v", comments)
+		}
+	}
+	if findings, err := opened.Check(); err != nil || len(findings) != 0 {
+		t.Errorf("a migrated workbench should check clean, got %+v (%v)", findings, err)
+	}
+}
+
+// TestTheMigrationStepsOverALockedCardAndFinishesTheWalk asserts that one
+// locked card costs the operator that card and nothing else.
+//
+// A lock on a card is ordinary: another process holds it right now. Returning
+// on the first one would end the walk at whatever card the listing happened to
+// put first, leave every card after it unstamped, and report a bare refusal
+// that names neither the card nor what had already been done.
+func TestTheMigrationStepsOverALockedCardAndFinishesTheWalk(t *testing.T) {
+	root := newFixture(t)
+	second := filepath.Join(root, CardsDir, "c00000000002")
+	write(t, filepath.Join(second, CardAnchor), cleanCard)
+	write(t, filepath.Join(second, JournalName), cleanJournal)
+	write(t, filepath.Join(second, CommentsDir, "e00000000001", CommentAnchor),
+		"---\nts: 2026-08-17T09:05:00Z\nauthor: alka\n---\nOn the second card.\n")
+
+	// The locked card is the first the walk reaches, so a walk that carried
+	// on is the only way the second card gets stamped at all.
+	locked := filepath.Join(root, CardsDir, "c00000000001")
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "never stamped")
+	write(t, filepath.Join(locked, LockName), `{"actor":"someone-else","pid":1,"ts":"2026-08-17T09:00:00Z"}`+"\n")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("a locked card should not end the walk: %v", err)
+	}
+	if stamped != 1 {
+		t.Errorf("wanted the unlocked card's comment stamped, got %d", stamped)
+	}
+	if got := EntityOrdinal(filepath.Join(second, CommentsDir), "e00000000001", CommentAnchor); got != 1 {
+		t.Errorf("the comment on the unlocked card carries ordinal %d, wanted 1", got)
+	}
+	if got := EntityOrdinal(filepath.Join(locked, CommentsDir), "e00000000009", CommentAnchor); got != 0 {
+		t.Errorf("the locked card was written to anyway, its comment carries %d", got)
+	}
+	detail, found := "", false
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalLocked {
+			detail, found = finding.Detail, true
+		}
+	}
+	if !found || detail != "c00000000001" {
+		t.Errorf("wanted the locked card reported by identifier, got %+v", reported)
+	}
+}
+
+// TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk asserts that
+// one entity the run cannot write to costs the operator that entity and
+// nothing else: the walk finishes, the obstruction is named, and the guesses
+// the run did manage to make before and after it are still reported.
+//
+// Before this test, a stamp failure aborted backfillCollection outright and
+// the caller threw the whole report away with the error, so a run that met
+// one unwritable file printed nothing: not the count, not the obstruction,
+// and not the guess it had already made on the same collection.
+//
+// The obstruction is injected through the bench's stamp hook rather than
+// through file permissions. An earlier form of this test made the anchor
+// read-only, which stands for an unwritable entity on Windows and stands for
+// nothing at all on POSIX, where the migration's rename is governed by the
+// containing directory and replaced the file anyway. A test whose meaning
+// changes with the operating system cannot be the one carrying this
+// behaviour, so the hook provokes the same error path everywhere and
+// TestAnUnwritableDirectoryIsAnUnwritableEntity covers the POSIX case where a
+// permission genuinely stops the write.
+func TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk(t *testing.T) {
+	root := newFixture(t)
+	first := filepath.Join(root, CardsDir, "c00000000001")
+	firstJournal := filepath.Join(first, JournalName)
+
+	// A journalled comment: the migration recovers its order and stamps it,
+	// same as any other run.
+	writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 0, "journalled")
+	appendText(t, firstJournal, commentedEvent("e00000000001", "2026-08-17T09:01:00Z"))
+
+	// A hand-created comment with no journal event: a guess, and this run is
+	// the one that makes it. Its write is the one the hook fails, so the walk
+	// must name it and step over it rather than stamping it or aborting on it.
+	writeComment(t, root, "e00000000002", "2026-08-17T09:02:00Z", 0, "unwritable guess")
+
+	// A second hand-created comment, writable, on the same collection: it
+	// must still be stamped and reported as a guess even though the walk met
+	// an obstruction on its neighbour first.
+	writeComment(t, root, "e00000000003", "2026-08-17T09:03:00Z", 0, "writable guess")
+
+	// A second card, unlocked and unobstructed: reaching it at all is what
+	// proves the walk did not abort on the first card's obstruction.
+	second := filepath.Join(root, CardsDir, "c00000000002")
+	write(t, filepath.Join(second, CardAnchor), cleanCard)
+	write(t, filepath.Join(second, JournalName), cleanJournal)
+	write(t, filepath.Join(second, CommentsDir, "e00000000004", CommentAnchor),
+		"---\nts: 2026-08-17T09:05:00Z\nauthor: alka\n---\nOn the second card.\n")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	opened.Hooks = &Hooks{
+		BeforeOrdinalStamp: func(id string) error {
+			if id == "e00000000002" {
+				return errors.New("the filesystem refused this anchor")
+			}
+			return nil
+		},
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("an unwritable entity should not end the walk: %v", err)
+	}
+	if stamped != 3 {
+		t.Errorf("wanted the journalled comment, the writable guess and the second card's comment stamped, got %d", stamped)
+	}
+
+	firstComments := filepath.Join(first, CommentsDir)
+	if got := EntityOrdinal(firstComments, "e00000000001", CommentAnchor); got == 0 {
+		t.Error("the journalled comment was not stamped")
+	}
+	if got := EntityOrdinal(firstComments, "e00000000002", CommentAnchor); got != 0 {
+		t.Errorf("the unwritable comment carries ordinal %d, wanted it left alone", got)
+	}
+	if got := EntityOrdinal(firstComments, "e00000000003", CommentAnchor); got == 0 {
+		t.Error("the writable guess after the obstruction was not stamped")
+	}
+	secondComments := filepath.Join(second, CommentsDir)
+	if got := EntityOrdinal(secondComments, "e00000000004", CommentAnchor); got != 1 {
+		t.Errorf("the second card's comment carries ordinal %d, wanted 1; the walk did not reach it", got)
+	}
+
+	unwritable, guessedWritable, unwritableDetail := false, false, ""
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalUnwritable {
+			unwritable, unwritableDetail = true, finding.Detail
+		}
+		if finding.Key == FindingOrdinalGuessed && finding.Detail == "e00000000003" {
+			guessedWritable = true
+		}
+	}
+	if !unwritable || unwritableDetail != "e00000000002" {
+		t.Errorf("wanted the unwritable comment named by identifier, got %+v", reported)
+	}
+	if !guessedWritable {
+		t.Errorf("wanted the writable guess made after the obstruction still reported, got %+v", reported)
+	}
+}
+
+// TestAnUnwritableDirectoryIsAnUnwritableEntity checks that a real permission
+// the migration cannot get past produces the same report the hook-driven test
+// drives, so the finding is not an artefact of the seam it is provoked
+// through.
+//
+// The permission is on the entity's DIRECTORY, which is the one POSIX asks
+// about. The migration writes a temporary beside the anchor and renames it
+// over, so it is the right to create and rename a name in that directory that
+// decides the write, and a read-only anchor in a writable directory is
+// replaced rather than refused. This test therefore says nothing on Windows,
+// where the file's own attribute governs instead, and nothing under a user who
+// ignores the permission, so it skips in both cases rather than asserting
+// something it cannot mean there.
+func TestAnUnwritableDirectoryIsAnUnwritableEntity(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory permissions do not govern replacement on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root is not stopped by a directory permission")
+	}
+	root := newFixture(t)
+	writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 0, "unwritable")
+	dir := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, "e00000000001")
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(dir, 0o755) })
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("an unwritable entity should not end the walk: %v", err)
+	}
+	if stamped != 0 {
+		t.Errorf("stamped %d entities, wanted none: the only one was unwritable", stamped)
+	}
+	named := false
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalUnwritable && finding.Detail == "e00000000001" {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("wanted the entity in the unwritable directory named, got %+v", reported)
 	}
 }

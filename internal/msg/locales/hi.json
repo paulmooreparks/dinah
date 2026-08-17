@@ -221,6 +221,34 @@
       "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.ordinal-duplicate": {
+      "text": "इकाई {detail} का रचना-क्रमांक उसी संग्रह की किसी और इकाई के क्रमांक जैसा है, इसलिए एक स्थान दो इकाइयों को नामित करता है",
+      "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
+    },
+    "check.ordinal-guessed": {
+      "text": "इकाई {detail} को निर्देशिका सूची से रखा गया, क्योंकि कार्ड की पंजिका में उसकी रचना का कोई अभिलेख नहीं, इसलिए उसका स्थान एक अनुमान है",
+      "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead."
+    },
+    "check.ordinal-locked": {
+      "text": "कार्ड {detail} किसी अन्य प्रक्रिया द्वारा अवरुद्ध है, इसलिए प्रवासन ने उसके नीचे कुछ भी अंकित नहीं किया",
+      "context": "A check finding the ordinal migration raises: a lock stood on the card, the walk stepped over it and carried on."
+    },
+    "check.ordinal-missing": {
+      "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
+      "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
+    },
+    "check.ordinal-unwritable": {
+      "text": "इकाई {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
+    },
+    "check.ordinal-stamped.one": {
+      "text": "{count} रचना-क्रमांक अंकित किया।",
+      "context": "The line the ordinal migration prints for what it stamped, for exactly one entity."
+    },
+    "check.ordinal-stamped.other": {
+      "text": "{count} रचना-क्रमांक अंकित किए।",
+      "context": "The line the ordinal migration prints for what it stamped, for any other number."
+    },
     "check.path.1": {
       "text": "संदर्भ किसी पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."

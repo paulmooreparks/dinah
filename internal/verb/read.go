@@ -116,7 +116,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 type Listing struct {
 	// State is the state listed, empty when the listing spans the bench.
 	State string `json:"state,omitempty"`
-	// Cards are the cards, in the order CORE-QUEUE-1 fixes.
+	// Cards are the cards, in the order CORE-QUEUE-3 fixes.
 	Cards []CardView `json:"cards"`
 }
 
@@ -351,14 +351,54 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 	return identity, nil
 }
 
-// Check checks the bench for structural defects, and repairs nothing.
+// CheckReport is what check answers with: the structural defects the bench
+// carries, and the account of a repair the request asked for.
+//
+// The account is what keeps a repair from being silent. A migration that
+// stamped a creation ordinal it could only guess at, or that a lock kept out of
+// a card, is the only moment anybody can still tell a guess from a recovered
+// fact, so it says so here rather than leaving a workbench that reads clean
+// afterwards either way.
+type CheckReport struct {
+	// Findings are the defects the checker names, together with whatever a
+	// repair in the same request could not do.
+	Findings []bench.Finding `json:"findings"`
+	// StampedOrdinals counts the creation ordinals the migration wrote, and
+	// is absent from a request that did not ask for the migration.
+	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
+}
+
+// Check checks the bench for structural defects, and repairs nothing unless a
+// marker in the request asks it to.
 //
 // A request carrying the finish marker completes or rolls back the
 // interrupted structural acts first, so nobody finishes an act without the
-// report that named it, and then reports what the bench still carries.
-func (l *Library) Check(req *Request) ([]bench.Finding, error) {
+// report that named it, and then reports what the bench still carries. A
+// request carrying the migrate-ordinals marker stamps the creation ordinals a
+// workbench written before the field carries none of, which is a one-time
+// repair rather than a read-path fallback.
+//
+// A non-nil error return still carries a non-nil report when the migration
+// ran: the report is what the run had already stamped and already guessed
+// before whatever ended it, and a caller that discards it on the error path
+// loses that account the same way the run it is reporting on must not.
+func (l *Library) Check(req *Request) (*CheckReport, error) {
+	report := &CheckReport{}
+	if req != nil && req.MigrateOrdinals {
+		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
+		report.StampedOrdinals = &stamped
+		report.Findings = append(report.Findings, reported...)
+		if err != nil {
+			return report, err
+		}
+	}
 	if req == nil || !req.Finish {
-		return l.Bench.Check()
+		findings, err := l.Bench.Check()
+		if err != nil {
+			return nil, err
+		}
+		report.Findings = append(report.Findings, findings...)
+		return report, nil
 	}
 	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
@@ -375,14 +415,14 @@ func (l *Library) Check(req *Request) ([]bench.Finding, error) {
 	for _, finding := range unresolved {
 		reported[finding.Path] = true
 	}
-	findings := unresolved
+	report.Findings = append(report.Findings, unresolved...)
 	for _, finding := range remaining {
 		if reported[finding.Path] {
 			continue
 		}
-		findings = append(findings, finding)
+		report.Findings = append(report.Findings, finding)
 	}
-	return findings, nil
+	return report, nil
 }
 
 // Export writes the interchange form of the bench definition.
