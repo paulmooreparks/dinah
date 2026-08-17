@@ -249,7 +249,7 @@ func DiscoverSource(start, override, overrideSource, home, nativeHome, configure
 	}
 	if search.base != "" {
 		extra := map[string]string{"base": search.base}
-		return "", "", nil, contract.RefuseWith(contract.AmbiguousWorkbench, describeCandidates(search.candidates), extra)
+		return "", "", nil, contract.RefuseWith(contract.AmbiguousWorkbench, "", extra)
 	}
 	if configured != "" {
 		abs, err := filepath.Abs(configured)
@@ -599,25 +599,6 @@ func describeAll(candidates []string) []Candidate {
 		described = append(described, describe(candidate))
 	}
 	return described
-}
-
-// describeCandidates names each workbench of an ambiguous base by its title
-// and the directory it sits in, joined into the list the refusal prints. A
-// candidate that declares no title is named by its path alone.
-//
-// The refusal and the listing read the same descriptions in the same order,
-// so the two surfaces cannot disagree about which workbenches an ambiguity
-// holds.
-func describeCandidates(candidates []string) string {
-	described := make([]string, 0, len(candidates))
-	for _, candidate := range describeAll(candidates) {
-		if candidate.Title == "" {
-			described = append(described, candidate.Path)
-			continue
-		}
-		described = append(described, candidate.Title+" ("+candidate.Path+")")
-	}
-	return strings.Join(described, "; ")
 }
 
 // Open reads a bench definition and the states it declares.

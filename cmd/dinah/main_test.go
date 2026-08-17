@@ -2164,8 +2164,12 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				}
 				return tree, []string{"status"}
 			},
-			token:   contract.AmbiguousWorkbench,
-			carries: []string{"are all reachable from", "choose one with --workbench"},
+			token: contract.AmbiguousWorkbench,
+			carries: []string{
+				"more than one workbench is reachable from",
+				"choose one with --workbench",
+				"d00000000001", "d00000000002", "one", "two",
+			},
 			context: []string{"base"},
 		},
 	}
@@ -2205,7 +2209,27 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			if report["refusal"] != c.token {
 				t.Errorf("refusal: wanted %s, got %v", c.token, report["refusal"])
 			}
-			if report["detail"] == nil || report["detail"] == "" {
+			if c.token == contract.AmbiguousWorkbench {
+				if report["detail"] != nil {
+					t.Errorf("detail: wanted absent, got %v", report["detail"])
+				}
+				workbenches, ok := report["workbenches"].([]any)
+				if !ok || len(workbenches) != 2 {
+					t.Fatalf("workbenches: wanted a two-element array, got %v", report["workbenches"])
+				}
+				titles := map[string]bool{}
+				for _, row := range workbenches {
+					fields, _ := row.(map[string]any)
+					if title, ok := fields["title"].(string); ok {
+						titles[title] = true
+					}
+				}
+				for _, title := range []string{"d00000000001", "d00000000002"} {
+					if !titles[title] {
+						t.Errorf("workbenches: wanted a row titled %q, got %v", title, report["workbenches"])
+					}
+				}
+			} else if report["detail"] == nil || report["detail"] == "" {
 				t.Error("the machine form should name what the refusal was about")
 			}
 			carried, _ := report["context"].(map[string]any)
@@ -2215,6 +2239,22 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestWorkbenchFlagResolvesAnAmbiguousCandidate asserts that --workbench,
+// pointed at one of several candidates a base holds, resolves to that
+// candidate rather than refusing with dinah.ambiguous-workbench: the flag
+// names an exact directory and never runs the walk that finds the ambiguity
+// in the first place.
+func TestWorkbenchFlagResolvesAnAmbiguousCandidate(t *testing.T) {
+	tree, rooms := ambiguousTree(t)
+	got := runCLI(t, tree, "status", "--workbench", rooms[0])
+	if got.code != 0 {
+		t.Fatalf("status --workbench <candidate>: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, "[flag]") {
+		t.Errorf("the rendered line should name the flag rung, got:\n%s", got.out)
 	}
 }
 
