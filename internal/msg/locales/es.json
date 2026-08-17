@@ -306,6 +306,11 @@
       "context": "The line the ordinal migration prints for what it stamped, for any other number.",
       "skeleton": true
     },
+    "check.ordinal-unwritable": {
+      "text": "entity {detail} could not be written to, so the migration stamped nothing on it and carried on",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on.",
+      "skeleton": true
+    },
     "check.path.1": {
       "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",

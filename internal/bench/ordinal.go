@@ -142,9 +142,12 @@ func journalOrder(events []Event) []string {
 // a torn journal lost, is in the trailing stretch. Its write order is not
 // recoverable from anything on disk, so listing order is the only answer left,
 // and it is no worse there than what a positional reference resolved to before
-// ordinals existed. The caller reports the identifiers this returns as guessed,
-// because a guess and a recovered fact are indistinguishable once both are
-// stamped, and the migration is the last moment anybody can tell them apart.
+// ordinals existed. The caller reports the identifiers this returns as guessed.
+// This computation could be repeated at any later time from the same journal
+// to name the same entities again; the migration reports them once, at the
+// run that stamped them, rather than standing as a check finding forever,
+// because a bench that keeps hand-created entities is otherwise stuck with a
+// finding nobody can clear.
 func orderedByJournal(collection string, order []string) (ordered, guessed []string) {
 	present := map[string]bool{}
 	for _, id := range ListIDs(collection) {
@@ -178,7 +181,14 @@ func orderedByJournal(collection string, order []string) (ordered, guessed []str
 // a second run of the migration change nothing, and it is also why an entity
 // the journal does not cover is reported only when this run is what stamped
 // it: a value already on disk was somebody else's call, not this run's guess.
-func backfillCollection(collection, anchor string, order []string) (int, []Finding, error) {
+//
+// An entity this run cannot write to (a bare directory an interrupted claim
+// left with no anchor yet, or a file the filesystem refuses) is treated the
+// way a locked card is: reported and stepped over, not an abort. Its ordinal
+// stays taken by neither, so a later run can still fill it once the
+// obstruction is cleared, and every other entity of the collection is stamped
+// as if it had never been there.
+func backfillCollection(collection, anchor string, order []string) (int, []Finding) {
 	ordered, unrecovered := orderedByJournal(collection, order)
 	guessed := map[string]bool{}
 	for _, id := range unrecovered {
@@ -202,7 +212,8 @@ func backfillCollection(collection, anchor string, order []string) (int, []Findi
 		}
 		path := filepath.Join(collection, id, anchor)
 		if err := stampOrdinal(collection, id, anchor, next); err != nil {
-			return stamped, findings, err
+			findings = append(findings, Finding{Path: path, Key: FindingOrdinalUnwritable, Detail: id})
+			continue
 		}
 		if guessed[id] {
 			findings = append(findings, Finding{Path: path, Key: FindingOrdinalGuessed, Detail: id})
@@ -210,7 +221,7 @@ func backfillCollection(collection, anchor string, order []string) (int, []Findi
 		taken[next] = true
 		stamped++
 	}
-	return stamped, findings, nil
+	return stamped, findings
 }
 
 // BackfillOrdinals stamps a creation ordinal on every entity of every card
@@ -224,11 +235,13 @@ func backfillCollection(collection, anchor string, order []string) (int, []Findi
 // itself and off a state are left alone, because no reference syntax selects a
 // member of one by position and an ordinal there would order nothing.
 //
-// A locked card is reported and stepped over rather than ending the walk. A
-// repair that abandons the workbench on the first lock leaves the operator with
-// a bare refusal and no account of the cards it had already stamped, and the
-// lock it met is ordinary: another process holds that card right now, and the
-// migration can be run again once it lets go.
+// A locked card, and an entity this run cannot write to, are each reported and
+// stepped over rather than ending the walk. A repair that abandons the
+// workbench on the first obstruction leaves the operator with a bare refusal
+// and no account of what it had already stamped, including the guesses it had
+// already made, and both obstructions it meets this way are ordinary: another
+// process holds a lock right now, or one file stands in the way, and the
+// migration can be run again once either clears.
 //
 // This is a one-time repair run by hand, not a read path. Nothing re-derives
 // an ordinal on a later read, so a workbench nobody migrated is caught by
@@ -269,12 +282,9 @@ func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
 	stamped := 0
 	var findings []Finding
 	for _, collection := range ordinalCollections(dir) {
-		count, reported, err := backfillCollection(collection.dir, collection.anchor, order)
+		count, reported := backfillCollection(collection.dir, collection.anchor, order)
 		stamped += count
 		findings = append(findings, reported...)
-		if err != nil {
-			return stamped, findings, err
-		}
 	}
 	return stamped, findings, nil
 }

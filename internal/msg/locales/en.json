@@ -237,6 +237,10 @@
       "text": "entity {detail} carries no creation ordinal, so its position depends on the directory listing",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
     },
+    "check.ordinal-unwritable": {
+      "text": "entity {detail} could not be written to, so the migration stamped nothing on it and carried on",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
+    },
     "check.ordinal-stamped.one": {
       "text": "Stamped {count} creation ordinal.",
       "context": "The line the ordinal migration prints for what it stamped, for exactly one entity."

@@ -237,6 +237,10 @@
       "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
     },
+    "check.ordinal-unwritable": {
+      "text": "इकाई {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
+    },
     "check.ordinal-stamped.one": {
       "text": "{count} रचना-क्रमांक अंकित किया।",
       "context": "The line the ordinal migration prints for what it stamped, for exactly one entity."

@@ -577,12 +577,16 @@ checker rather than quietly ordered by its directory listing forever.
 The migration says what it did and what it could not do. It prints how many
 ordinals it stamped; it reports every entity whose creation no journal event
 records, because listing order is the only order left for one of those and
-the stamp it gets is a guess; and it reports every card a lock kept it out
-of, then carries on with the rest of the walk. The run is the last moment a
-guess can be told from a recovered fact, since afterwards the two are the
-same field holding the same kind of number, and the checker has nothing
-left to distinguish. An operator who wants a guessed order corrected edits
-the field, and the checker holds him to uniqueness.
+the stamp it gets is a guess; and it reports a card a lock kept it out of or
+an entity it could not write to, then carries on with the rest of the walk
+rather than losing the account of everything it had already done. A guess
+is reported only at the run that made it, not on every check afterwards.
+The journal stays on disk, so which entities were guessed is recomputable
+at any later time; the decision not to keep reporting it is deliberate
+rather than forced, because a standing finding on every hand-created entity
+would be noise an operator could never clear. An operator who wants a
+guessed order corrected edits the field, and the checker holds him to
+uniqueness.
 
 ## Encoding
 

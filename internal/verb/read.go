@@ -377,15 +377,20 @@ type CheckReport struct {
 // request carrying the migrate-ordinals marker stamps the creation ordinals a
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback.
+//
+// A non-nil error return still carries a non-nil report when the migration
+// ran: the report is what the run had already stamped and already guessed
+// before whatever ended it, and a caller that discards it on the error path
+// loses that account the same way the run it is reporting on must not.
 func (l *Library) Check(req *Request) (*CheckReport, error) {
 	report := &CheckReport{}
 	if req != nil && req.MigrateOrdinals {
 		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
-		if err != nil {
-			return nil, err
-		}
 		report.StampedOrdinals = &stamped
 		report.Findings = append(report.Findings, reported...)
+		if err != nil {
+			return report, err
+		}
 	}
 	if req == nil || !req.Finish {
 		findings, err := l.Bench.Check()

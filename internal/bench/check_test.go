@@ -801,3 +801,89 @@ func TestTheMigrationStepsOverALockedCardAndFinishesTheWalk(t *testing.T) {
 		t.Errorf("wanted the locked card reported by identifier, got %+v", reported)
 	}
 }
+
+// TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk asserts that
+// one entity the run cannot write to costs the operator that entity and
+// nothing else: the walk finishes, the obstruction is named, and the guesses
+// the run did manage to make before and after it are still reported.
+//
+// Before this test, a stamp failure aborted backfillCollection outright and
+// the caller threw the whole report away with the error, so a run that met
+// one unwritable file printed nothing: not the count, not the obstruction,
+// and not the guess it had already made on the same collection.
+func TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk(t *testing.T) {
+	root := newFixture(t)
+	first := filepath.Join(root, CardsDir, "c00000000001")
+	firstJournal := filepath.Join(first, JournalName)
+
+	// A journalled comment: the migration recovers its order and stamps it,
+	// same as any other run.
+	writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 0, "journalled")
+	appendText(t, firstJournal, commentedEvent("e00000000001", "2026-08-17T09:01:00Z"))
+
+	// A hand-created comment with no journal event: a guess, and this run is
+	// the one that makes it. Its anchor is made unwritable, so the walk must
+	// name it and step over it rather than stamping it or aborting on it.
+	blocked := filepath.Join(first, CommentsDir, "e00000000002", CommentAnchor)
+	writeComment(t, root, "e00000000002", "2026-08-17T09:02:00Z", 0, "unwritable guess")
+	if err := os.Chmod(blocked, 0o444); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(blocked, 0o644) })
+
+	// A second hand-created comment, writable, on the same collection: it
+	// must still be stamped and reported as a guess even though the walk met
+	// an obstruction on its neighbour first.
+	writeComment(t, root, "e00000000003", "2026-08-17T09:03:00Z", 0, "writable guess")
+
+	// A second card, unlocked and unobstructed: reaching it at all is what
+	// proves the walk did not abort on the first card's obstruction.
+	second := filepath.Join(root, CardsDir, "c00000000002")
+	write(t, filepath.Join(second, CardAnchor), cleanCard)
+	write(t, filepath.Join(second, JournalName), cleanJournal)
+	write(t, filepath.Join(second, CommentsDir, "e00000000004", CommentAnchor),
+		"---\nts: 2026-08-17T09:05:00Z\nauthor: alka\n---\nOn the second card.\n")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("an unwritable entity should not end the walk: %v", err)
+	}
+	if stamped != 3 {
+		t.Errorf("wanted the journalled comment, the writable guess and the second card's comment stamped, got %d", stamped)
+	}
+
+	firstComments := filepath.Join(first, CommentsDir)
+	if got := EntityOrdinal(firstComments, "e00000000001", CommentAnchor); got == 0 {
+		t.Error("the journalled comment was not stamped")
+	}
+	if got := EntityOrdinal(firstComments, "e00000000002", CommentAnchor); got != 0 {
+		t.Errorf("the unwritable comment carries ordinal %d, wanted it left alone", got)
+	}
+	if got := EntityOrdinal(firstComments, "e00000000003", CommentAnchor); got == 0 {
+		t.Error("the writable guess after the obstruction was not stamped")
+	}
+	secondComments := filepath.Join(second, CommentsDir)
+	if got := EntityOrdinal(secondComments, "e00000000004", CommentAnchor); got != 1 {
+		t.Errorf("the second card's comment carries ordinal %d, wanted 1; the walk did not reach it", got)
+	}
+
+	unwritable, guessedWritable, unwritableDetail := false, false, ""
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalUnwritable {
+			unwritable, unwritableDetail = true, finding.Detail
+		}
+		if finding.Key == FindingOrdinalGuessed && finding.Detail == "e00000000003" {
+			guessedWritable = true
+		}
+	}
+	if !unwritable || unwritableDetail != "e00000000002" {
+		t.Errorf("wanted the unwritable comment named by identifier, got %+v", reported)
+	}
+	if !guessedWritable {
+		t.Errorf("wanted the writable guess made after the obstruction still reported, got %+v", reported)
+	}
+}

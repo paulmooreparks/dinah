@@ -35,12 +35,14 @@ const (
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
 	FindingOrdinalMissing     = "check.ordinal-missing"
 	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
-	// The last two are raised by the ordinal migration rather than by the
+	// The last three are raised by the ordinal migration rather than by the
 	// checker, because each names something only the run that did the work
-	// can know: which entity it placed by guesswork, and which card a lock
-	// kept it out of. Neither survives on disk for a later check to find.
-	FindingOrdinalGuessed = "check.ordinal-guessed"
-	FindingOrdinalLocked  = "check.ordinal-locked"
+	// can know: which entity it placed by guesswork, which card a lock kept
+	// it out of, and which entity it could not write to. None of them
+	// survives on disk for a later check to find.
+	FindingOrdinalGuessed    = "check.ordinal-guessed"
+	FindingOrdinalLocked     = "check.ordinal-locked"
+	FindingOrdinalUnwritable = "check.ordinal-unwritable"
 )
 
 // The directions an interrupted structural act is reported and finished in.
