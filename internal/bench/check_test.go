@@ -10,7 +10,21 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/testenv"
 )
+
+// TestMain redirects this binary's temporary directory outside the
+// developer's home before any test runs, so the ancestor walk this
+// package's Discover and Reachable tests exercise cannot climb out of its
+// own synthetic fixture tree and reach the real workbenches sitting above
+// it. See internal/testenv's package comment for what this does and does
+// not cover.
+func TestMain(m *testing.M) {
+	restore := testenv.IsolateTempDir()
+	code := m.Run()
+	restore()
+	os.Exit(code)
+}
 
 // benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---

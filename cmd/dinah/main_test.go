@@ -17,8 +17,22 @@ import (
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/profile"
+	"dinah/internal/testenv"
 	"dinah/internal/verb"
 )
+
+// TestMain redirects this binary's temporary directory outside the
+// developer's home before any test runs, so the ancestor walk this
+// package's tests exercise through the CLI cannot climb out of its own
+// synthetic fixture tree and reach the real workbenches sitting above it.
+// See internal/testenv's package comment for what this does and does not
+// cover.
+func TestMain(m *testing.M) {
+	restore := testenv.IsolateTempDir()
+	code := m.Run()
+	restore()
+	os.Exit(code)
+}
 
 // invocation is one run of the head with its streams captured.
 type invocation struct {
