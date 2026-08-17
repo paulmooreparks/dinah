@@ -1369,9 +1369,23 @@ func populateBase(t *testing.T, base string, slugs ...string) []string {
 		if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
 			t.Fatalf("init: %d %s", got.code, got.errw)
 		}
-		rooms = append(rooms, room)
+		rooms = append(rooms, resolved(t, room))
 	}
 	return rooms
+}
+
+// resolved follows every symlink in a path, which is the form the tool reports
+// because discovery starts from a working directory the operating system has
+// already resolved. macOS reaches its temporary directory through a symlink,
+// so a test comparing the path it built against the path the tool printed
+// would otherwise be comparing two spellings of one directory.
+func resolved(t *testing.T, path string) string {
+	t.Helper()
+	evaluated, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", path, err)
+	}
+	return evaluated
 }
 
 // ambiguousTree returns a tree whose own base holds two workbenches and whose
@@ -1504,7 +1518,7 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 
 	t.Run("one reachable", func(t *testing.T) {
 		sole := newBench(t)
-		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !reflect.DeepEqual(listed, []string{sole}) {
+		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !reflect.DeepEqual(listed, []string{resolved(t, sole)}) {
 			t.Errorf("wanted the one workbench, got %v", listed)
 		}
 		rows := jsonRows(t, runCLI(t, sole, "--json", "workbenches"))
