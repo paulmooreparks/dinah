@@ -2504,6 +2504,26 @@ func TestCheckReportsTheForeignAnchorsAWalkPassedOver(t *testing.T) {
 // problem in the pointed-at file (no frontmatter carrying profile, format or
 // states at all) is reported by Open's existing malformed refusal rather than
 // by a refusal the walk's new recognition test would raise.
+func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
+	root := newBench(t)
+	foreign := filepath.Join(root, "notes")
+	if err := os.MkdirAll(foreign, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(foreign, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "show", "--workbench", foreign)
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Malformed {
+		t.Errorf("leading token: wanted %s, got %q (%s)", contract.Malformed, leading, got.errw)
+	}
+}
+
 // TestCardAliasResolvesAcrossTheDeclaredCommandSurface is the fixture-level
 // regression AC-6 asks for: it pins every row of the spec's section 2 audit
 // table already marked done, driving the human-readable {slug}-{number}
@@ -2616,22 +2636,216 @@ func addCard(t *testing.T, root, title string) string {
 	return response.Card.Ref
 }
 
-func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
-	root := newBench(t)
-	foreign := filepath.Join(root, "notes")
-	if err := os.MkdirAll(foreign, 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
+// cardID resolves a card's own bare identifier from its alias, by asking
+// path for the card's file and reading the directory name that holds it.
+func cardID(t *testing.T, root, ref string) string {
+	t.Helper()
+	pathed := runCLI(t, root, "path", ref)
+	if pathed.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, pathed.code, pathed.errw)
 	}
-	if err := os.WriteFile(filepath.Join(foreign, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
-		t.Fatalf("write: %v", err)
+	return filepath.Base(filepath.Dir(strings.TrimSpace(pathed.out)))
+}
+
+// addLink hand-writes a links entry onto a card's own anchor, since no verb
+// in the declared surface writes one (card.go's Link comment: "a declaration
+// rather than an entity, and nothing in the tool reads one" for anything but
+// display).
+func addLink(t *testing.T, root, ref, kind, to string) {
+	t.Helper()
+	path := runCLI(t, root, "path", ref)
+	if path.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, path.code, path.errw)
+	}
+	cardPath := strings.TrimSpace(path.out)
+	text, err := os.ReadFile(cardPath)
+	if err != nil {
+		t.Fatalf("read card: %v", err)
+	}
+	closing := strings.LastIndex(string(text), "\n---\n")
+	if closing < 0 {
+		t.Fatalf("card %s carries no closing frontmatter fence", cardPath)
+	}
+	block := "\nlinks:\n  - kind: " + kind + "\n    to: " + to
+	edited := string(text[:closing]) + block + string(text[closing:])
+	if err := os.WriteFile(cardPath, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write card: %v", err)
+	}
+}
+
+// TestShowResolvesALinkToTheAliasNotTheBareIdentifier is armed by asserting
+// the alias in show's output and JSON form rather than the target's raw
+// identifier. A link records only an identifier, and the render used to
+// print that identifier verbatim: a destination a person is expected to type
+// back at show, path or move, printed as the one thing they could not read
+// comfortably. show now resolves it fresh on every read.
+func TestShowResolvesALinkToTheAliasNotTheBareIdentifier(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+	second := addCard(t, root, "Second")
+	targetID := cardID(t, root, second)
+	addLink(t, root, first, "relates_to", targetID)
+
+	shown := runCLI(t, root, "show", first)
+	if shown.code != 0 {
+		t.Fatalf("show %s: %d %s", first, shown.code, shown.errw)
+	}
+	if !strings.Contains(shown.out, second) {
+		t.Errorf("show did not print the link's alias %q, got %q", second, shown.out)
+	}
+	if strings.Contains(shown.out, targetID) {
+		t.Errorf("show printed the link's bare identifier %q instead of its alias: %q", targetID, shown.out)
 	}
 
-	got := runCLI(t, root, "show", "--workbench", foreign)
-	if got.code != 2 {
-		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	jsonShown := runCLI(t, root, "--json", "show", first)
+	if jsonShown.code != 0 {
+		t.Fatalf("--json show %s: %d %s", first, jsonShown.code, jsonShown.errw)
 	}
-	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
-	if leading != contract.Malformed {
-		t.Errorf("leading token: wanted %s, got %q (%s)", contract.Malformed, leading, got.errw)
+	var detail struct {
+		Links []verb.LinkView `json:"links"`
+	}
+	if err := json.Unmarshal([]byte(jsonShown.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, jsonShown.out)
+	}
+	if len(detail.Links) != 1 {
+		t.Fatalf("wanted one link, got %v", detail.Links)
+	}
+	if detail.Links[0].To != targetID {
+		t.Errorf("the machine form's to should stay the stable identifier %q, got %q", targetID, detail.Links[0].To)
+	}
+	if detail.Links[0].Ref != second {
+		t.Errorf("the machine form's ref should carry the alias %q, got %q", second, detail.Links[0].Ref)
+	}
+}
+
+// TestLegalMovesReportTheAliasNotTheBareStateIdentifier is armed by
+// asserting the ref field of a legal move rather than its state identifier.
+// The moves-this-card-may-make listing, printed after claim, move and show,
+// used to print the destination's bare identifier while move itself already
+// accepted the state's slug, so the one place the tool told a person what to
+// type next showed them something they could not comfortably type.
+func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+
+	claimed := runCLI(t, root, "--json", "claim", first)
+	if claimed.code != 0 {
+		t.Fatalf("claim %s: %d %s", first, claimed.code, claimed.errw)
+	}
+	var response struct {
+		LegalMoves []verb.LegalMove `json:"legal_moves"`
+	}
+	if err := json.Unmarshal([]byte(claimed.out), &response); err != nil {
+		t.Fatalf("decode: %v\n%s", err, claimed.out)
+	}
+	if len(response.LegalMoves) == 0 {
+		t.Fatal("wanted at least one legal move")
+	}
+	for _, move := range response.LegalMoves {
+		if move.Ref == "" {
+			t.Fatalf("legal move to %s carries no ref: %+v", move.State, move)
+		}
+		if move.Ref == move.State {
+			t.Errorf("legal move to %s: ref fell back to the bare identifier though the state carries a slug", move.State)
+		}
+		// The ref is what move actually accepts, proving it is not merely
+		// displayed but usable.
+		moved := runCLI(t, root, "move", first, move.Ref)
+		if moved.code != 0 {
+			t.Fatalf("move %s %s: %d %s", first, move.Ref, moved.code, moved.errw)
+		}
+		break
+	}
+}
+
+// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's two cases: a
+// cell under its column width pads in place, exactly as the plain pad-based
+// row it replaced did, and a cell that reaches or exceeds its column width
+// gets the line to itself with the remaining fields moved to a continuation
+// line indented to where the column would have ended, rather than the
+// non-truncating pad pushing every later field out of alignment (Convention
+// counterexamples: "A wording change that outgrows the column it is
+// rendered into"). Covers both a catalog placeholder and a long real slug,
+// since both are the cells this helper exists for.
+func TestAlignedRowBreaksOnAnOverrunningCell(t *testing.T) {
+	cases := []struct {
+		name string
+		cell string
+		want string
+	}{
+		{
+			name: "fits",
+			cell: "fx",
+			want: "  fx        rest",
+		},
+		{
+			name: "placeholder overruns",
+			cell: "no slug (run check --migrate-slugs)",
+			want: "  no slug (run check --migrate-slugs)\n            rest",
+		},
+		{
+			name: "long real slug overruns",
+			cell: "aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior",
+			want: "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := alignedRow("  ", c.cell, 10, "rest")
+			if got != c.want {
+				t.Errorf("alignedRow(%q, 10, %q):\n got  %q\n want %q", c.cell, "rest", got, c.want)
+			}
+		})
+	}
+}
+
+// TestWorkbenchesListingSurvivesAMissingSlug is the fixture-level twin of
+// TestAlignedRowBreaksOnAnOverrunningCell: it drives the actual
+// `workbenches` render, not the helper in isolation, over a row with no
+// slug at all, whose placeholder is longer than the column it prints into,
+// and asserts the row's path is still present and legible rather than
+// shifted into the previous column.
+func TestWorkbenchesListingSurvivesAMissingSlug(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+
+	noSlug := filepath.Join(container, "noslug")
+	if err := os.MkdirAll(noSlug, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, noSlug, "init", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	noSlugRoot := soleBenchDir(t, noSlug)
+	editWorkbenchAnchor(t, filepath.Join(noSlugRoot, "workbench.md"), "slug: noslug\n", "slug:\n")
+
+	got := runCLI(t, container, "--workbench", noSlugRoot, "workbenches")
+	if got.code != 0 {
+		t.Fatalf("workbenches: %d %s", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, noSlugRoot) {
+		t.Errorf("the missing-slug row's own path is missing or shifted out of the line: %q", got.out)
+	}
+	if strings.Count(got.out, "\n") < 2 {
+		t.Errorf("wanted the overrunning placeholder to break onto a continuation line, got %q", got.out)
+	}
+}
+
+// editWorkbenchAnchor rewrites one line of a workbench anchor already on
+// disk, the way editWorkbench does for the bench-package fixtures this test
+// mirrors.
+func editWorkbenchAnchor(t *testing.T, path, from, to string) {
+	t.Helper()
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.Contains(string(text), from) {
+		t.Fatalf("the workbench anchor carries no %q", from)
+	}
+	edited := strings.Replace(string(text), from, to, 1)
+	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
 	}
 }

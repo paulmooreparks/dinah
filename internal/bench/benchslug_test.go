@@ -3,6 +3,7 @@ package bench
 import (
 	"encoding/json"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -102,6 +103,27 @@ func TestBackfillWorkbenchSlugNamesAnUnderivableTitle(t *testing.T) {
 	}
 	if !hasFinding(reported, FindingWorkbenchSlugUnderivable) {
 		t.Fatalf("wanted an underivable finding, got %v", reported)
+	}
+}
+
+// TestCheckWorkbenchSlugCarriesNoMajorGate asserts checkWorkbenchSlug fires
+// on a missing slug at every declared major, not only below
+// SlugMandatoryMajor. Unlike a state's slug, no CORE-BENCH statement makes a
+// workbench slug mandatory at any major, and Open never refuses a workbench
+// for lacking one, so there is no major past which this check would be
+// redundant with a refusal Open already issued: it has to keep firing. A
+// major gate here previously left the finding dead code above
+// SlugMandatoryMajor, caught only because this test builds the Bench value
+// directly rather than going through Open, which today refuses any
+// profile major other than ProfileMajor and so cannot itself reach a major
+// this high.
+func TestCheckWorkbenchSlugCarriesNoMajorGate(t *testing.T) {
+	for _, major := range []int{1, SlugMandatoryMajor, SlugMandatoryMajor + 5} {
+		b := &Bench{Profile: "dinah-core/" + strconv.Itoa(major) + ".0", Slug: ""}
+		findings := b.checkWorkbenchSlug()
+		if !hasFinding(findings, FindingWorkbenchSlugMissing) {
+			t.Errorf("major %d: wanted a workbench-slug-missing finding, got %v", major, findings)
+		}
 	}
 }
 

@@ -234,6 +234,12 @@ type LinkView struct {
 	Kind string `json:"kind"`
 	// To is the identifier of the card the link names.
 	To string `json:"to"`
+	// Ref is what a person types to name that card on show or any other
+	// reference-accepting command: its alias when the card can still be
+	// found, the bare identifier otherwise. A link's own stored value never
+	// changes (card.go's Link carries an identifier, not an alias, by
+	// design), so this is resolved fresh on every read rather than stored.
+	Ref string `json:"ref"`
 }
 
 // CommentView is one comment as a read reports it.
@@ -272,7 +278,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}
 	for _, link := range card.Links {
-		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To})
+		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
 	}
 	comments, err := bench.Comments(card.Dir)
 	if err != nil {
@@ -283,6 +289,23 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		detail.Comments = append(detail.Comments, view)
 	}
 	return detail, "", nil
+}
+
+// linkRef resolves a link's stored card identifier to what a person types to
+// reach it. A link records only the identifier (card.go's Link comment: "a
+// declaration rather than an entity"), so the alias is resolved fresh on
+// every read rather than carried by the link itself, the same way a card's
+// own Ref is computed at view time rather than stored. A card the link names
+// that is no longer findable, archived or otherwise, still shows something
+// typeable: the bare identifier the link already carried.
+func (l *Library) linkRef(id string) string {
+	if card, err := bench.LoadCard(l.Bench.CardsRoot(), id); err == nil {
+		return card.Ref(l.Bench.Slug)
+	}
+	if card, err := bench.LoadCard(l.Bench.ArchivedCardsRoot(), id); err == nil {
+		return card.Ref(l.Bench.Slug)
+	}
+	return id
 }
 
 // History reports a card's recorded acts in the order they were recorded. An

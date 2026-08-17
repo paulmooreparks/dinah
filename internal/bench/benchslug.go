@@ -3,20 +3,18 @@ package bench
 import "path/filepath"
 
 // checkWorkbenchSlug applies the slug invariant to the workbench's own
-// identity: it carries one. This mirrors checkStateSlugs exactly, gating on
-// the same report-only terms, because no CORE-BENCH statement makes a
-// workbench slug mandatory at any major the way CORE-STATE-10 does for a
-// state, so the finding is informational on every conforming major this
-// binary opens.
+// identity: it carries one. Unlike checkStateSlugs, this carries no major
+// gate: no CORE-BENCH statement makes a workbench slug mandatory at any
+// major the way CORE-STATE-10 does for a state, and nothing in Open refuses
+// a workbench for lacking one at any major, so there is no threshold past
+// which this check would be reporting a condition Open has already turned
+// into a refusal. The finding is informational on every conforming major
+// this binary opens, and stays that way.
 func (b *Bench) checkWorkbenchSlug() []Finding {
 	if b.Slug != "" {
 		return nil
 	}
-	major, _, ok := splitProfile(b.Profile)
-	if ok && major < SlugMandatoryMajor {
-		return []Finding{{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingWorkbenchSlugMissing}}
-	}
-	return nil
+	return []Finding{{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingWorkbenchSlugMissing}}
 }
 
 // WorkbenchSlugAssignment is what the workbench-slug migration reports when
