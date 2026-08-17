@@ -2588,3 +2588,205 @@ func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
 		t.Errorf("leading token: wanted %s, got %q (%s)", contract.Malformed, leading, got.errw)
 	}
 }
+
+// wantUsage asserts an invocation refuses with dinah.usage and that the
+// refusal names the exact word given, which is the shape every case in this
+// card's tests wants.
+func wantUsage(t *testing.T, got invocation, word string) {
+	t.Helper()
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Usage {
+		t.Errorf("leading token: wanted %s, got %q", contract.Usage, got.errw)
+	}
+	if !strings.Contains(got.errw, word) {
+		t.Errorf("the refusal should name the word given, wanted %q in %q", word, got.errw)
+	}
+}
+
+// TestMistypedSingleDashRefusesOnAZeroBoundedCommand asserts dinah-69's AC-1:
+// every zero-bounded-slot command called with a trailing single-dash word
+// refuses with dinah.usage naming the word, in place of today's silent exit
+// 0, and that nothing about a successful run of the same command changes.
+func TestMistypedSingleDashRefusesOnAZeroBoundedCommand(t *testing.T) {
+	for _, name := range []string{"status", "states", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+		t.Run(name, func(t *testing.T) {
+			wantUsage(t, runCLI(t, t.TempDir(), name, "-w"), "-w")
+		})
+	}
+}
+
+// TestMistypedSingleDashRefusesBeforeTheDomainCheck asserts dinah-69's AC-2:
+// every command whose bounded slot is a card reference, a state name, or a
+// guide/help topic refuses with dinah.usage naming the word when a
+// single-dash word fills that slot, rather than today's unknown-card,
+// unknown-state, unknown-command or unknown-guide refusal.
+func TestMistypedSingleDashRefusesBeforeTheDomainCheck(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"claim", []string{"claim", "-w"}},
+		{"release", []string{"release", "-w"}},
+		{"unblock", []string{"unblock", "-w"}},
+		{"archive", []string{"archive", "-w"}},
+		{"delete", []string{"delete", "-w"}},
+		{"log", []string{"log", "-w"}},
+		{"instructions", []string{"instructions", "-w"}},
+		{"show", []string{"show", "-w"}},
+		{"ls", []string{"ls", "-w"}},
+		{"next", []string{"next", "-w"}},
+		{"guide", []string{"guide", "-w"}},
+		{"help", []string{"help", "-w"}},
+		{"move's card slot", []string{"move", "-w", "ready"}},
+		{"move's state slot", []string{"move", "fx-1", "-w"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			wantUsage(t, runCLI(t, root, c.argv...), "-w")
+		})
+	}
+}
+
+// TestMistypedSingleDashRefusesOnAPathSlotInsteadOfCreatingSomething asserts
+// dinah-69's AC-3 and is the card's flagship case: `init -w` no longer
+// creates a directory named `-w` and initialises a workbench inside it, and
+// the same refusal reaches attach's ref and file slots, extract's directory
+// slot, and path's and edit's argument slot.
+func TestMistypedSingleDashRefusesOnAPathSlotInsteadOfCreatingSomething(t *testing.T) {
+	base := t.TempDir()
+	wantUsage(t, runCLI(t, base, "init", "-w", "--operator", "tester"), "-w")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		t.Fatalf("read dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("a refused init should create nothing, found %v", entries)
+	}
+
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	for _, argv := range [][]string{
+		{"attach", "-w", "somefile"},
+		{"attach", "fx-1", "-w"},
+		{"extract", "-w"},
+		{"path", "-w"},
+		{"edit", "-w"},
+	} {
+		t.Run(strings.Join(argv, " "), func(t *testing.T) {
+			wantUsage(t, runCLI(t, root, argv...), "-w")
+		})
+	}
+	if bench.Exists(filepath.Join(root, "-w")) {
+		t.Error("a refused attach/extract should leave no -w path behind")
+	}
+
+	// "./" still reaches a real dash-led filesystem name unchanged, for the
+	// slots that resolve a filesystem path directly rather than a card
+	// reference: init's root and extract's directory.
+	dashDir := filepath.Join(t.TempDir(), "-realdir")
+	if err := os.MkdirAll(dashDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, root, "extract", filepath.Join(dashDir, "notyetused"))
+	if got.code != 0 {
+		t.Fatalf("extract into a real dash-led directory: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestOpenTailContinuesToAcceptALeadingDashWord asserts dinah-69's AC-5: the
+// open-tail slots (add's title, block's reason, comment's text, config set's
+// value) keep taking a leading-dash word exactly as before, the bare "-"
+// still reads comment's text from stdin, a single-dash word given as an
+// explicit flag's own value is unaffected, and the top-level command name is
+// unaffected.
+func TestOpenTailContinuesToAcceptALeadingDashWord(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got := runCLI(t, root, "add", "-weirdtitle2")
+	if got.code != 0 {
+		t.Fatalf("add -weirdtitle2: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, "-weirdtitle2") {
+		t.Errorf("the title should carry the dash-led word verbatim, got %q", got.out)
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "-not-a-flag", "the actual reason")
+	if got.code != 0 {
+		t.Fatalf("block with a dash-led reason: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	_, homeBase := settingsHome(t)
+	if got := runCLI(t, homeBase, "config", "set", "actor", "-w"); got.code != 0 {
+		t.Fatalf("config set actor -w: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if got := runCLI(t, homeBase, "config", "get", "actor"); got.code != 0 || strings.TrimSpace(got.out) != "-w" {
+		t.Errorf("config set should have stored -w verbatim, got %d %q", got.code, got.out)
+	}
+
+	piped := &bytes.Buffer{}
+	piped.WriteString("piped comment text")
+	out, errw := &bytes.Buffer{}, &bytes.Buffer{}
+	previous, _ := os.Getwd()
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	code := run([]string{"comment", "fx-1", "-"}, piped, out, errw)
+	os.Chdir(previous)
+	if code != 0 {
+		t.Fatalf("comment fx-1 -: wanted exit 0, got %d (%s)", code, errw.String())
+	}
+
+	// A single-dash word given as an explicit flag's own value is unaffected
+	// and still reaches the domain refusal, not dinah.usage.
+	got = runCLI(t, root, "move", "fx-1", "nowhere", "--state", "-w")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.UnknownState {
+		t.Errorf("an explicit flag value: wanted %s, got %q", contract.UnknownState, got.errw)
+	}
+
+	// The top-level command name itself is unaffected.
+	got = runCLI(t, root, "-w", "ls")
+	leading = strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.UnknownVerb {
+		t.Errorf("a mistyped command name: wanted %s, got %q", contract.UnknownVerb, got.errw)
+	}
+}
+
+// TestConfigRefusesAMistypedSingleDashKey asserts dinah-69's AC-4: config get
+// and config set refuse with dinah.usage naming the exact word when the key
+// is a single-dash word, before the unknown-key check runs, and a bare
+// `config <word>` that is neither get nor set refuses naming that word
+// rather than the literal string "config".
+func TestConfigRefusesAMistypedSingleDashKey(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	wantUsage(t, runCLI(t, dir, "config", "-w"), "-w")
+	wantUsage(t, runCLI(t, dir, "config", "get", "-w"), "-w")
+	wantUsage(t, runCLI(t, dir, "config", "set", "-w", "value"), "-w")
+
+	got := runCLI(t, dir, "config", "bogus")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Usage {
+		t.Errorf("leading token: wanted %s, got %q", contract.Usage, got.errw)
+	}
+	if !strings.Contains(got.errw, "bogus") {
+		t.Errorf("the default branch should name the word given rather than the literal \"config\", got %q", got.errw)
+	}
+}
+
+// TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses answers dinah-69's
+// OQ-1: for a command with no open tail, the single-dash check walks every
+// word in rest(), not merely the command's own declared bounded count, so a
+// dash word beyond a one-bounded command's own arity refuses exactly as a
+// dash word inside a declared slot does.
+func TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	wantUsage(t, runCLI(t, root, "claim", "fx-1", "extraword", "-x"), "-x")
+}
