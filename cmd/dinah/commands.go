@@ -79,6 +79,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		Finish:          parsed.has("finish"),
 		MigrateOrdinals: parsed.has("migrate-ordinals"),
 		MigrateSlugs:    parsed.has("migrate-slugs"),
+		MigrateStates:   parsed.has("migrate-states"),
 	}
 	return req
 }

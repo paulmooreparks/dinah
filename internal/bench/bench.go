@@ -154,6 +154,12 @@ type Bench struct {
 	FM *Frontmatter
 	// Hooks are the test-only levers on the structural protocol's timing.
 	Hooks *Hooks
+	// StrandedStates is every identifier this workbench's own definition names
+	// whose directory is not there at all: a state a retiring act moved or
+	// removed without also editing the definition, or one a person removed by
+	// hand. It plays no part in the flow; dinah check reports it and dinah
+	// check --migrate-states removes it from the definition.
+	StrandedStates []string
 	// Passed is the workbench.md files the discovery walk found and did not
 	// claim on its way to resolving this bench, each one a directory holding
 	// somebody else's document rather than a Dinah workbench. It is set by
@@ -527,6 +533,20 @@ func readAnchor(path string) (anchorState, error) {
 	return anchorForeign, nil
 }
 
+// AnchorRecognized reports whether the workbench.md at path carries Dinah's
+// claim to its directory (Frontmatter.Recognized), the same test benchIn and
+// soleBench apply at every rung of the discovery walk. It answers false for
+// a path with nothing there and false for a file that exists but is
+// somebody else's document; a non-nil error means a file exists and could
+// not be read, and the caller decides how to refuse over that.
+func AnchorRecognized(path string) (bool, error) {
+	state, err := readAnchor(path)
+	if err != nil {
+		return false, err
+	}
+	return state == anchorOurs, nil
+}
+
 // Candidate is one workbench a listing reports: enough of its identity to
 // recognise it, and the path that selects it. The members stop where reading
 // the anchor stops, so a listing never opens a workbench to describe it.
@@ -643,12 +663,17 @@ func Open(root string) (*Bench, error) {
 	}
 	seen := map[string]bool{}
 	seenSlug := map[string]bool{}
-	for position, id := range ids {
+	for _, id := range ids {
 		if seen[id] {
 			return nil, contract.RefuseWith(contract.Malformed, "states", anchor)
 		}
 		seen[id] = true
-		state, err := readState(root, id, position)
+		stateDir := filepath.Join(root, StatesDir, id)
+		if !Exists(stateDir) {
+			b.StrandedStates = append(b.StrandedStates, id)
+			continue
+		}
+		state, err := readState(root, id, len(b.States))
 		if err != nil {
 			return nil, err
 		}

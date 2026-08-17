@@ -347,11 +347,21 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 // root. It returns the directory it wrote to.
 //
 // The refusal stays aimed at a bare workbench.md at root rather than at the
-// container, because benchIn resolves such a file before it ever looks at
-// that directory's container, so a bench written into the container beside
-// it would sit where the climbing search can never reach it.
+// container, because benchIn resolves a recognized one before it ever looks
+// at that directory's container, so a bench written into the container
+// beside it would sit where the climbing search can never reach it. It
+// fires only when that bare file is a recognized Dinah workbench
+// (bench.AnchorRecognized): a file sharing the name but carrying none of
+// Dinah's frontmatter keys is passed over by the discovery walk exactly as
+// it is everywhere else, so a container written beside it stays reachable
+// and init proceeds rather than refusing over a file it never writes to.
 func Init(root, slug, operator, source string) (string, error) {
-	if bench.Exists(filepath.Join(root, bench.WorkbenchAnchor)) {
+	anchor := filepath.Join(root, bench.WorkbenchAnchor)
+	recognized, err := bench.AnchorRecognized(anchor)
+	if err != nil {
+		return "", contract.Refuse(contract.UnreadableBench, anchor)
+	}
+	if recognized {
 		return "", contract.Refuse(contract.Exists, root)
 	}
 	definition, err := readSource(root, source)

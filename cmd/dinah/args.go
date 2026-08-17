@@ -22,7 +22,7 @@ var valuedFlags = []string{
 // markerFlags are the flags that carry no value.
 var markerFlags = []string{
 	"json", "quiet", "ready", "override", "replace", "yes", "catalogs",
-	"finish", "migrate-ordinals", "migrate-slugs",
+	"finish", "migrate-ordinals", "migrate-slugs", "migrate-states",
 }
 
 // arguments are one command line taken apart: the words in order and the

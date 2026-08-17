@@ -298,6 +298,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateOrdinals = value
 	case "migrate-slugs":
 		req.MigrateSlugs = value
+	case "migrate-states":
+		req.MigrateStates = value
 	case "catalogs":
 		// The version tool always reports catalog coverage, so the marker
 		// carries nothing here.

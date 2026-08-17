@@ -397,6 +397,9 @@ func (b *Bench) Run(act *StructuralAct) error {
 		if err := b.StateOccupied(act.StateID); err != nil {
 			return unwind(err, sibling, benchLock)
 		}
+		if act.Op != OpRestore && len(b.States) <= 1 {
+			return unwind(contract.Refuse(contract.LastState, act.StateID), sibling, benchLock)
+		}
 	}
 
 	// An entity that vanished between the moment a caller resolved it and
@@ -431,6 +434,11 @@ func (b *Bench) Run(act *StructuralAct) error {
 	}
 	if err := act.apply(); err != nil {
 		return reportInterruption(err, act, benchLock)
+	}
+	if act.StateID != "" && act.Op != OpRestore {
+		if err := b.RemoveStateID(act.StateID); err != nil {
+			return reportInterruption(err, act, benchLock)
+		}
 	}
 	if err := b.step(6); err != nil {
 		return reportInterruption(err, act, benchLock)

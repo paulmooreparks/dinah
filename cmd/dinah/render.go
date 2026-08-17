@@ -296,6 +296,12 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.StampedOrdinals != nil {
 		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
 	}
+	if report.MigratedStates {
+		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
+		for _, id := range report.RemovedStrandedStates {
+			s.line("  " + id)
+		}
+	}
 	return s.renderFindings(report.Findings)
 }
 

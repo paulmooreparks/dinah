@@ -38,6 +38,7 @@ const (
 	FindingSlugMissing        = "check.slug-missing"
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
+	FindingStrandedState      = "check.stranded-state"
 	FindingIgnoredAnchor      = "check.ignored-anchor"
 	// FindingWorkbenchSlugMissing names a workbench written before the
 	// workbench-level slug field existed, on the same report-only terms
@@ -105,6 +106,9 @@ func (b *Bench) Check() ([]Finding, error) {
 	}
 	findings = append(findings, b.checkStateSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
+	for _, id := range b.StrandedStates {
+		findings = append(findings, Finding{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingStrandedState, Detail: id})
+	}
 	for _, standing := range b.interruptions() {
 		findings = append(findings, standing.finding())
 	}

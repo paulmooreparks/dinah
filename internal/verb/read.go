@@ -386,6 +386,14 @@ type CheckReport struct {
 	// for the workbench itself, absent when the workbench already carried
 	// one or when no migration was asked for.
 	AssignedWorkbenchSlug *bench.WorkbenchSlugAssignment `json:"assigned_workbench_slug,omitempty"`
+	// RemovedStrandedStates are the identifiers the states migration removed
+	// from the workbench's own states list. It is absent from a request that
+	// asked for no migration and from a request that asked and found nothing
+	// to repair, which MigratedStates below is what separates.
+	RemovedStrandedStates []string `json:"removed_stranded_states,omitempty"`
+	// MigratedStates says the stranded-state migration ran, so a caller can
+	// tell an empty list of removals from a migration nobody asked for.
+	MigratedStates bool `json:"migrated_states,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -399,7 +407,9 @@ type CheckReport struct {
 // repair rather than a read-path fallback. A request carrying the
 // migrate-slugs marker does the same for the states of a workbench that
 // predate the slug field, names the slug it gave each one, and derives the
-// workbench's own slug when the workbench itself predates that field.
+// workbench's own slug when the workbench itself predates that field. A
+// request carrying the migrate-states marker removes every stranded
+// identifier from the workbench's own states list.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -415,6 +425,14 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
 		report.AssignedWorkbenchSlug = wsAssigned
 		report.Findings = append(report.Findings, wsReported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	if req != nil && req.MigrateStates {
+		removed, err := l.Bench.RemoveStrandedStates()
+		report.MigratedStates = true
+		report.RemovedStrandedStates = removed
 		if err != nil {
 			return report, err
 		}

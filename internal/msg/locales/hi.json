@@ -37,6 +37,10 @@
       "text": "संग्रहीत होने वाली स्थिति में कोई कार्ड नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.archive.3": {
+      "text": "कार्यक्षेत्र में कम से कम एक स्थिति बनी रहती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.attach.1": {
       "text": "संदर्भ और फ़ाइल दोनों मिलते हैं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -131,6 +135,10 @@
     },
     "check.delete.3": {
       "text": "मिटाई जा रही स्थिति में कोई कार्ड नहीं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.4": {
+      "text": "कार्यक्षेत्र में कम से कम एक स्थिति बनी रहती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.edit.1": {
@@ -300,6 +308,18 @@
     "check.slug-unwritable": {
       "text": "स्थिति {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
       "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
+    },
+    "check.states-removed.one": {
+      "text": "सूची से {count} स्थिति हटाई।",
+      "context": "The line the stranded-state migration prints for what it removed, for exactly one state. Followed by one line per removed identifier."
+    },
+    "check.states-removed.other": {
+      "text": "सूची से {count} स्थितियाँ हटाईं।",
+      "context": "The line the stranded-state migration prints for what it removed, for any other number. Followed by one line per removed identifier."
+    },
+    "check.stranded-state": {
+      "text": "कार्यक्षेत्र एक ऐसी स्थिति ({detail}) का नाम लेता है जिसकी निर्देशिका मौजूद नहीं है; `dinah check --migrate-states` उसे सूची से हटा देता है",
+      "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at."
     },
     "check.torn-journal": {
       "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
@@ -596,6 +616,10 @@
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है; उसे किनारे रखें, या कोई और डायरेक्टरी चुनें",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.last-state": {
+      "text": "{detail} ही बची हुई एकमात्र स्थिति है; इसे सेवानिवृत्त करने से पहले एक और स्थिति जोड़ें",
+      "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
       "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई, और `dinah check --finish` उसे पूरा करता है",
