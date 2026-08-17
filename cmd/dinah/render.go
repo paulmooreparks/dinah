@@ -162,7 +162,7 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.Capacity > 0 {
 			count += "/" + strconv.Itoa(state.Capacity)
 		}
-		row := "  " + pad(state.ID, 14) + pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
+		row := "  " + pad(state.ID, 14) + pad(state.Slug, 24) + pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
 		if state.OperatorOwned {
 			row += s.r.T("states.operator-owned")
 		}
@@ -244,6 +244,12 @@ func (s *session) renderHistory(events []bench.Event) {
 // found nothing to do and a migration that never ran are different answers to
 // the operator's question and he asked for one of them.
 func (s *session) renderCheck(report *verb.CheckReport) int {
+	if report.MigratedSlugs {
+		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
+		for _, assignment := range report.AssignedSlugs {
+			s.line("  " + pad(assignment.Slug, 24) + assignment.Title)
+		}
+	}
 	if report.StampedOrdinals != nil {
 		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
 	}

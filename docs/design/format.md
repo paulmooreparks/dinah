@@ -608,6 +608,46 @@ account. A read-back would find nothing either, because on POSIX the
 replacement genuinely succeeded and the bytes on disk genuinely are the new
 ones. The write path therefore stays as it is.
 
+## State slugs
+
+A state carries a `slug` in its anchor, beside its title and its kind. The
+identifier is exact and nobody remembers one, and a title carrying a space
+has to be quoted at whatever shell meets it, so the slug is the spelling a
+person types on a command line and the spelling a path or a URL takes. Its
+grammar is the workbench slug's with interior dashes admitted, so
+`agent-code-review` is a slug and `Agent Code Review`, `-review`, and
+`agent--code` are not. A workbench slug is glued straight to a card number,
+where a dash would blur the boundary between the two, and nothing rides after
+a state slug, so the restriction that makes sense there makes none here.
+
+A reference to a state resolves against the identifier, then the slug, then
+the title, each of the last two compared by ASCII case rules. Uniqueness is
+per workbench, exactly as it is for a state identifier, so the slug pass
+never has two answers. A slug on one state can still equal the title of
+another, and the reference then names the state whose slug it is, because the
+slug pass runs first and answers.
+
+A state written before the field existed carries no slug, and a workbench of
+those keeps opening while it declares a profile major below the one that
+introduced the requirement. Past that major the tool refuses it, so the repair
+runs first and the workbench claims the new major afterwards. The repair is
+`dinah check --migrate-slugs`, which derives a slug from each title, suffixes
+a collision with `-2` and upward, writes what it derived to the anchor, and
+names the slug it gave each state. A slug already on disk is left alone, a
+malformed or duplicated one included, because a stored value is a decision
+somebody made and the checker reports it for a person rather than having the
+repair overwrite it.
+
+The reader carries a malformed or duplicated slug through on the same terms it
+carries an absent one, and for the same reason. Below the major that introduces
+the requirement, nothing binds a workbench to it, and every command has to open
+a workbench before it can look at one, so a reader refusing a stored slug there
+would take the whole workbench away over a single mistyped line, the `dinah
+check` that names the mistake and the `dinah check --migrate-slugs` that fills
+in the states around it included. Past that major the tool refuses the
+workbench, and the refusal names the state and the anchor file, because by then
+a person has to open that file before anything else will run.
+
 ## Encoding
 
 Every text file in a bench is UTF-8 without a byte-order mark. Journal

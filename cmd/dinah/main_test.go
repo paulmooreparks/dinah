@@ -664,12 +664,13 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	}
 }
 
-// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the two flags
+// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the three flags
 // which repair rather than report are declared once and projected everywhere:
 // the ratified help block's check line names them, the generated help for the
 // command names them from the same definition, and the argument parser accepts
-// them. One completes an interrupted structural act, the other stamps the
-// creation ordinals a workbench written before the field carries none of.
+// them. One completes an interrupted structural act, one stamps the creation
+// ordinals a workbench written before the field carries none of, and one
+// derives the slugs of states written before that field existed.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
@@ -679,10 +680,10 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] ") {
-		t.Error("the ratified block's check line does not name both repair flags")
+	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] ") {
+		t.Error("the ratified block's check line does not name every repair flag")
 	}
-	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals]" {
+	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -691,7 +692,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -757,6 +758,231 @@ func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
 	}
 	if !strings.Contains(machine.out, bench.FindingOrdinalGuessed) || !strings.Contains(machine.out, "e00000000002") {
 		t.Errorf("the machine form does not name the entity it guessed at:\n%s", machine.out)
+	}
+}
+
+// TestStatesCarryTheirSlugOnBothSurfaces asserts that the slug reaches every
+// surface a caller reads a state through: the human listing prints it beside
+// the identifier, the machine form carries it as a member of each state
+// object, and a reference typed as the slug reaches the state without the
+// quoting a spaced title needs.
+func TestStatesCarryTheirSlugOnBothSurfaces(t *testing.T) {
+	root := newBench(t)
+
+	human := runCLI(t, root, "states")
+	if human.code != 0 {
+		t.Fatalf("states: %d %s", human.code, human.errw)
+	}
+	for _, slug := range []string{"intake", "doing", "done"} {
+		if !strings.Contains(human.out, slug) {
+			t.Errorf("the listing does not print the slug %s:\n%s", slug, human.out)
+		}
+	}
+
+	machine := runCLI(t, root, "--json", "states")
+	if machine.code != 0 {
+		t.Fatalf("states --json: %d %s", machine.code, machine.errw)
+	}
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if len(states) != 3 {
+		t.Fatalf("the machine form carries %d states", len(states))
+	}
+	for position, wanted := range []string{"intake", "doing", "done"} {
+		if got := states[position].Slug; got != wanted {
+			t.Errorf("state %d carries slug %q, wanted %q", position+1, got, wanted)
+		}
+	}
+
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	listed := runCLI(t, root, "ls", "--state", "intake")
+	if listed.code != 0 {
+		t.Fatalf("ls by slug: %d %s", listed.code, listed.errw)
+	}
+	if !strings.Contains(listed.out, "A card") {
+		t.Errorf("a slug should name a state on the command line:\n%s", listed.out)
+	}
+}
+
+// TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField asserts the
+// one-time repair end to end: the checker names each state carrying no slug,
+// the repair derives one from the title and says which state got which slug on
+// both surfaces, and the workbench checks clean afterwards.
+func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
+	root := newBench(t)
+	stripSlugs(t, root)
+
+	reported := runCLI(t, root, "check")
+	if !strings.Contains(reported.out, "carries no slug") {
+		t.Errorf("the checker did not report the missing slugs:\n%s", reported.out)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-slugs")
+	if migrated.code != 0 {
+		t.Fatalf("check --migrate-slugs: %d %s", migrated.code, migrated.errw)
+	}
+	if !strings.Contains(migrated.out, "Assigned 3 state slugs.") {
+		t.Errorf("the migration did not say what it assigned:\n%s", migrated.out)
+	}
+	for _, slug := range []string{"intake", "doing", "done"} {
+		if !strings.Contains(migrated.out, slug) {
+			t.Errorf("the migration did not name the slug %s:\n%s", slug, migrated.out)
+		}
+	}
+
+	again := runCLI(t, root, "--json", "check", "--migrate-slugs")
+	if again.code != 0 {
+		t.Fatalf("a second run: %d %s", again.code, again.errw)
+	}
+	if strings.Contains(again.out, `"assigned_slugs"`) {
+		t.Errorf("a second run assigned something:\n%s", again.out)
+	}
+	if !strings.Contains(again.out, `"migrated_slugs"`) {
+		t.Errorf("a second run did not say the migration ran:\n%s", again.out)
+	}
+}
+
+// TestAHandTypedSlugLeavesTheWorkbenchOpenable asserts the corner an operator
+// has to be able to get out of with the tool: somebody types a slug into a
+// state anchor by hand and gets it wrong, and the workbench goes on opening,
+// the checker names the state and the file, and the repair that fills in the
+// states around it still runs.
+//
+// Every command opens the workbench before it can do anything with it, so a
+// reader refusing a stored slug would take the whole workbench away over one
+// mistyped line, including the check that reports the mistake and the
+// migration that would have finished the job. The workbench declares a major
+// below the one CORE-STATE-10 arrives at, which is where a stored slug binds
+// nothing yet.
+func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
+	t.Run("a slug outside the grammar", func(t *testing.T) {
+		root := newBench(t)
+		stripSlugs(t, root)
+		state, anchor := writeStateSlug(t, root, 0, "Caf--Corner")
+
+		listed := runCLI(t, root, "states")
+		if listed.code != 0 {
+			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
+		}
+		if !strings.Contains(listed.out, "Caf--Corner") {
+			t.Errorf("the listing should carry the slug as it stands:\n%s", listed.out)
+		}
+
+		reported := runCLI(t, root, "check")
+		for _, fragment := range []string{state, anchor, "is not a letter followed by"} {
+			if !strings.Contains(reported.out, fragment) {
+				t.Errorf("the checker should carry %q:\n%s", fragment, reported.out)
+			}
+		}
+
+		migrated := runCLI(t, root, "check", "--migrate-slugs")
+		if !strings.Contains(migrated.out, "Assigned 2 state slugs.") {
+			t.Errorf("the repair did not reach the states around the bad one:\n%s", migrated.out)
+		}
+		if !strings.Contains(migrated.out, state) || !strings.Contains(migrated.out, anchor) {
+			t.Errorf("the repair stopped naming the state it left alone:\n%s", migrated.out)
+		}
+
+		reopened := runCLI(t, root, "states")
+		if reopened.code != 0 {
+			t.Fatalf("the repaired workbench should open: %d %s", reopened.code, reopened.errw)
+		}
+		for _, slug := range []string{"doing", "done"} {
+			if !strings.Contains(reopened.out, slug) {
+				t.Errorf("the listing does not carry the repaired slug %s:\n%s", slug, reopened.out)
+			}
+		}
+	})
+
+	t.Run("a slug another state already carries", func(t *testing.T) {
+		root := newBench(t)
+		writeStateSlug(t, root, 0, "done")
+
+		listed := runCLI(t, root, "states")
+		if listed.code != 0 {
+			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
+		}
+
+		// The walk names the second state to carry the value, which is the
+		// one whose reference has stopped answering for it alone.
+		duplicate, anchor := writeStateSlug(t, root, 2, "done")
+		reported := runCLI(t, root, "check")
+		for _, fragment := range []string{duplicate, anchor, "another state of this workbench also carries"} {
+			if !strings.Contains(reported.out, fragment) {
+				t.Errorf("the checker should carry %q:\n%s", fragment, reported.out)
+			}
+		}
+
+		migrated := runCLI(t, root, "check", "--migrate-slugs")
+		if !strings.Contains(migrated.out, "Assigned 0 state slugs.") {
+			t.Errorf("the repair should run and find nothing to assign:\n%s", migrated.out)
+		}
+	})
+}
+
+// writeStateSlug types a slug into one state anchor of a workbench the way a
+// person editing the file by hand would, and returns the state's identifier
+// and the anchor's path, which are the two things a report about it names.
+func writeStateSlug(t *testing.T, root string, position int, slug string) (string, string) {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "states")
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if position >= len(states) {
+		t.Fatalf("the workbench carries %d states", len(states))
+	}
+	path := filepath.Join(root, "states", states[position].ID, "state.md")
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var kept []string
+	for _, line := range strings.Split(string(text), "\n") {
+		if strings.HasPrefix(line, "slug: ") {
+			continue
+		}
+		kept = append(kept, line)
+		if strings.HasPrefix(line, "title: ") {
+			kept = append(kept, "slug: "+slug)
+		}
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+	return states[position].ID, path
+}
+
+// stripSlugs removes the slug from every state anchor of a workbench, which is
+// the shape a workbench written before the field has on disk.
+func stripSlugs(t *testing.T, root string) {
+	t.Helper()
+	states := filepath.Join(root, "states")
+	entries, err := os.ReadDir(states)
+	if err != nil {
+		t.Fatalf("read states: %v", err)
+	}
+	for _, entry := range entries {
+		path := filepath.Join(states, entry.Name(), "state.md")
+		text, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var kept []string
+		for _, line := range strings.Split(string(text), "\n") {
+			if strings.HasPrefix(line, "slug: ") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
 	}
 }
 
