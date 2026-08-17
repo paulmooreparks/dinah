@@ -514,7 +514,7 @@
       "context": "The heading above a command's ordered precondition list in its own help."
     },
     "help.tagline": {
-      "text": "डिना काम को चलता रखती है।",
+      "text": "Dinah काम को चलता रखती है।",
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
