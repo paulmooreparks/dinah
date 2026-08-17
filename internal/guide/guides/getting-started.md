@@ -1,9 +1,8 @@
 # Getting started
 
-Dinah keeps a workbench as a directory of plain-text files. Dinah tracks
-everything it knows about your work there, so you can read it with an editor,
-search it with grep, and put it under git alongside the project it belongs
-to.
+Dinah keeps a workbench as a directory of plain-text files. You can read
+everything Dinah tracks about your work there with an editor, search it with
+grep, and put it under git alongside the project it belongs to.
 
 You may create a workbench in the same directory as the rest of your work:
 
@@ -16,8 +15,8 @@ slug `proj`, Dinah names your workbench's first card `proj-1`. If you leave
 `--slug` out, Dinah derives one from the directory name.
 
 Dinah assigns an operator to every workbench, the person who owns it and
-answers for it. Dinah lets only the operator lift a block, so a workbench
-with nobody in that seat has actions nobody can perform. If you leave
+answers for it, and only that operator may lift a block, so a workbench with
+nobody in that seat has actions nobody can perform. If you leave
 `--operator` out, Dinah records whoever you are acting as, called the actor;
 you carry that name on every action you take, and Dinah prints it back when
 you run `dinah whoami`.
@@ -25,9 +24,10 @@ you run `dinah whoami`.
 Dinah writes the workbench inside a `.dinah` directory here rather than loose
 in your working directory, so it always sits somewhere later commands can find
 it. Dinah prints the path it wrote, `.dinah/<id>/`, where `<id>` is a
-generated identifier; open the `workbench.md` inside it to read or edit the
-prose that is served to whoever claims a card. Dinah never copies that file
-anywhere, so anyone who opens the workbench sees your edit right away.
+generated identifier. Open the `workbench.md` file inside it to read the
+prose that is served to whoever claims a card. You can also edit that file
+directly, and nothing copies it anywhere, so anyone who opens the workbench
+sees your change right away.
 
 File the first piece of work:
 
