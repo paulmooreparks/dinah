@@ -244,6 +244,8 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 //
 // A title that derives to nothing usable is refused rather than left empty or
 // filled in from the identifier, since neither is a name anybody would type.
+// That refusal names the title, which is the value the author has to change,
+// rather than the slug that was never arrived at.
 func assignStateSlugs(states []map[string]json.RawMessage) ([]string, error) {
 	slugs := make([]string, len(states))
 	taken := map[string]bool{}
@@ -265,7 +267,7 @@ func assignStateSlugs(states []map[string]json.RawMessage) ([]string, error) {
 		title := memberString(element, "title")
 		derived := SlugifyDashed(title)
 		if derived == "" {
-			return nil, contract.Refuse(contract.Malformed, "slug "+title)
+			return nil, contract.Refuse(contract.Malformed, "title "+title)
 		}
 		candidate := derived
 		for suffix := 2; taken[candidate]; suffix++ {

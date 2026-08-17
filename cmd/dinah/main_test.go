@@ -487,6 +487,11 @@ const limitedDefinition = `{
 // second process holding the card mid-transaction; and dinah.no-editor, which
 // needs an environment carrying no editor at any rung and no fallback binary
 // on the path.
+//
+// The three names discovery raises before a bench is open (dinah.no-bench,
+// dinah.no-bench-found and dinah.ambiguous-bench) are swept by
+// TestRefusalsSayWhereTheToolLookedAndWhatComesNext below, which needs a fixture per
+// case and asserts the location and the next step as well as the name.
 func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -546,17 +551,6 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				return root, []string{"status"}
 			},
 			token: contract.UnsupportedVer,
-		},
-		{
-			name: "no bench anywhere above the working directory",
-			build: func(t *testing.T) (string, []string) {
-				empty := t.TempDir()
-				t.Setenv("DINAH_HOME", filepath.Join(empty, "home"))
-				t.Setenv("DINAH_BENCH", "")
-				return empty, []string{"status"}
-			},
-			token:    contract.NoBench,
-			sentence: "no workbench was found from",
 		},
 	}
 	for _, c := range cases {
@@ -852,6 +846,118 @@ func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
 	}
 }
 
+// TestAHandTypedSlugLeavesTheWorkbenchOpenable asserts the corner an operator
+// has to be able to get out of with the tool: somebody types a slug into a
+// state anchor by hand and gets it wrong, and the workbench goes on opening,
+// the checker names the state and the file, and the repair that fills in the
+// states around it still runs.
+//
+// Every command opens the workbench before it can do anything with it, so a
+// reader refusing a stored slug would take the whole workbench away over one
+// mistyped line, including the check that reports the mistake and the
+// migration that would have finished the job. The workbench declares a major
+// below the one CORE-STATE-10 arrives at, which is where a stored slug binds
+// nothing yet.
+func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
+	t.Run("a slug outside the grammar", func(t *testing.T) {
+		root := newBench(t)
+		stripSlugs(t, root)
+		state, anchor := writeStateSlug(t, root, 0, "Caf--Corner")
+
+		listed := runCLI(t, root, "states")
+		if listed.code != 0 {
+			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
+		}
+		if !strings.Contains(listed.out, "Caf--Corner") {
+			t.Errorf("the listing should carry the slug as it stands:\n%s", listed.out)
+		}
+
+		reported := runCLI(t, root, "check")
+		for _, fragment := range []string{state, anchor, "is not a letter followed by"} {
+			if !strings.Contains(reported.out, fragment) {
+				t.Errorf("the checker should carry %q:\n%s", fragment, reported.out)
+			}
+		}
+
+		migrated := runCLI(t, root, "check", "--migrate-slugs")
+		if !strings.Contains(migrated.out, "Assigned 2 state slugs.") {
+			t.Errorf("the repair did not reach the states around the bad one:\n%s", migrated.out)
+		}
+		if !strings.Contains(migrated.out, state) || !strings.Contains(migrated.out, anchor) {
+			t.Errorf("the repair stopped naming the state it left alone:\n%s", migrated.out)
+		}
+
+		reopened := runCLI(t, root, "states")
+		if reopened.code != 0 {
+			t.Fatalf("the repaired workbench should open: %d %s", reopened.code, reopened.errw)
+		}
+		for _, slug := range []string{"doing", "done"} {
+			if !strings.Contains(reopened.out, slug) {
+				t.Errorf("the listing does not carry the repaired slug %s:\n%s", slug, reopened.out)
+			}
+		}
+	})
+
+	t.Run("a slug another state already carries", func(t *testing.T) {
+		root := newBench(t)
+		writeStateSlug(t, root, 0, "done")
+
+		listed := runCLI(t, root, "states")
+		if listed.code != 0 {
+			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
+		}
+
+		// The walk names the second state to carry the value, which is the
+		// one whose reference has stopped answering for it alone.
+		duplicate, anchor := writeStateSlug(t, root, 2, "done")
+		reported := runCLI(t, root, "check")
+		for _, fragment := range []string{duplicate, anchor, "another state of this workbench also carries"} {
+			if !strings.Contains(reported.out, fragment) {
+				t.Errorf("the checker should carry %q:\n%s", fragment, reported.out)
+			}
+		}
+
+		migrated := runCLI(t, root, "check", "--migrate-slugs")
+		if !strings.Contains(migrated.out, "Assigned 0 state slugs.") {
+			t.Errorf("the repair should run and find nothing to assign:\n%s", migrated.out)
+		}
+	})
+}
+
+// writeStateSlug types a slug into one state anchor of a workbench the way a
+// person editing the file by hand would, and returns the state's identifier
+// and the anchor's path, which are the two things a report about it names.
+func writeStateSlug(t *testing.T, root string, position int, slug string) (string, string) {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "states")
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if position >= len(states) {
+		t.Fatalf("the workbench carries %d states", len(states))
+	}
+	path := filepath.Join(root, "states", states[position].ID, "state.md")
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var kept []string
+	for _, line := range strings.Split(string(text), "\n") {
+		if strings.HasPrefix(line, "slug: ") {
+			continue
+		}
+		kept = append(kept, line)
+		if strings.HasPrefix(line, "title: ") {
+			kept = append(kept, "slug: "+slug)
+		}
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+	return states[position].ID, path
+}
+
 // stripSlugs removes the slug from every state anchor of a workbench, which is
 // the shape a workbench written before the field has on disk.
 func stripSlugs(t *testing.T, root string) {
@@ -878,4 +984,162 @@ func stripSlugs(t *testing.T, root string) {
 			t.Fatalf("write %s: %v", path, err)
 		}
 	}
+}
+
+// TestRefusalsSayWhereTheToolLookedAndWhatComesNext asserts the standard this
+// card was raised over, against the three refusals discovery can reach and the
+// malformed refusal a workbench predating the profile line raises. Each names
+// where the tool looked, what it wanted there, and what the reader does next.
+//
+// The last case is the other half of the same name. A malformed refusal over a
+// request argument has no file to name, so it carries neither fragment, and
+// the sentence a person reads is the bare one it has always been.
+//
+// Each case is asserted twice, once for the person reading stderr and once for
+// the script reading --json, because the machine form of a discovery refusal
+// went nowhere at all before this card.
+func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
+	cases := []struct {
+		name  string
+		build func(*testing.T) (string, []string)
+		token string
+		// carries are fragments the sentence a person reads must hold: the
+		// location, and the next step the reader takes.
+		carries []string
+		// context names the members the machine form carries beyond the
+		// refusal name and its detail.
+		context []string
+	}{
+		{
+			name: "a workbench predating the profile line",
+			build: func(t *testing.T) (string, []string) {
+				root := newBench(t)
+				editAnchor(t, root, "profile: dinah-core/1.0\n", "")
+				return root, []string{"whoami"}
+			},
+			token: contract.Malformed,
+			carries: []string{
+				"profile is missing, empty, or will not parse",
+				filepath.Join("bench", "workbench.md"),
+				"dinah check",
+			},
+			context: []string{"path"},
+		},
+		{
+			name: "a --bench pointed at a directory holding no workbench",
+			build: func(t *testing.T) (string, []string) {
+				root := newBench(t)
+				elsewhere := t.TempDir()
+				return root, []string{"status", "--bench", elsewhere}
+			},
+			token:   contract.NoBench,
+			carries: []string{"carries no workbench.md", "point --bench at a directory that does"},
+		},
+		{
+			name: "no workbench reachable anywhere",
+			build: func(t *testing.T) (string, []string) {
+				return emptyTree(t), []string{"status"}
+			},
+			token:   contract.NoBenchFound,
+			carries: []string{"no workbench was found walking up from", "user base at", "dinah init"},
+			context: []string{"home"},
+		},
+		{
+			name: "a base holding two workbenches and nothing closer",
+			build: func(t *testing.T) (string, []string) {
+				tree := emptyTree(t)
+				rooms := map[string]string{"d00000000001": "one", "d00000000002": "two"}
+				for id, slug := range rooms {
+					room := filepath.Join(tree, ".dinah", id)
+					if err := os.MkdirAll(room, 0o755); err != nil {
+						t.Fatalf("mkdir: %v", err)
+					}
+					if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
+						t.Fatalf("init: %d %s", got.code, got.errw)
+					}
+				}
+				return tree, []string{"status"}
+			},
+			token:   contract.AmbiguousBench,
+			carries: []string{"are all reachable from", "choose one with --bench"},
+			context: []string{"base"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir, argv := c.build(t)
+			got := runCLI(t, dir, argv...)
+			if got.code != 2 {
+				t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+			}
+			leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+			// The walk climbs to the volume root, so on a machine whose own
+			// home directory carries a .dinah holding several workbenches the
+			// search meets that ambiguity before it can exhaust. The refusal
+			// is then honestly a different one, and the case is skipped rather
+			// than asserted against whatever the machine happens to hold.
+			if c.token == contract.NoBenchFound && leading == contract.AmbiguousBench {
+				t.Skip("a directory above the temporary tree holds several workbenches of its own")
+			}
+			if leading != c.token {
+				t.Errorf("leading token: wanted %s, got %q", c.token, got.errw)
+			}
+			for _, fragment := range c.carries {
+				if !strings.Contains(got.errw, fragment) {
+					t.Errorf("the refusal should carry %q, got %q", fragment, got.errw)
+				}
+			}
+
+			machine := runCLI(t, dir, append([]string{"--json"}, argv...)...)
+			report := map[string]any{}
+			if err := json.Unmarshal([]byte(machine.out), &report); err != nil {
+				t.Fatalf("--json wrote nothing a caller can parse: %q (%v)", machine.out, err)
+			}
+			if report["outcome"] != contract.OutcomeRefused {
+				t.Errorf("outcome: wanted %s, got %v", contract.OutcomeRefused, report["outcome"])
+			}
+			if report["refusal"] != c.token {
+				t.Errorf("refusal: wanted %s, got %v", c.token, report["refusal"])
+			}
+			if report["detail"] == nil || report["detail"] == "" {
+				t.Error("the machine form should name what the refusal was about")
+			}
+			carried, _ := report["context"].(map[string]any)
+			for _, member := range c.context {
+				if value, ok := carried[member].(string); !ok || value == "" {
+					t.Errorf("the context should carry %s, got %v", member, report["context"])
+				}
+			}
+		})
+	}
+}
+
+// TestMalformedOverAnArgumentCarriesNoLocation asserts that the two fragments
+// the file-backed cases splice on are absent where there is no file: `dinah
+// add` with no title names the argument and sends nobody to edit anything.
+func TestMalformedOverAnArgumentCarriesNoLocation(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "add")
+	if !strings.Contains(got.errw, "title is missing, empty, or will not parse") {
+		t.Errorf("the sentence should name the argument, got %q", got.errw)
+	}
+	for _, fragment := range []string{", in ", "hand-edit"} {
+		if strings.Contains(got.errw, fragment) {
+			t.Errorf("a refusal over an argument should not carry %q, got %q", fragment, got.errw)
+		}
+	}
+}
+
+// emptyTree returns a directory holding no workbench, with the user base
+// pointed at an empty directory of its own, which is the starting point of a
+// search that finds nothing.
+func emptyTree(t *testing.T) string {
+	t.Helper()
+	tree := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(tree, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+	t.Setenv("DINAH_LANG", "")
+	t.Setenv("DINAH_FORMAT", "")
+	t.Setenv("DINAH_BENCH", "")
+	return tree
 }

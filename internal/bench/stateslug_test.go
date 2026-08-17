@@ -2,6 +2,7 @@ package bench
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -111,20 +112,66 @@ func TestTheGrammarRefusesEveryMalformedSlug(t *testing.T) {
 	}
 }
 
-// TestOpenRefusesAMalformedOrDuplicatedSlug asserts CORE-STATE-10 over a
-// workbench on disk: a stored slug outside the grammar and a slug two states
-// share are each refused as malformed, at any declared major, because both are
-// a stored value somebody chose rather than a field nobody has filled in.
-func TestOpenRefusesAMalformedOrDuplicatedSlug(t *testing.T) {
+// TestOpenGatesAStoredSlugOnTheDeclaredMajor asserts the rule that keeps one
+// hand-typed slug from closing a workbench: a stored slug outside the grammar
+// and a slug two states share both open while the workbench declares a major
+// below SlugMandatoryMajor, and both refuse at that major.
+//
+// The tolerant side is what the checker and the migration stand on. Every
+// command has to open a workbench before it can do anything with it, so a
+// reader refusing here would take away the `dinah check` that names the defect
+// and the `dinah check --migrate-slugs` that repairs the states around it, and
+// the operator would have no way back in through the tool at all.
+func TestOpenGatesAStoredSlugOnTheDeclaredMajor(t *testing.T) {
 	root := newFixture(t)
 	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Only\nslug: Only\nkind: work\n---\n")
-	if _, err := Open(root); !refusedMalformed(err) {
-		t.Errorf("a malformed slug should refuse malformed, got %v", err)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("a workbench below the mandating major should open: %v", err)
+	}
+	if got := opened.States[0].Slug; got != "Only" {
+		t.Errorf("the state carries slug %q, wanted the stored value", got)
 	}
 
-	shared := newTwoStateFixture(t, "dinah-core/1.0", "review", "review")
-	if _, err := Open(shared); !refusedMalformed(err) {
-		t.Errorf("two states sharing a slug should refuse malformed, got %v", err)
+	shared, err := Open(newTwoStateFixture(t, "dinah-core/1.0", "review", "review"))
+	if err != nil {
+		t.Fatalf("two states sharing a slug should open below the mandating major: %v", err)
+	}
+	if len(shared.States) != 2 {
+		t.Errorf("the workbench carries %d states", len(shared.States))
+	}
+
+	// The mandating major is out of Open's reach while this binary claims an
+	// earlier one, so the refusing side is driven over admitSlug directly.
+	anchor := map[string]string{"path": filepath.Join("states", "b00000000001", StateAnchor)}
+	malformed := admitSlug(&State{ID: "b00000000001", Slug: "Only"}, SlugMandatoryMajor, map[string]bool{}, anchor)
+	if !refusedMalformed(malformed) {
+		t.Errorf("a malformed slug at the mandating major should refuse malformed, got %v", malformed)
+	}
+	assertNamesStateAndFile(t, malformed, "b00000000001", anchor["path"])
+
+	taken := map[string]bool{"review": true}
+	duplicate := admitSlug(&State{ID: "b00000000002", Slug: "review"}, SlugMandatoryMajor, taken, anchor)
+	if !refusedMalformed(duplicate) {
+		t.Errorf("a duplicated slug at the mandating major should refuse malformed, got %v", duplicate)
+	}
+	assertNamesStateAndFile(t, duplicate, "b00000000002", anchor["path"])
+}
+
+// assertNamesStateAndFile asserts the standard every refusal in Open holds to:
+// the state it was raised over is named, and so is the file a reader opens to
+// repair it.
+func assertNamesStateAndFile(t *testing.T, err error, state, path string) {
+	t.Helper()
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("wanted a refusal, got %v", err)
+	}
+	if !strings.Contains(refusal.Detail, state) {
+		t.Errorf("the refusal should name state %s, got %q", state, refusal.Detail)
+	}
+	if refusal.Extra["path"] != path {
+		t.Errorf("the refusal should carry path %s, got %q", path, refusal.Extra["path"])
 	}
 }
 
@@ -144,10 +191,13 @@ func TestOpenGatesTheMissingSlugOnTheDeclaredMajor(t *testing.T) {
 		t.Errorf("the state carries slug %q, wanted none", opened.States[0].Slug)
 	}
 
-	if err := admitSlug(&State{ID: "b00000000001"}, SlugMandatoryMajor, map[string]bool{}); !refusedMalformed(err) {
-		t.Errorf("a missing slug at the mandating major should refuse malformed, got %v", err)
+	anchor := map[string]string{"path": filepath.Join("states", "b00000000001", StateAnchor)}
+	refused := admitSlug(&State{ID: "b00000000001"}, SlugMandatoryMajor, map[string]bool{}, anchor)
+	if !refusedMalformed(refused) {
+		t.Errorf("a missing slug at the mandating major should refuse malformed, got %v", refused)
 	}
-	if err := admitSlug(&State{ID: "b00000000001"}, SlugMandatoryMajor-1, map[string]bool{}); err != nil {
+	assertNamesStateAndFile(t, refused, "b00000000001", anchor["path"])
+	if err := admitSlug(&State{ID: "b00000000001"}, SlugMandatoryMajor-1, map[string]bool{}, anchor); err != nil {
 		t.Errorf("a missing slug below the mandating major should open, got %v", err)
 	}
 }
@@ -237,27 +287,121 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 // duplicated slug is reported and left alone. Either one is a value somebody
 // wrote on purpose, so the checker names it for a person and the migration does
 // not overwrite a decision it cannot read.
+//
+// The workbench is read off disk through Open, which is the point of the rule
+// this test stands on: the checker only ever sees a workbench a reader agreed
+// to open, so a reader refusing these two slugs would leave both findings
+// unreachable and this test asserting nothing anybody can meet.
 func TestCheckReportsAStoredSlugItWillNotRepair(t *testing.T) {
 	root := newTwoStateFixture(t, "dinah-core/1.0", "review", "review")
-	// Open refuses the duplicate, so the checker is driven over a bench built
-	// in memory, which is the shape a workbench reaches check in once a later
-	// release tolerates reading one to report on it.
-	opened := &Bench{
-		Root:    root,
-		Profile: "dinah-core/1.0",
-		States: []*State{
-			{ID: "b00000000001", Title: "One", Slug: "review"},
-			{ID: "b00000000002", Title: "Two", Slug: "review"},
-			{ID: "b00000000003", Title: "Three", Slug: "Three"},
-		},
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("a workbench carrying a duplicated slug should open: %v", err)
 	}
 	findings := opened.checkStateSlugs()
-	if len(findings) != 2 {
-		t.Fatalf("wanted a duplicate and a malformed finding, got %v", findings)
+	if len(findings) != 1 || findings[0].Key != FindingSlugDuplicate {
+		t.Fatalf("wanted one duplicate finding, got %v", findings)
 	}
-	if findings[0].Key != FindingSlugDuplicate || findings[1].Key != FindingSlugMalformed {
-		t.Errorf("findings %v", findings)
+	if want := opened.StateAnchorPath("b00000000002"); findings[0].Path != want {
+		t.Errorf("the finding names %q, wanted the second state's anchor %q", findings[0].Path, want)
 	}
+
+	malformed := newTwoStateFixture(t, "dinah-core/1.0", "Only", "second")
+	stored, err := Open(malformed)
+	if err != nil {
+		t.Fatalf("a workbench carrying a malformed slug should open: %v", err)
+	}
+	findings = stored.checkStateSlugs()
+	if len(findings) != 1 || findings[0].Key != FindingSlugMalformed {
+		t.Fatalf("wanted one malformed finding, got %v", findings)
+	}
+	if findings[0].Detail != "b00000000001" {
+		t.Errorf("the finding names %q, wanted the state carrying the slug", findings[0].Detail)
+	}
+	if want := stored.StateAnchorPath("b00000000001"); findings[0].Path != want {
+		t.Errorf("the finding names %q, wanted the state's anchor %q", findings[0].Path, want)
+	}
+
+	// The migration leaves both alone and repairs what it can around them,
+	// which is the way out of a workbench carrying one.
+	assigned, reported := stored.BackfillStateSlugs()
+	if len(assigned) != 0 || len(reported) != 0 {
+		t.Errorf("the migration assigned %v and reported %v over slugs already stored", assigned, reported)
+	}
+	if got := stored.States[0].Slug; got != "Only" {
+		t.Errorf("the migration overwrote a stored slug with %q", got)
+	}
+}
+
+// TestTheSlugMigrationNamesWhatStoppedIt asserts that the two conditions only
+// the run itself can know are filed under keys that describe them: a title no
+// slug can be derived from, and a state anchor the run could not write to.
+// Neither is a state carrying a malformed slug or a state carrying none, and
+// reporting them under those keys would print a sentence about a slug's shape
+// for a state that has no slug at all.
+func TestTheSlugMigrationNamesWhatStoppedIt(t *testing.T) {
+	root := newFixture(t)
+	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: 2026\nkind: work\n---\n")
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	assigned, reported := opened.BackfillStateSlugs()
+	if len(assigned) != 0 {
+		t.Errorf("the migration assigned %v for a title it cannot derive from", assigned)
+	}
+	if len(reported) != 1 || reported[0].Key != FindingSlugUnderivable {
+		t.Fatalf("wanted one underivable finding, got %v", reported)
+	}
+	if reported[0].Detail != "b00000000001" {
+		t.Errorf("the finding names %q, wanted the state", reported[0].Detail)
+	}
+
+	// The anchor goes after the workbench is open, which is the state a run
+	// meets when something takes the file away underneath it.
+	unwritable := newFixture(t)
+	stripped, err := Open(unwritable)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stripped.States[0].Slug = ""
+	if err := os.Remove(stripped.StateAnchorPath("b00000000001")); err != nil {
+		t.Fatalf("remove anchor: %v", err)
+	}
+	assigned, reported = stripped.BackfillStateSlugs()
+	if len(assigned) != 0 {
+		t.Errorf("the migration assigned %v over an anchor it cannot write", assigned)
+	}
+	if len(reported) != 1 || reported[0].Key != FindingSlugUnwritable {
+		t.Fatalf("wanted one unwritable finding, got %v", reported)
+	}
+}
+
+// TestTheMigrationWritesTheSlugWhereTheWriterPutsIt asserts that a migrated
+// anchor and a newly written one carry the slug in the same place, so two
+// anchors of one workbench do not differ by which code path wrote them.
+func TestTheMigrationWritesTheSlugWhereTheWriterPutsIt(t *testing.T) {
+	root := newFixture(t)
+	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Agent Code Review\nkind: work\noperator_owned: true\n---\nState text.\n")
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if _, reported := opened.BackfillStateSlugs(); len(reported) != 0 {
+		t.Fatalf("the migration reported %v", reported)
+	}
+	keys := anchorKeys(readAnchor(t, root))
+	wanted := []string{"title", "slug", "kind", "operator_owned"}
+	if strings.Join(keys, ",") != strings.Join(wanted, ",") {
+		t.Errorf("the migrated anchor reads %v, wanted %v", keys, wanted)
+	}
+}
+
+// anchorKeys returns the frontmatter keys of an anchor in the order they stand
+// in the file, which is what a person reading two anchors side by side sees.
+func anchorKeys(text string) []string {
+	fm, _ := ParseAnchor(text)
+	return fm.Keys()
 }
 
 // TestInstantiateDerivesASlugForEveryState asserts CORE-JSON-9 and

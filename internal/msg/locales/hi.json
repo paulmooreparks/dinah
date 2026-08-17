@@ -278,16 +278,24 @@
       "context": "The line the slug migration prints for what it assigned, for any other number."
     },
     "check.slug-duplicate": {
-      "text": "उपनाम {detail} इस कार्यपीठ की दो स्थितियों पर है, इसलिए उसका संदर्भ दोनों को नामित करता है",
+      "text": "स्थिति {detail} पर ऐसा उपनाम है जो इस कार्यपीठ की किसी और स्थिति पर भी है, इसलिए उसका संदर्भ दोनों को नामित करता है",
       "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes."
     },
     "check.slug-malformed": {
-      "text": "उपनाम {detail} में अक्षर के बाद अक्षर, अंक और एकल आंतरिक डैश का रूप नहीं है",
+      "text": "स्थिति {detail} पर ऐसा उपनाम है जिसमें अक्षर के बाद अक्षर, अंक, और एकल आंतरिक डैश का रूप नहीं है",
       "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it."
     },
     "check.slug-missing": {
       "text": "स्थिति {detail} पर कोई उपनाम नहीं, इसलिए वह केवल अपने पहचानक या उद्धृत शीर्षक से पहुँच में है",
       "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.slug-underivable": {
+      "text": "स्थिति {detail} का शीर्षक ऐसा है जिससे कोई उपनाम नहीं निकाला जा सकता, इसलिए प्रवासन ने उसे कोई नहीं दिया",
+      "context": "A check finding the slug migration raises: no letter of the state's title survives the derivation, so a person retitles the state or writes a slug onto its anchor by hand."
+    },
+    "check.slug-unwritable": {
+      "text": "स्थिति {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
+      "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
     },
     "check.torn-journal": {
       "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
@@ -561,6 +569,10 @@
       "text": "यह कार्ड बाधित है: {detail}",
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.ambiguous-bench": {
+      "text": "{detail} सभी {base} से पहुँच योग्य हैं; --bench <path> से एक चुनें, या उसके भीतर से चलाएँ",
+      "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
+    },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक वर्कबेंच है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
@@ -574,8 +586,12 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "{detail} से ऊपर कोई वर्कबेंच नहीं मिली, और उपयोगकर्ता आधार में भी नहीं",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} को --bench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --bench सेट करें, या यहां से ऊपर खोजने के लिए --bench हटा दें",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH."
+    },
+    "refusal.dinah.no-bench-found": {
+      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --bench <path> दें",
+      "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-editor": {
       "text": "कोई संपादक नहीं मिला; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
@@ -618,8 +634,16 @@
       "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.malformed": {
-      "text": "{detail} अनुपस्थित है या पढ़ा नहीं जा सकता",
-      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} अनुपस्थित है, खाली है, या पार्स नहीं हो सकता",
+      "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed."
+    },
+    "refusal.malformed.at": {
+      "text": ", {path} में",
+      "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to."
+    },
+    "refusal.malformed.fix": {
+      "text": "; फ़ाइल को स्वयं संपादित करके जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
+      "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
     },
     "refusal.no-operator": {
       "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",

@@ -278,16 +278,24 @@
       "context": "The line the slug migration prints for what it assigned, for any other number."
     },
     "check.slug-duplicate": {
-      "text": "slug {detail} is carried by two states of this workbench, so a reference to it names both",
+      "text": "state {detail} carries a slug another state of this workbench also carries, so a reference to it names both",
       "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes."
     },
     "check.slug-malformed": {
-      "text": "slug {detail} is not a letter followed by letters, digits and single interior dashes",
+      "text": "state {detail} carries a slug that is not a letter followed by letters, digits, and single interior dashes",
       "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it."
     },
     "check.slug-missing": {
       "text": "state {detail} carries no slug, so it is reachable only by its identifier or its quoted title",
       "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.slug-underivable": {
+      "text": "state {detail} carries a title no slug can be derived from, so the migration gave it none",
+      "context": "A check finding the slug migration raises: no letter of the state's title survives the derivation, so a person retitles the state or writes a slug onto its anchor by hand."
+    },
+    "check.slug-unwritable": {
+      "text": "state {detail} could not be written to, so the migration gave it no slug and carried on",
+      "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
     },
     "check.torn-journal": {
       "text": "the journal of card {detail} ends in a partial line",
@@ -561,6 +569,10 @@
       "text": "this card is blocked: {detail}",
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.ambiguous-bench": {
+      "text": "{detail} are all reachable from {base}; choose one with --bench <path>, or run from inside it",
+      "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
+    },
     "refusal.dinah.exists": {
       "text": "{detail} already holds a workbench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
@@ -574,8 +586,12 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "no workbench was found from {detail} upward, and none in the user base",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} was named by --bench, and it carries no workbench.md; point --bench at a directory that does, or drop --bench to search upward from here",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH."
+    },
+    "refusal.dinah.no-bench-found": {
+      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --bench <path> to point at one that exists",
+      "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-editor": {
       "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
@@ -618,8 +634,16 @@
       "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.malformed": {
-      "text": "{detail} is missing or will not read",
-      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} is missing, empty, or will not parse",
+      "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed."
+    },
+    "refusal.malformed.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to."
+    },
+    "refusal.malformed.fix": {
+      "text": "; hand-edit the file and add it, then run `dinah check` to confirm",
+      "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
     },
     "refusal.no-operator": {
       "text": "this workbench designates no operator, so its reserved acts are dead",

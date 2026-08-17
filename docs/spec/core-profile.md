@@ -422,7 +422,7 @@ it goes on, and it is the mechanism behind ACTOR-4.
 A state also carries a slug, which is the short handle somebody types in
 place of a title. An identifier is exact and nobody remembers one, and a
 title carrying a space has to be quoted at every shell that meets it, so a
-slug is what makes a state nameable in a command, a path and a URL. It is
+slug is what makes a state nameable in a command, a path, and a URL. It is
 unique within the workbench for the same reason an identifier is: a name
 resolving to two states resolves to neither.
 
@@ -574,7 +574,7 @@ with the meanings RFC 8259 gives them.
 
 [CORE-JSON-5] Each element of `states` MUST be a JSON object carrying the members `id`, `title` and `kind`.
 
-[CORE-JSON-9] A state object MAY carry the members `instructions`, `operator_owned`, `capacity` and `slug`.
+[CORE-JSON-9] A state object MAY carry the members `instructions`, `operator_owned`, `capacity`, and `slug`.
 
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
@@ -1277,7 +1277,7 @@ themselves carry meaning.
 | CORE-JSON-3 | must | tool | The written object carries `profile`, `title` and `states`, and an object missing one of them is refused with `malformed`. |
 | CORE-JSON-4 | must | tool | The order of `states` in the written object is the order of the flow. |
 | CORE-JSON-5 | must | tool | Every element of `states` carries `id`, `title` and `kind`, and an element missing one of them is refused with `malformed`. |
-| CORE-JSON-9 | may | tool | A state object carrying `slug` alongside `instructions`, `operator_owned` or `capacity` is accepted. |
+| CORE-JSON-9 | may | tool | A state object carrying `slug` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
 | CORE-LINK-1 | may | tool | A card offered with a link is accepted. |

@@ -615,7 +615,7 @@ identifier is exact and nobody remembers one, and a title carrying a space
 has to be quoted at whatever shell meets it, so the slug is the spelling a
 person types on a command line and the spelling a path or a URL takes. Its
 grammar is the workbench slug's with interior dashes admitted, so
-`agent-code-review` is a slug and `Agent Code Review`, `-review` and
+`agent-code-review` is a slug and `Agent Code Review`, `-review`, and
 `agent--code` are not. A workbench slug is glued straight to a card number,
 where a dash would blur the boundary between the two, and nothing rides after
 a state slug, so the restriction that makes sense there makes none here.
@@ -637,6 +637,16 @@ names the slug it gave each state. A slug already on disk is left alone, a
 malformed or duplicated one included, because a stored value is a decision
 somebody made and the checker reports it for a person rather than having the
 repair overwrite it.
+
+The reader carries a malformed or duplicated slug through on the same terms it
+carries an absent one, and for the same reason. Below the major that introduces
+the requirement, nothing binds a workbench to it, and every command has to open
+a workbench before it can look at one, so a reader refusing a stored slug there
+would take the whole workbench away over a single mistyped line, the `dinah
+check` that names the mistake and the `dinah check --migrate-slugs` that fills
+in the states around it included. Past that major the tool refuses the
+workbench, and the refusal names the state and the anchor file, because by then
+a person has to open that file before anything else will run.
 
 ## Encoding
 

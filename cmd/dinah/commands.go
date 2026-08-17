@@ -89,7 +89,7 @@ func runClaim(s *session, parsed *arguments) int {
 	req.Card = at(words, 0)
 	expires, err := verb.ParseDuration(parsed.value("expires"))
 	if err != nil {
-		return reportError(s.errw, s.r, err)
+		return s.reportError(err)
 	}
 	req.Expires = expires
 	return s.withBench(func(l *verb.Library) int {
@@ -159,7 +159,7 @@ func runComment(s *session, parsed *arguments) int {
 	if req.Text == "-" {
 		piped, err := io.ReadAll(s.in)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		req.Text = string(piped)
 	}
@@ -203,7 +203,7 @@ func runStatus(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		status, err := l.Status(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(status)
@@ -218,7 +218,7 @@ func runStates(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		states, err := l.States()
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(states)
@@ -237,7 +237,7 @@ func runList(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		listing, err := l.List(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(listing)
@@ -256,7 +256,7 @@ func runNext(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		offers, err := l.Next(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(offers)
@@ -273,7 +273,7 @@ func runShow(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		detail, text, err := l.Show(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if detail == nil {
 			s.write(text)
@@ -294,7 +294,7 @@ func runLog(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		events, err := l.History(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(events)
@@ -311,7 +311,7 @@ func runInstructions(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		served, err := l.Instructions(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(served)
@@ -332,7 +332,7 @@ func runGuide(s *session, parsed *arguments) int {
 	}
 	text, err := guide.Text(topic)
 	if err != nil {
-		return reportError(s.errw, s.r, err)
+		return s.reportError(err)
 	}
 	s.write(text)
 	return 0
@@ -359,7 +359,7 @@ func runInit(s *session, parsed *arguments) int {
 		return s.fail(contract.Malformed, "slug")
 	}
 	if err := verb.Init(root, slug, operator, parsed.value("from")); err != nil {
-		return reportError(s.errw, s.r, err)
+		return s.reportError(err)
 	}
 	s.line(s.r.T("init.done", "root", root))
 	return 0
@@ -371,7 +371,7 @@ func runExport(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		data, err := l.Export()
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		s.write(string(data))
 		return 0
@@ -386,7 +386,7 @@ func runExtract(s *session, parsed *arguments) int {
 	}
 	return s.withBench(func(l *verb.Library) int {
 		if err := l.Extract(target); err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		s.line(s.r.T("extract.done", "dir", target))
 		return 0
@@ -404,7 +404,7 @@ func runPath(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		resolved, err := l.Bench.ResolvePath(ref)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		io.WriteString(s.out, resolved+"\n")
 		return 0
@@ -417,16 +417,16 @@ func runEdit(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		resolved, err := l.Bench.ResolvePath(ref)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		editor, err := bench.ResolveEditor(s.cfg, runtime.GOOS, onPath)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		cmd := exec.Command(editor, resolved)
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, s.out, s.errw
 		if err := cmd.Run(); err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		return 0
 	})
@@ -453,7 +453,7 @@ func runConfig(s *session, parsed *arguments) int {
 	case "set":
 		key, value := at(words, 1), strings.Join(words[min(2, len(words)):], " ")
 		if err := s.cfg.Set(key, value); err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		return 0
 	}
@@ -466,7 +466,7 @@ func runCheck(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			code := 0
@@ -486,7 +486,7 @@ func runWhoami(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
 		identity, err := l.Whoami(req)
 		if err != nil {
-			return reportError(s.errw, s.r, err)
+			return s.reportError(err)
 		}
 		if s.json {
 			return s.emitJSON(identity)
@@ -510,10 +510,10 @@ func runVersion(s *session, parsed *arguments) int {
 func runMCP(s *session, parsed *arguments) int {
 	library, err := s.open()
 	if err != nil {
-		return reportError(s.errw, s.r, err)
+		return s.reportError(err)
 	}
 	if err := mcp.Serve(library, s.in, s.out); err != nil {
-		return reportError(s.errw, s.r, err)
+		return s.reportError(err)
 	}
 	return 0
 }

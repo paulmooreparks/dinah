@@ -38,14 +38,17 @@ const (
 	FindingSlugMissing        = "check.slug-missing"
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
-	// The last three are raised by the ordinal migration rather than by the
-	// checker, because each names something only the run that did the work
-	// can know: which entity it placed by guesswork, which card a lock kept
-	// it out of, and which entity it could not write to. None of them
-	// survives on disk for a later check to find.
+	// The last five are raised by a migration rather than by the checker,
+	// because each names something only the run that did the work can know:
+	// which entity it placed by guesswork, which card a lock kept it out of,
+	// which entity it could not write to, which title it could derive no
+	// slug from, and which state anchor it could not write a slug to. None of
+	// them survives on disk for a later check to find.
 	FindingOrdinalGuessed    = "check.ordinal-guessed"
 	FindingOrdinalLocked     = "check.ordinal-locked"
 	FindingOrdinalUnwritable = "check.ordinal-unwritable"
+	FindingSlugUnderivable   = "check.slug-underivable"
+	FindingSlugUnwritable    = "check.slug-unwritable"
 )
 
 // The directions an interrupted structural act is reported and finished in.

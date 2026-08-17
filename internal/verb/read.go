@@ -371,9 +371,9 @@ type CheckReport struct {
 	// is absent from a request that did not ask for the migration.
 	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
 	// AssignedSlugs are the states the slug migration repaired with the slug
-	// each one was given, and is absent from a request that did not ask for
-	// that migration. A request that asked and found nothing to do carries an
-	// empty list, which is a different answer from not having asked.
+	// each one was given. It is absent from a request that asked for no
+	// migration and from a request that asked and found nothing to repair,
+	// which MigratedSlugs below is what separates.
 	AssignedSlugs []bench.SlugAssignment `json:"assigned_slugs,omitempty"`
 	// MigratedSlugs says the slug migration ran, so a caller can tell an
 	// empty list of assignments from a migration nobody asked for.
