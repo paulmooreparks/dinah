@@ -461,10 +461,6 @@
       "text": "इसी स्वामी के रूप में कार्य करें",
       "context": "The one-line summary of the global flag --actor."
     },
-    "flag.bench.summary": {
-      "text": "यहाँ से खोजी गई वर्कबेंच के बजाय यह वर्कबेंच लें",
-      "context": "The one-line summary of the global flag --bench."
-    },
     "flag.json.summary": {
       "text": "मानक मशीन रूप दें",
       "context": "The one-line summary of the global flag --json."
@@ -477,8 +473,12 @@
       "text": "claim और move पर परोसे गए निर्देश दबाएँ",
       "context": "The one-line summary of the global flag --quiet."
     },
+    "flag.workbench.summary": {
+      "text": "यहाँ से खोजी गई वर्कबेंच के बजाय यह वर्कबेंच लें",
+      "context": "The one-line summary of the global flag --workbench."
+    },
     "help.environment": {
-      "text": "पर्यावरण: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "पर्यावरण: DINAH_WORKBENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -493,10 +493,6 @@
       "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
     },
-    "help.group.bench": {
-      "text": "वर्कबेंच",
-      "context": "A heading of the help block, grouping the commands beneath it."
-    },
     "help.group.read": {
       "text": "पढ़ें",
       "context": "A heading of the help block, grouping the commands beneath it."
@@ -507,6 +503,10 @@
     },
     "help.group.work": {
       "text": "काम",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.workbench": {
+      "text": "वर्कबेंच",
       "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.refusals": {
@@ -574,7 +574,7 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.ambiguous-bench": {
-      "text": "{detail} सभी {base} से पहुँच योग्य हैं; --bench <path> से एक चुनें, या उसके भीतर से चलाएँ",
+      "text": "{detail} सभी {base} से पहुँच योग्य हैं; --workbench <path> से एक चुनें, या उसके भीतर से चलाएँ",
       "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
     },
     "refusal.dinah.exists": {
@@ -590,11 +590,11 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "{detail} को --bench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --bench सेट करें, या यहां से ऊपर खोजने के लिए --bench हटा दें",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH."
+      "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
     },
     "refusal.dinah.no-bench-found": {
-      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --bench <path> दें",
+      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <path> दें",
       "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-editor": {
@@ -713,10 +713,6 @@
       "text": "{actor} के रूप में, संचालक: {operator}",
       "context": "The second line of status: who you are and whether you are the operator."
     },
-    "status.bench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the bench and where it was discovered."
-    },
     "status.blocked": {
       "text": "बाधित, संचालक की प्रतीक्षा में:",
       "context": "The label above the blocked cards."
@@ -724,6 +720,10 @@
     "status.holding": {
       "text": "आपके पास:",
       "context": "The label above the cards this actor holds."
+    },
+    "status.workbench": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status: the workbench and where it was discovered."
     },
     "token.active": {
       "text": "सक्रिय",

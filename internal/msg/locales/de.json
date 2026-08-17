@@ -576,11 +576,6 @@
       "context": "The one-line summary of the global flag --actor.",
       "skeleton": true
     },
-    "flag.bench.summary": {
-      "text": "use this workbench instead of the one discovered from here",
-      "context": "The one-line summary of the global flag --bench.",
-      "skeleton": true
-    },
     "flag.json.summary": {
       "text": "emit the canonical machine form",
       "context": "The one-line summary of the global flag --json.",
@@ -596,8 +591,13 @@
       "context": "The one-line summary of the global flag --quiet.",
       "skeleton": true
     },
+    "flag.workbench.summary": {
+      "text": "use this workbench instead of the one discovered from here",
+      "context": "The one-line summary of the global flag --workbench.",
+      "skeleton": true
+    },
     "help.environment": {
-      "text": "Environment: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
       "skeleton": true
     },
@@ -616,11 +616,6 @@
       "context": "The last line of the help block, pointing at the per-command help.",
       "skeleton": true
     },
-    "help.group.bench": {
-      "text": "WORKBENCH",
-      "context": "A heading of the help block, grouping the commands beneath it.",
-      "skeleton": true
-    },
     "help.group.read": {
       "text": "READ",
       "context": "A heading of the help block, grouping the commands beneath it.",
@@ -633,6 +628,11 @@
     },
     "help.group.work": {
       "text": "WORK",
+      "context": "A heading of the help block, grouping the commands beneath it.",
+      "skeleton": true
+    },
+    "help.group.workbench": {
+      "text": "WORKBENCH",
       "context": "A heading of the help block, grouping the commands beneath it.",
       "skeleton": true
     },
@@ -717,7 +717,7 @@
       "skeleton": true
     },
     "refusal.dinah.ambiguous-bench": {
-      "text": "{detail} are all reachable from {base}; choose one with --bench \u003cpath\u003e, or run from inside it",
+      "text": "{detail} are all reachable from {base}; choose one with --workbench \u003cpath\u003e, or run from inside it",
       "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all.",
       "skeleton": true
     },
@@ -737,12 +737,12 @@
       "skeleton": true
     },
     "refusal.dinah.no-bench": {
-      "text": "{detail} was named by --bench, and it carries no workbench.md; point --bench at a directory that does, or drop --bench to search upward from here",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH.",
+      "text": "{detail} was named by --workbench, and it carries no workbench.md; point --workbench at a directory that does, or drop --workbench to search upward from here",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH.",
       "skeleton": true
     },
     "refusal.dinah.no-bench-found": {
-      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --bench \u003cpath\u003e to point at one that exists",
+      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --workbench \u003cpath\u003e to point at one that exists",
       "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
       "skeleton": true
     },
@@ -891,11 +891,6 @@
       "context": "The second line of status: who you are and whether you are the operator.",
       "skeleton": true
     },
-    "status.bench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered.",
-      "skeleton": true
-    },
     "status.blocked": {
       "text": "Blocked, waiting on the operator:",
       "context": "The label above the blocked cards.",
@@ -904,6 +899,11 @@
     "status.holding": {
       "text": "You are holding:",
       "context": "The label above the cards this actor holds.",
+      "skeleton": true
+    },
+    "status.workbench": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status: the workbench and where it was discovered.",
       "skeleton": true
     },
     "token.active": {

@@ -420,7 +420,7 @@ func TestInstantiateDerivesASlugForEveryState(t *testing.T) {
 	    {"id": "b00000000004", "title": "Finished", "kind": "done", "slug": "done"}
 	  ]
 	}`)
-	root := filepath.Join(t.TempDir(), "bench")
+	root := filepath.Join(t.TempDir(), "workbench")
 	if err := Instantiate(root, "fx", "alka", definition); err != nil {
 		t.Fatalf("instantiate: %v", err)
 	}
@@ -468,7 +468,7 @@ func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			definition := readDefinition(t, `{"profile": "dinah-core/1.0", "title": "Fixture", "states": [`+c.states+`]}`)
-			root := filepath.Join(t.TempDir(), "bench")
+			root := filepath.Join(t.TempDir(), "workbench")
 			err := Instantiate(root, "fx", "alka", definition)
 			if !refusedMalformed(err) {
 				t.Fatalf("wanted malformed, got %v", err)
@@ -501,7 +501,7 @@ func TestTheInterchangeFormCarriesTheSlug(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	second := filepath.Join(t.TempDir(), "bench")
+	second := filepath.Join(t.TempDir(), "workbench")
 	if err := Instantiate(second, "fx", "alka", definition); err != nil {
 		t.Fatalf("instantiate: %v", err)
 	}

@@ -1,9 +1,9 @@
-// Package guide serves the texts that teach somebody how to use a bench.
+// Package guide serves the texts that teach somebody how to use a workbench.
 //
 // The guides are compiled into the binary and served live, so an upgrade
-// updates every reader at once and no guide is ever written into a bench. The
-// same texts are what the mcp head offers as resources, so a person reading
-// one and an agent reading one read identical bytes.
+// updates every reader at once and no guide is ever written into a workbench.
+// The same texts are what the mcp head offers as resources, so a person
+// reading one and an agent reading one read identical bytes.
 package guide
 
 import (

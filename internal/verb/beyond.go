@@ -198,7 +198,7 @@ func (l *Library) Archive(req *Request) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
-	if entity.Kind == "bench" {
+	if entity.Kind == "workbench" {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())
@@ -242,7 +242,7 @@ func (l *Library) Delete(req *Request) *Response {
 	if !req.Confirm {
 		return l.refuse(req, entity.Card, contract.Unconfirmed, req.Ref)
 	}
-	if entity.Kind == "bench" {
+	if entity.Kind == "workbench" {
 		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())

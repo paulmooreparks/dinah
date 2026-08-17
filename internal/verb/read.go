@@ -31,7 +31,7 @@ type StateView struct {
 // Status is where the bench stands and what the reader holds.
 type Status struct {
 	// Bench is the workbench's title.
-	Bench string `json:"bench"`
+	Bench string `json:"workbench"`
 	// Root is the directory the bench was discovered in.
 	Root string `json:"root"`
 	// Actor is the owner this invocation acts as.

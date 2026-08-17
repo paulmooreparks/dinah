@@ -506,8 +506,8 @@ type EntityRef struct {
 // bench itself, a state, a card, or a comment or attachment below one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	ref = strings.TrimSpace(ref)
-	if ref == "" || ref == "." || ref == "bench" {
-		return &EntityRef{Kind: "bench", Dir: b.Root}, nil
+	if ref == "" || ref == "." || ref == "workbench" {
+		return &EntityRef{Kind: "workbench", Dir: b.Root}, nil
 	}
 	if state := b.StateByRef(ref); state != nil {
 		return &EntityRef{Kind: "state", Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID}, nil

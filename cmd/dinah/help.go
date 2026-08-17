@@ -29,7 +29,7 @@ type command struct {
 const (
 	groupWork  = "work"
 	groupRead  = "read"
-	groupBench = "bench"
+	groupBench = "workbench"
 	groupServe = "serve"
 )
 
@@ -42,8 +42,10 @@ var groups = []string{groupWork, groupRead, groupBench, groupServe}
 const usageColumn = 39
 
 // flagColumn is the same measure for the global flag list, whose syntax is
-// shorter than a command's.
-const flagColumn = 17
+// shorter than a command's. The widest entry is `--workbench <dir>` at
+// seventeen runes, so the column sits three past it and every summary in the
+// list still starts at the same place.
+const flagColumn = 20
 
 // globalFlags are the flags that belong to the invocation rather than to any
 // one command, in the order the help block prints them.
@@ -53,7 +55,7 @@ var globalFlags = []struct {
 	// usage is the flag with its value placeholder.
 	usage string
 }{
-	{name: "bench", usage: "--bench <dir>"},
+	{name: "workbench", usage: "--workbench <dir>"},
 	{name: "json", usage: "--json"},
 	{name: "quiet", usage: "--quiet"},
 	{name: "lang", usage: "--lang <tag>"},

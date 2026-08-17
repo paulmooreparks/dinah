@@ -51,12 +51,12 @@ func runCLI(t *testing.T, dir string, argv ...string) invocation {
 func newBench(t *testing.T) string {
 	t.Helper()
 	base := t.TempDir()
-	root := filepath.Join(base, "bench")
+	root := filepath.Join(base, "workbench")
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
 	t.Setenv("DINAH_ACTOR", "alka")
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
-	t.Setenv("DINAH_BENCH", "")
+	t.Setenv("DINAH_WORKBENCH", "")
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -137,9 +137,9 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		sentence string
 	}{
 		{name: "an act that succeeded", argv: []string{"claim", "fx-1"}, code: 0, token: ""},
-		{name: "a card the bench does not carry", argv: []string{"claim", "fx-99"}, code: 2, token: contract.UnknownCard, sentence: "this workbench carries no card fx-99"},
+		{name: "a card the workbench does not carry", argv: []string{"claim", "fx-99"}, code: 2, token: contract.UnknownCard, sentence: "this workbench carries no card fx-99"},
 		{name: "a card another owner holds", argv: []string{"claim", "fx-1", "--actor", "bob"}, code: 2, token: contract.Held},
-		{name: "a state the bench does not declare", argv: []string{"move", "fx-1", "nowhere"}, code: 2, token: contract.UnknownState, sentence: "this workbench declares no state nowhere"},
+		{name: "a state the workbench does not declare", argv: []string{"move", "fx-1", "nowhere"}, code: 2, token: contract.UnknownState, sentence: "this workbench declares no state nowhere"},
 		{name: "a block carrying no reason", argv: []string{"block", "fx-1"}, code: 2, token: contract.NoReason},
 		{name: "an unblock by another owner", argv: []string{"unblock", "fx-1", "--actor", "bob"}, code: 2, token: contract.NotOperator},
 		{name: "a release by another owner", argv: []string{"release", "fx-1", "--actor", "bob"}, code: 2, token: contract.NotHolder},
@@ -150,7 +150,7 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
 		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
 		{name: "an archive of a state cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
-		{name: "an init into a directory that already holds a bench", argv: []string{"init"}, code: 2, token: contract.Exists, sentence: "already holds a workbench"},
+		{name: "an init into a directory that already holds a workbench", argv: []string{"init"}, code: 2, token: contract.Exists, sentence: "already holds a workbench"},
 		{name: "an extract into a directory that already holds one", argv: []string{"extract", "."}, code: 2, token: contract.Exists},
 		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
 		// The explicit basis arrives with the remote arbiter, so this head
@@ -535,7 +535,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			token: contract.NoOwner,
 		},
 		{
-			name: "a bench designating no operator",
+			name: "a workbench designating no operator",
 			build: func(t *testing.T) (string, []string) {
 				root := newLimitedBench(t)
 				runCLI(t, root, "add", "First")
@@ -546,7 +546,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			sentence: "this workbench designates no operator, so its reserved acts are dead",
 		},
 		{
-			name: "a bench declaring a profile major this binary does not implement",
+			name: "a workbench declaring a profile major this binary does not implement",
 			build: func(t *testing.T) (string, []string) {
 				root := newLimitedBench(t)
 				editAnchor(t, root, "profile: dinah-core/1.0", "profile: dinah-core/9.0")
@@ -578,13 +578,13 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 func newLimitedBench(t *testing.T) string {
 	t.Helper()
 	base := t.TempDir()
-	root := filepath.Join(base, "bench")
+	root := filepath.Join(base, "workbench")
 	source := filepath.Join(base, "definition.json")
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
 	t.Setenv("DINAH_ACTOR", "alka")
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
-	t.Setenv("DINAH_BENCH", "")
+	t.Setenv("DINAH_WORKBENCH", "")
 	if err := os.WriteFile(source, []byte(limitedDefinition), 0o644); err != nil {
 		t.Fatalf("definition: %v", err)
 	}
@@ -699,7 +699,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
 		if got := runCLI(t, root, "check", flag); got.code != 0 {
-			t.Errorf("check %s on a clean bench: %d %s", flag, got.code, got.errw)
+			t.Errorf("check %s on a clean workbench: %d %s", flag, got.code, got.errw)
 		}
 	}
 }
@@ -713,7 +713,7 @@ func settingsHome(t *testing.T) (string, string) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
 	t.Setenv("DINAH_HOME", home)
-	t.Setenv("DINAH_BENCH", "")
+	t.Setenv("DINAH_WORKBENCH", "")
 	t.Setenv("DINAH_FORMAT", "")
 	for _, name := range []string{"DINAH_ACTOR", "DINAH_LANG", "DINAH_EDITOR", "VISUAL", "EDITOR", "LC_ALL", "LC_MESSAGES", "LANG"} {
 		t.Setenv(name, "")
@@ -1232,20 +1232,20 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			token: contract.Malformed,
 			carries: []string{
 				"profile is missing, empty, or will not parse",
-				filepath.Join("bench", "workbench.md"),
+				filepath.Join("workbench", "workbench.md"),
 				"dinah check",
 			},
 			context: []string{"path"},
 		},
 		{
-			name: "a --bench pointed at a directory holding no workbench",
+			name: "a --workbench pointed at a directory holding no workbench",
 			build: func(t *testing.T) (string, []string) {
 				root := newBench(t)
 				elsewhere := t.TempDir()
-				return root, []string{"status", "--bench", elsewhere}
+				return root, []string{"status", "--workbench", elsewhere}
 			},
 			token:   contract.NoBench,
-			carries: []string{"carries no workbench.md", "point --bench at a directory that does"},
+			carries: []string{"carries no workbench.md", "point --workbench at a directory that does"},
 		},
 		{
 			name: "no workbench reachable anywhere",
@@ -1273,7 +1273,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				return tree, []string{"status"}
 			},
 			token:   contract.AmbiguousBench,
-			carries: []string{"are all reachable from", "choose one with --bench"},
+			carries: []string{"are all reachable from", "choose one with --workbench"},
 			context: []string{"base"},
 		},
 	}
@@ -1352,7 +1352,7 @@ func emptyTree(t *testing.T) string {
 	t.Setenv("DINAH_ACTOR", "alka")
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
-	t.Setenv("DINAH_BENCH", "")
+	t.Setenv("DINAH_WORKBENCH", "")
 	return tree
 }
 
@@ -1636,22 +1636,55 @@ func TestWorkbenchesHelpCarriesNoRefusals(t *testing.T) {
 	}
 }
 
-// TestABenchOverrideStillRefusesAWrongPath asserts that the listing softens no
-// caller mistake. An explicit --bench naming a directory holding no workbench
-// is refused exactly as every other command refuses it, and never reported
-// as an empty search.
-func TestABenchOverrideStillRefusesAWrongPath(t *testing.T) {
+// TestTheOverrideIsSpelledInFull asserts that the listing softens no caller
+// mistake. An explicit --workbench naming a directory holding no workbench is
+// refused exactly as every other command refuses it, and never reported as an
+// empty search.
+//
+// The test also pins the override's spelling on both surfaces a person uses.
+// --workbench and DINAH_WORKBENCH are the only names the tool answers to, and
+// the retired --bench and DINAH_BENCH are gone rather than aliased, so the
+// flag is refused as an unknown one and the variable is not read at all. A
+// silently ignored override would point a reader at the wrong workbench and
+// tell them nothing, which is the failure this asserts against.
+func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	tree, rooms := ambiguousTree(t)
 
-	pointed := runCLI(t, tree, "workbenches", "--bench", rooms[1])
+	pointed := runCLI(t, tree, "workbenches", "--workbench", rooms[1])
 	if listed := listedRows(t, pointed); !sameDirs(t, listed, []string{rooms[1]}) {
 		t.Errorf("an override should report the workbench it names, wanted %v, got %v", rooms[1:], listed)
 	}
-	wrong := runCLI(t, tree, "workbenches", "--bench", filepath.Join(tree, "nowhere"))
+	wrong := runCLI(t, tree, "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
 	if wrong.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", wrong.code, wrong.errw)
 	}
 	if leading := strings.SplitN(strings.TrimSpace(wrong.errw), " ", 2)[0]; leading != contract.NoBench {
 		t.Errorf("leading token: wanted %s, got %q", contract.NoBench, wrong.errw)
+	}
+
+	retiredFlag := "--bench" // retired spelling, named deliberately
+	retired := runCLI(t, tree, "workbenches", retiredFlag, rooms[1])
+	if retired.code != 2 {
+		t.Fatalf("the retired flag should be refused as an unknown one, got %d (%s)", retired.code, retired.out)
+	}
+	if leading := strings.SplitN(strings.TrimSpace(retired.errw), " ", 2)[0]; leading != contract.Usage {
+		t.Errorf("leading token: wanted %s, got %q", contract.Usage, retired.errw)
+	}
+	if !strings.Contains(retired.errw, retiredFlag) {
+		t.Errorf("the refusal should name the flag the caller typed, got %q", retired.errw)
+	}
+
+	t.Setenv("DINAH_WORKBENCH", rooms[1])
+	named := runCLI(t, tree, "workbenches")
+	if listed := listedRows(t, named); !sameDirs(t, listed, []string{rooms[1]}) {
+		t.Errorf("DINAH_WORKBENCH should select a workbench, wanted %v, got %v", rooms[1:], listed)
+	}
+
+	retiredVariable := "DINAH_BENCH" // retired spelling, named deliberately
+	t.Setenv("DINAH_WORKBENCH", "")
+	t.Setenv(retiredVariable, rooms[1])
+	ignored := runCLI(t, tree, "workbenches")
+	if listed := listedRows(t, ignored); sameDirs(t, listed, []string{rooms[1]}) {
+		t.Error("the retired variable should select nothing, and it selected a workbench")
 	}
 }

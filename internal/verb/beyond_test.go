@@ -316,7 +316,7 @@ func TestInterchangeRoundTrip(t *testing.T) {
 	}
 	reopened, err := bench.Open(second)
 	if err != nil {
-		t.Fatalf("open the instantiated bench: %v", err)
+		t.Fatalf("open the instantiated workbench: %v", err)
 	}
 	third, err := reopened.Export()
 	if err != nil {
@@ -524,14 +524,14 @@ func TestWhoamiAnswersTheOperatorQuestion(t *testing.T) {
 		t.Fatalf("whoami: %v", err)
 	}
 	if !identity.IsOperator {
-		t.Error("alka is the operator of the fixture bench")
+		t.Error("alka is the operator of the fixture workbench")
 	}
 	other, err := h.library.Whoami(&Request{Verb: "whoami", Actor: "bob"})
 	if err != nil {
 		t.Fatalf("whoami: %v", err)
 	}
 	if other.IsOperator {
-		t.Error("bob is not the operator of the fixture bench")
+		t.Error("bob is not the operator of the fixture workbench")
 	}
 	if _, err := h.library.Whoami(&Request{Verb: "whoami"}); err == nil {
 		t.Error("with no actor resolvable, whoami should refuse rather than invent one")
@@ -580,7 +580,7 @@ func TestGuidesAreServedAndNeverSeeded(t *testing.T) {
 			return readErr
 		}
 		if strings.Contains(text, needle) {
-			t.Errorf("guide text was seeded into the bench at %s", path)
+			t.Errorf("guide text was seeded into the workbench at %s", path)
 		}
 		return nil
 	})
@@ -674,7 +674,7 @@ func TestOutcomesAndExitCodes(t *testing.T) {
 // accepted with a warning.
 func TestStalePrefixWarnsRatherThanRefuses(t *testing.T) {
 	h := newHarness(t)
-	ref := h.add("renamed bench")
+	ref := h.add("renamed workbench")
 	number := strings.TrimPrefix(ref, "fx-")
 	response := h.do(&Request{Verb: Claim, Card: "yokoten-" + number, Actor: "alka"})
 	if response.Outcome != contract.OutcomeOK {
@@ -736,7 +736,7 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 		owner   string
 		journal string
 	}{
-		{kind: "bench", ref: "", lockDir: h.root, owner: h.root, journal: benchJournal},
+		{kind: "workbench", ref: "", lockDir: h.root, owner: h.root, journal: benchJournal},
 		{
 			kind:    "state",
 			ref:     intake,
@@ -813,7 +813,7 @@ func TestAStructuralActIsRefusedByAnyOfItsThreeLocks(t *testing.T) {
 		name string
 		path func(root, dir string) string
 	}{
-		{name: "the bench lock", path: func(root, dir string) string {
+		{name: "the workbench lock", path: func(root, dir string) string {
 			return filepath.Join(root, bench.LockName)
 		}},
 		{name: "the sibling", path: func(root, dir string) string {
@@ -858,7 +858,7 @@ func TestAStructuralActIsRefusedByAnyOfItsThreeLocks(t *testing.T) {
 				}
 				for _, ev := range h.benchEvents() {
 					if ev.Event == contract.EventDeleted {
-						t.Error("the refusal happened after the bench journal was written")
+						t.Error("the refusal happened after the workbench journal was written")
 					}
 				}
 			})
@@ -951,7 +951,7 @@ func TestDeletingACardRecordsItOnTheBenchJournal(t *testing.T) {
 
 	events := h.benchEvents()
 	if len(events) != before+1 {
-		t.Fatalf("wanted one new line on the bench journal, got %d", len(events)-before)
+		t.Fatalf("wanted one new line on the workbench journal, got %d", len(events)-before)
 	}
 	ev := events[len(events)-1]
 	if ev.Event != contract.EventDeleted {
@@ -1352,7 +1352,7 @@ func TestAnInterruptedArchiveIsFinishedForwardAfterItsRecord(t *testing.T) {
 		t.Errorf("a second finish reported %+v", second)
 	}
 	if after := hashDirectory(t, h.root); after != state {
-		t.Error("a second finish changed the bench")
+		t.Error("a second finish changed the workbench")
 	}
 }
 
@@ -1370,7 +1370,7 @@ func TestAnInterruptedDeletionIsFinishedFromTheBenchJournal(t *testing.T) {
 		h.clearBenchLock()
 		h.reopen()
 		if !recorded(h.benchEvents(), contract.EventDeleted, id) {
-			t.Fatal("the bench journal carries no deleted event to finish from")
+			t.Fatal("the workbench journal carries no deleted event to finish from")
 		}
 		if _, err := h.finish(); err != nil {
 			t.Fatalf("finish: %v", err)
@@ -1477,7 +1477,7 @@ func TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired(t *testing.T) {
 				t.Errorf("the finish should report what it will not resolve, got %+v", findings)
 			}
 			if after := hashDirectory(t, h.root); after != before {
-				t.Error("the finish changed a bench it had refused to resolve")
+				t.Error("the finish changed a workbench it had refused to resolve")
 			}
 		})
 	}
@@ -1520,7 +1520,7 @@ func TestALiveFailureAfterTheRecordReportsAnInterruption(t *testing.T) {
 		t.Error("the unwind took the sibling off after the point of record")
 	}
 	if bench.Exists(filepath.Join(h.root, bench.LockName)) {
-		t.Error("the bench lock was left held, so the finish would deadlock against it")
+		t.Error("the workbench lock was left held, so the finish would deadlock against it")
 	}
 	if bench.Exists(filepath.Join(card.Dir, bench.LockName)) {
 		t.Error("the entity's own lock was left inside the directory")
@@ -1597,7 +1597,7 @@ func TestTheFinishClearsOnlyTheLockItsOwnActLeft(t *testing.T) {
 		}
 	})
 
-	t.Run("a stale bench lock refuses it", func(t *testing.T) {
+	t.Run("a stale workbench lock refuses it", func(t *testing.T) {
 		h := newHarness(t)
 		ref := h.add("interrupted")
 		card := h.card(ref)

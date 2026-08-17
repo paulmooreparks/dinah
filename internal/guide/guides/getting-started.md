@@ -49,5 +49,5 @@ now sits at, together with the moves the flow allows it. Pass `--quiet` when
 you have read them already.
 
 Dinah discovers its workbench the way git discovers a repository, by walking
-up from where you are. Set `DINAH_BENCH` or pass `--bench` when you want a
-different one.
+up from where you are. Set `DINAH_WORKBENCH` or pass `--workbench` when you
+want a different one.
