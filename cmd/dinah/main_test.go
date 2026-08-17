@@ -202,8 +202,12 @@ func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
 		t.Fatalf("the container should hold one workbench, got %v", ids)
 	}
 	written := filepath.Join(root, bench.UserBaseName, ids[0])
-	if wanted := "Workbench created at " + written + ".\n"; got.out != wanted {
-		t.Errorf("the message: wanted %q, got %q", wanted, got.out)
+	reported := initReported(t, got)
+	if !sameDirs(t, []string{reported}, []string{written}) {
+		t.Errorf("the message should name the directory init wrote, wanted %s, got %s", written, reported)
+	}
+	if !bench.IsID(filepath.Base(reported)) || filepath.Base(filepath.Dir(reported)) != bench.UserBaseName {
+		t.Errorf("the path should be a generated identifier inside the container, got %s", reported)
 	}
 	if !bench.Exists(filepath.Join(written, "workbench.md")) {
 		t.Errorf("%s carries no workbench.md", written)
@@ -718,13 +722,30 @@ func newLimitedBench(t *testing.T) string {
 	// other, and the message names the directory it landed in, which is
 	// where every later command in these tests reads it from.
 	written := benchDir(t, root)
-	if wanted := "Workbench created at " + written + ".\n"; got.out != wanted {
-		t.Fatalf("the message: wanted %q, got %q", wanted, got.out)
+	if reported := initReported(t, got); !sameDirs(t, []string{reported}, []string{written}) {
+		t.Fatalf("the message should name the directory init wrote, wanted %s, got %s", written, reported)
 	}
 	if !bench.Exists(filepath.Join(written, "workbench.md")) {
 		t.Fatalf("%s carries no workbench.md", written)
 	}
 	return root
+}
+
+// initReported asserts the wording of the message `init` printed and returns
+// the path that message named.
+//
+// The wording is asserted literally and the path is handed to sameDirs rather
+// than compared as a string, because macOS reaches its temporary directory
+// through a symlink and Windows hands out the short 8.3 form of a long user
+// name, so the tool prints a spelling of the path the test did not build.
+func initReported(t *testing.T, got invocation) string {
+	t.Helper()
+	const prefix = "Workbench created at "
+	line := strings.TrimSuffix(got.out, "\n")
+	if strings.Contains(line, "\n") || !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, ".") {
+		t.Fatalf("the message: wanted one line reading %q<path>%q, got %q", prefix, ".", got.out)
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(line, prefix), ".")
 }
 
 // benchDir returns the directory holding the workbench that a CLI run in root
