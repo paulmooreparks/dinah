@@ -49,6 +49,9 @@ type Status struct {
 	Holding []CardView `json:"holding"`
 	// Blocked are the cards waiting on the operator.
 	Blocked []CardView `json:"blocked"`
+	// WorkbenchSource names which rung resolved the active workbench for
+	// this invocation: flag, environment, search, or config.
+	WorkbenchSource string `json:"workbench_source,omitempty"`
 }
 
 // Status reports where the bench stands.
@@ -58,14 +61,15 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		return nil, err
 	}
 	status := &Status{
-		Bench:      l.Bench.Title,
-		Root:       l.Bench.Root,
-		Actor:      req.Actor,
-		Operator:   l.Bench.Operator,
-		IsOperator: req.Actor != "" && req.Actor == l.Bench.Operator,
-		Profile:    l.Bench.Profile,
-		Holding:    []CardView{},
-		Blocked:    []CardView{},
+		Bench:           l.Bench.Title,
+		Root:            l.Bench.Root,
+		Actor:           req.Actor,
+		Operator:        l.Bench.Operator,
+		IsOperator:      req.Actor != "" && req.Actor == l.Bench.Operator,
+		Profile:         l.Bench.Profile,
+		Holding:         []CardView{},
+		Blocked:         []CardView{},
+		WorkbenchSource: req.WorkbenchSource,
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
@@ -475,23 +479,44 @@ type SettingView struct {
 	Source string `json:"source"`
 }
 
+// SettingsContext carries the per-invocation values Settings needs beyond
+// the config file itself, one field per input some setting's own ladder
+// reads. It exists so that adding a setting with a ladder of its own does not
+// keep growing Settings' own parameter list past what a reader can hold.
+type SettingsContext struct {
+	// LangFlag and ActorFlag are the --lang and --actor flags this
+	// invocation carried.
+	LangFlag, ActorFlag string
+	// WorkbenchFlag and WorkbenchEnv are --workbench and DINAH_WORKBENCH,
+	// the two override rungs the workbench setting's own ladder reads ahead
+	// of the search and the stored default.
+	WorkbenchFlag, WorkbenchEnv string
+	// GOOS and LookPath are what the editor ladder needs to test a fallback
+	// binary's presence.
+	GOOS     string
+	LookPath func(string) bool
+	// CWD, Home and NativeHome are what the workbench setting's ladder needs
+	// to run the same discovery walk a real invocation would.
+	CWD, Home, NativeHome string
+}
+
 // Settings reports every setting the tool knows, resolved through the ladder
 // that actually decides each one, followed by whatever else the config file
 // carries.
 //
 // The resolvers are called rather than restated, because the stored value a
 // caller reads with `config get` cannot tell an unset key from one somebody
-// set to the same word the default happens to use. The flags are the ones the
-// invocation carried, so the listing reports the ladder as it stands for this
-// run rather than for an imagined one.
+// set to the same word the default happens to use. ctx carries what this
+// invocation supplies each ladder, so the listing reports the ladder as it
+// stands for this run rather than for an imagined one.
 //
 // A key outside the tool's set is reported with its stored value and the
 // source unknown. It survives every write, so hiding it here would leave a
 // reader wondering why a setting they can see in the file does nothing.
-func Settings(cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) []SettingView {
+func Settings(cfg *bench.Config, ctx SettingsContext) []SettingView {
 	views := make([]SettingView, 0, len(bench.ConfigKeys))
 	for _, key := range bench.ConfigKeys {
-		views = append(views, setting(key, cfg, langFlag, actorFlag, goos, lookPath))
+		views = append(views, setting(key, cfg, ctx))
 	}
 	for _, key := range cfg.Keys() {
 		if bench.KnownConfigKey(key) {
@@ -505,16 +530,26 @@ func Settings(cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func
 // setting resolves one known key. A key this switch does not answer for is a
 // key somebody added to ConfigKeys without giving it a ladder, so it falls
 // back to the stored value, which is the one rung every setting has.
-func setting(key string, cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) SettingView {
+func setting(key string, cfg *bench.Config, ctx SettingsContext) SettingView {
 	switch key {
 	case "lang":
-		value, source := bench.ResolveLangSource(langFlag, cfg)
+		value, source := bench.ResolveLangSource(ctx.LangFlag, cfg)
 		return SettingView{Key: key, Value: value, Source: source}
 	case "actor":
-		value, source := bench.ResolveActorSource(actorFlag, cfg)
+		value, source := bench.ResolveActorSource(ctx.ActorFlag, cfg)
 		return SettingView{Key: key, Value: value, Source: source}
 	case "editor":
-		value, source, _ := bench.ResolveEditorSource(cfg, goos, lookPath)
+		value, source, _ := bench.ResolveEditorSource(cfg, ctx.GOOS, ctx.LookPath)
+		return SettingView{Key: key, Value: value, Source: source}
+	case "workbench":
+		value, source := bench.ResolveWorkbenchSource(
+			ctx.CWD,
+			ctx.WorkbenchFlag,
+			ctx.WorkbenchEnv,
+			ctx.Home,
+			ctx.NativeHome,
+			cfg.Get("workbench"),
+		)
 		return SettingView{Key: key, Value: value, Source: source}
 	}
 	stored := cfg.Get(key)

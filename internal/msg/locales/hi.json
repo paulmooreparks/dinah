@@ -593,6 +593,10 @@
       "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.no-configured-workbench": {
+      "text": "वर्कबेंच सेटिंग {detail} बताती है, और उसमें कोई workbench.md नहीं है; `dinah config set workbench <path>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
+      "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried."
+    },
     "refusal.dinah.no-workbench": {
       "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
@@ -730,8 +734,8 @@
       "context": "The label above the cards this actor holds."
     },
     "status.workbench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered."
+      "text": "{title}  ({root})  [{source}]",
+      "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it."
     },
     "token.active": {
       "text": "सक्रिय",
@@ -840,6 +844,10 @@
     "token.restored": {
       "text": "पुनर्स्थापित",
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.search": {
+      "text": "खोज",
+      "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling."
     },
     "token.unblocked": {
       "text": "बाधा हटी",

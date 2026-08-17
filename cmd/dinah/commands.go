@@ -202,6 +202,7 @@ func runDelete(s *session, parsed *arguments) int {
 func runStatus(s *session, parsed *arguments) int {
 	req := s.request("status", parsed)
 	return s.withBench(func(l *verb.Library) int {
+		req.WorkbenchSource = s.workbenchSource
 		status, err := l.Status(req)
 		if err != nil {
 			return s.reportError(err)
@@ -464,13 +465,17 @@ func runConfig(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	switch at(words, 0) {
 	case "":
-		settings := verb.Settings(
-			s.cfg,
-			parsed.value("lang"),
-			parsed.value("actor"),
-			runtime.GOOS,
-			onPath,
-		)
+		settings := verb.Settings(s.cfg, verb.SettingsContext{
+			LangFlag:      parsed.value("lang"),
+			ActorFlag:     parsed.value("actor"),
+			WorkbenchFlag: parsed.value("workbench"),
+			WorkbenchEnv:  os.Getenv("DINAH_WORKBENCH"),
+			GOOS:          runtime.GOOS,
+			LookPath:      onPath,
+			CWD:           s.cwd,
+			Home:          s.home,
+			NativeHome:    s.nativeHome,
+		})
 		if s.json {
 			return s.emitJSON(settings)
 		}

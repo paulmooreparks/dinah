@@ -908,6 +908,153 @@ func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	}
 }
 
+// TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing asserts the whole
+// shape dinah-70 adds: a configured default opens a workbench when the walk
+// finds nothing local, is never consulted when the walk resolves a sole
+// workbench of its own, refuses by its own name when the configured path no
+// longer carries a workbench.md, and never breaks an ambiguous base's tie.
+func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
+	t.Run("answers when nothing local is reachable", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		root, source, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("wanted the configured default to answer, got %v", err)
+		}
+		if root != configured {
+			t.Errorf("root: wanted %q, got %q", configured, root)
+		}
+		if source != SourceConfig {
+			t.Errorf("source: wanted %s, got %s", SourceConfig, source)
+		}
+	})
+
+	t.Run("a local workbench wins over a configured default pointing elsewhere", func(t *testing.T) {
+		local := t.TempDir()
+		writeWorkbench(t, local, "Local one")
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Elsewhere")
+		root, source, _, err := DiscoverSource(local, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
+		}
+		if root != local {
+			t.Errorf("the local workbench should win, wanted %q, got %q", local, root)
+		}
+		if source != SourceSearch {
+			t.Errorf("source: wanted %s, got %s", SourceSearch, source)
+		}
+	})
+
+	t.Run("a local workbench wins even when the configured default is unreachable", func(t *testing.T) {
+		local := t.TempDir()
+		writeWorkbench(t, local, "Local one")
+		configured := filepath.Join(t.TempDir(), "does-not-exist")
+		root, source, _, err := DiscoverSource(local, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
+		}
+		if root != local {
+			t.Errorf("root: wanted %q, got %q", local, root)
+		}
+		if source != SourceSearch {
+			t.Errorf("source: wanted %s, got %s", SourceSearch, source)
+		}
+	})
+
+	t.Run("an ambiguous base still refuses and the configured default does not break the tie", func(t *testing.T) {
+		base := t.TempDir()
+		writeWorkbench(t, filepath.Join(base, UserBaseName, "d00000000006"), "One")
+		writeWorkbench(t, filepath.Join(base, UserBaseName, "d00000000007"), "Two")
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		_, _, _, err := DiscoverSource(base, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.AmbiguousWorkbench {
+			t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousWorkbench, refusal.Name)
+		}
+	})
+
+	t.Run("a configured path with no workbench.md refuses by its own name and does not fall through", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := t.TempDir() // exists, but writeWorkbench was never called here
+		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoConfiguredWorkbench {
+			t.Errorf("refusal name: wanted %s, got %s (dinah.no-workbench-found would be the silent fall-through this guards against)", contract.NoConfiguredWorkbench, refusal.Name)
+		}
+		if refusal.Detail != configured {
+			t.Errorf("the refusal should name the configured path, wanted %q, got %q", configured, refusal.Detail)
+		}
+	})
+
+	t.Run("a configured path that does not exist at all refuses the same way", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := filepath.Join(t.TempDir(), "gone")
+		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoConfiguredWorkbench {
+			t.Errorf("refusal name: wanted %s, got %s", contract.NoConfiguredWorkbench, refusal.Name)
+		}
+	})
+
+	t.Run("nothing local and nothing configured still refuses no-workbench-found", func(t *testing.T) {
+		nowhere := t.TempDir()
+		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", "")
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoWorkbenchFound {
+			t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
+		}
+	})
+
+	t.Run("an override names its own source and is never overridden by the configured default", func(t *testing.T) {
+		override := t.TempDir()
+		writeWorkbench(t, override, "Overridden")
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		root, source, _, err := DiscoverSource(t.TempDir(), override, SourceFlag, filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("an override should resolve without consulting the configured default, got %v", err)
+		}
+		if root != override {
+			t.Errorf("root: wanted %q, got %q", override, root)
+		}
+		if source != SourceFlag {
+			t.Errorf("source: wanted %s, got %s", SourceFlag, source)
+		}
+	})
+
+	t.Run("Discover itself is unchanged: no rung named, no configured default consulted", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		// Discover has no way to be handed a configured default at all, so a
+		// search that finds nothing still refuses dinah.no-workbench-found
+		// even though a workbench sits at `configured`.
+		_, _, err := Discover(nowhere, "", filepath.Join(t.TempDir(), "home"), "")
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoWorkbenchFound {
+			t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
+		}
+	})
+}
+
 // TestMalformedCarriesTheFileItWasRaisedOver asserts that every malformed
 // refusal Open and readState raise names the file a reader has to repair,
 // which is what the sentence's location fragment renders from.
