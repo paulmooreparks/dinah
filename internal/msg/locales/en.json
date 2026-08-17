@@ -157,6 +157,10 @@
       "text": "card {detail} carries a holder while not active",
       "context": "A check finding: a ready or blocked card carries no holder."
     },
+    "check.ignored-anchor": {
+      "text": "a workbench.md here carries none of profile, format, or states, so it was not recognised as a Dinah workbench and the search passed over it",
+      "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored."
+    },
     "check.init.1": {
       "text": "the directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -624,6 +628,10 @@
     "refusal.dinah.unknown-path": {
       "text": "nothing in this workbench answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unreadable-workbench": {
+      "text": "{detail} exists and could not be read; fix its permissions, or point --workbench at a directory the search does not need to open",
+      "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."
     },
     "refusal.dinah.usage": {
       "text": "{detail} was not understood; run dinah help for the list of commands",

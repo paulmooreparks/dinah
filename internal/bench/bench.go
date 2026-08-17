@@ -154,6 +154,13 @@ type Bench struct {
 	FM *Frontmatter
 	// Hooks are the test-only levers on the structural protocol's timing.
 	Hooks *Hooks
+	// Passed is the workbench.md files the discovery walk found and did not
+	// claim on its way to resolving this bench, each one a directory holding
+	// somebody else's document rather than a Dinah workbench. It is set by
+	// whichever caller resolved this bench through Discover, and stays nil
+	// on a bench Open reads directly by path (extraction, the interchange
+	// import path, every test that skips discovery).
+	Passed []string
 }
 
 // Discover finds the bench to serve. An override, from the --workbench flag
@@ -171,29 +178,35 @@ type Bench struct {
 // DINAH_HOME and this one never does. The walk skips the .dinah of that one
 // directory, leaving the real user base to the fallback below, which reads
 // the relocated value. Pass an empty nativeHome to run the walk unbounded.
-func Discover(start, override, home, nativeHome string) (string, error) {
+//
+// The second return value is the workbench.md files the walk found and did
+// not claim, each one a directory holding somebody else's document rather
+// than a Dinah workbench, in the order the walk met them. It is nil on the
+// override branch, since --workbench and DINAH_WORKBENCH test only file
+// presence and never run the recognition test (see the card's decisions).
+func Discover(start, override, home, nativeHome string) (string, []string, error) {
 	if override != "" {
 		abs, err := filepath.Abs(override)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
-			return "", contract.Refuse(contract.NoWorkbench, abs)
+			return "", nil, contract.Refuse(contract.NoWorkbench, abs)
 		}
-		return abs, nil
+		return abs, nil, nil
 	}
 	search, err := walk(start, home, nativeHome)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if search.sole != "" {
-		return search.sole, nil
+		return search.sole, search.passed, nil
 	}
 	if search.base != "" {
 		extra := map[string]string{"base": search.base}
-		return "", contract.RefuseWith(contract.AmbiguousWorkbench, describeCandidates(search.candidates), extra)
+		return "", nil, contract.RefuseWith(contract.AmbiguousWorkbench, describeCandidates(search.candidates), extra)
 	}
-	return "", contract.RefuseWith(contract.NoWorkbenchFound, start, map[string]string{"home": search.userBase})
+	return "", nil, contract.RefuseWith(contract.NoWorkbenchFound, start, map[string]string{"home": search.userBase})
 }
 
 // Reachable reports what Discover's walk finds right now, without turning
@@ -209,7 +222,7 @@ func Discover(start, override, home, nativeHome string) (string, error) {
 // typo.
 func Reachable(start, override, home, nativeHome string) ([]Candidate, error) {
 	if override != "" {
-		root, err := Discover(start, override, home, nativeHome)
+		root, _, err := Discover(start, override, home, nativeHome)
 		if err != nil {
 			return nil, err
 		}
@@ -239,6 +252,10 @@ type search struct {
 	candidates []string
 	// userBase is the fallback base, empty when no home was given.
 	userBase string
+	// passed is the workbench.md files met and not claimed along the way,
+	// accumulated across every rung of the climb and the fallback base, in
+	// the order the walk met them.
+	passed []string
 }
 
 // walk runs the ancestor search and the fallback to the user base, and reports
@@ -274,7 +291,11 @@ func walk(start, home, nativeHome string) (search, error) {
 	consulted := false
 	for {
 		atNativeHome := samePath(dir, boundary)
-		found, ambiguous := benchIn(dir, atNativeHome)
+		found, ambiguous, passed, err := benchIn(dir, atNativeHome)
+		if err != nil {
+			return search{}, err
+		}
+		result.passed = append(result.passed, passed...)
 		if found != "" {
 			result.sole = found
 			return result, nil
@@ -284,7 +305,11 @@ func walk(start, home, nativeHome string) (search, error) {
 		}
 		if atNativeHome && !consulted {
 			consulted = true
-			if result.fallbackTo(home) {
+			resolved, err := result.fallbackTo(home)
+			if err != nil {
+				return search{}, err
+			}
+			if resolved {
 				return result, nil
 			}
 		}
@@ -295,46 +320,66 @@ func walk(start, home, nativeHome string) (search, error) {
 		dir = parent
 	}
 	if !consulted {
-		result.fallbackTo(home)
+		if _, err := result.fallbackTo(home); err != nil {
+			return search{}, err
+		}
 	}
 	return result, nil
 }
 
-// fallbackTo consults the user base under home and reports whether it resolved
-// the search. An ambiguous base is remembered the way the walk remembers one,
-// and a caller that gave no home has no fallback to run.
-func (s *search) fallbackTo(home string) bool {
+// fallbackTo consults the user base under home and reports whether it
+// resolved the search. An ambiguous base is remembered the way the walk
+// remembers one, and a caller that gave no home has no fallback to run.
+func (s *search) fallbackTo(home string) (bool, error) {
 	if home == "" {
-		return false
+		return false, nil
 	}
 	s.userBase = filepath.Join(home, UserBaseName)
-	found, ambiguous := soleBench(s.userBase)
+	found, ambiguous, passed, err := soleBench(s.userBase)
+	if err != nil {
+		return false, err
+	}
+	s.passed = append(s.passed, passed...)
 	if found != "" {
 		s.sole = found
-		return true
+		return true, nil
 	}
 	if len(ambiguous) > 0 && s.base == "" {
 		s.base, s.candidates = s.userBase, ambiguous
 	}
-	return false
+	return false, nil
 }
 
 // benchIn reports the bench a single directory offers, either as the bench
 // itself or as the sole bench of a .dinah directory inside it. The second
 // value carries the candidates when that .dinah holds several, which is what
-// tells a caller apart from a base holding nothing at all.
+// tells a caller apart from a base holding nothing at all. The third value
+// carries the workbench.md files met at this rung and not claimed. The error
+// is a workbench.md that exists and could not be read.
 //
 // skipBase drops the .dinah half, and the walk sets it at the one directory
 // that is the machine's native home. The anchor half still runs there, so a
 // repository checked out at the home directory is found exactly as before.
-func benchIn(dir string, skipBase bool) (found string, ambiguous []string) {
-	if Exists(filepath.Join(dir, WorkbenchAnchor)) {
-		return dir, nil
+func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []string, err error) {
+	anchorPath := filepath.Join(dir, WorkbenchAnchor)
+	state, err := readAnchor(anchorPath)
+	if err != nil {
+		return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
+	}
+	if state == anchorOurs {
+		return dir, nil, nil, nil
+	}
+	if state == anchorForeign {
+		passed = append(passed, anchorPath)
 	}
 	if skipBase {
-		return "", nil
+		return "", nil, passed, nil
 	}
-	return soleBench(filepath.Join(dir, UserBaseName))
+	baseFound, baseAmbiguous, basePassed, err := soleBench(filepath.Join(dir, UserBaseName))
+	if err != nil {
+		return "", nil, nil, err
+	}
+	return baseFound, baseAmbiguous, append(passed, basePassed...), nil
 }
 
 // samePath reports whether two directory paths name the same directory. It
@@ -371,23 +416,77 @@ func samePath(a, b string) bool {
 
 // soleBench returns the one bench a base directory holds. A base holding
 // several is ambiguous, so it returns no bench and the candidates instead,
-// and the walk continues rather than picking one.
-func soleBench(base string) (found string, ambiguous []string) {
+// and the walk continues rather than picking one. The third value carries
+// the workbench.md files met and not claimed, each one a container id
+// directory holding somebody else's document. The error is a workbench.md
+// that exists and could not be read.
+func soleBench(base string) (found string, ambiguous, passed []string, err error) {
 	var candidates []string
 	for _, id := range ListIDs(base) {
 		candidate := filepath.Join(base, id)
-		if !Exists(filepath.Join(candidate, WorkbenchAnchor)) {
+		anchorPath := filepath.Join(candidate, WorkbenchAnchor)
+		state, rerr := readAnchor(anchorPath)
+		if rerr != nil {
+			return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
+		}
+		if state == anchorForeign {
+			passed = append(passed, anchorPath)
+			continue
+		}
+		if state != anchorOurs {
 			continue
 		}
 		candidates = append(candidates, candidate)
 	}
 	if len(candidates) == 1 {
-		return candidates[0], nil
+		return candidates[0], nil, passed, nil
 	}
 	if len(candidates) > 1 {
-		return "", candidates
+		return "", candidates, passed, nil
 	}
-	return "", nil
+	return "", nil, passed, nil
+}
+
+// anchorState is what a workbench.md holds at one rung of the search, without
+// validating what it holds.
+type anchorState int
+
+const (
+	// anchorAbsent means no file sits there at all.
+	anchorAbsent anchorState = iota
+	// anchorForeign means a file sits there and carries none of the keys
+	// that claim it as a Dinah workbench.
+	anchorForeign
+	// anchorOurs means a file sits there and carries at least one of those
+	// keys, whatever else it does or does not carry.
+	anchorOurs
+)
+
+// readAnchorContent is ReadText by default; a test overrides it to force the
+// unreadable-file path without depending on how a permission bit behaves on
+// the platform running the test, mirroring the reason Hooks.BeforeOrdinalStamp
+// exists in this same file.
+var readAnchorContent = ReadText
+
+// readAnchor reports what a workbench.md holds, without validating it. The
+// stat runs unconditionally, matching what every rung of the climb already
+// paid; the read runs only when the stat found a file there, which stays
+// rare. A non-nil error means the file exists and could not be read, a
+// different question from whether it is recognized, and the caller checks
+// the error first.
+func readAnchor(path string) (anchorState, error) {
+	if !Exists(path) {
+		return anchorAbsent, nil
+	}
+	text, err := readAnchorContent(path)
+	if err != nil {
+		return anchorAbsent, err
+	}
+	fm, _ := ParseAnchor(text)
+	if fm.Recognized() {
+		return anchorOurs, nil
+	}
+	return anchorForeign, nil
 }
 
 // Candidate is one workbench a listing reports: enough of its identity to

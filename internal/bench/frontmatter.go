@@ -98,6 +98,15 @@ func (f *Frontmatter) Has(key string) bool {
 	return ok
 }
 
+// Recognized reports whether frontmatter carries a Dinah workbench's claim to
+// its directory: the profile key, or the format or states key without it. It
+// does not validate what those keys hold, only that they are there, so a
+// workbench whose profile line is missing or malformed is still recognized
+// and left to Open to refuse by name.
+func (f *Frontmatter) Recognized() bool {
+	return f.Has("profile") || f.Has("format") || f.Has("states")
+}
+
 // Value returns the scalar a key carries, trimmed of surrounding space and of
 // one layer of quoting. A key whose value is a block returns the empty string.
 func (f *Frontmatter) Value(key string) string {

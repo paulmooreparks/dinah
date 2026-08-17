@@ -233,6 +233,16 @@ workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
 
+A `workbench.md` on disk claims its directory only when its frontmatter
+carries `profile`, or carries `format` or `states` without it. The three keys
+are what a Dinah workbench always writes, and testing for them is what keeps
+the climb from stopping at somebody else's document that happens to share the
+filename. A `workbench.md` carrying none of the three is passed over in
+silence, and the search keeps climbing past it as though it were not there.
+A `workbench.md` that exists and cannot be read stops the search instead:
+the file might be the real workbench, so the walk refuses rather than
+guessing either way.
+
 A distributed workbench borrows git's model of a canonical home, pegged to a
 URL, without borrowing git's URL. Two addresses answer two different
 questions and neither is stored where the other lives. The git remote, when

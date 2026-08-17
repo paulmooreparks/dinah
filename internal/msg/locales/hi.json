@@ -157,6 +157,10 @@
       "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
       "context": "A check finding: a ready or blocked card carries no holder."
     },
+    "check.ignored-anchor": {
+      "text": "यहां का workbench.md न तो profile, न format, न states रखता है, इसलिए इसे Dinah वर्कबेंच नहीं माना गया और खोज इसे छोड़ आगे बढ़ गई",
+      "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored."
+    },
     "check.init.1": {
       "text": "निर्देशिका में पहले से वर्कबेंच नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -624,6 +628,10 @@
     "refusal.dinah.unknown-path": {
       "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unreadable-workbench": {
+      "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी; इसकी अनुमतियां ठीक करें, या --workbench को ऐसी डायरेक्टरी पर सेट करें जिसे खोज को खोलना न पड़े",
+      "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."
     },
     "refusal.dinah.usage": {
       "text": "{detail} समझ नहीं आया; कमांड की सूची के लिए dinah help चलाएँ",
