@@ -1369,23 +1369,37 @@ func populateBase(t *testing.T, base string, slugs ...string) []string {
 		if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
 			t.Fatalf("init: %d %s", got.code, got.errw)
 		}
-		rooms = append(rooms, resolved(t, room))
+		rooms = append(rooms, room)
 	}
 	return rooms
 }
 
-// resolved follows every symlink in a path, which is the form the tool reports
-// because discovery starts from a working directory the operating system has
-// already resolved. macOS reaches its temporary directory through a symlink,
-// so a test comparing the path it built against the path the tool printed
-// would otherwise be comparing two spellings of one directory.
-func resolved(t *testing.T, path string) string {
+// sameDirs reports whether two lists name the same directories in the same
+// order, asking the filesystem for identity instead of comparing spellings.
+// One directory has two names on both platforms the matrix runs beyond Linux:
+// macOS reaches its temporary directory through a symlink, and Windows hands
+// out the short 8.3 form of a long user name, so a test that compared the path
+// it built against the path the tool printed would fail over the spelling
+// while the tool was right.
+func sameDirs(t *testing.T, got, wanted []string) bool {
 	t.Helper()
-	evaluated, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		t.Fatalf("resolve %s: %v", path, err)
+	if len(got) != len(wanted) {
+		return false
 	}
-	return evaluated
+	for i := range got {
+		mine, err := os.Stat(wanted[i])
+		if err != nil {
+			t.Fatalf("stat %s: %v", wanted[i], err)
+		}
+		theirs, err := os.Stat(got[i])
+		if err != nil {
+			return false
+		}
+		if !os.SameFile(mine, theirs) {
+			return false
+		}
+	}
+	return true
 }
 
 // ambiguousTree returns a tree whose own base holds two workbenches and whose
@@ -1437,7 +1451,7 @@ func TestBareShowListsTheChoiceItCannotMake(t *testing.T) {
 	tree, rooms := ambiguousTree(t)
 
 	got := runCLI(t, tree, "show")
-	if listed := listedRows(t, got); !reflect.DeepEqual(listed, rooms) {
+	if listed := listedRows(t, got); !sameDirs(t, listed, rooms) {
 		t.Errorf("the listing should name each reachable workbench, wanted %v, got %q", rooms, got.out)
 	}
 	for i, slug := range []string{"one", "two"} {
@@ -1451,16 +1465,15 @@ func TestBareShowListsTheChoiceItCannotMake(t *testing.T) {
 	}
 
 	rows := jsonRows(t, runCLI(t, tree, "--json", "show"))
-	if len(rows) != len(rooms) {
-		t.Fatalf("the machine form should carry one row per workbench, wanted %d, got %d", len(rooms), len(rows))
-	}
+	paths := make([]string, 0, len(rows))
 	for i, row := range rows {
-		if row.Path != rooms[i] {
-			t.Errorf("row %d path: wanted %q, got %q", i+1, rooms[i], row.Path)
-		}
 		if row.Title == "" || row.Slug == "" {
 			t.Errorf("row %d should carry a title and a slug, got %+v", i+1, row)
 		}
+		paths = append(paths, row.Path)
+	}
+	if !sameDirs(t, paths, rooms) {
+		t.Errorf("the machine form should carry one row per workbench, wanted %v, got %v", rooms, paths)
 	}
 }
 
@@ -1508,7 +1521,7 @@ func TestBareShowStillRefusesWhereThereIsNoChoice(t *testing.T) {
 func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 	t.Run("several reachable", func(t *testing.T) {
 		tree, rooms := ambiguousTree(t)
-		if listed := listedRows(t, runCLI(t, tree, "workbenches")); !reflect.DeepEqual(listed, rooms) {
+		if listed := listedRows(t, runCLI(t, tree, "workbenches")); !sameDirs(t, listed, rooms) {
 			t.Errorf("wanted %v, got %v", rooms, listed)
 		}
 		if rows := jsonRows(t, runCLI(t, tree, "--json", "workbenches")); len(rows) != 2 {
@@ -1518,7 +1531,7 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 
 	t.Run("one reachable", func(t *testing.T) {
 		sole := newBench(t)
-		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !reflect.DeepEqual(listed, []string{resolved(t, sole)}) {
+		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{sole}) {
 			t.Errorf("wanted the one workbench, got %v", listed)
 		}
 		rows := jsonRows(t, runCLI(t, sole, "--json", "workbenches"))
@@ -1563,7 +1576,10 @@ func TestTheListingAndTheRefusalNameTheSameCandidates(t *testing.T) {
 	}
 	at := -1
 	for _, room := range rooms {
-		found := strings.Index(refusal.errw, room)
+		// The refusal names each candidate by the path the tool resolved, so
+		// the directory's own name is what a test compares against a path it
+		// built itself.
+		found := strings.Index(refusal.errw, filepath.Base(room))
 		if found < 0 {
 			t.Fatalf("the refusal should name %q, got %q", room, refusal.errw)
 		}
@@ -1572,7 +1588,7 @@ func TestTheListingAndTheRefusalNameTheSameCandidates(t *testing.T) {
 		}
 		at = found
 	}
-	if !reflect.DeepEqual(listing, rooms) {
+	if !sameDirs(t, listing, rooms) {
 		t.Errorf("the listing should carry every candidate the refusal names, wanted %v, got %v", rooms, listing)
 	}
 }
@@ -1592,7 +1608,7 @@ func TestTheListingReportsOnlyTheClosestAmbiguity(t *testing.T) {
 
 	for _, argv := range [][]string{{"workbenches"}, {"show"}} {
 		got := runCLI(t, inner, argv...)
-		if listed := listedRows(t, got); !reflect.DeepEqual(listed, near) {
+		if listed := listedRows(t, got); !sameDirs(t, listed, near) {
 			t.Errorf("%v: wanted the inner pair %v, got %v", argv, near, listed)
 		}
 		if strings.Contains(got.out, "far") {
@@ -1628,7 +1644,7 @@ func TestABenchOverrideStillRefusesAWrongPath(t *testing.T) {
 	tree, rooms := ambiguousTree(t)
 
 	pointed := runCLI(t, tree, "workbenches", "--bench", rooms[1])
-	if listed := listedRows(t, pointed); !reflect.DeepEqual(listed, []string{rooms[1]}) {
+	if listed := listedRows(t, pointed); !sameDirs(t, listed, []string{rooms[1]}) {
 		t.Errorf("an override should report the workbench it names, wanted %v, got %v", rooms[1:], listed)
 	}
 	wrong := runCLI(t, tree, "workbenches", "--bench", filepath.Join(tree, "nowhere"))
