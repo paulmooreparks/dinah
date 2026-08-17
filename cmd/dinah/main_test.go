@@ -43,21 +43,32 @@ type invocation struct {
 	errw string
 }
 
-// resolvedDir returns dir with any symbolic links resolved, matching the
-// path the head itself resolves once it has chdir'd there: an internal
-// os.Getwd() call falls back to the syscall form, which returns the
-// symlink-free path, whenever the PWD environment variable was not updated
-// to match, exactly the case after a programmatic os.Chdir rather than a
-// shell cd. On most platforms this returns dir unchanged; on macOS the
-// default temporary directory is reached through a symlink (/tmp ->
-// /private/tmp), so a path built by joining onto the raw t.TempDir() value
-// spells the same directory differently than a value the head resolved
-// from its own working directory. dir must already exist.
+// resolvedDir returns the path the head itself resolves as its own working
+// directory once it has chdir'd into dir: this test's own os.Getwd() call,
+// made from dir, which is the exact mechanism runCLI uses and main.go's
+// session captures right after. A path built by joining onto the raw
+// t.TempDir() value can spell the same directory differently than what a
+// running head reports for it: macOS's default temporary directory sits
+// behind a symlink, and a CI-provisioned Windows temp directory can already
+// be handed out as an 8.3 short name that a generic symlink-resolution pass
+// would "helpfully" expand back to its long form, which is itself a second
+// mismatch of the same kind. Reproducing the head's own os.Chdir/os.Getwd
+// sequence, rather than guessing at whichever platform quirk explains a
+// given mismatch, is what keeps this correct on every platform without
+// asserting anything about which quirk is in play. dir must already exist.
 func resolvedDir(t *testing.T, dir string) string {
 	t.Helper()
-	resolved, err := filepath.EvalSymlinks(dir)
+	previous, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("resolve symlinks in %q: %v", dir, err)
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir into %q: %v", dir, err)
+	}
+	defer os.Chdir(previous)
+	resolved, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
 	}
 	return resolved
 }
