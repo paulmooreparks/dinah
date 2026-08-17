@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -763,5 +764,118 @@ func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
 	}
 	if !strings.Contains(machine.out, bench.FindingOrdinalGuessed) || !strings.Contains(machine.out, "e00000000002") {
 		t.Errorf("the machine form does not name the entity it guessed at:\n%s", machine.out)
+	}
+}
+
+// TestStatesCarryTheirSlugOnBothSurfaces asserts that the slug reaches every
+// surface a caller reads a state through: the human listing prints it beside
+// the identifier, the machine form carries it as a member of each state
+// object, and a reference typed as the slug reaches the state without the
+// quoting a spaced title needs.
+func TestStatesCarryTheirSlugOnBothSurfaces(t *testing.T) {
+	root := newBench(t)
+
+	human := runCLI(t, root, "states")
+	if human.code != 0 {
+		t.Fatalf("states: %d %s", human.code, human.errw)
+	}
+	for _, slug := range []string{"intake", "doing", "done"} {
+		if !strings.Contains(human.out, slug) {
+			t.Errorf("the listing does not print the slug %s:\n%s", slug, human.out)
+		}
+	}
+
+	machine := runCLI(t, root, "--json", "states")
+	if machine.code != 0 {
+		t.Fatalf("states --json: %d %s", machine.code, machine.errw)
+	}
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if len(states) != 3 {
+		t.Fatalf("the machine form carries %d states", len(states))
+	}
+	for position, wanted := range []string{"intake", "doing", "done"} {
+		if got := states[position].Slug; got != wanted {
+			t.Errorf("state %d carries slug %q, wanted %q", position+1, got, wanted)
+		}
+	}
+
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	listed := runCLI(t, root, "ls", "--state", "intake")
+	if listed.code != 0 {
+		t.Fatalf("ls by slug: %d %s", listed.code, listed.errw)
+	}
+	if !strings.Contains(listed.out, "A card") {
+		t.Errorf("a slug should name a state on the command line:\n%s", listed.out)
+	}
+}
+
+// TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField asserts the
+// one-time repair end to end: the checker names each state carrying no slug,
+// the repair derives one from the title and says which state got which slug on
+// both surfaces, and the workbench checks clean afterwards.
+func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
+	root := newBench(t)
+	stripSlugs(t, root)
+
+	reported := runCLI(t, root, "check")
+	if !strings.Contains(reported.out, "carries no slug") {
+		t.Errorf("the checker did not report the missing slugs:\n%s", reported.out)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-slugs")
+	if migrated.code != 0 {
+		t.Fatalf("check --migrate-slugs: %d %s", migrated.code, migrated.errw)
+	}
+	if !strings.Contains(migrated.out, "Assigned 3 state slugs.") {
+		t.Errorf("the migration did not say what it assigned:\n%s", migrated.out)
+	}
+	for _, slug := range []string{"intake", "doing", "done"} {
+		if !strings.Contains(migrated.out, slug) {
+			t.Errorf("the migration did not name the slug %s:\n%s", slug, migrated.out)
+		}
+	}
+
+	again := runCLI(t, root, "--json", "check", "--migrate-slugs")
+	if again.code != 0 {
+		t.Fatalf("a second run: %d %s", again.code, again.errw)
+	}
+	if strings.Contains(again.out, `"assigned_slugs"`) {
+		t.Errorf("a second run assigned something:\n%s", again.out)
+	}
+	if !strings.Contains(again.out, `"migrated_slugs"`) {
+		t.Errorf("a second run did not say the migration ran:\n%s", again.out)
+	}
+}
+
+// stripSlugs removes the slug from every state anchor of a workbench, which is
+// the shape a workbench written before the field has on disk.
+func stripSlugs(t *testing.T, root string) {
+	t.Helper()
+	states := filepath.Join(root, "states")
+	entries, err := os.ReadDir(states)
+	if err != nil {
+		t.Fatalf("read states: %v", err)
+	}
+	for _, entry := range entries {
+		path := filepath.Join(states, entry.Name(), "state.md")
+		text, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var kept []string
+		for _, line := range strings.Split(string(text), "\n") {
+			if strings.HasPrefix(line, "slug: ") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
 	}
 }
