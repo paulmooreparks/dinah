@@ -1,0 +1,52 @@
+Dinah keeps work moving.
+
+Usage: dinah <command> [arguments]
+
+WORK
+  add <title> [--state <state>]          file a new card in the first state
+  claim <card> [--expires <duration>]    take up a ready card
+  move <card> <state> [--override]       carry a card to another state
+  release <card>                         give the card back to its queue
+  block <card> <reason> [--kind <kind>]  raise an obstacle and free the card
+  unblock <card>                         lift a block (operator only)
+  comment <card> <text|->                record a comment on a card
+  attach <ref> <file> [--replace]        attach a file, or replace its bytes
+  archive <ref>                          move an entity out of the live set
+  delete <ref> --yes                     destroy an entity and its history
+
+READ
+  status                                 where this bench stands, and what you hold
+  states                                 the flow, in order
+  ls [state] [--ready]                   the cards of a state, in queue order
+  next [state]                           the card a state offers next
+  show <card|path>                       a card, or anything below it
+  log <card>                             the recorded acts of a card, oldest first
+  instructions <card|state>              the instructions served at a position
+  guide [topic]                          the embedded guides, or one of them
+
+BENCH
+  init [--from <source>] [--slug <slug>] [--operator <actor>] create a bench here, optionally from a template
+  export                                 write this bench's interchange form to stdout
+  extract <dir>                          copy this bench's definition out as a template
+  path <card|path>                       print the file path of a card or of anything below it
+  edit <card|path>                       open that path in your editor
+  config <get|set> <key> [value]         read or write your user settings
+  fsck                                   check this bench for structural defects
+  whoami                                 the actor your acts carry, and whether it is the operator
+  version [--catalogs]                   what this binary is and what it conforms to
+
+SERVE
+  mcp                                    serve this bench over MCP on stdio
+
+Global flags:
+  --bench <dir>    use this bench instead of the one discovered from here
+  --json           emit the canonical machine form
+  --quiet          suppress served instructions on claim and move
+  --lang <tag>     render in this language
+  --actor <name>   act as this owner
+
+Environment: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR
+
+Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
+
+Run 'dinah help <command>' for one command's arguments, refusals and exit codes.

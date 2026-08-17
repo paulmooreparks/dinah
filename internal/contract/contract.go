@@ -1,0 +1,199 @@
+// Package contract holds the machine vocabulary of the core profile: the
+// outcome tokens, the declared refusal names, the substates, the state kinds
+// and the journal event names, together with the error types a verb returns
+// when it refuses or finds the caller's knowledge out of date.
+//
+// The vocabulary lives in one package because every layer above it needs the
+// same spellings. A refusal name invented at a call site is a second
+// vocabulary for the same refusal, which the Go style standard's fifth rule
+// forbids and the conformance suite would not recognise.
+package contract
+
+import (
+	"fmt"
+	"strings"
+)
+
+// The four outcome tokens of CORE-OUT-1. Every verb response carries exactly
+// one of them.
+const (
+	OutcomeOK          = "ok"
+	OutcomeRefused     = "refused"
+	OutcomeStale       = "stale"
+	OutcomeUnreachable = "unreachable"
+)
+
+// ExitCode returns the process exit code a given outcome carries: 0 for ok,
+// 2 for refused, 3 for stale and 4 for unreachable. An outcome the profile
+// does not declare exits 1, which no conforming response can produce.
+func ExitCode(outcome string) int {
+	switch outcome {
+	case OutcomeOK:
+		return 0
+	case OutcomeRefused:
+		return 2
+	case OutcomeStale:
+		return 3
+	case OutcomeUnreachable:
+		return 4
+	}
+	return 1
+}
+
+// The sixteen refusal names section 6.1 of the profile declares. A refusal
+// Dinah reports that is not one of these carries the layer prefix of
+// LayerPrefix, which CORE-OUT-3 admits and DOC-LAYER-1 keeps collision-free.
+const (
+	UnknownCard       = "unknown-card"
+	UnknownState      = "unknown-state"
+	UnsupportedVer    = "unsupported-version"
+	Held              = "held"
+	NotRequester      = "not-requester"
+	Blocked           = "blocked"
+	NotBlocked        = "not-blocked"
+	NotHolder         = "not-holder"
+	AtCapacity        = "at-capacity"
+	NotOperator       = "not-operator"
+	NoOperator        = "no-operator"
+	NoOwner           = "no-owner"
+	NoReason          = "no-reason"
+	Terminal          = "terminal"
+	Malformed         = "malformed"
+	LayerCollisionErr = "layer-collision"
+)
+
+// Declared lists the profile's sixteen refusal names in the order section 6.1
+// prints them.
+var Declared = []string{
+	UnknownCard, UnknownState, UnsupportedVer, Held, NotRequester,
+	Blocked, NotBlocked, NotHolder, AtCapacity, NotOperator,
+	NoOperator, NoOwner, NoReason, Terminal, Malformed, LayerCollisionErr,
+}
+
+// LayerPrefix is the prefix every refusal name Dinah introduces carries. The
+// full stop is what CORE-OUT-3 admits and what DOC-LAYER-1 keeps out of the
+// profile's own vocabulary, so a name minted here can never collide with one
+// a later profile revision declares.
+const LayerPrefix = "dinah."
+
+// The refusal names Dinah introduces for the commands the profile does not
+// specify. Each carries LayerPrefix.
+const (
+	Unconfirmed  = LayerPrefix + "unconfirmed"
+	UnknownGuide = LayerPrefix + "unknown-guide"
+	UnknownKey   = LayerPrefix + "unknown-key"
+	Occupied     = LayerPrefix + "occupied"
+	Locked       = LayerPrefix + "locked"
+	Exists       = LayerPrefix + "exists"
+	UnknownPath  = LayerPrefix + "unknown-path"
+	NoEditor     = LayerPrefix + "no-editor"
+	NoBench      = LayerPrefix + "no-bench"
+	UnknownVerb  = LayerPrefix + "unknown-command"
+	Usage        = LayerPrefix + "usage"
+)
+
+// Introduced lists every refusal name Dinah mints beyond the profile's own.
+var Introduced = []string{
+	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
+	UnknownPath, NoEditor, NoBench, UnknownVerb, Usage,
+}
+
+// NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
+// the profile declares, or one carrying a full stop.
+func NameIsLegal(name string) bool {
+	if strings.Contains(name, ".") {
+		return true
+	}
+	for _, d := range Declared {
+		if d == name {
+			return true
+		}
+	}
+	return false
+}
+
+// The three substates of a card. The set is closed, because the tool enforces
+// the meaning of each member.
+const (
+	SubstateReady   = "ready"
+	SubstateActive  = "active"
+	SubstateBlocked = "blocked"
+)
+
+// The three state kinds of the flow.
+const (
+	KindIntake = "intake"
+	KindWork   = "work"
+	KindDone   = "done"
+)
+
+// The journal event names. The set is closed, and an extension kind's own
+// events carry a dotted name of their own rather than joining this list.
+const (
+	EventCreated            = "created"
+	EventClaimed            = "claimed"
+	EventMoved              = "moved"
+	EventReleased           = "released"
+	EventBlocked            = "blocked"
+	EventUnblocked          = "unblocked"
+	EventExpired            = "expired"
+	EventCommented          = "commented"
+	EventAttached           = "attached"
+	EventAttachmentReplaced = "attachment_replaced"
+	EventAttachmentRemoved  = "attachment_removed"
+	EventArchived           = "archived"
+	EventManualCorrection   = "manual_correction"
+)
+
+// Refusal is the error a verb returns when a rule says no. It carries the one
+// refusal name CORE-OUT-2 requires and a detail the head renders for a person.
+type Refusal struct {
+	// Name is the refusal name, from the profile's sixteen or dotted.
+	Name string
+	// Detail names what the refusal was about: the state asked for, the
+	// owner holding the card, the version wanted. It is not a sentence and
+	// never reaches a reader untranslated.
+	Detail string
+}
+
+// Error renders the refusal for a Go caller. The name leads, because a caller
+// reading the string rather than the type still reads the name first.
+func (r *Refusal) Error() string {
+	if r.Detail == "" {
+		return r.Name
+	}
+	return fmt.Sprintf("%s: %s", r.Name, r.Detail)
+}
+
+// Refuse returns a refusal carrying a name and an optional detail.
+func Refuse(name, detail string) *Refusal {
+	return &Refusal{Name: name, Detail: detail}
+}
+
+// Stale is the error a verb returns when the request's basis does not name
+// the card's current revision. It carries that revision, which CORE-BASIS-4
+// requires and which is what the caller reads against before retrying.
+type Stale struct {
+	// Current is the card's revision as it now stands.
+	Current string
+	// Basis is the revision the request named.
+	Basis string
+}
+
+// Error renders the staleness for a Go caller.
+func (s *Stale) Error() string {
+	return fmt.Sprintf("stale: basis %s, current %s", s.Basis, s.Current)
+}
+
+// Unreachable is the error a verb returns when whatever answers for the
+// workbench could not be reached at all, which CORE-OUT-4 keeps distinct from
+// a refusal.
+type Unreachable struct {
+	// Detail names what could not be reached.
+	Detail string
+}
+
+// Error renders the unreachability for a Go caller.
+func (u *Unreachable) Error() string {
+	return "unreachable: " + u.Detail
+}

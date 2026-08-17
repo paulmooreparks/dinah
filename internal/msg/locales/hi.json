@@ -1,0 +1,753 @@
+{
+  "tag": "hi",
+  "entries": {
+    "card.blocked": {
+      "text": "  बाधित: {reason}",
+      "context": "Printed under the card line when the card is blocked."
+    },
+    "card.holder": {
+      "text": "  {holder} ने लिया है",
+      "context": "Printed under the card line when somebody holds the card."
+    },
+    "card.line": {
+      "text": "{ref}  {title}  [{state} / {substate}]",
+      "context": "The one line printed about a card after an act."
+    },
+    "check.add.1": {
+      "text": "निवेदन में शीर्षक है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.2": {
+      "text": "नामित स्थिति बेंच घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.3": {
+      "text": "नामित स्थिति अपनी सीमा से नीचे है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.archive.1": {
+      "text": "संदर्भ किसी इकाई तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.archive.2": {
+      "text": "संग्रहीत होने वाली स्थिति में कोई कार्ड नहीं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.attach.1": {
+      "text": "संदर्भ और फ़ाइल दोनों मिलते हैं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.attach.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.block.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.block.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.block.3": {
+      "text": "the request carries a reason",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.block.4": {
+      "text": "the card is unheld or held by whoever asks",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.claim.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.3": {
+      "text": "the owner named as holder is the owner asking",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.4": {
+      "text": "the card's substate is not `blocked`",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.5": {
+      "text": "the card's substate is not `active`",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.comment.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.comment.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.comment.3": {
+      "text": "निवेदन में पाठ है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.config.1": {
+      "text": "कुंजी वह है जो यह उपकरण जानता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.1": {
+      "text": "संदर्भ किसी इकाई तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.2": {
+      "text": "निवेदन में पुष्टि फ़्लैग है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.3": {
+      "text": "मिटाई जा रही स्थिति में कोई कार्ड नहीं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.edit.1": {
+      "text": "संदर्भ किसी पथ तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.edit.2": {
+      "text": "सीढ़ी से कोई संपादक मिलता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.extract.1": {
+      "text": "लक्ष्य निर्देशिका में पहले से बेंच नहीं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.guide.1": {
+      "text": "उस विषय पर मार्गदर्शिका है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.init.1": {
+      "text": "निर्देशिका में पहले से बेंच नहीं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.init.2": {
+      "text": "स्रोत परिभाषा में वह सब है जो प्रोफ़ाइल माँगती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.instructions.1": {
+      "text": "संदर्भ किसी कार्ड या स्थिति तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.log.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.ls.1": {
+      "text": "नामित स्थिति बेंच घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.move.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.2": {
+      "text": "the destination is a state the workbench declares",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.3": {
+      "text": "an override marker, if carried, is the operator's",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.4": {
+      "text": "the departure is legal for whoever asks",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.5": {
+      "text": "the card's substate is not `blocked`",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.6": {
+      "text": "the card is unheld or held by whoever asks",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.7": {
+      "text": "the move is not a forward move out of a `done` state",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.8": {
+      "text": "the destination is below its capacity limit",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.next.1": {
+      "text": "नामित स्थिति बेंच घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.path.1": {
+      "text": "संदर्भ किसी पथ तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.release.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
+    },
+    "check.release.2": {
+      "text": "whoever asks holds the card",
+      "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
+    },
+    "check.show.1": {
+      "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.unblock.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unblock.2": {
+      "text": "whoever asks is the operator",
+      "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unblock.3": {
+      "text": "the card's substate is `blocked`",
+      "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.whoami.1": {
+      "text": "सीढ़ी से कोई स्वामी मिलता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench.1": {
+      "text": "the workbench declares a major number the tool implements",
+      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
+    },
+    "check.workbench.2": {
+      "text": "the workbench designates an operator",
+      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
+    },
+    "cmd.add.summary": {
+      "text": "पहली स्थिति में नया कार्ड दर्ज करें",
+      "context": "The one-line summary of the add command, shown beside its syntax in the help block."
+    },
+    "cmd.archive.summary": {
+      "text": "इकाई को जीवित समूह से बाहर करें",
+      "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
+    },
+    "cmd.attach.summary": {
+      "text": "फ़ाइल संलग्न करें, या उसके बाइट बदलें",
+      "context": "The one-line summary of the attach command, shown beside its syntax in the help block."
+    },
+    "cmd.block.summary": {
+      "text": "बाधा दर्ज करें और कार्ड मुक्त करें",
+      "context": "The one-line summary of the block command, shown beside its syntax in the help block."
+    },
+    "cmd.claim.summary": {
+      "text": "तैयार कार्ड को उठाएँ",
+      "context": "The one-line summary of the claim command, shown beside its syntax in the help block."
+    },
+    "cmd.comment.summary": {
+      "text": "कार्ड पर टिप्पणी दर्ज करें",
+      "context": "The one-line summary of the comment command, shown beside its syntax in the help block."
+    },
+    "cmd.config.summary": {
+      "text": "अपनी उपयोगकर्ता सेटिंग पढ़ें या लिखें",
+      "context": "The one-line summary of the config command, shown beside its syntax in the help block."
+    },
+    "cmd.delete.summary": {
+      "text": "इकाई और उसका इतिहास नष्ट करें",
+      "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
+    },
+    "cmd.edit.summary": {
+      "text": "उस पथ को अपने संपादक में खोलें",
+      "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
+    },
+    "cmd.export.summary": {
+      "text": "इस बेंच का विनिमय रूप stdout पर लिखें",
+      "context": "The one-line summary of the export command, shown beside its syntax in the help block."
+    },
+    "cmd.extract.summary": {
+      "text": "इस बेंच की परिभाषा साँचे के रूप में बाहर लिखें",
+      "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
+    },
+    "cmd.fsck.summary": {
+      "text": "इस बेंच में संरचनात्मक दोष जाँचें",
+      "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
+    },
+    "cmd.guide.summary": {
+      "text": "अंतर्निहित मार्गदर्शिकाएँ, या उनमें से एक",
+      "context": "The one-line summary of the guide command, shown beside its syntax in the help block."
+    },
+    "cmd.help.summary": {
+      "text": "एक कमांड के तर्क, इनकार और निकास कोड",
+      "context": "The one-line summary of the help command, shown beside its syntax in the help block."
+    },
+    "cmd.init.summary": {
+      "text": "यहाँ बेंच बनाएँ, चाहें तो किसी साँचे से",
+      "context": "The one-line summary of the init command, shown beside its syntax in the help block."
+    },
+    "cmd.instructions.summary": {
+      "text": "किसी स्थान पर परोसे गए निर्देश",
+      "context": "The one-line summary of the instructions command, shown beside its syntax in the help block."
+    },
+    "cmd.log.summary": {
+      "text": "कार्ड के दर्ज कार्य, सबसे पुराने पहले",
+      "context": "The one-line summary of the log command, shown beside its syntax in the help block."
+    },
+    "cmd.ls.summary": {
+      "text": "किसी स्थिति के कार्ड, कतार के क्रम में",
+      "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
+    },
+    "cmd.mcp.summary": {
+      "text": "इस बेंच को stdio पर MCP से परोसें",
+      "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
+    },
+    "cmd.move.summary": {
+      "text": "कार्ड को दूसरी स्थिति में ले जाएँ",
+      "context": "The one-line summary of the move command, shown beside its syntax in the help block."
+    },
+    "cmd.next.summary": {
+      "text": "स्थिति आगे जो कार्ड देती है",
+      "context": "The one-line summary of the next command, shown beside its syntax in the help block."
+    },
+    "cmd.path.summary": {
+      "text": "कार्ड या उसके नीचे की किसी चीज़ का फ़ाइल पथ छापें",
+      "context": "The one-line summary of the path command, shown beside its syntax in the help block."
+    },
+    "cmd.release.summary": {
+      "text": "कार्ड उसकी कतार को लौटा दें",
+      "context": "The one-line summary of the release command, shown beside its syntax in the help block."
+    },
+    "cmd.show.summary": {
+      "text": "कार्ड, या उसके नीचे की कोई चीज़",
+      "context": "The one-line summary of the show command, shown beside its syntax in the help block."
+    },
+    "cmd.states.summary": {
+      "text": "प्रवाह, क्रम में",
+      "context": "The one-line summary of the states command, shown beside its syntax in the help block."
+    },
+    "cmd.status.summary": {
+      "text": "यह बेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
+      "context": "The one-line summary of the status command, shown beside its syntax in the help block."
+    },
+    "cmd.unblock.summary": {
+      "text": "बाधा हटाएँ (केवल संचालक)",
+      "context": "The one-line summary of the unblock command, shown beside its syntax in the help block."
+    },
+    "cmd.version.summary": {
+      "text": "यह बाइनरी क्या है और किसका पालन करती है",
+      "context": "The one-line summary of the version command, shown beside its syntax in the help block."
+    },
+    "cmd.whoami.summary": {
+      "text": "आपके कार्यों पर दर्ज कर्ता, और क्या वह संचालक है",
+      "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
+    },
+    "extract.done": {
+      "text": "परिभाषा {dir} में लिखी गई।",
+      "context": "Printed after extract succeeds."
+    },
+    "flag.actor.summary": {
+      "text": "इसी स्वामी के रूप में कार्य करें",
+      "context": "The one-line summary of the global flag --actor."
+    },
+    "flag.bench.summary": {
+      "text": "यहाँ से खोजी गई बेंच के बजाय यह बेंच लें",
+      "context": "The one-line summary of the global flag --bench."
+    },
+    "flag.json.summary": {
+      "text": "मानक मशीन रूप दें",
+      "context": "The one-line summary of the global flag --json."
+    },
+    "flag.lang.summary": {
+      "text": "इसी भाषा में दिखाएँ",
+      "context": "The one-line summary of the global flag --lang."
+    },
+    "flag.quiet.summary": {
+      "text": "claim और move पर परोसे गए निर्देश दबाएँ",
+      "context": "The one-line summary of the global flag --quiet."
+    },
+    "fsck.active-without-claim": {
+      "text": "कार्ड {detail} active है पर कोई धारक नहीं",
+      "context": "An fsck finding: the converse of the claim implication."
+    },
+    "fsck.block-without-reason": {
+      "text": "कार्ड {detail} बाधित है पर कारण नहीं",
+      "context": "An fsck finding: every blocked card carries a reason."
+    },
+    "fsck.claim-without-active": {
+      "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
+      "context": "An fsck finding: the claim fields and substate active imply each other."
+    },
+    "fsck.clean": {
+      "text": "कोई संरचनात्मक दोष नहीं मिला।",
+      "context": "Printed when fsck finds nothing."
+    },
+    "fsck.count.one": {
+      "text": "{count} दोष।",
+      "context": "The count line after fsck's findings, for exactly one finding."
+    },
+    "fsck.count.other": {
+      "text": "{count} दोष।",
+      "context": "The count line after fsck's findings, for any other number."
+    },
+    "fsck.dangling-link": {
+      "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
+      "context": "An fsck finding: a links entry whose to resolves to no card."
+    },
+    "fsck.holder-on-unheld": {
+      "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
+      "context": "An fsck finding: a ready or blocked card carries no holder."
+    },
+    "fsck.missing-anchor": {
+      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
+      "context": "An fsck finding: a hex directory without its anchor."
+    },
+    "fsck.position-diverges": {
+      "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
+      "context": "An fsck finding: frontmatter position against the journal's replay."
+    },
+    "fsck.torn-journal": {
+      "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
+      "context": "An fsck finding: a torn journal tail left by a crash."
+    },
+    "fsck.unknown-state": {
+      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह बेंच घोषित नहीं करती",
+      "context": "An fsck finding: every card's state identifier resolves."
+    },
+    "fsck.unknown-substate": {
+      "text": "उपस्थिति {detail} उन तीन से बाहर है जो प्रारूप घोषित करता है",
+      "context": "An fsck finding: a substate outside ready, active and blocked."
+    },
+    "help.environment": {
+      "text": "पर्यावरण: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
+    },
+    "help.exitcodes": {
+      "text": "निकास कोड: 0 ok, 2 refused, 3 stale, 4 unreachable।",
+      "context": "The exit codes. The four outcome names are canonical tokens and stay in their own spelling."
+    },
+    "help.flags": {
+      "text": "वैश्विक फ़्लैग:",
+      "context": "The heading above the flags that belong to the invocation rather than to one command."
+    },
+    "help.footer": {
+      "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help <command>' चलाएँ।",
+      "context": "The last line of the help block, pointing at the per-command help."
+    },
+    "help.group.bench": {
+      "text": "बेंच",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.read": {
+      "text": "पढ़ें",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.serve": {
+      "text": "सेवा",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.work": {
+      "text": "काम",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.refusals": {
+      "text": "इनकार, उसी क्रम में जिसमें जाँच होती है:",
+      "context": "The heading above a command's ordered precondition list in its own help."
+    },
+    "help.tagline": {
+      "text": "डिना काम को चलता रखती है।",
+      "context": "The first line of the help block, the tool's one-sentence description."
+    },
+    "help.usage": {
+      "text": "प्रयोग: dinah <command> [arguments]",
+      "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
+    },
+    "init.done": {
+      "text": "{root} पर बेंच बन गई।",
+      "context": "Printed after init succeeds."
+    },
+    "instructions.global": {
+      "text": "निर्देश, वैश्विक:",
+      "context": "The label above the user-global instruction layer."
+    },
+    "instructions.moves": {
+      "text": "यह कार्ड जो चालें चल सकता है:",
+      "context": "The label above the legal moves served with the instructions."
+    },
+    "instructions.standing": {
+      "text": "निर्देश, यह बेंच:",
+      "context": "The label above the workbench's standing instructions."
+    },
+    "instructions.state": {
+      "text": "निर्देश, यह स्थिति:",
+      "context": "The label above the state's own instructions."
+    },
+    "log.moved": {
+      "text": "{from} से {to}",
+      "context": "The detail of a recorded move, carrying the titles as they stood at the time."
+    },
+    "log.override": {
+      "text": "(अधिरोहण)",
+      "context": "The mark on a move admitted under an operator's override."
+    },
+    "ls.empty": {
+      "text": "यहाँ कोई कार्ड नहीं।",
+      "context": "Printed when a listing has nothing in it."
+    },
+    "next.none": {
+      "text": "कुछ तैयार नहीं",
+      "context": "Printed beside a state offering no card."
+    },
+    "outcome.stale": {
+      "text": "आपके पढ़ने के बाद कार्ड बदल गया; अब उसका संस्करण {revision} है",
+      "context": "The sentence after the stale outcome name. {revision} is the card's current revision."
+    },
+    "outcome.unreachable": {
+      "text": "प्रश्न पूछा नहीं जा सका: {detail}",
+      "context": "The sentence after the unreachable outcome name."
+    },
+    "refusal.at-capacity": {
+      "text": "स्थिति {detail} अपनी सीमा पर पहुँच गई है",
+      "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.blocked": {
+      "text": "यह कार्ड बाधित है: {detail}",
+      "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.exists": {
+      "text": "{detail} में पहले से एक बेंच है",
+      "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.locked": {
+      "text": "इस इकाई का ताला दूसरी प्रक्रिया के पास है; {detail} ने लिया",
+      "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.no-bench": {
+      "text": "{detail} से ऊपर कोई बेंच नहीं मिली, और उपयोगकर्ता आधार में भी नहीं",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.no-editor": {
+      "text": "कोई संपादक नहीं मिला; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
+      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.occupied": {
+      "text": "स्थिति {detail} में अभी भी कार्ड हैं",
+      "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unconfirmed": {
+      "text": "delete इतिहास मिटाता है, इसलिए --yes चाहिए",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-command": {
+      "text": "यह बाइनरी {detail} नाम की कोई कमांड नहीं देती",
+      "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-guide": {
+      "text": "{detail} विषय पर कोई मार्गदर्शिका नहीं है",
+      "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-key": {
+      "text": "यह उपकरण {detail} नाम की कोई सेटिंग नहीं जानता",
+      "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-path": {
+      "text": "इस बेंच में {detail} के नाम से कुछ नहीं मिला",
+      "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.usage": {
+      "text": "{detail} समझ नहीं आया; पूरी सूची के लिए dinah help चलाएँ",
+      "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.held": {
+      "text": "यह कार्ड {detail} ने लिया हुआ है",
+      "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.layer-collision": {
+      "text": "परत {detail} उस नाम से घोषित है जो यह प्रोफ़ाइल पहले से देती है",
+      "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.malformed": {
+      "text": "{detail} अनुपस्थित है या पढ़ा नहीं जा सकता",
+      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-operator": {
+      "text": "यह बेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",
+      "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-owner": {
+      "text": "कोई स्वामी नहीं मिला; --actor, DINAH_ACTOR या config actor से एक नियत करें",
+      "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-reason": {
+      "text": "बाधा के साथ कारण आता है, ऐसा लिखा कि संचालक उसका उत्तर दे सके",
+      "context": "The sentence printed after the refusal name no-reason. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-blocked": {
+      "text": "यह कार्ड बाधित नहीं है, इसलिए हटाने को कुछ नहीं है",
+      "context": "The sentence printed after the refusal name not-blocked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-holder": {
+      "text": "यह कार्ड आपने नहीं लिया है; {detail} ने लिया है",
+      "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-operator": {
+      "text": "यह कार्य संचालक का है, और आप {detail} हैं",
+      "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-requester": {
+      "text": "दावा अपने माँगने वाले को ही धारक बताता है, यह {detail} को बताता है",
+      "context": "The sentence printed after the refusal name not-requester. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.terminal": {
+      "text": "स्थिति {detail} समाप्त है, और उससे आगे कुछ नहीं जाता",
+      "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unknown": {
+      "text": "{name} दर्ज हुआ, और इस बाइनरी के पास उसका वाक्य नहीं है: {detail}",
+      "context": "The fallback sentence for a refusal name no catalog entry covers."
+    },
+    "refusal.unknown-card": {
+      "text": "इस बेंच पर कोई कार्ड {detail} नहीं है",
+      "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unknown-state": {
+      "text": "यह बेंच कोई स्थिति {detail} घोषित नहीं करती",
+      "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unsupported-version": {
+      "text": "यह बाइनरी {detail} को लागू नहीं करती",
+      "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "show.comments": {
+      "text": "टिप्पणियाँ:",
+      "context": "The label above a card's comments."
+    },
+    "show.links": {
+      "text": "कड़ियाँ:",
+      "context": "The label above a card's links."
+    },
+    "states.operator-owned": {
+      "text": "संचालक-स्वामित्व",
+      "context": "The mark beside a state only the operator moves a card out of."
+    },
+    "status.actor": {
+      "text": "{actor} के रूप में, संचालक: {operator}",
+      "context": "The second line of status: who you are and whether you are the operator."
+    },
+    "status.bench": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status: the bench and where it was discovered."
+    },
+    "status.blocked": {
+      "text": "बाधित, संचालक की प्रतीक्षा में:",
+      "context": "The label above the blocked cards."
+    },
+    "status.holding": {
+      "text": "आपके पास:",
+      "context": "The label above the cards this actor holds."
+    },
+    "token.active": {
+      "text": "सक्रिय",
+      "context": "How the canonical token active is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.archived": {
+      "text": "संग्रहीत",
+      "context": "How the canonical token archived is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attached": {
+      "text": "संलग्न",
+      "context": "How the canonical token attached is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attachment_removed": {
+      "text": "संलग्नक हटा",
+      "context": "How the canonical token attachment_removed is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attachment_replaced": {
+      "text": "संलग्नक बदला",
+      "context": "How the canonical token attachment_replaced is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.backward": {
+      "text": "पीछे",
+      "context": "How the canonical token backward is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.blocked": {
+      "text": "बाधित",
+      "context": "How the canonical token blocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.claimed": {
+      "text": "लिया",
+      "context": "How the canonical token claimed is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.commented": {
+      "text": "टिप्पणी",
+      "context": "How the canonical token commented is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.created": {
+      "text": "बना",
+      "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.done": {
+      "text": "समाप्त",
+      "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.expired": {
+      "text": "समय बीता",
+      "context": "How the canonical token expired is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.forward": {
+      "text": "आगे",
+      "context": "How the canonical token forward is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.intake": {
+      "text": "आवक",
+      "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.manual_correction": {
+      "text": "हाथ से सुधार",
+      "context": "How the canonical token manual_correction is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.moved": {
+      "text": "चला",
+      "context": "How the canonical token moved is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.ready": {
+      "text": "तैयार",
+      "context": "How the canonical token ready is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.released": {
+      "text": "छोड़ा",
+      "context": "How the canonical token released is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.unblocked": {
+      "text": "बाधा हटी",
+      "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.work": {
+      "text": "काम",
+      "context": "How the canonical token work is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "version.catalogs": {
+      "text": "सूचियाँ:",
+      "context": "The label above the shipped locales and their coverage."
+    },
+    "version.format": {
+      "text": "भंडारण प्रारूप {format}",
+      "context": "The storage format version the binary implements."
+    },
+    "version.profile": {
+      "text": "{profile} का पालन करती है",
+      "context": "The conformance claim, carrying a major and a minor number and no channel."
+    },
+    "version.tool": {
+      "text": "dinah {release}",
+      "context": "The tool's own release number."
+    },
+    "warn.stale-prefix": {
+      "text": "उपसर्ग {detail} किसी मौजूदा स्लग को नहीं नामता; संख्या से कार्ड मिला",
+      "context": "A warning on a card reference whose prefix is left over from a rename."
+    },
+    "whoami.line": {
+      "text": "{actor}, संचालक: {operator}",
+      "context": "The one line whoami prints."
+    },
+    "word.no": {
+      "text": "नहीं",
+      "context": "A boolean rendered for a person."
+    },
+    "word.yes": {
+      "text": "हाँ",
+      "context": "A boolean rendered for a person."
+    }
+  }
+}

@@ -1,0 +1,753 @@
+{
+  "tag": "en",
+  "entries": {
+    "card.blocked": {
+      "text": "  blocked: {reason}",
+      "context": "Printed under the card line when the card is blocked."
+    },
+    "card.holder": {
+      "text": "  held by {holder}",
+      "context": "Printed under the card line when somebody holds the card."
+    },
+    "card.line": {
+      "text": "{ref}  {title}  [{state} / {substate}]",
+      "context": "The one line printed about a card after an act."
+    },
+    "check.add.1": {
+      "text": "the request carries a title",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.2": {
+      "text": "the named state is one the bench declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.3": {
+      "text": "the named state is below its capacity limit",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.archive.1": {
+      "text": "the reference resolves to an entity",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.archive.2": {
+      "text": "no card occupies the state being archived",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.attach.1": {
+      "text": "the reference and the file both resolve",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.attach.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.block.1": {
+      "text": "the card exists",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.block.2": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.block.3": {
+      "text": "the request carries a reason",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.block.4": {
+      "text": "the card is unheld or held by whoever asks",
+      "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.claim.1": {
+      "text": "the card exists",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.2": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.3": {
+      "text": "the owner named as holder is the owner asking",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.4": {
+      "text": "the card's substate is not `blocked`",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.claim.5": {
+      "text": "the card's substate is not `active`",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
+    "check.comment.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.comment.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.comment.3": {
+      "text": "the request carries text",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.config.1": {
+      "text": "the key is one this tool knows",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.1": {
+      "text": "the reference resolves to an entity",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.2": {
+      "text": "the request carries the confirmation flag",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.3": {
+      "text": "no card occupies the state being deleted",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.edit.1": {
+      "text": "the reference resolves to a path",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.edit.2": {
+      "text": "an editor is resolvable by the ladder",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.extract.1": {
+      "text": "the target directory holds no bench already",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.guide.1": {
+      "text": "a guide is embedded under the topic",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.init.1": {
+      "text": "the directory holds no bench already",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.init.2": {
+      "text": "the source definition carries what the profile requires",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.instructions.1": {
+      "text": "the reference resolves to a card or a state",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.log.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.ls.1": {
+      "text": "the named state is one the bench declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.move.1": {
+      "text": "the card exists",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.2": {
+      "text": "the destination is a state the workbench declares",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.3": {
+      "text": "an override marker, if carried, is the operator's",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.4": {
+      "text": "the departure is legal for whoever asks",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.5": {
+      "text": "the card's substate is not `blocked`",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.6": {
+      "text": "the card is unheld or held by whoever asks",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.7": {
+      "text": "the move is not a forward move out of a `done` state",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.move.8": {
+      "text": "the destination is below its capacity limit",
+      "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
+    },
+    "check.next.1": {
+      "text": "the named state is one the bench declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.path.1": {
+      "text": "the reference resolves to a path",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.release.1": {
+      "text": "the card exists",
+      "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
+    },
+    "check.release.2": {
+      "text": "whoever asks holds the card",
+      "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
+    },
+    "check.show.1": {
+      "text": "the reference resolves to a card or a path below one",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.unblock.1": {
+      "text": "the card exists",
+      "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unblock.2": {
+      "text": "whoever asks is the operator",
+      "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unblock.3": {
+      "text": "the card's substate is `blocked`",
+      "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.whoami.1": {
+      "text": "an owner is resolvable by the ladder",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench.1": {
+      "text": "the workbench declares a major number the tool implements",
+      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
+    },
+    "check.workbench.2": {
+      "text": "the workbench designates an operator",
+      "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
+    },
+    "cmd.add.summary": {
+      "text": "file a new card in the first state",
+      "context": "The one-line summary of the add command, shown beside its syntax in the help block."
+    },
+    "cmd.archive.summary": {
+      "text": "move an entity out of the live set",
+      "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
+    },
+    "cmd.attach.summary": {
+      "text": "attach a file, or replace its bytes",
+      "context": "The one-line summary of the attach command, shown beside its syntax in the help block."
+    },
+    "cmd.block.summary": {
+      "text": "raise an obstacle and free the card",
+      "context": "The one-line summary of the block command, shown beside its syntax in the help block."
+    },
+    "cmd.claim.summary": {
+      "text": "take up a ready card",
+      "context": "The one-line summary of the claim command, shown beside its syntax in the help block."
+    },
+    "cmd.comment.summary": {
+      "text": "record a comment on a card",
+      "context": "The one-line summary of the comment command, shown beside its syntax in the help block."
+    },
+    "cmd.config.summary": {
+      "text": "read or write your user settings",
+      "context": "The one-line summary of the config command, shown beside its syntax in the help block."
+    },
+    "cmd.delete.summary": {
+      "text": "destroy an entity and its history",
+      "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
+    },
+    "cmd.edit.summary": {
+      "text": "open that path in your editor",
+      "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
+    },
+    "cmd.export.summary": {
+      "text": "write this bench's interchange form to stdout",
+      "context": "The one-line summary of the export command, shown beside its syntax in the help block."
+    },
+    "cmd.extract.summary": {
+      "text": "copy this bench's definition out as a template",
+      "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
+    },
+    "cmd.fsck.summary": {
+      "text": "check this bench for structural defects",
+      "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
+    },
+    "cmd.guide.summary": {
+      "text": "the embedded guides, or one of them",
+      "context": "The one-line summary of the guide command, shown beside its syntax in the help block."
+    },
+    "cmd.help.summary": {
+      "text": "one command's arguments, refusals and exit codes",
+      "context": "The one-line summary of the help command, shown beside its syntax in the help block."
+    },
+    "cmd.init.summary": {
+      "text": "create a bench here, optionally from a template",
+      "context": "The one-line summary of the init command, shown beside its syntax in the help block."
+    },
+    "cmd.instructions.summary": {
+      "text": "the instructions served at a position",
+      "context": "The one-line summary of the instructions command, shown beside its syntax in the help block."
+    },
+    "cmd.log.summary": {
+      "text": "the recorded acts of a card, oldest first",
+      "context": "The one-line summary of the log command, shown beside its syntax in the help block."
+    },
+    "cmd.ls.summary": {
+      "text": "the cards of a state, in queue order",
+      "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
+    },
+    "cmd.mcp.summary": {
+      "text": "serve this bench over MCP on stdio",
+      "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
+    },
+    "cmd.move.summary": {
+      "text": "carry a card to another state",
+      "context": "The one-line summary of the move command, shown beside its syntax in the help block."
+    },
+    "cmd.next.summary": {
+      "text": "the card a state offers next",
+      "context": "The one-line summary of the next command, shown beside its syntax in the help block."
+    },
+    "cmd.path.summary": {
+      "text": "print the file path of a card or of anything below it",
+      "context": "The one-line summary of the path command, shown beside its syntax in the help block."
+    },
+    "cmd.release.summary": {
+      "text": "give the card back to its queue",
+      "context": "The one-line summary of the release command, shown beside its syntax in the help block."
+    },
+    "cmd.show.summary": {
+      "text": "a card, or anything below it",
+      "context": "The one-line summary of the show command, shown beside its syntax in the help block."
+    },
+    "cmd.states.summary": {
+      "text": "the flow, in order",
+      "context": "The one-line summary of the states command, shown beside its syntax in the help block."
+    },
+    "cmd.status.summary": {
+      "text": "where this bench stands, and what you hold",
+      "context": "The one-line summary of the status command, shown beside its syntax in the help block."
+    },
+    "cmd.unblock.summary": {
+      "text": "lift a block (operator only)",
+      "context": "The one-line summary of the unblock command, shown beside its syntax in the help block."
+    },
+    "cmd.version.summary": {
+      "text": "what this binary is and what it conforms to",
+      "context": "The one-line summary of the version command, shown beside its syntax in the help block."
+    },
+    "cmd.whoami.summary": {
+      "text": "the actor your acts carry, and whether it is the operator",
+      "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
+    },
+    "extract.done": {
+      "text": "Definition written to {dir}.",
+      "context": "Printed after extract succeeds."
+    },
+    "flag.actor.summary": {
+      "text": "act as this owner",
+      "context": "The one-line summary of the global flag --actor."
+    },
+    "flag.bench.summary": {
+      "text": "use this bench instead of the one discovered from here",
+      "context": "The one-line summary of the global flag --bench."
+    },
+    "flag.json.summary": {
+      "text": "emit the canonical machine form",
+      "context": "The one-line summary of the global flag --json."
+    },
+    "flag.lang.summary": {
+      "text": "render in this language",
+      "context": "The one-line summary of the global flag --lang."
+    },
+    "flag.quiet.summary": {
+      "text": "suppress served instructions on claim and move",
+      "context": "The one-line summary of the global flag --quiet."
+    },
+    "fsck.active-without-claim": {
+      "text": "card {detail} reads active and carries no holder",
+      "context": "An fsck finding: the converse of the claim implication."
+    },
+    "fsck.block-without-reason": {
+      "text": "card {detail} is blocked and carries no reason",
+      "context": "An fsck finding: every blocked card carries a reason."
+    },
+    "fsck.claim-without-active": {
+      "text": "card {detail} carries claim fields without substate active",
+      "context": "An fsck finding: the claim fields and substate active imply each other."
+    },
+    "fsck.clean": {
+      "text": "No structural defects found.",
+      "context": "Printed when fsck finds nothing."
+    },
+    "fsck.count.one": {
+      "text": "{count} defect.",
+      "context": "The count line after fsck's findings, for exactly one finding."
+    },
+    "fsck.count.other": {
+      "text": "{count} defects.",
+      "context": "The count line after fsck's findings, for any other number."
+    },
+    "fsck.dangling-link": {
+      "text": "a link names card {detail}, which resolves in neither half of the collection",
+      "context": "An fsck finding: a links entry whose to resolves to no card."
+    },
+    "fsck.holder-on-unheld": {
+      "text": "card {detail} carries a holder while not active",
+      "context": "An fsck finding: a ready or blocked card carries no holder."
+    },
+    "fsck.missing-anchor": {
+      "text": "directory {detail} carries no anchor file, so it is not an entity",
+      "context": "An fsck finding: a hex directory without its anchor."
+    },
+    "fsck.position-diverges": {
+      "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
+      "context": "An fsck finding: frontmatter position against the journal's replay."
+    },
+    "fsck.torn-journal": {
+      "text": "the journal of card {detail} ends in a partial line",
+      "context": "An fsck finding: a torn journal tail left by a crash."
+    },
+    "fsck.unknown-state": {
+      "text": "a card names state {detail}, which this bench does not declare",
+      "context": "An fsck finding: every card's state identifier resolves."
+    },
+    "fsck.unknown-substate": {
+      "text": "substate {detail} is outside the three the format declares",
+      "context": "An fsck finding: a substate outside ready, active and blocked."
+    },
+    "help.environment": {
+      "text": "Environment: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
+    },
+    "help.exitcodes": {
+      "text": "Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.",
+      "context": "The exit codes. The four outcome names are canonical tokens and stay in their own spelling."
+    },
+    "help.flags": {
+      "text": "Global flags:",
+      "context": "The heading above the flags that belong to the invocation rather than to one command."
+    },
+    "help.footer": {
+      "text": "Run 'dinah help <command>' for one command's arguments, refusals and exit codes.",
+      "context": "The last line of the help block, pointing at the per-command help."
+    },
+    "help.group.bench": {
+      "text": "BENCH",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.read": {
+      "text": "READ",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.serve": {
+      "text": "SERVE",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.work": {
+      "text": "WORK",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.refusals": {
+      "text": "Refusals, in the order the checks are made:",
+      "context": "The heading above a command's ordered precondition list in its own help."
+    },
+    "help.tagline": {
+      "text": "Dinah keeps work moving.",
+      "context": "The first line of the help block, the tool's one-sentence description."
+    },
+    "help.usage": {
+      "text": "Usage: dinah <command> [arguments]",
+      "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
+    },
+    "init.done": {
+      "text": "Bench created at {root}.",
+      "context": "Printed after init succeeds."
+    },
+    "instructions.global": {
+      "text": "Instructions, global:",
+      "context": "The label above the user-global instruction layer."
+    },
+    "instructions.moves": {
+      "text": "Moves this card may make:",
+      "context": "The label above the legal moves served with the instructions."
+    },
+    "instructions.standing": {
+      "text": "Instructions, this bench:",
+      "context": "The label above the workbench's standing instructions."
+    },
+    "instructions.state": {
+      "text": "Instructions, this state:",
+      "context": "The label above the state's own instructions."
+    },
+    "log.moved": {
+      "text": "{from} to {to}",
+      "context": "The detail of a recorded move, carrying the titles as they stood at the time."
+    },
+    "log.override": {
+      "text": "(override)",
+      "context": "The mark on a move admitted under an operator's override."
+    },
+    "ls.empty": {
+      "text": "No cards here.",
+      "context": "Printed when a listing has nothing in it."
+    },
+    "next.none": {
+      "text": "nothing ready",
+      "context": "Printed beside a state offering no card."
+    },
+    "outcome.stale": {
+      "text": "the card moved since you read it; its revision is now {revision}",
+      "context": "The sentence after the stale outcome name. {revision} is the card's current revision."
+    },
+    "outcome.unreachable": {
+      "text": "the question could not be asked: {detail}",
+      "context": "The sentence after the unreachable outcome name."
+    },
+    "refusal.at-capacity": {
+      "text": "state {detail} has reached its limit",
+      "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.blocked": {
+      "text": "this card is blocked: {detail}",
+      "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.exists": {
+      "text": "{detail} already holds a bench",
+      "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.locked": {
+      "text": "another process holds this entity's lock; {detail} took it",
+      "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.no-bench": {
+      "text": "no bench was found from {detail} upward, and none in the user base",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.no-editor": {
+      "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
+      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.occupied": {
+      "text": "cards still occupy state {detail}",
+      "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unconfirmed": {
+      "text": "delete destroys history, so it needs --yes",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-command": {
+      "text": "this binary offers no command called {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-guide": {
+      "text": "no guide is embedded under the topic {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-key": {
+      "text": "this tool knows no setting called {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-path": {
+      "text": "nothing in this bench answers to {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.usage": {
+      "text": "{detail} was not understood; run dinah help for the surface",
+      "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.held": {
+      "text": "{detail} holds this card",
+      "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.layer-collision": {
+      "text": "layer {detail} is declared under a name this profile defines",
+      "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.malformed": {
+      "text": "{detail} is missing or will not read",
+      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-operator": {
+      "text": "this bench designates no operator, so its reserved acts are dead",
+      "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-owner": {
+      "text": "no owner was resolvable; set one with --actor, DINAH_ACTOR or config actor",
+      "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-reason": {
+      "text": "a block carries a reason, posed so the operator can answer it",
+      "context": "The sentence printed after the refusal name no-reason. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-blocked": {
+      "text": "this card is not blocked, so there is nothing to lift",
+      "context": "The sentence printed after the refusal name not-blocked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-holder": {
+      "text": "you do not hold this card; {detail} does",
+      "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-operator": {
+      "text": "this act is the operator's, and you are {detail}",
+      "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-requester": {
+      "text": "a claim names its own asker as holder, and this one names {detail}",
+      "context": "The sentence printed after the refusal name not-requester. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.terminal": {
+      "text": "state {detail} is a done state, and nothing moves forward out of one",
+      "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unknown": {
+      "text": "{name} was reported, and this binary carries no sentence for it: {detail}",
+      "context": "The fallback sentence for a refusal name no catalog entry covers."
+    },
+    "refusal.unknown-card": {
+      "text": "this bench carries no card {detail}",
+      "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unknown-state": {
+      "text": "this bench declares no state {detail}",
+      "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unsupported-version": {
+      "text": "this binary does not implement {detail}",
+      "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "show.comments": {
+      "text": "Comments:",
+      "context": "The label above a card's comments."
+    },
+    "show.links": {
+      "text": "Links:",
+      "context": "The label above a card's links."
+    },
+    "states.operator-owned": {
+      "text": "operator-owned",
+      "context": "The mark beside a state only the operator moves a card out of."
+    },
+    "status.actor": {
+      "text": "acting as {actor}, operator: {operator}",
+      "context": "The second line of status: who you are and whether you are the operator."
+    },
+    "status.bench": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status: the bench and where it was discovered."
+    },
+    "status.blocked": {
+      "text": "Blocked, waiting on the operator:",
+      "context": "The label above the blocked cards."
+    },
+    "status.holding": {
+      "text": "You are holding:",
+      "context": "The label above the cards this actor holds."
+    },
+    "token.active": {
+      "text": "active",
+      "context": "How the canonical token active is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.archived": {
+      "text": "archived",
+      "context": "How the canonical token archived is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attached": {
+      "text": "attached",
+      "context": "How the canonical token attached is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attachment_removed": {
+      "text": "attachment removed",
+      "context": "How the canonical token attachment_removed is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attachment_replaced": {
+      "text": "attachment replaced",
+      "context": "How the canonical token attachment_replaced is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.backward": {
+      "text": "backward",
+      "context": "How the canonical token backward is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.blocked": {
+      "text": "blocked",
+      "context": "How the canonical token blocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.claimed": {
+      "text": "claimed",
+      "context": "How the canonical token claimed is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.commented": {
+      "text": "commented",
+      "context": "How the canonical token commented is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.created": {
+      "text": "created",
+      "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.done": {
+      "text": "done",
+      "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.expired": {
+      "text": "expired",
+      "context": "How the canonical token expired is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.forward": {
+      "text": "forward",
+      "context": "How the canonical token forward is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.intake": {
+      "text": "intake",
+      "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.manual_correction": {
+      "text": "manual correction",
+      "context": "How the canonical token manual_correction is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.moved": {
+      "text": "moved",
+      "context": "How the canonical token moved is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.ready": {
+      "text": "ready",
+      "context": "How the canonical token ready is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.released": {
+      "text": "released",
+      "context": "How the canonical token released is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.unblocked": {
+      "text": "unblocked",
+      "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.work": {
+      "text": "work",
+      "context": "How the canonical token work is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "version.catalogs": {
+      "text": "Catalogs:",
+      "context": "The label above the shipped locales and their coverage."
+    },
+    "version.format": {
+      "text": "storage format {format}",
+      "context": "The storage format version the binary implements."
+    },
+    "version.profile": {
+      "text": "conforms to {profile}",
+      "context": "The conformance claim, carrying a major and a minor number and no channel."
+    },
+    "version.tool": {
+      "text": "dinah {release}",
+      "context": "The tool's own release number."
+    },
+    "warn.stale-prefix": {
+      "text": "the prefix {detail} names no current slug; the number resolved the card",
+      "context": "A warning on a card reference whose prefix is left over from a rename."
+    },
+    "whoami.line": {
+      "text": "{actor}, operator: {operator}",
+      "context": "The one line whoami prints."
+    },
+    "word.no": {
+      "text": "no",
+      "context": "A boolean rendered for a person."
+    },
+    "word.yes": {
+      "text": "yes",
+      "context": "A boolean rendered for a person."
+    }
+  }
+}
