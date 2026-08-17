@@ -110,32 +110,37 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if !ok {
 		return s.fail(contract.UnknownVerb, name)
 	}
-	if word := mistypedFlagIn(command, parsed.rest()); word != "" {
+	if word := unreadWordIn(command, parsed.rest()); word != "" {
 		return s.fail(contract.Usage, word)
 	}
 	return command.run(s, parsed)
 }
 
-// mistypedFlagIn reports the first word in a command's own arguments that
-// looks like a mistyped flag, empty when none does. A command declaring no
-// open tail has every word in rest() checked, which is what closes the
-// zero-bounded case (a stray dash word anywhere after the command name) and
-// what closes it the same way for a command a caller overshoots past its own
-// declared arity: nothing about a bounded, no-open-tail command reads or
-// stores a word past what it declares, so a mistyped flag landing there is
-// exactly as unread and exactly as worth refusing as one landing in a
-// declared slot. A command declaring an open tail has only the words before
-// the tail begins checked; everything from there onward is free text the
-// caller composed on purpose, dash or no dash.
-func mistypedFlagIn(c *command, words []string) string {
-	limit := len(words)
-	if c.openTail && c.bounded < limit {
-		limit = c.bounded
-	}
-	for i := 0; i < limit; i++ {
-		if looksLikeMistypedFlag(words[i]) {
-			return words[i]
+// unreadWordIn reports the first word in a command's own arguments that the
+// command never reads, empty when none does. Within the declared bounded
+// count, a word is the command's own argument, so only its shape is checked:
+// looksLikeMistypedFlag catches a word that looks like a mistyped long flag,
+// and anything else is left for the command and its domain check to read and
+// validate. Past the bounded count, a command declaring an open tail has
+// nothing more checked, since everything from there onward is free text the
+// caller composed on purpose, dash or no dash. A command declaring no open
+// tail reads none of what comes after its bounded count, so any word there is
+// unread by construction and is returned regardless of shape, dash-led or
+// plain; this is what closes the zero-bounded case (a stray word anywhere
+// after the command name) and what closes it the same way for a command a
+// caller overshoots past its own declared arity.
+func unreadWordIn(c *command, words []string) string {
+	for i, word := range words {
+		if i < c.bounded {
+			if looksLikeMistypedFlag(word) {
+				return word
+			}
+			continue
 		}
+		if c.openTail {
+			return ""
+		}
+		return word
 	}
 	return ""
 }

@@ -3197,12 +3197,177 @@ func TestConfigRefusesAMistypedSingleDashKey(t *testing.T) {
 }
 
 // TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses answers dinah-69's
-// OQ-1: for a command with no open tail, the single-dash check walks every
-// word in rest(), not merely the command's own declared bounded count, so a
-// dash word beyond a one-bounded command's own arity refuses exactly as a
-// dash word inside a declared slot does.
+// OQ-1: for a command with no open tail, the check walks every word in
+// rest(), not merely the command's own declared bounded count, so a word
+// beyond a one-bounded command's own arity refuses exactly as a dash word
+// inside a declared slot does. dinah-90 widens the walk past bounded to any
+// word, not only a dash-led one, so the plain word "extraword" is now the
+// first offending word scanning left to right, and it is what the refusal
+// names, ahead of the "-x" that follows it.
 func TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
-	wantUsage(t, runCLI(t, root, "claim", "fx-1", "extraword", "-x"), "-x")
+	wantUsage(t, runCLI(t, root, "claim", "fx-1", "extraword", "-x"), "extraword")
+}
+
+// TestPlainWordBeyondAZeroBoundedCommandRefuses asserts dinah-90's AC-1: every
+// zero-bounded, no-open-tail command called with one plain trailing word (no
+// leading dash) refuses with dinah.usage naming that exact word, in place of
+// today's silent exit 0.
+func TestPlainWordBeyondAZeroBoundedCommandRefuses(t *testing.T) {
+	for _, name := range []string{"status", "states", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+		t.Run(name, func(t *testing.T) {
+			wantUsage(t, runCLI(t, t.TempDir(), name, "somejunk"), "somejunk")
+		})
+	}
+}
+
+// TestPlainWordBeyondAOneBoundedCommandRefuses asserts dinah-90's AC-2: every
+// one-bounded, no-open-tail command called with its one legitimate argument
+// plus one plain trailing word refuses with dinah.usage naming the trailing
+// word, while the same call with only its one legitimate argument is
+// unaffected.
+func TestPlainWordBeyondAOneBoundedCommandRefuses(t *testing.T) {
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"claim", []string{"claim", "fx-1"}},
+		{"release", []string{"release", "fx-1"}},
+		{"unblock", []string{"unblock", "fx-1"}},
+		{"archive", []string{"archive", "fx-1"}},
+		{"delete", []string{"delete", "fx-1"}},
+		{"log", []string{"log", "fx-1"}},
+		{"instructions", []string{"instructions", "fx-1"}},
+		{"show", []string{"show", "fx-1"}},
+		{"ls", []string{"ls", "ready"}},
+		{"next", []string{"next", "ready"}},
+		{"guide", []string{"guide", "claim"}},
+		{"help", []string{"help", "claim"}},
+		{"extract", []string{"extract", filepath.Join(t.TempDir(), "out")}},
+		{"path", []string{"path", "fx-1"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// A fresh workbench per case, so a stateful command earlier in
+			// the table (archive, delete, claim) cannot leave the card in a
+			// shape a later case's own baseline call did not expect.
+			root := newBench(t)
+			runCLI(t, root, "add", "A card")
+			withExtra := append(append([]string{}, c.argv...), "extraword")
+			wantUsage(t, runCLI(t, root, withExtra...), "extraword")
+
+			root = newBench(t)
+			runCLI(t, root, "add", "A card")
+			got := runCLI(t, root, c.argv...)
+			leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+			if got.code != 0 && leading == contract.Usage {
+				t.Errorf("without the extra word: should not refuse with dinah.usage, got %d (%s)", got.code, got.errw)
+			}
+		})
+	}
+
+	// edit's own baseline call, without an extra word, would launch a real
+	// editor process, so only the extra-word refusal is checked here; its
+	// baseline case is exactly the shape TestMistypedSingleDashRefusesOnAPathSlotInsteadOfCreatingSomething
+	// already exercises for the dash-led form, and this card widens the same
+	// check ahead of the point where an editor would ever be launched.
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	wantUsage(t, runCLI(t, root, "edit", "fx-1", "extraword"), "extraword")
+
+	// init reads its own root argument (its bounded slot) rather than a card
+	// reference, so it is exercised on its own with a real target directory
+	// standing in for the legitimate argument.
+	base := t.TempDir()
+	sub := filepath.Join(base, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	wantUsage(t, runCLI(t, base, "init", sub, "extraword", "--operator", "tester"), "extraword")
+	got := runCLI(t, base, "init", sub, "--operator", "tester")
+	if got.code != 0 {
+		t.Errorf("init with only its own argument: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestPlainWordBeyondATwoBoundedCommandRefuses asserts dinah-90's AC-3: move
+// and attach, the two-bounded no-open-tail commands, refuse dinah.usage
+// naming a third plain trailing word, while both of their own two arguments
+// are unaffected.
+func TestPlainWordBeyondATwoBoundedCommandRefuses(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	wantUsage(t, runCLI(t, root, "move", "fx-1", "Doing", "thirdword"), "thirdword")
+	got := runCLI(t, root, "move", "fx-1", "Doing")
+	if got.code != 0 {
+		t.Errorf("move with only its own two arguments: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	somefile := filepath.Join(t.TempDir(), "somefile")
+	if err := os.WriteFile(somefile, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	wantUsage(t, runCLI(t, root, "attach", "fx-1", somefile, "thirdword"), "thirdword")
+	got = runCLI(t, root, "attach", "fx-1", somefile)
+	if got.code != 0 {
+		t.Errorf("attach with only its own two arguments: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestConfigGetRefusesAThirdWord asserts dinah-90's AC-4: config get refuses a
+// third word naming it, in place of today's silent success that drops it,
+// while config set with a several-word value is unaffected and config's own
+// existing checks are unaffected.
+func TestConfigGetRefusesAThirdWord(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	runCLI(t, dir, "config", "set", "actor", "somebody")
+	wantUsage(t, runCLI(t, dir, "config", "get", "actor", "extra"), "extra")
+
+	got := runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "somebody" {
+		t.Errorf("config get with only its key: wanted exit 0 and \"somebody\", got %d %q", got.code, got.out)
+	}
+
+	got = runCLI(t, dir, "config", "set", "actor", "a", "whole", "name")
+	if got.code != 0 {
+		t.Fatalf("config set with a several-word value: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if got := runCLI(t, dir, "config", "get", "actor"); got.code != 0 || strings.TrimSpace(got.out) != "a whole name" {
+		t.Errorf("config set should have stored the whole joined value, got %d %q", got.code, got.out)
+	}
+
+	// config's own existing checks are unaffected: a bare bogus word, a
+	// dash-led first word, and a dash-led key still refuse as before.
+	got = runCLI(t, dir, "config", "bogus")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Usage || !strings.Contains(got.errw, "bogus") {
+		t.Errorf("config bogus: wanted dinah.usage naming bogus, got %q", got.errw)
+	}
+	wantUsage(t, runCLI(t, dir, "config", "-w"), "-w")
+	wantUsage(t, runCLI(t, dir, "config", "get", "-w"), "-w")
+}
+
+// TestOpenTailKeepsAcceptingAnyNumberOfPlainWords asserts dinah-90's AC-5:
+// every open-tail command keeps accepting a plain trailing word, and any
+// number of them, as content.
+func TestOpenTailKeepsAcceptingAnyNumberOfPlainWords(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "A", "whole", "title")
+	if got.code != 0 {
+		t.Fatalf("add with a many-word title: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "a", "whole", "reason")
+	if got.code != 0 {
+		t.Fatalf("block with a many-word reason: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "comment", "fx-1", "a", "whole", "comment")
+	if got.code != 0 {
+		t.Fatalf("comment with a many-word comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
 }

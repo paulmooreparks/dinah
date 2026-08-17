@@ -468,9 +468,11 @@ func onPath(name string) bool {
 //
 // config does not fit the generic bounded/openTail shape every other command
 // declares in the commands table, since it dispatches on its own first word
-// rather than reading fixed positions, so it runs the mistyped-flag check
-// itself: once on the first word before the switch, and once more on the
-// second word inside get and set, before bench.KnownConfigKey ever sees it.
+// rather than reading fixed positions, so it runs its own arity and
+// mistyped-flag checks: once on the first word before the switch, once more
+// on the second word inside get and set before bench.KnownConfigKey ever sees
+// it, and once more on get's third word, which get never reads and now
+// refuses rather than silently drops.
 func runConfig(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	first := at(words, 0)
@@ -499,6 +501,9 @@ func runConfig(s *session, parsed *arguments) int {
 		key := at(words, 1)
 		if looksLikeMistypedFlag(key) {
 			return s.fail(contract.Usage, key)
+		}
+		if extra := at(words, 2); extra != "" {
+			return s.fail(contract.Usage, extra)
 		}
 		if !bench.KnownConfigKey(key) {
 			return s.fail(contract.UnknownKey, key)
