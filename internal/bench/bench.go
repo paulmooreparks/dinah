@@ -98,6 +98,17 @@ type State struct {
 	FM *Frontmatter
 }
 
+// Ref is what a person types to reach this state: its own slug when it
+// carries one, its identifier otherwise. Mirrors Card.Ref's own fallback,
+// with no argument to pass because a state's slug lives on the state
+// itself rather than on the workbench that holds it.
+func (s *State) Ref() string {
+	if s.Slug != "" {
+		return s.Slug
+	}
+	return s.ID
+}
+
 // ErrAborted is what a test's step hook returns to stand for a process that
 // died at that step. The act stops where it is, releasing nothing and
 // unwinding nothing, so the tree is left in the state a crash leaves and the
@@ -556,8 +567,10 @@ type Candidate struct {
 	Title string `json:"title"`
 	// Slug is the short name a card reference carries ahead of its number,
 	// empty on a workbench written before the field or one whose anchor will
-	// not read.
-	Slug string `json:"slug"`
+	// not read. The key is absent rather than an empty string standing in
+	// for the workbench having none, matching the convention StateView.Slug
+	// already carries.
+	Slug string `json:"slug,omitempty"`
 	// Path is the workbench directory, which is what --workbench takes.
 	Path string `json:"path"`
 }

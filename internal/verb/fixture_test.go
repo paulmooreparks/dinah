@@ -22,6 +22,12 @@ const (
 	review    = "a00000000003"
 	finished  = "a00000000004"
 	aftercare = "a00000000005"
+
+	// aftercareSlug is what a person types for the aftercare state, derived
+	// from its fixture title the same way Instantiate derives it at
+	// creation. A refusal naming the state names it by this slug, not by
+	// the raw identifier above.
+	aftercareSlug = "aftercare"
 )
 
 // fixtureDefinition is the interchange form of the bench every test starts

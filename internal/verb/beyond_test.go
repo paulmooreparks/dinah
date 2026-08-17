@@ -56,6 +56,11 @@ func TestAddFilesACard(t *testing.T) {
 	h.reopen()
 	if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "second", State: doing}); response.Refusal != contract.AtCapacity {
 		t.Errorf("a filing into a full state: wanted at-capacity, got %s %s", response.Outcome, response.Refusal)
+	} else if response.Detail != "doing" {
+		// Named by the slug a caller could type back ("doing"), not by the
+		// raw identifier behind it: dinah-29 cycle 2 fixed this for the
+		// legal-moves listing and missed this refusal path.
+		t.Errorf("at-capacity refusal: wanted the slug %q, got %q", "doing", response.Detail)
 	}
 	h.reopen()
 	for i := 0; i < 3; i++ {
@@ -334,6 +339,10 @@ func TestRetiringTheLastStateIsRefused(t *testing.T) {
 	}
 	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: intake}); response.Refusal != contract.LastState {
 		t.Fatalf("archiving the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	} else if response.Detail != "intake" {
+		// Named by its slug, not by its raw identifier: a caller who typed
+		// "intake" is told about "intake", never about a12300000001.
+		t.Fatalf("last-state refusal: wanted the slug %q, got %q", "intake", response.Detail)
 	}
 	h.reopen()
 	if h.library.Bench.State(intake) == nil {
@@ -344,6 +353,8 @@ func TestRetiringTheLastStateIsRefused(t *testing.T) {
 	}
 	if response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: intake, Confirm: true}); response.Refusal != contract.LastState {
 		t.Fatalf("deleting the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	} else if response.Detail != "intake" {
+		t.Fatalf("last-state refusal: wanted the slug %q, got %q", "intake", response.Detail)
 	}
 }
 

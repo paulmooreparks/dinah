@@ -40,7 +40,7 @@ func (l *Library) Add(req *Request) *Response {
 			return l.FromError(req, err)
 		}
 		if reached {
-			return l.refuse(req, nil, contract.AtCapacity, named.ID)
+			return l.refuse(req, nil, contract.AtCapacity, named.Ref())
 		}
 		destination = named
 	}
@@ -205,13 +205,14 @@ func (l *Library) Archive(req *Request) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
 	act := &bench.StructuralAct{
-		Dir:     entity.Dir,
-		LockDir: l.lockDirFor(entity),
-		Op:      bench.OpArchive,
-		Actor:   req.Actor,
-		Now:     now,
-		StateID: stateSubject(entity),
-		Record:  func() error { return bench.AppendEvent(journal, ev) },
+		Dir:      entity.Dir,
+		LockDir:  l.lockDirFor(entity),
+		Op:       bench.OpArchive,
+		Actor:    req.Actor,
+		Now:      now,
+		StateID:  stateSubject(entity),
+		StateRef: entity.Ref,
+		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -248,13 +249,14 @@ func (l *Library) Delete(req *Request) *Response {
 	now := bench.Stamp(l.Now())
 	journal, ev := l.removalRecord(entity, req.Actor, now)
 	act := &bench.StructuralAct{
-		Dir:     entity.Dir,
-		LockDir: l.lockDirFor(entity),
-		Op:      bench.OpDelete,
-		Actor:   req.Actor,
-		Now:     now,
-		StateID: stateSubject(entity),
-		Record:  func() error { return bench.AppendEvent(journal, ev) },
+		Dir:      entity.Dir,
+		LockDir:  l.lockDirFor(entity),
+		Op:       bench.OpDelete,
+		Actor:    req.Actor,
+		Now:      now,
+		StateID:  stateSubject(entity),
+		StateRef: entity.Ref,
+		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
