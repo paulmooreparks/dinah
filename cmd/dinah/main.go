@@ -44,7 +44,7 @@ type session struct {
 	// carried one. It is empty rather than refused here, because the
 	// refusal belongs inside the verb's own order.
 	actor string
-	// benchFlag is the bench named by --bench or DINAH_BENCH.
+	// benchFlag is the bench named by --workbench or DINAH_WORKBENCH.
 	benchFlag string
 	// cwd is where bench discovery starts.
 	cwd string
@@ -80,7 +80,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		quiet:     parsed.has("quiet"),
 		home:      home,
 		cfg:       cfg,
-		benchFlag: bench.Ladder(parsed.value("bench"), os.Getenv("DINAH_BENCH")),
+		benchFlag: bench.Ladder(parsed.value("workbench"), os.Getenv("DINAH_WORKBENCH")),
 		cwd:       cwd,
 	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {

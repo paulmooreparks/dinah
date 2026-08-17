@@ -39,7 +39,7 @@ itself, its states, its cards, its workstreams, each card's comments and
 checklist items, attachments (which any entity may carry), and the folders
 that organize attachments.
 
-Everything else in a bench is one of two lesser things: content (prose
+Everything else in a workbench is one of two lesser things: content (prose
 bodies, attachment payloads), which belongs to the human and carries no
 imposed shape, or declarations (levels, groups, the states list, a card's
 links), which are configuration inside an entity's anchor and have no
@@ -58,14 +58,14 @@ exist only inside an `attachments/` collection. Two asymmetries carry the
 design. Attachments may belong to any entity, and folders may belong only
 to attachments. Anything the grammar does not say is thereby refused; a
 containment this map lacks arrives only as a versioned spec change or as a
-bench-declared, dot-named extension per the Extensions section, never as
+workbench-declared, dot-named extension per the Extensions section, never as
 an implementation's quiet liberty.
 
 Formally, with `?` optional, `*` zero or more, and every collection
 governed by absent-means-empty:
 
 ```
-bench       ::= workbench.md journal.ndjson? attachments? states?
+workbench   ::= workbench.md journal.ndjson? attachments? states?
                 cards? workstreams? archive?
 state       ::= state.md attachments?
 card        ::= card.md journal.ndjson comments? checklist? attachments?
@@ -85,19 +85,19 @@ payload-file:   exactly one content file, any name, any bytes; content,
                 not an entity, per the taxonomy
 ```
 
-The notation makes two asymmetries visible. The card's journal is the
-one non-anchor file that is not optional, because birth writes the created
-event, while the bench journal appears on first bench-scoped act. `folder`,
-meanwhile, occurs only on the right-hand side of `attachments`, which is
-the folders-only-inside-attachments rule stated structurally. Attachment
-and folder are siblings in the collection, not layers: an
-attachments collection may legally hold only folders, only files, or any
-mix at any depth, and an empty folder is legal and real, distinguished
-from an absent collection by its anchor. The model is a filesystem's files
-and directories, the intuition users arrive with. The token
-registry is the authoritative, machine-readable home of this grammar; this
-rendering is generated prose in waiting, and if the two ever disagree the
-registry is right.
+The notation makes two asymmetries visible. The card's journal is the one
+non-anchor file that is not optional, because birth writes the created
+event, while the workbench journal appears on first workbench-scoped act.
+`folder`, meanwhile, occurs only on the right-hand side of `attachments`,
+which is the folders-only-inside-attachments rule stated structurally.
+Attachment and folder are siblings in the collection, not layers: an
+attachments collection may legally hold only folders, only files, or any mix
+at any depth, and an empty folder is legal and real, distinguished from an
+absent collection by its anchor. The model is a filesystem's files and
+directories, the intuition users arrive with. The token registry is the
+authoritative, machine-readable home of this grammar; this rendering is
+generated prose in waiting, and if the two ever disagree the registry is
+right.
 
 This taxonomy does quiet work throughout the document. Whether something is
 an entity, content, or a declaration decides which rules reach it, so most
@@ -107,11 +107,11 @@ asked.
 ## Layout
 
 ```
-<bench>/
+<workbench>/
   workbench.md              # anchor: definition and overview
-  journal.ndjson            # append-only history of bench-scoped acts
+  journal.ndjson            # append-only history of workbench-scoped acts
   attachments/
-    <12-hex>/...            # bench-level attachments, same shape as below
+    <12-hex>/...            # workbench-level attachments, same shape as below
   states/
     <12-hex>/state.md       # anchor: one state of the flow
   cards/
@@ -134,13 +134,13 @@ asked.
 Every entity is named by a 12-character lowercase hex identifier, unique
 within its containing collection. Identity therefore detaches from title, so
 renames are free, and entity identity is never a word in any language. The
-same identifier scheme is Andoneer's public-id scheme, so a bench paired with
-a hosted board can share identifiers outright, and that reduces the eventual
-passthrough MCP from a mapping problem to none.
+same identifier scheme is Andoneer's public-id scheme, so a workbench paired
+with a hosted board can share identifiers outright, and that reduces the
+eventual passthrough MCP from a mapping problem to none.
 
 The legibility cost is deliberate. A raw directory listing is plumbing, not
-porcelain; humans read the bench through the CLI, and the fixed anchor names
-keep grep workable (`grep -r "^title:" cards/*/card.md`).
+porcelain; humans read the workbench through the CLI, and the fixed anchor
+names keep grep workable (`grep -r "^title:" cards/*/card.md`).
 
 ### Anchor files and collections
 
@@ -173,10 +173,10 @@ implementations create them on first use and tolerate their absence. No
 
 ### Extensions
 
-A bench may declare entity kinds the base format does not ship, and the
+A workbench may declare entity kinds the base format does not ship, and the
 mechanism is declaration rather than code: a `kinds:` block in
 `workbench.md` names each extension kind, its anchor filename, and which
-of the standard mount points (bench, card, workstream) its collection may
+of the standard mount points (workbench, card, workstream) its collection may
 hang from. Extension kind and collection names are dotted,
 `<namespace>.<name>` (acme.assumption, acme.milestone), and core names never
 contain a dot, so collision with future core vocabulary is unrepresentable
@@ -207,41 +207,41 @@ honestly at the governing layer, in currency where currency exists, rather
 than pretended in the records.
 
 The promotion path is the product's own method: an extension proves itself
-on working benches, and entering the shared core is a deliberate,
+on working workbenches, and entering the shared core is a deliberate,
 versioned spec change through the boundary table, so nothing joins the
 core vocabulary that did not work somewhere first.
 
-## Where benches live
+## Where workbenches live
 
-Benches live in an overlay that works like git's. `~/.dinah/` is the user
-base, holding benches that belong to no repository, keyed by bench id. A
-bench may equally live inside a project repository (or anywhere else);
-discovery walks up from the current directory before falling back to the
-user base. The user base may also hold pointers to repo-local benches so a
-listing sees everything. A bench inside a repository is versioned by that
-repository's git, so board history rides project history and board changes
-can be reviewed like code.
+Workbenches live in an overlay that works like git's. `~/.dinah/` is the
+user base, holding workbenches that belong to no repository, keyed by
+workbench id. A workbench may equally live inside a project repository (or
+anywhere else); discovery walks up from the current directory before falling
+back to the user base. The user base may also hold pointers to repo-local
+workbenches so a listing sees everything. A workbench inside a repository is
+versioned by that repository's git, so board history rides project history
+and board changes can be reviewed like code.
 
-A distributed bench borrows git's model of a canonical home, pegged to a
+A distributed workbench borrows git's model of a canonical home, pegged to a
 URL, without borrowing git's URL. Two addresses answer two different
-questions and neither is stored where the other lives. The git remote,
-when the bench is in a repository, is where the files synchronize: the
+questions and neither is stored where the other lives. The git remote, when
+the workbench is in a repository, is where the files synchronize: the
 content plane's transport, owned by git's own configuration and never
-duplicated into the bench. The bench's home, an optional `home:` URL in
-`workbench.md` frontmatter, is a live promise rather than a marker. The
-URL must host a contract-conforming instance answering on the exposed surfaces
-(the canonical-JSON verb contract and the mirror), so every bench that
-calls it home can expect a definitive answer at verb time, per "Verb
-outcomes and staleness", whose refused, stale, and unreachable outcomes
-cover the times it cannot. A home naming a hosted board is how a bench
-declares its arbiter. A bench that only wants to say which copy the team
-treats as canonical needs no home for that, because sharing the git URL
-already says it, and the home is likewise not the template provenance the
-surfaces document records at instantiation: provenance is a display-tier
-fact about where a bench was born, while the home is a promise about who
-answers for it now. A bench with no home answers for itself, alone or
-under the turn-taking etiquette of the transport rules. The promise is
-testable, so the conformance suite can probe a claimed home.
+duplicated into the workbench. The workbench's home, an optional `home:` URL
+in `workbench.md` frontmatter, is a live promise rather than a marker. The
+URL must host a contract-conforming instance answering on the exposed
+surfaces (the canonical-JSON verb contract and the mirror), so every
+workbench that calls it home can expect a definitive answer at verb time,
+per "Verb outcomes and staleness", whose refused, stale, and unreachable
+outcomes cover the times it cannot. A home naming a hosted board is how a
+workbench declares its arbiter. A workbench that only wants to say which
+copy the team treats as canonical needs no home for that, because sharing
+the git URL already says it, and the home is likewise not the template
+provenance the surfaces document records at instantiation: provenance is a
+display-tier fact about where a workbench was born, while the home is a
+promise about who answers for it now. A workbench with no home answers for
+itself, alone or under the turn-taking etiquette of the transport rules. The
+promise is testable, so the conformance suite can probe a claimed home.
 
 ## The card owns its position
 
@@ -280,19 +280,19 @@ is the operator's act and is journaled.
 ### What the card file carries
 
 The card anchor's body is the card's framing: what this work is, why it
-exists, who it affects, the paragraph an operator scanning the bench needs.
-That is the only prose the format gives a card, because it is the only
-prose every card on every kind of board needs. Everything else the work
+exists, who it affects, the paragraph an operator scanning the workbench
+needs. That is the only prose the format gives a card, because it is the
+only prose every card on every kind of board needs. Everything else the work
 produces or accumulates (a specification, research notes, a design, a
 transcript, a menu) is an attachment, named and shaped by the method the
-bench's instructions encode, not by the format. The hosted product's
+workbench's instructions encode, not by the format. The hosted product's
 three-field convention (description, spec, body on every card) is the
 counterexample this rule corrects: a spec field on a wedding-planning board
-is a wasted slot that quietly tells every non-software user the tool was
-not built for them, while an attachment exists exactly when the method
-called for it. The first hand-executed run demonstrated the shape
-unprompted, carrying its framing in the card body and producing its
-research and its concept as attachments.
+is a wasted slot that quietly tells every non-software user the tool was not
+built for them, while an attachment exists exactly when the method called
+for it. The first hand-executed run demonstrated the shape unprompted,
+carrying its framing in the card body and producing its research and its
+concept as attachments.
 
 ### Lifecycle defaults
 
@@ -352,59 +352,60 @@ overlay, not entities and not core: no verb consults a group, and an
 implementation that ignores them loses only visual comfort. A `groups:` map
 in `workbench.md` frontmatter names lists of state ids, kept separate from
 the states list so the single authority for order stays intact; the check
-verifies only that the referenced ids resolve. Whether groups enter the contract at
-all is a boundary-table row.
+verifies only that the referenced ids resolve. Whether groups enter the
+contract at all is a boundary-table row.
 
 ### What "serve the instructions" composes
 
 Instructions are an overlay chain, served most general first and never
 copied between layers: the user-global layer (`~/.dinah/instructions.md`,
 optional), then the workbench body, then the state body. The global layer
-carries what applies to every bench on this machine, the bench body the
-standing context of this workbench, the state body the station's own work.
-Nothing is ever written from one layer into another; composition happens at
-serve time. This chain is Andoneer's agent-context layering reproduced at
-file scale, and it is the socket that role-scoped method packs plug into
-later: a shared layer can be served ahead of the whole chain without any
-bench storing a copy, and Andoneer paid for that same lesson.
+carries what applies to every workbench on this machine, the workbench body
+the standing context of this workbench, the state body the station's own
+work. Nothing is ever written from one layer into another; composition
+happens at serve time. This chain is Andoneer's agent-context layering
+reproduced at file scale, and it is the socket that role-scoped method packs
+plug into later: a shared layer can be served ahead of the whole chain
+without any workbench storing a copy, and Andoneer paid for that same
+lesson.
 
 Changes to the definition files themselves (states edited, list reordered)
-get no journal; a bench versioned by git has that history in git, and a
-bench outside git accepts that definition history is unwitnessed. The
+get no journal; a workbench versioned by git has that history in git, and a
+workbench outside git accepts that definition history is unwitnessed. The
 journal is for cards.
 
 ### No structural inheritance
 
-A bench never derives its structure (states, order, levels, groups) from
-another bench or a global base at read time. The temptation splits into two
-safe halves this format already provides, and a dangerous middle it
+A workbench never derives its structure (states, order, levels, groups) from
+another workbench or a global base at read time. The temptation splits into
+two safe halves this format already provides, and a dangerous middle it
 refuses. Guidance composes live through the overlay chain. That is safe
 because concatenation has no override semantics, so layers cannot conflict.
 Structure copies once through templates, and that is safe because
 instantiate-and-own has no ongoing coupling. Live structural derivation is
-the fragile-base-class problem with running work attached: cards hold
-state ids and claims hang off stations, so a base edit would mutate every
-derived bench's flow mid-flight, orphaning cards on boards whose operators
-changed nothing, and the override rulebook it would demand is pure cost.
-The fleet-update desire behind the temptation has uncoupled answers: shared
-served text is the role-pack layer, and structural propagation is a
-template diff applied per bench as a deliberate, reviewed change.
+the fragile-base-class problem with running work attached: cards hold state
+ids and claims hang off stations, so a base edit would mutate every derived
+workbench's flow mid-flight, orphaning cards on boards whose operators
+changed nothing, and the override rulebook it would demand is pure cost. The
+fleet-update desire behind the temptation has uncoupled answers: shared
+served text is the role-pack layer, and structural propagation is a template
+diff applied per workbench as a deliberate, reviewed change.
 
 ## History
 
 Which kinds bear journals is a per-kind registry fact, decided by one test:
 a journal belongs to an entity whose own history someone will read. Today
 three kinds pass it: each card (required, born with its created event), the
-workbench (on demand, for bench-scoped acts), and each workstream (on
+workbench (on demand, for workbench-scoped acts), and each workstream (on
 demand, for its arc: created, status changes, archived), with a
 workstream's journal traveling in its directory like a card's. Every other
 event is recorded in the nearest enclosing journal-bearing entity: a card's
 moves, claims, comments, attachments, and workstream-membership changes in
 the card's journal, so the card's story stays one readable narrative; a
-state archived, or a bench attachment replaced, in the bench's. One
+state archived, or a workbench attachment replaced, in the workbench's. One
 asymmetry is accepted deliberately: an archived state's history does not
 travel with its directory, because states are definition, and definition
-history is git's when the bench is versioned. Definition file edits remain
+history is git's when the workbench is versioned. Definition file edits remain
 unjournaled per the composition section; it is lifecycle acts that are
 witnessed. A journal is append-only, one JSON object per line, recording
 created, claimed, moved, released, blocked, archive-lifecycle, and
@@ -418,7 +419,7 @@ every append a rewrite and every torn write a whole-file corruption. It is
 chosen also because line order is visible order, lines grep and hand-append
 like text, and two git branches' appends union-merge.
 
-Journals are per-card rather than one per bench because history then
+Journals are per-card rather than one per workbench because history then
 travels with the card when it is moved or archived, because concurrent
 moves touch disjoint files, and because agents re-reading `card.md` at
 every claim never pay for history they are not reading. Cross-card views
@@ -429,14 +430,14 @@ authoritative for current position. They are reconciled by check and by the
 manual-correction rule above.
 
 Journal events are self-contained history: any cross-entity reference in an
-event carries both the identifier and the display name as of the event
-(from and to plus from_title and to_title on a move; the card's own title
-on created), so the journal reads as a story without resolving anything and
+event carries both the identifier and the display name as of the event (from
+and to plus from_title and to_title on a move; the card's own title on
+created), so the journal reads as a story without resolving anything and
 survives rename, archive, and deletion of everything it mentions. The
-title-then is deliberately a snapshot, never checked against the live bench
-and never consulted by replay, which needs only the id sequence; the free
-prose note remains the human's why, while the names ride as structured
-fields because a note is unparseable by design.
+title-then is deliberately a snapshot, never checked against the live
+workbench and never consulted by replay, which needs only the id sequence;
+the free prose note remains the human's why, while the names ride as
+structured fields because a note is unparseable by design.
 
 File order is event order: the journal is append-only and the sequence of
 lines is authoritative, while timestamps are information, not ordering. This
@@ -448,7 +449,7 @@ Journal events carry no hash of their entity. A content hash cannot tell a
 legitimate prose edit from a corruption, because editing the content plane
 without a verb is the design working, and git merges would invalidate every
 historical hash on both sides. Integrity of documents is git's job when the
-bench is versioned, and integrity of decisions is the journal's, earned by
+workbench is versioned, and integrity of decisions is the journal's, earned by
 being append-only and witnessed; machine-field divergence is caught by
 replay, and verb-time races by the basis guard, which hashes transiently
 and stores nothing.
@@ -505,7 +506,7 @@ payload is a journaled act (attached, attachment_replaced, and
 attachment_removed are registry members of the closed event set, carrying
 the attachment id and its filename as of the event), recorded in the
 nearest enclosing journal per the History section; prior payload versions
-are git's concern when the bench is versioned, per the content plane's
+are git's concern when the workbench is versioned, per the content plane's
 integrity assignment. A multi-file deliverable is multiple attachments.
 
 Attachments may be organized into folders, and a folder is itself an
@@ -638,19 +639,20 @@ malformed or duplicated one included, because a stored value is a decision
 somebody made and the checker reports it for a person rather than having the
 repair overwrite it.
 
-The reader carries a malformed or duplicated slug through on the same terms it
-carries an absent one, and for the same reason. Below the major that introduces
-the requirement, nothing binds a workbench to it, and every command has to open
-a workbench before it can look at one, so a reader refusing a stored slug there
-would take the whole workbench away over a single mistyped line, the `dinah
-check` that names the mistake and the `dinah check --migrate-slugs` that fills
-in the states around it included. Past that major the tool refuses the
-workbench, and the refusal names the state and the anchor file, because by then
-a person has to open that file before anything else will run.
+The reader carries a malformed or duplicated slug through on the same terms
+it carries an absent one, and for the same reason. Below the major that
+introduces the requirement, nothing binds a workbench to it, and every
+command has to open a workbench before it can look at one, so a reader
+refusing a stored slug there would take the whole workbench away over a
+single mistyped line, the `dinah check` that names the mistake and the
+`dinah check --migrate-slugs` that fills in the states around it included.
+Past that major the tool refuses the workbench, and the refusal names the
+state and the anchor file, because by then a person has to open that file
+before anything else will run.
 
 ## Encoding
 
-Every text file in a bench is UTF-8 without a byte-order mark. Journal
+Every text file in a workbench is UTF-8 without a byte-order mark. Journal
 records are separated by LF; writers emit LF everywhere, and readers
 tolerate CRLF, which a Windows editor or a misconfigured git filter will
 inevitably introduce, by stripping a trailing carriage return per line
@@ -659,11 +661,11 @@ identifiers and tokens are ASCII lowercase by construction. Case
 operations on tokens and identifiers use ASCII rules, never the locale:
 the Turkish dotted and dotless i turn locale-aware lowercasing into a
 correctness bug (an uppercase I lowercased under a Turkish locale is not
-`i`), and a bench must parse identically on a machine in Istanbul and a
+`i`), and a workbench must parse identically on a machine in Istanbul and a
 machine in Iowa.
 
 Lowercase-only is load-bearing for a second reason: identifiers and anchor
-names are directory and file names, and a bench travels between
+names are directory and file names, and a workbench travels between
 case-sensitive filesystems (Linux) and case-insensitive ones (Windows and
 macOS by default). Names differing only by case would produce trees that
 commit cleanly on one platform and collide on checkout on another, a
@@ -689,7 +691,8 @@ tiers split the vocabulary by who the text is for:
 3. Content. Titles, instructions, notes, comments. Free prose in any
    language; the format never inspects it.
 
-A bench written in Jakarta is byte-compatible with a tool built in Stuttgart.
+A workbench written in Jakarta is byte-compatible with a tool built in
+Stuttgart.
 
 The initial display-catalog languages are English (en), German (de), Czech
 (cs), Bahasa Indonesia (id), Spanish (es), Hindi (hi), Filipino (fil), and
@@ -723,9 +726,9 @@ only, then English. The OS locale describes the machine, not the person
 reading the screen; a user on a foreign-language laptop overrides it once in
 user config and never thinks about it again.
 
-Two boundary rules apply. The bench never dictates display language: a
+Two boundary rules apply. The workbench never dictates display language: a
 workbench is shared, display is personal, and tokens always render in the
-reader's language, so the bench has no slot to express a preference. The
+reader's language, so the workbench has no slot to express a preference. The
 machine surfaces never localize: MCP responses, JSON output modes, journal
 contents, and anything meant for parsing carry canonical tokens regardless
 of any language setting. Localization applies exactly where a human reads.
@@ -760,11 +763,11 @@ with it, deleting a workstream that cards still reference is refused, and
 check catches danglers. Archiving a workstream moves its directory to
 `archive/workstreams/<id>/` like any other entity.
 
-The real use case is within-bench grouping of concurrent efforts (several
-concepts flowing through one concept bench at once), which is distinct from
-the portfolio machinery the exclusion-candidate list meant, and it passes
-the wedding-planning test trivially. Whether workstreams land in the
-contract core or an extension is a boundary-table ruling; the format
+The real use case is within-workbench grouping of concurrent efforts
+(several concepts flowing through one concept workbench at once), which is
+distinct from the portfolio machinery the exclusion-candidate list meant,
+and it passes the wedding-planning test trivially. Whether workstreams land
+in the contract core or an extension is a boundary-table ruling; the format
 supports them either way.
 
 ## Card-to-card links
@@ -789,22 +792,23 @@ the link is added or removed, and deleting a card takes its links with it.
 
 Nothing in the tool reads a link. Pull order does not consult one, no verb
 refuses because of one, and the CLI shows a card's links and computes nothing
-over them. A bench that wants dependency ordering or a listing of the work
+over them. A workbench that wants dependency ordering or a listing of the work
 whose predecessors are done declares an extension under a dotted name and
 builds it there.
 
 The kind is an open enum by the rule that settles the question, since no
-contract behavior hangs on its members. The registry marks it open and carries
-`duplicates` and `relates` as suggested spellings, so that two benches meaning
-the same thing tend to write it the same way. A bench writing something else
-is conforming.
+contract behavior hangs on its members. The registry marks it open and
+carries `duplicates` and `relates` as suggested spellings, so that two
+workbenches meaning the same thing tend to write it the same way. A
+workbench writing something else is conforming.
 
 The id a link names is checked the way every other frontmatter reference is:
-check reports a `to:` that resolves to no card. The id space spans the live and
-archived halves of the cards collection, so archiving the card a link names
-leaves the link resolvable and deleting that card does not. Deletion is not
-refused on account of an inbound link. Refusing it would be a reference
-refusing an act, which is the thing the profile's boundary table rules out.
+check reports a `to:` that resolves to no card. The id space spans the live
+and archived halves of the cards collection, so archiving the card a link
+names leaves the link resolvable and deleting that card does not. Deletion
+is not refused on account of an inbound link. Refusing it would be a
+reference refusing an act, which is the thing the profile's boundary table
+rules out.
 
 ## Severity and priority
 
@@ -821,7 +825,7 @@ levels:
 ```
 
 Levels are declared tokens, not entities: a level's identity is its name
-within the bench, nothing claims it and nothing accumulates on it, so it
+within the workbench, nothing claims it and nothing accumulates on it, so it
 earns no directory. Guidance thickens the declaration in place: a list
 entry may be a bare name or a name mapping to a one-line hint, the two
 forms mix freely, and order still carries rank.
@@ -851,9 +855,9 @@ The format carries two version numbers with two audiences, and they are
 never conflated:
 
 - **Storage format version.** `format: 1` in `workbench.md` frontmatter,
-  an integer governing the whole bench directory. An implementation that
-  opens a bench with a higher number than it knows refuses loudly and names
-  the version it wanted. This is Dinah's private business; the git
+  an integer governing the whole workbench directory. An implementation
+  that opens a workbench with a higher number than it knows refuses loudly
+  and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
   approximately once) is the model, and the ambition is to never bump it.
 - **Profile version.** The contract's public promise, with the channel and
@@ -868,16 +872,17 @@ reader wrong rather than merely incomplete. Additive changes (a future
 
 ## Actors and attribution
 
-Every journal event and comment carries an `actor`, a free string identifying
-who acted: a person's handle, an agent's name, a harness's session label.
-Actors are self-declared attribution, not authorization; the format has no
-account system, and honesty is enforced socially and by the journal being
-append-only, which is the same stance Andoneer takes with self-reported agent
-identity. The tool resolves the actor the same way it resolves language:
-per-invocation flag, then environment, then `actor:` in the user config, and
-it refuses to write an event with no actor rather than inventing one. One
-seat running many agents is therefore many actors in one bench, and that is
-what makes the journal's story readable after the fact.
+Every journal event and comment carries an `actor`, a free string
+identifying who acted: a person's handle, an agent's name, a harness's
+session label. Actors are self-declared attribution, not authorization; the
+format has no account system, and honesty is enforced socially and by the
+journal being append-only, which is the same stance Andoneer takes with
+self-reported agent identity. The tool resolves the actor the same way it
+resolves language: per-invocation flag, then environment, then `actor:` in
+the user config, and it refuses to write an event with no actor rather than
+inventing one. One seat running many agents is therefore many actors in one
+workbench, and that is what makes the journal's story readable after the
+fact.
 
 ## Concurrency and atomicity
 
@@ -909,15 +914,15 @@ visible line in a text file that a human can fix with an editor, then run
 check.
 
 Lock scope is the nearest enclosing journal-bearing entity, a card for
-anything inside a card and the bench for everything else. Commenting on a
-card, attaching a file to it and moving it all take that card's lock, so the
-write inside the card's subtree and the event appended to its journal land on
-the same side of one acquisition. A write inside a state's directory or at
-bench level takes the bench's own `lock`, which sits beside `workbench.md` the
-way a card's sits beside `card.md`; the bench is an entity like every other
-and the no-exceptions rule reaches it too. Every acquisition anywhere in this
-format is a try that refuses rather than a wait that blocks, so no process
-ever holds one lock while waiting for another.
+anything inside a card and the workbench for everything else. Commenting on
+a card, attaching a file to it and moving it all take that card's lock, so
+the write inside the card's subtree and the event appended to its journal
+land on the same side of one acquisition. A write inside a state's directory
+or at workbench level takes the workbench's own `lock`, which sits beside
+`workbench.md` the way a card's sits beside `card.md`; the workbench is an
+entity like every other and the no-exceptions rule reaches it too. Every
+acquisition anywhere in this format is a try that refuses rather than a wait
+that blocks, so no process ever holds one lock while waiting for another.
 
 Archiving, restoring and deleting need more than that scoping gives, since
 they move or remove the very directory an entity's lock lives in. An entity
@@ -926,19 +931,20 @@ that moves and outlives it. A card is not safe, and neither is a state, and
 the two are exposed differently enough to need different answers.
 
 Those acts follow a protocol of three acquisitions in a fixed order. The
-bench's lock comes first and serializes the act against every other structural
-act and against anything appending to the bench journal. A sibling lock comes
-second, created beside the directory that is about to move and named for the
-entity within the entity's own collection: `cards/<id>.lock` beside
-`cards/<id>/`, `states/<id>.lock` beside `states/<id>/`. The sibling carries
-the same single JSON line every lock carries, extended with the operation
-(`archive`, `restore` or `delete`) and, where the act has a destination, the
-path the directory is going to. The entity's own `lock` comes last, and a lock
-another process holds refuses the act loudly, so a mutation already in flight
-stops an archive rather than being overwritten by one. Release runs in the
-reverse order, and no process takes an outer lock while holding an inner one,
-so the acquisition order is the deadlock rule as well, and try-locks make it
-one that timing cannot defeat.
+workbench's lock comes first and serializes the act against every other
+structural act and against anything appending to the workbench journal. A
+sibling lock comes second, created beside the directory that is about to
+move and named for the entity within the entity's own collection:
+`cards/<id>.lock` beside `cards/<id>/`, `states/<id>.lock` beside
+`states/<id>/`. The sibling carries the same single JSON line every lock
+carries, extended with the operation (`archive`, `restore` or `delete`) and,
+where the act has a destination, the path the directory is going to. The
+entity's own `lock` comes last, and a lock another process holds refuses the
+act loudly, so a mutation already in flight stops an archive rather than
+being overwritten by one. Release runs in the reverse order, and no process
+takes an outer lock while holding an inner one, so the acquisition order is
+the deadlock rule as well, and try-locks make it one that timing cannot
+defeat.
 
 A sibling always lives in the live half of its collection, `cards/<id>.lock`
 whether the directory is on its way into the archive or on its way back out,
@@ -978,45 +984,48 @@ complete: a writer that reached the sibling first is one the scan cannot miss,
 and a writer arriving later reads the sibling and stops.
 
 A failure the tool sees for itself unwinds only while nothing has been
-recorded. Up to and including the journal append, a failure releases what was
-acquired in reverse order and leaves nothing behind. Once that append has
-landed the sibling stays where it is, the bench lock is released so no repair
-is deadlocked against it, and the failure is reported as an interruption, so a
-retry follows the path a crash leaves. Nothing about that is exotic. A reader
-holding an open handle inside a directory is enough to fail a rename on some
-platforms, and a tool that tidied its sibling away at that point would leave
-an `archived` event beside a live card with nothing on disk saying so.
+recorded. Up to and including the journal append, a failure releases what
+was acquired in reverse order and leaves nothing behind. Once that append
+has landed the sibling stays where it is, the workbench lock is released so
+no repair is deadlocked against it, and the failure is reported as an
+interruption, so a retry follows the path a crash leaves. Nothing about that
+is exotic. A reader holding an open handle inside a directory is enough to
+fail a rename on some platforms, and a tool that tidied its sibling away at
+that point would leave an `archived` event beside a live card with nothing
+on disk saying so.
 
 An interrupted structural act leaves its sibling behind, and that record is
 what turns a crash into a finishable operation. The journal decides the
-direction, the same way history determines the present everywhere else in this
-format. An event already on the record, `archived` or `restored` on the
-entity's own journal or `deleted` on the bench's, means the act was past its
-point of record and the finish completes it. No such event means nothing
+direction, the same way history determines the present everywhere else in
+this format. An event already on the record, `archived` or `restored` on the
+entity's own journal or `deleted` on the workbench's, means the act was past
+its point of record and the finish completes it. No such event means nothing
 observable happened and the finish rolls the sibling away. A directory found
 at neither path or at both is reported and not resolved, because a directory
 rename is not atomic on every filesystem and choosing which half is complete
 would rest on the property this design refuses to assume.
 
-Finishing is `dinah check --finish` rather than anything a bare `check` does on
-sight, and the repair is journaled like every other. The bench lock is what
-tells a standing sibling from a running act, since an act holds that lock from
-its first acquisition to its last: a sibling found while the lock is free is
-one nobody is working on, and a sibling found while it is held refuses the
-finish and names the holder. Finishing takes the same locks in the same order
-as the act it completes, so a bench lock an interrupted process left behind
-refuses the finish until a human clears it, which is the stale-lock rule
-rather than an exception to it. A lock left inside the entity's own directory
-is deleted by the finish before the directory moves, since a lock may no more
-travel into an archive from a repair than from a live act, and only when the
-actor and pid it records are the ones the sibling records. A lock naming
-anyone else is a live process's, so the finish reports it and stops.
+Finishing is `dinah check --finish` rather than anything a bare `check` does
+on sight, and the repair is journaled like every other. The workbench lock
+is what tells a standing sibling from a running act, since an act holds that
+lock from its first acquisition to its last: a sibling found while the lock
+is free is one nobody is working on, and a sibling found while it is held
+refuses the finish and names the holder. Finishing takes the same locks in
+the same order as the act it completes, so a workbench lock an interrupted
+process left behind refuses the finish until a human clears it, which is the
+stale-lock rule rather than an exception to it. A lock left inside the
+entity's own directory is deleted by the finish before the directory moves,
+since a lock may no more travel into an archive from a repair than from a
+live act, and only when the actor and pid it records are the ones the
+sibling records. A lock naming anyone else is a live process's, so the
+finish reports it and stops.
 
-Deleting a card destroys the journal inside it, so the record of the deletion
-goes to the bench's journal, which survives. `deleted` joins the closed event
-set beside `archived` and `restored`, carrying the identifier and the title as
-of the event. Without it the bench's history would carry a hole where a card
-used to be, and an interrupted deletion would have nothing to finish from.
+Deleting a card destroys the journal inside it, so the record of the
+deletion goes to the workbench's journal, which survives. `deleted` joins
+the closed event set beside `archived` and `restored`, carrying the
+identifier and the title as of the event. Without it the workbench's history
+would carry a hole where a card used to be, and an interrupted deletion
+would have nothing to finish from.
 
 Restoring is the archive's mirror and runs the same steps in the same order,
 moving the directory out of the archive mirror and back into the live
@@ -1031,15 +1040,15 @@ whatever the act had already taken comes off on the way out.
 A rename the filesystem refuses is reported as a refusal and never retried as
 a copy followed by a delete. The fallback would trade one short non-atomic
 operation for a long one and multiply the states a crash can leave behind, and
-an archive mirror on a different volume from the bench it belongs to is a
+an archive mirror on a different volume from the workbench it belongs to is a
 layout this format does not support.
 
 Remotely, the honest half: git does not support two machines sharing one
-working tree, and neither does Dinah. A bench on a sync service or a
+working tree, and neither does Dinah. A workbench on a sync service or a
 network share with concurrent writers is explicitly unsupported, because
 rename atomicity there is exactly the undocumented behavior this design
 never relies on. The supported remote story is git as transport: clone the
-bench, work, push, pull. The format merges well by construction, since
+workbench, work, push, pull. The format merges well by construction, since
 entity directories keep concurrent card work in disjoint files and
 append-only journals take a union merge; a conflict inside one card's
 frontmatter is real contention, rare, and resolved by a human. Real-time
@@ -1053,9 +1062,9 @@ semantics.
 
 The content plane is documents: definitions, instructions, card prose,
 comments, history. Documents reconcile after the fact, so this plane has
-git's DNA: it snapshots, distributes, and merges, and a change to a bench's
-definition arriving as a reviewable diff is a better workflow than editing
-live.
+git's DNA: it snapshots, distributes, and merges, and a change to a
+workbench's definition arriving as a reviewable diff is a better workflow
+than editing live.
 
 The coordination plane is decisions about now: claims, substates, positions
 as facts of the present, WIP accounting. It has the checkout DNA of the
@@ -1071,7 +1080,7 @@ in the journal), lock hoarding (WIP limits bound the stations themselves),
 the invisible lock (claim state is the display).
 
 The arbiter rule follows: the moment two or more writers coordinate on one
-bench concurrently, claim state and WIP accounting need a single live
+workbench concurrently, claim state and WIP accounting need a single live
 arbiter. Turn-taking writers over git transport need none, which is why the
 remote story holds. The live arbiter for many writers is the hosted
 product; that is the product boundary restated. Andoneer never re-platforms
@@ -1092,7 +1101,7 @@ and expiry lapses it visibly and journaled rather than silently
 reassigning.
 
 Mutating verbs carry a basis: the revision of the entity the actor read
-before acting (in a local bench, a content hash checked under the card
+before acting (in a local workbench, a content hash checked under the card
 lock). The arbiter refuses a mutation whose basis is stale. Every
 coordination verb therefore has three distinct outcomes that must never be
 conflated, for scripts and agents above all: refused (policy says no),
@@ -1115,7 +1124,7 @@ now succeed.
 
 ## Corruption and recovery
 
-Backup, and git when the bench lives in a repository, are the last resort;
+Backup, and git when the workbench lives in a repository, are the last resort;
 before them the format's own redundancy carries most recoveries, and
 `dinah check` is the tool that uses it. Frontmatter present but mangled:
 the journal replays to reconstruct the card's current position, since
@@ -1140,7 +1149,7 @@ collection structure (`archive/cards/<id>/`, and the same shape serves
 retired states). History travels with the directory. The pattern recurses:
 any collection at any depth may have an archive mirror at its own level, so
 a card's noisy old comments archive to `cards/<id>/archive/comments/<id>/`
-exactly the way a card archives at bench level, and the live-is-fair-game,
+exactly the way a card archives at workbench level, and the live-is-fair-game,
 archive-is-on-demand rule applies at every depth. One pattern serves every
 kind, with no per-kind machinery.
 
@@ -1148,7 +1157,7 @@ The rule is structural, not a filter: whatever is in `cards/` is live and
 always fair game, whatever is in `archive/` is crawled only on demand.
 Listings, pull, and WIP counts therefore ignore archives by construction
 rather than by remembering to check a flag, and scan cost stays bounded by
-the live set for the life of the bench. Archiving and restoring are
+the live set for the life of the workbench. Archiving and restoring are
 themselves journal events on the entity's own journal, so a restored card's
 history shows its archive years instead of a silent hole; both are registry
 tokens in the closed event set.
@@ -1159,7 +1168,7 @@ entity, never orphaned) and the rule that history describes then, not now.
 A journal's references to other entities are facts about the moment they
 were written, so check's reference checks apply to frontmatter, never to
 journals; an implementation that verified historical ids against the live
-bench would turn normal housekeeping into false corruption reports across
+workbench would turn normal housekeeping into false corruption reports across
 every old journal. Replay needs only the id sequence, and the present-tense
 pointer that must resolve is guarded from the front by the refusal to
 delete an occupied state. Identifier uniqueness keeps its per-collection
@@ -1175,7 +1184,7 @@ finishable operation rather than an ambiguous one.
 ## The worked example
 
 `~/.dinah/c1eeb1998b99/` holds a filled example: a Jira-ticket-resolution
-bench with thirteen states (an eleven-step agent workflow plus intake and
+workbench with thirteen states (an eleven-step agent workflow plus intake and
 done, four states operator-owned), one card mid-flight with a nine-event
 journal and a comment. It exists to be walked and edited; the state set is
 knowingly imperfect as a Kanban board, and editing it after creation is the
@@ -1187,7 +1196,8 @@ point being exercised.
   (the shape is settled by the worked example; the profile still owes the
   normative statement of it).
 - Branching and lanes, when the linear flow stops being enough; the Alka
-  bench already contains one prose shortcut that will eventually force this.
+  workbench already contains one prose shortcut that will eventually force
+  this.
 - Human handles: whether cards get a slug or number alias for CLI ergonomics,
   or titles resolved by search are enough.
 - Terminology: whether "workbench", "state", "card" survive into the

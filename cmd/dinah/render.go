@@ -127,7 +127,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.bench", "title", status.Bench, "root", status.Root))
+	s.line(s.r.T("status.workbench", "title", status.Bench, "root", status.Root))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
 	s.renderStates(status.States)
@@ -194,7 +194,7 @@ func (s *session) renderSettings(settings []verb.SettingView) {
 // renderWorkbenches prints one row per reachable workbench, and the line that
 // says so when none is reachable. The row carries what a reader needs to
 // recognise a workbench and to select it, so the path it ends on is the one
-// --bench takes.
+// --workbench takes.
 func (s *session) renderWorkbenches(rows []bench.Candidate) {
 	if len(rows) == 0 {
 		s.line(s.r.T("workbenches.empty"))

@@ -81,7 +81,7 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 		key     string
 	}{
 		{
-			name:    "a clean bench",
+			name:    "a clean workbench",
 			breakIt: func(t *testing.T, root string) {},
 			key:     "",
 		},
@@ -107,7 +107,7 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			key: FindingBlockWithoutReason,
 		},
 		{
-			name: "a card naming a state the bench does not declare",
+			name: "a card naming a state the workbench does not declare",
 			breakIt: func(t *testing.T, root string) {
 				edit(t, root, "state: b00000000001", "state: b00000000009")
 			},
@@ -187,7 +187,7 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			}
 			if c.key == "" {
 				if len(findings) != 0 {
-					t.Fatalf("a clean bench should report nothing, got %+v", findings)
+					t.Fatalf("a clean workbench should report nothing, got %+v", findings)
 				}
 				return
 			}
@@ -391,7 +391,7 @@ func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
 		t.Errorf("the checklist item carries ordinal %d, wanted 1", got)
 	}
 	if findings, err := opened.Check(); err != nil || len(findings) != 0 {
-		t.Errorf("a migrated bench should check clean, got %+v (%v)", findings, err)
+		t.Errorf("a migrated workbench should check clean, got %+v (%v)", findings, err)
 	}
 
 	before := snapshot(t, root)
@@ -876,7 +876,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 	}
 }
 
-// TestDiscoveryNamesTheDirectoryBenchWasPointedAt asserts that a --bench
+// TestDiscoveryNamesTheDirectoryBenchWasPointedAt asserts that a --workbench
 // override carrying no workbench is refused against the path the caller gave,
 // which is the one scenario dinah.no-bench still covers.
 func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {

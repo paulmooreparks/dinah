@@ -31,7 +31,7 @@ const (
 const fixtureDefinition = `{
   "profile": "dinah-core/1.0",
   "title": "Fixture",
-  "instructions": "The standing text of this bench.\n",
+  "instructions": "The standing text of this workbench.\n",
   "states": [
     { "id": "a00000000001", "title": "Intake", "kind": "intake",
       "instructions": "Intake instructions.\n" },
@@ -65,7 +65,7 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
-	root := filepath.Join(base, "bench")
+	root := filepath.Join(base, "workbench")
 	if err := os.MkdirAll(filepath.Join(home, bench.UserBaseName), 0o755); err != nil {
 		t.Fatalf("user base: %v", err)
 	}
@@ -161,7 +161,7 @@ func (h *harness) second() *Library {
 	h.t.Helper()
 	opened, err := bench.Open(h.root)
 	if err != nil {
-		h.t.Fatalf("open a second view of the bench: %v", err)
+		h.t.Fatalf("open a second view of the workbench: %v", err)
 	}
 	other := New(opened, h.home)
 	other.Now = h.library.Now
@@ -254,7 +254,7 @@ func (h *harness) inWindow(f func()) {
 func (h *harness) clearBenchLock() {
 	h.t.Helper()
 	if err := os.Remove(filepath.Join(h.root, bench.LockName)); err != nil && !os.IsNotExist(err) {
-		h.t.Fatalf("clear the bench lock: %v", err)
+		h.t.Fatalf("clear the workbench lock: %v", err)
 	}
 }
 
@@ -295,7 +295,7 @@ func (h *harness) benchEvents() []bench.Event {
 	h.t.Helper()
 	list, _, err := bench.ReadJournal(h.library.Bench.JournalPath())
 	if err != nil {
-		h.t.Fatalf("bench journal: %v", err)
+		h.t.Fatalf("workbench journal: %v", err)
 	}
 	return list
 }

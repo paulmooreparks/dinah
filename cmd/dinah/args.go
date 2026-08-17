@@ -15,7 +15,7 @@ import (
 // the remote arbiter's, and the spec defers the flag to that era, so this head
 // offers no way to write one.
 var valuedFlags = []string{
-	"bench", "lang", "actor", "state", "expires", "kind",
+	"workbench", "lang", "actor", "state", "expires", "kind",
 	"from", "description", "slug", "operator",
 }
 

@@ -531,8 +531,8 @@ func runWhoami(s *session, parsed *arguments) int {
 //
 // It opens nothing and it never refuses over what the search found, because a
 // question about what is reachable is answered by zero rows as truthfully as
-// by several. A --bench naming a directory that holds no workbench is the one
-// refusal left, and it belongs to the caller's argument.
+// by several. A --workbench naming a directory that holds no workbench is
+// the one refusal left, and it belongs to the caller's argument.
 func runWorkbenches(s *session, parsed *arguments) int {
 	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home)
 	if err != nil {

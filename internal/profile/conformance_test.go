@@ -23,7 +23,7 @@ var testDoc = regexp.MustCompile(`^// (Test\w+) `)
 // v0, each with the reason it is out of reach. A statement absent from both
 // this table and the tests fails the run, so nothing goes unaccounted for.
 var outOfReach = map[string]string{
-	"CORE-OUT-4":   "unreachable answers for a remote arbiter, and v0 serves one local bench with nothing to be out of reach of",
+	"CORE-OUT-4":   "unreachable answers for a remote arbiter, and v0 serves one local workbench with nothing to be out of reach of",
 	"CORE-STATE-6": "reordering the state list is an edit to workbench.md rather than an act the tool offers, so v0 exposes no verb that reorders a flow",
 	"CORE-STATE-8": "a permission, satisfied by every move the fixture drives, with no observable behaviour of its own to assert",
 	"CORE-CARD-2":  "retitling a card is an edit to card.md, and v0 offers no retitle verb",
@@ -33,7 +33,7 @@ var outOfReach = map[string]string{
 	"CORE-LINK-4":  "no closed set is imposed because nothing in the tool reads a link at all",
 	"CORE-LINK-5":  "no verb consults a link, so no refusal can follow from one",
 	"CORE-LINK-6":  "nothing in the tool adds a link, so no link can be added as a consequence of another",
-	"CORE-LAYER-1": "a bench-declared extension kind is a definition surface v0 neither writes nor validates",
+	"CORE-LAYER-1": "a workbench-declared extension kind is a definition surface v0 neither writes nor validates",
 	"CORE-LAYER-2": "the same surface, read from the other side: an extension's content is preserved by the frontmatter rule rather than by a layer mechanism v0 implements",
 	"CORE-LAYER-3": "the same surface again: v0 validates no layer declaration, so it can refuse none",
 	"CORE-STATE-4": "a permission the fixture exercises by declaring an operator-owned state",
@@ -44,10 +44,10 @@ var outOfReach = map[string]string{
 	"CORE-TEXT-4":  "a permission the human rendering exercises by translating tokens where a person reads them",
 	"CORE-BENCH-1": "a definition offered with no title is refused, and the offering surface is init --from, whose malformed refusal the interchange reader carries",
 	"CORE-BENCH-2": "the same surface: an empty state list is refused by the interchange reader",
-	"CORE-BENCH-3": "the same surface: a definition with no declared profile version is refused when the bench is opened",
-	"CORE-STATE-1": "a duplicate state identifier is refused when the bench is opened, on a definition v0 writes rather than accepts from a caller",
-	"CORE-STATE-2": "a state with no title is refused when the bench is opened",
-	"CORE-STATE-3": "a state whose kind is outside the three is refused when the bench is opened",
+	"CORE-BENCH-3": "the same surface: a definition with no declared profile version is refused when the workbench is opened",
+	"CORE-STATE-1": "a duplicate state identifier is refused when the workbench is opened, on a definition v0 writes rather than accepts from a caller",
+	"CORE-STATE-2": "a state with no title is refused when the workbench is opened",
+	"CORE-STATE-3": "a state whose kind is outside the three is refused when the workbench is opened",
 	"CORE-CARD-5":  "every card the tool reports carries one of the three substates by construction, since the reader defaults an absent one to ready",
 	"CORE-OWNER-1": "every act names its owner by construction, since the journal writer takes the actor from a request the ladder resolved",
 	"CORE-TEXT-1":  "every text the tool writes is UTF-8 by construction, since Go strings are and nothing transcodes",

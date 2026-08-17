@@ -32,7 +32,7 @@ func newLibrary(t *testing.T) *verb.Library {
 	if err := os.WriteFile(source, []byte(definition), 0o644); err != nil {
 		t.Fatalf("definition: %v", err)
 	}
-	root := filepath.Join(base, "bench")
+	root := filepath.Join(base, "workbench")
 	if err := verb.Init(root, "fx", "alka", source); err != nil {
 		t.Fatalf("init: %v", err)
 	}

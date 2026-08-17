@@ -609,7 +609,7 @@ func TestNextOffersWithoutTaking(t *testing.T) {
 	// With no argument it reports every state in flow order.
 	all, err := h.library.Next(&Request{Verb: "next"})
 	if err != nil {
-		t.Fatalf("next over the bench: %v", err)
+		t.Fatalf("next over the workbench: %v", err)
 	}
 	if len(all) != len(h.library.Bench.States) {
 		t.Fatalf("wanted one offer per state, got %d", len(all))
@@ -637,7 +637,7 @@ func TestTheCardLockCoversTheWholeTransaction(t *testing.T) {
 
 	second, err := bench.Open(h.root)
 	if err != nil {
-		t.Fatalf("open a second view of the bench: %v", err)
+		t.Fatalf("open a second view of the workbench: %v", err)
 	}
 	other := New(second, h.home)
 	other.Now = h.library.Now

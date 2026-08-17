@@ -461,10 +461,6 @@
       "text": "act as this owner",
       "context": "The one-line summary of the global flag --actor."
     },
-    "flag.bench.summary": {
-      "text": "use this workbench instead of the one discovered from here",
-      "context": "The one-line summary of the global flag --bench."
-    },
     "flag.json.summary": {
       "text": "emit the canonical machine form",
       "context": "The one-line summary of the global flag --json."
@@ -477,8 +473,12 @@
       "text": "suppress served instructions on claim and move",
       "context": "The one-line summary of the global flag --quiet."
     },
+    "flag.workbench.summary": {
+      "text": "use this workbench instead of the one discovered from here",
+      "context": "The one-line summary of the global flag --workbench."
+    },
     "help.environment": {
-      "text": "Environment: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -493,10 +493,6 @@
       "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, refusals and exit codes.",
       "context": "The last line of the help block, pointing at the per-command help."
     },
-    "help.group.bench": {
-      "text": "WORKBENCH",
-      "context": "A heading of the help block, grouping the commands beneath it."
-    },
     "help.group.read": {
       "text": "READ",
       "context": "A heading of the help block, grouping the commands beneath it."
@@ -507,6 +503,10 @@
     },
     "help.group.work": {
       "text": "WORK",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
+    "help.group.workbench": {
+      "text": "WORKBENCH",
       "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.refusals": {
@@ -574,7 +574,7 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.ambiguous-bench": {
-      "text": "{detail} are all reachable from {base}; choose one with --bench <path>, or run from inside it",
+      "text": "{detail} are all reachable from {base}; choose one with --workbench <path>, or run from inside it",
       "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
     },
     "refusal.dinah.exists": {
@@ -590,11 +590,11 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "{detail} was named by --bench, and it carries no workbench.md; point --bench at a directory that does, or drop --bench to search upward from here",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH."
+      "text": "{detail} was named by --workbench, and it carries no workbench.md; point --workbench at a directory that does, or drop --workbench to search upward from here",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
     },
     "refusal.dinah.no-bench-found": {
-      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --bench <path> to point at one that exists",
+      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --workbench <path> to point at one that exists",
       "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-editor": {
@@ -713,10 +713,6 @@
       "text": "acting as {actor}, operator: {operator}",
       "context": "The second line of status: who you are and whether you are the operator."
     },
-    "status.bench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered."
-    },
     "status.blocked": {
       "text": "Blocked, waiting on the operator:",
       "context": "The label above the blocked cards."
@@ -724,6 +720,10 @@
     "status.holding": {
       "text": "You are holding:",
       "context": "The label above the cards this actor holds."
+    },
+    "status.workbench": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status: the workbench and where it was discovered."
     },
     "token.active": {
       "text": "active",

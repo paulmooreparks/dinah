@@ -156,10 +156,10 @@ type Bench struct {
 	Hooks *Hooks
 }
 
-// Discover finds the bench to serve. An override, from the --bench flag or
-// from DINAH_BENCH, is taken as given. Otherwise the search walks up from the
-// starting directory the way git looks for a repository, and falls back to
-// the user base.
+// Discover finds the bench to serve. An override, from the --workbench flag
+// or from DINAH_WORKBENCH, is taken as given. Otherwise the search walks up
+// from the starting directory the way git looks for a repository, and falls
+// back to the user base.
 //
 // A base holding several workbenches never decides the search, and the walk
 // climbs past it as it always has. It is remembered, though: a search that
@@ -197,9 +197,10 @@ func Discover(start, override, home string) (string, error) {
 // exactly where Discover stops and inherits any later change to how far the
 // search climbs.
 //
-// The one error it returns is the one an explicit override raises. A --bench
-// naming a directory that holds no workbench is a caller's mistake, and a
-// listing that softened it into an empty result would hide the typo.
+// The one error it returns is the one an explicit override raises. A
+// --workbench naming a directory that holds no workbench is a caller's
+// mistake, and a listing that softened it into an empty result would hide the
+// typo.
 func Reachable(start, override, home string) ([]Candidate, error) {
 	if override != "" {
 		root, err := Discover(start, override, home)
@@ -319,7 +320,7 @@ type Candidate struct {
 	// empty on a workbench written before the field or one whose anchor will
 	// not read.
 	Slug string `json:"slug"`
-	// Path is the workbench directory, which is what --bench takes.
+	// Path is the workbench directory, which is what --workbench takes.
 	Path string `json:"path"`
 }
 
