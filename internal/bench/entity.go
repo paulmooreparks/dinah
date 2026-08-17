@@ -4,14 +4,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
 )
 
 // Comment is one comment of a card: an entity like every other, ordered by
-// the timestamp its anchor carries rather than by its directory name.
+// the creation ordinal its anchor carries rather than by its directory name.
 type Comment struct {
 	// ID is the comment's 12-hex identifier.
 	ID string
@@ -19,34 +19,52 @@ type Comment struct {
 	Dir string
 	// TS is when the comment was written.
 	TS string
+	// Ordinal is the comment's one-based position among the card's comments,
+	// assigned when it was written.
+	Ordinal int
 	// Author is who wrote it.
 	Author string
 	// Body is the comment itself.
 	Body string
 }
 
-// AddComment writes a comment entity under a card and returns it.
+// AddComment writes a comment entity under a card and returns it. The caller
+// holds the card's lock, which is what makes the ordinal scan race-free.
 func AddComment(cardDir, author, ts, body string) (*Comment, error) {
 	collection := filepath.Join(cardDir, CommentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
+	ordinal := nextOrdinal(collection, CommentAnchor)
 	dir := filepath.Join(collection, id)
 	fm := NewFrontmatter()
 	fm.Set("ts", ts)
 	fm.Set("author", author)
+	fm.Set(OrdinalField, strconv.Itoa(ordinal))
 	if err := WriteText(filepath.Join(dir, CommentAnchor), fm.Render(body)); err != nil {
 		return nil, err
 	}
-	return &Comment{ID: id, Dir: dir, TS: ts, Author: author, Body: body}, nil
+	comment := &Comment{
+		ID:      id,
+		Dir:     dir,
+		TS:      ts,
+		Ordinal: ordinal,
+		Author:  author,
+		Body:    body,
+	}
+	return comment, nil
 }
 
-// Comments reads a card's comments in timestamp order.
+// Comments reads a card's comments in creation order.
+//
+// The order is the ordinal's rather than the timestamp's, because a timestamp
+// is wall-clock and two processes commenting inside one second record the same
+// one, which leaves the reader's order to the directory listing.
 func Comments(cardDir string) ([]*Comment, error) {
 	collection := filepath.Join(cardDir, CommentsDir)
 	var comments []*Comment
-	for _, id := range ListIDs(collection) {
+	for _, id := range SortByOrdinal(collection, CommentAnchor, ListIDs(collection)) {
 		dir := filepath.Join(collection, id)
 		text, err := ReadText(filepath.Join(dir, CommentAnchor))
 		if err != nil {
@@ -54,17 +72,15 @@ func Comments(cardDir string) ([]*Comment, error) {
 		}
 		fm, body := ParseAnchor(text)
 		comment := &Comment{
-			ID:     id,
-			Dir:    dir,
-			TS:     fm.Value("ts"),
-			Author: fm.Value("author"),
-			Body:   body,
+			ID:      id,
+			Dir:     dir,
+			TS:      fm.Value("ts"),
+			Ordinal: OrdinalOf(fm),
+			Author:  fm.Value("author"),
+			Body:    body,
 		}
 		comments = append(comments, comment)
 	}
-	sort.SliceStable(comments, func(i, j int) bool {
-		return comments[i].TS < comments[j].TS
-	})
 	return comments, nil
 }
 
@@ -81,16 +97,22 @@ type Attachment struct {
 	Description string
 	// Provenance says where the bytes came from.
 	Provenance string
+	// Ordinal is the attachment's one-based position among the attachments of
+	// the entity it hangs from, assigned when it was written.
+	Ordinal int
 }
 
 // AddAttachment copies a file into a new attachment entity of the collection
 // belonging to any entity directory: the bench, a state, a card or a comment.
+// The caller holds the lock covering that collection, which is what makes the
+// ordinal scan race-free.
 func AddAttachment(ownerDir, source, description, provenance string) (*Attachment, error) {
 	collection := filepath.Join(ownerDir, AttachmentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
+	ordinal := nextOrdinal(collection, AttachmentAnchor)
 	dir := filepath.Join(collection, id)
 	filename := filepath.Base(source)
 	fm := NewFrontmatter()
@@ -99,6 +121,7 @@ func AddAttachment(ownerDir, source, description, provenance string) (*Attachmen
 		fm.Set("description", description)
 	}
 	fm.Set("provenance", provenance)
+	fm.Set(OrdinalField, strconv.Itoa(ordinal))
 	if err := WriteText(filepath.Join(dir, AttachmentAnchor), fm.Render("")); err != nil {
 		return nil, err
 	}
@@ -111,6 +134,7 @@ func AddAttachment(ownerDir, source, description, provenance string) (*Attachmen
 		Filename:    filename,
 		Description: description,
 		Provenance:  provenance,
+		Ordinal:     ordinal,
 	}
 	return attachment, nil
 }
@@ -152,6 +176,7 @@ func LoadAttachment(dir string) (*Attachment, error) {
 		Filename:    fm.Value("filename"),
 		Description: fm.Value("description"),
 		Provenance:  fm.Value("provenance"),
+		Ordinal:     OrdinalOf(fm),
 	}
 	return attachment, nil
 }

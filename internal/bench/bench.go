@@ -100,6 +100,18 @@ type Hooks struct {
 	// card's lock and the read of that card's anchor, which is the gap a
 	// wrongly ordered scan would let a whole critical section through.
 	BeforeAnchorRead func(id string)
+	// BeforeOrdinalStamp runs before the ordinal migration writes an entity's
+	// anchor, and an error it returns stands for that write failing. A test
+	// reaches the migration's unwritable-entity path through this hook rather
+	// than through file permissions, because what a permission bit forbids is
+	// a question each operating system answers differently: the migration
+	// writes a temporary beside the anchor and renames it over, and on POSIX
+	// the right to replace a name belongs to the containing directory rather
+	// than to the file being replaced, so a read-only anchor is overwritten
+	// there and refused on Windows. The hook provokes one path on every
+	// platform, and the divergence itself is covered separately by a test that
+	// makes the directory unwritable and runs only where that means something.
+	BeforeOrdinalStamp func(id string) error
 }
 
 // Bench is an opened workbench: its definition, its states in flow order and

@@ -132,8 +132,12 @@ func walkBelowCard(card *Card, rest string) (string, error) {
 // entityBelow resolves a collection, or one entity of it named by identifier
 // or by one-based position. A kind narrows the collection first, which is
 // what a checklist alias such as oq selects on.
+//
+// Position counts in creation order rather than in the listing's ascending-hex
+// order, so `<card>/comment/2` names the second comment somebody wrote and
+// keeps naming it however the identifiers happened to fall.
 func entityBelow(collection, anchor string, tail []string, kind *string) (string, error) {
-	ids := ListIDs(collection)
+	ids := SortByOrdinal(collection, anchor, ListIDs(collection))
 	if kind != nil {
 		ids = filterByKind(collection, anchor, ids, *kind)
 	}

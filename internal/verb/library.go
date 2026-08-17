@@ -78,6 +78,9 @@ type Request struct {
 	// Finish asks check to complete or roll back the interrupted structural
 	// acts it reports, rather than only reporting them.
 	Finish bool
+	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
+	// of the workbench that predates the field, before it reports.
+	MigrateOrdinals bool
 }
 
 // CardView is the card as a response carries it.
@@ -303,7 +306,7 @@ func (l *Library) FromError(req *Request, err error) *Response {
 	}
 }
 
-// sortByArrival orders cards the way CORE-QUEUE-1 fixes.
+// sortByArrival orders cards the way CORE-QUEUE-3 fixes.
 func sortByArrival(cards []*bench.Card) {
 	sort.SliceStable(cards, func(i, j int) bool {
 		return bench.ByArrival(cards[i], cards[j])

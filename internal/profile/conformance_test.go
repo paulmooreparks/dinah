@@ -41,7 +41,7 @@ var outOfReach = map[string]string{
 	"CORE-CARD-8":  "a permission the interchange round trip exercises by carrying an undefined field",
 	"CORE-JSON-6":  "a permission the fixture exercises by carrying instructions, an operator flag and a capacity on its states",
 	"CORE-JSON-8":  "a permission for a tool holding definitions in some other form; this one holds them in the shape the interchange form describes",
-	"CORE-QUEUE-2": "a permission: v0 offers no order beside the fixed one, so there is nothing to keep available beside it",
+	"CORE-QUEUE-4": "a permission: v0 offers no order beside the fixed one, so there is nothing to keep available beside it",
 	"CORE-TEXT-4":  "a permission the human rendering exercises by translating tokens where a person reads them",
 	"CORE-BENCH-1": "a definition offered with no title is refused, and the offering surface is init --from, whose malformed refusal the interchange reader carries",
 	"CORE-BENCH-2": "the same surface: an empty state list is refused by the interchange reader",

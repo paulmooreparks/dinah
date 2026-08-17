@@ -237,6 +237,19 @@ func (s *session) renderHistory(events []bench.Event) {
 	}
 }
 
+// renderCheck prints what a check answered with: the account of the repair it
+// was asked to make first, then the findings.
+//
+// The stamped count is printed even when it is zero, because a migration that
+// found nothing to do and a migration that never ran are different answers to
+// the operator's question and he asked for one of them.
+func (s *session) renderCheck(report *verb.CheckReport) int {
+	if report.StampedOrdinals != nil {
+		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
+	}
+	return s.renderFindings(report.Findings)
+}
+
 // renderFindings prints what check found and returns the exit code: zero on a
 // clean bench, the refused code when anything was found.
 func (s *session) renderFindings(findings []bench.Finding) int {

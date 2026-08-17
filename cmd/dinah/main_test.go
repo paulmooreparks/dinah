@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
 	"dinah/internal/msg"
@@ -668,24 +669,25 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	}
 }
 
-// TestCheckDeclaresItsFinishFlagOnEverySurface asserts that the flag which
-// completes an interrupted structural act is declared once and projected
-// everywhere: the ratified help block's check line names it, the generated help
-// for the command names it from the same definition, and the argument parser
-// accepts it.
+// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the two flags
+// which repair rather than report are declared once and projected everywhere:
+// the ratified help block's check line names them, the generated help for the
+// command names them from the same definition, and the argument parser accepts
+// them. One completes an interrupted structural act, the other stamps the
+// creation ordinals a workbench written before the field carries none of.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
 // asserted against it by TestToolSurfaceIsTheProjection.
-func TestCheckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
+func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	fixture, err := os.ReadFile(filepath.Join("testdata", "help.txt"))
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] ") {
-		t.Error("the ratified block's check line does not name --finish")
+	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] ") {
+		t.Error("the ratified block's check line does not name both repair flags")
 	}
-	if got := verb.Usage("check"); got != "check [--finish]" {
+	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -694,10 +696,71 @@ func TestCheckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	if !strings.Contains(generated.out, "--finish") {
-		t.Errorf("the generated help does not name the flag:\n%s", generated.out)
+	for _, flag := range []string{"--finish", "--migrate-ordinals"} {
+		if !strings.Contains(generated.out, flag) {
+			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
+		}
+		if got := runCLI(t, root, "check", flag); got.code != 0 {
+			t.Errorf("check %s on a clean bench: %d %s", flag, got.code, got.errw)
+		}
 	}
-	if got := runCLI(t, root, "check", "--finish"); got.code != 0 {
-		t.Errorf("check --finish on a clean bench: %d %s", got.code, got.errw)
+}
+
+// TestTheOrdinalMigrationSaysWhatItGuessed asserts that the repair reports
+// itself on both the surfaces a caller reads: the human form prints what it
+// stamped and names the entity it could only place by the directory listing,
+// and the machine form carries the same count and the same finding.
+//
+// A repair that stamps in silence leaves a guess and a recovered fact looking
+// alike on disk forever, and the run is the last moment anybody can tell them
+// apart.
+func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	located := runCLI(t, root, "path", "fx-1")
+	if located.code != 0 {
+		t.Fatalf("path: %d %s", located.code, located.errw)
+	}
+	cardDir := filepath.Dir(strings.TrimSpace(located.out))
+
+	// A comment nobody journalled, carrying no ordinal, which is the shape
+	// every hand-created entity on a live workbench has.
+	anchor := filepath.Join(cardDir, "comments", "e00000000001", "comment.md")
+	if err := os.MkdirAll(filepath.Dir(anchor), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	body := "---\nts: 2026-08-17T09:00:00Z\nauthor: alka\n---\nBy hand.\n"
+	if err := os.WriteFile(anchor, []byte(body), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-ordinals")
+	if !strings.Contains(migrated.out, "Stamped 1 creation ordinal.") {
+		t.Errorf("the migration did not say what it stamped:\n%s", migrated.out)
+	}
+	if !strings.Contains(migrated.out, "e00000000001") || !strings.Contains(migrated.out, "guess") {
+		t.Errorf("the migration did not name the entity it guessed at:\n%s", migrated.out)
+	}
+
+	// A second hand-created comment, so the machine form has a stamp and a
+	// guess of its own to report rather than the empty answer a second run
+	// over the same workbench gives.
+	second := filepath.Join(cardDir, "comments", "e00000000002", "comment.md")
+	if err := os.MkdirAll(filepath.Dir(second), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(second, []byte(body), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	machine := runCLI(t, root, "--json", "check", "--migrate-ordinals")
+	flattened := strings.Join(strings.Fields(machine.out), "")
+	if !strings.Contains(flattened, `"stamped_ordinals":1`) {
+		t.Errorf("the machine form carries no stamped count:\n%s", machine.out)
+	}
+	if !strings.Contains(machine.out, bench.FindingOrdinalGuessed) || !strings.Contains(machine.out, "e00000000002") {
+		t.Errorf("the machine form does not name the entity it guessed at:\n%s", machine.out)
 	}
 }

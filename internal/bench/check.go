@@ -33,6 +33,16 @@ const (
 	FindingUnknownSubstate    = "check.unknown-substate"
 	FindingInterruptedAct     = "check.interrupted-act"
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
+	FindingOrdinalMissing     = "check.ordinal-missing"
+	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
+	// The last three are raised by the ordinal migration rather than by the
+	// checker, because each names something only the run that did the work
+	// can know: which entity it placed by guesswork, which card a lock kept
+	// it out of, and which entity it could not write to. None of them
+	// survives on disk for a later check to find.
+	FindingOrdinalGuessed    = "check.ordinal-guessed"
+	FindingOrdinalLocked     = "check.ordinal-locked"
+	FindingOrdinalUnwritable = "check.ordinal-unwritable"
 )
 
 // The directions an interrupted structural act is reported and finished in.
@@ -117,6 +127,7 @@ func (b *Bench) checkCard(card *Card) []Finding {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingLink, Detail: link.To})
 	}
+	findings = append(findings, checkOrdinals(card.Dir)...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
 		return findings
@@ -126,6 +137,39 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	}
 	if position := replayPosition(events); position != "" && position != card.State {
 		findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
+	}
+	return findings
+}
+
+// checkOrdinals applies the creation-ordinal invariants to every collection
+// below one card: each entity carries a positive ordinal, and no two entities
+// of one collection carry the same one.
+//
+// A gap in a sequence is not reported. Deletion is directory removal, so a gap
+// is the shape a deletion leaves, and closing it would renumber every entity
+// after the deleted one and move every positional reference already written
+// down. A duplicate is reported because it leaves a positional reference with
+// two answers.
+func checkOrdinals(cardDir string) []Finding {
+	var findings []Finding
+	for _, collection := range ordinalCollections(cardDir) {
+		seen := map[int]bool{}
+		for _, id := range ListIDs(collection.dir) {
+			path := filepath.Join(collection.dir, id, collection.anchor)
+			if !Exists(path) {
+				continue
+			}
+			ordinal := EntityOrdinal(collection.dir, id, collection.anchor)
+			if ordinal == 0 {
+				findings = append(findings, Finding{Path: path, Key: FindingOrdinalMissing, Detail: id})
+				continue
+			}
+			if seen[ordinal] {
+				findings = append(findings, Finding{Path: path, Key: FindingOrdinalDuplicate, Detail: id})
+				continue
+			}
+			seen[ordinal] = true
+		}
 	}
 	return findings
 }
