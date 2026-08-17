@@ -122,9 +122,8 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
 	for _, move := range moves {
-		lead := "  "
-		rest := pad(move.Title, 32) + s.token(move.Direction)
-		s.line(alignedRow(lead, move.Ref, 14, rest))
+		cells := []paddedCell{{move.Ref, 14}, {move.Title, 32}}
+		s.line(alignedRow("  ", cells, s.token(move.Direction)))
 	}
 }
 
@@ -162,22 +161,41 @@ func (s *session) yesNo(value bool) string {
 	return s.r.T("word.no")
 }
 
-// alignedRow composes a row whose one overflow-prone cell, a slug or a
-// catalog-served placeholder standing in for one, may run past its declared
-// column width: a workbench or state title is user-supplied and unbounded,
-// and the placeholder text is a full sentence fragment rather than a short
-// token. pad never truncates, so jamming the rest of the row onto the same
-// line would shift every later column out of alignment the moment the cell
-// reaches its width (Convention counterexamples: "A wording change that
-// outgrows the column it is rendered into"). When that happens the cell gets
-// the line to itself and the remaining fields move to a continuation line
-// indented to where the cell's column would have ended, rather than being
-// padded past it.
-func alignedRow(lead string, cell string, cellWidth int, rest string) string {
-	if len([]rune(cell)) >= cellWidth {
-		return lead + cell + "\n" + strings.Repeat(" ", len([]rune(lead))+cellWidth) + rest
+// paddedCell is one column of a row that may run past its declared width: a
+// slug, a title, a catalog token, or any other text sharing a line with a
+// column that follows it.
+type paddedCell struct {
+	text  string
+	width int
+}
+
+// alignedRow lays lead, then each cell padded to its own width in turn, then
+// an unpadded tail. A workbench or state title is user-supplied and
+// unbounded, and a catalog-served placeholder is a full sentence fragment
+// rather than a short token, so any cell may reach its column's width. pad
+// never truncates, so jamming the rest of the row onto the same line would
+// shift every later column out of alignment the moment a cell reaches its
+// width (Convention counterexamples: "A wording change that outgrows the
+// column it is rendered into"). Whenever a cell's rune count reaches its
+// width, that cell gets the rest of its line to itself and every field
+// after it, guarded cells included, resumes on a continuation line indented
+// to where the cell's own column would have ended. The check repeats
+// independently for each remaining cell, so two overflowing cells in one row
+// each get their own continuation line rather than only the first.
+func alignedRow(lead string, cells []paddedCell, tail string) string {
+	var b strings.Builder
+	b.WriteString(lead)
+	indent := len([]rune(lead))
+	for _, c := range cells {
+		if len([]rune(c.text)) >= c.width {
+			b.WriteString(c.text + "\n" + strings.Repeat(" ", indent+c.width))
+		} else {
+			b.WriteString(pad(c.text, c.width))
+		}
+		indent += c.width
 	}
-	return lead + pad(cell, cellWidth) + rest
+	b.WriteString(tail)
+	return b.String()
 }
 
 // renderStates prints the flow in order with each station's occupancy.
@@ -187,12 +205,18 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.Capacity > 0 {
 			count += "/" + strconv.Itoa(state.Capacity)
 		}
-		rest := pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
+		tail := ""
 		if state.OperatorOwned {
-			rest += s.r.T("states.operator-owned")
+			tail = s.r.T("states.operator-owned")
 		}
 		lead := "  " + pad(state.ID, 14)
-		s.line(alignedRow(lead, s.slugCell(state.Slug), 24, rest))
+		cells := []paddedCell{
+			{s.slugCell(state.Slug), 24},
+			{state.Title, 32},
+			{s.token(state.Kind), 10},
+			{count, 8},
+		}
+		s.line(alignedRow(lead, cells, tail))
 	}
 }
 
@@ -203,7 +227,9 @@ func (s *session) renderListing(listing *verb.Listing) {
 		return
 	}
 	for _, card := range listing.Cards {
-		s.line("  " + pad(card.Ref, 14) + pad(s.token(card.Substate), 10) + card.Title)
+		lead := "  " + pad(card.Ref, 14)
+		cells := []paddedCell{{s.token(card.Substate), 10}}
+		s.line(alignedRow(lead, cells, card.Title))
 	}
 }
 
@@ -213,7 +239,9 @@ func (s *session) renderListing(listing *verb.Listing) {
 // to whether anybody has ever set the key.
 func (s *session) renderSettings(settings []verb.SettingView) {
 	for _, view := range settings {
-		s.line("  " + pad(view.Key, 12) + pad(view.Value, 24) + s.token(view.Source))
+		lead := "  " + pad(view.Key, 12)
+		cells := []paddedCell{{view.Value, 24}}
+		s.line(alignedRow(lead, cells, s.token(view.Source)))
 	}
 }
 
@@ -239,8 +267,8 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
 	lines := make([]string, 0, len(rows))
 	for _, row := range rows {
-		lead := "  " + pad(row.Title, 32)
-		lines = append(lines, alignedRow(lead, s.slugCell(row.Slug), 16, row.Path))
+		cells := []paddedCell{{row.Title, 32}, {s.slugCell(row.Slug), 16}}
+		lines = append(lines, alignedRow("  ", cells, row.Path))
 	}
 	return lines
 }
@@ -261,10 +289,11 @@ func (s *session) slugCell(slug string) string {
 func (s *session) renderOffers(offers []verb.Offer) {
 	for _, offer := range offers {
 		if offer.Card == nil {
-			s.line("  " + pad(offer.Title, 32) + s.r.T("next.none"))
+			s.line(alignedRow("  ", []paddedCell{{offer.Title, 32}}, s.r.T("next.none")))
 			continue
 		}
-		s.line("  " + pad(offer.Title, 32) + pad(offer.Card.Ref, 14) + offer.Card.Title)
+		cells := []paddedCell{{offer.Title, 32}, {offer.Card.Ref, 14}}
+		s.line(alignedRow("  ", cells, offer.Card.Title))
 	}
 }
 
@@ -297,19 +326,21 @@ func (s *session) renderDetail(detail *verb.Detail) {
 // stands, so the titles printed are the ones the act itself carries.
 func (s *session) renderHistory(events []bench.Event) {
 	for _, ev := range events {
-		line := "  " + pad(ev.TS, 22) + pad(s.token(ev.Event), 14) + pad(ev.Actor, 16)
+		var tail string
 		switch ev.Event {
 		case contract.EventMoved:
-			line += s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
+			tail = s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
 			if ev.Override {
-				line += " " + s.r.T("log.override")
+				tail += " " + s.r.T("log.override")
 			}
 		case contract.EventBlocked:
-			line += ev.Reason
+			tail = ev.Reason
 		case contract.EventCreated:
-			line += ev.Title
+			tail = ev.Title
 		}
-		s.line(line)
+		lead := "  " + pad(ev.TS, 22)
+		cells := []paddedCell{{s.token(ev.Event), 14}, {ev.Actor, 16}}
+		s.line(alignedRow(lead, cells, tail))
 	}
 }
 
@@ -323,7 +354,8 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedSlugs {
 		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
 		for _, assignment := range report.AssignedSlugs {
-			s.line("  " + pad(assignment.Slug, 24) + assignment.Title)
+			cells := []paddedCell{{assignment.Slug, 24}}
+			s.line(alignedRow("  ", cells, assignment.Title))
 		}
 		if report.AssignedWorkbenchSlug != nil {
 			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))

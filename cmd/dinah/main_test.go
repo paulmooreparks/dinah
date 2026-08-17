@@ -2953,44 +2953,190 @@ func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
 	}
 }
 
-// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's two cases: a
-// cell under its column width pads in place, exactly as the plain pad-based
-// row it replaced did, and a cell that reaches or exceeds its column width
-// gets the line to itself with the remaining fields moved to a continuation
-// line indented to where the column would have ended, rather than the
+// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's cases: a cell
+// under its column width pads in place, exactly as the plain pad-based row
+// it replaced did, and a cell that reaches or exceeds its column width gets
+// the line to itself with the remaining fields moved to a continuation line
+// indented to where the column would have ended, rather than the
 // non-truncating pad pushing every later field out of alignment (Convention
 // counterexamples: "A wording change that outgrows the column it is
-// rendered into"). Covers both a catalog placeholder and a long real slug,
-// since both are the cells this helper exists for.
+// rendered into"). Covers a catalog placeholder, a long real slug, and a row
+// where two cells overflow in turn, each producing its own continuation
+// line at its own column's offset.
 func TestAlignedRowBreaksOnAnOverrunningCell(t *testing.T) {
 	cases := []struct {
-		name string
-		cell string
-		want string
+		name  string
+		cells []paddedCell
+		want  string
 	}{
 		{
-			name: "fits",
-			cell: "fx",
-			want: "  fx        rest",
+			name:  "fits",
+			cells: []paddedCell{{"fx", 10}},
+			want:  "  fx        rest",
 		},
 		{
-			name: "placeholder overruns",
-			cell: "no slug (run check --migrate-slugs)",
-			want: "  no slug (run check --migrate-slugs)\n            rest",
+			name:  "placeholder overruns",
+			cells: []paddedCell{{"no slug (run check --migrate-slugs)", 10}},
+			want:  "  no slug (run check --migrate-slugs)\n            rest",
 		},
 		{
-			name: "long real slug overruns",
-			cell: "aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior",
-			want: "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
+			name:  "long real slug overruns",
+			cells: []paddedCell{{"aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior", 10}},
+			want:  "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
+		},
+		{
+			name: "two cells overflow in the same row",
+			cells: []paddedCell{
+				{"aconsiderablylongworkbenchname", 10},
+				{"anotherlongoverrunningcellvalue", 8},
+			},
+			want: "  aconsiderablylongworkbenchname\n            anotherlongoverrunningcellvalue\n                    rest",
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := alignedRow("  ", c.cell, 10, "rest")
+			got := alignedRow("  ", c.cells, "rest")
 			if got != c.want {
-				t.Errorf("alignedRow(%q, 10, %q):\n got  %q\n want %q", c.cell, "rest", got, c.want)
+				t.Errorf("alignedRow(%q, %q):\n got  %q\n want %q", c.cells, "rest", got, c.want)
 			}
 		})
+	}
+}
+
+// TestPerCommandHelpBreaksAnOverrunningRefusalName asserts dinah-81's AC-3:
+// dinah help move, dinah help archive, and dinah help claim each place a
+// checks-column entry whose catalog key reaches the 52-rune column on its
+// own indented continuation line, with the refusal name starting that line
+// rather than sitting one space past an overrunning check sentence.
+func TestPerCommandHelpBreaksAnOverrunningRefusalName(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+
+	cases := []struct {
+		name string
+		key  string
+	}{
+		{"move", "check.move.7"},
+		{"archive", "check.archive.1"},
+		{"claim", "check.workbench.1"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := runCLI(t, container, "help", c.name)
+			if got.code != 0 {
+				t.Fatalf("help %s: %d %s", c.name, got.code, got.errw)
+			}
+			entry, ok := msg.BaseEntry(c.key)
+			if !ok || entry.Text == "" {
+				t.Fatalf("catalog carries no %s", c.key)
+			}
+			sentence := entry.Text
+			var refusal string
+			for _, check := range verb.Checks(c.name) {
+				if check.Key == c.key {
+					refusal = check.Refusal
+				}
+			}
+			if refusal == "" {
+				t.Fatalf("%s carries no check named %s", c.name, c.key)
+			}
+			glued := sentence + " " + refusal
+			if strings.Contains(got.out, glued) {
+				t.Errorf("%s: the refusal name still sits one space after the check sentence:\n%s", c.key, got.out)
+			}
+			lines := strings.Split(got.out, "\n")
+			found := false
+			for i, line := range lines {
+				if !strings.Contains(line, sentence) {
+					continue
+				}
+				found = true
+				if i+1 >= len(lines) || strings.TrimSpace(lines[i+1]) != refusal {
+					t.Errorf("%s: wanted a continuation line reading exactly %q, got %q", c.key, refusal, lines[min(i+1, len(lines)-1)])
+				}
+			}
+			if !found {
+				t.Fatalf("%s: help output never showed the check sentence:\n%s", c.key, got.out)
+			}
+		})
+	}
+}
+
+// TestAttachmentHistoryEventsAlignTheirActorColumn asserts dinah-81's AC-4:
+// a card history log carrying an attachment_replaced or attachment_removed
+// event, whose 19- and 18-rune event tokens both reach the 14-rune event
+// column, renders the actor field on its own continuation line at the
+// column's designed offset rather than glued one space past the event
+// token.
+func TestAttachmentHistoryEventsAlignTheirActorColumn(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "tester")
+
+	root := filepath.Join(container, "workbench")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, root, "init", "--operator", "tester"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	benchRoot := soleBenchDir(t, root)
+
+	ref := addCard(t, benchRoot, "carries an attachment")
+
+	source := filepath.Join(container, "notes.txt")
+	if err := os.WriteFile(source, []byte("the bytes"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if got := runCLI(t, benchRoot, "attach", ref, source); got.code != 0 {
+		t.Fatalf("attach: %d %s", got.code, got.errw)
+	}
+
+	replacement := filepath.Join(container, "revised.txt")
+	if err := os.WriteFile(replacement, []byte("other bytes"), 0o644); err != nil {
+		t.Fatalf("write replacement: %v", err)
+	}
+	if got := runCLI(t, benchRoot, "attach", ref+"/attachments/1", replacement, "--replace"); got.code != 0 {
+		t.Fatalf("replace: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, benchRoot, "delete", ref+"/attachments/1", "--yes"); got.code != 0 {
+		t.Fatalf("delete attachment: %d %s", got.code, got.errw)
+	}
+
+	got := runCLI(t, benchRoot, "log", ref)
+	if got.code != 0 {
+		t.Fatalf("log: %d %s", got.code, got.errw)
+	}
+
+	replacedEntry, replacedOK := msg.BaseEntry("token.attachment_replaced")
+	removedEntry, removedOK := msg.BaseEntry("token.attachment_removed")
+	if !replacedOK || !removedOK {
+		t.Fatalf("catalog carries no token for an attachment history event")
+	}
+	for _, token := range []string{replacedEntry.Text, removedEntry.Text} {
+		lines := strings.Split(got.out, "\n")
+		found := false
+		for i, line := range lines {
+			if !strings.Contains(line, token) {
+				continue
+			}
+			found = true
+			if i+1 >= len(lines) {
+				t.Fatalf("%q: wanted a continuation line carrying the actor, got none:\n%s", token, got.out)
+			}
+			next := lines[i+1]
+			if !strings.Contains(next, "tester") {
+				t.Errorf("%q: wanted the actor on the continuation line, got %q", token, next)
+			}
+			indent := len(next) - len(strings.TrimLeft(next, " "))
+			if indent != len("  ")+22+14 {
+				t.Errorf("%q: actor continuation line indented to %d, wanted %d:\n%q", token, indent, len("  ")+22+14, next)
+			}
+		}
+		if !found {
+			t.Errorf("log never showed the event token %q:\n%s", token, got.out)
+		}
 	}
 }
 
