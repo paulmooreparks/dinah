@@ -165,8 +165,12 @@
       "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
       "context": "A check finding: a ready or blocked card carries no holder."
     },
+    "check.ignored-anchor": {
+      "text": "यहां का workbench.md न तो profile, न format, न states रखता है, इसलिए इसे Dinah वर्कबेंच नहीं माना गया और खोज इसे छोड़ आगे बढ़ गई",
+      "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored."
+    },
     "check.init.1": {
-      "text": "निर्देशिका में पहले से वर्कबेंच नहीं",
+      "text": "इस सटीक पथ पर कोई workbench.md फ़ाइल नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.2": {
@@ -534,7 +538,7 @@
       "context": "The heading above a command's ordered precondition list in its own help."
     },
     "help.tagline": {
-      "text": "डिना काम को चलता रखती है।",
+      "text": "Dinah काम को चलता रखती है।",
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
@@ -598,7 +602,7 @@
       "context": "The sentence printed after the refusal name dinah.ambiguous-workbench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
     },
     "refusal.dinah.exists": {
-      "text": "{detail} में पहले से एक वर्कबेंच है",
+      "text": "{detail} में पहले से एक workbench.md है; उसे किनारे रखें, या कोई और डायरेक्टरी चुनें",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.last-state": {
@@ -612,6 +616,10 @@
     "refusal.dinah.locked": {
       "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.no-configured-workbench": {
+      "text": "वर्कबेंच सेटिंग {detail} बताती है, और उसमें कोई workbench.md नहीं है; `dinah config set workbench <path>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
+      "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried."
     },
     "refusal.dinah.no-workbench": {
       "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
@@ -648,6 +656,10 @@
     "refusal.dinah.unknown-path": {
       "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unreadable-workbench": {
+      "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी; इसकी अनुमतियां ठीक करें, या --workbench को ऐसी डायरेक्टरी पर सेट करें जिसे खोज को खोलना न पड़े",
+      "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."
     },
     "refusal.dinah.usage": {
       "text": "{detail} समझ नहीं आया; कमांड की सूची के लिए dinah help चलाएँ",
@@ -746,8 +758,8 @@
       "context": "The label above the cards this actor holds."
     },
     "status.workbench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered."
+      "text": "{title}  ({root})  [{source}]",
+      "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it."
     },
     "token.active": {
       "text": "सक्रिय",
@@ -856,6 +868,10 @@
     "token.restored": {
       "text": "पुनर्स्थापित",
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.search": {
+      "text": "खोज",
+      "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling."
     },
     "token.unblocked": {
       "text": "बाधा हटी",

@@ -105,13 +105,26 @@ const (
 	// left, which CORE-BENCH-2 forbids the workbench from ending up with
 	// none of.
 	LastState = LayerPrefix + "last-state"
+	// UnreadableBench is a workbench.md the discovery walk found and could
+	// not read. The walk stops there rather than climbing past it or
+	// reporting it as absent, because a file it could not open might be the
+	// real workbench.
+	UnreadableBench = LayerPrefix + "unreadable-workbench"
+	// NoConfiguredWorkbench is the workbench setting naming a path that no
+	// longer carries a workbench.md, consulted only once the search has
+	// found nothing local to answer with. It is a distinct name from
+	// NoWorkbench, which the override branch already carries for the same
+	// underlying condition, because the two need different sentences: one
+	// names what the caller just typed, the other names what was stored
+	// earlier and may have gone stale with nobody around to notice.
+	NoConfiguredWorkbench = LayerPrefix + "no-configured-workbench"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench, LastState,
+	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

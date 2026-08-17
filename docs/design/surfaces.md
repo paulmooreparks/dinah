@@ -129,6 +129,15 @@ stitched sentence-catalog essay does not. Regional overlays and per-token
 fallback apply to the first two layers as already specified in the format
 document.
 
+Dinah's own name sits outside this. The product name stays in Latin
+script in every language and every layer above, and a translator never
+transliterates it into a target script. A catalog entry that names the
+product renders every surrounding word and leaves the name as it is. The
+name is said DYE-nuh, and a document introducing the product to a new
+reader may gloss the pronunciation beside the Latin spelling; that gloss
+belongs to documentation and does not license a respelled name inside a
+catalog string.
+
 ### Template libraries by URL
 
 A template is just a workbench directory, so the on-disk format is already the

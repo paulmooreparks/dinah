@@ -127,7 +127,11 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.workbench", "title", status.Bench, "root", status.Root))
+	s.line(s.r.T("status.workbench",
+		"title", status.Bench,
+		"root", status.Root,
+		"source", s.token(status.WorkbenchSource),
+	))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
 	s.renderStates(status.States)

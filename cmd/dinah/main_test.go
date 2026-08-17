@@ -43,6 +43,36 @@ type invocation struct {
 	errw string
 }
 
+// resolvedDir returns the path the head itself resolves as its own working
+// directory once it has chdir'd into dir: this test's own os.Getwd() call,
+// made from dir, which is the exact mechanism runCLI uses and main.go's
+// session captures right after. A path built by joining onto the raw
+// t.TempDir() value can spell the same directory differently than what a
+// running head reports for it: macOS's default temporary directory sits
+// behind a symlink, and a CI-provisioned Windows temp directory can already
+// be handed out as an 8.3 short name that a generic symlink-resolution pass
+// would "helpfully" expand back to its long form, which is itself a second
+// mismatch of the same kind. Reproducing the head's own os.Chdir/os.Getwd
+// sequence, rather than guessing at whichever platform quirk explains a
+// given mismatch, is what keeps this correct on every platform without
+// asserting anything about which quirk is in play. dir must already exist.
+func resolvedDir(t *testing.T, dir string) string {
+	t.Helper()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir into %q: %v", dir, err)
+	}
+	defer os.Chdir(previous)
+	resolved, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	return resolved
+}
+
 // runCLI runs the head in a directory, with the streams captured.
 func runCLI(t *testing.T, dir string, argv ...string) invocation {
 	t.Helper()
@@ -78,6 +108,20 @@ func newBench(t *testing.T) string {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
 	return root
+}
+
+// soleBenchDir resolves the one workbench directory a container built by
+// newBench actually holds, which sits under container's own .dinah rather
+// than at container itself since dinah-76. Tests that hand a workbench path
+// to --workbench or to `config set workbench`, which stat the directory
+// itself rather than searching it, need this rather than the container.
+func soleBenchDir(t *testing.T, container string) string {
+	t.Helper()
+	ids := bench.ListIDs(filepath.Join(container, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("wanted one workbench in the container, got %v", ids)
+	}
+	return filepath.Join(container, bench.UserBaseName, ids[0])
 }
 
 // TestHelpBlockIsTheRatifiedSurface asserts that `dinah` with no arguments
@@ -291,8 +335,8 @@ func TestInitRefusesADirectoryCarryingABareWorkbench(t *testing.T) {
 	if leading != contract.Exists {
 		t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
 	}
-	if !strings.Contains(got.errw, "already holds a workbench") {
-		t.Errorf("the refusal sentence: wanted %q in %q", "already holds a workbench", got.errw)
+	if !strings.Contains(got.errw, "already carries a workbench.md") {
+		t.Errorf("the refusal sentence: wanted %q in %q", "already carries a workbench.md", got.errw)
 	}
 	if bench.Exists(filepath.Join(root, bench.UserBaseName)) {
 		t.Error("the refused init left a container behind")
@@ -310,7 +354,7 @@ func TestInitHelpKeepsItsRefusalList(t *testing.T) {
 	}
 	for _, carried := range []string{
 		"create a workbench here, optionally from a template",
-		"the directory holds no workbench already",
+		"no workbench.md file sits at this exact path",
 		contract.Exists,
 		"the source definition carries what the profile requires",
 	} {
@@ -1093,6 +1137,284 @@ func TestConfigGetAndSetAreUnchanged(t *testing.T) {
 	if leading := strings.SplitN(strings.TrimSpace(stray.errw), " ", 2)[0]; leading != contract.Usage {
 		t.Errorf("a stray word: wanted the leading token %s, got %q", contract.Usage, stray.errw)
 	}
+}
+
+// TestConfigSetWorkbenchStoresAnAbsolutePathAndClears asserts dinah-70's
+// write-time behaviour: a relative path handed to `config set workbench`
+// is stored as the absolute path it named from the directory the command
+// ran in, and a bare `config set workbench` with no value clears it, the
+// same as every other key.
+func TestConfigSetWorkbenchStoresAnAbsolutePathAndClears(t *testing.T) {
+	_, dir := settingsHome(t)
+	target := filepath.Join(dir, "elsewhere")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// Resolved after creation, and after the mkdir above, so it matches the
+	// path the head resolves through its own working directory rather than
+	// the raw value t.TempDir() handed this test (see resolvedDir).
+	wantTarget := resolvedDir(t, target)
+
+	if got := runCLI(t, dir, "config", "set", "workbench", "elsewhere"); got.code != 0 {
+		t.Fatalf("config set: %d %s", got.code, got.errw)
+	}
+	stored := runCLI(t, dir, "config", "get", "workbench")
+	if stored.code != 0 {
+		t.Fatalf("config get: %d %s", stored.code, stored.errw)
+	}
+	if got := strings.TrimSpace(stored.out); got != wantTarget {
+		t.Errorf("a relative path should be stored absolute, wanted %q, got %q", wantTarget, got)
+	}
+
+	if got := runCLI(t, dir, "config", "set", "workbench"); got.code != 0 {
+		t.Fatalf("config set with no value: %d %s", got.code, got.errw)
+	}
+	cleared := runCLI(t, dir, "config", "get", "workbench")
+	if cleared.code != 0 {
+		t.Fatalf("config get: %d %s", cleared.code, cleared.errw)
+	}
+	if got := strings.TrimSpace(cleared.out); got != "" {
+		t.Errorf("clearing the setting: wanted an empty value, got %q", got)
+	}
+}
+
+// TestConfiguredWorkbenchAnswersOnlyWhereDiscoveryRefuses asserts dinah-70's
+// placement end to end, through the head rather than the library: the
+// configured default opens a workbench standing anywhere on the filesystem
+// when nothing local is reachable, a local workbench always wins over it, an
+// ambiguous base still refuses with the configured default sitting there
+// unconsulted, and a configured path gone stale refuses by its own name
+// instead of falling through to the generic exhausted-search refusal.
+func TestConfiguredWorkbenchAnswersOnlyWhereDiscoveryRefuses(t *testing.T) {
+	t.Run("opens the configured workbench when nothing local is reachable", func(t *testing.T) {
+		here := emptyTree(t)
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Configured")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(elsewhere, "cf", "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+		if got := runCLI(t, here, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, here, "status")
+		if reported.code != 0 {
+			t.Fatalf("status: %d %s", reported.code, reported.errw)
+		}
+		if !strings.Contains(reported.out, "Configured") {
+			t.Errorf("status should open the configured workbench, got:\n%s", reported.out)
+		}
+	})
+
+	t.Run("a local workbench wins over a workbench configured elsewhere", func(t *testing.T) {
+		root := newBench(t)
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Elsewhere")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(elsewhere, "el", "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+		if got := runCLI(t, root, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, root, "status")
+		if reported.code != 0 {
+			t.Fatalf("status: %d %s", reported.code, reported.errw)
+		}
+		if strings.Contains(reported.out, "Elsewhere") {
+			t.Errorf("the local workbench should win over the configured default, got:\n%s", reported.out)
+		}
+	})
+
+	t.Run("an ambiguous base still refuses with a workbench configured", func(t *testing.T) {
+		tree := emptyTree(t)
+		rooms := map[string]string{"d00000000001": "one", "d00000000002": "two"}
+		for id, slug := range rooms {
+			room := filepath.Join(tree, ".dinah", id)
+			definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, id)))
+			if err != nil {
+				t.Fatalf("definition: %v", err)
+			}
+			if err := bench.Instantiate(room, slug, "alka", definition); err != nil {
+				t.Fatalf("instantiate: %v", err)
+			}
+		}
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Configured")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(elsewhere, "cf", "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+		if got := runCLI(t, tree, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, tree, "status")
+		if reported.code != 2 {
+			t.Fatalf("an ambiguous base with a workbench configured: wanted 2, got %d (%s)", reported.code, reported.out)
+		}
+		leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
+		if leading != contract.AmbiguousWorkbench {
+			t.Errorf("leading token: wanted %s, got %q (the configured default should not break the tie)", contract.AmbiguousWorkbench, reported.errw)
+		}
+	})
+
+	t.Run("a stale configured workbench refuses by its own name", func(t *testing.T) {
+		here := emptyTree(t)
+		gone := filepath.Join(t.TempDir(), "gone")
+		if err := os.MkdirAll(gone, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if got := runCLI(t, here, "config", "set", "workbench", gone); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, here, "status")
+		if reported.code != 2 {
+			t.Fatalf("a stale configured default: wanted 2, got %d (%s)", reported.code, reported.out)
+		}
+		leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
+		if leading != contract.NoConfiguredWorkbench {
+			t.Errorf("leading token: wanted %s, got %q (a fall-through to %s would be the silent bug this guards against)", contract.NoConfiguredWorkbench, reported.errw, contract.NoWorkbenchFound)
+		}
+		if !strings.Contains(reported.errw, gone) {
+			t.Errorf("the refusal should name the configured path, got %q", reported.errw)
+		}
+		if !strings.Contains(reported.errw, "config set workbench") {
+			t.Errorf("the refusal should say how to fix it, got %q", reported.errw)
+		}
+	})
+}
+
+// TestStatusNamesTheRungThatAnswered asserts dinah-70's own open question:
+// `dinah status` names which rung resolved the active workbench, on both the
+// rendered line and the --json form, and the rendered word goes through the
+// message catalog rather than a raw internal token.
+func TestStatusNamesTheRungThatAnswered(t *testing.T) {
+	t.Run("search", func(t *testing.T) {
+		root := newBench(t)
+		reported := runCLI(t, root, "status")
+		if !strings.Contains(reported.out, "[search]") {
+			t.Errorf("the rendered line should name the search rung, got:\n%s", reported.out)
+		}
+		machine := runCLI(t, root, "--json", "status")
+		var status verb.Status
+		if err := json.Unmarshal([]byte(machine.out), &status); err != nil {
+			t.Fatalf("the machine form should parse: %v\n%s", err, machine.out)
+		}
+		if status.WorkbenchSource != bench.SourceSearch {
+			t.Errorf("workbench_source: wanted %s, got %q", bench.SourceSearch, status.WorkbenchSource)
+		}
+		// The new rung goes through the message catalog like every other
+		// one, rather than leaking a raw internal token when the reader's
+		// language is not English.
+		hindi := runCLI(t, root, "--lang", "hi", "status")
+		if hindi.code != 0 {
+			t.Fatalf("status --lang hi: %d %s", hindi.code, hindi.errw)
+		}
+		if !strings.Contains(hindi.out, "[खोज]") {
+			t.Errorf("the search rung's Hindi rendering should reach the status line, got:\n%s", hindi.out)
+		}
+	})
+
+	t.Run("flag", func(t *testing.T) {
+		actual := soleBenchDir(t, newBench(t))
+		reported := runCLI(t, t.TempDir(), "status", "--workbench", actual)
+		if !strings.Contains(reported.out, "[flag]") {
+			t.Errorf("the rendered line should name the flag rung, got:\n%s", reported.out)
+		}
+	})
+
+	t.Run("config, and rendered in another language rather than the raw token", func(t *testing.T) {
+		here := emptyTree(t)
+		configured := soleBenchDir(t, newBench(t))
+		if got := runCLI(t, here, "config", "set", "workbench", configured); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, here, "status")
+		if !strings.Contains(reported.out, "[config]") {
+			t.Errorf("the rendered line should name the config rung, got:\n%s", reported.out)
+		}
+		machine := runCLI(t, here, "--json", "status")
+		var status verb.Status
+		if err := json.Unmarshal([]byte(machine.out), &status); err != nil {
+			t.Fatalf("the machine form should parse: %v\n%s", err, machine.out)
+		}
+		if status.WorkbenchSource != bench.SourceConfig {
+			t.Errorf("workbench_source: wanted %s, got %q", bench.SourceConfig, status.WorkbenchSource)
+		}
+
+		hindi := runCLI(t, here, "--lang", "hi", "status")
+		if hindi.code != 0 {
+			t.Fatalf("status --lang hi: %d %s", hindi.code, hindi.errw)
+		}
+		if !strings.Contains(hindi.out, "[कॉन्फ़िग]") {
+			t.Errorf("the config rung's Hindi rendering should reach the status line, got:\n%s", hindi.out)
+		}
+	})
+}
+
+// TestConfigListingReportsTheWorkbenchRow asserts AC-10's own shape: the
+// listing's workbench row carries the same resolved value and rung a real
+// status would open, and an empty value with the unset source when nothing
+// answers, matching the actor row's existing convention.
+func TestConfigListingReportsTheWorkbenchRow(t *testing.T) {
+	t.Run("nothing answers", func(t *testing.T) {
+		here := emptyTree(t)
+		rows := settingRows(t, runCLI(t, here, "--json", "config"))
+		row, ok := rows["workbench"]
+		if !ok {
+			t.Fatalf("the listing drops the workbench key")
+		}
+		if row.Value != "" || row.Source != bench.SourceUnset {
+			t.Errorf("nothing reachable and nothing configured: wanted an empty value at %s, got %+v", bench.SourceUnset, row)
+		}
+	})
+
+	t.Run("a configured default answers", func(t *testing.T) {
+		here := emptyTree(t)
+		target := soleBenchDir(t, newBench(t))
+		if got := runCLI(t, here, "config", "set", "workbench", target); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		rows := settingRows(t, runCLI(t, here, "--json", "config"))
+		row := rows["workbench"]
+		if row.Value != target || row.Source != bench.SourceConfig {
+			t.Errorf("wanted %q at %s, got %+v", target, bench.SourceConfig, row)
+		}
+	})
+
+	t.Run("a local workbench answers ahead of a configured default", func(t *testing.T) {
+		container := newBench(t)
+		// Resolved to match what the head's own search reports for the same
+		// directory once it has chdir'd into it (see resolvedDir).
+		actual := resolvedDir(t, soleBenchDir(t, container))
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if got := runCLI(t, container, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		rows := settingRows(t, runCLI(t, container, "--json", "config"))
+		row := rows["workbench"]
+		if row.Value != actual || row.Source != bench.SourceSearch {
+			t.Errorf("wanted the local workbench %q at %s, got %+v", actual, bench.SourceSearch, row)
+		}
+	})
 }
 
 // TestTheOrdinalMigrationSaysWhatItGuessed asserts that the repair reports
@@ -1957,5 +2279,83 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	ignored := runCLI(t, tree, "workbenches")
 	if listed := listedRows(t, ignored); sameDirs(t, listed, []string{rooms[1]}) {
 		t.Error("the retired variable should select nothing, and it selected a workbench")
+	}
+}
+
+// TestAForeignWorkbenchFileIsPassedOverByTheClimb asserts AC-7: a directory
+// holding a workbench.md that carries none of profile, format or states,
+// sitting below a real workbench, no longer stops the search. `dinah
+// workbenches`, run from inside the foreign-holding directory, lists the real
+// ancestor workbench by title and does not list the foreign directory.
+func TestAForeignWorkbenchFileIsPassedOverByTheClimb(t *testing.T) {
+	root := newBench(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.MkdirAll(notes, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(notes, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, notes, "workbenches")
+	if got.code != 0 {
+		t.Fatalf("a foreign workbench.md should not stop the search, got %d %q", got.code, got.errw)
+	}
+	listed := listedRows(t, got)
+	if !sameDirs(t, listed, []string{benchDir(t, root)}) {
+		t.Errorf("wanted only the real ancestor workbench, got %v", listed)
+	}
+	if strings.Contains(got.out, "notes") {
+		t.Errorf("the foreign directory should not be listed, got %q", got.out)
+	}
+}
+
+// TestCheckReportsTheForeignAnchorsAWalkPassedOver asserts the CLI half of
+// AC-8: `dinah check`, run against a bench resolved through a foreign
+// workbench.md, reports a check.ignored-anchor finding naming that file's
+// path.
+func TestCheckReportsTheForeignAnchorsAWalkPassedOver(t *testing.T) {
+	root := newBench(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.MkdirAll(notes, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(notes, "workbench.md")
+	if err := os.WriteFile(foreign, []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, notes, "check")
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a workbench carrying a finding exits refused, got %d %q", got.code, got.errw)
+	}
+	catalog := msg.For(msg.Base)
+	if !strings.Contains(got.out, catalog.T(bench.FindingIgnoredAnchor)) || !strings.Contains(got.out, foreign) {
+		t.Errorf("wanted a check.ignored-anchor finding naming %q, got %q", foreign, got.out)
+	}
+}
+
+// TestTheOverrideSkipsRecognitionAndLeavesItToOpen asserts AC-9: --workbench
+// and DINAH_WORKBENCH test only file presence, unchanged. A recognition
+// problem in the pointed-at file (no frontmatter carrying profile, format or
+// states at all) is reported by Open's existing malformed refusal rather than
+// by a refusal the walk's new recognition test would raise.
+func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
+	root := newBench(t)
+	foreign := filepath.Join(root, "notes")
+	if err := os.MkdirAll(foreign, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(foreign, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "show", "--workbench", foreign)
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Malformed {
+		t.Errorf("leading token: wanted %s, got %q (%s)", contract.Malformed, leading, got.errw)
 	}
 }

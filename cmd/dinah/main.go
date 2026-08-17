@@ -49,8 +49,14 @@ type session struct {
 	actor string
 	// benchFlag is the bench named by --workbench or DINAH_WORKBENCH.
 	benchFlag string
+	// benchFlagSource names which of the two named it, SourceFlag or
+	// SourceEnvironment, empty when neither did.
+	benchFlagSource string
 	// cwd is where bench discovery starts.
 	cwd string
+	// workbenchSource names the rung that resolved the active workbench for
+	// this invocation, set by open() once discovery has run.
+	workbenchSource string
 }
 
 func main() {
@@ -74,18 +80,23 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	}
 	home := bench.Home()
 	cfg := bench.LoadConfig(home)
+	benchFlag, benchFlagSource := bench.Resolve(
+		bench.Layer{Source: bench.SourceFlag, Value: parsed.value("workbench")},
+		bench.Layer{Source: bench.SourceEnvironment, Value: os.Getenv("DINAH_WORKBENCH")},
+	)
 	s := &session{
-		out:        out,
-		errw:       errw,
-		in:         in,
-		r:          msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
-		json:       parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
-		quiet:      parsed.has("quiet"),
-		home:       home,
-		nativeHome: bench.NativeHome(),
-		cfg:        cfg,
-		benchFlag:  bench.Ladder(parsed.value("workbench"), os.Getenv("DINAH_WORKBENCH")),
-		cwd:        cwd,
+		out:             out,
+		errw:            errw,
+		in:              in,
+		r:               msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
+		json:            parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
+		quiet:           parsed.has("quiet"),
+		home:            home,
+		nativeHome:      bench.NativeHome(),
+		cfg:             cfg,
+		benchFlag:       benchFlag,
+		benchFlagSource: benchFlagSource,
+		cwd:             cwd,
 	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
@@ -213,14 +224,23 @@ func (s *session) reportError(err error) int {
 
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
-	root, err := bench.Discover(s.cwd, s.benchFlag, s.home, s.nativeHome)
+	root, source, passed, err := bench.DiscoverSource(
+		s.cwd,
+		s.benchFlag,
+		s.benchFlagSource,
+		s.home,
+		s.nativeHome,
+		s.cfg.Get("workbench"),
+	)
 	if err != nil {
 		return nil, err
 	}
+	s.workbenchSource = source
 	opened, err := bench.Open(root)
 	if err != nil {
 		return nil, err
 	}
+	opened.Passed = passed
 	return verb.New(opened, s.home), nil
 }
 
