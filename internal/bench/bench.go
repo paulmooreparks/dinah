@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -252,6 +251,14 @@ type search struct {
 // the fallback half alone. Relocating the user base therefore relocates it
 // for a working directory nested under the real home too, which is what a
 // caller who set the variable asked for.
+//
+// A climb that reaches the native home consults the user base there, at the
+// rung where the walk used to read that directory's own .dinah, rather than
+// after the climb. That keeps the precedence the user base has always had
+// over the few directories above a person's home, so the moved .dinah check
+// changes which base the search reads without changing which base wins. A
+// climb that never reaches the native home runs the fallback after the walk,
+// as before.
 func walk(start, home, nativeHome string) (search, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
@@ -264,6 +271,7 @@ func walk(start, home, nativeHome string) (search, error) {
 	// The first ambiguity the search meets, closest to the starting
 	// directory, which is the one a reader is likeliest to have meant.
 	result := search{}
+	consulted := false
 	for {
 		atNativeHome := samePath(dir, boundary)
 		found, ambiguous := benchIn(dir, atNativeHome)
@@ -274,25 +282,41 @@ func walk(start, home, nativeHome string) (search, error) {
 		if len(ambiguous) > 0 && result.base == "" {
 			result.base, result.candidates = filepath.Join(dir, UserBaseName), ambiguous
 		}
+		if atNativeHome && !consulted {
+			consulted = true
+			if result.fallbackTo(home) {
+				return result, nil
+			}
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
 		}
 		dir = parent
 	}
-	if home == "" {
-		return result, nil
-	}
-	result.userBase = filepath.Join(home, UserBaseName)
-	found, ambiguous := soleBench(result.userBase)
-	if found != "" {
-		result.sole = found
-		return result, nil
-	}
-	if len(ambiguous) > 0 && result.base == "" {
-		result.base, result.candidates = result.userBase, ambiguous
+	if !consulted {
+		result.fallbackTo(home)
 	}
 	return result, nil
+}
+
+// fallbackTo consults the user base under home and reports whether it resolved
+// the search. An ambiguous base is remembered the way the walk remembers one,
+// and a caller that gave no home has no fallback to run.
+func (s *search) fallbackTo(home string) bool {
+	if home == "" {
+		return false
+	}
+	s.userBase = filepath.Join(home, UserBaseName)
+	found, ambiguous := soleBench(s.userBase)
+	if found != "" {
+		s.sole = found
+		return true
+	}
+	if len(ambiguous) > 0 && s.base == "" {
+		s.base, s.candidates = s.userBase, ambiguous
+	}
+	return false
 }
 
 // benchIn reports the bench a single directory offers, either as the bench
@@ -313,19 +337,36 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous []string) {
 	return soleBench(filepath.Join(dir, UserBaseName))
 }
 
-// samePath reports whether two cleaned directory paths name the same
-// directory. Windows filesystem paths are case-insensitive, so the comparison
-// folds case there and nowhere else, and it folds with ASCII rules alone for
-// the reason asciiLower gives. An empty path names no directory and matches
-// nothing.
+// samePath reports whether two directory paths name the same directory. It
+// asks the filesystem, the way sameDirs in cmd/dinah's tests does, because one
+// directory answers to several spellings: Windows hands out the short 8.3 form
+// of any user name holding a space and compares paths without regard to case,
+// and macOS mounts a case-insensitive volume by default. Comparing the two
+// strings misses every one of those spellings, and a boundary that misses
+// reads the real user base without saying so.
+//
+// An empty path names no directory and matches nothing. Where the filesystem
+// cannot answer, the two paths are reported as the same directory, so that a
+// boundary the tool cannot check still bounds the walk; the other direction
+// silently resumes reading the home it was asked to leave alone. A boundary
+// that is not there at all is the one exception, since a directory that does
+// not exist holds no user base for the walk to reach.
 func samePath(a, b string) bool {
 	if a == "" || b == "" {
 		return false
 	}
-	if runtime.GOOS == "windows" {
-		return asciiLower(a) == asciiLower(b)
+	if a == b {
+		return true
 	}
-	return a == b
+	boundary, err := os.Stat(b)
+	if err != nil {
+		return !errors.Is(err, os.ErrNotExist)
+	}
+	here, err := os.Stat(a)
+	if err != nil {
+		return true
+	}
+	return os.SameFile(here, boundary)
 }
 
 // soleBench returns the one bench a base directory holds. A base holding
@@ -721,14 +762,15 @@ func Home() string {
 // here, so that a caller who relocated the user base is not handed the real
 // one by a working directory that happens to sit under it.
 //
-// A machine whose home will not resolve reports the same "." Home reports.
-// The walk compares that against absolute ancestor paths, which never equal
-// it, so the boundary does not apply and the search reaches as far as it
-// always did.
+// A machine whose home will not resolve reports no directory at all, which is
+// the value the walk reads as unbounded, so the search reaches as far as it
+// always did. Home answers "." in that case and this one does not, because the
+// boundary is compared by asking the filesystem which directory a path names,
+// and "." names the directory the tool was run from.
 func NativeHome() string {
 	dir, err := os.UserHomeDir()
 	if err != nil {
-		return "."
+		return ""
 	}
 	return dir
 }
