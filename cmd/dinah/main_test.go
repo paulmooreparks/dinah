@@ -17,8 +17,22 @@ import (
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/profile"
+	"dinah/internal/testenv"
 	"dinah/internal/verb"
 )
+
+// TestMain redirects this binary's temporary directory outside the
+// developer's home before any test runs, so the ancestor walk this
+// package's tests exercise through the CLI cannot climb out of its own
+// synthetic fixture tree and reach the real workbenches sitting above it.
+// See internal/testenv's package comment for what this does and does not
+// cover.
+func TestMain(m *testing.M) {
+	restore := testenv.IsolateTempDir()
+	code := m.Run()
+	restore()
+	os.Exit(code)
+}
 
 // invocation is one run of the head with its streams captured.
 type invocation struct {
@@ -613,8 +627,8 @@ const limitedDefinition = `{
 // needs an environment carrying no editor at any rung and no fallback binary
 // on the path.
 //
-// The three names discovery raises before a bench is open (dinah.no-bench,
-// dinah.no-bench-found and dinah.ambiguous-bench) are swept by
+// The three names discovery raises before a bench is open (dinah.no-workbench,
+// dinah.no-workbench-found and dinah.ambiguous-workbench) are swept by
 // TestRefusalsSayWhereTheToolLookedAndWhatComesNext below, which needs a fixture per
 // case and asserts the location and the next step as well as the name.
 func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
@@ -1415,7 +1429,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				elsewhere := t.TempDir()
 				return root, []string{"status", "--workbench", elsewhere}
 			},
-			token:   contract.NoBench,
+			token:   contract.NoWorkbench,
 			carries: []string{"carries no workbench.md", "point --workbench at a directory that does"},
 		},
 		{
@@ -1423,7 +1437,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			build: func(t *testing.T) (string, []string) {
 				return emptyTree(t), []string{"status"}
 			},
-			token:   contract.NoBenchFound,
+			token:   contract.NoWorkbenchFound,
 			carries: []string{"no workbench was found walking up from", "user base at", "dinah init"},
 			context: []string{"home"},
 		},
@@ -1444,7 +1458,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				}
 				return tree, []string{"status"}
 			},
-			token:   contract.AmbiguousBench,
+			token:   contract.AmbiguousWorkbench,
 			carries: []string{"are all reachable from", "choose one with --workbench"},
 			context: []string{"base"},
 		},
@@ -1462,7 +1476,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			// search meets that ambiguity before it can exhaust. The refusal
 			// is then honestly a different one, and the case is skipped rather
 			// than asserted against whatever the machine happens to hold.
-			if c.token == contract.NoBenchFound && leading == contract.AmbiguousBench {
+			if c.token == contract.NoWorkbenchFound && leading == contract.AmbiguousWorkbench {
 				t.Skip("a directory above the temporary tree holds several workbenches of its own")
 			}
 			if leading != c.token {
@@ -1697,10 +1711,10 @@ func TestBareShowStillRefusesWhereThereIsNoChoice(t *testing.T) {
 		t.Skip("a directory above the temporary tree holds several workbenches of its own")
 	}
 	leading := strings.SplitN(strings.TrimSpace(empty.errw), " ", 2)[0]
-	if leading == contract.AmbiguousBench {
+	if leading == contract.AmbiguousWorkbench {
 		t.Skip("a directory above the temporary tree holds several workbenches of its own")
 	}
-	if empty.code != 2 || leading != contract.NoBenchFound {
+	if empty.code != 2 || leading != contract.NoWorkbenchFound {
 		t.Errorf("a search that reaches nothing should still refuse, got %d %q", empty.code, empty.errw)
 	}
 }
@@ -1850,8 +1864,8 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	if wrong.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", wrong.code, wrong.errw)
 	}
-	if leading := strings.SplitN(strings.TrimSpace(wrong.errw), " ", 2)[0]; leading != contract.NoBench {
-		t.Errorf("leading token: wanted %s, got %q", contract.NoBench, wrong.errw)
+	if leading := strings.SplitN(strings.TrimSpace(wrong.errw), " ", 2)[0]; leading != contract.NoWorkbench {
+		t.Errorf("leading token: wanted %s, got %q", contract.NoWorkbench, wrong.errw)
 	}
 
 	retiredFlag := "--bench" // retired spelling, named deliberately

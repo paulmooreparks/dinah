@@ -111,12 +111,6 @@ const theDeliberateSpelling = "// retired spelling, named deliberately"
 var vocabularyExceptions = []string{
 	"CORE-BENCH",
 	"internal/bench",
-	"dinah.ambiguous-bench",
-	"dinah.no-bench-found",
-	"dinah.no-bench",
-	"ambiguous-bench",
-	"no-bench-found",
-	"no-bench",
 }
 
 // vocabularyReason is what a reader who trips this guard needs: why the word
@@ -127,9 +121,9 @@ const vocabularyReason = "the product's word is workbench, and the short word " 
 	"the exceptions"
 
 // scannedExtensions are the file kinds this guard reads whole, which are the
-// ones carrying text a person meets: documents, message catalogs, and the
-// byte-enforced help fixture.
-var scannedExtensions = map[string]bool{".md": true, ".json": true, ".txt": true}
+// ones carrying text a person meets: documents, message catalogs, the
+// byte-enforced help fixture, and CI workflow files.
+var scannedExtensions = map[string]bool{".md": true, ".json": true, ".txt": true, ".yml": true, ".yaml": true}
 
 // TestTheProductSaysWorkbenchEverywhereItIsRead asserts that the short word
 // reaches no surface a person reads. Help text, message catalogs, documents,
@@ -210,10 +204,12 @@ var skippedTrees = map[string]bool{".git": true, ".dinah": true, "logo": true, "
 // The subject is what gets scanned and the source is the line it came from,
 // and the two differ for a Go file, where the subject is one string literal
 // and the source is the whole line carrying it. The marker is looked for in
-// the source, so a literal is exempted by the comment beside it.
+// the source, and only honoured in a file whose name ends in _test.go: every
+// legitimate use sits in a test, and a production Go string literal has no
+// standing to silence this guard.
 func report(t *testing.T, name string, number int, subject, source string) {
 	t.Helper()
-	if strings.Contains(source, theDeliberateSpelling) {
+	if strings.HasSuffix(name, "_test.go") && strings.Contains(source, theDeliberateSpelling) {
 		return
 	}
 	stripped := subject
