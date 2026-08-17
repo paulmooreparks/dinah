@@ -18,7 +18,7 @@ Under the hood, Dinah is a reference implementation of a shared coordination con
 
 ## Start here
 
-[The quick start](docs/quick-start.md) walks one bench from an empty directory through every command the binary offers, with the real output of each step alongside it. Reading it takes one sitting, and it is the shortest route to using the tool for real work.
+[The quick start](docs/quick-start.md) walks one workbench from an empty directory through every command the binary offers, with the real output of each step alongside it. Reading it takes one sitting, and it is the shortest route to using the tool for real work.
 
 ## Name
 
