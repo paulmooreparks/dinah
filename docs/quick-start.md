@@ -1,9 +1,10 @@
 # Dinah quick start
 
-This guide walks one bench from an empty directory to a finished card, and it
-touches every command the binary offers along the way. Every transcript below is
-real output from `dinah 0.1.0`. The blocks that show a file's contents are what
-you type into that file, and they are marked as such where they appear.
+This guide walks one workbench, the folder of plain files that holds a board's
+work, from an empty directory to a finished card, and it touches every command
+the binary offers along the way. Every transcript below is real output from
+`dinah 0.1.0`. The blocks that show a file's contents are what you type into
+that file, and they are marked as such where they appear.
 
 Read it in order the first time. After that, the section headings are the index.
 
@@ -11,10 +12,10 @@ Read it in order the first time. After that, the section headings are the index.
 
 The command lines below run unchanged in bash, zsh and PowerShell, because they
 use only plain arguments, relative paths, `mkdir` and `cd`, and let Dinah find
-the bench by walking up from the working directory. Two things genuinely differ
-between those shells: setting an environment variable, and substituting one
-command's output into another. Each appears once below as a labeled pair, and
-one block that parses text with a POSIX utility is labeled where it appears.
+the workbench by walking up from the working directory. Two things genuinely
+differ between those shells: setting an environment variable, and substituting
+one command's output into another. Each appears once below as a labeled pair,
+and one block uses a POSIX-only utility and is labeled where it appears.
 
 The leading `$` marks a command line and is not part of the command. This
 session ran on Windows, so the paths in the output are Windows paths; on macOS
@@ -30,13 +31,13 @@ storage format 1
 [exit 0]
 ```
 
-Those lines carry three different facts. The first is the build. The second is
-the coordination contract this build implements, and it is what lets another
-tool read the same bench and agree with you about it. The third names the
-on-disk format.
+Those lines carry three different facts. The first is the build. The second
+names the shared rule set this build follows, and another tool built to the same
+rules can read the same workbench and reach the same answers about it. The third
+names the on-disk format.
 
-The command that prints the surface is `dinah help`. The flag spelling you may
-reach for first is not one the binary accepts:
+`dinah help` lists every command. The flag spelling you may reach for first is
+not one the binary accepts:
 
 ```
 $ dinah --help
@@ -44,14 +45,15 @@ dinah.usage --help was not understood; run dinah help for the surface
 [exit 2]
 ```
 
-Running `dinah` with no arguments prints the same surface as `dinah help`. For
-one command's arguments and the reasons it can say no, ask for it by name with
+That refusal calls the list of commands the surface, and the list is all the
+word means. Running `dinah` with no arguments prints the same list. For one
+command's arguments and the reasons it can say no, ask for it by name with
 `dinah help move`.
 
-## Open a bench
+## Open a workbench
 
-A bench is a directory of plain-text files. Create one where the work is, and
-put it under version control alongside the project it belongs to.
+A workbench is a directory of plain-text files. Create one where the work is,
+and put it under version control alongside the project it belongs to.
 
 ```
 $ mkdir release-notes
@@ -62,19 +64,22 @@ Bench created at C:\work\release-notes.
 [exit 0]
 ```
 
+Dinah's own messages say bench where this guide says workbench, and the two
+words mean the same thing here.
+
 The slug is the prefix every card reference carries, so the first card you file
 here will be `rel-1`. Leave `--slug` out and Dinah derives one from the
-directory name. The operator is the owner who answers for the bench, and only
-the operator can lift a block or force a move past a limit, so a bench with
-nobody in that seat has acts nobody can perform. Leave `--operator` out and
-Dinah records whoever you are acting as.
+directory name. The operator is the owner who answers for the workbench, and
+only the operator can lift a block or force a move past a limit, so a workbench
+with nobody in that seat has acts nobody can perform. Leave `--operator` out
+and Dinah records whoever you are acting as.
 
 That call wrote `workbench.md` and a `states/` directory holding one file per
-station. Nothing else exists yet.
+state. Nothing else exists yet.
 
-Every command from here on runs inside the bench directory. Dinah finds the
-bench by walking up from wherever you are, the way git finds a repository, so
-none of them needs a path.
+Every command from here on runs inside the workbench directory. Dinah finds the
+workbench by walking up from wherever you are, the way git finds a repository,
+so none of them needs a path.
 
 ## Say who you are
 
@@ -88,7 +93,7 @@ no-owner no owner was resolvable; set one with --actor, DINAH_ACTOR or config ac
 
 The refusal names the three places it looked, in the order it looked. The
 `--actor` flag wins, then the `DINAH_ACTOR` environment variable, then your
-user config. Set the bottom layer once and forget it:
+user config. Set the last of those three once and forget it:
 
 ```
 $ dinah config set actor ana
@@ -105,8 +110,8 @@ ana, operator: yes
 
 `whoami` answers two questions at once, because the second one governs what you
 are allowed to do. The settings live in `config.md` under `.dinah` in your home
-directory, and they are yours rather than the bench's, so they follow you to
-every bench you work. The keys this version knows are `actor`, `lang` and
+directory, and they are yours rather than the workbench's, so they follow you to
+every workbench you work. The keys this version knows are `actor`, `lang` and
 `editor`:
 
 ```
@@ -131,7 +136,7 @@ $ dinah states
 Each row gives a state's identifier, its title, its kind and how many cards
 stand in it. The kinds are `intake`, `work` and `done`, and the flow runs in the
 order `workbench.md` lists them, so a move to a later state is forward and a
-move to an earlier one is backward. Identifiers are generated per bench, so
+move to an earlier one is backward. Identifiers are generated per workbench, so
 yours will differ from the ones printed here.
 
 Run `status` when you sit down. It prints that same list and adds what you
@@ -148,11 +153,12 @@ acting as ana, operator: yes
 [exit 0]
 ```
 
-## Edit the bench by hand
+## Edit the workbench by hand
 
-The files are the interface. Open `workbench.md`, give the bench a real title,
-and write the standing instructions under the frontmatter. This block is the
-file, not a transcript:
+The files are the interface. Open `workbench.md`, give the workbench a real
+title, and write the standing instructions below the settings block at the top,
+the part between the `---` lines. Dinah's own messages call that block the
+frontmatter. This block is the file, not a transcript:
 
 ```
 ---
@@ -169,7 +175,7 @@ states:
 Every card on this bench ends with a line in the changelog.
 ```
 
-Then open the `state.md` of one station and do the same. A `wip_limit` caps how
+Then open the `state.md` of one state and do the same. A `wip_limit` caps how
 many cards that state will hold:
 
 ```
@@ -279,11 +285,12 @@ rel-1  Write the release notes  [Intake / ready]
 [exit 0]
 ```
 
-## The five verbs
+## The five commands that move a card
 
 Five commands change where a card stands: `claim`, `move`, `release`, `block`
-and `unblock`. The coordination contract fixes what each one does, so a second
-tool reading the same bench answers the same way.
+and `unblock`. Dinah's own guide calls these five the verbs, and you can read
+that guide with `dinah guide verbs`. The shared rules fix what each one does,
+so a second tool reading the same workbench answers the same way.
 
 Work is taken rather than handed out, so you claim your own card:
 
@@ -372,7 +379,7 @@ rel-2  Draft the changelog  [Intake / blocked]
 
 The reason is required and it is prose, because the things that stop real work
 vary. The `--kind` is a short label of your own choosing for grouping later.
-Blocks surface in `status`:
+Blocks show up in `status`:
 
 ```
 $ dinah status
@@ -392,7 +399,7 @@ Blocked, waiting on the operator:
 ```
 
 Lifting a block is the operator's act, because an obstacle raised is an obstacle
-handed to whoever answers for the bench:
+handed to whoever answers for the workbench:
 
 ```
 $ dinah unblock rel-2 --actor bo
@@ -437,8 +444,8 @@ reason.
 
 ## Everything below a card
 
-A card is a directory, and comments and attachments are entities inside it. Give
-`attach` a file and it copies the bytes in under their own name:
+A card is a directory, and its comments and attachments are directories inside
+it. Give `attach` a file and it copies the bytes in under their own name:
 
 ```
 $ dinah attach rel-1 notes.txt
@@ -450,18 +457,18 @@ rel-1  Write the release notes  [Done / active]
 Pass `--replace` to swap the bytes of an attachment that is already there.
 
 Anything below a card is addressable by a path reference. A path reference is
-the card's reference followed by slash-separated segments. The segments are `comments`,
-`attachments`, `checklist`, `journal` and `card`, plus `oq`, `ac` and `d` as
-shorthands for the three checklist kinds. Reaching past an attachment into
-`payload` gets you the file itself. No command in this version files a checklist
-item, so the checklist segments address items that something else has already
-written.
+the card's reference followed by slash-separated segments. The segments are
+`comments`, `attachments`, `checklist`, `journal` and `card`, plus `oq`, `ac`
+and `d` as shorthands for the three checklist kinds. Reaching past an
+attachment into `payload` gets you the file itself. No command in this version
+files a checklist item, so the checklist segments address items that something
+else has already written.
 
 A collection takes either a twelve-hex identifier or a one-based position. The
 position selects from the collection in identifier order, and identifiers are
 random, so `rel-1/comments/1` is not reliably the comment you wrote first.
 Positions are convenient at a terminal where you can see what came back. Use the
-identifier when a script has to name a particular entity.
+identifier when a script has to name a particular comment or attachment.
 
 ```
 $ dinah show rel-1/attachments/1
@@ -526,8 +533,9 @@ change what the history says.
 
 ## Taking things out
 
-`archive` moves an entity out of the live set and keeps it. `delete` destroys it
-and its history. Both are quiet on success.
+`archive` takes a card, or a comment or attachment on one, out of the live set
+and keeps its files. The live set is what listings show you. `delete` destroys
+the same things and their history instead. Both are quiet on success.
 
 ```
 $ dinah archive rel-3
@@ -545,8 +553,8 @@ $ dinah delete rel-1/comments/2 --yes
 [exit 0]
 ```
 
-Archived cards move under `archive/cards/` in the bench and stop appearing in
-listings. Deletion is not recoverable, so `delete` requires `--yes`.
+Archived cards move under `archive/cards/` in the workbench and stop appearing
+in listings. Deletion is not recoverable, so `delete` requires `--yes`.
 
 ## When the files are wrong
 
@@ -571,7 +579,7 @@ No structural defects found.
 
 `fsck` also catches a claim without the substate that implies it, a block with
 no reason, and a link pointing at no card. Run it after any hand edit, and
-before you commit a bench to version control.
+before you commit a workbench to version control.
 
 ## Driving Dinah from a script
 
@@ -585,9 +593,9 @@ each calls for something different.
 | 3 | stale | The card moved between your reading it and your acting. Read it again and retry. |
 | 4 | unreachable | The question could not be asked at all. |
 
-Pass `--json` for the machine form. Under it a refusal writes its name to
-standard output as a field. That is the portable way to find out which rule said
-no. Standard output alone:
+Pass `--json` for the machine-readable form. Under it a refusal writes its name
+to standard output as a field. That is the portable way to find out which rule
+said no. Standard output alone:
 
 ```
 $ dinah claim rel-9 --json
@@ -608,7 +616,7 @@ $ dinah claim rel-9 --json
 
 Standard error still carries the sentence a person reads, whether or not
 `--json` was asked for. Without the flag that line is all you get, and the
-refusal name is its first whitespace-separated token:
+refusal name is the first word on it:
 
 ```
 $ dinah claim rel-9
@@ -617,7 +625,7 @@ unknown-card this bench carries no card rel-9
 ```
 
 The sentence after the name is for a person and may be translated. The name
-never is. In bash or zsh, the first token comes out with `cut`:
+never is. In bash or zsh, that first word comes out with `cut`:
 
 ```
 $ dinah claim rel-9 2>&1 >/dev/null | cut -d' ' -f1
@@ -629,14 +637,15 @@ capture it before a pipe puts another program's status in its place. PowerShell
 decorates a native command's error stream when it redirects one, so the `--json`
 route above is the one that behaves the same everywhere.
 
-Names introduced by this tool rather than by the contract carry a `dinah.`
-prefix. Matching on that prefix is how you tell the two layers apart.
-`unknown-card` and `at-capacity` come from the contract. `dinah.unknown-key`
-and `dinah.unconfirmed` come from the tool.
+Some refusal names come from the shared rules that every Dinah-compatible tool
+follows, and some are this tool's own. The tool's own names carry a `dinah.`
+prefix, and matching on that prefix is how you tell the two groups apart.
+`unknown-card` and `at-capacity` are shared. `dinah.unknown-key` and
+`dinah.unconfirmed` are this tool's.
 
-Setting `DINAH_FORMAT=json` gets the machine form from every call without the
-flag. Setting an environment variable is the first of the two things that differ
-between shells.
+Setting `DINAH_FORMAT=json` gets the machine-readable form from every call
+without the flag. Setting an environment variable is the first of the two
+things that differ between shells.
 
 In bash or zsh:
 
@@ -650,8 +659,9 @@ In PowerShell:
 $env:DINAH_FORMAT = 'json'
 ```
 
-The JSON carries canonical tokens and never translates them, so the same command
-emits the same bytes under any language setting.
+The JSON always uses the machine spellings, such as `ready` and `unknown-card`,
+and never translates them, so the same command emits the same bytes under any
+language setting.
 
 ```
 $ dinah ls intake --json
@@ -692,12 +702,12 @@ In PowerShell:
 code (dinah path rel-1/comments/1)
 ```
 
-## Read the bench in your own language
+## Read the workbench in your own language
 
-The display language resolves through the `--lang` flag, then `DINAH_LANG`, then
-your user config, then the operating system locale, and English if none of them
-answers. The locale sits below the config because it describes the machine
-rather than the person reading the screen.
+Dinah works out the display language by trying the `--lang` flag first, then
+`DINAH_LANG`, then your user config, then the operating system locale, and
+English if none of them answers. The locale sits below the config because it
+describes the machine rather than the person reading the screen.
 
 ```
 $ dinah --lang hi status
@@ -739,7 +749,7 @@ for one of those changes nothing yet.
 
 ## Open a card in your editor
 
-`edit` resolves the same references `path` does and hands the file to your
+`edit` accepts the same references `path` does and hands the file to your
 editor. It looks at `DINAH_EDITOR` first, then your user config, then `VISUAL`,
 then `EDITOR`, and falls back to a platform default. The Dinah-specific variable
 sits on top because `EDITOR` is shared with every other tool you run, and
@@ -776,14 +786,14 @@ notepad
 [exit 0]
 ```
 
-If no layer answers and no fallback binary is present, `edit` refuses with
+If none of those is set and no fallback editor is present, `edit` refuses with
 `dinah.no-editor`.
 
-## Work on a bench you are not standing in
+## Work on a workbench you are not standing in
 
-Dinah walks up from the working directory to find its bench, so standing
-anywhere inside one is enough. From outside, name the bench with `--bench`, or
-set `DINAH_BENCH`:
+Dinah walks up from the working directory to find its workbench, so standing
+anywhere inside one is enough. From outside, name the workbench with `--bench`,
+or set `DINAH_BENCH`:
 
 ```
 $ cd ..
@@ -801,10 +811,10 @@ You are holding:
 [exit 0]
 ```
 
-## Hand a bench to somebody else
+## Hand a workbench to somebody else
 
-`export` writes the bench's interchange form to standard output. Another
-implementation of the contract reads that form:
+`export` prints the whole workbench definition in the shared exchange format.
+Another program built to the same rules reads that form:
 
 ```
 $ cd release-notes
@@ -838,7 +848,7 @@ $ dinah export
 
 `extract` writes the same definition to a directory as a reusable template,
 carrying the flow and the instructions and none of the cards. `init --from`
-starts a new bench from one:
+starts a new workbench from one:
 
 ```
 $ dinah extract ../release-template
@@ -864,9 +874,9 @@ $ dinah states
 $ cd ../release-notes
 ```
 
-The template carries the state identifiers too, so the new bench and the old one
-answer to the same ones. That last `cd` puts you back in the bench this guide
-started in. The commands below expect to run there.
+The template carries the state identifiers too, so the new workbench and the
+old one answer to the same ones. That last `cd` puts you back in the workbench
+this guide started in. The commands below expect to run there.
 
 ## The guides that ship in the binary
 
@@ -884,14 +894,15 @@ $ dinah guide
 `dinah guide bench-layout` is the one to read before you start editing files by
 hand, since it maps the whole directory.
 
-## Point an agent at the bench
+## Point an agent at the workbench
 
-`dinah mcp` serves the bench over MCP on stdio, so an AI colleague can work the
-same board you do. Configure it in your MCP client as the command
-`dinah mcp`, with the bench directory as the working directory or `DINAH_BENCH`
-set to it. The server hands the client the bench's working agreement and a tool
-per verb, so the agent claims, moves, releases and blocks under the same rules
-and leaves the same journal entries you do.
+`dinah mcp` serves the workbench over MCP on its standard input and output, so
+an AI colleague can work the same board you do. Configure it in your MCP client
+as the command `dinah mcp`, with the workbench directory as the working
+directory or `DINAH_BENCH` set to it. The server hands the client the rules for
+working this workbench and one tool for each command, so the agent claims,
+moves, releases and blocks under the same rules and leaves the same journal
+entries you do.
 
 Give the agent an actor name of its own through `DINAH_ACTOR` so the record
 shows who did what.
