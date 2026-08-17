@@ -54,6 +54,7 @@ func init() {
 		{name: "config", group: groupBench, run: runConfig},
 		{name: "check", group: groupBench, run: runCheck},
 		{name: "whoami", group: groupBench, run: runWhoami},
+		{name: "workbenches", group: groupBench, run: runWorkbenches},
 		{name: "version", group: groupBench, run: runVersion},
 
 		{name: "mcp", group: groupServe, run: runMCP},
@@ -267,9 +268,21 @@ func runNext(s *session, parsed *arguments) int {
 }
 
 // runShow reads a card, or anything below it.
+//
+// A bare invocation where several workbenches are reachable lists them instead
+// of refusing. The reader asked to be shown something and the tool cannot know
+// which workbench they meant, so the choices themselves are what it has to
+// show. Every other case is unchanged: one workbench reachable leaves nothing
+// to choose between and still refuses over the empty card reference, and none
+// reachable still refuses over the search that found nothing.
 func runShow(s *session, parsed *arguments) int {
 	req := s.request("show", parsed)
 	req.Card = at(parsed.rest(), 0)
+	if req.Card == "" {
+		if rows, ok := s.ambiguousWorkbenches(); ok {
+			return s.emitWorkbenches(rows)
+		}
+	}
 	return s.withBench(func(l *verb.Library) int {
 		detail, text, err := l.Show(req)
 		if err != nil {
@@ -512,6 +525,41 @@ func runWhoami(s *session, parsed *arguments) int {
 		s.renderIdentity(identity)
 		return 0
 	})
+}
+
+// runWorkbenches lists the workbenches reachable from here.
+//
+// It opens nothing and it never refuses over what the search found, because a
+// question about what is reachable is answered by zero rows as truthfully as
+// by several. A --bench naming a directory that holds no workbench is the one
+// refusal left, and it belongs to the caller's argument.
+func runWorkbenches(s *session, parsed *arguments) int {
+	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home)
+	if err != nil {
+		return s.reportError(err)
+	}
+	return s.emitWorkbenches(rows)
+}
+
+// ambiguousWorkbenches reports the reachable workbenches when there is a
+// choice to be made, which is the one case where a command that wanted a
+// single workbench has a listing to offer in place of its refusal. One row or
+// none leaves the caller's own refusal in place.
+func (s *session) ambiguousWorkbenches() ([]bench.Candidate, bool) {
+	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home)
+	if err != nil || len(rows) < 2 {
+		return nil, false
+	}
+	return rows, true
+}
+
+// emitWorkbenches writes a listing in whichever form the invocation asked for.
+func (s *session) emitWorkbenches(rows []bench.Candidate) int {
+	if s.json {
+		return s.emitJSON(rows)
+	}
+	s.renderWorkbenches(rows)
+	return 0
 }
 
 // runVersion reports what this binary is and what it conforms to.

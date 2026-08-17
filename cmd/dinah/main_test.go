@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -80,7 +82,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists twenty-eight commands, and every command the binary
+	// The block lists twenty-nine commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -96,8 +98,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 28 {
-		t.Errorf("wanted twenty-eight listed commands, got %d", listed)
+	if listed != 29 {
+		t.Errorf("wanted twenty-nine listed commands, got %d", listed)
 	}
 }
 
@@ -1352,4 +1354,304 @@ func emptyTree(t *testing.T) string {
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_BENCH", "")
 	return tree
+}
+
+// populateBase writes one workbench per slug into a base directory, and
+// returns the directory each one landed in, in the order the slugs were given.
+func populateBase(t *testing.T, base string, slugs ...string) []string {
+	t.Helper()
+	rooms := make([]string, 0, len(slugs))
+	for i, slug := range slugs {
+		room := filepath.Join(base, fmt.Sprintf("d0000000000%d", i+1))
+		if err := os.MkdirAll(room, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
+			t.Fatalf("init: %d %s", got.code, got.errw)
+		}
+		rooms = append(rooms, room)
+	}
+	return rooms
+}
+
+// sameDirs reports whether two lists name the same directories in the same
+// order, asking the filesystem for identity instead of comparing spellings.
+// One directory has two names on both platforms the matrix runs beyond Linux:
+// macOS reaches its temporary directory through a symlink, and Windows hands
+// out the short 8.3 form of a long user name, so a test that compared the path
+// it built against the path the tool printed would fail over the spelling
+// while the tool was right.
+func sameDirs(t *testing.T, got, wanted []string) bool {
+	t.Helper()
+	if len(got) != len(wanted) {
+		return false
+	}
+	for i := range got {
+		mine, err := os.Stat(wanted[i])
+		if err != nil {
+			t.Fatalf("stat %s: %v", wanted[i], err)
+		}
+		theirs, err := os.Stat(got[i])
+		if err != nil {
+			return false
+		}
+		if !os.SameFile(mine, theirs) {
+			return false
+		}
+	}
+	return true
+}
+
+// ambiguousTree returns a tree whose own base holds two workbenches and whose
+// user base holds none, which is the search that resolves to a choice rather
+// than to a workbench.
+func ambiguousTree(t *testing.T) (string, []string) {
+	t.Helper()
+	tree := emptyTree(t)
+	return tree, populateBase(t, filepath.Join(tree, bench.UserBaseName), "one", "two")
+}
+
+// listedRows reads a listing's human form back into the paths it named, which
+// is the member of a row that identifies which workbench it stands for.
+func listedRows(t *testing.T, got invocation) []string {
+	t.Helper()
+	if got.code != 0 {
+		t.Fatalf("a listing should exit 0, got %d (%s)", got.code, got.errw)
+	}
+	paths := make([]string, 0, 2)
+	for _, line := range strings.Split(strings.TrimRight(got.out, "\n"), "\n") {
+		if !strings.HasPrefix(line, "  ") {
+			continue
+		}
+		fields := strings.Fields(line)
+		paths = append(paths, fields[len(fields)-1])
+	}
+	return paths
+}
+
+// jsonRows reads a listing's machine form, which is a bare array with no
+// envelope, the shape `states --json` and `config --json` already emit.
+func jsonRows(t *testing.T, got invocation) []bench.Candidate {
+	t.Helper()
+	if got.code != 0 {
+		t.Fatalf("a listing should exit 0, got %d (%s)", got.code, got.errw)
+	}
+	var rows []bench.Candidate
+	if err := json.Unmarshal([]byte(got.out), &rows); err != nil {
+		t.Fatalf("--json wrote nothing a caller can parse: %q (%v)", got.out, err)
+	}
+	return rows
+}
+
+// TestBareShowListsTheChoiceItCannotMake asserts the one branch of `show` this
+// card changes. Several workbenches reachable and no card named leaves nothing
+// to read and a choice to offer, so the choices are listed on both surfaces
+// and the run succeeds.
+func TestBareShowListsTheChoiceItCannotMake(t *testing.T) {
+	tree, rooms := ambiguousTree(t)
+
+	got := runCLI(t, tree, "show")
+	if listed := listedRows(t, got); !sameDirs(t, listed, rooms) {
+		t.Errorf("the listing should name each reachable workbench, wanted %v, got %q", rooms, got.out)
+	}
+	for i, slug := range []string{"one", "two"} {
+		row := strings.Split(strings.TrimRight(got.out, "\n"), "\n")[i]
+		if !strings.Contains(row, slug) || !strings.Contains(row, filepath.Base(rooms[i])) {
+			t.Errorf("a row should carry the title and the slug, wanted %q in %q", slug, row)
+		}
+	}
+	if got.errw != "" {
+		t.Errorf("a listing should refuse nothing, got %q", got.errw)
+	}
+
+	rows := jsonRows(t, runCLI(t, tree, "--json", "show"))
+	paths := make([]string, 0, len(rows))
+	for i, row := range rows {
+		if row.Title == "" || row.Slug == "" {
+			t.Errorf("row %d should carry a title and a slug, got %+v", i+1, row)
+		}
+		paths = append(paths, row.Path)
+	}
+	if !sameDirs(t, paths, rooms) {
+		t.Errorf("the machine form should carry one row per workbench, wanted %v, got %v", rooms, paths)
+	}
+}
+
+// TestBareShowStillRefusesWhereThereIsNoChoice asserts the two branches this
+// card leaves alone. One workbench reachable has nothing to disambiguate and
+// still refuses over the card reference nobody gave, and a search that reaches
+// none still refuses over the search itself.
+func TestBareShowStillRefusesWhereThereIsNoChoice(t *testing.T) {
+	sole := newBench(t)
+	got := runCLI(t, sole, "show")
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	if got.errw != contract.UnknownCard+" this workbench carries no card \n" {
+		t.Errorf("the refusal should be the one a single workbench has always raised, got %q", got.errw)
+	}
+	machine := runCLI(t, sole, "--json", "show")
+	if !strings.Contains(machine.out, `"refusal": "`+contract.UnknownCard+`"`) {
+		t.Errorf("the machine form should carry the same refusal, got %q", machine.out)
+	}
+
+	empty := runCLI(t, emptyTree(t), "show")
+	// The walk climbs to the volume root, so on a machine whose own home
+	// directory carries workbenches the search meets them before it can
+	// exhaust, and the answer is honestly a different one. That case is
+	// skipped rather than asserted against whatever the machine holds, which
+	// is what the discovery sweep above does for the same reason.
+	if empty.code == 0 {
+		t.Skip("a directory above the temporary tree holds several workbenches of its own")
+	}
+	leading := strings.SplitN(strings.TrimSpace(empty.errw), " ", 2)[0]
+	if leading == contract.AmbiguousBench {
+		t.Skip("a directory above the temporary tree holds several workbenches of its own")
+	}
+	if empty.code != 2 || leading != contract.NoBenchFound {
+		t.Errorf("a search that reaches nothing should still refuse, got %d %q", empty.code, empty.errw)
+	}
+}
+
+// TestWorkbenchesReportsWhateverTheSearchFinds asserts that the listing
+// command answers on every search: several reachable, one reachable, and none
+// reachable, each exiting 0 on both surfaces. The empty answer is a line
+// saying so, because a question about what is reachable is answered as
+// truthfully by no rows as by two.
+func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
+	t.Run("several reachable", func(t *testing.T) {
+		tree, rooms := ambiguousTree(t)
+		if listed := listedRows(t, runCLI(t, tree, "workbenches")); !sameDirs(t, listed, rooms) {
+			t.Errorf("wanted %v, got %v", rooms, listed)
+		}
+		if rows := jsonRows(t, runCLI(t, tree, "--json", "workbenches")); len(rows) != 2 {
+			t.Errorf("wanted two rows, got %d", len(rows))
+		}
+	})
+
+	t.Run("one reachable", func(t *testing.T) {
+		sole := newBench(t)
+		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{sole}) {
+			t.Errorf("wanted the one workbench, got %v", listed)
+		}
+		rows := jsonRows(t, runCLI(t, sole, "--json", "workbenches"))
+		if len(rows) != 1 || rows[0].Slug != "fx" {
+			t.Errorf("wanted the one workbench with its slug, got %+v", rows)
+		}
+	})
+
+	t.Run("none reachable", func(t *testing.T) {
+		tree := emptyTree(t)
+		got := runCLI(t, tree, "workbenches")
+		if got.code != 0 {
+			t.Fatalf("the listing should never refuse, got %d (%s)", got.code, got.errw)
+		}
+		if len(listedRows(t, got)) > 0 {
+			t.Skip("a directory above the temporary tree holds workbenches of its own")
+		}
+		if strings.TrimSpace(got.out) != msg.For(msg.Base).T("workbenches.empty") {
+			t.Errorf("wanted the line that says nothing is reachable, got %q", got.out)
+		}
+		if rows := jsonRows(t, runCLI(t, tree, "--json", "workbenches")); len(rows) != 0 {
+			t.Errorf("wanted an empty array, got %+v", rows)
+		}
+	})
+}
+
+// TestTheListingAndTheRefusalNameTheSameCandidates asserts that the two
+// surfaces describing one ambiguity agree on membership and on order. The
+// listing and the refusal read the same descriptions, so a reader choosing
+// from one and a reader reading the other see the same workbenches in the same
+// sequence.
+func TestTheListingAndTheRefusalNameTheSameCandidates(t *testing.T) {
+	tree, rooms := ambiguousTree(t)
+	listing := listedRows(t, runCLI(t, tree, "workbenches"))
+	shown := listedRows(t, runCLI(t, tree, "show"))
+	if !reflect.DeepEqual(listing, shown) {
+		t.Errorf("the two listings disagree: %v against %v", listing, shown)
+	}
+	refusal := runCLI(t, tree, "states")
+	if refusal.code != 2 {
+		t.Fatalf("a command needing one workbench should still refuse, got %d", refusal.code)
+	}
+	at := -1
+	for _, room := range rooms {
+		// The refusal names each candidate by the path the tool resolved, so
+		// the directory's own name is what a test compares against a path it
+		// built itself.
+		found := strings.Index(refusal.errw, filepath.Base(room))
+		if found < 0 {
+			t.Fatalf("the refusal should name %q, got %q", room, refusal.errw)
+		}
+		if found < at {
+			t.Errorf("the refusal orders the candidates differently from the listing, got %q", refusal.errw)
+		}
+		at = found
+	}
+	if !sameDirs(t, listing, rooms) {
+		t.Errorf("the listing should carry every candidate the refusal names, wanted %v, got %v", rooms, listing)
+	}
+}
+
+// TestTheListingReportsOnlyTheClosestAmbiguity asserts that the listing walks
+// exactly as far as discovery walks and stops where discovery stops. A tree
+// ambiguous at two levels reports the inner pair alone, because that is what a
+// command run from there would have had to choose between.
+func TestTheListingReportsOnlyTheClosestAmbiguity(t *testing.T) {
+	tree := emptyTree(t)
+	inner := filepath.Join(tree, "inner")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	populateBase(t, filepath.Join(tree, bench.UserBaseName), "farone", "fartwo")
+	near := populateBase(t, filepath.Join(inner, bench.UserBaseName), "nearone", "neartwo")
+
+	for _, argv := range [][]string{{"workbenches"}, {"show"}} {
+		got := runCLI(t, inner, argv...)
+		if listed := listedRows(t, got); !sameDirs(t, listed, near) {
+			t.Errorf("%v: wanted the inner pair %v, got %v", argv, near, listed)
+		}
+		if strings.Contains(got.out, "far") {
+			t.Errorf("%v: the further ambiguity should not be reported, got %q", argv, got.out)
+		}
+	}
+}
+
+// TestWorkbenchesHelpCarriesNoRefusals asserts that the per-command help of a
+// command that never refuses prints its summary and its exit codes with no
+// precondition table between them.
+func TestWorkbenchesHelpCarriesNoRefusals(t *testing.T) {
+	got := runCLI(t, newBench(t), "help", "workbenches")
+	if got.code != 0 {
+		t.Fatalf("help workbenches: %d %s", got.code, got.errw)
+	}
+	catalog := msg.For(msg.Base)
+	for _, wanted := range []string{"workbenches", catalog.T("cmd.workbenches.summary"), catalog.T("help.exitcodes")} {
+		if !strings.Contains(got.out, wanted) {
+			t.Errorf("the help should carry %q, got %q", wanted, got.out)
+		}
+	}
+	if strings.Contains(got.out, catalog.T("help.refusals")) {
+		t.Errorf("a command that never refuses should list no refusals, got %q", got.out)
+	}
+}
+
+// TestABenchOverrideStillRefusesAWrongPath asserts that the listing softens no
+// caller mistake. An explicit --bench naming a directory holding no workbench
+// is refused exactly as every other command refuses it, and never reported
+// as an empty search.
+func TestABenchOverrideStillRefusesAWrongPath(t *testing.T) {
+	tree, rooms := ambiguousTree(t)
+
+	pointed := runCLI(t, tree, "workbenches", "--bench", rooms[1])
+	if listed := listedRows(t, pointed); !sameDirs(t, listed, []string{rooms[1]}) {
+		t.Errorf("an override should report the workbench it names, wanted %v, got %v", rooms[1:], listed)
+	}
+	wrong := runCLI(t, tree, "workbenches", "--bench", filepath.Join(tree, "nowhere"))
+	if wrong.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", wrong.code, wrong.errw)
+	}
+	if leading := strings.SplitN(strings.TrimSpace(wrong.errw), " ", 2)[0]; leading != contract.NoBench {
+		t.Errorf("leading token: wanted %s, got %q", contract.NoBench, wrong.errw)
+	}
 }

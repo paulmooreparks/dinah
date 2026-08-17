@@ -561,6 +561,11 @@
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.workbenches.summary": {
+      "text": "the workbenches reachable from here",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "extract.done": {
       "text": "Definition written to {dir}.",
       "context": "Printed after extract succeeds.",
@@ -1099,6 +1104,11 @@
     "word.yes": {
       "text": "yes",
       "context": "A boolean rendered for a person.",
+      "skeleton": true
+    },
+    "workbenches.empty": {
+      "text": "no workbench is reachable from here",
+      "context": "Printed by the workbenches command when the search reaches none.",
       "skeleton": true
     }
   }

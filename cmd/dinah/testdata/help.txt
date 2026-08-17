@@ -33,6 +33,7 @@ WORKBENCH
   config [get|set] [key] [value]         list your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] look for structural defects in this workbench
   whoami                                 the actor your acts carry, and whether it is the operator
+  workbenches                            the workbenches reachable from here
   version [--catalogs]                   what this binary is and what it conforms to
 
 SERVE
