@@ -17,7 +17,8 @@ workbench with slug `proj` names its first card `proj-1`. If you leave
 Every workbench designates an operator, the person who owns it and answers for
 it. Only the operator lifts a block, so a workbench with nobody in that seat
 has actions nobody can perform. If you leave `--operator` out, Dinah records
-whoever you are acting as.
+whoever you are acting as, called the actor; every action you take carries
+that name, and `dinah whoami` prints it back.
 
 Dinah writes the workbench inside a `.dinah` directory here rather than loose
 in your working directory, so it always sits somewhere later commands can find

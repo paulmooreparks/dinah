@@ -680,7 +680,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				return root, []string{"claim", "lim-1"}
 			},
 			token:    contract.NoOperator,
-			sentence: "this workbench designates no operator, so its reserved acts are dead",
+			sentence: "this workbench designates no operator, so its reserved actions are dead",
 		},
 		{
 			name: "a workbench declaring a profile major this binary does not implement",
