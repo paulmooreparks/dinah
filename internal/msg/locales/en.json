@@ -13,6 +13,10 @@
       "text": "{ref}  {title}  [{state} / {substate}]",
       "context": "The one line printed about a card after an act."
     },
+    "check.active-without-claim": {
+      "text": "card {detail} reads active and carries no holder",
+      "context": "A check finding: the converse of the claim implication."
+    },
     "check.add.1": {
       "text": "the request carries a title",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -41,6 +45,10 @@
       "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.block-without-reason": {
+      "text": "card {detail} is blocked and carries no reason",
+      "context": "A check finding: every blocked card carries a reason."
+    },
     "check.block.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
@@ -56,6 +64,10 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.claim-without-active": {
+      "text": "card {detail} carries claim fields without substate active",
+      "context": "A check finding: the claim fields and substate active imply each other."
     },
     "check.claim.1": {
       "text": "the card exists",
@@ -77,6 +89,10 @@
       "text": "the card's substate is not `active`",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
+    "check.clean": {
+      "text": "No structural defects found.",
+      "context": "Printed when check finds nothing."
+    },
     "check.comment.1": {
       "text": "the card exists",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -92,6 +108,18 @@
     "check.config.1": {
       "text": "the key is one this tool knows",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.count.one": {
+      "text": "{count} defect.",
+      "context": "The count line after check's findings, for exactly one finding."
+    },
+    "check.count.other": {
+      "text": "{count} defects.",
+      "context": "The count line after check's findings, for any other number."
+    },
+    "check.dangling-link": {
+      "text": "a link names card {detail}, which resolves in neither half of the collection",
+      "context": "A check finding: a links entry whose to resolves to no card."
     },
     "check.delete.1": {
       "text": "the reference resolves to an entity",
@@ -113,6 +141,10 @@
       "text": "an editor is resolvable by the ladder",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.entity-at-both-paths": {
+      "text": "entity {detail} is present in the live collection and in the archive, and check will not choose between them",
+      "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
+    },
     "check.extract.1": {
       "text": "the target directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -120,6 +152,10 @@
     "check.guide.1": {
       "text": "a guide is embedded under the topic",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.holder-on-unheld": {
+      "text": "card {detail} carries a holder while not active",
+      "context": "A check finding: a ready or blocked card carries no holder."
     },
     "check.init.1": {
       "text": "the directory holds no workbench already",
@@ -133,6 +169,10 @@
       "text": "the reference resolves to a card or a state",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.interrupted-act": {
+      "text": "a structural act was interrupted here: {detail}",
+      "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
+    },
     "check.log.1": {
       "text": "the card exists",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -140,6 +180,10 @@
     "check.ls.1": {
       "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.missing-anchor": {
+      "text": "directory {detail} carries no anchor file, so it is not an entity",
+      "context": "A check finding: a hex directory without its anchor."
     },
     "check.move.1": {
       "text": "the card exists",
@@ -181,6 +225,10 @@
       "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.position-diverges": {
+      "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
+      "context": "A check finding: frontmatter position against the journal's replay."
+    },
     "check.release.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
@@ -193,6 +241,10 @@
       "text": "the reference resolves to a card or a path below one",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.torn-journal": {
+      "text": "the journal of card {detail} ends in a partial line",
+      "context": "A check finding: a torn journal tail left by a crash."
+    },
     "check.unblock.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -204,6 +256,14 @@
     "check.unblock.3": {
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unknown-state": {
+      "text": "a card names state {detail}, which this workbench does not declare",
+      "context": "A check finding: every card's state identifier resolves."
+    },
+    "check.unknown-substate": {
+      "text": "substate {detail} is outside the three the format declares",
+      "context": "A check finding: a substate outside ready, active and blocked."
     },
     "check.whoami.1": {
       "text": "an owner is resolvable by the ladder",
@@ -233,6 +293,10 @@
       "text": "raise an obstacle and free the card",
       "context": "The one-line summary of the block command, shown beside its syntax in the help block."
     },
+    "cmd.check.summary": {
+      "text": "look for structural defects in this workbench",
+      "context": "The one-line summary of the check command, shown beside its syntax in the help block."
+    },
     "cmd.claim.summary": {
       "text": "take up a ready card",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block."
@@ -260,10 +324,6 @@
     "cmd.extract.summary": {
       "text": "copy this workbench's definition out as a template",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
-    },
-    "cmd.fsck.summary": {
-      "text": "check this workbench for structural defects",
-      "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
     },
     "cmd.guide.summary": {
       "text": "the embedded guides, or one of them",
@@ -357,66 +417,6 @@
       "text": "suppress served instructions on claim and move",
       "context": "The one-line summary of the global flag --quiet."
     },
-    "fsck.active-without-claim": {
-      "text": "card {detail} reads active and carries no holder",
-      "context": "An fsck finding: the converse of the claim implication."
-    },
-    "fsck.block-without-reason": {
-      "text": "card {detail} is blocked and carries no reason",
-      "context": "An fsck finding: every blocked card carries a reason."
-    },
-    "fsck.claim-without-active": {
-      "text": "card {detail} carries claim fields without substate active",
-      "context": "An fsck finding: the claim fields and substate active imply each other."
-    },
-    "fsck.clean": {
-      "text": "No structural defects found.",
-      "context": "Printed when fsck finds nothing."
-    },
-    "fsck.count.one": {
-      "text": "{count} defect.",
-      "context": "The count line after fsck's findings, for exactly one finding."
-    },
-    "fsck.count.other": {
-      "text": "{count} defects.",
-      "context": "The count line after fsck's findings, for any other number."
-    },
-    "fsck.dangling-link": {
-      "text": "a link names card {detail}, which resolves in neither half of the collection",
-      "context": "An fsck finding: a links entry whose to resolves to no card."
-    },
-    "fsck.entity-at-both-paths": {
-      "text": "entity {detail} is present in the live collection and in the archive, and fsck will not choose between them",
-      "context": "An fsck finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
-    },
-    "fsck.holder-on-unheld": {
-      "text": "card {detail} carries a holder while not active",
-      "context": "An fsck finding: a ready or blocked card carries no holder."
-    },
-    "fsck.interrupted-act": {
-      "text": "a structural act was interrupted here: {detail}",
-      "context": "An fsck finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
-    },
-    "fsck.missing-anchor": {
-      "text": "directory {detail} carries no anchor file, so it is not an entity",
-      "context": "An fsck finding: a hex directory without its anchor."
-    },
-    "fsck.position-diverges": {
-      "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
-      "context": "An fsck finding: frontmatter position against the journal's replay."
-    },
-    "fsck.torn-journal": {
-      "text": "the journal of card {detail} ends in a partial line",
-      "context": "An fsck finding: a torn journal tail left by a crash."
-    },
-    "fsck.unknown-state": {
-      "text": "a card names state {detail}, which this workbench does not declare",
-      "context": "An fsck finding: every card's state identifier resolves."
-    },
-    "fsck.unknown-substate": {
-      "text": "substate {detail} is outside the three the format declares",
-      "context": "An fsck finding: a substate outside ready, active and blocked."
-    },
     "help.environment": {
       "text": "Environment: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
@@ -430,7 +430,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "Run 'dinah help <command>' for one command's arguments, refusals and exit codes.",
+      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, refusals and exit codes.",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.bench": {
@@ -458,7 +458,7 @@
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
-      "text": "Usage: dinah <command> [arguments]",
+      "text": "Usage: dinah \u003ccommand\u003e [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.done": {
@@ -518,7 +518,7 @@
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
-      "text": "the act on {detail} was interrupted after it was recorded, and `dinah fsck --finish` completes it",
+      "text": "the act on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.locked": {

@@ -668,36 +668,36 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	}
 }
 
-// TestFsckDeclaresItsFinishFlagOnEverySurface asserts that the flag which
+// TestCheckDeclaresItsFinishFlagOnEverySurface asserts that the flag which
 // completes an interrupted structural act is declared once and projected
-// everywhere: the ratified help block's fsck line names it, the generated help
+// everywhere: the ratified help block's check line names it, the generated help
 // for the command names it from the same definition, and the argument parser
 // accepts it.
 //
-// The change to the fixture's fsck line is a ratified one rather than drift.
+// The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
 // asserted against it by TestToolSurfaceIsTheProjection.
-func TestFsckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
+func TestCheckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
 	fixture, err := os.ReadFile(filepath.Join("testdata", "help.txt"))
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  fsck [--finish] ") {
-		t.Error("the ratified block's fsck line does not name --finish")
+	if !strings.Contains(string(fixture), "  check [--finish] ") {
+		t.Error("the ratified block's check line does not name --finish")
 	}
-	if got := verb.Usage("fsck"); got != "fsck [--finish]" {
+	if got := verb.Usage("check"); got != "check [--finish]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
 	root := newBench(t)
-	generated := runCLI(t, root, "help", "fsck")
+	generated := runCLI(t, root, "help", "check")
 	if generated.code != 0 {
-		t.Fatalf("help fsck: %d %s", generated.code, generated.errw)
+		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
 	if !strings.Contains(generated.out, "--finish") {
 		t.Errorf("the generated help does not name the flag:\n%s", generated.out)
 	}
-	if got := runCLI(t, root, "fsck", "--finish"); got.code != 0 {
-		t.Errorf("fsck --finish on a clean bench: %d %s", got.code, got.errw)
+	if got := runCLI(t, root, "check", "--finish"); got.code != 0 {
+		t.Errorf("check --finish on a clean bench: %d %s", got.code, got.errw)
 	}
 }

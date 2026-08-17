@@ -52,7 +52,7 @@ func init() {
 		{name: "path", group: groupBench, run: runPath},
 		{name: "edit", group: groupBench, run: runEdit},
 		{name: "config", group: groupBench, run: runConfig},
-		{name: "fsck", group: groupBench, run: runFsck},
+		{name: "check", group: groupBench, run: runCheck},
 		{name: "whoami", group: groupBench, run: runWhoami},
 		{name: "version", group: groupBench, run: runVersion},
 
@@ -458,11 +458,11 @@ func runConfig(s *session, parsed *arguments) int {
 	return s.fail(contract.Usage, "config")
 }
 
-// runFsck checks the bench for structural defects.
-func runFsck(s *session, parsed *arguments) int {
-	req := s.request("fsck", parsed)
+// runCheck checks the bench for structural defects.
+func runCheck(s *session, parsed *arguments) int {
+	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
-		findings, err := l.Fsck(req)
+		findings, err := l.Check(req)
 		if err != nil {
 			return reportError(s.errw, s.r, err)
 		}

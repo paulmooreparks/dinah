@@ -73,7 +73,7 @@ func AppendEvent(path string, ev Event) error {
 // absent journal is an empty history.
 //
 // The second return value reports whether a trailing partial line was found,
-// which is what fsck reports and trims with a witness.
+// which is what check reports and trims with a witness.
 func ReadJournal(path string) ([]Event, bool, error) {
 	text, err := ReadText(path)
 	if os.IsNotExist(err) {

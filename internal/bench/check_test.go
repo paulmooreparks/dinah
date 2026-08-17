@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// benchDefinition is the smallest bench fsck can be run against.
+// benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---
 format: 1
 profile: dinah-core/1.0
@@ -65,10 +65,10 @@ func write(t *testing.T, path, text string) {
 	}
 }
 
-// TestFsckFindsEachInvariantViolation asserts that fsck detects each defect
+// TestCheckFindsEachInvariantViolation asserts that check detects each defect
 // the format document names, reports it against the file it sits in, and
 // finds nothing at all on a clean bench.
-func TestFsckFindsEachInvariantViolation(t *testing.T) {
+func TestCheckFindsEachInvariantViolation(t *testing.T) {
 	cases := []struct {
 		name    string
 		breakIt func(*testing.T, string)
@@ -148,9 +148,9 @@ func TestFsckFindsEachInvariantViolation(t *testing.T) {
 			if err != nil {
 				t.Fatalf("open: %v", err)
 			}
-			findings, err := opened.Fsck()
+			findings, err := opened.Check()
 			if err != nil {
-				t.Fatalf("fsck: %v", err)
+				t.Fatalf("check: %v", err)
 			}
 			if c.key == "" {
 				if len(findings) != 0 {

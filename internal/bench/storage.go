@@ -23,7 +23,7 @@ func Stamp(t time.Time) string {
 
 // ParseStamp reads a stored timestamp. A value that does not parse comes back
 // as the zero time rather than as an error, because a hand-edited line is a
-// thing fsck reports rather than a thing a read refuses.
+// thing check reports rather than a thing a read refuses.
 func ParseStamp(s string) time.Time {
 	t, err := time.Parse(TimeFormat, s)
 	if err != nil {
