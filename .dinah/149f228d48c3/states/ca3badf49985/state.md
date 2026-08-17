@@ -1,5 +1,6 @@
 ---
 title: Spec
+slug: spec
 kind: work
 operator_owned: false
 ---

@@ -1,5 +1,6 @@
 ---
 title: Agent Design Review
+slug: agent-design-review
 kind: work
 operator_owned: false
 ---

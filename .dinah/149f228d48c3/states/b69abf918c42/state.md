@@ -1,5 +1,6 @@
 ---
 title: Acceptance
+slug: acceptance
 kind: work
 operator_owned: true
 ---

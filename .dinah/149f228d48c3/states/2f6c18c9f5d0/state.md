@@ -1,5 +1,6 @@
 ---
 title: Design Queue
+slug: design-queue
 kind: work
 operator_owned: false
 ---
