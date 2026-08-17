@@ -27,7 +27,7 @@ it. Dinah prints the path it wrote, `.dinah/<id>/`, where `<id>` is a
 generated identifier. Open the `workbench.md` file inside it to read the
 prose that is served to whoever claims a card. You edit that same file
 directly, so anyone who opens the workbench sees your change right away, and
-you get a copy of it only when you run `dinah extract`.
+you get a copy of it only when you ask for one.
 
 File the first piece of work:
 
