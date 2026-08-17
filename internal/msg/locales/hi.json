@@ -689,6 +689,14 @@
       "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है। इसके बजाय init को लक्ष्य डायरेक्टरी सामान्य तर्क के रूप में दें।",
       "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one."
     },
+    "refusal.dinah.repair-would-empty-states": {
+      "text": "{detail} वर्कबेंच में बची हर स्थिति के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई स्थिति नहीं बचेगी, इसलिए dinah check --migrate-states मना करता है। कोई स्थिति जोड़ने के लिए वर्कबेंच की states सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-states फिर से चलाएँ।",
+      "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list."
+    },
+    "refusal.dinah.add-needs-a-state": {
+      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्थिति नहीं बची है; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
+    },
     "refusal.held": {
       "text": "यह कार्ड {detail} ने लिया हुआ है",
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about."

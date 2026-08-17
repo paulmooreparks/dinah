@@ -18,6 +18,13 @@ import (
 // A named state honours that state's capacity limit while a filing into the
 // first state never does, because work has to be able to enter the bench and
 // the intake station is where unstarted work is meant to pile up.
+//
+// Bench.Open tolerates a workbench whose live states list has been emptied
+// by every id going stranded, so check can diagnose it. Add refuses with
+// contract.AddNeedsAState instead of reading the first state off an empty
+// list, before anything about the request past its title and actor is
+// checked, so the refusal is a pure read-only bail-out with nothing to
+// clean up.
 func (l *Library) Add(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -28,6 +35,10 @@ func (l *Library) Add(req *Request) *Response {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
+	}
+	if len(l.Bench.States) == 0 {
+		anchor := filepath.Join(l.Bench.Root, bench.WorkbenchAnchor)
+		return l.refuse(req, nil, contract.AddNeedsAState, anchor)
 	}
 	destination := l.Bench.States[0]
 	if req.State != "" {

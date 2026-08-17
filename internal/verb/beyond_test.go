@@ -71,6 +71,33 @@ func TestAddFilesACard(t *testing.T) {
 	}
 }
 
+// TestAddRefusesRatherThanPanicsWithNoLiveStates asserts AC-7 and AC-8: Add
+// against a workbench whose live states list is empty raises
+// contract.AddNeedsAState rather than indexing Bench.States[0], which is the
+// crash the guard exists to stop, and creates no card directory.
+// Bench.Open tolerates this shape so check can diagnose it, so the harness
+// reaches it by clearing the in-memory slice after opening rather than by
+// writing a new fixture: no dinah check --migrate-states run is involved.
+func TestAddRefusesRatherThanPanicsWithNoLiveStates(t *testing.T) {
+	h := newHarness(t)
+	h.library.Bench.States = nil
+	response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "stranded filing"})
+	if response.Refusal != contract.AddNeedsAState {
+		t.Fatalf("wanted contract.AddNeedsAState, got %s %s", response.Outcome, response.Refusal)
+	}
+	want := filepath.Join(h.library.Bench.Root, bench.WorkbenchAnchor)
+	if response.Detail != want {
+		t.Errorf("wanted the workbench.md path %q as detail, got %q", want, response.Detail)
+	}
+	entries, err := os.ReadDir(h.library.Bench.CardsRoot())
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read cards root: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("wanted no card directory created, got %v", entries)
+	}
+}
+
 // TestIdentifiersAreUniqueAcrossBothHalves asserts CORE-CARD-1: an identifier
 // in use in the archived half is not reused, which is the uniqueness scope the
 // format's archive section fixes.

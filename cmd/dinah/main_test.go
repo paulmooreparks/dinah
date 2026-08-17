@@ -1945,6 +1945,109 @@ func strandState(t *testing.T, root string, position int) string {
 	return id
 }
 
+// strandAllStates hand-strands every state a fresh newBench declares, one at
+// a time: each call to strandState re-reads the live list, which shrinks by
+// one member as its predecessor is stranded, so position 0 always names
+// whichever state is still live. It returns the stranded identifiers in the
+// order they were stranded, leaving workbench.md's raw states list
+// unchanged and every id on it stranded, which is the shape a real
+// workbench reaches after every other state was already retired and this
+// last one was retired or removed under the pre-dinah-49 code.
+func strandAllStates(t *testing.T, root string) []string {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "states")
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	gone := make([]string, 0, len(states))
+	for range states {
+		gone = append(gone, strandState(t, root, 0))
+	}
+	return gone
+}
+
+// TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition asserts AC-2:
+// dinah check --migrate-states against a workbench whose states list is
+// entirely stranded ids exits 2 with the new refusal, leaves workbench.md
+// unchanged, and a following plain dinah check reports the same
+// check.stranded-state finding(s) it would have reported before the
+// migration attempt.
+func TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition(t *testing.T) {
+	root := newBench(t)
+	anchor := filepath.Join(benchDir(t, root), bench.WorkbenchAnchor)
+	gone := strandAllStates(t, root)
+
+	before, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read anchor: %v", err)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-states")
+	if migrated.code != 2 {
+		t.Fatalf("check --migrate-states: wanted exit 2, got %d\n%s", migrated.code, migrated.errw)
+	}
+	if !strings.Contains(migrated.errw, contract.RepairWouldEmptyStates) {
+		t.Errorf("wanted the repair-would-empty-states refusal, got:\n%s", migrated.errw)
+	}
+	for _, id := range gone {
+		if !strings.Contains(migrated.errw, id) {
+			t.Errorf("the refusal did not name the stranded state %s:\n%s", id, migrated.errw)
+		}
+	}
+
+	after, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read anchor after refusal: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("the refused migration touched workbench.md")
+	}
+
+	plain := runCLI(t, root, "check")
+	if plain.code == 0 {
+		t.Fatalf("a following check should still report the stranded states")
+	}
+	for _, id := range gone {
+		if !strings.Contains(plain.out, id) {
+			t.Errorf("the following check did not name %s:\n%s", id, plain.out)
+		}
+	}
+}
+
+// TestAddRefusesWithNoLiveStates asserts AC-8's CLI-level half: dinah add
+// against a workbench whose states list is entirely stranded prints and
+// exits on the AddNeedsAState refusal, naming the workbench.md path and the
+// dinah check / dinah add follow-up, and creates no card directory.
+func TestAddRefusesWithNoLiveStates(t *testing.T) {
+	root := newBench(t)
+	dir := benchDir(t, root)
+	anchor := filepath.Join(dir, bench.WorkbenchAnchor)
+	strandAllStates(t, root)
+
+	got := runCLI(t, root, "add", "stranded card")
+	if got.code != 2 {
+		t.Fatalf("add: wanted exit 2, got %d\n%s", got.code, got.errw)
+	}
+	if !strings.Contains(got.errw, contract.AddNeedsAState) {
+		t.Errorf("wanted the add-needs-a-state refusal, got:\n%s", got.errw)
+	}
+	if !strings.Contains(got.errw, anchor) {
+		t.Errorf("the refusal did not name the workbench.md path:\n%s", got.errw)
+	}
+	if !strings.Contains(got.errw, "dinah check") || !strings.Contains(got.errw, "dinah add") {
+		t.Errorf("the refusal did not name both follow-up commands:\n%s", got.errw)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(dir, bench.CardsDir))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read cards dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("wanted no card directory created, got %v", entries)
+	}
+}
+
 // TestAHandTypedSlugLeavesTheWorkbenchOpenable asserts the corner an operator
 // has to be able to get out of with the tool: somebody types a slug into a
 // state anchor by hand and gets it wrong, and the workbench goes on opening,
