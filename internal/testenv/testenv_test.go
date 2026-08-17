@@ -42,13 +42,20 @@ func TestInsideHomeUsesASegmentBoundary(t *testing.T) {
 // no isolation needed once the default temporary directory already sits
 // outside home, and that it reports isolation needed when it does not,
 // against inputs the test fakes directly rather than the operating system
-// the test runner happens to be.
+// the test runner happens to be. Both fakes are built with filepath.Join in
+// the running OS's own separator convention, so the nesting insideHome reads
+// is real nesting on every platform, rather than a Windows-style literal
+// that a POSIX build would read as one opaque path segment.
 func TestDecideIsolationIsANoOpOutsideHome(t *testing.T) {
-	if got := decideIsolation("/tmp", "/home/paul"); got {
-		t.Errorf("a POSIX default temp dir outside home should not need isolation, got %v", got)
+	home := filepath.Join(string(filepath.Separator), "home", "paul")
+	outside := filepath.Join(string(filepath.Separator), "var", "tmp")
+	inside := filepath.Join(home, "AppData", "Local", "Temp")
+
+	if got := decideIsolation(outside, home); got {
+		t.Errorf("a default temp dir outside home should not need isolation, got %v", got)
 	}
-	if got := decideIsolation(`C:\Users\paul\AppData\Local\Temp`, `C:\Users\paul`); !got {
-		t.Errorf("a Windows default temp dir inside home should need isolation, got %v", got)
+	if got := decideIsolation(inside, home); !got {
+		t.Errorf("a default temp dir inside home should need isolation, got %v", got)
 	}
 }
 
@@ -95,36 +102,43 @@ func TestVerifyIsolationAcceptsADirectoryOutsideHome(t *testing.T) {
 }
 
 // TestIsolateTempDirRedirectsAndRestores calls the real IsolateTempDir and
-// its restore in-process against a fake home and a fake default temporary
-// directory nested inside it, set through the environment variables both
-// os.UserHomeDir and os.TempDir read, and checks both the filesystem and the
-// environment afterward: the created directory exists while isolated and is
-// gone after restore, and TMP, TEMP, and TMPDIR return to what they held
-// before.
+// its restore in-process against this machine's real home and real default
+// temporary directory, and checks both the filesystem and the environment
+// afterward: the created directory exists while isolated and is gone after
+// restore, and TMP, TEMP, and TMPDIR return to what they held before.
+//
+// This deliberately does not fake home to force the redirect branch, the
+// way TestIsolateTempDirIsANoOpOutsideHome fakes the no-op branch. The
+// branch this test exercises ends in a real os.MkdirTemp rooted at the
+// filesystem's own root (never a fixed path, per this package's design), and
+// a POSIX account with no home nested under that root cannot create a
+// directory there; forcing the branch with a fake home on such a machine
+// would fail on a permission this test has no business asserting about. The
+// real home and real default answer the same question IsolateTempDir itself
+// answers, so the skip below is the same no-op this function already
+// returns on a machine where nothing needs isolating.
 func TestIsolateTempDirRedirectsAndRestores(t *testing.T) {
-	fakeHome := t.TempDir()
-	fakeDefaultTemp := filepath.Join(fakeHome, "AppData", "Local", "Temp")
-	if err := os.MkdirAll(fakeDefaultTemp, 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory to test against on this machine")
+	}
+	before := os.TempDir()
+	if !insideHome(before, home) {
+		t.Skip("this machine's default temporary directory already sits outside home; see TestIsolateTempDirIsANoOpOutsideHome for that branch")
 	}
 
-	homeVar := "HOME"
-	if runtime.GOOS == "windows" {
-		homeVar = "USERPROFILE"
-	}
-	t.Setenv(homeVar, fakeHome)
-	t.Setenv("TMP", fakeDefaultTemp)
-	t.Setenv("TEMP", fakeDefaultTemp)
-	t.Setenv("TMPDIR", fakeDefaultTemp)
+	prevTMP := os.Getenv("TMP")
+	prevTEMP := os.Getenv("TEMP")
+	prevTMPDIR := os.Getenv("TMPDIR")
 
 	restore := IsolateTempDir()
 
 	created := os.Getenv("TMP")
-	if created == fakeDefaultTemp {
-		t.Fatalf("TMP was not redirected away from the fake default %s", fakeDefaultTemp)
+	if created == prevTMP {
+		t.Fatalf("TMP was not redirected away from %s", prevTMP)
 	}
-	if insideHome(created, fakeHome) {
-		t.Errorf("the redirected directory %s is still inside the fake home %s", created, fakeHome)
+	if insideHome(created, home) {
+		t.Errorf("the redirected directory %s is still inside home %s", created, home)
 	}
 	if os.Getenv("TEMP") != created || os.Getenv("TMPDIR") != created {
 		t.Errorf("TEMP and TMPDIR should match TMP's redirected value %s, got TEMP=%s TMPDIR=%s", created, os.Getenv("TEMP"), os.Getenv("TMPDIR"))
@@ -135,8 +149,8 @@ func TestIsolateTempDirRedirectsAndRestores(t *testing.T) {
 
 	restore()
 
-	if os.Getenv("TMP") != fakeDefaultTemp || os.Getenv("TEMP") != fakeDefaultTemp || os.Getenv("TMPDIR") != fakeDefaultTemp {
-		t.Errorf("restore should put TMP, TEMP, and TMPDIR back to %s, got TMP=%s TEMP=%s TMPDIR=%s", fakeDefaultTemp, os.Getenv("TMP"), os.Getenv("TEMP"), os.Getenv("TMPDIR"))
+	if os.Getenv("TMP") != prevTMP || os.Getenv("TEMP") != prevTEMP || os.Getenv("TMPDIR") != prevTMPDIR {
+		t.Errorf("restore should put TMP, TEMP, and TMPDIR back to what they held before, got TMP=%s TEMP=%s TMPDIR=%s", os.Getenv("TMP"), os.Getenv("TEMP"), os.Getenv("TMPDIR"))
 	}
 	if _, err := os.Stat(created); !os.IsNotExist(err) {
 		t.Errorf("restore should remove the directory it created, got err=%v", err)
