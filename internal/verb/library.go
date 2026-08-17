@@ -19,8 +19,10 @@ type Library struct {
 	// a recorded expiry without waiting for it.
 	Now func() time.Time
 	// Interleave, when set, is called inside a mutation's transaction, after
-	// the card has been read under its lock and before any precondition is
-	// evaluated against it. It exists so that a test can drive a second
+	// the entity's lock has been taken and before the work the lock covers:
+	// in a contract verb, after the card has been read and before any
+	// precondition is evaluated against it, and in an attach, before
+	// anything is written. It exists so that a test can drive a second
 	// process into the middle of a transaction and observe that the lock
 	// refuses it there, which is the window a lock taken only around the
 	// write would leave open.
@@ -73,6 +75,15 @@ type Request struct {
 	Confirm bool
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
+	// Finish asks check to complete or roll back the interrupted structural
+	// acts it reports, rather than only reporting them.
+	Finish bool
+	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
+	// of the workbench that predates the field, before it reports.
+	MigrateOrdinals bool
+	// MigrateSlugs asks check to derive a slug for every state of the
+	// workbench that predates the field, before it reports.
+	MigrateSlugs bool
 }
 
 // CardView is the card as a response carries it.
@@ -298,7 +309,7 @@ func (l *Library) FromError(req *Request, err error) *Response {
 	}
 }
 
-// sortByArrival orders cards the way CORE-QUEUE-1 fixes.
+// sortByArrival orders cards the way CORE-QUEUE-3 fixes.
 func sortByArrival(cards []*bench.Card) {
 	sort.SliceStable(cards, func(i, j int) bool {
 		return bench.ByArrival(cards[i], cards[j])

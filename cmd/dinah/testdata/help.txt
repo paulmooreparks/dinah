@@ -15,7 +15,7 @@ WORK
   delete <ref> --yes                     destroy an entity and its history
 
 READ
-  status                                 where this bench stands, and what you hold
+  status                                 where this workbench stands, and what you hold
   states                                 the flow, in order
   ls [state] [--ready]                   the cards of a state, in queue order
   next [state]                           the card a state offers next
@@ -24,28 +24,29 @@ READ
   instructions <card|state>              the instructions served at a position
   guide [topic]                          the embedded guides, or one of them
 
-BENCH
-  init [--from <source>] [--slug <slug>] [--operator <actor>] create a bench here, optionally from a template
-  export                                 write this bench's interchange form to stdout
-  extract <dir>                          copy this bench's definition out as a template
+WORKBENCH
+  init [--from <source>] [--slug <slug>] [--operator <actor>] create a workbench here, optionally from a template
+  export                                 write this workbench's interchange form to stdout
+  extract <dir>                          copy this workbench's definition out as a template
   path <card|path>                       print the file path of a card or of anything below it
   edit <card|path>                       open that path in your editor
-  config <get|set> <key> [value]         read or write your user settings
-  fsck                                   check this bench for structural defects
+  config [get|set] [key] [value]         list your user settings, or read or write one
+  check [--finish] [--migrate-ordinals] [--migrate-slugs] look for structural defects in this workbench
   whoami                                 the actor your acts carry, and whether it is the operator
+  workbenches                            the workbenches reachable from here
   version [--catalogs]                   what this binary is and what it conforms to
 
 SERVE
-  mcp                                    serve this bench over MCP on stdio
+  mcp                                    serve this workbench over MCP on stdio
 
 Global flags:
-  --bench <dir>    use this bench instead of the one discovered from here
-  --json           emit the canonical machine form
-  --quiet          suppress served instructions on claim and move
-  --lang <tag>     render in this language
-  --actor <name>   act as this owner
+  --workbench <dir>   use this workbench instead of the one discovered from here
+  --json              emit the canonical machine form
+  --quiet             suppress served instructions on claim and move
+  --lang <tag>        render in this language
+  --actor <name>      act as this owner
 
-Environment: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 

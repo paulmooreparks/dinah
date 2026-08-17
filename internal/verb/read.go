@@ -13,6 +13,9 @@ import (
 type StateView struct {
 	// ID is the state's identifier.
 	ID string `json:"id"`
+	// Slug is the state's short handle. It is absent on a state written
+	// before the field existed and left out until the migration runs.
+	Slug string `json:"slug,omitempty"`
 	// Title is the state's title.
 	Title string `json:"title"`
 	// Kind is one of intake, work and done.
@@ -28,7 +31,7 @@ type StateView struct {
 // Status is where the bench stands and what the reader holds.
 type Status struct {
 	// Bench is the workbench's title.
-	Bench string `json:"bench"`
+	Bench string `json:"workbench"`
 	// Root is the directory the bench was discovered in.
 	Root string `json:"root"`
 	// Actor is the owner this invocation acts as.
@@ -101,6 +104,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 	for _, state := range l.Bench.States {
 		view := StateView{
 			ID:            state.ID,
+			Slug:          state.Slug,
 			Title:         state.Title,
 			Kind:          state.Kind,
 			OperatorOwned: state.OperatorOwned,
@@ -116,7 +120,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 type Listing struct {
 	// State is the state listed, empty when the listing spans the bench.
 	State string `json:"state,omitempty"`
-	// Cards are the cards, in the order CORE-QUEUE-1 fixes.
+	// Cards are the cards, in the order CORE-QUEUE-3 fixes.
 	Cards []CardView `json:"cards"`
 }
 
@@ -351,9 +355,94 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 	return identity, nil
 }
 
-// Fsck checks the bench for structural defects.
-func (l *Library) Fsck() ([]bench.Finding, error) {
-	return l.Bench.Fsck()
+// CheckReport is what check answers with: the structural defects the bench
+// carries, and the account of a repair the request asked for.
+//
+// The account is what keeps a repair from being silent. A migration that
+// stamped a creation ordinal it could only guess at, or that a lock kept out of
+// a card, is the only moment anybody can still tell a guess from a recovered
+// fact, so it says so here rather than leaving a workbench that reads clean
+// afterwards either way.
+type CheckReport struct {
+	// Findings are the defects the checker names, together with whatever a
+	// repair in the same request could not do.
+	Findings []bench.Finding `json:"findings"`
+	// StampedOrdinals counts the creation ordinals the migration wrote, and
+	// is absent from a request that did not ask for the migration.
+	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
+	// AssignedSlugs are the states the slug migration repaired with the slug
+	// each one was given. It is absent from a request that asked for no
+	// migration and from a request that asked and found nothing to repair,
+	// which MigratedSlugs below is what separates.
+	AssignedSlugs []bench.SlugAssignment `json:"assigned_slugs,omitempty"`
+	// MigratedSlugs says the slug migration ran, so a caller can tell an
+	// empty list of assignments from a migration nobody asked for.
+	MigratedSlugs bool `json:"migrated_slugs,omitempty"`
+}
+
+// Check checks the bench for structural defects, and repairs nothing unless a
+// marker in the request asks it to.
+//
+// A request carrying the finish marker completes or rolls back the
+// interrupted structural acts first, so nobody finishes an act without the
+// report that named it, and then reports what the bench still carries. A
+// request carrying the migrate-ordinals marker stamps the creation ordinals a
+// workbench written before the field carries none of, which is a one-time
+// repair rather than a read-path fallback. A request carrying the
+// migrate-slugs marker does the same for the states of a workbench that
+// predate the slug field, and names the slug it gave each one.
+//
+// A non-nil error return still carries a non-nil report when the migration
+// ran: the report is what the run had already stamped and already guessed
+// before whatever ended it, and a caller that discards it on the error path
+// loses that account the same way the run it is reporting on must not.
+func (l *Library) Check(req *Request) (*CheckReport, error) {
+	report := &CheckReport{}
+	if req != nil && req.MigrateSlugs {
+		assigned, reported := l.Bench.BackfillStateSlugs()
+		report.MigratedSlugs = true
+		report.AssignedSlugs = assigned
+		report.Findings = append(report.Findings, reported...)
+	}
+	if req != nil && req.MigrateOrdinals {
+		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
+		report.StampedOrdinals = &stamped
+		report.Findings = append(report.Findings, reported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	if req == nil || !req.Finish {
+		findings, err := l.Bench.Check()
+		if err != nil {
+			return nil, err
+		}
+		report.Findings = append(report.Findings, findings...)
+		return report, nil
+	}
+	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
+	if err != nil {
+		return nil, err
+	}
+	remaining, err := l.Bench.Check()
+	if err != nil {
+		return nil, err
+	}
+	// What the finish would not resolve it has already described more
+	// precisely than a second pass can, so its own finding is the one the
+	// reader gets for that path.
+	reported := map[string]bool{}
+	for _, finding := range unresolved {
+		reported[finding.Path] = true
+	}
+	report.Findings = append(report.Findings, unresolved...)
+	for _, finding := range remaining {
+		if reported[finding.Path] {
+			continue
+		}
+		report.Findings = append(report.Findings, finding)
+	}
+	return report, nil
 }
 
 // Export writes the interchange form of the bench definition.
@@ -368,6 +457,71 @@ func (l *Library) Extract(target string) error {
 		return err
 	}
 	return l.Bench.Extract(absolute)
+}
+
+// SettingView is one user setting as the listing reports it: what the key is,
+// what the ladder resolved it to, and which rung of that ladder answered.
+//
+// Value carries no omitempty. A setting nothing set is a row a reader is
+// owed, and dropping the member would leave the machine form unable to say
+// so.
+type SettingView struct {
+	// Key is the setting's name.
+	Key string `json:"key"`
+	// Value is what the ladder resolved, empty when no rung carried one.
+	Value string `json:"value"`
+	// Source is the rung that answered, unset when none did and unknown for
+	// a key the tool does not know.
+	Source string `json:"source"`
+}
+
+// Settings reports every setting the tool knows, resolved through the ladder
+// that actually decides each one, followed by whatever else the config file
+// carries.
+//
+// The resolvers are called rather than restated, because the stored value a
+// caller reads with `config get` cannot tell an unset key from one somebody
+// set to the same word the default happens to use. The flags are the ones the
+// invocation carried, so the listing reports the ladder as it stands for this
+// run rather than for an imagined one.
+//
+// A key outside the tool's set is reported with its stored value and the
+// source unknown. It survives every write, so hiding it here would leave a
+// reader wondering why a setting they can see in the file does nothing.
+func Settings(cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) []SettingView {
+	views := make([]SettingView, 0, len(bench.ConfigKeys))
+	for _, key := range bench.ConfigKeys {
+		views = append(views, setting(key, cfg, langFlag, actorFlag, goos, lookPath))
+	}
+	for _, key := range cfg.Keys() {
+		if bench.KnownConfigKey(key) {
+			continue
+		}
+		views = append(views, SettingView{Key: key, Value: cfg.Get(key), Source: bench.SourceUnknown})
+	}
+	return views
+}
+
+// setting resolves one known key. A key this switch does not answer for is a
+// key somebody added to ConfigKeys without giving it a ladder, so it falls
+// back to the stored value, which is the one rung every setting has.
+func setting(key string, cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) SettingView {
+	switch key {
+	case "lang":
+		value, source := bench.ResolveLangSource(langFlag, cfg)
+		return SettingView{Key: key, Value: value, Source: source}
+	case "actor":
+		value, source := bench.ResolveActorSource(actorFlag, cfg)
+		return SettingView{Key: key, Value: value, Source: source}
+	case "editor":
+		value, source, _ := bench.ResolveEditorSource(cfg, goos, lookPath)
+		return SettingView{Key: key, Value: value, Source: source}
+	}
+	stored := cfg.Get(key)
+	if stored == "" {
+		return SettingView{Key: key, Value: "", Source: bench.SourceUnset}
+	}
+	return SettingView{Key: key, Value: stored, Source: bench.SourceConfig}
 }
 
 // VersionReport is what this binary is and what it conforms to. The two numbers

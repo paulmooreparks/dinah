@@ -127,7 +127,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.bench", "title", status.Bench, "root", status.Root))
+	s.line(s.r.T("status.workbench", "title", status.Bench, "root", status.Root))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
 	s.renderStates(status.States)
@@ -162,7 +162,7 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.Capacity > 0 {
 			count += "/" + strconv.Itoa(state.Capacity)
 		}
-		row := "  " + pad(state.ID, 14) + pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
+		row := "  " + pad(state.ID, 14) + pad(state.Slug, 24) + pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
 		if state.OperatorOwned {
 			row += s.r.T("states.operator-owned")
 		}
@@ -178,6 +178,30 @@ func (s *session) renderListing(listing *verb.Listing) {
 	}
 	for _, card := range listing.Cards {
 		s.line("  " + pad(card.Ref, 14) + pad(s.token(card.Substate), 10) + card.Title)
+	}
+}
+
+// renderSettings prints each setting with the value in force and the rung of
+// its ladder that produced it. A setting no rung carried prints an empty
+// value beside the source that says so, because the row itself is the answer
+// to whether anybody has ever set the key.
+func (s *session) renderSettings(settings []verb.SettingView) {
+	for _, view := range settings {
+		s.line("  " + pad(view.Key, 12) + pad(view.Value, 24) + s.token(view.Source))
+	}
+}
+
+// renderWorkbenches prints one row per reachable workbench, and the line that
+// says so when none is reachable. The row carries what a reader needs to
+// recognise a workbench and to select it, so the path it ends on is the one
+// --workbench takes.
+func (s *session) renderWorkbenches(rows []bench.Candidate) {
+	if len(rows) == 0 {
+		s.line(s.r.T("workbenches.empty"))
+		return
+	}
+	for _, row := range rows {
+		s.line("  " + pad(row.Title, 32) + pad(row.Slug, 16) + row.Path)
 	}
 }
 
@@ -237,17 +261,36 @@ func (s *session) renderHistory(events []bench.Event) {
 	}
 }
 
-// renderFindings prints what fsck found and returns the exit code: zero on a
+// renderCheck prints what a check answered with: the account of the repair it
+// was asked to make first, then the findings.
+//
+// The stamped count is printed even when it is zero, because a migration that
+// found nothing to do and a migration that never ran are different answers to
+// the operator's question and he asked for one of them.
+func (s *session) renderCheck(report *verb.CheckReport) int {
+	if report.MigratedSlugs {
+		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
+		for _, assignment := range report.AssignedSlugs {
+			s.line("  " + pad(assignment.Slug, 24) + assignment.Title)
+		}
+	}
+	if report.StampedOrdinals != nil {
+		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
+	}
+	return s.renderFindings(report.Findings)
+}
+
+// renderFindings prints what check found and returns the exit code: zero on a
 // clean bench, the refused code when anything was found.
 func (s *session) renderFindings(findings []bench.Finding) int {
 	if len(findings) == 0 {
-		s.line(s.r.T("fsck.clean"))
+		s.line(s.r.T("check.clean"))
 		return 0
 	}
 	for _, finding := range findings {
 		s.line("  " + s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")")
 	}
-	s.line(s.r.TN("fsck.count", len(findings)))
+	s.line(s.r.TN("check.count", len(findings)))
 	return contract.ExitCode(contract.OutcomeRefused)
 }
 

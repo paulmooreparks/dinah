@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 1.0`, maturity channel `dev`.
+Version identity: `dinah-core 3.0`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -419,6 +419,13 @@ A state may be operator-owned, which reserves departure from it to the
 operator. A workbench uses this where a person has to look at the work before
 it goes on, and it is the mechanism behind ACTOR-4.
 
+A state also carries a slug, which is the short handle somebody types in
+place of a title. An identifier is exact and nobody remembers one, and a
+title carrying a space has to be quoted at every shell that meets it, so a
+slug is what makes a state nameable in a command, a path, and a URL. It is
+unique within the workbench for the same reason an identifier is: a name
+resolving to two states resolves to neither.
+
 [CORE-STATE-1] Each state MUST carry an identifier unique within its workbench.
 
 [CORE-STATE-2] Each state MUST carry a title.
@@ -436,6 +443,8 @@ it goes on, and it is the mechanism behind ACTOR-4.
 [CORE-STATE-8] A tool MAY offer a move to a state other than the next one in the workbench's ordered list.
 
 [CORE-STATE-9] A tool MUST NOT offer a forward move out of a state whose kind is `done`.
+
+[CORE-STATE-10] Each state MUST carry a slug unique within its workbench.
 
 ### 5.3 Cards
 
@@ -505,14 +514,14 @@ to the other reorders itself for no reason a reader can see, so the profile
 fixes one order and lets a tool offer others beside it.
 
 The fixed order is arrival: the card that entered the state earliest comes
-first. Ties are broken by ascending identifier, which makes the order total.
-The order deliberately consults nothing about the card except when it arrived,
-because every richer ordering would import a ranking the profile does not
-define.
+first. Ties are broken by ascending creation ordinal, which makes the order
+total. The order deliberately consults nothing about the card except when it
+arrived, because every richer ordering would import a ranking the profile does
+not define.
 
-[CORE-QUEUE-1] The next card of a state MUST be the card in that state whose substate is `ready` that entered the state earliest, with ties broken by ascending card identifier.
+[CORE-QUEUE-3] The next card of a state MUST be the card in that state whose substate is `ready` that entered the state earliest, with ties broken by ascending creation ordinal.
 
-[CORE-QUEUE-2] A tool MAY offer orders beside the one CORE-QUEUE-1 defines, provided the order CORE-QUEUE-1 defines remains available.
+[CORE-QUEUE-4] A tool MAY offer orders beside the one CORE-QUEUE-3 defines, provided the order CORE-QUEUE-3 defines remains available.
 
 ### 5.6 Text
 
@@ -565,7 +574,7 @@ with the meanings RFC 8259 gives them.
 
 [CORE-JSON-5] Each element of `states` MUST be a JSON object carrying the members `id`, `title` and `kind`.
 
-[CORE-JSON-6] A state object MAY carry the members `instructions`, `operator_owned` and `capacity`.
+[CORE-JSON-9] A state object MAY carry the members `instructions`, `operator_owned`, `capacity`, and `slug`.
 
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
@@ -1046,7 +1055,7 @@ quietly.
 | Item | Ruling | Reason | Reopens when | Statements |
 | --- | --- | --- | --- | --- |
 | The workbench definition | in | Without a declared flow there is nothing for two tools to agree about, and every other concept hangs off it. | | CORE-BENCH-1, CORE-BENCH-2 |
-| States and the moves between them | in | The flow is the thing a board is. A tool that could not say where a card stands would not be coordinating anything. | | CORE-STATE-1, CORE-STATE-2, CORE-STATE-6, CORE-STATE-7, CORE-STATE-8, CORE-MOVE-1, CORE-MOVE-8 |
+| States and the moves between them | in | The flow is the thing a board is. A tool that could not say where a card stands would not be coordinating anything. | | CORE-STATE-1, CORE-STATE-2, CORE-STATE-6, CORE-STATE-7, CORE-STATE-8, CORE-STATE-10, CORE-MOVE-1, CORE-MOVE-8 |
 | Per-state instruction serving, with the legal moves alongside | in | A workbench carries its method in prose, and the method is worthless if it does not reach whoever arrives at the position it describes. Saying which moves are legal at the same moment is part of the same service, since an owner told what to do and not where it may go is told half of it. | | CORE-INSTR-1, CORE-INSTR-2, CORE-INSTR-3, CORE-INSTR-4, CORE-INSTR-5, CORE-INSTR-6, CORE-INSTR-7 |
 | The verbs claim, move, release and block | in | These four are the whole of what an owner does to a card, and each has refusals a second tool would otherwise invent differently. | | CORE-VERB-1, CORE-VERB-2, CORE-CLAIM-3, CORE-RELEASE-2, CORE-BLOCK-3 |
 | The four-rule working agreement | in | The discipline is what makes a shared workbench trustworthy, and stating it in the contract keeps it from being reinvented per tool. | | ACTOR-1, ACTOR-2, ACTOR-3, ACTOR-4 |
@@ -1071,11 +1080,11 @@ quietly.
 | The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-4 |
 | The conformance claim and what it is evaluated over | in | A claim nobody can check is a claim worth nothing, so the profile fixes what a claim names and which statements a run exercises. | | CORE-VER-1, CORE-VER-2, SUITE-CONF-1 |
 | This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-2, DOC-VER-3, DOC-VER-4, DOC-VER-5, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
-| The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-1, CORE-QUEUE-2 |
+| The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
 | The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4, CORE-BASIS-5 |
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
 | The claim as a lease that may expire | in | An owner that disappears must not be able to hold a card forever, and expiry that is recorded rather than silent keeps the record honest. | | CORE-CLAIM-4, CORE-CLAIM-5, CORE-HIST-2 |
-| The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-6, CORE-JSON-7, CORE-JSON-8 |
+| The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-9, CORE-JSON-7, CORE-JSON-8 |
 | Text encoding and the untranslated token | in | Two tools that disagree about encoding or that translate a token cannot read each other at all. | | CORE-TEXT-1, CORE-TEXT-2, CORE-TEXT-3, CORE-TEXT-4 |
 | Parallel routes through the flow [lanes] | out | The core gains a simple model by having one route, and a tool that needs several can declare them in a layer. A real board already routes work three ways, so this is the likeliest first promotion. | A second tool needs routes and the layer form proves too weak to carry them. | |
 | Conditions that must be satisfied before a card may enter a state [gates] | out | The core would gain enforcement it cannot describe generally, since what is worth gating differs per workbench. | A gate condition emerges that every workbench needs, rather than one each workbench defines. | |
@@ -1242,6 +1251,7 @@ themselves carry meaning.
 | CORE-STATE-7 | must | tool | The legal moves reported for a card include a move to the next state in the list. |
 | CORE-STATE-8 | may | tool | A move to a state other than the next one is accepted where no other rule refuses it. |
 | CORE-STATE-9 | must not | tool | The legal moves reported for a card in a `done` state include no move to a later state. |
+| CORE-STATE-10 | must | tool | Over a fixture of two or more states, every state carries a slug, and no two states in one workbench share one. |
 | CORE-CARD-1 | must | tool | No two cards in one workbench carry one identifier, and a card offered with an identifier already in use is refused. |
 | CORE-CARD-2 | must not | tool | Retitling a card leaves its identifier unchanged. |
 | CORE-CARD-3 | must | tool | A card offered with no title is refused with `malformed`. |
@@ -1256,8 +1266,8 @@ themselves carry meaning.
 | CORE-OWNER-3 | must | tool | A verb asked on a workbench that designates no operator is refused with `no-operator`. |
 | CORE-VERB-1 | must | tool | A verb naming a card the workbench does not carry is refused with `unknown-card`. |
 | CORE-VERB-2 | must | tool | A verb naming no owner is refused with `no-owner`. |
-| CORE-QUEUE-1 | must | tool | Over a fixture with known arrival times, the next card is the earliest `ready` arrival, ties broken by ascending identifier. |
-| CORE-QUEUE-2 | may | tool | A tool offering another order still returns the CORE-QUEUE-1 order when asked for it. |
+| CORE-QUEUE-3 | must | tool | Over a fixture with known arrival times, the next card is the earliest `ready` arrival, ties broken by ascending creation ordinal. |
+| CORE-QUEUE-4 | may | tool | A tool offering another order still returns the CORE-QUEUE-3 order when asked for it. |
 | CORE-TEXT-1 | must | tool | Text the tool writes decodes as UTF-8. |
 | CORE-TEXT-2 | must not | tool | Identifier and token comparison gives the same answers under a Turkish locale as under a neutral one. |
 | CORE-TEXT-3 | must not | tool | A machine-readable response carries the canonical token whatever language is asked for. |
@@ -1267,7 +1277,7 @@ themselves carry meaning.
 | CORE-JSON-3 | must | tool | The written object carries `profile`, `title` and `states`, and an object missing one of them is refused with `malformed`. |
 | CORE-JSON-4 | must | tool | The order of `states` in the written object is the order of the flow. |
 | CORE-JSON-5 | must | tool | Every element of `states` carries `id`, `title` and `kind`, and an element missing one of them is refused with `malformed`. |
-| CORE-JSON-6 | may | tool | A state object carrying `instructions`, `operator_owned` or `capacity` is accepted. |
+| CORE-JSON-9 | may | tool | A state object carrying `slug` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
 | CORE-LINK-1 | may | tool | A card offered with a link is accepted. |
@@ -1341,7 +1351,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 122 rows, which is the number of identifiers an extraction
+The index carries 123 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
@@ -1367,3 +1377,48 @@ the four outcomes kept apart, and the interchange form of section 5.7.
 Nothing previously conformed, so nothing ceases to. The document sits on
 the `dev` channel, so the compatibility promise of section 2 does not yet
 bind, and it starts to bind at the recorded promotion to `stable`.
+
+### 2.0, channel `dev`, 2026-08-17
+
+Identifiers affected: CORE-QUEUE-1, retired. CORE-QUEUE-2, retired.
+CORE-QUEUE-3, introduced, carrying CORE-QUEUE-1's demand with its tie-break
+clause reworded to name ascending creation ordinal instead of ascending card
+identifier. CORE-QUEUE-4, introduced, carrying CORE-QUEUE-2's demand with its
+cross-reference reworded to name CORE-QUEUE-3 instead of the identifier it
+retires. No other identifier in the section 11 index is affected.
+
+Consequence for a caller. A tool computing the next `ready` card in a state
+now breaks a same-arrival-time tie by the card's creation ordinal (the
+`number` field the interchange form and every reference implementation
+already carry) rather than by the card's identifier. A tool that offers
+another order beside the fixed one now checks CORE-QUEUE-4 rather than
+CORE-QUEUE-2 for the rule permitting it, though the two statements ask the
+same thing of a tool under different names. A tool whose fixture data ties on
+arrival time and asserted an identifier-ordered outcome will see a different
+card returned; a tool with no such fixture, and no code that names
+CORE-QUEUE-1 or CORE-QUEUE-2 directly, sees no behavior change beyond the
+renumbering. The document sits on the `dev` channel, so nothing here binds a
+caller who has not already opted into `dinah-core 2.0`.
+
+### 3.0, channel `dev`, 2026-08-17
+
+Identifiers affected: CORE-JSON-6, retired. CORE-JSON-9, introduced, carrying
+CORE-JSON-6's demand with `slug` added to the set of members a state object
+may carry. CORE-STATE-10, introduced: every state carries a slug unique
+within its workbench. No other identifier in the section 11 index is
+affected.
+
+Consequence for a caller. A tool reading or writing the interchange form may
+now carry a `slug` member on a state object, and a tool that does not
+recognise `slug` and has not read this revision sees it travel through as an
+unrecognized member under CORE-JSON-7, unaffected. A tool asked to open a
+workbench claiming this revision now requires every state to carry a unique
+slug, so a workbench whose states predate the field is not conformant until
+it has been migrated, and the tool's own migration path is where that is
+done. A tool claiming an earlier major is not evaluated against
+CORE-STATE-10 at all, because a conformance claim names one major under
+CORE-VER-1 and is evaluated over the statements that revision publishes, so
+the requirement starts to bind a workbench on the day it claims this
+revision rather than on the day this entry was written. The document sits on
+the `dev` channel, so nothing here binds a caller who has not already opted
+into `dinah-core 3.0`.

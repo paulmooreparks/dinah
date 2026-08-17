@@ -13,12 +13,16 @@
       "text": "{ref}  {title}  [{state} / {substate}]",
       "context": "The one line printed about a card after an act."
     },
+    "check.active-without-claim": {
+      "text": "कार्ड {detail} active है पर कोई धारक नहीं",
+      "context": "A check finding: the converse of the claim implication."
+    },
     "check.add.1": {
       "text": "निवेदन में शीर्षक है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.2": {
-      "text": "नामित स्थिति बेंच घोषित करती है",
+      "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.3": {
@@ -41,6 +45,10 @@
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.block-without-reason": {
+      "text": "कार्ड {detail} बाधित है पर कारण नहीं",
+      "context": "A check finding: every blocked card carries a reason."
+    },
     "check.block.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
@@ -56,6 +64,10 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.claim-without-active": {
+      "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
+      "context": "A check finding: the claim fields and substate active imply each other."
     },
     "check.claim.1": {
       "text": "कार्ड मौजूद है",
@@ -77,6 +89,10 @@
       "text": "the card's substate is not `active`",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
+    "check.clean": {
+      "text": "कोई संरचनात्मक दोष नहीं मिला।",
+      "context": "Printed when check finds nothing."
+    },
     "check.comment.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -92,6 +108,18 @@
     "check.config.1": {
       "text": "कुंजी वह है जो यह उपकरण जानता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.count.one": {
+      "text": "{count} दोष।",
+      "context": "The count line after check's findings, for exactly one finding."
+    },
+    "check.count.other": {
+      "text": "{count} दोष।",
+      "context": "The count line after check's findings, for any other number."
+    },
+    "check.dangling-link": {
+      "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
+      "context": "A check finding: a links entry whose to resolves to no card."
     },
     "check.delete.1": {
       "text": "संदर्भ किसी इकाई तक पहुँचता है",
@@ -113,16 +141,24 @@
       "text": "सीढ़ी से कोई संपादक मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.entity-at-both-paths": {
+      "text": "इकाई {detail} सजीव संग्रह में और पुरालेख में, दोनों जगह मौजूद है, और check इनमें से किसी एक को नहीं चुनेगा",
+      "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
+    },
     "check.extract.1": {
-      "text": "लक्ष्य निर्देशिका में पहले से बेंच नहीं",
+      "text": "लक्ष्य निर्देशिका में पहले से वर्कबेंच नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.guide.1": {
       "text": "उस विषय पर मार्गदर्शिका है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.holder-on-unheld": {
+      "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
+      "context": "A check finding: a ready or blocked card carries no holder."
+    },
     "check.init.1": {
-      "text": "निर्देशिका में पहले से बेंच नहीं",
+      "text": "निर्देशिका में पहले से वर्कबेंच नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.2": {
@@ -133,13 +169,21 @@
       "text": "संदर्भ किसी कार्ड या स्थिति तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.interrupted-act": {
+      "text": "यहाँ एक संरचनात्मक क्रिया बाधित हुई: {detail}",
+      "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
+    },
     "check.log.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.ls.1": {
-      "text": "नामित स्थिति बेंच घोषित करती है",
+      "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.missing-anchor": {
+      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
+      "context": "A check finding: a hex directory without its anchor."
     },
     "check.move.1": {
       "text": "कार्ड मौजूद है",
@@ -174,12 +218,44 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.next.1": {
-      "text": "नामित स्थिति बेंच घोषित करती है",
+      "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.ordinal-duplicate": {
+      "text": "इकाई {detail} का रचना-क्रमांक उसी संग्रह की किसी और इकाई के क्रमांक जैसा है, इसलिए एक स्थान दो इकाइयों को नामित करता है",
+      "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
+    },
+    "check.ordinal-guessed": {
+      "text": "इकाई {detail} को निर्देशिका सूची से रखा गया, क्योंकि कार्ड की पंजिका में उसकी रचना का कोई अभिलेख नहीं, इसलिए उसका स्थान एक अनुमान है",
+      "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead."
+    },
+    "check.ordinal-locked": {
+      "text": "कार्ड {detail} किसी अन्य प्रक्रिया द्वारा अवरुद्ध है, इसलिए प्रवासन ने उसके नीचे कुछ भी अंकित नहीं किया",
+      "context": "A check finding the ordinal migration raises: a lock stood on the card, the walk stepped over it and carried on."
+    },
+    "check.ordinal-missing": {
+      "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
+      "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
+    },
+    "check.ordinal-unwritable": {
+      "text": "इकाई {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
+    },
+    "check.ordinal-stamped.one": {
+      "text": "{count} रचना-क्रमांक अंकित किया।",
+      "context": "The line the ordinal migration prints for what it stamped, for exactly one entity."
+    },
+    "check.ordinal-stamped.other": {
+      "text": "{count} रचना-क्रमांक अंकित किए।",
+      "context": "The line the ordinal migration prints for what it stamped, for any other number."
     },
     "check.path.1": {
       "text": "संदर्भ किसी पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.position-diverges": {
+      "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
+      "context": "A check finding: frontmatter position against the journal's replay."
     },
     "check.release.1": {
       "text": "कार्ड मौजूद है",
@@ -193,6 +269,38 @@
       "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.slug-assigned.one": {
+      "text": "{count} स्थिति-उपनाम निर्धारित किया।",
+      "context": "The line the slug migration prints for what it assigned, for exactly one state."
+    },
+    "check.slug-assigned.other": {
+      "text": "{count} स्थिति-उपनाम निर्धारित किए।",
+      "context": "The line the slug migration prints for what it assigned, for any other number."
+    },
+    "check.slug-duplicate": {
+      "text": "स्थिति {detail} पर ऐसा उपनाम है जो इस कार्यपीठ की किसी और स्थिति पर भी है, इसलिए उसका संदर्भ दोनों को नामित करता है",
+      "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes."
+    },
+    "check.slug-malformed": {
+      "text": "स्थिति {detail} पर ऐसा उपनाम है जिसमें अक्षर के बाद अक्षर, अंक, और एकल आंतरिक डैश का रूप नहीं है",
+      "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it."
+    },
+    "check.slug-missing": {
+      "text": "स्थिति {detail} पर कोई उपनाम नहीं, इसलिए वह केवल अपने पहचानक या उद्धृत शीर्षक से पहुँच में है",
+      "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.slug-underivable": {
+      "text": "स्थिति {detail} का शीर्षक ऐसा है जिससे कोई उपनाम नहीं निकाला जा सकता, इसलिए प्रवासन ने उसे कोई नहीं दिया",
+      "context": "A check finding the slug migration raises: no letter of the state's title survives the derivation, so a person retitles the state or writes a slug onto its anchor by hand."
+    },
+    "check.slug-unwritable": {
+      "text": "स्थिति {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
+      "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
+    },
+    "check.torn-journal": {
+      "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
+      "context": "A check finding: a torn journal tail left by a crash."
+    },
     "check.unblock.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -204,6 +312,14 @@
     "check.unblock.3": {
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unknown-state": {
+      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
+      "context": "A check finding: every card's state identifier resolves."
+    },
+    "check.unknown-substate": {
+      "text": "उपस्थिति {detail} उन तीन से बाहर है जो प्रारूप घोषित करता है",
+      "context": "A check finding: a substate outside ready, active and blocked."
     },
     "check.whoami.1": {
       "text": "सीढ़ी से कोई स्वामी मिलता है",
@@ -233,6 +349,10 @@
       "text": "बाधा दर्ज करें और कार्ड मुक्त करें",
       "context": "The one-line summary of the block command, shown beside its syntax in the help block."
     },
+    "cmd.check.summary": {
+      "text": "इस वर्कबेंच में संरचनात्मक दोष जाँचें",
+      "context": "The one-line summary of the check command, shown beside its syntax in the help block."
+    },
     "cmd.claim.summary": {
       "text": "तैयार कार्ड को उठाएँ",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block."
@@ -242,7 +362,7 @@
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block."
     },
     "cmd.config.summary": {
-      "text": "अपनी उपयोगकर्ता सेटिंग पढ़ें या लिखें",
+      "text": "अपनी उपयोगकर्ता सेटिंग सूचीबद्ध करें, या कोई एक पढ़ें या लिखें",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
     },
     "cmd.delete.summary": {
@@ -254,16 +374,12 @@
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
     },
     "cmd.export.summary": {
-      "text": "इस बेंच का विनिमय रूप stdout पर लिखें",
+      "text": "इस वर्कबेंच का विनिमय रूप stdout पर लिखें",
       "context": "The one-line summary of the export command, shown beside its syntax in the help block."
     },
     "cmd.extract.summary": {
-      "text": "इस बेंच की परिभाषा साँचे के रूप में बाहर लिखें",
+      "text": "इस वर्कबेंच की परिभाषा साँचे के रूप में बाहर लिखें",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
-    },
-    "cmd.fsck.summary": {
-      "text": "इस बेंच में संरचनात्मक दोष जाँचें",
-      "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
     },
     "cmd.guide.summary": {
       "text": "अंतर्निहित मार्गदर्शिकाएँ, या उनमें से एक",
@@ -274,7 +390,7 @@
       "context": "The one-line summary of the help command, shown beside its syntax in the help block."
     },
     "cmd.init.summary": {
-      "text": "यहाँ बेंच बनाएँ, चाहें तो किसी साँचे से",
+      "text": "यहाँ वर्कबेंच बनाएँ, चाहें तो किसी साँचे से",
       "context": "The one-line summary of the init command, shown beside its syntax in the help block."
     },
     "cmd.instructions.summary": {
@@ -290,7 +406,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "इस बेंच को stdio पर MCP से परोसें",
+      "text": "इस वर्कबेंच को stdio पर MCP से परोसें",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -318,7 +434,7 @@
       "context": "The one-line summary of the states command, shown beside its syntax in the help block."
     },
     "cmd.status.summary": {
-      "text": "यह बेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
+      "text": "यह वर्कबेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block."
     },
     "cmd.unblock.summary": {
@@ -333,6 +449,10 @@
       "text": "आपके कार्यों पर दर्ज कर्ता, और क्या वह संचालक है",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
     },
+    "cmd.workbenches.summary": {
+      "text": "यहाँ से पहुँच योग्य वर्कबेंच",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block."
+    },
     "extract.done": {
       "text": "परिभाषा {dir} में लिखी गई।",
       "context": "Printed after extract succeeds."
@@ -340,10 +460,6 @@
     "flag.actor.summary": {
       "text": "इसी स्वामी के रूप में कार्य करें",
       "context": "The one-line summary of the global flag --actor."
-    },
-    "flag.bench.summary": {
-      "text": "यहाँ से खोजी गई बेंच के बजाय यह बेंच लें",
-      "context": "The one-line summary of the global flag --bench."
     },
     "flag.json.summary": {
       "text": "मानक मशीन रूप दें",
@@ -357,60 +473,12 @@
       "text": "claim और move पर परोसे गए निर्देश दबाएँ",
       "context": "The one-line summary of the global flag --quiet."
     },
-    "fsck.active-without-claim": {
-      "text": "कार्ड {detail} active है पर कोई धारक नहीं",
-      "context": "An fsck finding: the converse of the claim implication."
-    },
-    "fsck.block-without-reason": {
-      "text": "कार्ड {detail} बाधित है पर कारण नहीं",
-      "context": "An fsck finding: every blocked card carries a reason."
-    },
-    "fsck.claim-without-active": {
-      "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
-      "context": "An fsck finding: the claim fields and substate active imply each other."
-    },
-    "fsck.clean": {
-      "text": "कोई संरचनात्मक दोष नहीं मिला।",
-      "context": "Printed when fsck finds nothing."
-    },
-    "fsck.count.one": {
-      "text": "{count} दोष।",
-      "context": "The count line after fsck's findings, for exactly one finding."
-    },
-    "fsck.count.other": {
-      "text": "{count} दोष।",
-      "context": "The count line after fsck's findings, for any other number."
-    },
-    "fsck.dangling-link": {
-      "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
-      "context": "An fsck finding: a links entry whose to resolves to no card."
-    },
-    "fsck.holder-on-unheld": {
-      "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
-      "context": "An fsck finding: a ready or blocked card carries no holder."
-    },
-    "fsck.missing-anchor": {
-      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
-      "context": "An fsck finding: a hex directory without its anchor."
-    },
-    "fsck.position-diverges": {
-      "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
-      "context": "An fsck finding: frontmatter position against the journal's replay."
-    },
-    "fsck.torn-journal": {
-      "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
-      "context": "An fsck finding: a torn journal tail left by a crash."
-    },
-    "fsck.unknown-state": {
-      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह बेंच घोषित नहीं करती",
-      "context": "An fsck finding: every card's state identifier resolves."
-    },
-    "fsck.unknown-substate": {
-      "text": "उपस्थिति {detail} उन तीन से बाहर है जो प्रारूप घोषित करता है",
-      "context": "An fsck finding: a substate outside ready, active and blocked."
+    "flag.workbench.summary": {
+      "text": "यहाँ से खोजी गई वर्कबेंच के बजाय यह वर्कबेंच लें",
+      "context": "The one-line summary of the global flag --workbench."
     },
     "help.environment": {
-      "text": "पर्यावरण: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "पर्यावरण: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -422,12 +490,8 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help <command>' चलाएँ।",
+      "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
-    },
-    "help.group.bench": {
-      "text": "बेंच",
-      "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.group.read": {
       "text": "पढ़ें",
@@ -441,6 +505,10 @@
       "text": "काम",
       "context": "A heading of the help block, grouping the commands beneath it."
     },
+    "help.group.workbench": {
+      "text": "वर्कबेंच",
+      "context": "A heading of the help block, grouping the commands beneath it."
+    },
     "help.refusals": {
       "text": "इनकार, उसी क्रम में जिसमें जाँच होती है:",
       "context": "The heading above a command's ordered precondition list in its own help."
@@ -450,11 +518,11 @@
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
-      "text": "प्रयोग: dinah <command> [arguments]",
+      "text": "प्रयोग: dinah \u003ccommand\u003e [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.done": {
-      "text": "{root} पर बेंच बन गई।",
+      "text": "{root} पर वर्कबेंच बन गई।",
       "context": "Printed after init succeeds."
     },
     "instructions.global": {
@@ -466,7 +534,7 @@
       "context": "The label above the legal moves served with the instructions."
     },
     "instructions.standing": {
-      "text": "निर्देश, यह बेंच:",
+      "text": "निर्देश, यह वर्कबेंच:",
       "context": "The label above the workbench's standing instructions."
     },
     "instructions.state": {
@@ -505,17 +573,29 @@
       "text": "यह कार्ड बाधित है: {detail}",
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.ambiguous-bench": {
+      "text": "{detail} सभी {base} से पहुँच योग्य हैं; --workbench <path> से एक चुनें, या उसके भीतर से चलाएँ",
+      "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
+    },
     "refusal.dinah.exists": {
-      "text": "{detail} में पहले से एक बेंच है",
+      "text": "{detail} में पहले से एक वर्कबेंच है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.interrupted": {
+      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई, और `dinah check --finish` उसे पूरा करता है",
+      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.locked": {
       "text": "इस इकाई का ताला दूसरी प्रक्रिया के पास है; {detail} ने लिया",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "{detail} से ऊपर कोई बेंच नहीं मिली, और उपयोगकर्ता आधार में भी नहीं",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
+    },
+    "refusal.dinah.no-bench-found": {
+      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <path> दें",
+      "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-editor": {
       "text": "कोई संपादक नहीं मिला; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
@@ -542,7 +622,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-path": {
-      "text": "इस बेंच में {detail} के नाम से कुछ नहीं मिला",
+      "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.usage": {
@@ -558,11 +638,19 @@
       "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.malformed": {
-      "text": "{detail} अनुपस्थित है या पढ़ा नहीं जा सकता",
-      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} अनुपस्थित है, खाली है, या पार्स नहीं हो सकता",
+      "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed."
+    },
+    "refusal.malformed.at": {
+      "text": ", {path} में",
+      "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to."
+    },
+    "refusal.malformed.fix": {
+      "text": "; फ़ाइल को स्वयं संपादित करके जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
+      "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
     },
     "refusal.no-operator": {
-      "text": "यह बेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",
+      "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner": {
@@ -598,11 +686,11 @@
       "context": "The fallback sentence for a refusal name no catalog entry covers."
     },
     "refusal.unknown-card": {
-      "text": "इस बेंच पर कोई कार्ड {detail} नहीं है",
+      "text": "इस वर्कबेंच पर कोई कार्ड {detail} नहीं है",
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unknown-state": {
-      "text": "यह बेंच कोई स्थिति {detail} घोषित नहीं करती",
+      "text": "यह वर्कबेंच कोई स्थिति {detail} घोषित नहीं करती",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unsupported-version": {
@@ -625,10 +713,6 @@
       "text": "{actor} के रूप में, संचालक: {operator}",
       "context": "The second line of status: who you are and whether you are the operator."
     },
-    "status.bench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the bench and where it was discovered."
-    },
     "status.blocked": {
       "text": "बाधित, संचालक की प्रतीक्षा में:",
       "context": "The label above the blocked cards."
@@ -636,6 +720,10 @@
     "status.holding": {
       "text": "आपके पास:",
       "context": "The label above the cards this actor holds."
+    },
+    "status.workbench": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status: the workbench and where it was discovered."
     },
     "token.active": {
       "text": "सक्रिय",
@@ -673,17 +761,45 @@
       "text": "टिप्पणी",
       "context": "How the canonical token commented is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.config": {
+      "text": "कॉन्फ़िग",
+      "context": "How the canonical token config is rendered where a person reads it, naming the rung a setting resolved from in the settings listing. The machine surface always carries the canonical spelling."
+    },
     "token.created": {
       "text": "बना",
       "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.default": {
+      "text": "तयशुदा",
+      "context": "How the canonical token default is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: nobody set this one, so the tool's own default answered. The machine surface always carries the canonical spelling."
+    },
+    "token.deleted": {
+      "text": "मिटाया गया",
+      "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.dinah-editor": {
+      "text": "DINAH_EDITOR",
+      "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language."
     },
     "token.done": {
       "text": "समाप्त",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.environment": {
+      "text": "परिवेश",
+      "context": "How the canonical token environment is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: an environment variable carried the value. The machine surface always carries the canonical spelling."
+    },
     "token.expired": {
       "text": "समय बीता",
       "context": "How the canonical token expired is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.fallback": {
+      "text": "अंतिम विकल्प",
+      "context": "How the canonical token fallback is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: every rung above it was unset, so the platform's own fallback answered. The machine surface always carries the canonical spelling."
+    },
+    "token.flag": {
+      "text": "फ़्लैग",
+      "context": "How the canonical token flag is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: a flag on this invocation. The machine surface always carries the canonical spelling."
     },
     "token.forward": {
       "text": "आगे",
@@ -692,6 +808,10 @@
     "token.intake": {
       "text": "आवक",
       "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.locale": {
+      "text": "लोकेल",
+      "context": "How the canonical token locale is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the operating system's locale answered, as a hint about the machine. The machine surface always carries the canonical spelling."
     },
     "token.manual_correction": {
       "text": "हाथ से सुधार",
@@ -709,9 +829,25 @@
       "text": "छोड़ा",
       "context": "How the canonical token released is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.restored": {
+      "text": "पुनर्स्थापित",
+      "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
     "token.unblocked": {
       "text": "बाधा हटी",
       "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.unknown": {
+      "text": "अज्ञात",
+      "context": "How the canonical token unknown is rendered where a person reads it, marking a row of the settings listing whose key the tool does not know: the file carries it, the tool resolves nothing from it, and it survives every write. The machine surface always carries the canonical spelling."
+    },
+    "token.unset": {
+      "text": "तय नहीं",
+      "context": "How the canonical token unset is rendered where a person reads it, marking a row of the settings listing that no rung of its ladder answered. The machine surface always carries the canonical spelling."
+    },
+    "token.visual": {
+      "text": "VISUAL",
+      "context": "How the canonical token visual is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the VISUAL environment variable, which the editor ladder reads above EDITOR. The rendering is the variable's own name, which is the same in every language."
     },
     "token.work": {
       "text": "काम",
@@ -748,6 +884,10 @@
     "word.yes": {
       "text": "हाँ",
       "context": "A boolean rendered for a person."
+    },
+    "workbenches.empty": {
+      "text": "यहाँ से कोई वर्कबेंच पहुँच योग्य नहीं है",
+      "context": "Printed by the workbenches command when the search reaches none."
     }
   }
 }

@@ -13,16 +13,12 @@ as it settles.
 
 ## Library-first, one binary, many heads
 
-The real implementation is a library: the bench store, the verbs, fsck, the
-token registry, the locale catalogs. Every user-facing surface is a thin
+The real implementation is a library: the workbench store, the verbs, check,
+the token registry, the locale catalogs. Every user-facing surface is a thin
 head over that library, and all the heads live in one binary as subcommands:
-the CLI verbs, an MCP server (`dinah mcp`, stdio), an HTTP server
-(`dinah serve`), and an LSP (`dinah lsp`). There is exactly one
-implementation of every verb no matter which protocol asked.
-
-Fsck is named for the Unix file system consistency check; Dinah's checker
-borrows the name and the role, structural checking, and applies both to a
-bench instead of a filesystem.
+the CLI verbs, an MCP server (`dinah mcp`, stdio), an HTTP server (`dinah
+serve`), and an LSP (`dinah lsp`). There is exactly one implementation of
+every verb no matter which protocol asked.
 
 The cautionary tale is git, which was never embeddable, so the ecosystem
 reimplemented it (libgit2 for embedders, JGit for the JVM), each lagging
@@ -75,10 +71,10 @@ the same stack discipline as the hosted product.
 The boundary that keeps it from competing with the hosted product is the
 gitk precedent. Git ships gitk, a workmanlike local viewer of one
 repository, and GitHub lost nothing to it, because the products answer
-different questions. The Dinah GUI is a single-bench, single-seat view:
+different questions. The Dinah GUI is a single-workbench, single-seat view:
 walk the board, read cards, perform the verbs. The portfolio view, the
 multi-user board, live coordination between seats, analytics, and operator
-surfaces across many benches are the hosted product, and the GUI does not
+surfaces across many workbenches are the hosted product, and the GUI does not
 grow toward them. Where the GUI's ceiling is reached, the answer is the
 upgrade path, not a bigger GUI.
 
@@ -90,7 +86,7 @@ instruction text. The rule that governs all of it is inherited from the
 hosted product's hardest-won lesson: guidance is served live from the
 binary, so an upgrade updates every agent at once, and is never seeded
 into storage; templates are the opposite, deliberately copied at creation
-and owned by the bench thereafter, because a starting point that keeps
+and owned by the workbench thereafter, because a starting point that keeps
 moving under its owner is not a starting point. Nothing uses the
 write-once-then-orphaned middle shape.
 
@@ -98,12 +94,12 @@ Guidance reaches an agent through four channels. The MCP initialize
 response's instructions field carries the working agreement and
 orientation, delivered before an agent's first tool call. Verb descriptions
 and response payloads carry per-verb method and next-action hints, and that
-is where most agent behavior is shaped. Embedded guides (bench authoring,
+is where most agent behavior is shaped. Embedded guides (workbench authoring,
 instruction-writing conventions, operator-station discipline) are served on
 demand by a guide verb and as MCP resources. Shipped templates are complete
-bench definitions embedded in the binary, instantiated by `dinah init`;
-every shipped template must pass fsck and the conformance suite in CI, so
-the scaffold is provably legal, and the experiment benches are the first
+workbench definitions embedded in the binary, instantiated by `dinah init`;
+every shipped template must pass check and the conformance suite in CI, so
+the scaffold is provably legal, and the experiment workbenches are the first
 drafts. The machine-surface rule holds throughout: served guidance is
 content an agent reads, but the tokens inside examples stay canonical.
 
@@ -135,8 +131,8 @@ document.
 
 ### Template libraries by URL
 
-A template is just a bench directory, so the on-disk format is already the
-template format and a library is a repository of bench directories:
+A template is just a workbench directory, so the on-disk format is already the
+template format and a library is a repository of workbench directories:
 `dinah init --from <git-url>[//subdir][@ref]` clones, validates, and
 instantiates, and a direct archive URL works the same way. Shortnames
 resolve against embedded templates first, then against `template_sources:`
@@ -148,17 +144,17 @@ prompts that agents will obey, making a malicious template an injection
 vector with a delivery mechanism. Remote templates are pinned by ref or
 sha and shown to the operator (state list and instruction summaries)
 before instantiation. Instantiate-and-own caps the blast radius: nothing
-upstream can mutate a bench already owned. Provenance (source and sha) is
-recorded in the new bench's workbench.md as display-tier fact. A template
-repository runs fsck and the conformance suite in CI, so contributed
+upstream can mutate a workbench already owned. Provenance (source and sha) is
+recorded in the new workbench's workbench.md as display-tier fact. A template
+repository runs check and the conformance suite in CI, so contributed
 templates are machine-checked before a human reads them. After locale
 catalogs, they are the second well-shaped community contribution.
 
 Extraction closes the authoring loop: a command copies the definition out
-of a live bench (workbench.md and states/, keeping their identifiers) and
+of a live workbench (workbench.md and states/, keeping their identifiers) and
 leaves the work (cards, workstreams, archive, journals), so nobody authors
-a template from scratch; a bench that already works gets promoted. Kept
-identifiers mean intra-definition references survive untouched and benches
+a template from scratch; a workbench that already works gets promoted. Kept
+identifiers mean intra-definition references survive untouched and workbenches
 born of one template stay structurally comparable. The round trip,
 extract(instantiate(T)) equals T, is a conformance property once key order
 is canonical. Extraction is mechanical: instance details inside
@@ -168,12 +164,12 @@ candidate, never a gate.
 
 ## The VS Code extension
 
-The bench is made of Markdown files, so VS Code is already half a client,
+The workbench is made of Markdown files, so VS Code is already half a client,
 and the extension's ladder builds on that rather than on a webview. The
 first rung is the LSP plus verbs: registry-driven validation and
 completion in anchors, and CodeLens actions on a card file (claim, move,
 release) that shell to the CLI and refresh from the receipt. The second
-rung is the sidebar tree the operator asked for by name: benches at the
+rung is the sidebar tree the operator asked for by name: workbenches at the
 top (from the same discovery walk and user base the CLI uses), states
 beneath in definition order, cards beneath those grouped by substate,
 every node opening its anchor on click because every node is a file.
@@ -188,13 +184,13 @@ and never parses human output.
 
 ## Extension processing
 
-The format side of extensions is declaration (dot-named kinds in the bench
+The format side of extensions is declaration (dot-named kinds in the workbench
 definition); the behavior side is a ladder, and each rung is machinery the
 design already owns. Rung zero is free: the uniform entity shape lets the
-CLI create, list, show, archive, journal, and structurally fsck any
+CLI create, list, show, archive, journal, and structurally check any
 declared kind with no kind-specific code. Rung one is instructions: what
 an extension entity means, and when agents act on it, is method text in
-the bench, with no CLI involvement. Rung two is the deferred hook design
+the workbench, with no CLI involvement. Rung two is the deferred hook design
 generalized to entity lifecycle: when determinism is wanted, an on-event
 hook runs a command with the entity's JSON on stdin. Rung three is git's
 external-subcommand convention: `dinah acme-report` dispatches to a
@@ -210,24 +206,24 @@ boundary plus the JSON contract already serves extenders better.
 
 ## External-system wrappers: the Jira shape
 
-A bench can wrap an external system of record without synchronizing with it.
-The bench models the honest method; the external system holds the corporate
-ceremony; and they meet at two narrow edges with asymmetric authority. The
-bench is truth for coordination (claims, method position, WIP); the external
-system is truth for the corporate record. Bench events project outward
-(transitions performed, comments posted, fields filled, each at the bench
-moment a mapping declares, outbound writes happening under the bench's
-operator-owned approval gates). External changes surface inward as flags and
-journaled events, never as automatic card moves; the operator decides what
-the method does about them. Two-way auto-sync is two arbiters and is
-refused.
+A workbench can wrap an external system of record without synchronizing with
+it. The workbench models the honest method; the external system holds the
+corporate ceremony; and they meet at two narrow edges with asymmetric
+authority. The workbench is truth for coordination (claims, method position,
+WIP); the external system is truth for the corporate record. Workbench
+events project outward (transitions performed, comments posted, fields
+filled, each at the workbench moment a mapping declares, outbound writes
+happening under the workbench's operator-owned approval gates). External
+changes surface inward as flags and journaled events, never as automatic
+card moves; the operator decides what the method does about them. Two-way
+auto-sync is two arbiters and is refused.
 
 The process arcana are encoded once, in the mapping, and compliance becomes
 a side effect of working the method. The wrapper acts as an ordinary API
 user, so it needs no administrator and no workflow changes on the wrapped
 system. The core never learns the wrapped system's vocabulary; everything
-lives in instructions and domain fields, so the same bench minus the mapping
-runs the identical method where the wrapped system does not exist.
+lives in instructions and domain fields, so the same workbench minus the
+mapping runs the identical method where the wrapped system does not exist.
 
 The first cut needs no new mechanism: the agent working the card performs
 the projections per state instructions, through whatever tool surface it
@@ -238,7 +234,7 @@ which projections deserve determinism.
 
 ## The verb surfaces: first pass
 
-The library owns behavior once. A bench handle is opened by discovery, and
+The library owns behavior once. A workbench handle is opened by discovery, and
 on it live the reads (resolve, list, serve-instructions, pull-next under
 the deterministic ordering) and the mutations (create, claim, release,
 move, block, comment, attach, archive), each taking a required actor and
@@ -248,7 +244,7 @@ happened, the resulting position, and the served instructions with the
 legal next moves, because the hosted product proved the claim response is
 where agent behavior is shaped. Errors are the trichotomy as types
 (refused with a coded reason; stale carrying the current revision), never
-strings the heads would have to parse. Fsck and template init/extract
+strings the heads would have to parse. Check and template init/extract
 round out the surface.
 
 Two of those mutations sit outside the core profile deliberately. The profile
@@ -293,11 +289,11 @@ next.
 
 ## Findings from the first hand-executed run
 
-A complete card (the fsck mini-concept) was run through a five-state bench
-with every verb performed by hand-editing files, three fresh-context review
-cycles, and a real operator gate. The run validated the format's redundancy
-twice for real (a fabricated citation caught by review; a
-frontmatter-versus-journal divergence introduced by hand error and caught
+A complete card (the check mini-concept) was run through a five-state
+workbench with every verb performed by hand-editing files, three
+fresh-context review cycles, and a real operator gate. The run validated the
+format's redundancy twice for real (a fabricated citation caught by review;
+a frontmatter-versus-journal divergence introduced by hand error and caught
 by the C31 rule) and produced the verb-design agenda below. Each item needs
 a ruling before or during CLI design.
 

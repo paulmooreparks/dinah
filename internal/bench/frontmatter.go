@@ -152,6 +152,35 @@ func (f *Frontmatter) Set(key, value string) {
 	f.block[key] = []string{key + ": " + quote(value)}
 }
 
+// SetAfter writes a scalar value, placing a new key directly after another key
+// rather than at the end of the header, and leaving the position of an
+// existing key alone. A key the header does not carry to place after leaves
+// the new key at the end, which is where Set would have put it.
+//
+// A field added to an anchor by a migration reads where a reader expects it
+// when the writer that creates the anchor puts it in the same place, so the
+// two anchors of one workbench do not differ by who wrote them.
+func (f *Frontmatter) SetAfter(key, value, after string) {
+	_, existing := f.block[key]
+	f.Set(key, value)
+	if existing || key == after {
+		return
+	}
+	position := -1
+	for i, k := range f.keys {
+		if k == after {
+			position = i
+			break
+		}
+	}
+	if position < 0 {
+		return
+	}
+	f.keys = f.keys[:len(f.keys)-1]
+	rest := append([]string{key}, f.keys[position+1:]...)
+	f.keys = append(f.keys[:position+1], rest...)
+}
+
 // SetSeq writes a sequence as a block of dashed entries. An empty sequence
 // deletes the key, because absent and empty mean the same thing here and the
 // shorter form is the one a reader can scan.

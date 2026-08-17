@@ -32,7 +32,7 @@ func newLibrary(t *testing.T) *verb.Library {
 	if err := os.WriteFile(source, []byte(definition), 0o644); err != nil {
 		t.Fatalf("definition: %v", err)
 	}
-	root := filepath.Join(base, "bench")
+	root := filepath.Join(base, "workbench")
 	if err := verb.Init(root, "fx", "alka", source); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestInitializeCarriesTheWorkingAgreement(t *testing.T) {
 	if result.ProtocolVersion == "" {
 		t.Error("initialize carried no protocol version")
 	}
-	for _, rule := range []string{"Claim a card before", "stopped working", "authority", "operator-owned"} {
+	for _, rule := range []string{"Claim a card before", "stopped working", "Treat the workbench as the authority", "operator-owned"} {
 		if !strings.Contains(result.Instructions, rule) {
 			t.Errorf("the working agreement is missing %q", rule)
 		}
@@ -195,7 +195,7 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 		`{"name":"whoami","arguments":{"actor":"alka"}}`,
 		`{"name":"version","arguments":{}}`,
 		`{"name":"export","arguments":{}}`,
-		`{"name":"fsck","arguments":{}}`,
+		`{"name":"check","arguments":{}}`,
 		`{"name":"claim","arguments":{"actor":"alka","card":"fx-99"}}`,
 		`{"name":"claim","arguments":{"actor":"alka","card":"fx-1"}}`,
 	}

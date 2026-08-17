@@ -21,6 +21,7 @@ var knownBenchKeys = map[string]bool{
 // under a name of its own.
 var knownStateKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
+	"slug": true,
 }
 
 // Export writes the interchange form of a bench definition.
@@ -62,6 +63,9 @@ func exportState(state *State) map[string]json.RawMessage {
 	element["id"] = mustMarshal(state.ID)
 	element["title"] = mustMarshal(state.Title)
 	element["kind"] = mustMarshal(state.Kind)
+	if state.Slug != "" {
+		element["slug"] = mustMarshal(state.Slug)
+	}
 	if state.Instructions != "" {
 		element["instructions"] = mustMarshal(state.Instructions)
 	}
@@ -187,8 +191,12 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 	if operator != "" {
 		fm.Set("operator", operator)
 	}
+	slugs, err := assignStateSlugs(definition.States)
+	if err != nil {
+		return err
+	}
 	var ids []string
-	for _, element := range definition.States {
+	for position, element := range definition.States {
 		id := memberString(element, "id")
 		if !IsID(id) {
 			generated, err := NewID()
@@ -197,7 +205,7 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			}
 			id = generated
 		}
-		if err := writeStateFromMember(root, id, element); err != nil {
+		if err := writeStateFromMember(root, id, slugs[position], element); err != nil {
 			return err
 		}
 		ids = append(ids, id)
@@ -217,13 +225,66 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			fm.Delete("instructions")
 		}
 	}
+	if err := WriteText(filepath.Join(root, IgnoreName), ignoreLocks); err != nil {
+		return err
+	}
 	return WriteText(filepath.Join(root, WorkbenchAnchor), fm.Render(standing))
 }
 
-// writeStateFromMember writes one state anchor from an interchange element.
-func writeStateFromMember(root, id string, element map[string]json.RawMessage) error {
+// assignStateSlugs settles the slug every state of a definition is written
+// with, in the order the states array carries them.
+//
+// A slug the author supplied is taken as given and checked, and two authors'
+// slugs that collide are malformed rather than resolved by suffixing, because
+// each one asked for a value that is not available. The explicit slugs are
+// collected first so a derived slug never takes a value an author asked for
+// later in the array. A slug the tool derives collides only with another
+// derived one, and the second takes the first free suffix, so two states both
+// titled Review become review and review-2.
+//
+// A title that derives to nothing usable is refused rather than left empty or
+// filled in from the identifier, since neither is a name anybody would type.
+// That refusal names the title, which is the value the author has to change,
+// rather than the slug that was never arrived at.
+func assignStateSlugs(states []map[string]json.RawMessage) ([]string, error) {
+	slugs := make([]string, len(states))
+	taken := map[string]bool{}
+	for position, element := range states {
+		slug := memberString(element, "slug")
+		if slug == "" {
+			continue
+		}
+		if !ValidStateSlug(slug) || taken[slug] {
+			return nil, contract.Refuse(contract.Malformed, "slug "+slug)
+		}
+		taken[slug] = true
+		slugs[position] = slug
+	}
+	for position, element := range states {
+		if slugs[position] != "" {
+			continue
+		}
+		title := memberString(element, "title")
+		derived := SlugifyDashed(title)
+		if derived == "" {
+			return nil, contract.Refuse(contract.Malformed, "title "+title)
+		}
+		candidate := derived
+		for suffix := 2; taken[candidate]; suffix++ {
+			candidate = derived + "-" + strconv.Itoa(suffix)
+		}
+		taken[candidate] = true
+		slugs[position] = candidate
+	}
+	return slugs, nil
+}
+
+// writeStateFromMember writes one state anchor from an interchange element,
+// carrying the slug the assignment settled for it.
+func writeStateFromMember(root, id, slug string, element map[string]json.RawMessage) error {
 	fm := NewFrontmatter()
 	fm.Set("title", memberString(element, "title"))
+	fm.Set("slug", slug)
 	fm.Set("kind", memberString(element, "kind"))
 	var operatorOwned bool
 	if raw, ok := element["operator_owned"]; ok {

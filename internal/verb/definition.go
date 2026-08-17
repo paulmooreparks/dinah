@@ -105,13 +105,21 @@ var params = map[string][]Param{
 	"extract": {{Name: "dir", Required: true}},
 	"path":    {{Name: "card", Display: "card|path", Required: true}},
 	"edit":    {{Name: "card", Display: "card|path", Required: true}},
+	// The bare invocation lists every setting, so neither the action nor the
+	// key is required; `get` and `set` still need a key, which the command
+	// refuses over rather than the syntax line.
 	"config": {
-		{Name: "action", Display: "get|set", Required: true},
-		{Name: "key", Required: true},
+		{Name: "action", Display: "get|set"},
+		{Name: "key"},
 		{Name: "value"},
 	},
-	"fsck":   {},
-	"whoami": {},
+	"check": {
+		{Name: "finish", Flag: true, Marker: true},
+		{Name: "migrate-ordinals", Flag: true, Marker: true},
+		{Name: "migrate-slugs", Flag: true, Marker: true},
+	},
+	"whoami":      {},
+	"workbenches": {},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},

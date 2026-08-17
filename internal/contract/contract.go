@@ -80,6 +80,7 @@ const LayerPrefix = "dinah."
 // specify. Each carries LayerPrefix.
 const (
 	Unconfirmed  = LayerPrefix + "unconfirmed"
+	Interrupted  = LayerPrefix + "interrupted"
 	UnknownGuide = LayerPrefix + "unknown-guide"
 	UnknownKey   = LayerPrefix + "unknown-key"
 	Occupied     = LayerPrefix + "occupied"
@@ -90,12 +91,23 @@ const (
 	NoBench      = LayerPrefix + "no-bench"
 	UnknownVerb  = LayerPrefix + "unknown-command"
 	Usage        = LayerPrefix + "usage"
+
+	// NoBenchFound is the walk coming up empty, which NoBench once shared a
+	// sentence with. The two are separated because one template cannot
+	// honestly describe both a path the caller named and a search that
+	// reached the root of the filesystem.
+	NoBenchFound = LayerPrefix + "no-bench-found"
+	// AmbiguousBench is a base directory holding several workbenches with
+	// nothing closer to choose between them. The tool refuses to guess, so
+	// it names the candidates instead.
+	AmbiguousBench = LayerPrefix + "ambiguous-bench"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
-	UnknownPath, NoEditor, NoBench, UnknownVerb, Usage,
+	UnknownPath, NoEditor, NoBench, UnknownVerb, Usage, Interrupted,
+	NoBenchFound, AmbiguousBench,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -142,6 +154,8 @@ const (
 	EventAttachmentReplaced = "attachment_replaced"
 	EventAttachmentRemoved  = "attachment_removed"
 	EventArchived           = "archived"
+	EventRestored           = "restored"
+	EventDeleted            = "deleted"
 	EventManualCorrection   = "manual_correction"
 )
 
@@ -154,6 +168,11 @@ type Refusal struct {
 	// owner holding the card, the version wanted. It is not a sentence and
 	// never reaches a reader untranslated.
 	Detail string
+	// Extra carries named values a catalog fragment may reference beyond
+	// Detail: the file a malformed field belongs to, the base directory an
+	// ambiguous search looked in. It is nil for every refusal that needs
+	// none, which is every refusal Refuse builds.
+	Extra map[string]string
 }
 
 // Error renders the refusal for a Go caller. The name leads, because a caller
@@ -168,6 +187,12 @@ func (r *Refusal) Error() string {
 // Refuse returns a refusal carrying a name and an optional detail.
 func Refuse(name, detail string) *Refusal {
 	return &Refusal{Name: name, Detail: detail}
+}
+
+// RefuseWith returns a refusal carrying named values beyond its detail, for
+// the refusals whose sentence tells the reader where the tool looked.
+func RefuseWith(name, detail string, extra map[string]string) *Refusal {
+	return &Refusal{Name: name, Detail: detail, Extra: extra}
 }
 
 // Stale is the error a verb returns when the request's basis does not name

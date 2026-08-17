@@ -184,6 +184,13 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	if reached && !req.Override {
 		return l.refuse(req, card, contract.AtCapacity, destination.ID)
 	}
+	// The last of the destination checks, read under the card lock this
+	// transaction already holds. A move that reached the sibling first is
+	// one the retiring act's own scan cannot miss, and a move arriving
+	// later reads the sibling and stops itself.
+	if holder, retiring := l.retiring(destination.ID); retiring {
+		return l.refuse(req, card, contract.Locked, holder)
+	}
 	ev := bench.Event{
 		TS:        bench.Stamp(l.Now()),
 		Event:     contract.EventMoved,

@@ -48,7 +48,7 @@ var tools = []tool{
 	{name: "whoami", command: "whoami", run: readWhoami},
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
-	{name: "fsck", command: "fsck", run: readFsck},
+	{name: "check", command: "check", run: readCheck},
 }
 
 // toolsByName indexes the surface for dispatch.
@@ -210,11 +210,15 @@ func readExport(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"interchange": string(data)}, readAffordances)
 }
 
-// readFsck answers the fsck tool.
-func readFsck(l *verb.Library, r *verb.Request) any {
-	findings, err := l.Fsck()
+// readCheck answers the check tool.
+func readCheck(l *verb.Library, r *verb.Request) any {
+	report, err := l.Check(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"findings": findings}, readAffordances)
+	answer := map[string]any{"findings": report.Findings}
+	if report.StampedOrdinals != nil {
+		answer["stamped_ordinals"] = *report.StampedOrdinals
+	}
+	return wrap(answer, readAffordances)
 }

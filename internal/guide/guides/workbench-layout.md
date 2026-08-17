@@ -1,12 +1,12 @@
-# What a bench looks like on disk
+# What a workbench looks like on disk
 
-A bench is readable without the tool, which is the point of keeping it in
+A workbench is readable without the tool, which is the point of keeping it in
 text. This is what you will find.
 
 ```
-<bench>/
+<workbench>/
   workbench.md              the flow, the levels, the standing instructions
-  journal.ndjson            bench-scoped acts, once there are any
+  journal.ndjson            workbench-scoped acts, once there are any
   states/<id>/state.md      one station: title, kind, limit, instructions
   cards/<id>/
     card.md                 the card: position, claim or block, framing prose
@@ -32,7 +32,7 @@ it refers to as they stood at the time, so the history still reads years later
 when the states it names have been renamed or removed.
 
 Hand-editing is legal. Edit the frontmatter with an editor when you need to,
-then run `dinah fsck`, which reports the defects the format forbids: a claim
+then run `dinah check`, which reports the defects the format forbids: a claim
 without the substate that implies it, a block with no reason, a card naming a
-state the bench does not declare, a link pointing at no card, and a position
-that disagrees with the journal.
+state the workbench does not declare, a link pointing at no card, and a
+position that disagrees with the journal.

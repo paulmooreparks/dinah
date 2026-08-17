@@ -36,7 +36,7 @@ type Card struct {
 	// Substate is one of ready, active and blocked.
 	Substate string
 	// Holder and ClaimSince are present exactly when the substate is
-	// active, which is the implication fsck enforces both ways.
+	// active, which is the implication check enforces both ways.
 	Holder     string
 	ClaimSince string
 	// Expires is the moment a lease lapses, empty when the claim carries no
@@ -230,13 +230,18 @@ func (c *Card) Lapsed(now time.Time) bool {
 	return !now.Before(expiry)
 }
 
-// ByArrival orders cards the way CORE-QUEUE-1 fixes: the earliest arrival
-// first, ties broken by ascending identifier. It reports whether a comes
+// ByArrival orders cards the way CORE-QUEUE-3 fixes: the earliest arrival
+// first, ties broken by ascending creation ordinal. It reports whether a comes
 // before b, which is what sort.Slice wants.
+//
+// The ordinal is the card's own number, set at birth and never reused, so the
+// tie-break is stable across every tool that reads the workbench. The
+// identifier was what the retired CORE-QUEUE-1 named, and a random hex string
+// makes the order total without making it meaningful.
 func ByArrival(a, b *Card) bool {
 	first, second := a.Arrival(), b.Arrival()
 	if !first.Equal(second) {
 		return first.Before(second)
 	}
-	return a.ID < b.ID
+	return a.Number < b.Number
 }

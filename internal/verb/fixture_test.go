@@ -1,8 +1,11 @@
 package verb
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +31,7 @@ const (
 const fixtureDefinition = `{
   "profile": "dinah-core/1.0",
   "title": "Fixture",
-  "instructions": "The standing text of this bench.\n",
+  "instructions": "The standing text of this workbench.\n",
   "states": [
     { "id": "a00000000001", "title": "Intake", "kind": "intake",
       "instructions": "Intake instructions.\n" },
@@ -62,7 +65,7 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
-	root := filepath.Join(base, "bench")
+	root := filepath.Join(base, "workbench")
 	if err := os.MkdirAll(filepath.Join(home, bench.UserBaseName), 0o755); err != nil {
 		t.Fatalf("user base: %v", err)
 	}
@@ -135,6 +138,166 @@ func (h *harness) card(ref string) *bench.Card {
 		h.t.Fatalf("resolve %s: %v", ref, err)
 	}
 	return found.Card
+}
+
+// renumber rewrites a card's creation ordinal, which is how a test builds a
+// fixture whose ordinal order and identifier order disagree. Nothing in the
+// tool offers this, because a number is set at birth and never reused.
+func (h *harness) renumber(id string, number int) {
+	h.t.Helper()
+	card, err := bench.LoadCard(h.library.Bench.CardsRoot(), id)
+	if err != nil {
+		h.t.Fatalf("load %s: %v", id, err)
+	}
+	card.Number = number
+	if err := card.Save(); err != nil {
+		h.t.Fatalf("renumber %s: %v", id, err)
+	}
+}
+
+// second opens a second library over the same bench, which is what a test
+// uses to stand for another process reaching the same entity.
+func (h *harness) second() *Library {
+	h.t.Helper()
+	opened, err := bench.Open(h.root)
+	if err != nil {
+		h.t.Fatalf("open a second view of the workbench: %v", err)
+	}
+	other := New(opened, h.home)
+	other.Now = h.library.Now
+	return other
+}
+
+// hold takes an entity's own lock from outside the library, standing for a
+// process that is already mid-transaction on it.
+func (h *harness) hold(dir, actor string) *bench.Lock {
+	h.t.Helper()
+	lock, err := bench.Acquire(dir, actor, bench.Stamp(h.clock))
+	if err != nil {
+		h.t.Fatalf("hold %s: %v", dir, err)
+	}
+	return lock
+}
+
+// plant writes a lock file by hand at a path of the test's choosing, which is
+// how a bench lock, a sibling or the leftovers of a crash are set up.
+func (h *harness) plant(path string, record bench.LockRecord) {
+	h.t.Helper()
+	line, err := json.Marshal(record)
+	if err != nil {
+		h.t.Fatalf("marshal: %v", err)
+	}
+	if err := bench.WriteText(path, string(line)+"\n"); err != nil {
+		h.t.Fatalf("plant %s: %v", path, err)
+	}
+}
+
+// locks lists every lock file standing anywhere on the bench, by path
+// relative to the bench root, which is what proves an unwind gave back
+// exactly what it took.
+func (h *harness) locks() []string {
+	h.t.Helper()
+	var found []string
+	err := filepath.WalkDir(h.root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		name := entry.Name()
+		if name != bench.LockName && !strings.HasSuffix(name, bench.SiblingSuffix) {
+			return nil
+		}
+		relative, relErr := filepath.Rel(h.root, path)
+		if relErr != nil {
+			return relErr
+		}
+		found = append(found, filepath.ToSlash(relative))
+		return nil
+	})
+	if err != nil {
+		h.t.Fatalf("walk: %v", err)
+	}
+	sort.Strings(found)
+	return found
+}
+
+// abortAt arms the bench so the structural protocol stops at one numbered
+// step the way a process that died there would, releasing nothing and
+// unwinding nothing.
+func (h *harness) abortAt(step int) {
+	h.library.Bench.Hooks = &bench.Hooks{
+		AfterStep: func(n int) error {
+			if n == step {
+				return bench.ErrAborted
+			}
+			return nil
+		},
+	}
+}
+
+// inWindow arms the bench so f runs between the release of the entity's own
+// lock and the move of its directory, which is the window the sibling covers.
+func (h *harness) inWindow(f func()) {
+	h.library.Bench.Hooks = &bench.Hooks{
+		AfterStep: func(n int) error {
+			if n == 5 {
+				f()
+			}
+			return nil
+		},
+	}
+}
+
+// clearBenchLock removes the bench lock a dead act left behind. It is the one
+// step the design deliberately leaves to a person: nothing auto-breaks a lock,
+// so the sequence after a crash is that a human removes the named bench lock
+// and then runs the finish.
+func (h *harness) clearBenchLock() {
+	h.t.Helper()
+	if err := os.Remove(filepath.Join(h.root, bench.LockName)); err != nil && !os.IsNotExist(err) {
+		h.t.Fatalf("clear the workbench lock: %v", err)
+	}
+}
+
+// finish runs the checker with the finish marker set, which completes or rolls
+// back the interrupted acts it reports.
+func (h *harness) finish() ([]bench.Finding, error) {
+	h.reopen()
+	report, err := h.library.Check(&Request{Verb: "check", Actor: "alka", Finish: true})
+	if err != nil {
+		return nil, err
+	}
+	return report.Findings, nil
+}
+
+// check runs the checker over the bench as it now stands.
+func (h *harness) check() []bench.Finding {
+	h.t.Helper()
+	report, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
+	if err != nil {
+		h.t.Fatalf("check: %v", err)
+	}
+	return report.Findings
+}
+
+// finding reports whether a catalog key appears among some findings, and what
+// detail it carried.
+func finding(findings []bench.Finding, key string) (string, bool) {
+	for _, f := range findings {
+		if f.Key == key {
+			return f.Detail, true
+		}
+	}
+	return "", false
+}
+
+// benchEvents reads the bench's own journal.
+func (h *harness) benchEvents() []bench.Event {
+	h.t.Helper()
+	list, _, err := bench.ReadJournal(h.library.Bench.JournalPath())
+	if err != nil {
+		h.t.Fatalf("workbench journal: %v", err)
+	}
+	return list
 }
 
 // events reads a card's journal.

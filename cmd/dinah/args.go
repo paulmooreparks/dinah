@@ -15,13 +15,14 @@ import (
 // the remote arbiter's, and the spec defers the flag to that era, so this head
 // offers no way to write one.
 var valuedFlags = []string{
-	"bench", "lang", "actor", "state", "expires", "kind",
+	"workbench", "lang", "actor", "state", "expires", "kind",
 	"from", "description", "slug", "operator",
 }
 
 // markerFlags are the flags that carry no value.
 var markerFlags = []string{
 	"json", "quiet", "ready", "override", "replace", "yes", "catalogs",
+	"finish", "migrate-ordinals", "migrate-slugs",
 }
 
 // arguments are one command line taken apart: the words in order and the

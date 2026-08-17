@@ -152,17 +152,17 @@ func initializeResult(library *verb.Library) map[string]any {
 // owner rather than a tool, and the bench this process serves.
 func workingAgreement(library *verb.Library) string {
 	var b strings.Builder
-	b.WriteString("You are working the bench " + library.Bench.Title + ".\n\n")
+	b.WriteString("You are working the workbench " + library.Bench.Title + ".\n\n")
 	b.WriteString("The working agreement, which binds you rather than the tool:\n")
 	b.WriteString("1. Claim a card before producing work on it.\n")
 	b.WriteString("2. Do not hold a claim on a card you have stopped working.\n")
-	b.WriteString("3. Treat the bench as the authority for where a card stands and who holds it.\n")
+	b.WriteString("3. Treat the workbench as the authority for where a card stands and who holds it.\n")
 	b.WriteString("4. Do not move a card out of an operator-owned state unless you are the operator.\n\n")
 	b.WriteString("Every response carries an affordances member naming what you may do next. ")
 	b.WriteString("A successful claim or move carries the instructions of the position in three ")
 	b.WriteString("separate layers and the moves the flow allows. Tokens are canonical on this ")
 	b.WriteString("surface and are never translated.\n\n")
-	b.WriteString("The operator of this bench is " + library.Bench.Operator + ". ")
+	b.WriteString("The operator of this workbench is " + library.Bench.Operator + ". ")
 	b.WriteString("Read the embedded guides through resources/list and resources/read.\n")
 	return b.String()
 }
@@ -292,6 +292,12 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.Confirm = value
 	case "ready":
 		req.ReadyOnly = value
+	case "finish":
+		req.Finish = value
+	case "migrate-ordinals":
+		req.MigrateOrdinals = value
+	case "migrate-slugs":
+		req.MigrateSlugs = value
 	case "catalogs":
 		// The version tool always reports catalog coverage, so the marker
 		// carries nothing here.
