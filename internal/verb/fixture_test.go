@@ -262,17 +262,21 @@ func (h *harness) clearBenchLock() {
 // back the interrupted acts it reports.
 func (h *harness) finish() ([]bench.Finding, error) {
 	h.reopen()
-	return h.library.Check(&Request{Verb: "check", Actor: "alka", Finish: true})
+	report, err := h.library.Check(&Request{Verb: "check", Actor: "alka", Finish: true})
+	if err != nil {
+		return nil, err
+	}
+	return report.Findings, nil
 }
 
 // check runs the checker over the bench as it now stands.
 func (h *harness) check() []bench.Finding {
 	h.t.Helper()
-	findings, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
+	report, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
 	if err != nil {
 		h.t.Fatalf("check: %v", err)
 	}
-	return findings
+	return report.Findings
 }
 
 // finding reports whether a catalog key appears among some findings, and what

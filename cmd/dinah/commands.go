@@ -463,19 +463,19 @@ func runConfig(s *session, parsed *arguments) int {
 func runCheck(s *session, parsed *arguments) int {
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
-		findings, err := l.Check(req)
+		report, err := l.Check(req)
 		if err != nil {
 			return reportError(s.errw, s.r, err)
 		}
 		if s.json {
 			code := 0
-			if len(findings) > 0 {
+			if len(report.Findings) > 0 {
 				code = contract.ExitCode(contract.OutcomeRefused)
 			}
-			s.emitJSON(findings)
+			s.emitJSON(report)
 			return code
 		}
-		return s.renderFindings(findings)
+		return s.renderCheck(report)
 	})
 }
 

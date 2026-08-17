@@ -212,9 +212,13 @@ func readExport(l *verb.Library, r *verb.Request) any {
 
 // readCheck answers the check tool.
 func readCheck(l *verb.Library, r *verb.Request) any {
-	findings, err := l.Check(r)
+	report, err := l.Check(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"findings": findings}, readAffordances)
+	answer := map[string]any{"findings": report.Findings}
+	if report.StampedOrdinals != nil {
+		answer["stamped_ordinals"] = *report.StampedOrdinals
+	}
+	return wrap(answer, readAffordances)
 }

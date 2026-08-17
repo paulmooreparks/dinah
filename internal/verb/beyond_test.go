@@ -248,10 +248,11 @@ func TestArchiveAndDelete(t *testing.T) {
 		t.Fatalf("delete: %s %s", deleted.Outcome, deleted.Refusal)
 	}
 	h.reopen()
-	findings, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
+	report, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
 	if err != nil {
 		t.Fatalf("check: %v", err)
 	}
+	findings := report.Findings
 	found := false
 	for _, finding := range findings {
 		if finding.Key == bench.FindingDanglingLink {

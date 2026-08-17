@@ -347,12 +347,27 @@ func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	stamped, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
 	if err != nil {
 		t.Fatalf("backfill: %v", err)
 	}
 	if stamped != 4 {
 		t.Errorf("wanted four entities stamped, got %d", stamped)
+	}
+	// The attachment and the checklist item have no creation event, so the
+	// migration placed each of them by the directory listing and has to say
+	// so. The two comments the journal covers are recovered facts and are
+	// not reported.
+	guessed := map[string]bool{}
+	for _, finding := range reported {
+		if finding.Key != FindingOrdinalGuessed {
+			t.Errorf("the backfill reported %s, wanted only guessed ordinals", finding.Key)
+			continue
+		}
+		guessed[finding.Detail] = true
+	}
+	if len(guessed) != 2 || !guessed["f00000000001"] || !guessed["d00000000001"] {
+		t.Errorf("wanted the attachment and the item reported as guessed, got %+v", reported)
 	}
 
 	comments := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
@@ -370,17 +385,20 @@ func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
 	if got := EntityOrdinal(checklist, "d00000000001", ItemAnchor); got != 1 {
 		t.Errorf("the checklist item carries ordinal %d, wanted 1", got)
 	}
-	if findings, err := opened.Fsck(); err != nil || len(findings) != 0 {
+	if findings, err := opened.Check(); err != nil || len(findings) != 0 {
 		t.Errorf("a migrated bench should check clean, got %+v (%v)", findings, err)
 	}
 
 	before := snapshot(t, root)
-	again, err := opened.BackfillOrdinals("alka", "2026-08-17T11:00:00Z")
+	again, reportedAgain, err := opened.BackfillOrdinals("alka", "2026-08-17T11:00:00Z")
 	if err != nil {
 		t.Fatalf("second backfill: %v", err)
 	}
 	if again != 0 {
 		t.Errorf("a second run stamped %d entities, wanted none", again)
+	}
+	if len(reportedAgain) != 0 {
+		t.Errorf("a second run reported %+v, wanted nothing: it stamped nothing, so it guessed nothing", reportedAgain)
 	}
 	after := snapshot(t, root)
 	if len(before) != len(after) {
@@ -664,5 +682,122 @@ func TestSlugsAreDerivedToTheGrammar(t *testing.T) {
 	}
 	if ValidSlug("My Project") {
 		t.Error("a slug outside the grammar should not be valid")
+	}
+}
+
+// TestAWriteBeforeTheMigrationKeepsItsPlaceInTheOrder replays the whole
+// sequence a live workbench is in the middle of: entities written before the
+// ordinal field existed, one new comment written by the tool while the
+// workbench is still unmigrated, and only then the migration.
+//
+// The new comment must not end up first. It is written last, so it takes the
+// ordinal past the members already there, and the migration then numbers the
+// older comments underneath it. Counting only the ordinals in use would hand
+// the new comment 1 and push the two older ones to 2 and 3, which puts the
+// newest comment permanently at the head of the order with nothing to report,
+// and that is the disorder this whole card exists to remove.
+func TestAWriteBeforeTheMigrationKeepsItsPlaceInTheOrder(t *testing.T) {
+	root := newFixture(t)
+	cardDir := filepath.Join(root, CardsDir, "c00000000001")
+	journal := filepath.Join(cardDir, JournalName)
+
+	// The identifiers run against the write order, so the directory listing
+	// cannot accidentally produce the right answer.
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "written first")
+	writeComment(t, root, "e00000000005", "2026-08-17T09:02:00Z", 0, "written second")
+	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
+	appendText(t, journal, commentedEvent("e00000000005", "2026-08-17T09:02:00Z"))
+
+	third, err := AddComment(cardDir, "alka", "2026-08-17T09:03:00Z", "written third")
+	if err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+	appendText(t, journal, commentedEvent(third.ID, "2026-08-17T09:03:00Z"))
+	if third.Ordinal != 3 {
+		t.Errorf("the comment written third took ordinal %d, which lands it ahead of the two it followed", third.Ordinal)
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if stamped != 2 {
+		t.Errorf("wanted the two older comments stamped, got %d", stamped)
+	}
+	if len(reported) != 0 {
+		t.Errorf("the journal covers every comment here, so nothing was guessed, got %+v", reported)
+	}
+
+	collection := filepath.Join(cardDir, CommentsDir)
+	for position, id := range []string{"e00000000009", "e00000000005", third.ID} {
+		if got := EntityOrdinal(collection, id, CommentAnchor); got != position+1 {
+			t.Errorf("comment %s carries ordinal %d, wanted %d", id, got, position+1)
+		}
+	}
+
+	comments, err := Comments(cardDir)
+	if err != nil {
+		t.Fatalf("comments: %v", err)
+	}
+	for position, body := range []string{"written first", "written second", "written third"} {
+		if position >= len(comments) || !strings.Contains(comments[position].Body, body) {
+			t.Fatalf("the reading order is not the writing order: %+v", comments)
+		}
+	}
+	if findings, err := opened.Check(); err != nil || len(findings) != 0 {
+		t.Errorf("a migrated workbench should check clean, got %+v (%v)", findings, err)
+	}
+}
+
+// TestTheMigrationStepsOverALockedCardAndFinishesTheWalk asserts that one
+// locked card costs the operator that card and nothing else.
+//
+// A lock on a card is ordinary: another process holds it right now. Returning
+// on the first one would end the walk at whatever card the listing happened to
+// put first, leave every card after it unstamped, and report a bare refusal
+// that names neither the card nor what had already been done.
+func TestTheMigrationStepsOverALockedCardAndFinishesTheWalk(t *testing.T) {
+	root := newFixture(t)
+	second := filepath.Join(root, CardsDir, "c00000000002")
+	write(t, filepath.Join(second, CardAnchor), cleanCard)
+	write(t, filepath.Join(second, JournalName), cleanJournal)
+	write(t, filepath.Join(second, CommentsDir, "e00000000001", CommentAnchor),
+		"---\nts: 2026-08-17T09:05:00Z\nauthor: alka\n---\nOn the second card.\n")
+
+	// The locked card is the first the walk reaches, so a walk that carried
+	// on is the only way the second card gets stamped at all.
+	locked := filepath.Join(root, CardsDir, "c00000000001")
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "never stamped")
+	write(t, filepath.Join(locked, LockName), `{"actor":"someone-else","pid":1,"ts":"2026-08-17T09:00:00Z"}`+"\n")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("a locked card should not end the walk: %v", err)
+	}
+	if stamped != 1 {
+		t.Errorf("wanted the unlocked card's comment stamped, got %d", stamped)
+	}
+	if got := EntityOrdinal(filepath.Join(second, CommentsDir), "e00000000001", CommentAnchor); got != 1 {
+		t.Errorf("the comment on the unlocked card carries ordinal %d, wanted 1", got)
+	}
+	if got := EntityOrdinal(filepath.Join(locked, CommentsDir), "e00000000009", CommentAnchor); got != 0 {
+		t.Errorf("the locked card was written to anyway, its comment carries %d", got)
+	}
+	detail, found := "", false
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalLocked {
+			detail, found = finding.Detail, true
+		}
+	}
+	if !found || detail != "c00000000001" {
+		t.Errorf("wanted the locked card reported by identifier, got %+v", reported)
 	}
 }

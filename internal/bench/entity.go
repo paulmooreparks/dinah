@@ -75,7 +75,7 @@ func Comments(cardDir string) ([]*Comment, error) {
 			ID:      id,
 			Dir:     dir,
 			TS:      fm.Value("ts"),
-			Ordinal: EntityOrdinal(collection, id, CommentAnchor),
+			Ordinal: OrdinalOf(fm),
 			Author:  fm.Value("author"),
 			Body:    body,
 		}
@@ -170,17 +170,13 @@ func LoadAttachment(dir string) (*Attachment, error) {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
 	fm, _ := ParseAnchor(text)
-	ordinal, err := strconv.Atoi(fm.Value(OrdinalField))
-	if err != nil || ordinal < 1 {
-		ordinal = 0
-	}
 	attachment := &Attachment{
 		ID:          filepath.Base(dir),
 		Dir:         dir,
 		Filename:    fm.Value("filename"),
 		Description: fm.Value("description"),
 		Provenance:  fm.Value("provenance"),
-		Ordinal:     ordinal,
+		Ordinal:     OrdinalOf(fm),
 	}
 	return attachment, nil
 }

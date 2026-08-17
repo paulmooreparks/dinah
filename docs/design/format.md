@@ -459,8 +459,8 @@ A checklist item is a card-scoped entity recording a structured judgment:
 `checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, timestamps, and
 a creation ordinal in frontmatter, the item's text as the body, a resolution
 note required to leave pending, and attachments for evidence per the
-universal rule. Kinds
-are a closed set of three (acceptance_criterion, open_question, decision)
+universal rule. Kinds are a closed set of three
+(acceptance_criterion, open_question, decision)
 and states a closed set (pending, resolved, verified, failed), closed
 because method text travels between boards and "file it with owner
 operator" must mean the same thing everywhere. Items are per-item entities
@@ -483,7 +483,7 @@ assumed here.
 
 A comment is an entity like every other, per the no-exceptions rule in
 "Anchor files and collections": a hex directory under `comments/` whose
-anchor is `comment.md`, with timestamp, author and creation ordinal in
+anchor is `comment.md`, with timestamp, author, and creation ordinal in
 frontmatter and the comment as body, and its own `attachments/` on demand.
 Ordering comes from the ordinal field, not from the timestamp and not from
 the directory name.
@@ -549,18 +549,40 @@ listing is in an order nobody wrote. A comment timestamp is wall clock,
 and two processes writing inside one second record the same value, which
 hands the tie back to the listing.
 
+A position is an index into the collection taken in ordinal order, so
+`<card>/comments/2` names whichever comment stands second once the
+collection is sorted. After the comment stamped 1 is deleted, that
+reference names the comment stamped 3. A position written down before a
+deletion can therefore move, and no arrangement of the field would hold it
+still, because the entity it counted to is gone. What an ordinal fixes is
+the order: every reader of the collection sees the members in the sequence
+somebody wrote them, on any machine and in any shell.
+
 A gap is legal and is left alone. Deletion is directory removal, so an
-ordinal disappears with the entity that carried it, and closing the gap
-would renumber every survivor after it and move every positional reference
-anybody had already written down. A duplicate is a defect, because it
-leaves a position with two answers, so `dinah fsck` reports duplicates and
-missing ordinals while saying nothing about gaps.
+ordinal disappears with the entity that carried it. The value a survivor
+carries is a record of where that entity fell in the write order, and
+deleting a neighbour does not change where it fell, so closing the gap
+would rewrite a historical fact on entities nobody touched and put every
+one of them out of step with the journal the same order replays from. A
+duplicate is a defect, because it leaves a position with two answers, so
+`dinah check` reports duplicates and missing ordinals while saying nothing
+about gaps.
 
 A workbench written before the field existed is repaired once, by hand,
-with `dinah fsck --migrate-ordinals`, which replays each card's journal to
+with `dinah check --migrate-ordinals`, which replays each card's journal to
 recover the order its entities were written in. Nothing re-derives an
 ordinal on a read, so a workbench nobody migrated is caught by the
 checker rather than quietly ordered by its directory listing forever.
+
+The migration says what it did and what it could not do. It prints how many
+ordinals it stamped; it reports every entity whose creation no journal event
+records, because listing order is the only order left for one of those and
+the stamp it gets is a guess; and it reports every card a lock kept it out
+of, then carries on with the rest of the walk. The run is the last moment a
+guess can be told from a recovered fact, since afterwards the two are the
+same field holding the same kind of number, and the checker has nothing
+left to distinguish. An operator who wants a guessed order corrected edits
+the field, and the checker holds him to uniqueness.
 
 ## Encoding
 

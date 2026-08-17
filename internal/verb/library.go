@@ -78,7 +78,7 @@ type Request struct {
 	// Finish asks check to complete or roll back the interrupted structural
 	// acts it reports, rather than only reporting them.
 	Finish bool
-	// MigrateOrdinals asks fsck to stamp a creation ordinal on every entity
+	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
 	// of the workbench that predates the field, before it reports.
 	MigrateOrdinals bool
 }
