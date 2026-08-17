@@ -271,6 +271,7 @@ func TestArchiveAndDelete(t *testing.T) {
 func TestInterchangeRoundTrip(t *testing.T) {
 	h := newHarness(t)
 	h.library.Bench.FM.Set("acme.department", `"catering"`)
+	h.library.Bench.Standing = "Review every card before claiming it."
 	if err := h.library.Bench.Save(); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -291,6 +292,9 @@ func TestInterchangeRoundTrip(t *testing.T) {
 	}
 	if object["acme.department"] != "catering" {
 		t.Errorf("CORE-JSON-7: the unrecognised member did not survive the export, got %v", object["acme.department"])
+	}
+	if object["instructions"] != h.library.Bench.Standing {
+		t.Errorf("the exported object should carry the standing instruction, got %v", object["instructions"])
 	}
 
 	definition, err := bench.ReadDefinition(first)
@@ -379,6 +383,38 @@ func TestExtractReproducesTheDefinition(t *testing.T) {
 		if state.Capacity != original.Capacity || state.OperatorOwned != original.OperatorOwned {
 			t.Errorf("state %d: capacity or operator flag differs", i)
 		}
+	}
+}
+
+// TestInitFromATemplateCarriesTheStandingInstruction asserts the literal
+// path a person hits with a template: extracting a workbench that carries a
+// standing instruction, then instantiating a new workbench from that
+// directory with Init, produces a workbench whose own standing instruction
+// equals the source's.
+func TestInitFromATemplateCarriesTheStandingInstruction(t *testing.T) {
+	h := newHarness(t)
+	h.library.Bench.Standing = "Claim before you start, and never leave a card idle."
+	if err := h.library.Bench.Save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	h.reopen()
+
+	template := filepath.Join(t.TempDir(), "template")
+	if err := h.library.Extract(template); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+
+	created := filepath.Join(t.TempDir(), "new-workbench")
+	written, err := Init(created, "again", "alka", template)
+	if err != nil {
+		t.Fatalf("init --from: %v", err)
+	}
+	opened, err := bench.Open(written)
+	if err != nil {
+		t.Fatalf("open the new workbench: %v", err)
+	}
+	if opened.Standing != h.library.Bench.Standing {
+		t.Errorf("wanted the standing instruction %q, got %q", h.library.Bench.Standing, opened.Standing)
 	}
 }
 
