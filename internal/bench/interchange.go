@@ -39,6 +39,9 @@ func (b *Bench) Export() ([]byte, error) {
 	}
 	object["profile"] = mustMarshal(b.Profile)
 	object["title"] = mustMarshal(b.Title)
+	if b.Standing != "" {
+		object["instructions"] = mustMarshal(b.Standing)
+	}
 	states := make([]map[string]json.RawMessage, 0, len(b.States))
 	for _, state := range b.States {
 		states = append(states, exportState(state))
