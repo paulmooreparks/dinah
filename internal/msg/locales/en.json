@@ -745,6 +745,10 @@
       "text": "deleted",
       "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.dinah-editor": {
+      "text": "DINAH_EDITOR",
+      "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language."
+    },
     "token.done": {
       "text": "done",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
@@ -763,7 +767,7 @@
     },
     "token.flag": {
       "text": "flag",
-      "context": "How the canonical token flag is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: a flag on this invocation, or DINAH_EDITOR, which stands in for the flag the editor ladder has none of. The machine surface always carries the canonical spelling."
+      "context": "How the canonical token flag is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: a flag on this invocation. The machine surface always carries the canonical spelling."
     },
     "token.forward": {
       "text": "forward",

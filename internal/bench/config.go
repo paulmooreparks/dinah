@@ -69,14 +69,19 @@ func KnownConfigKey(key string) bool {
 // tokens: `config settings` reports one beside each value, and the JSON form
 // carries these spellings in every language.
 //
-// SourceFlag covers DINAH_EDITOR as well as a real flag, because the editor
-// ladder has no flag and the tool-specific variable stands in for one.
+// SourceEditorVar names the DINAH_EDITOR rung on its own, rather than folding
+// it into SourceFlag: the editor ladder has no flag, and reporting a flag
+// where none exists is the defect this card exists to remove. It renders as
+// the variable's own name, the same convention SourceVisual already uses for
+// VISUAL, so a reader sees which of the two tool-specific variables answered
+// rather than a mechanism the tool does not have.
 // SourceVisual and SourceEnvironment stay apart on that ladder so that a
 // reader whose VISUAL won can see that it was VISUAL and not EDITOR.
 const (
 	SourceFlag        = "flag"
 	SourceEnvironment = "environment"
 	SourceVisual      = "visual"
+	SourceEditorVar   = "dinah-editor"
 	SourceConfig      = "config"
 	SourceLocale      = "locale"
 	SourceDefault     = "default"
@@ -252,7 +257,7 @@ func ResolveEditor(cfg *Config, goos string, lookPath func(string) bool) (string
 // listing can report the absence without treating it as a failure.
 func ResolveEditorSource(cfg *Config, goos string, lookPath func(string) bool) (string, string, error) {
 	chosen, source := Resolve(
-		Layer{Source: SourceFlag, Value: os.Getenv("DINAH_EDITOR")},
+		Layer{Source: SourceEditorVar, Value: os.Getenv("DINAH_EDITOR")},
 		Layer{Source: SourceConfig, Value: cfg.Get("editor")},
 		Layer{Source: SourceVisual, Value: os.Getenv("VISUAL")},
 		Layer{Source: SourceEnvironment, Value: os.Getenv("EDITOR")},

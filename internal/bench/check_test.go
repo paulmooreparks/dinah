@@ -562,7 +562,7 @@ func TestEditorLadderResolvesFirstHitWins(t *testing.T) {
 			config: "kak",
 			goos:   "linux",
 			wanted: "helix",
-			source: SourceFlag,
+			source: SourceEditorVar,
 		},
 	}
 	for _, c := range cases {

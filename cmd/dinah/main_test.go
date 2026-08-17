@@ -771,7 +771,7 @@ func TestConfigListsEverySettingWithTheRungThatAnsweredIt(t *testing.T) {
 	// The editor's own rungs are all unset here, so whatever answered came
 	// from the platform fallback or from nowhere. Naming any higher rung
 	// would be a rung that did not answer.
-	for _, rung := range []string{bench.SourceFlag, bench.SourceConfig, bench.SourceVisual, bench.SourceEnvironment} {
+	for _, rung := range []string{bench.SourceEditorVar, bench.SourceConfig, bench.SourceVisual, bench.SourceEnvironment} {
 		if rows["editor"].Source == rung {
 			t.Errorf("with every editor variable cleared, the row should not name %s", rung)
 		}
@@ -847,7 +847,7 @@ func TestTheEditorRowNamesWhichVariableWon(t *testing.T) {
 			set:    map[string]string{"EDITOR": "ed", "VISUAL": "vim", "DINAH_EDITOR": "helix"},
 			config: "kak",
 			wanted: "helix",
-			source: bench.SourceFlag,
+			source: bench.SourceEditorVar,
 		},
 	}
 	seen := map[string]bool{}
