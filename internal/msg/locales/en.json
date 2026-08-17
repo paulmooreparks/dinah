@@ -515,7 +515,7 @@
     },
     "help.tagline": {
       "text": "Dinah keeps work moving.",
-      "context": "The first line of the help block, the tool's one-sentence description."
+      "context": "The first line of the help block, the tool's one-sentence description. The word Dinah names the product and stays in Latin script; do not respell it."
     },
     "help.usage": {
       "text": "Usage: dinah \u003ccommand\u003e [arguments]",
