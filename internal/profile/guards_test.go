@@ -251,6 +251,190 @@ func carriesTheShortWord(name, subject, source string) bool {
 // before the short one is looked for.
 var theLongWord = regexp.MustCompile(`(?i)workbench`)
 
+// nonLatinEntry holds a non-Latin-script locale's own spelling of the
+// current word alongside the retired word's known transliteration(s) into
+// that same script. The current word's spelling is stripped from a line
+// first, exactly as theLongWord is stripped from the Latin scan, so a
+// transliteration embedded inside the legitimate word does not trip its own
+// guard.
+type nonLatinEntry struct {
+	// longWord is the current word's own spelling in this locale's script.
+	longWord string
+	// shortWords are known transliterations of the retired word into this
+	// locale's script.
+	shortWords []string
+}
+
+// nonLatinRetiredSpellings maps a BCP-47 locale tag to nonLatinEntry for
+// every non-Latin-script locale carrying a known transliteration of the
+// retired word worth cataloging.
+var nonLatinRetiredSpellings = map[string]nonLatinEntry{
+	"hi": {
+		longWord:   "वर्कबेंच",
+		shortWords: []string{"बेंच"},
+	},
+}
+
+// nonLatinRetiredSpellings' known gaps: an entry lists only the
+// transliteration(s) somebody thought to add, and transliteration has no
+// single correct spelling, so a translator choosing a different but equally
+// defensible rendering of the same sound passes unnoticed. Devanagari has
+// more than one defensible way to render the retired word's sound, using a
+// different vowel matra than बेंच does, and none of those alternate
+// renderings appear anywhere in the shipped catalogs today; adding one here
+// would be inventing a spelling rather than cataloging one, so the entry
+// stays at the single spelling actually grounded in existing text. The
+// table only ever grows by a person adding to it; nothing here derives a
+// script's transliteration from first principles. Closing this gap needs a
+// phonetic model of the target script, out of scope here on the same
+// judgement foldStringConcat's own comment records: a curated table cheap
+// enough to trust is worth more than a broader attempt that risks false
+// confidence. TestEveryLocaleIsClassifiedForScript is the maintenance
+// backstop below, and it is what keeps this table from going stale
+// unnoticed.
+
+// noKnownTransliterationLocales classifies a non-Latin-script locale for
+// which nobody has found a transliteration of the retired word worth
+// cataloging. The map is the honest alternative to an entry with an empty
+// shortWords slice: an empty slice is indistinguishable from an entry
+// nobody finished, while a key here demands a reason. The value is a
+// human-readable justification, checked only for non-emptiness; its quality
+// is a reviewer's call, not a machine's, the same way a code comment's
+// honesty is a reviewer's call. No locale needs an entry here today; the
+// map exists so the next non-Latin locale that genuinely carries no known
+// risk can say so instead of shipping a blank line.
+var noKnownTransliterationLocales = map[string]string{}
+
+// latinScriptLocales are the shipped locales theShortWord already reads
+// correctly, so they need no entry in nonLatinRetiredSpellings or
+// noKnownTransliterationLocales.
+var latinScriptLocales = map[string]bool{
+	"af": true, "cs": true, "de": true, "en": true,
+	"es": true, "fil": true, "id": true,
+}
+
+// TestEveryLocaleIsClassifiedForScript asserts that every locale file under
+// internal/msg/locales has been classified into exactly one of
+// latinScriptLocales, nonLatinRetiredSpellings, and
+// noKnownTransliterationLocales, and that the classification does work
+// rather than standing in for one: a nonLatinRetiredSpellings entry must
+// list at least one transliteration, and a noKnownTransliterationLocales
+// entry must carry a justification that is not blank once trimmed. A locale
+// file cannot ship, translated or still a skeleton, without somebody having
+// decided, and recorded, whether its script carries transliteration risk.
+func TestEveryLocaleIsClassifiedForScript(t *testing.T) {
+	root := filepath.Join("..", "..", "internal", "msg", "locales")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("read locales dir: %v", err)
+	}
+	found := 0
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		found++
+		tag := strings.TrimSuffix(entry.Name(), ".json")
+		buckets := 0
+		if latinScriptLocales[tag] {
+			buckets++
+		}
+		if nonLatin, ok := nonLatinRetiredSpellings[tag]; ok {
+			buckets++
+			if len(nonLatin.shortWords) == 0 {
+				t.Errorf("%s: nonLatinRetiredSpellings entry lists no transliterations; belongs in noKnownTransliterationLocales with a reason instead", tag)
+			}
+		}
+		if justification, ok := noKnownTransliterationLocales[tag]; ok {
+			buckets++
+			if strings.TrimSpace(justification) == "" {
+				t.Errorf("%s: noKnownTransliterationLocales entry carries no justification", tag)
+			}
+		}
+		switch buckets {
+		case 0:
+			t.Errorf("%s is not classified in latinScriptLocales, nonLatinRetiredSpellings, or noKnownTransliterationLocales", tag)
+		case 1:
+			// classified exactly once, as required
+		default:
+			t.Errorf("%s is classified in more than one of latinScriptLocales, nonLatinRetiredSpellings, and noKnownTransliterationLocales", tag)
+		}
+	}
+	if found == 0 {
+		t.Error("no locale files were found, so this guard proves nothing")
+	}
+}
+
+// TestTheRetiredWordHasNoNonLatinSpelling asserts that no catalog named in
+// nonLatinRetiredSpellings carries a standalone transliteration of the
+// retired word. For every line, every occurrence of the entry's longWord is
+// stripped first, exactly as theLongWord is stripped from the Latin scan,
+// and what remains is checked against the entry's shortWords.
+func TestTheRetiredWordHasNoNonLatinSpelling(t *testing.T) {
+	root := filepath.Join("..", "..", "internal", "msg", "locales")
+	checked := 0
+	for tag, entry := range nonLatinRetiredSpellings {
+		path := filepath.Join(root, tag+".json")
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%s: %v", tag, err)
+		}
+		for number, line := range strings.Split(string(source), "\n") {
+			if held, hit := carriesNonLatinSpelling(line, entry); hit {
+				t.Errorf("%s.json:%d carries the short word: %s\n%s", tag, number+1, held, vocabularyReason)
+			}
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Error("no non-Latin catalogs were checked, so this guard proves nothing")
+	}
+}
+
+// carriesNonLatinSpelling strips every occurrence of entry.longWord from
+// line, then reports whether any of entry.shortWords remains, and which one.
+// Factored out of the test body, the same way carriesTheShortWord was, so it
+// can be asserted on directly (TestGuardCatchesANonLatinRetiredWord) without
+// a synthetic catalog file reaching the production scan.
+func carriesNonLatinSpelling(line string, entry nonLatinEntry) (string, bool) {
+	stripped := strings.ReplaceAll(line, entry.longWord, "")
+	for _, short := range entry.shortWords {
+		if strings.Contains(stripped, short) {
+			return short, true
+		}
+	}
+	return "", false
+}
+
+// TestGuardCatchesANonLatinRetiredWord reproduces this card's own gap: a
+// standalone Devanagari transliteration of the retired word with no
+// surrounding legitimate spelling, in a synthetic file the production scan
+// never walks. The fixture lives under t.TempDir() and is removed with the
+// test, so the reproduction string never reaches a file the production scan
+// would itself trip on.
+func TestGuardCatchesANonLatinRetiredWord(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "planted.json")
+	source := `{"planted": "यह एक बेंच है"}` + "\n"
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	planted, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	entry := nonLatinRetiredSpellings["hi"]
+	tripped := false
+	for _, line := range strings.Split(string(planted), "\n") {
+		if _, hit := carriesNonLatinSpelling(line, entry); hit {
+			tripped = true
+		}
+	}
+	if !tripped {
+		t.Error("the planted non-Latin retired-word fixture did not trip the guard")
+	}
+}
+
 // TestFoldStringConcat asserts what the fold catches and what it declines,
 // against expressions built with go/parser.ParseExpr so each case exercises
 // the same AST shapes the guard walks rather than a hand-built stand-in.
