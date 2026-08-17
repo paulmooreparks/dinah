@@ -459,6 +459,71 @@ func (l *Library) Extract(target string) error {
 	return l.Bench.Extract(absolute)
 }
 
+// SettingView is one user setting as the listing reports it: what the key is,
+// what the ladder resolved it to, and which rung of that ladder answered.
+//
+// Value carries no omitempty. A setting nothing set is a row a reader is
+// owed, and dropping the member would leave the machine form unable to say
+// so.
+type SettingView struct {
+	// Key is the setting's name.
+	Key string `json:"key"`
+	// Value is what the ladder resolved, empty when no rung carried one.
+	Value string `json:"value"`
+	// Source is the rung that answered, unset when none did and unknown for
+	// a key the tool does not know.
+	Source string `json:"source"`
+}
+
+// Settings reports every setting the tool knows, resolved through the ladder
+// that actually decides each one, followed by whatever else the config file
+// carries.
+//
+// The resolvers are called rather than restated, because the stored value a
+// caller reads with `config get` cannot tell an unset key from one somebody
+// set to the same word the default happens to use. The flags are the ones the
+// invocation carried, so the listing reports the ladder as it stands for this
+// run rather than for an imagined one.
+//
+// A key outside the tool's set is reported with its stored value and the
+// source unknown. It survives every write, so hiding it here would leave a
+// reader wondering why a setting they can see in the file does nothing.
+func Settings(cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) []SettingView {
+	views := make([]SettingView, 0, len(bench.ConfigKeys))
+	for _, key := range bench.ConfigKeys {
+		views = append(views, setting(key, cfg, langFlag, actorFlag, goos, lookPath))
+	}
+	for _, key := range cfg.Keys() {
+		if bench.KnownConfigKey(key) {
+			continue
+		}
+		views = append(views, SettingView{Key: key, Value: cfg.Get(key), Source: bench.SourceUnknown})
+	}
+	return views
+}
+
+// setting resolves one known key. A key this switch does not answer for is a
+// key somebody added to ConfigKeys without giving it a ladder, so it falls
+// back to the stored value, which is the one rung every setting has.
+func setting(key string, cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) SettingView {
+	switch key {
+	case "lang":
+		value, source := bench.ResolveLangSource(langFlag, cfg)
+		return SettingView{Key: key, Value: value, Source: source}
+	case "actor":
+		value, source := bench.ResolveActorSource(actorFlag, cfg)
+		return SettingView{Key: key, Value: value, Source: source}
+	case "editor":
+		value, source, _ := bench.ResolveEditorSource(cfg, goos, lookPath)
+		return SettingView{Key: key, Value: value, Source: source}
+	}
+	stored := cfg.Get(key)
+	if stored == "" {
+		return SettingView{Key: key, Value: "", Source: bench.SourceUnset}
+	}
+	return SettingView{Key: key, Value: stored, Source: bench.SourceConfig}
+}
+
 // VersionReport is what this binary is and what it conforms to. The two numbers
 // have two audiences and are never conflated: the tool's own release number
 // says what you are running, and the conformance claim says what it promises.

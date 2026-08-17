@@ -452,7 +452,7 @@
       "skeleton": true
     },
     "cmd.config.summary": {
-      "text": "read or write your user settings",
+      "text": "list your user settings, or read or write one",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -946,9 +946,19 @@
       "context": "How the canonical token commented is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
+    "token.config": {
+      "text": "config",
+      "context": "How the canonical token config is rendered where a person reads it, naming the rung a setting resolved from in the settings listing. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
     "token.created": {
       "text": "created",
       "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.default": {
+      "text": "default",
+      "context": "How the canonical token default is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: nobody set this one, so the tool's own default answered. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.deleted": {
@@ -956,14 +966,34 @@
       "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
+    "token.dinah-editor": {
+      "text": "DINAH_EDITOR",
+      "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language.",
+      "skeleton": true
+    },
     "token.done": {
       "text": "done",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
+    "token.environment": {
+      "text": "environment",
+      "context": "How the canonical token environment is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: an environment variable carried the value. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
     "token.expired": {
       "text": "expired",
       "context": "How the canonical token expired is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.fallback": {
+      "text": "fallback",
+      "context": "How the canonical token fallback is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: every rung above it was unset, so the platform's own fallback answered. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.flag": {
+      "text": "flag",
+      "context": "How the canonical token flag is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: a flag on this invocation. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.forward": {
@@ -974,6 +1004,11 @@
     "token.intake": {
       "text": "intake",
       "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.locale": {
+      "text": "locale",
+      "context": "How the canonical token locale is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the operating system's locale answered, as a hint about the machine. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.manual_correction": {
@@ -1004,6 +1039,21 @@
     "token.unblocked": {
       "text": "unblocked",
       "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.unknown": {
+      "text": "unknown",
+      "context": "How the canonical token unknown is rendered where a person reads it, marking a row of the settings listing whose key the tool does not know: the file carries it, the tool resolves nothing from it, and it survives every write. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.unset": {
+      "text": "unset",
+      "context": "How the canonical token unset is rendered where a person reads it, marking a row of the settings listing that no rung of its ladder answered. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.visual": {
+      "text": "VISUAL",
+      "context": "How the canonical token visual is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the VISUAL environment variable, which the editor ladder reads above EDITOR. The rendering is the variable's own name, which is the same in every language.",
       "skeleton": true
     },
     "token.work": {

@@ -515,6 +515,11 @@ func TestAsciiCaseRulesIgnoreTheLocale(t *testing.T) {
 // ruled: DINAH_EDITOR, then the user config, then VISUAL, then EDITOR, then
 // the platform fallback, with a value at a higher layer winning over every
 // layer below it.
+//
+// Each case also asserts the rung the ladder names for the value it returned.
+// The five rungs answer under five distinct names, so a reader whose VISUAL
+// won can tell it from a reader whose EDITOR won, which is what a source
+// collapsed to "environment" would hide.
 func TestEditorLadderResolvesFirstHitWins(t *testing.T) {
 	home := t.TempDir()
 	cfg := LoadConfig(home)
@@ -526,18 +531,39 @@ func TestEditorLadderResolvesFirstHitWins(t *testing.T) {
 		config string
 		goos   string
 		wanted string
+		source string
 	}{
-		{name: "the platform fallback on Windows", goos: "windows", wanted: "notepad"},
-		{name: "the platform fallback elsewhere", goos: "linux", wanted: "nano"},
-		{name: "EDITOR beats the fallback", env: map[string]string{"EDITOR": "ed"}, goos: "linux", wanted: "ed"},
-		{name: "VISUAL beats EDITOR", env: map[string]string{"EDITOR": "ed", "VISUAL": "vim"}, goos: "linux", wanted: "vim"},
-		{name: "the config beats VISUAL", env: map[string]string{"EDITOR": "ed", "VISUAL": "vim"}, config: "kak", goos: "linux", wanted: "kak"},
+		{name: "the platform fallback on Windows", goos: "windows", wanted: "notepad", source: SourceFallback},
+		{name: "the platform fallback elsewhere", goos: "linux", wanted: "nano", source: SourceFallback},
+		{
+			name:   "EDITOR beats the fallback",
+			env:    map[string]string{"EDITOR": "ed"},
+			goos:   "linux",
+			wanted: "ed",
+			source: SourceEnvironment,
+		},
+		{
+			name:   "VISUAL beats EDITOR",
+			env:    map[string]string{"EDITOR": "ed", "VISUAL": "vim"},
+			goos:   "linux",
+			wanted: "vim",
+			source: SourceVisual,
+		},
+		{
+			name:   "the config beats VISUAL",
+			env:    map[string]string{"EDITOR": "ed", "VISUAL": "vim"},
+			config: "kak",
+			goos:   "linux",
+			wanted: "kak",
+			source: SourceConfig,
+		},
 		{
 			name:   "DINAH_EDITOR beats every layer below it",
 			env:    map[string]string{"DINAH_EDITOR": "helix", "EDITOR": "ed", "VISUAL": "vim"},
 			config: "kak",
 			goos:   "linux",
 			wanted: "helix",
+			source: SourceEditorVar,
 		},
 	}
 	for _, c := range cases {
@@ -552,12 +578,22 @@ func TestEditorLadderResolvesFirstHitWins(t *testing.T) {
 					t.Fatalf("config: %v", err)
 				}
 			}
-			got, err := ResolveEditor(settings, c.goos, present)
+			got, source, err := ResolveEditorSource(settings, c.goos, present)
 			if err != nil {
 				t.Fatalf("resolve: %v", err)
 			}
 			if got != c.wanted {
 				t.Errorf("wanted %s, got %s", c.wanted, got)
+			}
+			if source != c.source {
+				t.Errorf("the rung that answered: wanted %s, got %s", c.source, source)
+			}
+			plain, err := ResolveEditor(settings, c.goos, present)
+			if err != nil {
+				t.Fatalf("resolve without the source: %v", err)
+			}
+			if plain != got {
+				t.Errorf("the two forms disagree: %s against %s", plain, got)
 			}
 		})
 	}
@@ -570,6 +606,15 @@ func TestEditorLadderResolvesFirstHitWins(t *testing.T) {
 	absent := func(string) bool { return false }
 	if _, err := ResolveEditor(LoadConfig(t.TempDir()), "linux", absent); err == nil {
 		t.Error("with no editor anywhere, the ladder should refuse")
+	}
+	// The listing reads the same refusal as an absence, so the source form
+	// reports the rung as unset rather than naming one that answered.
+	editor, source, err := ResolveEditorSource(LoadConfig(t.TempDir()), "linux", absent)
+	if err == nil {
+		t.Error("with no editor anywhere, the source form should refuse too")
+	}
+	if editor != "" || source != SourceUnset {
+		t.Errorf("a refused editor: wanted an empty value at %s, got %q at %s", SourceUnset, editor, source)
 	}
 }
 
@@ -599,6 +644,10 @@ func TestLockRefusesRatherThanBreaking(t *testing.T) {
 // the format's own section fixes: the flag, then DINAH_LANG, then the user
 // config, then the operating system locale as a hint, then English, with each
 // layer set in turn while the layers above it are unset.
+//
+// Each case also asserts the rung the ladder names. English reached because
+// nothing carried a tag reports the default rung, which is what separates a
+// language nobody chose from one somebody wrote into the config file.
 func TestLanguageLadderResolvesFirstHitWins(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -606,20 +655,28 @@ func TestLanguageLadderResolvesFirstHitWins(t *testing.T) {
 		env    map[string]string
 		config string
 		wanted string
+		source string
 	}{
-		{name: "English when no layer carries one", wanted: "en"},
-		{name: "the OS locale as a hint, region and all", env: map[string]string{"LANG": "cs_CZ.UTF-8"}, wanted: "cs-CZ"},
+		{name: "English when no layer carries one", wanted: "en", source: SourceDefault},
+		{
+			name:   "the OS locale as a hint, region and all",
+			env:    map[string]string{"LANG": "cs_CZ.UTF-8"},
+			wanted: "cs-CZ",
+			source: SourceLocale,
+		},
 		{
 			name:   "the config beats the OS locale",
 			env:    map[string]string{"LANG": "cs_CZ.UTF-8"},
 			config: "es",
 			wanted: "es",
+			source: SourceConfig,
 		},
 		{
 			name:   "DINAH_LANG beats the config",
 			env:    map[string]string{"LANG": "cs_CZ.UTF-8", "DINAH_LANG": "de"},
 			config: "es",
 			wanted: "de",
+			source: SourceEnvironment,
 		},
 		{
 			name:   "the flag beats every layer below it",
@@ -627,16 +684,25 @@ func TestLanguageLadderResolvesFirstHitWins(t *testing.T) {
 			env:    map[string]string{"LANG": "cs_CZ.UTF-8", "DINAH_LANG": "de"},
 			config: "es",
 			wanted: "hi",
+			source: SourceFlag,
 		},
 		{
 			name:   "a regional tag keeps its region in the catalogs' spelling",
 			flag:   "en-uk",
 			wanted: "en-GB",
+			source: SourceFlag,
 		},
 		{
 			name:   "the C locale describes no reader, so it is not a hint",
 			env:    map[string]string{"LANG": "C.UTF-8"},
 			wanted: "en",
+			source: SourceDefault,
+		},
+		{
+			name:   "a config carrying the default tag still reads as set",
+			config: "en",
+			wanted: "en",
+			source: SourceConfig,
 		},
 	}
 	for _, c := range cases {
@@ -652,6 +718,71 @@ func TestLanguageLadderResolvesFirstHitWins(t *testing.T) {
 			}
 			if got := ResolveLang(c.flag, settings); got != c.wanted {
 				t.Errorf("wanted %s, got %s", c.wanted, got)
+			}
+			got, source := ResolveLangSource(c.flag, settings)
+			if got != c.wanted {
+				t.Errorf("the source form resolved %s, wanted %s", got, c.wanted)
+			}
+			if source != c.source {
+				t.Errorf("the rung that answered: wanted %s, got %s", c.source, source)
+			}
+		})
+	}
+}
+
+// TestActorLadderNamesTheRungOrReportsNone asserts the owner ladder: the flag,
+// then DINAH_ACTOR, then the user config, each named when it answers, and an
+// owner nothing carries reported as unset rather than refused. ResolveActor is
+// the form that refuses, and it keeps refusing.
+func TestActorLadderNamesTheRungOrReportsNone(t *testing.T) {
+	cases := []struct {
+		name   string
+		flag   string
+		env    string
+		config string
+		wanted string
+		source string
+	}{
+		{name: "nobody carries one", wanted: "", source: SourceUnset},
+		{name: "the config alone", config: "alka", wanted: "alka", source: SourceConfig},
+		{name: "DINAH_ACTOR beats the config", env: "bob", config: "alka", wanted: "bob", source: SourceEnvironment},
+		{
+			name:   "the flag beats every layer below it",
+			flag:   "cass",
+			env:    "bob",
+			config: "alka",
+			wanted: "cass",
+			source: SourceFlag,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("DINAH_ACTOR", c.env)
+			settings := LoadConfig(t.TempDir())
+			if c.config != "" {
+				if err := settings.Set("actor", c.config); err != nil {
+					t.Fatalf("config: %v", err)
+				}
+			}
+			got, source := ResolveActorSource(c.flag, settings)
+			if got != c.wanted {
+				t.Errorf("wanted %q, got %q", c.wanted, got)
+			}
+			if source != c.source {
+				t.Errorf("the rung that answered: wanted %s, got %s", c.source, source)
+			}
+			resolved, err := ResolveActor(c.flag, settings)
+			if c.wanted == "" {
+				if err == nil {
+					t.Error("an owner nothing carries should still refuse through ResolveActor")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolve: %v", err)
+			}
+			if resolved != c.wanted {
+				t.Errorf("the two forms disagree: %s against %s", resolved, c.wanted)
 			}
 		})
 	}

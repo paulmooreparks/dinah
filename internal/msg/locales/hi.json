@@ -362,7 +362,7 @@
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block."
     },
     "cmd.config.summary": {
-      "text": "अपनी उपयोगकर्ता सेटिंग पढ़ें या लिखें",
+      "text": "अपनी उपयोगकर्ता सेटिंग सूचीबद्ध करें, या कोई एक पढ़ें या लिखें",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
     },
     "cmd.delete.summary": {
@@ -757,21 +757,45 @@
       "text": "टिप्पणी",
       "context": "How the canonical token commented is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.config": {
+      "text": "कॉन्फ़िग",
+      "context": "How the canonical token config is rendered where a person reads it, naming the rung a setting resolved from in the settings listing. The machine surface always carries the canonical spelling."
+    },
     "token.created": {
       "text": "बना",
       "context": "How the canonical token created is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.default": {
+      "text": "तयशुदा",
+      "context": "How the canonical token default is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: nobody set this one, so the tool's own default answered. The machine surface always carries the canonical spelling."
     },
     "token.deleted": {
       "text": "मिटाया गया",
       "context": "How the canonical token deleted is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.dinah-editor": {
+      "text": "DINAH_EDITOR",
+      "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language."
+    },
     "token.done": {
       "text": "समाप्त",
       "context": "How the canonical token done is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
+    "token.environment": {
+      "text": "परिवेश",
+      "context": "How the canonical token environment is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: an environment variable carried the value. The machine surface always carries the canonical spelling."
+    },
     "token.expired": {
       "text": "समय बीता",
       "context": "How the canonical token expired is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.fallback": {
+      "text": "अंतिम विकल्प",
+      "context": "How the canonical token fallback is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: every rung above it was unset, so the platform's own fallback answered. The machine surface always carries the canonical spelling."
+    },
+    "token.flag": {
+      "text": "फ़्लैग",
+      "context": "How the canonical token flag is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: a flag on this invocation. The machine surface always carries the canonical spelling."
     },
     "token.forward": {
       "text": "आगे",
@@ -780,6 +804,10 @@
     "token.intake": {
       "text": "आवक",
       "context": "How the canonical token intake is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.locale": {
+      "text": "लोकेल",
+      "context": "How the canonical token locale is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the operating system's locale answered, as a hint about the machine. The machine surface always carries the canonical spelling."
     },
     "token.manual_correction": {
       "text": "हाथ से सुधार",
@@ -804,6 +832,18 @@
     "token.unblocked": {
       "text": "बाधा हटी",
       "context": "How the canonical token unblocked is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.unknown": {
+      "text": "अज्ञात",
+      "context": "How the canonical token unknown is rendered where a person reads it, marking a row of the settings listing whose key the tool does not know: the file carries it, the tool resolves nothing from it, and it survives every write. The machine surface always carries the canonical spelling."
+    },
+    "token.unset": {
+      "text": "तय नहीं",
+      "context": "How the canonical token unset is rendered where a person reads it, marking a row of the settings listing that no rung of its ladder answered. The machine surface always carries the canonical spelling."
+    },
+    "token.visual": {
+      "text": "VISUAL",
+      "context": "How the canonical token visual is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the VISUAL environment variable, which the editor ladder reads above EDITOR. The rendering is the variable's own name, which is the same in every language."
     },
     "token.work": {
       "text": "काम",
