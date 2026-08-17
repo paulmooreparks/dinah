@@ -176,21 +176,84 @@ func Discover(start, override, home string) (string, error) {
 		}
 		return abs, nil
 	}
-	dir, err := filepath.Abs(start)
+	search, err := walk(start, home)
 	if err != nil {
 		return "", err
 	}
+	if search.sole != "" {
+		return search.sole, nil
+	}
+	if search.base != "" {
+		extra := map[string]string{"base": search.base}
+		return "", contract.RefuseWith(contract.AmbiguousBench, describeCandidates(search.candidates), extra)
+	}
+	return "", contract.RefuseWith(contract.NoBenchFound, start, map[string]string{"home": search.userBase})
+}
+
+// Reachable reports what Discover's walk finds right now, without turning
+// ambiguity or emptiness into a refusal: the sole workbench Discover would
+// resolve to, the candidates of the first ambiguous base it would meet, or no
+// rows at all. It shares that walk rather than repeating it, so it stops
+// exactly where Discover stops and inherits any later change to how far the
+// search climbs.
+//
+// The one error it returns is the one an explicit override raises. A --bench
+// naming a directory that holds no workbench is a caller's mistake, and a
+// listing that softened it into an empty result would hide the typo.
+func Reachable(start, override, home string) ([]Candidate, error) {
+	if override != "" {
+		root, err := Discover(start, override, home)
+		if err != nil {
+			return nil, err
+		}
+		return []Candidate{describe(root)}, nil
+	}
+	search, err := walk(start, home)
+	if err != nil {
+		return nil, err
+	}
+	if search.sole != "" {
+		return []Candidate{describe(search.sole)}, nil
+	}
+	return describeAll(search.candidates), nil
+}
+
+// search is what one discovery walk found: the workbench it resolved to, or
+// else the first ambiguous base it passed with that base's candidates. The
+// user base is carried out too, because the refusal raised over an exhausted
+// search names where the fallback looked.
+type search struct {
+	// sole is the one workbench the walk resolved to, empty when it resolved
+	// to none.
+	sole string
+	// base is the first ambiguous base the walk met, empty when it met none.
+	base string
+	// candidates are the workbench directories that base holds.
+	candidates []string
+	// userBase is the fallback base, empty when no home was given.
+	userBase string
+}
+
+// walk runs the ancestor search and the fallback to the user base, and reports
+// what it found without deciding what to do about it. It is the one
+// implementation of how far discovery reaches, shared by the refusal Discover
+// raises and the listing Reachable returns.
+func walk(start, home string) (search, error) {
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		return search{}, err
+	}
 	// The first ambiguity the search meets, closest to the starting
 	// directory, which is the one a reader is likeliest to have meant.
-	firstBase := ""
-	var firstCandidates []string
+	result := search{}
 	for {
 		found, ambiguous := benchIn(dir)
 		if found != "" {
-			return found, nil
+			result.sole = found
+			return result, nil
 		}
-		if len(ambiguous) > 0 && firstBase == "" {
-			firstBase, firstCandidates = filepath.Join(dir, UserBaseName), ambiguous
+		if len(ambiguous) > 0 && result.base == "" {
+			result.base, result.candidates = filepath.Join(dir, UserBaseName), ambiguous
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -198,22 +261,19 @@ func Discover(start, override, home string) (string, error) {
 		}
 		dir = parent
 	}
-	userBase := ""
-	if home != "" {
-		userBase = filepath.Join(home, UserBaseName)
-		found, ambiguous := soleBench(userBase)
-		if found != "" {
-			return found, nil
-		}
-		if len(ambiguous) > 0 && firstBase == "" {
-			firstBase, firstCandidates = userBase, ambiguous
-		}
+	if home == "" {
+		return result, nil
 	}
-	if firstBase != "" {
-		extra := map[string]string{"base": firstBase}
-		return "", contract.RefuseWith(contract.AmbiguousBench, describeCandidates(firstCandidates), extra)
+	result.userBase = filepath.Join(home, UserBaseName)
+	found, ambiguous := soleBench(result.userBase)
+	if found != "" {
+		result.sole = found
+		return result, nil
 	}
-	return "", contract.RefuseWith(contract.NoBenchFound, start, map[string]string{"home": userBase})
+	if len(ambiguous) > 0 && result.base == "" {
+		result.base, result.candidates = result.userBase, ambiguous
+	}
+	return result, nil
 }
 
 // benchIn reports the bench a single directory offers, either as the bench
@@ -248,23 +308,62 @@ func soleBench(base string) (found string, ambiguous []string) {
 	return "", nil
 }
 
+// Candidate is one workbench a listing reports: enough of its identity to
+// recognise it, and the path that selects it. The members stop where reading
+// the anchor stops, so a listing never opens a workbench to describe it.
+type Candidate struct {
+	// Title is the workbench's title, empty when its anchor declares none or
+	// will not read.
+	Title string `json:"title"`
+	// Slug is the short name a card reference carries ahead of its number,
+	// empty on a workbench written before the field or one whose anchor will
+	// not read.
+	Slug string `json:"slug"`
+	// Path is the workbench directory, which is what --bench takes.
+	Path string `json:"path"`
+}
+
+// describe reads one workbench's identity off its anchor without opening it.
+// An anchor that will not read leaves the title and the slug empty rather than
+// failing, so one unreadable workbench does not hide the others.
+func describe(root string) Candidate {
+	found := Candidate{Path: root}
+	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
+	if err != nil {
+		return found
+	}
+	fm, _ := ParseAnchor(text)
+	found.Title = fm.Value("title")
+	found.Slug = fm.Value("slug")
+	return found
+}
+
+// describeAll describes each of a base's candidates in the order the base
+// offered them. The slice is never nil, so an empty listing marshals to an
+// empty array rather than to null.
+func describeAll(candidates []string) []Candidate {
+	described := make([]Candidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		described = append(described, describe(candidate))
+	}
+	return described
+}
+
 // describeCandidates names each workbench of an ambiguous base by its title
 // and the directory it sits in, joined into the list the refusal prints. A
-// candidate whose anchor will not read, or that declares no title, is named
-// by its path alone, so one unreadable workbench does not hide the others.
+// candidate that declares no title is named by its path alone.
+//
+// The refusal and the listing read the same descriptions in the same order,
+// so the two surfaces cannot disagree about which workbenches an ambiguity
+// holds.
 func describeCandidates(candidates []string) string {
 	described := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		title := ""
-		if text, err := ReadText(filepath.Join(candidate, WorkbenchAnchor)); err == nil {
-			fm, _ := ParseAnchor(text)
-			title = fm.Value("title")
-		}
-		if title == "" {
-			described = append(described, candidate)
+	for _, candidate := range describeAll(candidates) {
+		if candidate.Title == "" {
+			described = append(described, candidate.Path)
 			continue
 		}
-		described = append(described, title+" ("+candidate+")")
+		described = append(described, candidate.Title+" ("+candidate.Path+")")
 	}
 	return strings.Join(described, "; ")
 }

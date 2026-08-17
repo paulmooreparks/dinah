@@ -449,6 +449,10 @@
       "text": "आपके कार्यों पर दर्ज कर्ता, और क्या वह संचालक है",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
     },
+    "cmd.workbenches.summary": {
+      "text": "यहाँ से पहुँच योग्य वर्कबेंच",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block."
+    },
     "extract.done": {
       "text": "परिभाषा {dir} में लिखी गई।",
       "context": "Printed after extract succeeds."
@@ -880,6 +884,10 @@
     "word.yes": {
       "text": "हाँ",
       "context": "A boolean rendered for a person."
+    },
+    "workbenches.empty": {
+      "text": "यहाँ से कोई वर्कबेंच पहुँच योग्य नहीं है",
+      "context": "Printed by the workbenches command when the search reaches none."
     }
   }
 }

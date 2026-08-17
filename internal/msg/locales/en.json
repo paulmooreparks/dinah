@@ -449,6 +449,10 @@
       "text": "the actor your acts carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
     },
+    "cmd.workbenches.summary": {
+      "text": "the workbenches reachable from here",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block."
+    },
     "extract.done": {
       "text": "Definition written to {dir}.",
       "context": "Printed after extract succeeds."
@@ -880,6 +884,10 @@
     "word.yes": {
       "text": "yes",
       "context": "A boolean rendered for a person."
+    },
+    "workbenches.empty": {
+      "text": "no workbench is reachable from here",
+      "context": "Printed by the workbenches command when the search reaches none."
     }
   }
 }

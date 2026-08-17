@@ -191,6 +191,20 @@ func (s *session) renderSettings(settings []verb.SettingView) {
 	}
 }
 
+// renderWorkbenches prints one row per reachable workbench, and the line that
+// says so when none is reachable. The row carries what a reader needs to
+// recognise a workbench and to select it, so the path it ends on is the one
+// --bench takes.
+func (s *session) renderWorkbenches(rows []bench.Candidate) {
+	if len(rows) == 0 {
+		s.line(s.r.T("workbenches.empty"))
+		return
+	}
+	for _, row := range rows {
+		s.line("  " + pad(row.Title, 32) + pad(row.Slug, 16) + row.Path)
+	}
+}
+
 // renderOffers prints what each state offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
 	for _, offer := range offers {

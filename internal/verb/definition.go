@@ -118,7 +118,8 @@ var params = map[string][]Param{
 		{Name: "migrate-ordinals", Flag: true, Marker: true},
 		{Name: "migrate-slugs", Flag: true, Marker: true},
 	},
-	"whoami": {},
+	"whoami":      {},
+	"workbenches": {},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
