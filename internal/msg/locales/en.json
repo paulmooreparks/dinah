@@ -162,7 +162,7 @@
       "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored."
     },
     "check.init.1": {
-      "text": "the directory holds no workbench already",
+      "text": "no workbench.md file sits at this exact path",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.2": {
@@ -582,7 +582,7 @@
       "context": "The sentence printed after the refusal name dinah.ambiguous-workbench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
     },
     "refusal.dinah.exists": {
-      "text": "{detail} already holds a workbench",
+      "text": "{detail} already carries a workbench.md; move it aside, or choose a different directory",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
