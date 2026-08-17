@@ -3913,3 +3913,175 @@ func TestUsageRefusalNamesTheMarker(t *testing.T) {
 		t.Errorf("config's own usage refusal should not carry the dash hint, got %q", unrelatedConfig.errw)
 	}
 }
+
+// TestTrailingDomainFlagStillApplies asserts dinah-96's AC-10: add's title
+// and block's reason keep applying their own documented trailing flag
+// exactly as before, when it is genuinely trailing.
+func TestTrailingDomainFlagStillApplies(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "the", "rollout", "failed", "because", "of", "--state", "doing")
+	if got.code != 0 {
+		t.Fatalf("add trailing --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-1")
+	if added.Card.Title != "the rollout failed because of" {
+		t.Errorf("title: wanted %q, got %q", "the rollout failed because of", added.Card.Title)
+	}
+	if added.Card.StateTitle != "Doing" {
+		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "the", "rollout", "failed", "--kind", "external")
+	if got.code != 0 {
+		t.Fatalf("block trailing --kind: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	blocked := showDetail(t, root, "fx-1")
+	if blocked.Card.BlockReason != "the rollout failed" {
+		t.Errorf("reason: wanted %q, got %q", "the rollout failed", blocked.Card.BlockReason)
+	}
+	if blocked.Card.BlockKind != "external" {
+		t.Errorf("kind: wanted external, got %q", blocked.Card.BlockKind)
+	}
+}
+
+// TestNonTrailingDomainFlagIsLiteral asserts dinah-96's AC-11: a flag-shaped
+// word inside add/block/comment's free text is stored verbatim, with no
+// refusal, whenever it is not a genuinely trailing occurrence of that
+// command's own flag: mid-text, repeated, and a flag belonging to a
+// different command all land as literal text with exit 0.
+func TestNonTrailingDomainFlagIsLiteral(t *testing.T) {
+	root := newBench(t)
+
+	cases := []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{"add mid-text", []string{"add", "the", "rollout", "--state", "deploy", "failed", "twice"}, "the rollout --state deploy failed twice"},
+		{"add repeated", []string{"add", "first", "--state", "one", "then", "--state", "two", "happened"}, "first --state one then --state two happened"},
+		{"add foreign flag", []string{"add", "blocked", "on", "the", "--kind", "change", "from", "ops"}, "blocked on the --kind change from ops"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := runCLI(t, root, c.argv...)
+			if got.code != 0 {
+				t.Fatalf("wanted exit 0, got %d (%s)", got.code, got.errw)
+			}
+			if !strings.Contains(got.out, c.want) {
+				t.Errorf("wanted the title to carry %q, got %q", c.want, got.out)
+			}
+		})
+	}
+
+	runCLI(t, root, "add", "a card to block")
+	got := runCLI(t, root, "block", "fx-4", "waiting", "on", "the", "--from", "team", "to", "reply")
+	if got.code != 0 {
+		t.Fatalf("block foreign flag: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	blocked := showDetail(t, root, "fx-4")
+	if blocked.Card.BlockReason != "waiting on the --from team to reply" {
+		t.Errorf("reason: wanted verbatim text, got %q", blocked.Card.BlockReason)
+	}
+
+	got = runCLI(t, root, "comment", "fx-4", "please", "say", "--yes", "to", "this", "request")
+	if got.code != 0 {
+		t.Fatalf("comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-4")
+	last := detail.Comments[len(detail.Comments)-1].Body
+	if last != "please say --yes to this request" {
+		t.Errorf("comment: wanted %q, got %q", "please say --yes to this request", last)
+	}
+}
+
+// TestCommentAndConfigSetDeclareNoFlagOfTheirOwn asserts dinah-96's AC-12:
+// comment's text and config set's value never recognize any flag at all, at
+// any position, because neither command declares one of its own.
+func TestCommentAndConfigSetDeclareNoFlagOfTheirOwn(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "a card")
+
+	got := runCLI(t, root, "comment", "fx-1", "please", "--state", "deploy", "done")
+	if got.code != 0 {
+		t.Fatalf("comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 1 || detail.Comments[0].Body != "please --state deploy done" {
+		t.Fatalf("wanted one comment %q, got %v", "please --state deploy done", detail.Comments)
+	}
+
+	_, dir := settingsHome(t)
+	got = runCLI(t, dir, "config", "set", "actor", "please", "--state", "deploy", "done")
+	if got.code != 0 {
+		t.Fatalf("config set: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "please --state deploy done" {
+		t.Errorf("config get actor: wanted %q, got %d %q", "please --state deploy done", got.code, got.out)
+	}
+}
+
+// TestFlagBeforeTheFreeTextBoundaryIsUnaffected asserts dinah-96's AC-13: a
+// flag captured before an open-tail command's free-text boundary, meaning
+// before the command name or between the command name and its bounded
+// slots, keeps applying exactly as it does today.
+func TestFlagBeforeTheFreeTextBoundaryIsUnaffected(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "a card")
+
+	bench := soleBenchDir(t, root)
+	got := runCLI(t, root, "--workbench", bench, "comment", "fx-1", "hello")
+	if got.code != 0 {
+		t.Fatalf("--workbench before the command name: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if strings.Contains(got.errw, "was not understood") {
+		t.Errorf("--workbench before the command name should apply, not refuse: %q", got.errw)
+	}
+
+	got = runCLI(t, root, "comment", "--json", "fx-1", "hello")
+	if got.code != 0 {
+		t.Fatalf("--json before the card slot: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if !json.Valid([]byte(got.out)) {
+		t.Errorf("--json before the card slot should still apply as a flag, got %q", got.out)
+	}
+}
+
+// TestAValueStarvedTrailingFlagFallsThroughToLiteralText asserts dinah-96's
+// AC-14/D-5: a title ending in a flag name that expects a value, with
+// nothing left in the free text to serve as that value, is accepted as
+// literal text instead of refusing. A valued domain flag missing its value
+// anywhere else, before an open-tail command's boundary or in a command
+// with no open tail, still refuses exactly as before.
+func TestAValueStarvedTrailingFlagFallsThroughToLiteralText(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "another", "title", "ending", "in", "--state")
+	if got.code != 0 {
+		t.Fatalf("add with a value-starved trailing --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-1")
+	if added.Card.Title != "another title ending in --state" {
+		t.Errorf("title: wanted %q, got %q", "another title ending in --state", added.Card.Title)
+	}
+
+	wantUsage(t, runCLI(t, root, "move", "fx-1", "doing", "--state"), "--state")
+}
+
+// TestANonTrailingFlagThatWouldFailValidationNowSucceeds asserts dinah-96's
+// AC-18/D-7: a non-trailing occurrence of the command's own flag that would
+// fail a downstream check under today's behavior now succeeds instead,
+// because it is never read as a flag at all.
+func TestANonTrailingFlagThatWouldFailValidationNowSucceeds(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "the", "rollout", "--state", "bogus", "failed")
+	if got.code != 0 {
+		t.Fatalf("add with a mid-text bogus state: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-1")
+	if added.Card.Title != "the rollout --state bogus failed" {
+		t.Errorf("title: wanted %q, got %q", "the rollout --state bogus failed", added.Card.Title)
+	}
+}

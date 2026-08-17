@@ -110,6 +110,9 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if !ok {
 		return s.fail(contract.UnknownVerb, name)
 	}
+	if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
+		return s.reportError(refusal)
+	}
 	if word := unreadWordIn(command, parsed.rest()); word != "" {
 		return s.fail(contract.Usage, word)
 	}
