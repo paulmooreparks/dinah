@@ -1,31 +1,34 @@
 # Dinah quick start
 
-This guide walks one workbench, the folder of plain files that holds a board's
-work, from an empty directory to a finished card, and every command the binary
-offers turns up somewhere along the way. Every transcript below is real output
-from `dinah 0.1.0`. The absolute paths in the output name the directories the
-session ran in, written here as `C:\work\...` and `C:\Users\ana\...`, and
-nothing else in the output is edited. A few blocks show a file's contents rather
-than a transcript; those are what you type into the file, and they say so where
-they appear.
+In this guide you take one workbench from an empty directory to a finished card,
+and you meet every command Dinah offers along the way. A workbench is the folder
+of plain files that holds a board's work.
 
-Read it in order the first time. After that, the section headings are the index.
+Every transcript below is real output from `dinah 0.1.0`. You will see absolute
+paths in that output, written here as `C:\work\...` and `C:\Users\ana\...`; they
+name the directories the session ran in, and nothing else in the output is
+edited. A few blocks show you a file's contents rather than a transcript. You
+type those into the file yourself, and each one says so where it appears.
+
+Read the guide in order the first time. After that, use the section headings as
+an index.
 
 ## Shells
 
-The command lines below run unchanged in bash, zsh, and PowerShell, because they
-use only plain arguments, relative paths, `mkdir`, and `cd`, and because they
-leave it to Dinah to find the workbench by walking up from the working
-directory. Two things do genuinely differ between those shells: setting an
-environment variable, and substituting one command's output into another. Each
-appears once below as a labeled pair. One further block uses a POSIX-only
-utility, and it too is labeled where it appears.
+You can run every command line below unchanged in bash, zsh, and PowerShell.
+They use only plain arguments, relative paths, `mkdir`, and `cd`, and they leave
+it to Dinah to find the workbench by walking up from the working directory. You
+do two things differently in each of those shells: you set an environment
+variable, and you substitute one command's output into another. You meet each of
+those once below, written out as a labeled pair. One further
+block uses a utility that only POSIX systems carry, and it too says so where it
+appears.
 
-The leading `$` marks a command line and is not part of the command. This
-session ran on Windows. The paths in the output are therefore Windows paths; on
-macOS or Linux the same runs print POSIX paths.
+The leading `$` marks a command line, so do not type it. This session ran on
+Windows, so Dinah prints Windows paths in the output below. On macOS or Linux
+you would see POSIX paths from the same runs.
 
-## What the binary tells you about itself
+## What Dinah tells you about itself
 
 ```
 $ dinah version
@@ -35,14 +38,13 @@ storage format 1
 [exit 0]
 ```
 
-Those lines carry three different facts. The first is the build. The second
-names the shared rule set this build follows; any other tool built to those same
-rules can read this workbench and reach the same answers about it. The third
-names the on-disk format.
+Dinah tells you three things there. The first line names the build you are
+running. The second line names the shared rule set that build follows, and any
+other tool built to those same rules can read this workbench and reach the same
+answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists every command, twenty-nine of them, in the four groups the
-binary sorts them into. The flag spelling you may reach for first is not one it
-accepts:
+`dinah help` lists all twenty-nine commands, in the four groups Dinah sorts them
+into. Dinah does not accept `--help`:
 
 ```
 $ dinah --help
@@ -50,15 +52,15 @@ dinah.usage --help was not understood; run dinah help for the surface
 [exit 2]
 ```
 
-That refusal calls the list of commands the surface. The list is all the word
-means. Running `dinah` with no arguments prints it too. For one command's
-arguments and the reasons it can say no, ask for that command by name with
-`dinah help move`.
+Run `dinah help` instead, or run `dinah` with no arguments at all, and Dinah
+prints you the same list of commands. To see one command's arguments and the
+reasons it can say no, name that command: `dinah help move`.
 
 ## Open a workbench
 
-A workbench is a directory of plain-text files. Create one where the work is,
-and put it under version control alongside the project it belongs to.
+A workbench is a directory of plain-text files. You may create a workbench in
+the same directory as the rest of your work, if you'd like, and put it under
+version control alongside the project it belongs to.
 
 ```
 $ mkdir release-notes
@@ -69,28 +71,32 @@ Workbench created at C:\work\release-notes.
 [exit 0]
 ```
 
-The slug is the prefix every card reference carries. The first card you file
-here will therefore be `rel-1`. Leave `--slug` out and Dinah derives one from
-the directory name. The operator is the owner who answers for the workbench,
-and because only the operator can lift a block or force a move past a limit, a
-workbench with nobody in that seat has acts nobody can perform. Leave
-`--operator` out and Dinah records whoever you are acting as.
+Every card in a workbench has a human-readable prefix, called a slug. You passed
+`rel` above, so the first card you file here will be `rel-1`, the second
+`rel-2`, and so on. If you don't provide a slug with the `--slug` option, Dinah
+will derive one from the directory name.
 
-That call wrote `workbench.md`, a `states/` directory holding one file per
-state, and a `.gitignore` that keeps the tool's lock files out of your commits.
-Nothing else exists yet.
+The operator owns the workbench and answers for it. Only the operator can lift a
+block or force a move past a limit, so if you leave that seat empty, nobody can
+perform those actions. If you don't name an operator with the `--operator`
+option, Dinah records whoever you are acting as.
 
-Every command from here on runs inside the workbench directory. None of them
-needs a path, because Dinah finds the workbench by walking up from wherever you
-are, the way git finds a repository. When that climb finds nothing, one more
-place is tried: the `.dinah` directory in your home. A workbench that belongs to
-you rather than to a project can live there. `DINAH_HOME` moves that directory
-somewhere else, and the section on working from outside a workbench comes back
-to it.
+Dinah wrote you three things: `workbench.md`, a `states/` directory holding one
+file per state, and a `.gitignore` that keeps Dinah's lock files out of your
+commits. You have nothing else yet.
+
+You run every command from here on inside the workbench directory, and you never
+have to give any of them a path. Dinah finds the workbench by walking up from
+wherever you are, the way git finds a repository. If that climb finds nothing,
+Dinah tries one more place, the `.dinah` directory in your home, where you can
+keep a workbench that belongs to you rather than to a project. You move that
+directory elsewhere by setting `DINAH_HOME`, and the section on working from
+outside a workbench comes back to it.
 
 ## Say who you are
 
-Every act Dinah records carries an owner. The tool will not invent one.
+Dinah assigns an owner to every action it takes, and it will not invent one for
+you.
 
 ```
 $ dinah whoami
@@ -98,9 +104,10 @@ no-owner no owner was resolvable; set one with --actor, DINAH_ACTOR or config ac
 [exit 2]
 ```
 
-The refusal names the three places it looked, in the order it looked: the
-`--actor` flag wins, then the `DINAH_ACTOR` environment variable, then your user
-config. Set the last of those three once and forget it:
+The error message names the places where Dinah looked, in the order it looked
+in them. It takes the `--actor` flag first, then the `DINAH_ACTOR` environment
+variable, then your own configuration file. To avoid this error, you may set the
+`actor` configuration value once:
 
 ```
 $ dinah config set actor ana
@@ -115,13 +122,14 @@ ana, operator: yes
 [exit 0]
 ```
 
-`whoami` answers two questions at once. The second matters because operator
-standing governs what you are allowed to do. The settings live in `config.md`
-under `.dinah` in your home directory, and because they belong to you rather
-than to the workbench, they follow you to every workbench you work.
+`whoami` tells you who you are acting as and whether you are the operator. You
+want that second answer, because Dinah lets the operator do things it will not
+let anybody else do. Dinah keeps your settings in `config.md`, under `.dinah` in
+your home directory. They belong to you rather than to the workbench, so they
+follow you to every workbench you work.
 
-Asked for nothing in particular, `config` lists every setting it knows, what it
-is currently resolving to, and which rung of the ladder answered:
+If you do not give `config` an argument, Dinah lists every setting it knows, the
+value each one currently resolves to, and where that value came from:
 
 ```
 $ dinah config
@@ -131,11 +139,11 @@ $ dinah config
 [exit 0]
 ```
 
-Reading that third column saves an argument with yourself later. Here `lang`
-came from nothing you set, `actor` came from the file you just wrote, and
-`editor` is a program Dinah found rather than one you chose. An environment
-variable shows up the same way, so a value you cannot account for names its own
-source:
+Read that third column whenever a value surprises you. You set none of `lang`,
+so Dinah fell back to its own default; you wrote `actor` into your
+configuration file a moment ago; and Dinah found `editor` on the machine rather
+than taking a program you chose. Dinah labels an environment variable the same
+way, so a value you cannot account for tells you where it came from:
 
 ```
 $ dinah config
@@ -145,8 +153,8 @@ $ dinah config
 [exit 0]
 ```
 
-The keys this version knows are `actor`, `lang`, and `editor`, and nothing else
-is accepted:
+Dinah knows three settings in this version, `actor`, `lang`, and `editor`, and
+it accepts no other name:
 
 ```
 $ dinah config set colour green
@@ -154,8 +162,9 @@ dinah.unknown-key this tool knows no setting called colour
 [exit 2]
 ```
 
-Dinah refuses to set that key, but it does not throw away keys it does not
-recognise when it writes the file. Anything you added there by hand stays.
+Dinah will not set that setting, but it does not throw away names it does not
+recognise when it rewrites the file. Anything you added there by hand stays
+where you put it.
 
 ## Look at the flow
 
@@ -167,20 +176,21 @@ $ dinah states
 [exit 0]
 ```
 
-Each row gives a state's identifier, its slug, its title, its kind, and how many
-cards stand in it. The kinds are `intake`, `work`, and `done`. Because the flow
-runs in the order `workbench.md` lists them, a move to a later state is forward
-and a move to an earlier one is backward. Identifiers are generated per
-workbench, so yours will differ from the ones printed here.
+You get one row per state, and each row gives you the state's identifier, its
+slug, its title, its kind, and how many cards stand in it. A state's kind is
+`intake`, `work`, or `done`. Dinah runs the flow in the order `workbench.md`
+lists the states, so when you move a card to a later state you move it forward,
+and when you move it to an earlier state you move it backward. Dinah generates
+the identifiers per workbench, so yours will differ from the ones printed here.
 
-The slug is the short name you type. Every command that takes a state accepts
-the identifier, the slug, or the title, and the match ignores case. Slugs are
-derived from the titles when the workbench is created, so a workbench made
-before the field existed carries none, and `dinah check --migrate-slugs` fills
-them in.
+You type the slug, which is the short name. Every command that takes a state
+accepts the identifier, the slug, or the title, and Dinah ignores case when it
+matches them. Dinah derives the slugs from the titles when it creates the
+workbench, so if you have a workbench made before slugs existed, its states
+carry none, and you fill them in with `dinah check --migrate-slugs`.
 
-Run `status` when you sit down. It prints that same list and adds what you
-personally hold.
+Run `status` when you sit down. Dinah prints you that same list and adds the
+cards you hold yourself.
 
 ```
 $ dinah status
@@ -195,10 +205,11 @@ acting as ana, operator: yes
 
 ## Edit the workbench by hand
 
-The files are the interface. Open `workbench.md`, give the workbench a real
-title, and write the standing instructions below the settings block at the top,
-the part between the `---` lines. Dinah's own messages call that block the
-frontmatter. This block is the file, not a transcript:
+You edit a workbench by editing its files. Open `workbench.md`, give the
+workbench a real title, and write your standing instructions below the settings
+block at the top, the part between the `---` lines. Dinah's own messages call
+that block the frontmatter. The block below is the file itself rather than a
+transcript:
 
 ```
 ---
@@ -215,8 +226,8 @@ states:
 Every card on this workbench ends with a line in the changelog.
 ```
 
-Then open the `state.md` of one state and do the same. A `wip_limit` caps how
-many cards that state will hold:
+Then open the `state.md` of one state and do the same. If you set a `wip_limit`,
+Dinah caps that state at that many cards:
 
 ```
 ---
@@ -229,9 +240,9 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 ```
 
-Nothing copies that prose anywhere. Dinah serves it from where you wrote it, so
-an edit reaches every reader at once. Check your work whenever you have been
-editing by hand:
+Dinah never copies that prose anywhere. It serves the text out of the file you
+wrote it in, so when you edit the file, every reader sees the change at once.
+Check your work whenever you have been editing by hand:
 
 ```
 $ dinah check
@@ -248,8 +259,8 @@ acting as ana, operator: yes
 [exit 0]
 ```
 
-The limit shows up as `0/1` in the count column. To read what a position serves
-without touching a card, ask for it:
+You can see the limit in the count column, where `doing` now reads `0/1`. To
+read the instructions a state serves without touching a card, ask for them:
 
 ```
 $ dinah instructions doing
@@ -263,8 +274,8 @@ Leave a comment saying what you did before you carry it on.
 [exit 0]
 ```
 
-Give `dinah instructions` a card reference instead and it serves the position
-that card is standing at.
+If you give `dinah instructions` a card reference instead, Dinah serves you the
+instructions for wherever that card is standing.
 
 ## File some cards
 
@@ -282,16 +293,17 @@ rel-3  Check the download links  [Doing / ready]
 [exit 0]
 ```
 
-A card lands in the first state of the flow unless `--state` says otherwise, and
-it arrives with substate `ready`. Anybody may pull a ready card. The bracket
-after each title is the card's whole position: the state it stands in, then its
-substate.
+Dinah puts a new card in the first state of the flow, unless you name another
+state with `--state`. Your card arrives with the substate `ready`, and anybody
+may pull a ready card. You read where the card stands out of the bracket after
+its title: first the state it stands in, then its substate.
 
-To read the board back, `ls` lists cards and takes an optional state and an
-optional `--ready` filter, `next` reports what each state is currently offering,
-and `show` prints one card. Listings run in queue order, oldest arrival first,
-and cards that arrived inside the same second fall back to the order they were
-filed in. That order does not depend on how fast you type.
+You read the board back with three commands. `ls` lists cards, and takes an
+optional state and an optional `--ready` filter. `next` tells you what each
+state is offering right now. `show` prints one card. Dinah lists cards in queue
+order, oldest arrival first, and when two cards arrived inside the same second
+it falls back to the order you filed them in. You get that same order however
+fast you type.
 
 ```
 $ dinah ls
@@ -326,12 +338,12 @@ rel-1  Write the release notes  [Intake / ready]
 
 ## The five commands that move a card
 
-Five commands change where a card stands: `claim`, `move`, `release`, `block`,
-and `unblock`. Dinah's own guide calls these five the verbs; read it with
-`dinah guide verbs`. What each one does is fixed by the shared rules; a second
-tool reading the same workbench answers the same way.
+You change where a card stands with five commands: `claim`, `move`, `release`,
+`block`, and `unblock`. Dinah's own guide calls these five the verbs, and you
+can read it with `dinah guide verbs`. The shared rules fix what each one does,
+so a second tool reading the same workbench answers you the same way.
 
-Work is taken rather than handed out, so you claim your own card:
+Nobody hands you work here. You claim a card yourself:
 
 ```
 $ dinah claim rel-1
@@ -347,11 +359,11 @@ Moves this card may make:
 [exit 0]
 ```
 
-A successful claim serves you the instructions of the position and the moves the
-flow allows from it. You do not have to remember either. Pass `--quiet` when you
-have read them already.
+When your claim succeeds, Dinah shows you the instructions for where the card
+stands and the moves the flow allows from there, so you do not have to remember
+either. Pass `--quiet` when you have read them already.
 
-A held card is not available to anybody else:
+Dinah will not let anybody else take a card you hold:
 
 ```
 $ dinah claim rel-1 --actor bo
@@ -359,9 +371,9 @@ held ana holds this card
 [exit 2]
 ```
 
-`move` carries a card to another state and changes nothing else; a holder who
-moves a card still holds it. `Doing` is capped at one and already has `rel-3` in
-it, so the move below is refused:
+`move` carries a card to another state and changes nothing else, so if you move
+a card you hold, you still hold it afterwards. You capped `Doing` at one card
+above, and `rel-3` already stands there, so Dinah refuses the move below:
 
 ```
 $ dinah move rel-1 doing
@@ -369,7 +381,8 @@ at-capacity state df8cd3d7f024 has reached its limit
 [exit 2]
 ```
 
-The override is the operator's alone, and it is recorded on the move:
+Only the operator can override that limit, and Dinah records the override on the
+move:
 
 ```
 $ dinah move rel-1 doing --override
@@ -403,11 +416,12 @@ rel-1  Write the release notes  [Doing / active]
 [exit 0]
 ```
 
-Pass a single dash instead of the text and `comment` reads standard input. A
-script uses that to hand it something longer than a command line wants.
+If you pass a single dash instead of the text, `comment` reads standard input.
+Your scripts use that to hand it something longer than a command line wants.
 
-When something stops the work, say so on the card. A block frees the card and
-records why. That is what turns an obstacle into something visible:
+When something stops the work, say so on the card. Dinah frees the card and
+records why you blocked it, so that everybody reading the board can see the
+obstacle:
 
 ```
 $ dinah block rel-2 "Waiting on the signing certificate" --kind external
@@ -416,9 +430,10 @@ rel-2  Draft the changelog  [Intake / blocked]
 [exit 0]
 ```
 
-The reason is required and it is prose, because the things that stop real work
-vary, while the `--kind` is a short label of your own choosing for grouping
-later. Blocks show up in `status`:
+Dinah requires the reason, and you write it as prose, because the things that
+stop real work vary too much for a fixed list. You choose the `--kind` yourself,
+as a short label you can group blocks by later. You see your blocked cards in
+`status`:
 
 ```
 $ dinah status
@@ -437,8 +452,8 @@ Blocked, waiting on the operator:
 [exit 0]
 ```
 
-Lifting a block is the operator's act, because an obstacle raised is an obstacle
-handed to whoever answers for the workbench:
+Only the operator can lift a block. When you block a card, you hand the obstacle
+to whoever answers for the workbench:
 
 ```
 $ dinah unblock rel-2 --actor bo
@@ -450,9 +465,9 @@ rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
 ```
 
-Release a card as soon as you stop working it, and the queue stays honest about
-what is available. A claim can also carry its own expiry. When one lapses, the
-card returns to the queue with the lapse recorded:
+Release a card as soon as you stop working it, and the queue will stay honest
+about what is available. You can also give a claim its own expiry. If your claim
+lapses, Dinah returns the card to the queue and records the lapse:
 
 ```
 $ dinah release rel-1
@@ -477,15 +492,16 @@ Moves this card may make:
 [exit 0]
 ```
 
-A card may always move backward out of a done state, but a forward move out of
-one is refused with `terminal`. Both remaining moves above are backward for that
-reason.
+You can always move a card backward out of a done state, but if you try to move
+one forward out of a done state, Dinah refuses with `terminal`. Dinah therefore
+offers you only backward moves above.
 
 ## Everything below a card
 
-A card is a directory, its comments and attachments are directories inside it,
-and giving `attach` a file copies the bytes in under their own name. Create
-`notes.txt` in the current directory first, with whatever content you like:
+Dinah stores a card as a directory, and its comments and attachments as
+directories inside that one. When you give `attach` a file, Dinah copies the
+bytes in under the file's own name. Create `notes.txt` in the current directory
+first, with whatever content you like:
 
 ```
 $ dinah attach rel-1 notes.txt
@@ -496,19 +512,21 @@ rel-1  Write the release notes  [Done / active]
 
 Pass `--replace` to swap the bytes of an attachment that is already there.
 
-Anything below a card is addressable by a path reference: the card's reference
-followed by slash-separated segments. The segments are `comments`,
+You address anything below a card with a path reference, which is the card's
+reference followed by slash-separated segments. You write `rel-1/attachments/1`
+for the attachment you just made. The segments you can use are `comments`,
 `attachments`, `checklist`, `journal`, and `card`, plus `oq`, `ac`, and `d` as
-shorthands for the three checklist kinds. Reaching past an attachment into
-`payload` gets you the file itself. No command in this version files a checklist
-item, though, so the checklist segments address items that something else has
-already written.
+shorthands for the three checklist kinds. If you reach past an attachment into
+`payload`, you get the file itself. No command in this version files a checklist
+item, so you can only address checklist items that something else has already
+written.
 
-A collection takes either a twelve-hex identifier or a one-based position, and a
-position counts in the order the things were written. Every comment, attachment,
-and checklist item carries a creation ordinal of its own. That is the `ordinal`
-line in the frontmatter below, and it is what keeps `rel-1/comments/1` the
-comment you wrote first as others arrive.
+You name a thing in a collection either by its twelve-hex identifier or by its
+position, counting from one, and Dinah counts positions in the order the things
+were written. Dinah's own messages call a comment, an attachment, or a checklist
+item an entity, and it stamps every one of them with a creation ordinal. You can
+see that as the `ordinal` line in the frontmatter below, and it is what keeps
+`rel-1/comments/1` pointing at the comment you wrote first as others arrive.
 
 ```
 $ dinah show rel-1/attachments/1
@@ -542,11 +560,13 @@ C:\work\release-notes\cards\55cce32b3c43\attachments\d1af8cf49f49\payload\notes.
 [exit 0]
 ```
 
-An older workbench, written before ordinals existed, has entities carrying none,
-and there a position is only as good as the directory listing. The repair is
-`dinah check --migrate-ordinals`, and the section on defects below runs it.
+If you have an older workbench, written before ordinals existed, its entities
+carry none, and a position there is only as good as the directory listing. You
+repair that with `dinah check --migrate-ordinals`, and the section on defects
+below runs it.
 
-The full record of a card is its journal, and `log` renders it oldest first:
+Dinah keeps the full record of a card in its journal, and `log` shows you that
+journal oldest first:
 
 ```
 $ dinah path rel-1
@@ -570,15 +590,15 @@ $ dinah log rel-1
 [exit 0]
 ```
 
-The override shows up on the move that used it. Each act names the states it
-refers to as they were titled at the time. Rename a state later and the history
+You can see the override on the move that used it. Dinah names each state in the
+log as it was titled at the time, so if you rename a state later, your history
 still reads as it did.
 
 ## Taking things out
 
 `archive` takes a card, or a comment or attachment on one, out of the listings
-and keeps its files, but `delete` destroys the same things and their history.
-Both are quiet on success.
+and keeps its files. `delete` destroys the same things and their history. Dinah
+says nothing to you when either one succeeds.
 
 ```
 $ dinah archive rel-3
@@ -596,16 +616,16 @@ $ dinah delete rel-1/comments/2 --yes
 [exit 0]
 ```
 
-Archived cards move under `archive/cards/` in the workbench and stop appearing
-in listings. Deletion is not recoverable. `delete` requires `--yes` for that
-reason.
+When you archive a card, Dinah moves it under `archive/cards/` in the workbench
+and stops listing it. You cannot recover anything you delete, so `delete` makes
+you pass `--yes`.
 
 ## When the files are wrong
 
-Hand-editing is legal, but it makes mistakes possible, and `check` is how you
-find them. The workbench answering below was damaged on purpose for this
-example rather than being the one you have been working in, and a card in it
-names a state that no longer exists:
+You may edit the files by hand, and when you do you can make mistakes in them,
+so run `check` to find them. The workbench answering below is not the one you
+have been working in. It was damaged on purpose for this example, and a card in
+it names a state that no longer exists:
 
 ```
 $ dinah check
@@ -615,7 +635,8 @@ $ dinah check
 [exit 2]
 ```
 
-Every line names the file to open. Fix it with an editor and run `check` again:
+Dinah names the file to open on every line. Open each one in your editor, fix
+it, and run `check` again:
 
 ```
 $ dinah check
@@ -625,15 +646,15 @@ No structural defects found.
 
 `check` also catches a claim without the substate that implies it, a block with
 no reason, a link pointing at no card, a journal whose last line was cut off,
-and a directory sitting where an entity should be. It reads and reports; it
-changes nothing unless you ask it to.
+and a directory sitting where an entity should be. It only reads and reports,
+and it changes nothing unless you ask it to.
 
-Two of the things it reports are the marks of an older workbench rather than a
-mistake, and each has a flag that repairs it. The workbench answering below is
-that older one, kept around for this example rather than the workbench you
-have been building, so your own `check` still reports nothing at this point. A
-state written before slugs existed carries none, and an entity written before
-ordinals existed carries none:
+`check` reports two things that mark an older workbench rather than a mistake,
+and you repair each of them with a flag. The workbench answering below is that
+older one, kept for this example rather than the workbench you have been
+building, so your own `check` still reports nothing at this point. A state
+written before slugs existed carries no slug, and an entity written before
+ordinals existed carries no ordinal:
 
 ```
 $ dinah check
@@ -661,34 +682,35 @@ No structural defects found.
 [exit 0]
 ```
 
-Each migration prints what it wrote and then reports whatever it did not fix, so
-the exit code stays 2 until the workbench is clean. Slugs come from the titles,
-and ordinals are read back out of each card's journal, so the journal is worth
-keeping intact. Run either one against a copy first if the workbench
-matters to you.
+Dinah prints what each migration wrote and then reports whatever it did not fix,
+so you keep getting exit code 2 until the workbench is clean. Dinah takes the
+slugs from the titles and reads the ordinals back out of each card's journal, so
+keep your journals intact. If the workbench matters to you, run either migration
+against a copy first.
 
-A third flag, `--finish`, is for a rarer case. A structural act interrupted part
-way through, by a power cut or a killed process, leaves a lock file behind
-naming what it was doing. `check` reports that as an interrupted act, and
-`check --finish` reads the journal to decide whether the act reached its point
-of record, then completes it or rolls it back. Run `check` after any hand edit,
-and before you commit a workbench to version control.
+You use a third flag, `--finish`, in a rarer case. If a power cut or a killed
+process interrupts Dinah part way through a structural act, Dinah leaves a lock
+file behind naming what it was doing, and `check` reports that as an interrupted
+act. `check --finish` reads the journal to decide whether the act reached its
+point of record, then completes it or rolls it back. Run `check` after any hand
+edit, and before you commit a workbench to version control.
 
 ## Driving Dinah from a script
 
-Four exit codes cover every outcome. A script should keep them apart, because
-each one calls for something different.
+Dinah exits with one of four codes, and your script should tell them apart,
+because each one asks something different of you.
 
 | Code | Outcome | What to do |
 | --- | --- | --- |
 | 0 | ok | It happened. |
-| 2 | refused | A rule said no. The refusal name says which. |
+| 2 | refused | A rule said no. Dinah names the rule at the front of the message. |
 | 3 | stale | The card moved between your reading it and your acting. Read it again and retry. |
 | 4 | unreachable | The question could not be asked at all. |
 
-Pass `--json` for the machine-readable form. Under it a refusal writes its name
-to standard output as a field, and that is the portable way to find out which
-rule said no. Standard output alone:
+Pass `--json` and Dinah gives you the machine-readable form. When Dinah says no
+under `--json`, it writes the name of the rule to standard output in the
+`refusal` field, and that is the portable way for your script to find out which
+rule said no. Here is standard output alone:
 
 ```
 $ dinah claim rel-9 --json
@@ -707,9 +729,9 @@ $ dinah claim rel-9 --json
 [exit 2]
 ```
 
-Standard error still carries the sentence a person reads, whether or not
-`--json` was asked for, and without the flag that line is all you get, with the
-refusal name as the first word on it:
+Dinah writes the sentence a person reads to standard error, whether or not you
+passed `--json`. If you do not pass the flag, that one line is all you get, and
+Dinah puts the name of the rule at the front of it:
 
 ```
 $ dinah claim rel-9
@@ -717,28 +739,29 @@ unknown-card this workbench carries no card rel-9
 [exit 2]
 ```
 
-The sentence after the name is for a person and may be translated. The name
-never is. In bash or zsh, that first word comes out with `cut`:
+Dinah writes the sentence after the name for a person to read, and it may
+translate that sentence. It never translates the name. In bash or zsh, you cut
+that first word out:
 
 ```
 $ dinah claim rel-9 2>&1 >/dev/null | cut -d' ' -f1
 unknown-card
 ```
 
-That block is POSIX-only. The exit code you branch on is Dinah's own, so capture
-it before a pipe puts another program's status in its place. PowerShell also
-decorates a native command's error stream when it redirects one, so the `--json`
-route above is the one that behaves the same everywhere.
+That block runs only on POSIX systems. Branch on Dinah's own exit code, so
+capture it before a pipe puts another program's status in its place. PowerShell
+also decorates a native command's error stream when it redirects one, so take
+the `--json` route above when you want the same behaviour everywhere.
 
-Some refusal names come from the shared rules that every Dinah-compatible tool
-follows; others are this tool's own. The tool's own names carry a `dinah.`
-prefix. Matching on that prefix is how you tell the two groups apart.
-`unknown-card` and `at-capacity` are shared. `dinah.unknown-key` and
-`dinah.unconfirmed` are this tool's.
+Dinah takes some of those names from the shared rules that every
+Dinah-compatible tool follows, and coins the rest itself. Dinah puts a `dinah.`
+prefix on the names it coins, so your script tells the two groups apart by
+matching on that prefix. `unknown-card` and `at-capacity` come from the shared
+rules. `dinah.unknown-key` and `dinah.unconfirmed` are Dinah's own.
 
-Setting `DINAH_FORMAT=json` gets the machine-readable form from every call
-without the flag, and setting an environment variable is the first of the two
-things that differ between shells.
+If you set `DINAH_FORMAT=json`, Dinah gives you the machine-readable form from
+every call without the flag. You set an environment variable differently in each
+shell, and this is the first of the two places where that matters.
 
 In bash or zsh:
 
@@ -752,9 +775,9 @@ In PowerShell:
 $env:DINAH_FORMAT = 'json'
 ```
 
-The JSON always uses the machine spellings, such as `ready` and `unknown-card`,
-and never translates them, so the same command emits the same bytes under any
-language setting.
+Dinah writes the machine spellings in JSON, such as `ready` and `unknown-card`,
+and never translates them, so you get the same bytes from the same command under
+any language setting.
 
 ```
 $ dinah ls intake --json
@@ -775,13 +798,13 @@ $ dinah ls intake --json
 [exit 0]
 ```
 
-The `revision` is the card's content as you read it, reduced to a hash. The
-stale outcome is measured against it, so a tool that reads a card, thinks, and
-then acts has a way to find out that the card moved in between.
+The `revision` is the card's content as you read it, reduced to a hash. Dinah
+measures the stale outcome against it, so if your tool reads a card, thinks, and
+then acts, it can find out that the card moved in between.
 
-`path` is built to be composed with. It writes one absolute path to standard
-output and nothing else, and substituting that into another command is the
-second of the two things that differ between shells.
+You compose `path` with other commands. It writes one absolute path to standard
+output and nothing else. You substitute that into another command differently in
+each shell, and this is the second of the two places where that matters.
 
 In bash or zsh:
 
@@ -798,9 +821,10 @@ code (dinah path rel-1/comments/1)
 ## Read the workbench in your own language
 
 Dinah works out the display language by trying the `--lang` flag first, then
-`DINAH_LANG`, then your user config, then the operating system locale, and
-English if none of them answers. The locale sits below the config because it
-describes the machine rather than the person reading the screen.
+`DINAH_LANG`, then your own configuration file, then the operating system
+locale, and English if none of them answers. Dinah puts the locale below your
+configuration file because the locale describes the machine rather than the
+person reading the screen.
 
 ```
 $ dinah --lang hi status
@@ -816,9 +840,9 @@ ana के रूप में, संचालक: हाँ
 [exit 0]
 ```
 
-Titles you wrote stay as you wrote them, since they are your text rather than
-the tool's, and so do the slugs derived from them. To see which languages this
-build actually carries, ask:
+You wrote the titles, so Dinah leaves them as you wrote them, and it leaves the
+slugs derived from them alone as well. To see which languages your build
+carries, ask:
 
 ```
 $ dinah version --catalogs
@@ -838,21 +862,21 @@ Catalogs:
 [exit 0]
 ```
 
-A catalog with no entries falls back to English message by message, so asking
-for one of those changes nothing yet.
+If you ask for a language whose catalog has no entries, Dinah falls back to
+English message by message, so you see no change yet.
 
 ## Open a card in your editor
 
 `edit` accepts the same references `path` does and hands the file to your
-editor, looking at `DINAH_EDITOR` first, then your user config, then `VISUAL`,
-then `EDITOR`, and falling back to a platform default. The Dinah-specific
-variable sits on top because `EDITOR` is shared with every other tool you run,
-and somebody who wants git and Dinah opening different editors has nowhere else
-to say so.
+editor. Dinah looks at `DINAH_EDITOR` first, then your own configuration file,
+then `VISUAL`, then `EDITOR`, and falls back to a platform default. Dinah puts
+its own variable on top because you share `EDITOR` with every other tool you
+run, so if you want git and Dinah to open different editors, you have nowhere
+else to say so.
 
-Set `DINAH_EDITOR` the way your shell sets any variable, as shown in the
-scripting section above. The run below points it at `more` so the block has
-something to print instead of opening a window:
+Set `DINAH_EDITOR` the way your shell sets any variable, as the scripting
+section above shows. The run below points it at `more`, so you see the file
+printed instead of a window opening:
 
 ```
 $ dinah edit rel-1
@@ -868,8 +892,8 @@ claim_expires: 2026-08-17T17:41:56Z
 [exit 0]
 ```
 
-The value is run as a program name, so give it the name of an editor rather than
-a command line with flags in it:
+Dinah runs that value as a program name, so give it the name of an editor rather
+than a command line with flags in it:
 
 ```
 $ dinah config set editor notepad
@@ -880,15 +904,15 @@ notepad
 [exit 0]
 ```
 
-If none of those is set and no fallback editor is present, `edit` refuses with
-`dinah.no-editor`.
+If you set none of those and Dinah finds no fallback editor on the machine,
+`edit` fails with `dinah.no-editor`.
 
 ## Work on a workbench you are not standing in
 
-Dinah walks up from the working directory to find its workbench, so standing
-anywhere inside one is enough. To see what that walk reaches from where you are
-now, ask `workbenches`. It answers with rows rather than a refusal, and no rows
-is as honest an answer as several:
+Dinah walks up from the working directory to find its workbench, so you can
+stand anywhere inside one. To see what that walk reaches from where you are
+standing now, run `workbenches`. Dinah answers you with rows rather than an
+error, and it tells you plainly when it reached none:
 
 ```
 $ dinah workbenches
@@ -902,8 +926,8 @@ no workbench is reachable from here
 [exit 0]
 ```
 
-The walk climbs, so a workbench in a directory beside you is out of reach and a
-workbench above you is not. From outside, name the one you want with
+Dinah only climbs, so it reaches a workbench above you and never one in a
+directory beside you. From outside, name the workbench you want with
 `--workbench`, or set `DINAH_WORKBENCH`:
 
 ```
@@ -920,12 +944,12 @@ You are holding:
 [exit 0]
 ```
 
-Your home directory can hold workbenches of its own, in the `.dinah` directory
-beside your settings, and those are what the walk falls back to when the climb
-finds nothing. Two or more of them is a question the tool will not answer for
-you. The listing below comes from ana's own home directory, which happens to
-hold two workbenches for this example; the same ambiguity arises in yours only
-if you have made more than one there yourself:
+You can keep workbenches of your own in your home directory, in the `.dinah`
+directory beside your settings, and Dinah falls back to those when the climb
+finds nothing. If you keep two or more of them there, Dinah will not choose
+between them for you. The listing below comes from ana's own home directory,
+which holds two workbenches for this example. You will see the same thing only
+if you have made more than one workbench there yourself:
 
 ```
 $ dinah workbenches
@@ -938,20 +962,21 @@ dinah.ambiguous-bench 0f1e2d3c4b5a (C:\Users\ana\.dinah\0f1e2d3c4b5a); a1b2c3d4e
 [exit 2]
 ```
 
-A bare `show` prints that same listing. You asked to be shown something, the
-tool cannot tell which workbench you meant, and the choices are what it has to
-show. When nothing is reachable at all, the refusal is `dinah.no-bench-found`,
-and it names both the directory the climb started from and the home directory it
-fell back to.
+If you run `show` with no argument, Dinah prints that same listing. You asked it
+to show you something, it cannot tell which workbench you meant, so it shows you
+the choices. If Dinah reaches no workbench at all, it fails with
+`dinah.no-bench-found` and names both the directory the climb started from and
+the home directory it fell back to.
 
-`DINAH_HOME` moves that fallback directory. Point it somewhere else and your
-settings file and any workbenches under it come from there instead. That is how
-you work against a scratch setup without touching your own.
+You move that fallback directory by setting `DINAH_HOME`. If you point it
+somewhere else, Dinah reads your settings file and any workbenches under it from
+there instead. Set it when you want to work against a scratch setup without
+touching your own.
 
 ## Hand a workbench to somebody else
 
-`export` prints the whole workbench definition in the shared exchange format.
-Another program built to the same rules reads that form:
+`export` prints the whole workbench definition in the shared exchange format,
+and another program built to the same rules can read what it prints:
 
 ```
 $ cd release-notes
@@ -986,9 +1011,9 @@ $ dinah export
 [exit 0]
 ```
 
-`extract` writes the same definition to a directory as a reusable template,
-carrying the flow and the instructions and none of the cards. `init --from`
-starts a new workbench from one:
+`extract` writes that same definition to a directory as a template you can use
+again. It carries the flow and the instructions, and none of the cards. You
+start a new workbench from a template with `init --from`:
 
 ```
 $ dinah extract ../release-template
@@ -1014,13 +1039,14 @@ $ dinah states
 $ cd ../release-notes
 ```
 
-The template carries the state identifiers and the slugs too, so the new
-workbench and the old one answer to the same ones. That last `cd` puts you back
-in the workbench this guide started in. The commands below expect to run there.
+The template carries the state identifiers and the slugs too, so you name the
+states in the new workbench exactly as you name them in the old one. That last
+`cd` puts you back in the workbench this guide started in, and the commands
+below expect you to run them there.
 
-## The guides that ship in the binary
+## The guides that ship inside Dinah
 
-The binary carries its own guides, so they are readable with no network and no
+Dinah carries its own guides, so you can read them with no network and no
 repository checkout:
 
 ```
@@ -1031,27 +1057,27 @@ $ dinah guide
 [exit 0]
 ```
 
-`dinah guide workbench-layout` is the one to read before you start editing files
-by hand, since it maps the whole directory.
+Read `dinah guide workbench-layout` before you start editing files by hand,
+because it maps the whole directory for you.
 
 ## Point an agent at the workbench
 
 `dinah mcp` serves the workbench over MCP on its standard input and output, so
 an AI colleague can work the same board you do. Configure it in your MCP client
-as the command `dinah mcp`, with the workbench directory as the working
-directory or `DINAH_WORKBENCH` set to it. The server hands the client the rules
-for working this workbench and one tool for each command, so the agent claims,
-moves, releases, and blocks under the same rules and leaves the same journal
-entries you do.
+as the command `dinah mcp`, and either run it with the workbench directory as
+its working directory or set `DINAH_WORKBENCH` to that directory. Dinah hands
+the client the rules for working this workbench and one tool for each command,
+so your AI colleague claims, moves, releases, and blocks under the same rules
+and leaves the same journal entries you do.
 
-Give the agent an actor name of its own through `DINAH_ACTOR` so the record
-shows who did what.
+Give your AI colleague an actor name of its own through `DINAH_ACTOR`, so the
+record shows who did what.
 
 ## Where to look next
 
-`dinah help <command>` lists a command's arguments and every reason it can
-refuse, in the order the checks are made. That ordering is worth knowing when
-you are working out which of two possible refusals you are looking at.
+`dinah help <command>` lists a command's arguments and every reason it can say
+no, in the order Dinah makes the checks. Read that order when you are working
+out which of two possible errors you are looking at.
 
 ```
 $ dinah help claim
