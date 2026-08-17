@@ -43,6 +43,25 @@ type invocation struct {
 	errw string
 }
 
+// resolvedDir returns dir with any symbolic links resolved, matching the
+// path the head itself resolves once it has chdir'd there: an internal
+// os.Getwd() call falls back to the syscall form, which returns the
+// symlink-free path, whenever the PWD environment variable was not updated
+// to match, exactly the case after a programmatic os.Chdir rather than a
+// shell cd. On most platforms this returns dir unchanged; on macOS the
+// default temporary directory is reached through a symlink (/tmp ->
+// /private/tmp), so a path built by joining onto the raw t.TempDir() value
+// spells the same directory differently than a value the head resolved
+// from its own working directory. dir must already exist.
+func resolvedDir(t *testing.T, dir string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatalf("resolve symlinks in %q: %v", dir, err)
+	}
+	return resolved
+}
+
 // runCLI runs the head in a directory, with the streams captured.
 func runCLI(t *testing.T, dir string, argv ...string) invocation {
 	t.Helper()
@@ -1120,6 +1139,10 @@ func TestConfigSetWorkbenchStoresAnAbsolutePathAndClears(t *testing.T) {
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
+	// Resolved after creation, and after the mkdir above, so it matches the
+	// path the head resolves through its own working directory rather than
+	// the raw value t.TempDir() handed this test (see resolvedDir).
+	wantTarget := resolvedDir(t, target)
 
 	if got := runCLI(t, dir, "config", "set", "workbench", "elsewhere"); got.code != 0 {
 		t.Fatalf("config set: %d %s", got.code, got.errw)
@@ -1128,8 +1151,8 @@ func TestConfigSetWorkbenchStoresAnAbsolutePathAndClears(t *testing.T) {
 	if stored.code != 0 {
 		t.Fatalf("config get: %d %s", stored.code, stored.errw)
 	}
-	if got := strings.TrimSpace(stored.out); got != target {
-		t.Errorf("a relative path should be stored absolute, wanted %q, got %q", target, got)
+	if got := strings.TrimSpace(stored.out); got != wantTarget {
+		t.Errorf("a relative path should be stored absolute, wanted %q, got %q", wantTarget, got)
 	}
 
 	if got := runCLI(t, dir, "config", "set", "workbench"); got.code != 0 {
@@ -1365,7 +1388,9 @@ func TestConfigListingReportsTheWorkbenchRow(t *testing.T) {
 
 	t.Run("a local workbench answers ahead of a configured default", func(t *testing.T) {
 		container := newBench(t)
-		actual := soleBenchDir(t, container)
+		// Resolved to match what the head's own search reports for the same
+		// directory once it has chdir'd into it (see resolvedDir).
+		actual := resolvedDir(t, soleBenchDir(t, container))
 		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
 		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
