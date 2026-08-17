@@ -846,6 +846,11 @@
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.workbench-not-applicable": {
+      "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}). Give init the target directory as a plain argument instead.",
+      "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one.",
+      "skeleton": true
+    },
     "refusal.held": {
       "text": "{detail} holds this card",
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about.",

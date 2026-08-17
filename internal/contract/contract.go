@@ -118,6 +118,11 @@ const (
 	// names what the caller just typed, the other names what was stored
 	// earlier and may have gone stale with nobody around to notice.
 	NoConfiguredWorkbench = LayerPrefix + "no-configured-workbench"
+	// WorkbenchNotApplicable is --workbench or DINAH_WORKBENCH given to
+	// init. Every other verb reads the flag as the path to a workbench that
+	// already exists; init has none yet at the path it is about to create,
+	// so the flag names nothing init can act on.
+	WorkbenchNotApplicable = LayerPrefix + "workbench-not-applicable"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -125,6 +130,7 @@ var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
+	WorkbenchNotApplicable,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
