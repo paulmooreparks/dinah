@@ -144,6 +144,11 @@ type Bench struct {
 // from DINAH_BENCH, is taken as given. Otherwise the search walks up from the
 // starting directory the way git looks for a repository, and falls back to
 // the user base.
+//
+// A base holding several workbenches never decides the search, and the walk
+// climbs past it as it always has. It is remembered, though: a search that
+// ends with nothing found reports the ambiguity it passed rather than telling
+// the reader that no workbench exists, which is false wherever one was seen.
 func Discover(start, override, home string) (string, error) {
 	if override != "" {
 		abs, err := filepath.Abs(override)
@@ -159,9 +164,17 @@ func Discover(start, override, home string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// The first ambiguity the search meets, closest to the starting
+	// directory, which is the one a reader is likeliest to have meant.
+	firstBase := ""
+	var firstCandidates []string
 	for {
-		if found := benchIn(dir); found != "" {
+		found, ambiguous := benchIn(dir)
+		if found != "" {
 			return found, nil
+		}
+		if len(ambiguous) > 0 && firstBase == "" {
+			firstBase, firstCandidates = filepath.Join(dir, UserBaseName), ambiguous
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -169,38 +182,75 @@ func Discover(start, override, home string) (string, error) {
 		}
 		dir = parent
 	}
+	userBase := ""
 	if home != "" {
-		if found := soleBench(filepath.Join(home, UserBaseName)); found != "" {
+		userBase = filepath.Join(home, UserBaseName)
+		found, ambiguous := soleBench(userBase)
+		if found != "" {
 			return found, nil
 		}
+		if len(ambiguous) > 0 && firstBase == "" {
+			firstBase, firstCandidates = userBase, ambiguous
+		}
 	}
-	return "", contract.Refuse(contract.NoBench, start)
+	if firstBase != "" {
+		extra := map[string]string{"base": firstBase}
+		return "", contract.RefuseWith(contract.AmbiguousBench, describeCandidates(firstCandidates), extra)
+	}
+	return "", contract.RefuseWith(contract.NoBenchFound, start, map[string]string{"home": userBase})
 }
 
 // benchIn reports the bench a single directory offers, either as the bench
-// itself or as the sole bench of a .dinah directory inside it.
-func benchIn(dir string) string {
+// itself or as the sole bench of a .dinah directory inside it. The second
+// value carries the candidates when that .dinah holds several, which is what
+// tells a caller apart from a base holding nothing at all.
+func benchIn(dir string) (found string, ambiguous []string) {
 	if Exists(filepath.Join(dir, WorkbenchAnchor)) {
-		return dir
+		return dir, nil
 	}
 	return soleBench(filepath.Join(dir, UserBaseName))
 }
 
 // soleBench returns the one bench a base directory holds. A base holding
-// several is ambiguous, and the walk continues rather than picking one.
-func soleBench(base string) string {
-	found := ""
+// several is ambiguous, so it returns no bench and the candidates instead,
+// and the walk continues rather than picking one.
+func soleBench(base string) (found string, ambiguous []string) {
+	var candidates []string
 	for _, id := range ListIDs(base) {
 		candidate := filepath.Join(base, id)
 		if !Exists(filepath.Join(candidate, WorkbenchAnchor)) {
 			continue
 		}
-		if found != "" {
-			return ""
-		}
-		found = candidate
+		candidates = append(candidates, candidate)
 	}
-	return found
+	if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+	if len(candidates) > 1 {
+		return "", candidates
+	}
+	return "", nil
+}
+
+// describeCandidates names each workbench of an ambiguous base by its title
+// and the directory it sits in, joined into the list the refusal prints. A
+// candidate whose anchor will not read, or that declares no title, is named
+// by its path alone, so one unreadable workbench does not hide the others.
+func describeCandidates(candidates []string) string {
+	described := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		title := ""
+		if text, err := ReadText(filepath.Join(candidate, WorkbenchAnchor)); err == nil {
+			fm, _ := ParseAnchor(text)
+			title = fm.Value("title")
+		}
+		if title == "" {
+			described = append(described, candidate)
+			continue
+		}
+		described = append(described, title+" ("+candidate+")")
+	}
+	return strings.Join(described, "; ")
 }
 
 // Open reads a bench definition and the states it declares.
@@ -209,11 +259,13 @@ func soleBench(base string) string {
 // state list or a profile declaration is malformed, a definition declaring a
 // major number this binary does not implement is unsupported-version, and a
 // bench whose storage format is newer than this binary knows is refused with
-// the version it wanted named.
+// the version it wanted named. Each malformed refusal carries the file it was
+// raised over, so a reader knows which workbench to repair.
 func Open(root string) (*Bench, error) {
+	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor)}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
-		return nil, contract.Refuse(contract.NoBench, root)
+		return nil, contract.RefuseWith(contract.Malformed, WorkbenchAnchor, anchor)
 	}
 	fm, body := ParseAnchor(text)
 	b := &Bench{
@@ -226,14 +278,14 @@ func Open(root string) (*Bench, error) {
 		FM:       fm,
 	}
 	if b.Title == "" {
-		return nil, contract.Refuse(contract.Malformed, "title")
+		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)
 	}
 	if b.Profile == "" {
-		return nil, contract.Refuse(contract.Malformed, "profile")
+		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
 	major, minor, ok := splitProfile(b.Profile)
 	if !ok {
-		return nil, contract.Refuse(contract.Malformed, "profile")
+		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
 	if major != ProfileMajor || minor > ProfileMinor {
 		return nil, contract.Refuse(contract.UnsupportedVer, b.Profile)
@@ -242,7 +294,7 @@ func Open(root string) (*Bench, error) {
 	if declared := fm.Value("format"); declared != "" {
 		n, err := strconv.Atoi(declared)
 		if err != nil {
-			return nil, contract.Refuse(contract.Malformed, "format")
+			return nil, contract.RefuseWith(contract.Malformed, "format", anchor)
 		}
 		if n > StorageFormat {
 			return nil, contract.Refuse(contract.UnsupportedVer, "format "+declared)
@@ -251,12 +303,12 @@ func Open(root string) (*Bench, error) {
 	}
 	ids := fm.Seq("states")
 	if len(ids) == 0 {
-		return nil, contract.Refuse(contract.Malformed, "states")
+		return nil, contract.RefuseWith(contract.Malformed, "states", anchor)
 	}
 	seen := map[string]bool{}
 	for position, id := range ids {
 		if seen[id] {
-			return nil, contract.Refuse(contract.Malformed, "states")
+			return nil, contract.RefuseWith(contract.Malformed, "states", anchor)
 		}
 		seen[id] = true
 		state, err := readState(root, id, position)
@@ -294,9 +346,11 @@ func splitProfile(declared string) (int, int, bool) {
 // state: a duplicate identifier, an absent title and a kind outside the three
 // are each malformed.
 func readState(root, id string, position int) (*State, error) {
-	text, err := ReadText(filepath.Join(root, StatesDir, id, StateAnchor))
+	path := filepath.Join(root, StatesDir, id, StateAnchor)
+	anchor := map[string]string{"path": path}
+	text, err := ReadText(path)
 	if err != nil {
-		return nil, contract.Refuse(contract.Malformed, "state "+id)
+		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 	}
 	fm, body := ParseAnchor(text)
 	state := &State{
@@ -309,17 +363,17 @@ func readState(root, id string, position int) (*State, error) {
 		FM:            fm,
 	}
 	if state.Title == "" {
-		return nil, contract.Refuse(contract.Malformed, "state "+id)
+		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 	}
 	switch state.Kind {
 	case contract.KindIntake, contract.KindWork, contract.KindDone:
 	default:
-		return nil, contract.Refuse(contract.Malformed, "state "+id)
+		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 	}
 	if limit := fm.Value("wip_limit"); limit != "" {
 		n, err := strconv.Atoi(limit)
 		if err != nil {
-			return nil, contract.Refuse(contract.Malformed, "state "+id)
+			return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 		}
 		state.Capacity = n
 	}
