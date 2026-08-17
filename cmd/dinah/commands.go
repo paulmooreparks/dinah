@@ -351,7 +351,8 @@ func runGuide(s *session, parsed *arguments) int {
 	return 0
 }
 
-// runInit creates a bench here, optionally from a template.
+// runInit creates a bench in the .dinah container here, optionally from a
+// template, and reports the directory it was written to.
 func runInit(s *session, parsed *arguments) int {
 	root := s.cwd
 	if named := at(parsed.rest(), 0); named != "" {
@@ -371,10 +372,11 @@ func runInit(s *session, parsed *arguments) int {
 	if !bench.ValidSlug(slug) {
 		return s.fail(contract.Malformed, "slug")
 	}
-	if err := verb.Init(root, slug, operator, parsed.value("from")); err != nil {
+	written, err := verb.Init(root, slug, operator, parsed.value("from"))
+	if err != nil {
 		return s.reportError(err)
 	}
-	s.line(s.r.T("init.done", "root", root))
+	s.line(s.r.T("init.done", "root", written))
 	return 0
 }
 
