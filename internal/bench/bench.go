@@ -154,6 +154,12 @@ type Bench struct {
 	FM *Frontmatter
 	// Hooks are the test-only levers on the structural protocol's timing.
 	Hooks *Hooks
+	// StrandedStates is every identifier this workbench's own definition names
+	// whose directory is not there at all: a state a retiring act moved or
+	// removed without also editing the definition, or one a person removed by
+	// hand. It plays no part in the flow; dinah check reports it and dinah
+	// check --migrate-states removes it from the definition.
+	StrandedStates []string
 }
 
 // Discover finds the bench to serve. An override, from the --workbench flag
@@ -504,12 +510,17 @@ func Open(root string) (*Bench, error) {
 	}
 	seen := map[string]bool{}
 	seenSlug := map[string]bool{}
-	for position, id := range ids {
+	for _, id := range ids {
 		if seen[id] {
 			return nil, contract.RefuseWith(contract.Malformed, "states", anchor)
 		}
 		seen[id] = true
-		state, err := readState(root, id, position)
+		stateDir := filepath.Join(root, StatesDir, id)
+		if !Exists(stateDir) {
+			b.StrandedStates = append(b.StrandedStates, id)
+			continue
+		}
+		state, err := readState(root, id, len(b.States))
 		if err != nil {
 			return nil, err
 		}

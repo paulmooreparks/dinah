@@ -46,6 +46,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.archive.3": {
+      "text": "the workbench keeps at least one state",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.attach.1": {
       "text": "the reference and the file both resolve",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -163,6 +168,11 @@
     },
     "check.delete.3": {
       "text": "no card occupies the state being deleted",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.delete.4": {
+      "text": "the workbench keeps at least one state",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -369,6 +379,11 @@
     "check.slug-unwritable": {
       "text": "state {detail} could not be written to, so the migration gave it no slug and carried on",
       "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on.",
+      "skeleton": true
+    },
+    "check.stranded-state": {
+      "text": "the workbench names a state whose directory is not there ({detail}); dinah check --migrate-states removes it from the list",
+      "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at.",
       "skeleton": true
     },
     "check.torn-journal": {
@@ -729,6 +744,11 @@
     "refusal.dinah.interrupted": {
       "text": "the action on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.last-state": {
+      "text": "{detail} is the only state left; add another state before retiring this one",
+      "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.locked": {

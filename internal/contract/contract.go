@@ -101,13 +101,17 @@ const (
 	// with nothing closer to choose between them. The tool refuses to
 	// guess, so it names the candidates instead.
 	AmbiguousWorkbench = LayerPrefix + "ambiguous-workbench"
+	// LastState is archiving or deleting the one state a workbench has
+	// left, which CORE-BENCH-2 forbids the workbench from ending up with
+	// none of.
+	LastState = LayerPrefix + "last-state"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench,
+	NoWorkbenchFound, AmbiguousWorkbench, LastState,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

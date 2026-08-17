@@ -863,10 +863,10 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] ") {
+	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] ") {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
-	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs]" {
+	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -875,7 +875,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-states"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}

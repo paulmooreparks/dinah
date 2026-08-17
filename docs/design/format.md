@@ -337,6 +337,17 @@ files carry no position field; reordering the flow is reordering lines in one
 file. Trailing comments on the list entries are annotation for humans, and a
 lint warns when a comment drifts from the state's actual title.
 
+Retiring a state, whether by archiving it or by deleting it, removes its
+identifier from this ordered list in the same act, under the workbench lock
+the retiring act already holds. A workbench declaring an id whose directory does
+not exist at all still opens: the id is excluded from the flow and `dinah
+check` reports it, and `dinah check --migrate-states` removes it from the
+list. That tolerance covers only a state directory that is not there at all,
+the shape retiring a state produces; a state directory that is present but
+whose anchor cannot be read or parsed is the narrower case the "Corruption
+and recovery" section's quarantine promise below still answers, unimplemented
+today.
+
 Each `states/<id>/state.md` carries the state's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
 of `intake`, `work`, `done`. A state marked operator-owned is one an agent

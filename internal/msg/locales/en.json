@@ -37,6 +37,10 @@
       "text": "no card occupies the state being archived",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.archive.3": {
+      "text": "the workbench keeps at least one state",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.attach.1": {
       "text": "the reference and the file both resolve",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -131,6 +135,10 @@
     },
     "check.delete.3": {
       "text": "no card occupies the state being deleted",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.delete.4": {
+      "text": "the workbench keeps at least one state",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.edit.1": {
@@ -296,6 +304,10 @@
     "check.slug-unwritable": {
       "text": "state {detail} could not be written to, so the migration gave it no slug and carried on",
       "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
+    },
+    "check.stranded-state": {
+      "text": "the workbench names a state whose directory is not there ({detail}); dinah check --migrate-states removes it from the list",
+      "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at."
     },
     "check.torn-journal": {
       "text": "the journal of card {detail} ends in a partial line",
@@ -580,6 +592,10 @@
     "refusal.dinah.exists": {
       "text": "{detail} already holds a workbench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.last-state": {
+      "text": "{detail} is the only state left; add another state before retiring this one",
+      "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
       "text": "the action on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
