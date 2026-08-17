@@ -931,15 +931,15 @@ dinah.ambiguous-bench 0f1e2d3c4b5a (C:\Users\ana\.dinah\0f1e2d3c4b5a); a1b2c3d4e
 [exit 2]
 ```
 
-A bare `show` in that situation prints the same listing, since asking to be
-shown something when the tool cannot tell which workbench you mean is best
-answered with the choice itself. When nothing is reachable at all, the refusal
-is `dinah.no-bench-found`, and it names both the directory the climb started
-from and the home directory it fell back to.
+A bare `show` prints that same listing. You asked to be shown something, the
+tool cannot tell which workbench you meant, and the choices are what it has to
+show. When nothing is reachable at all, the refusal is `dinah.no-bench-found`,
+and it names both the directory the climb started from and the home directory it
+fell back to.
 
-`DINAH_HOME` moves that fallback directory. Point it at somewhere else and both
-your settings file and any workbenches under it come from there instead, which
-is how you run against a scratch setup without touching your own.
+`DINAH_HOME` moves that fallback directory. Point it somewhere else and your
+settings file and any workbenches under it come from there instead. That is how
+you work against a scratch setup without touching your own.
 
 ## Hand a workbench to somebody else
 
