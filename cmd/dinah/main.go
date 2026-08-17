@@ -38,6 +38,9 @@ type session struct {
 	quiet bool
 	// home is the user base.
 	home string
+	// nativeHome is the machine's own home directory, which DINAH_HOME does
+	// not move. Discovery bounds its ancestor walk there.
+	nativeHome string
 	// cfg is the user's own settings.
 	cfg *bench.Config
 	// actor is the owner resolved by the ladder, empty when no layer
@@ -72,16 +75,17 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	home := bench.Home()
 	cfg := bench.LoadConfig(home)
 	s := &session{
-		out:       out,
-		errw:      errw,
-		in:        in,
-		r:         msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
-		json:      parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
-		quiet:     parsed.has("quiet"),
-		home:      home,
-		cfg:       cfg,
-		benchFlag: bench.Ladder(parsed.value("workbench"), os.Getenv("DINAH_WORKBENCH")),
-		cwd:       cwd,
+		out:        out,
+		errw:       errw,
+		in:         in,
+		r:          msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
+		json:       parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
+		quiet:      parsed.has("quiet"),
+		home:       home,
+		nativeHome: bench.NativeHome(),
+		cfg:        cfg,
+		benchFlag:  bench.Ladder(parsed.value("workbench"), os.Getenv("DINAH_WORKBENCH")),
+		cwd:        cwd,
 	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
@@ -209,7 +213,7 @@ func (s *session) reportError(err error) int {
 
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
-	root, err := bench.Discover(s.cwd, s.benchFlag, s.home)
+	root, err := bench.Discover(s.cwd, s.benchFlag, s.home, s.nativeHome)
 	if err != nil {
 		return nil, err
 	}

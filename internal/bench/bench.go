@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -165,7 +166,13 @@ type Bench struct {
 // climbs past it as it always has. It is remembered, though: a search that
 // ends with nothing found reports the ambiguity it passed rather than telling
 // the reader that no workbench exists, which is false wherever one was seen.
-func Discover(start, override, home string) (string, error) {
+//
+// nativeHome is the machine's own home directory, from NativeHome, and it is
+// separate from home because home honours DINAH_WORKBENCH's neighbour
+// DINAH_HOME and this one never does. The walk skips the .dinah of that one
+// directory, leaving the real user base to the fallback below, which reads
+// the relocated value. Pass an empty nativeHome to run the walk unbounded.
+func Discover(start, override, home, nativeHome string) (string, error) {
 	if override != "" {
 		abs, err := filepath.Abs(override)
 		if err != nil {
@@ -176,7 +183,7 @@ func Discover(start, override, home string) (string, error) {
 		}
 		return abs, nil
 	}
-	search, err := walk(start, home)
+	search, err := walk(start, home, nativeHome)
 	if err != nil {
 		return "", err
 	}
@@ -201,15 +208,15 @@ func Discover(start, override, home string) (string, error) {
 // --workbench naming a directory that holds no workbench is a caller's
 // mistake, and a listing that softened it into an empty result would hide the
 // typo.
-func Reachable(start, override, home string) ([]Candidate, error) {
+func Reachable(start, override, home, nativeHome string) ([]Candidate, error) {
 	if override != "" {
-		root, err := Discover(start, override, home)
+		root, err := Discover(start, override, home, nativeHome)
 		if err != nil {
 			return nil, err
 		}
 		return []Candidate{describe(root)}, nil
 	}
-	search, err := walk(start, home)
+	search, err := walk(start, home, nativeHome)
 	if err != nil {
 		return nil, err
 	}
@@ -239,16 +246,27 @@ type search struct {
 // what it found without deciding what to do about it. It is the one
 // implementation of how far discovery reaches, shared by the refusal Discover
 // raises and the listing Reachable returns.
-func walk(start, home string) (search, error) {
+//
+// The ancestor half of the search examines the .dinah of every directory it
+// climbs through except the machine's native home, whose .dinah belongs to
+// the fallback half alone. Relocating the user base therefore relocates it
+// for a working directory nested under the real home too, which is what a
+// caller who set the variable asked for.
+func walk(start, home, nativeHome string) (search, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
 		return search{}, err
+	}
+	boundary := ""
+	if nativeHome != "" {
+		boundary = filepath.Clean(nativeHome)
 	}
 	// The first ambiguity the search meets, closest to the starting
 	// directory, which is the one a reader is likeliest to have meant.
 	result := search{}
 	for {
-		found, ambiguous := benchIn(dir)
+		atNativeHome := samePath(dir, boundary)
+		found, ambiguous := benchIn(dir, atNativeHome)
 		if found != "" {
 			result.sole = found
 			return result, nil
@@ -281,11 +299,33 @@ func walk(start, home string) (search, error) {
 // itself or as the sole bench of a .dinah directory inside it. The second
 // value carries the candidates when that .dinah holds several, which is what
 // tells a caller apart from a base holding nothing at all.
-func benchIn(dir string) (found string, ambiguous []string) {
+//
+// skipBase drops the .dinah half, and the walk sets it at the one directory
+// that is the machine's native home. The anchor half still runs there, so a
+// repository checked out at the home directory is found exactly as before.
+func benchIn(dir string, skipBase bool) (found string, ambiguous []string) {
 	if Exists(filepath.Join(dir, WorkbenchAnchor)) {
 		return dir, nil
 	}
+	if skipBase {
+		return "", nil
+	}
 	return soleBench(filepath.Join(dir, UserBaseName))
+}
+
+// samePath reports whether two cleaned directory paths name the same
+// directory. Windows filesystem paths are case-insensitive, so the comparison
+// folds case there and nowhere else, and it folds with ASCII rules alone for
+// the reason asciiLower gives. An empty path names no directory and matches
+// nothing.
+func samePath(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return asciiLower(a) == asciiLower(b)
+	}
+	return a == b
 }
 
 // soleBench returns the one bench a base directory holds. A base holding
@@ -669,6 +709,23 @@ func Home() string {
 	if dir := os.Getenv("DINAH_HOME"); dir != "" {
 		return dir
 	}
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return dir
+}
+
+// NativeHome returns the machine's own home directory and ignores DINAH_HOME,
+// which is what separates it from Home. Discovery bounds its ancestor walk
+// here, so that a caller who relocated the user base is not handed the real
+// one by a working directory that happens to sit under it.
+//
+// A machine whose home will not resolve reports the same "." Home reports.
+// The walk compares that against absolute ancestor paths, which never equal
+// it, so the boundary does not apply and the search reaches as far as it
+// always did.
+func NativeHome() string {
 	dir, err := os.UserHomeDir()
 	if err != nil {
 		return "."

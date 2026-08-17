@@ -534,7 +534,7 @@ func runWhoami(s *session, parsed *arguments) int {
 // by several. A --workbench naming a directory that holds no workbench is
 // the one refusal left, and it belongs to the caller's argument.
 func runWorkbenches(s *session, parsed *arguments) int {
-	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home)
+	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
 	if err != nil {
 		return s.reportError(err)
 	}
@@ -546,7 +546,7 @@ func runWorkbenches(s *session, parsed *arguments) int {
 // single workbench has a listing to offer in place of its refusal. One row or
 // none leaves the caller's own refusal in place.
 func (s *session) ambiguousWorkbenches() ([]bench.Candidate, bool) {
-	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home)
+	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
 	if err != nil || len(rows) < 2 {
 		return nil, false
 	}

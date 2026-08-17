@@ -50,4 +50,7 @@ you have read them already.
 
 Dinah discovers its workbench the way git discovers a repository, by walking
 up from where you are. Set `DINAH_WORKBENCH` or pass `--workbench` when you
-want a different one.
+want a different one. When the walk finds nothing it falls back to your user
+base at `~/.dinah`, and `DINAH_HOME` moves that base somewhere else, so a test
+run or a scratch tree can work without touching your own settings and
+workbenches.
