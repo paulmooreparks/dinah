@@ -30,7 +30,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.1": {
-      "text": "संदर्भ किसी इकाई तक पहुँचता है",
+      "text": "संदर्भ किसी कार्ड, किसी स्थिति, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.2": {
@@ -122,7 +122,7 @@
       "context": "A check finding: a links entry whose to resolves to no card."
     },
     "check.delete.1": {
-      "text": "संदर्भ किसी इकाई तक पहुँचता है",
+      "text": "संदर्भ किसी कार्ड, किसी स्थिति, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.delete.2": {
@@ -138,11 +138,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.edit.2": {
-      "text": "सीढ़ी से कोई संपादक मिलता है",
+      "text": "कोई संपादक मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.entity-at-both-paths": {
-      "text": "इकाई {detail} सजीव संग्रह में और पुरालेख में, दोनों जगह मौजूद है, और check इनमें से किसी एक को नहीं चुनेगा",
+      "text": "{detail} वर्कबेंच के जीवित समूह में और उसके पुरालेख में, दोनों जगह मौजूद है, और check इनमें से किसी एक को नहीं चुनेगा",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
     },
     "check.extract.1": {
@@ -182,7 +182,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.missing-anchor": {
-      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
+      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह वर्कबेंच का हिस्सा नहीं मानी जाती",
       "context": "A check finding: a hex directory without its anchor."
     },
     "check.move.1": {
@@ -222,11 +222,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.ordinal-duplicate": {
-      "text": "इकाई {detail} का रचना-क्रमांक उसी संग्रह की किसी और इकाई के क्रमांक जैसा है, इसलिए एक स्थान दो इकाइयों को नामित करता है",
+      "text": "{detail} का रचना-क्रमांक उसी संग्रह के किसी और सदस्य के क्रमांक जैसा है, इसलिए एक ही स्थान दो को नामित करता है",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
     },
     "check.ordinal-guessed": {
-      "text": "इकाई {detail} को निर्देशिका सूची से रखा गया, क्योंकि कार्ड की पंजिका में उसकी रचना का कोई अभिलेख नहीं, इसलिए उसका स्थान एक अनुमान है",
+      "text": "{detail} को निर्देशिका सूची से रखा गया, क्योंकि कार्ड की पंजिका में उसकी रचना का कोई अभिलेख नहीं, इसलिए उसका स्थान एक अनुमान है",
       "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead."
     },
     "check.ordinal-locked": {
@@ -234,11 +234,11 @@
       "context": "A check finding the ordinal migration raises: a lock stood on the card, the walk stepped over it and carried on."
     },
     "check.ordinal-missing": {
-      "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
+      "text": "{detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
     },
     "check.ordinal-unwritable": {
-      "text": "इकाई {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
+      "text": "{detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
       "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
     },
     "check.ordinal-stamped.one": {
@@ -322,7 +322,7 @@
       "context": "A check finding: a substate outside ready, active and blocked."
     },
     "check.whoami.1": {
-      "text": "सीढ़ी से कोई स्वामी मिलता है",
+      "text": "कोई स्वामी मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.workbench.1": {
@@ -338,7 +338,7 @@
       "context": "The one-line summary of the add command, shown beside its syntax in the help block."
     },
     "cmd.archive.summary": {
-      "text": "इकाई को जीवित समूह से बाहर करें",
+      "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
     },
     "cmd.attach.summary": {
@@ -366,7 +366,7 @@
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
     },
     "cmd.delete.summary": {
-      "text": "इकाई और उसका इतिहास नष्ट करें",
+      "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु, उसके इतिहास सहित नष्ट करें",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
     },
     "cmd.edit.summary": {
@@ -386,7 +386,7 @@
       "context": "The one-line summary of the guide command, shown beside its syntax in the help block."
     },
     "cmd.help.summary": {
-      "text": "एक कमांड के तर्क, इनकार और निकास कोड",
+      "text": "एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड",
       "context": "The one-line summary of the help command, shown beside its syntax in the help block."
     },
     "cmd.init.summary": {
@@ -398,7 +398,7 @@
       "context": "The one-line summary of the instructions command, shown beside its syntax in the help block."
     },
     "cmd.log.summary": {
-      "text": "कार्ड के दर्ज कार्य, सबसे पुराने पहले",
+      "text": "कार्ड की दर्ज क्रियाएँ, सबसे पुरानी पहले",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block."
     },
     "cmd.ls.summary": {
@@ -442,11 +442,11 @@
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block."
     },
     "cmd.version.summary": {
-      "text": "यह बाइनरी क्या है और किसका पालन करती है",
+      "text": "Dinah क्या है और किसका पालन करती है",
       "context": "The one-line summary of the version command, shown beside its syntax in the help block."
     },
     "cmd.whoami.summary": {
-      "text": "आपके कार्यों पर दर्ज कर्ता, और क्या वह संचालक है",
+      "text": "आपकी क्रियाओं पर दर्ज कर्ता, और क्या वह संचालक है",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
     },
     "cmd.workbenches.summary": {
@@ -490,7 +490,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
+      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.read": {
@@ -510,7 +510,7 @@
       "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.refusals": {
-      "text": "इनकार, उसी क्रम में जिसमें जाँच होती है:",
+      "text": "क्या गलत हो सकता है, उसी क्रम में जिसमें हर जाँच होती है:",
       "context": "The heading above a command's ordered precondition list in its own help."
     },
     "help.tagline": {
@@ -586,7 +586,7 @@
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.locked": {
-      "text": "इस इकाई का ताला दूसरी प्रक्रिया के पास है; {detail} ने लिया",
+      "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-workbench": {
@@ -610,7 +610,7 @@
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-command": {
-      "text": "यह बाइनरी {detail} नाम की कोई कमांड नहीं देती",
+      "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-guide": {
@@ -626,7 +626,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.usage": {
-      "text": "{detail} समझ नहीं आया; पूरी सूची के लिए dinah help चलाएँ",
+      "text": "{detail} समझ नहीं आया; कमांड की सूची के लिए dinah help चलाएँ",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.held": {
@@ -650,7 +650,7 @@
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
     },
     "refusal.no-operator": {
-      "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",
+      "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसकी आरक्षित क्रियाएँ मृत हैं",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner": {
@@ -670,7 +670,7 @@
       "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.not-operator": {
-      "text": "यह कार्य संचालक का है, और आप {detail} हैं",
+      "text": "यह क्रिया संचालक की है, और आप {detail} हैं",
       "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.not-requester": {
@@ -682,7 +682,7 @@
       "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unknown": {
-      "text": "{name} दर्ज हुआ, और इस बाइनरी के पास उसका वाक्य नहीं है: {detail}",
+      "text": "{name} दर्ज हुआ, और Dinah के पास उसका संदेश नहीं है: {detail}",
       "context": "The fallback sentence for a refusal name no catalog entry covers."
     },
     "refusal.unknown-card": {
@@ -694,7 +694,7 @@
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unsupported-version": {
-      "text": "यह बाइनरी {detail} को लागू नहीं करती",
+      "text": "Dinah {detail} को लागू नहीं करती",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about."
     },
     "show.comments": {

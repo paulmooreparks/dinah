@@ -14,8 +14,9 @@ The slug is what a card reference is built from, so `proj-1` names the first
 card you file; leave it out and Dinah derives one from the directory name. The
 operator is the owner who answers for the workbench, and every workbench
 designates one, because blocks are lifted by the operator alone and a
-workbench with nobody in that seat has acts nobody can perform. Leave it out
-and Dinah records whoever you are acting as.
+workbench with nobody in that seat has actions nobody can perform. Leave it
+out and Dinah records whoever you are acting as, called the actor; every
+action you take carries that name, and `dinah whoami` prints it back.
 
 That writes `workbench.md`, which carries the flow and the standing
 instructions, and a `states/` directory holding one file per station. Open

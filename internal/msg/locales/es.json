@@ -37,7 +37,7 @@
       "skeleton": true
     },
     "check.archive.1": {
-      "text": "the reference resolves to an entity",
+      "text": "the reference resolves to a card, a state, or something below a card",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -152,7 +152,7 @@
       "skeleton": true
     },
     "check.delete.1": {
-      "text": "the reference resolves to an entity",
+      "text": "the reference resolves to a card, a state, or something below a card",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -172,12 +172,12 @@
       "skeleton": true
     },
     "check.edit.2": {
-      "text": "an editor is resolvable by the ladder",
+      "text": "an editor is resolvable",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.entity-at-both-paths": {
-      "text": "entity {detail} is present in the live collection and in the archive, and check will not choose between them",
+      "text": "{detail} is present in the workbench's live set and in its archive, and check will not choose between them",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
       "skeleton": true
     },
@@ -212,7 +212,7 @@
       "skeleton": true
     },
     "check.interrupted-act": {
-      "text": "a structural act was interrupted here: {detail}",
+      "text": "a structural action was interrupted here: {detail}",
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
       "skeleton": true
     },
@@ -227,7 +227,7 @@
       "skeleton": true
     },
     "check.missing-anchor": {
-      "text": "directory {detail} carries no anchor file, so it is not an entity",
+      "text": "directory {detail} carries no anchor file, so it does not count as part of the workbench",
       "context": "A check finding: a hex directory without its anchor.",
       "skeleton": true
     },
@@ -277,12 +277,12 @@
       "skeleton": true
     },
     "check.ordinal-duplicate": {
-      "text": "entity {detail} carries a creation ordinal another entity of the same collection already carries, so a position names two of them",
+      "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers.",
       "skeleton": true
     },
     "check.ordinal-guessed": {
-      "text": "entity {detail} was placed by its directory listing, because no event in the card's journal records its creation, so its position is a guess",
+      "text": "{detail} was placed by its directory listing, because no event in the card's journal records its creation, so its position is a guess",
       "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead.",
       "skeleton": true
     },
@@ -292,7 +292,7 @@
       "skeleton": true
     },
     "check.ordinal-missing": {
-      "text": "entity {detail} carries no creation ordinal, so its position depends on the directory listing",
+      "text": "{detail} carries no creation ordinal, so its position depends on the directory listing",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it.",
       "skeleton": true
     },
@@ -307,7 +307,7 @@
       "skeleton": true
     },
     "check.ordinal-unwritable": {
-      "text": "entity {detail} could not be written to, so the migration stamped nothing on it and carried on",
+      "text": "{detail} could not be written to, so the migration stamped nothing on it and carried on",
       "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on.",
       "skeleton": true
     },
@@ -402,7 +402,7 @@
       "skeleton": true
     },
     "check.whoami.1": {
-      "text": "an owner is resolvable by the ladder",
+      "text": "an owner is resolvable",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -422,7 +422,7 @@
       "skeleton": true
     },
     "cmd.archive.summary": {
-      "text": "move an entity out of the live set",
+      "text": "move a card, a state, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -457,7 +457,7 @@
       "skeleton": true
     },
     "cmd.delete.summary": {
-      "text": "destroy an entity and its history",
+      "text": "destroy a card, a state, or anything below a card, along with its history",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -482,7 +482,7 @@
       "skeleton": true
     },
     "cmd.help.summary": {
-      "text": "one command's arguments, refusals and exit codes",
+      "text": "one command's arguments, what can go wrong, and its exit codes",
       "context": "The one-line summary of the help command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -497,7 +497,7 @@
       "skeleton": true
     },
     "cmd.log.summary": {
-      "text": "the recorded acts of a card, oldest first",
+      "text": "the recorded actions of a card, oldest first",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -552,12 +552,12 @@
       "skeleton": true
     },
     "cmd.version.summary": {
-      "text": "what this binary is and what it conforms to",
+      "text": "what Dinah is and what it conforms to",
       "context": "The one-line summary of the version command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.whoami.summary": {
-      "text": "the actor your acts carry, and whether it is the operator",
+      "text": "the actor your actions carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -612,7 +612,7 @@
       "skeleton": true
     },
     "help.footer": {
-      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, refusals and exit codes.",
+      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, what can go wrong, and its exit codes.",
       "context": "The last line of the help block, pointing at the per-command help.",
       "skeleton": true
     },
@@ -637,7 +637,7 @@
       "skeleton": true
     },
     "help.refusals": {
-      "text": "Refusals, in the order the checks are made:",
+      "text": "What can go wrong, in the order each is checked:",
       "context": "The heading above a command's ordered precondition list in its own help.",
       "skeleton": true
     },
@@ -727,13 +727,18 @@
       "skeleton": true
     },
     "refusal.dinah.interrupted": {
-      "text": "the act on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
+      "text": "the action on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.locked": {
-      "text": "another process holds this entity's lock; {detail} took it",
+      "text": "this is already locked; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-editor": {
+      "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
+      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench": {
@@ -744,11 +749,6 @@
     "refusal.dinah.no-workbench-found": {
       "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --workbench \u003cpath\u003e to point at one that exists",
       "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
-      "skeleton": true
-    },
-    "refusal.dinah.no-editor": {
-      "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
-      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.occupied": {
@@ -762,7 +762,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-command": {
-      "text": "this binary offers no command called {detail}",
+      "text": "Dinah offers no command called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -782,7 +782,7 @@
       "skeleton": true
     },
     "refusal.dinah.usage": {
-      "text": "{detail} was not understood; run dinah help for the surface",
+      "text": "{detail} was not understood; run dinah help for the list of commands",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -812,7 +812,7 @@
       "skeleton": true
     },
     "refusal.no-operator": {
-      "text": "this workbench designates no operator, so its reserved acts are dead",
+      "text": "this workbench designates no operator, so its reserved actions are dead",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -837,7 +837,7 @@
       "skeleton": true
     },
     "refusal.not-operator": {
-      "text": "this act is the operator's, and you are {detail}",
+      "text": "this action is the operator's, and you are {detail}",
       "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -852,7 +852,7 @@
       "skeleton": true
     },
     "refusal.unknown": {
-      "text": "{name} was reported, and this binary carries no sentence for it: {detail}",
+      "text": "{name} was reported, and Dinah carries no message for it: {detail}",
       "context": "The fallback sentence for a refusal name no catalog entry covers.",
       "skeleton": true
     },
@@ -867,7 +867,7 @@
       "skeleton": true
     },
     "refusal.unsupported-version": {
-      "text": "this binary does not implement {detail}",
+      "text": "Dinah does not implement {detail}",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
