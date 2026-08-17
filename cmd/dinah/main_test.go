@@ -259,8 +259,8 @@ func TestASecondInitAddsAWorkbenchBesideTheFirst(t *testing.T) {
 		t.Fatalf("an unqualified status over two workbenches: wanted 2, got %d (%s)", reported.code, reported.out)
 	}
 	leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
-	if leading != contract.AmbiguousBench {
-		t.Errorf("leading token: wanted %s, got %q", contract.AmbiguousBench, reported.errw)
+	if leading != contract.AmbiguousWorkbench {
+		t.Errorf("leading token: wanted %s, got %q", contract.AmbiguousWorkbench, reported.errw)
 	}
 	for _, id := range ids {
 		if !strings.Contains(reported.errw, id) {
