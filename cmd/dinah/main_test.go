@@ -335,8 +335,8 @@ func TestInitRefusesADirectoryCarryingABareWorkbench(t *testing.T) {
 	if leading != contract.Exists {
 		t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
 	}
-	if !strings.Contains(got.errw, "already holds a workbench") {
-		t.Errorf("the refusal sentence: wanted %q in %q", "already holds a workbench", got.errw)
+	if !strings.Contains(got.errw, "already carries a workbench.md") {
+		t.Errorf("the refusal sentence: wanted %q in %q", "already carries a workbench.md", got.errw)
 	}
 	if bench.Exists(filepath.Join(root, bench.UserBaseName)) {
 		t.Error("the refused init left a container behind")
@@ -392,7 +392,7 @@ func TestInitHelpKeepsItsRefusalList(t *testing.T) {
 	}
 	for _, carried := range []string{
 		"create a workbench here, optionally from a template",
-		"the directory holds no workbench already",
+		"no workbench.md file sits at this exact path",
 		contract.Exists,
 		"the source definition carries what the profile requires",
 	} {

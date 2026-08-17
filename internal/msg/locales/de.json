@@ -202,7 +202,7 @@
       "skeleton": true
     },
     "check.init.1": {
-      "text": "the directory holds no workbench already",
+      "text": "no workbench.md file sits at this exact path",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -727,7 +727,7 @@
       "skeleton": true
     },
     "refusal.dinah.exists": {
-      "text": "{detail} already holds a workbench",
+      "text": "{detail} already carries a workbench.md; move it aside, or choose a different directory",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
