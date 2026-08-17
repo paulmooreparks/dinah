@@ -161,7 +161,7 @@ func TestCommentAndAttach(t *testing.T) {
 // TestArchiveAndDelete asserts that archiving takes a card out of the live
 // set while its identifier still resolves, that a delete needs its
 // confirmation, that a state cards occupy is refused, and that deleting a
-// card another card's link names succeeds and leaves fsck the dangler.
+// card another card's link names succeeds and leaves check the dangler.
 func TestArchiveAndDelete(t *testing.T) {
 	h := newHarness(t)
 	occupant := h.add("occupant")
@@ -205,16 +205,16 @@ func TestArchiveAndDelete(t *testing.T) {
 		t.Errorf("an archived card should leave the capacity count, got %s", response.Refusal)
 	}
 
-	// Deleting a card another card's link names succeeds, and fsck reports
+	// Deleting a card another card's link names succeeds, and check reports
 	// the dangling reference afterwards.
 	deleted := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: linked, Confirm: true})
 	if deleted.Outcome != contract.OutcomeOK {
 		t.Fatalf("delete: %s %s", deleted.Outcome, deleted.Refusal)
 	}
 	h.reopen()
-	findings, err := h.library.Fsck(&Request{Verb: "fsck", Actor: "alka"})
+	findings, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
 	if err != nil {
-		t.Fatalf("fsck: %v", err)
+		t.Fatalf("check: %v", err)
 	}
 	found := false
 	for _, finding := range findings {
@@ -865,7 +865,7 @@ func TestASiblingLockIsInvisibleToEveryReadPath(t *testing.T) {
 			t.Fatalf("export: %v", err)
 		}
 		var clean []bench.Finding
-		for _, f := range h.fsck() {
+		for _, f := range h.check() {
 			if f.Key == bench.FindingInterruptedAct || f.Key == bench.FindingEntityAtBothPaths {
 				continue
 			}
@@ -1177,8 +1177,8 @@ func TestStructuralActsOnACommentAndAnAttachment(t *testing.T) {
 	h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: attachmentRef, Confirm: true})
 	h.clearBenchLock()
 	h.reopen()
-	if _, ok := finding(h.fsck(), bench.FindingInterruptedAct); !ok {
-		t.Fatalf("wanted an interrupted-act finding, got %+v", h.fsck())
+	if _, ok := finding(h.check(), bench.FindingInterruptedAct); !ok {
+		t.Fatalf("wanted an interrupted-act finding, got %+v", h.check())
 	}
 	if _, err := h.finish(); err != nil {
 		t.Fatalf("finish: %v", err)
@@ -1186,7 +1186,7 @@ func TestStructuralActsOnACommentAndAnAttachment(t *testing.T) {
 	if got := len(bench.ListIDs(filepath.Join(card.Dir, bench.AttachmentsDir))); got != 0 {
 		t.Errorf("the finish left %d attachments behind", got)
 	}
-	if findings := h.fsck(); len(findings) != 0 {
+	if findings := h.check(); len(findings) != 0 {
 		t.Errorf("the finish left findings behind: %+v", findings)
 	}
 }
@@ -1203,7 +1203,7 @@ func recorded(events []bench.Event, name, id string) bool {
 
 // TestAnInterruptedArchiveIsRolledBackBeforeItsRecord asserts the crash rows
 // before the point of record. An act aborted once it holds the entity's lock
-// has written no event, so fsck reports the interruption and repairs nothing,
+// has written no event, so check reports the interruption and repairs nothing,
 // and the finish rolls the sibling away, removes the lock the dead act left
 // inside the directory, and leaves the card byte-identical to what it was.
 //
@@ -1224,7 +1224,7 @@ func TestAnInterruptedArchiveIsRolledBackBeforeItsRecord(t *testing.T) {
 	if !bench.Exists(filepath.Join(card.Dir, bench.LockName)) {
 		t.Error("a crash between the third acquisition and the append leaves the entity's lock behind")
 	}
-	findings := h.fsck()
+	findings := h.check()
 	detail, ok := finding(findings, bench.FindingInterruptedAct)
 	if !ok {
 		t.Fatalf("wanted an interrupted-act finding, got %+v", findings)
@@ -1233,7 +1233,7 @@ func TestAnInterruptedArchiveIsRolledBackBeforeItsRecord(t *testing.T) {
 		t.Errorf("the finding should name the id, the op and the direction, got %q", detail)
 	}
 	if !bench.Exists(bench.SiblingPath(card.Dir)) {
-		t.Error("a bare fsck repaired the sibling away")
+		t.Error("a bare check repaired the sibling away")
 	}
 
 	if _, err := h.finish(); err != nil {
@@ -1257,7 +1257,7 @@ func TestAnInterruptedArchiveIsRolledBackBeforeItsRecord(t *testing.T) {
 
 // TestAnInterruptedArchiveIsFinishedForwardAfterItsRecord asserts the crash
 // rows past the point of record. An act aborted between the release of the
-// entity's lock and the move has its event on the record, so fsck reports the
+// entity's lock and the move has its event on the record, so check reports the
 // interruption reading forward and the finish completes the move, leaving the
 // card in the archive with every line of its history and no lock inside it.
 //
@@ -1278,7 +1278,7 @@ func TestAnInterruptedArchiveIsFinishedForwardAfterItsRecord(t *testing.T) {
 	if !bench.Exists(filepath.Join(card.Dir, bench.CardAnchor)) {
 		t.Fatal("the abort came after the move rather than before it")
 	}
-	detail, ok := finding(h.fsck(), bench.FindingInterruptedAct)
+	detail, ok := finding(h.check(), bench.FindingInterruptedAct)
 	if !ok {
 		t.Fatal("wanted an interrupted-act finding")
 	}
@@ -1341,7 +1341,7 @@ func TestAnInterruptedDeletionIsFinishedFromTheBenchJournal(t *testing.T) {
 		if bench.Exists(filepath.Join(h.library.Bench.CardsRoot(), id)) {
 			t.Error("the finish left the card behind")
 		}
-		if findings := h.fsck(); len(findings) != 0 {
+		if findings := h.check(); len(findings) != 0 {
 			t.Errorf("the finish left findings behind: %+v", findings)
 		}
 	})
@@ -1359,7 +1359,7 @@ func TestAnInterruptedDeletionIsFinishedFromTheBenchJournal(t *testing.T) {
 			t.Fatalf("simulate a partial removal: %v", err)
 		}
 
-		findings := h.fsck()
+		findings := h.check()
 		if _, ok := finding(findings, bench.FindingMissingAnchor); ok {
 			t.Error("a half-removed card read as the quarantine case rather than as an interrupted act")
 		}
@@ -1423,9 +1423,9 @@ func TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired(t *testing.T) {
 			c.plant(h, id)
 			h.reopen()
 
-			detail, ok := finding(h.fsck(), c.key)
+			detail, ok := finding(h.check(), c.key)
 			if !ok {
-				t.Fatalf("wanted a %s finding, got %+v", c.key, h.fsck())
+				t.Fatalf("wanted a %s finding, got %+v", c.key, h.check())
 			}
 			if c.key == bench.FindingInterruptedAct && detail != id+" "+bench.OpArchive+" "+bench.DirectionMissing {
 				t.Errorf("the finding should name the missing directory, got %q", detail)

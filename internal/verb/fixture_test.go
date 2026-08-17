@@ -247,15 +247,15 @@ func (h *harness) clearBenchLock() {
 // back the interrupted acts it reports.
 func (h *harness) finish() ([]bench.Finding, error) {
 	h.reopen()
-	return h.library.Fsck(&Request{Verb: "fsck", Actor: "alka", Finish: true})
+	return h.library.Check(&Request{Verb: "check", Actor: "alka", Finish: true})
 }
 
-// fsck runs the checker over the bench as it now stands.
-func (h *harness) fsck() []bench.Finding {
+// check runs the checker over the bench as it now stands.
+func (h *harness) check() []bench.Finding {
 	h.t.Helper()
-	findings, err := h.library.Fsck(&Request{Verb: "fsck", Actor: "alka"})
+	findings, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
 	if err != nil {
-		h.t.Fatalf("fsck: %v", err)
+		h.t.Fatalf("check: %v", err)
 	}
 	return findings
 }

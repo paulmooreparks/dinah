@@ -113,8 +113,8 @@ func TestRegionalTagsWalkTheHierarchy(t *testing.T) {
 // CLDR category, with a language carrying only other getting it for every
 // count.
 func TestPluralsFollowTheCategories(t *testing.T) {
-	one := For(Base).TN("fsck.count", 1)
-	many := For(Base).TN("fsck.count", 4)
+	one := For(Base).TN("check.count", 1)
+	many := For(Base).TN("check.count", 4)
 	if one == many {
 		t.Errorf("wanted one form per category, got %q for both", one)
 	}

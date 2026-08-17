@@ -237,17 +237,17 @@ func (s *session) renderHistory(events []bench.Event) {
 	}
 }
 
-// renderFindings prints what fsck found and returns the exit code: zero on a
+// renderFindings prints what check found and returns the exit code: zero on a
 // clean bench, the refused code when anything was found.
 func (s *session) renderFindings(findings []bench.Finding) int {
 	if len(findings) == 0 {
-		s.line(s.r.T("fsck.clean"))
+		s.line(s.r.T("check.clean"))
 		return 0
 	}
 	for _, finding := range findings {
 		s.line("  " + s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")")
 	}
-	s.line(s.r.TN("fsck.count", len(findings)))
+	s.line(s.r.TN("check.count", len(findings)))
 	return contract.ExitCode(contract.OutcomeRefused)
 }
 

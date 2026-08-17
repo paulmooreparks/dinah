@@ -226,7 +226,7 @@ func (l *Library) Archive(req *Request) *Response {
 // script and at a terminal.
 //
 // A card another card's link names is deleted without refusal, because a
-// reference never refuses an act; the dangling `to:` is what fsck reports
+// reference never refuses an act; the dangling `to:` is what check reports
 // afterwards.
 func (l *Library) Delete(req *Request) *Response {
 	if l.Bench.Operator == "" {
