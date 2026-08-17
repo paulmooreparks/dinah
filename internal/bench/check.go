@@ -38,6 +38,7 @@ const (
 	FindingSlugMissing        = "check.slug-missing"
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
+	FindingStrandedState      = "check.stranded-state"
 	FindingIgnoredAnchor      = "check.ignored-anchor"
 	// The last five are raised by a migration rather than by the checker,
 	// because each names something only the run that did the work can know:
@@ -99,6 +100,9 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, b.checkCard(card)...)
 	}
 	findings = append(findings, b.checkStateSlugs()...)
+	for _, id := range b.StrandedStates {
+		findings = append(findings, Finding{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingStrandedState, Detail: id})
+	}
 	for _, standing := range b.interruptions() {
 		findings = append(findings, standing.finding())
 	}

@@ -117,6 +117,7 @@ var params = map[string][]Param{
 		{Name: "finish", Flag: true, Marker: true},
 		{Name: "migrate-ordinals", Flag: true, Marker: true},
 		{Name: "migrate-slugs", Flag: true, Marker: true},
+		{Name: "migrate-states", Flag: true, Marker: true},
 	},
 	"whoami":      {},
 	"workbenches": {},

@@ -264,6 +264,89 @@ func TestArchiveAndDelete(t *testing.T) {
 	}
 }
 
+// TestArchiveRemovesTheStateFromTheDefinition asserts AC-1: archiving an
+// unoccupied state that is not the sole remaining one drops the identifier
+// from workbench.md's states list in the same run, and every command that
+// opens the bench afterwards succeeds and no longer lists it.
+func TestArchiveRemovesTheStateFromTheDefinition(t *testing.T) {
+	h := newHarness(t)
+	before := len(h.library.Bench.States)
+	response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("archive: %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	if got := len(h.library.Bench.States); got != before-1 {
+		t.Fatalf("wanted %d states after the archive, got %d", before-1, got)
+	}
+	if h.library.Bench.State(aftercare) != nil {
+		t.Error("the archived state is still declared")
+	}
+	if findings := h.check(); len(findings) != 0 {
+		t.Errorf("a workbench with no dangling entry should check clean, got %+v", findings)
+	}
+}
+
+// TestDeleteRemovesTheStateFromTheDefinition asserts AC-2: deleting an
+// unoccupied state behaves identically to archiving it for the purposes of
+// AC-1.
+func TestDeleteRemovesTheStateFromTheDefinition(t *testing.T) {
+	h := newHarness(t)
+	before := len(h.library.Bench.States)
+	response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: review, Confirm: true})
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("delete: %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	if got := len(h.library.Bench.States); got != before-1 {
+		t.Fatalf("wanted %d states after the delete, got %d", before-1, got)
+	}
+	if h.library.Bench.State(review) != nil {
+		t.Error("the deleted state is still declared")
+	}
+	if findings := h.check(); len(findings) != 0 {
+		t.Errorf("a workbench with no dangling entry should check clean, got %+v", findings)
+	}
+}
+
+// TestRetiringTheLastStateIsRefused asserts AC-3: archiving or deleting the
+// sole remaining state is refused with dinah.last-state, both as the third
+// precondition row of archive and the fourth of delete, and the workbench
+// keeps opening and working normally afterwards.
+func TestRetiringTheLastStateIsRefused(t *testing.T) {
+	if got := Checks("archive"); len(got) != 3 || got[2].Refusal != contract.LastState {
+		t.Fatalf("archive's preconditions: wanted dinah.last-state third, got %+v", got)
+	}
+	if got := Checks("delete"); len(got) != 4 || got[3].Refusal != contract.LastState {
+		t.Fatalf("delete's preconditions: wanted dinah.last-state fourth, got %+v", got)
+	}
+
+	h := newHarness(t)
+	for _, id := range []string{doing, review, finished, aftercare} {
+		response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: id})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("archive %s: %s %s", id, response.Outcome, response.Refusal)
+		}
+		h.reopen()
+	}
+	if len(h.library.Bench.States) != 1 {
+		t.Fatalf("wanted one state left, got %d", len(h.library.Bench.States))
+	}
+	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: intake}); response.Refusal != contract.LastState {
+		t.Fatalf("archiving the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	if h.library.Bench.State(intake) == nil {
+		t.Fatal("the refused archive removed the last state anyway")
+	}
+	if findings := h.check(); len(findings) != 0 {
+		t.Errorf("a workbench holding its last state should check clean, got %+v", findings)
+	}
+	if response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: intake, Confirm: true}); response.Refusal != contract.LastState {
+		t.Fatalf("deleting the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	}
+}
+
 // TestInterchangeRoundTrip asserts CORE-JSON-1, CORE-JSON-2, CORE-JSON-3,
 // CORE-JSON-4, CORE-JSON-5, CORE-JSON-7 and CORE-CARD-9:
 // an object carrying an unknown member survives export, import and export,

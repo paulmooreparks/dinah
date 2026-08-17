@@ -382,6 +382,14 @@ type CheckReport struct {
 	// MigratedSlugs says the slug migration ran, so a caller can tell an
 	// empty list of assignments from a migration nobody asked for.
 	MigratedSlugs bool `json:"migrated_slugs,omitempty"`
+	// RemovedStrandedStates are the identifiers the states migration removed
+	// from the workbench's own states list. It is absent from a request that
+	// asked for no migration and from a request that asked and found nothing
+	// to repair, which MigratedStates below is what separates.
+	RemovedStrandedStates []string `json:"removed_stranded_states,omitempty"`
+	// MigratedStates says the stranded-state migration ran, so a caller can
+	// tell an empty list of removals from a migration nobody asked for.
+	MigratedStates bool `json:"migrated_states,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -394,7 +402,9 @@ type CheckReport struct {
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback. A request carrying the
 // migrate-slugs marker does the same for the states of a workbench that
-// predate the slug field, and names the slug it gave each one.
+// predate the slug field, and names the slug it gave each one. A request
+// carrying the migrate-states marker removes every stranded identifier from
+// the workbench's own states list.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -407,6 +417,14 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
+	}
+	if req != nil && req.MigrateStates {
+		removed, err := l.Bench.RemoveStrandedStates()
+		report.MigratedStates = true
+		report.RemovedStrandedStates = removed
+		if err != nil {
+			return report, err
+		}
 	}
 	if req != nil && req.MigrateOrdinals {
 		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))

@@ -84,6 +84,9 @@ type Request struct {
 	// MigrateSlugs asks check to derive a slug for every state of the
 	// workbench that predates the field, before it reports.
 	MigrateSlugs bool
+	// MigrateStates asks check to remove every stranded identifier from the
+	// workbench's own states list, before it reports.
+	MigrateStates bool
 	// WorkbenchSource names the rung that resolved the active workbench for
 	// this invocation (flag, environment, search, or config), set by the
 	// head once discovery has run, since that is the earliest point the

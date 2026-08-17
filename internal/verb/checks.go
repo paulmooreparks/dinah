@@ -101,11 +101,13 @@ var beyondChecks = map[string][]Check{
 	"archive": {
 		{Refusal: contract.UnknownPath, Key: "check.archive.1"},
 		{Refusal: contract.Occupied, Key: "check.archive.2"},
+		{Refusal: contract.LastState, Key: "check.archive.3"},
 	},
 	"delete": {
 		{Refusal: contract.UnknownPath, Key: "check.delete.1"},
 		{Refusal: contract.Unconfirmed, Key: "check.delete.2"},
 		{Refusal: contract.Occupied, Key: "check.delete.3"},
+		{Refusal: contract.LastState, Key: "check.delete.4"},
 	},
 	"guide": {
 		{Refusal: contract.UnknownGuide, Key: "check.guide.1"},

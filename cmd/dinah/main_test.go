@@ -907,10 +907,10 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] ") {
+	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] ") {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
-	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs]" {
+	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -919,7 +919,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-states"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -1559,6 +1559,71 @@ func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
 	if !strings.Contains(again.out, `"migrated_slugs"`) {
 		t.Errorf("a second run did not say the migration ran:\n%s", again.out)
 	}
+}
+
+// TestCheckMigrateStatesNamesWhatItRemovedOnTheTerminal asserts the terminal
+// rendering of the stranded-state repair, not just the internal function it
+// calls: a clean check and a real repair must not print the same line, and
+// the repair must say which state identifier it took out of the list.
+//
+// dinah check --migrate-states edits workbench.md whether or not the caller
+// is told, so this is the one place that confirms the edit is also reported;
+// a change to the internal repair function alone would leave this test
+// passing or failing on its own, with no dependency on the renderer at all.
+func TestCheckMigrateStatesNamesWhatItRemovedOnTheTerminal(t *testing.T) {
+	root := newBench(t)
+	gone := strandState(t, root, 2)
+
+	clean := runCLI(t, root, "check")
+	if clean.code == 0 {
+		t.Fatalf("a stranded state should be reported, not pass clean")
+	}
+	if !strings.Contains(clean.out, gone) {
+		t.Errorf("the checker did not name the stranded state:\n%s", clean.out)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-states")
+	if migrated.code != 0 {
+		t.Fatalf("check --migrate-states: %d %s", migrated.code, migrated.errw)
+	}
+	if !strings.Contains(migrated.out, "Removed 1 stranded state") {
+		t.Errorf("the migration did not say how many states it removed:\n%s", migrated.out)
+	}
+	if !strings.Contains(migrated.out, gone) {
+		t.Errorf("the migration did not name the state it removed:\n%s", migrated.out)
+	}
+
+	again := runCLI(t, root, "check", "--migrate-states")
+	if again.code != 0 {
+		t.Fatalf("a second run: %d %s", again.code, again.errw)
+	}
+	if strings.Contains(again.out, gone) {
+		t.Errorf("a second run should have nothing left to name:\n%s", again.out)
+	}
+	if !strings.Contains(again.out, "Removed 0 stranded states") {
+		t.Errorf("a second run did not say it removed nothing:\n%s", again.out)
+	}
+}
+
+// strandState hand-strands one state of a workbench the way retirement's own
+// pre-fix defect used to: it removes the state's directory without touching
+// workbench.md's states list, and returns the identifier left dangling.
+func strandState(t *testing.T, root string, position int) string {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "states")
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if position >= len(states) {
+		t.Fatalf("the workbench carries %d states", len(states))
+	}
+	id := states[position].ID
+	dir := filepath.Join(benchDir(t, root), bench.StatesDir, id)
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatalf("remove %s: %v", dir, err)
+	}
+	return id
 }
 
 // TestAHandTypedSlugLeavesTheWorkbenchOpenable asserts the corner an operator
