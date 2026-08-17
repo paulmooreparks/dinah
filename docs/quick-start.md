@@ -134,8 +134,8 @@ order `workbench.md` lists them, so a move to a later state is forward and a
 move to an earlier one is backward. Identifiers are generated per bench, so
 yours will differ from the ones printed here.
 
-`status` adds what you personally hold on top of that, and it is the command
-worth running when you sit down.
+Run `status` when you sit down. It prints that same list and adds what you
+personally hold.
 
 ```
 $ dinah status
@@ -361,7 +361,7 @@ Pass a single dash instead of the text and `comment` reads standard input, which
 is how a script hands it something longer than a command line wants.
 
 When something stops the work, say so on the card. A block frees the card and
-records why, and that is what turns an obstacle into something visible:
+records why. That is what turns an obstacle into something visible:
 
 ```
 $ dinah block rel-2 "Waiting on the signing certificate" --kind external
@@ -630,8 +630,8 @@ decorates a native command's error stream when it redirects one, so the `--json`
 route above is the one that behaves the same everywhere.
 
 Names introduced by this tool rather than by the contract carry a `dinah.`
-prefix, and that is how you tell the two layers apart when you are matching on
-them. `unknown-card` and `at-capacity` come from the contract. `dinah.unknown-key`
+prefix. Matching on that prefix is how you tell the two layers apart.
+`unknown-card` and `at-capacity` come from the contract. `dinah.unknown-key`
 and `dinah.unconfirmed` come from the tool.
 
 Setting `DINAH_FORMAT=json` gets the machine form from every call without the
@@ -807,6 +807,8 @@ You are holding:
 implementation of the contract reads that form:
 
 ```
+$ cd release-notes
+
 $ dinah export
 {
   "profile": "dinah-core/1.0",
@@ -858,8 +860,13 @@ $ dinah states
 [exit 0]
 ```
 
+```
+$ cd ../release-notes
+```
+
 The template carries the state identifiers too, so the new bench and the old one
-answer to the same ones.
+answer to the same ones. That last `cd` puts you back in the bench this guide
+started in. The commands below expect to run there.
 
 ## The guides that ship in the binary
 
