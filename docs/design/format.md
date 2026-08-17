@@ -588,6 +588,26 @@ would be noise an operator could never clear. An operator who wants a
 guessed order corrected edits the field, and the checker holds him to
 uniqueness.
 
+The operating system decides which entity the migration cannot write to. The
+tool does not. Every write in this format is a temporary file renamed over
+its target, so the right that governs a write is the right to replace a
+name. POSIX grants that right through the containing directory, so a
+read-only anchor sitting in a directory its owner can write is replaced,
+while an anchor in a directory nobody can write is refused. Windows asks the
+file's own attribute instead and refuses the read-only anchor. The tool
+takes whichever answer comes back and reports the refusal it actually met.
+
+Nothing checks a permission ahead of the write, and the migration does not
+read an anchor back to confirm what it wrote. A pre-check would have the
+tool inventing a rule about who may modify a file, and this format has no
+such rule. A workbench says who holds an entity by holding a lock over it,
+and the migration already honours that lock. A mode bit is not an ownership
+claim, it is one platform's advice to its own owner, and an owner who can
+clear it in a single command gains nothing from a tool that declines on its
+account. A read-back would find nothing either, because on POSIX the
+replacement genuinely succeeded and the bytes on disk genuinely are the new
+ones. The write path therefore stays as it is.
+
 ## Encoding
 
 Every text file in a bench is UTF-8 without a byte-order mark. Journal

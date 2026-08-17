@@ -1,8 +1,10 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -811,6 +813,16 @@ func TestTheMigrationStepsOverALockedCardAndFinishesTheWalk(t *testing.T) {
 // the caller threw the whole report away with the error, so a run that met
 // one unwritable file printed nothing: not the count, not the obstruction,
 // and not the guess it had already made on the same collection.
+//
+// The obstruction is injected through the bench's stamp hook rather than
+// through file permissions. An earlier form of this test made the anchor
+// read-only, which stands for an unwritable entity on Windows and stands for
+// nothing at all on POSIX, where the migration's rename is governed by the
+// containing directory and replaced the file anyway. A test whose meaning
+// changes with the operating system cannot be the one carrying this
+// behaviour, so the hook provokes the same error path everywhere and
+// TestAnUnwritableDirectoryIsAnUnwritableEntity covers the POSIX case where a
+// permission genuinely stops the write.
 func TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk(t *testing.T) {
 	root := newFixture(t)
 	first := filepath.Join(root, CardsDir, "c00000000001")
@@ -822,14 +834,9 @@ func TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk(t *testing.T)
 	appendText(t, firstJournal, commentedEvent("e00000000001", "2026-08-17T09:01:00Z"))
 
 	// A hand-created comment with no journal event: a guess, and this run is
-	// the one that makes it. Its anchor is made unwritable, so the walk must
-	// name it and step over it rather than stamping it or aborting on it.
-	blocked := filepath.Join(first, CommentsDir, "e00000000002", CommentAnchor)
+	// the one that makes it. Its write is the one the hook fails, so the walk
+	// must name it and step over it rather than stamping it or aborting on it.
 	writeComment(t, root, "e00000000002", "2026-08-17T09:02:00Z", 0, "unwritable guess")
-	if err := os.Chmod(blocked, 0o444); err != nil {
-		t.Fatalf("chmod: %v", err)
-	}
-	t.Cleanup(func() { os.Chmod(blocked, 0o644) })
 
 	// A second hand-created comment, writable, on the same collection: it
 	// must still be stamped and reported as a guess even though the walk met
@@ -847,6 +854,14 @@ func TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk(t *testing.T)
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
+	}
+	opened.Hooks = &Hooks{
+		BeforeOrdinalStamp: func(id string) error {
+			if id == "e00000000002" {
+				return errors.New("the filesystem refused this anchor")
+			}
+			return nil
+		},
 	}
 	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
 	if err != nil {
@@ -885,5 +900,55 @@ func TestTheMigrationStepsOverAnUnwritableEntityAndFinishesTheWalk(t *testing.T)
 	}
 	if !guessedWritable {
 		t.Errorf("wanted the writable guess made after the obstruction still reported, got %+v", reported)
+	}
+}
+
+// TestAnUnwritableDirectoryIsAnUnwritableEntity checks that a real permission
+// the migration cannot get past produces the same report the hook-driven test
+// drives, so the finding is not an artefact of the seam it is provoked
+// through.
+//
+// The permission is on the entity's DIRECTORY, which is the one POSIX asks
+// about. The migration writes a temporary beside the anchor and renames it
+// over, so it is the right to create and rename a name in that directory that
+// decides the write, and a read-only anchor in a writable directory is
+// replaced rather than refused. This test therefore says nothing on Windows,
+// where the file's own attribute governs instead, and nothing under a user who
+// ignores the permission, so it skips in both cases rather than asserting
+// something it cannot mean there.
+func TestAnUnwritableDirectoryIsAnUnwritableEntity(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory permissions do not govern replacement on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root is not stopped by a directory permission")
+	}
+	root := newFixture(t)
+	writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 0, "unwritable")
+	dir := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, "e00000000001")
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(dir, 0o755) })
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("an unwritable entity should not end the walk: %v", err)
+	}
+	if stamped != 0 {
+		t.Errorf("stamped %d entities, wanted none: the only one was unwritable", stamped)
+	}
+	named := false
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalUnwritable && finding.Detail == "e00000000001" {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("wanted the entity in the unwritable directory named, got %+v", reported)
 	}
 }

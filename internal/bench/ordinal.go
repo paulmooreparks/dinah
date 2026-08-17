@@ -188,7 +188,14 @@ func orderedByJournal(collection string, order []string) (ordered, guessed []str
 // stays taken by neither, so a later run can still fill it once the
 // obstruction is cleared, and every other entity of the collection is stamped
 // as if it had never been there.
-func backfillCollection(collection, anchor string, order []string) (int, []Finding) {
+//
+// Which entities the filesystem refuses is the filesystem's call and not this
+// walk's. The write goes through WriteText, so it is a temporary renamed over
+// the anchor, and the platform decides whether that replacement is allowed:
+// POSIX asks the containing directory, Windows asks the file. Both answers are
+// honoured here as they come back, and neither is second-guessed by a
+// permission check of the tool's own.
+func (b *Bench) backfillCollection(collection, anchor string, order []string) (int, []Finding) {
 	ordered, unrecovered := orderedByJournal(collection, order)
 	guessed := map[string]bool{}
 	for _, id := range unrecovered {
@@ -211,6 +218,10 @@ func backfillCollection(collection, anchor string, order []string) (int, []Findi
 			next++
 		}
 		path := filepath.Join(collection, id, anchor)
+		if err := b.beforeOrdinalStamp(id); err != nil {
+			findings = append(findings, Finding{Path: path, Key: FindingOrdinalUnwritable, Detail: id})
+			continue
+		}
 		if err := stampOrdinal(collection, id, anchor, next); err != nil {
 			findings = append(findings, Finding{Path: path, Key: FindingOrdinalUnwritable, Detail: id})
 			continue
@@ -222,6 +233,15 @@ func backfillCollection(collection, anchor string, order []string) (int, []Findi
 		stamped++
 	}
 	return stamped, findings
+}
+
+// beforeOrdinalStamp runs the write failure a test asks for at one entity of
+// the migration's walk, and is a no-op on every bench nobody is testing.
+func (b *Bench) beforeOrdinalStamp(id string) error {
+	if b.Hooks == nil || b.Hooks.BeforeOrdinalStamp == nil {
+		return nil
+	}
+	return b.Hooks.BeforeOrdinalStamp(id)
 }
 
 // BackfillOrdinals stamps a creation ordinal on every entity of every card
@@ -282,7 +302,7 @@ func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
 	stamped := 0
 	var findings []Finding
 	for _, collection := range ordinalCollections(dir) {
-		count, reported := backfillCollection(collection.dir, collection.anchor, order)
+		count, reported := b.backfillCollection(collection.dir, collection.anchor, order)
 		stamped += count
 		findings = append(findings, reported...)
 	}
