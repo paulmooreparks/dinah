@@ -4,24 +4,28 @@ A workbench is a directory of plain-text files. Everything Dinah knows about
 your work lives there, so you can read it with an editor, search it with grep,
 and put it under git alongside the project it belongs to.
 
-Create one where the work is:
+You may create a workbench in the same directory as the rest of your work:
 
 ```
 dinah init --slug proj --operator alka
 ```
 
-The slug is what a card reference is built from, so `proj-1` names the first
-card you file; leave it out and Dinah derives one from the directory name. The
-operator is the owner who answers for the workbench, and every workbench
-designates one, because blocks are lifted by the operator alone and a
-workbench with nobody in that seat has actions nobody can perform. Leave it
-out and Dinah records whoever you are acting as, called the actor; every
-action you take carries that name, and `dinah whoami` prints it back.
+Every card in a workbench has a human-readable prefix, called a slug. A
+workbench with slug `proj` names its first card `proj-1`. If you leave
+`--slug` out, Dinah derives one from the directory name.
 
-That writes `workbench.md`, which carries the flow and the standing
-instructions, and a `states/` directory holding one file per station. Open
-`workbench.md` and edit the prose; it is served to whoever claims a card, and
-nothing copies it anywhere, so an edit reaches every reader at once.
+Every workbench designates an operator, the person who owns it and answers for
+it. Only the operator lifts a block, so a workbench with nobody in that seat
+has actions nobody can perform. If you leave `--operator` out, Dinah records
+whoever you are acting as, called the actor; every action you take carries
+that name, and `dinah whoami` prints it back.
+
+Dinah writes the workbench inside a `.dinah` directory here rather than loose
+in your working directory, so it always sits somewhere later commands can find
+it. It prints the path it wrote, `.dinah/<id>/`, where `<id>` is a generated
+identifier; open the `workbench.md` inside it to read or edit the prose that is
+served to whoever claims a card. Nothing copies that file anywhere, so anyone
+who opens the workbench sees your edit right away.
 
 File the first piece of work:
 
