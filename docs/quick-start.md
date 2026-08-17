@@ -484,7 +484,8 @@ reason.
 ## Everything below a card
 
 A card is a directory, its comments and attachments are directories inside it,
-and giving `attach` a file copies the bytes in under their own name:
+and giving `attach` a file copies the bytes in under their own name. Create
+`notes.txt` in the current directory first, with whatever content you like:
 
 ```
 $ dinah attach rel-1 notes.txt
@@ -602,7 +603,9 @@ reason.
 ## When the files are wrong
 
 Hand-editing is legal, but it makes mistakes possible, and `check` is how you
-find them. Here a card names a state that no longer exists:
+find them. The workbench answering below was damaged on purpose for this
+example rather than being the one you have been working in, and a card in it
+names a state that no longer exists:
 
 ```
 $ dinah check
@@ -626,9 +629,11 @@ and a directory sitting where an entity should be. It reads and reports; it
 changes nothing unless you ask it to.
 
 Two of the things it reports are the marks of an older workbench rather than a
-mistake, and each has a flag that repairs it. A state written before slugs
-existed carries none, and an entity written before ordinals existed carries
-none:
+mistake, and each has a flag that repairs it. The workbench answering below is
+that older one, kept around for this example rather than the workbench you
+have been building, so your own `check` still reports nothing at this point. A
+state written before slugs existed carries none, and an entity written before
+ordinals existed carries none:
 
 ```
 $ dinah check
@@ -918,7 +923,9 @@ You are holding:
 Your home directory can hold workbenches of its own, in the `.dinah` directory
 beside your settings, and those are what the walk falls back to when the climb
 finds nothing. Two or more of them is a question the tool will not answer for
-you:
+you. The listing below comes from ana's own home directory, which happens to
+hold two workbenches for this example; the same ambiguity arises in yours only
+if you have made more than one there yourself:
 
 ```
 $ dinah workbenches
