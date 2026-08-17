@@ -381,6 +381,161 @@ func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
 	}
 }
 
+// TestInitRefusesTheWorkbenchFlag asserts dinah-86: init refuses --workbench
+// and DINAH_WORKBENCH rather than writing wherever either one names, in
+// every shape the flag can reach it in (before the verb, after it, together
+// with a positional root that disagrees, or from the environment alone), and
+// leaves no workbench anywhere a refused run could have written one. The
+// refusal names whichever of the two actually supplied the value, never the
+// other.
+func TestInitRefusesTheWorkbenchFlag(t *testing.T) {
+	assertRefused := func(t *testing.T, base, elsewhere string, got invocation, wantSpelling string) {
+		t.Helper()
+		if got.code != 2 {
+			t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+		}
+		leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+		if leading != contract.WorkbenchNotApplicable {
+			t.Errorf("leading token: wanted %s, got %q", contract.WorkbenchNotApplicable, got.errw)
+		}
+		if !strings.Contains(got.errw, wantSpelling) {
+			t.Errorf("the refusal should name %s, got %q", wantSpelling, got.errw)
+		}
+		other := "DINAH_WORKBENCH"
+		if wantSpelling == "DINAH_WORKBENCH" {
+			other = "--workbench"
+		}
+		if strings.Contains(got.errw, other) {
+			t.Errorf("the refusal should not name %s, got %q", other, got.errw)
+		}
+		if bench.Exists(filepath.Join(base, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the current directory")
+		}
+		if bench.Exists(filepath.Join(elsewhere, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the flag's target")
+		}
+	}
+
+	t.Run("the flag before the verb", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "--workbench", elsewhere, "init", "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+	})
+
+	t.Run("the flag after the verb", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "init", "--workbench", elsewhere, "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+	})
+
+	t.Run("the flag with an agreeing positional root", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "init", elsewhere, "--workbench", elsewhere, "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+		if bench.Exists(filepath.Join(elsewhere, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the positional root")
+		}
+	})
+
+	t.Run("the flag with a disagreeing positional root", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		positional := filepath.Join(base, "positional")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.MkdirAll(positional, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "init", positional, "--workbench", elsewhere, "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+		if bench.Exists(filepath.Join(positional, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the disagreeing positional root")
+		}
+	})
+
+	t.Run("the environment variable alone", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		t.Setenv("DINAH_WORKBENCH", elsewhere)
+		got := runCLI(t, base, "init", "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "DINAH_WORKBENCH")
+	})
+
+	t.Run("the environment variable and the flag together names the flag", func(t *testing.T) {
+		base := emptyTree(t)
+		flagTarget := filepath.Join(base, "flag-target")
+		envTarget := filepath.Join(base, "env-target")
+		if err := os.MkdirAll(flagTarget, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.MkdirAll(envTarget, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		t.Setenv("DINAH_WORKBENCH", envTarget)
+		got := runCLI(t, base, "--workbench", flagTarget, "init", "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, flagTarget, got, "--workbench")
+		if bench.Exists(filepath.Join(envTarget, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the environment's target")
+		}
+	})
+
+	t.Run("neither set still creates at the working directory, unchanged", func(t *testing.T) {
+		base := emptyTree(t)
+		root := filepath.Join(base, "plain")
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, root, "init", "--operator", "alka")
+		if got.code != 0 {
+			t.Fatalf("init with neither set: wanted 0, got %d (%s)", got.code, got.errw)
+		}
+		ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+		if len(ids) != 1 {
+			t.Fatalf("the container should hold one workbench, got %v", ids)
+		}
+	})
+}
+
+// TestInitStillHonoursThePositionalRootAlone asserts dinah-86's AC-2: a
+// positional root argument, with neither --workbench nor DINAH_WORKBENCH
+// set, still creates the workbench at that positional root exactly as
+// before this card, since the flag refusal above must not swallow the
+// plain positional case it sits beside.
+func TestInitStillHonoursThePositionalRootAlone(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "target")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, base, "init", root, "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("init with a positional root alone: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench at the positional root, got %v", ids)
+	}
+	if bench.Exists(filepath.Join(base, bench.UserBaseName)) {
+		t.Error("init with a positional root should not also write a container at the working directory")
+	}
+}
+
 // TestInitHelpKeepsItsRefusalList asserts that the help a person reads before
 // running `init` still summarises the command the same way and still names the
 // refusal creation keeps, since writing into the container removed no check.
