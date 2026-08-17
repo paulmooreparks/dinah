@@ -181,6 +181,16 @@ func (s *session) renderListing(listing *verb.Listing) {
 	}
 }
 
+// renderSettings prints each setting with the value in force and the rung of
+// its ladder that produced it. A setting no rung carried prints an empty
+// value beside the source that says so, because the row itself is the answer
+// to whether anybody has ever set the key.
+func (s *session) renderSettings(settings []verb.SettingView) {
+	for _, view := range settings {
+		s.line("  " + pad(view.Key, 12) + pad(view.Value, 24) + s.token(view.Source))
+	}
+}
+
 // renderOffers prints what each state offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
 	for _, offer := range offers {

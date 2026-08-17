@@ -30,7 +30,7 @@ WORKBENCH
   extract <dir>                          copy this workbench's definition out as a template
   path <card|path>                       print the file path of a card or of anything below it
   edit <card|path>                       open that path in your editor
-  config <get|set> <key> [value]         read or write your user settings
+  config [get|set] [key] [value]         list your user settings, or read or write one
   check [--finish] [--migrate-ordinals]  look for structural defects in this workbench
   whoami                                 the actor your acts carry, and whether it is the operator
   version [--catalogs]                   what this binary is and what it conforms to

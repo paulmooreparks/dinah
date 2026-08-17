@@ -701,6 +701,216 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	}
 }
 
+// settingsHome points the user base at a directory of this test's own, with
+// every variable the three ladders read cleared, and returns both the home and
+// a directory to run from. Nothing here touches the real user base, because
+// the settings commands write to whatever DINAH_HOME names.
+func settingsHome(t *testing.T) (string, string) {
+	t.Helper()
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	t.Setenv("DINAH_HOME", home)
+	t.Setenv("DINAH_BENCH", "")
+	t.Setenv("DINAH_FORMAT", "")
+	for _, name := range []string{"DINAH_ACTOR", "DINAH_LANG", "DINAH_EDITOR", "VISUAL", "EDITOR", "LC_ALL", "LC_MESSAGES", "LANG"} {
+		t.Setenv(name, "")
+	}
+	return home, base
+}
+
+// settingRows parses the machine form of the settings listing, which is what
+// asserts the shape as well as the content.
+func settingRows(t *testing.T, got invocation) map[string]verb.SettingView {
+	t.Helper()
+	if got.code != 0 {
+		t.Fatalf("config --json: %d %s", got.code, got.errw)
+	}
+	var rows []verb.SettingView
+	if err := json.Unmarshal([]byte(got.out), &rows); err != nil {
+		t.Fatalf("the machine form should be an array of rows: %v\n%s", err, got.out)
+	}
+	byKey := map[string]verb.SettingView{}
+	for _, row := range rows {
+		byKey[row.Key] = row
+	}
+	return byKey
+}
+
+// TestConfigListsEverySettingWithTheRungThatAnsweredIt asserts the listing the
+// bare command prints: every key the tool knows appears whether or not anybody
+// ever set it, each row carries the value the ladder resolves rather than the
+// stored one, and the rung that answered is named.
+//
+// The listing is a command form of its own rather than a variation on an
+// existing read, so it gets a test of its own; the ladders themselves are
+// asserted in internal/bench, where they live.
+func TestConfigListsEverySettingWithTheRungThatAnsweredIt(t *testing.T) {
+	home, dir := settingsHome(t)
+
+	// A home nobody has ever written to still lists every known key, in the
+	// declared order, with the rung that answered.
+	listed := runCLI(t, dir, "config")
+	if listed.code != 0 {
+		t.Fatalf("config: %d %s", listed.code, listed.errw)
+	}
+	for _, key := range bench.ConfigKeys {
+		if !strings.Contains(listed.out, key) {
+			t.Errorf("the listing drops %s on a home nobody has written to:\n%s", key, listed.out)
+		}
+	}
+	rows := settingRows(t, runCLI(t, dir, "--json", "config"))
+	if len(rows) != len(bench.ConfigKeys) {
+		t.Errorf("wanted a row per known key, got %d", len(rows))
+	}
+	if rows["lang"].Value != "en" || rows["lang"].Source != bench.SourceDefault {
+		t.Errorf("a language nobody chose: wanted en at %s, got %+v", bench.SourceDefault, rows["lang"])
+	}
+	if rows["actor"].Value != "" || rows["actor"].Source != bench.SourceUnset {
+		t.Errorf("an owner nobody set: wanted an empty value at %s, got %+v", bench.SourceUnset, rows["actor"])
+	}
+	// The editor's own rungs are all unset here, so whatever answered came
+	// from the platform fallback or from nowhere. Naming any higher rung
+	// would be a rung that did not answer.
+	for _, rung := range []string{bench.SourceFlag, bench.SourceConfig, bench.SourceVisual, bench.SourceEnvironment} {
+		if rows["editor"].Source == rung {
+			t.Errorf("with every editor variable cleared, the row should not name %s", rung)
+		}
+	}
+
+	// A key the file carries and the tool does not know is reported rather
+	// than dropped, and it carries the source that says so.
+	if got := runCLI(t, dir, "config", "set", "lang", "fr"); got.code != 0 {
+		t.Fatalf("config set: %d %s", got.code, got.errw)
+	}
+	path := filepath.Join(bench.UserBase(home), bench.ConfigName)
+	stored, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read the settings file: %v", err)
+	}
+	written := strings.Replace(string(stored), "lang: fr", "lang: fr\ncolour: green", 1)
+	if written == string(stored) {
+		t.Fatalf("the settings file does not carry the key that was just set:\n%s", stored)
+	}
+	if err := os.WriteFile(path, []byte(written), 0o644); err != nil {
+		t.Fatalf("write the settings file: %v", err)
+	}
+	rows = settingRows(t, runCLI(t, dir, "--json", "config"))
+	if rows["colour"].Value != "green" || rows["colour"].Source != bench.SourceUnknown {
+		t.Errorf("a key the tool does not know: wanted green at %s, got %+v", bench.SourceUnknown, rows["colour"])
+	}
+	if rows["lang"].Value != "fr" || rows["lang"].Source != bench.SourceConfig {
+		t.Errorf("a language the file carries: wanted fr at %s, got %+v", bench.SourceConfig, rows["lang"])
+	}
+
+	// The rungs above the file are named as themselves.
+	t.Setenv("DINAH_LANG", "de")
+	rows = settingRows(t, runCLI(t, dir, "--json", "config"))
+	if rows["lang"].Value != "de" || rows["lang"].Source != bench.SourceEnvironment {
+		t.Errorf("a language from the environment: wanted de at %s, got %+v", bench.SourceEnvironment, rows["lang"])
+	}
+	rows = settingRows(t, runCLI(t, dir, "--json", "--lang", "hi", "config"))
+	if rows["lang"].Value != "hi" || rows["lang"].Source != bench.SourceFlag {
+		t.Errorf("a language from the flag: wanted hi at %s, got %+v", bench.SourceFlag, rows["lang"])
+	}
+}
+
+// TestTheEditorRowNamesWhichVariableWon asserts the distinction the card exists
+// for: an editor that came from VISUAL and one that came from EDITOR are
+// different answers, and the listing never collapses the five rungs of that
+// ladder into one generic environment source.
+func TestTheEditorRowNamesWhichVariableWon(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	cases := []struct {
+		name   string
+		set    map[string]string
+		config string
+		wanted string
+		source string
+	}{
+		{name: "EDITOR", set: map[string]string{"EDITOR": "ed"}, wanted: "ed", source: bench.SourceEnvironment},
+		{
+			name:   "VISUAL over EDITOR",
+			set:    map[string]string{"EDITOR": "ed", "VISUAL": "vim"},
+			wanted: "vim",
+			source: bench.SourceVisual,
+		},
+		{
+			name:   "the settings file over both",
+			set:    map[string]string{"EDITOR": "ed", "VISUAL": "vim"},
+			config: "kak",
+			wanted: "kak",
+			source: bench.SourceConfig,
+		},
+		{
+			name:   "DINAH_EDITOR over everything",
+			set:    map[string]string{"EDITOR": "ed", "VISUAL": "vim", "DINAH_EDITOR": "helix"},
+			config: "kak",
+			wanted: "helix",
+			source: bench.SourceFlag,
+		},
+	}
+	seen := map[string]bool{}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			for _, name := range []string{"DINAH_EDITOR", "VISUAL", "EDITOR"} {
+				t.Setenv(name, c.set[name])
+			}
+			if c.config != "" {
+				if got := runCLI(t, dir, "config", "set", "editor", c.config); got.code != 0 {
+					t.Fatalf("config set: %d %s", got.code, got.errw)
+				}
+			}
+			rows := settingRows(t, runCLI(t, dir, "--json", "config"))
+			if rows["editor"].Value != c.wanted || rows["editor"].Source != c.source {
+				t.Errorf("wanted %s at %s, got %+v", c.wanted, c.source, rows["editor"])
+			}
+			seen[rows["editor"].Source] = true
+		})
+	}
+	if len(seen) != len(cases) {
+		t.Errorf("the four rungs exercised here should report four distinct sources, got %d", len(seen))
+	}
+}
+
+// TestConfigGetAndSetAreUnchanged asserts that giving the bare command a
+// listing left the two verbs where they were: the same round trip, the same
+// refusal name on a key the tool does not know, and the same exit codes.
+func TestConfigGetAndSetAreUnchanged(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	if got := runCLI(t, dir, "config", "set", "actor", "alka"); got.code != 0 {
+		t.Fatalf("config set: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, dir, "config", "get", "actor"); got.code != 0 || strings.TrimSpace(got.out) != "alka" {
+		t.Errorf("the round trip: %d %q %s", got.code, got.out, got.errw)
+	}
+	cases := [][]string{
+		{"config", "get", "colour"},
+		{"config", "set", "colour", "green"},
+		{"config", "get"},
+		{"config", "set"},
+	}
+	for _, argv := range cases {
+		got := runCLI(t, dir, argv...)
+		if got.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("%v: wanted the refused exit code, got %d", argv, got.code)
+		}
+		if leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]; leading != contract.UnknownKey {
+			t.Errorf("%v: wanted the leading token %s, got %q", argv, contract.UnknownKey, got.errw)
+		}
+	}
+	// A word that is neither verb is still a usage refusal rather than a
+	// listing, so the bare form is the only new spelling.
+	stray := runCLI(t, dir, "config", "bogus")
+	if stray.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Errorf("a stray word: wanted the refused exit code, got %d", stray.code)
+	}
+	if leading := strings.SplitN(strings.TrimSpace(stray.errw), " ", 2)[0]; leading != contract.Usage {
+		t.Errorf("a stray word: wanted the leading token %s, got %q", contract.Usage, stray.errw)
+	}
+}
+
 // TestTheOrdinalMigrationSaysWhatItGuessed asserts that the repair reports
 // itself on both the surfaces a caller reads: the human form prints what it
 // stamped and names the entity it could only place by the directory listing,

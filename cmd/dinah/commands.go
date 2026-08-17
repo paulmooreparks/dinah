@@ -438,10 +438,28 @@ func onPath(name string) bool {
 	return err == nil
 }
 
-// runConfig reads or writes the user's own settings.
+// runConfig lists the user's own settings, or reads or writes one of them.
+//
+// The bare invocation lists, the way `states` and `whoami` report everything
+// with no argument. The listing resolves each setting through its own ladder,
+// so it answers a question `get` cannot: a key nobody ever set and a key set
+// to the value the default carries read alike through the stored value alone.
 func runConfig(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	switch at(words, 0) {
+	case "":
+		settings := verb.Settings(
+			s.cfg,
+			parsed.value("lang"),
+			parsed.value("actor"),
+			runtime.GOOS,
+			onPath,
+		)
+		if s.json {
+			return s.emitJSON(settings)
+		}
+		s.renderSettings(settings)
+		return 0
 	case "get":
 		key := at(words, 1)
 		if !bench.KnownConfigKey(key) {
