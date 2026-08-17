@@ -512,6 +512,30 @@ func TestInitRefusesTheWorkbenchFlag(t *testing.T) {
 	})
 }
 
+// TestInitStillHonoursThePositionalRootAlone asserts dinah-86's AC-2: a
+// positional root argument, with neither --workbench nor DINAH_WORKBENCH
+// set, still creates the workbench at that positional root exactly as
+// before this card, since the flag refusal above must not swallow the
+// plain positional case it sits beside.
+func TestInitStillHonoursThePositionalRootAlone(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "target")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, base, "init", root, "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("init with a positional root alone: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench at the positional root, got %v", ids)
+	}
+	if bench.Exists(filepath.Join(base, bench.UserBaseName)) {
+		t.Error("init with a positional root should not also write a container at the working directory")
+	}
+}
+
 // TestInitHelpKeepsItsRefusalList asserts that the help a person reads before
 // running `init` still summarises the command the same way and still names the
 // refusal creation keeps, since writing into the container removed no check.
