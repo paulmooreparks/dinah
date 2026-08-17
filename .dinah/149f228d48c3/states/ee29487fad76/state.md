@@ -1,5 +1,6 @@
 ---
 title: Operator Code Review
+slug: operator-code-review
 kind: work
 operator_owned: true
 ---

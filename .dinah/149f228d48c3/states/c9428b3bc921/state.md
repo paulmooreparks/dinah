@@ -1,5 +1,6 @@
 ---
 title: Test
+slug: test
 kind: work
 operator_owned: false
 ---

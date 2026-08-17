@@ -1,5 +1,6 @@
 ---
 title: Merge
+slug: merge
 kind: work
 operator_owned: false
 ---

@@ -1,5 +1,6 @@
 ---
 title: Operator Design Review
+slug: operator-design-review
 kind: work
 operator_owned: true
 ---

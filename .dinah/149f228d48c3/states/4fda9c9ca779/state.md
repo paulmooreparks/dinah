@@ -1,5 +1,6 @@
 ---
 title: Implement
+slug: implement
 kind: work
 operator_owned: false
 ---
