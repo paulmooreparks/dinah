@@ -463,9 +463,9 @@ func TestBasisReportsStale(t *testing.T) {
 	}
 }
 
-// TestQueueOrderIsArrivalThenIdentifier asserts CORE-QUEUE-1 over a fixture
-// whose arrival order and identifier order disagree.
-func TestQueueOrderIsArrivalThenIdentifier(t *testing.T) {
+// TestQueueOrderIsArrivalThenOrdinal asserts CORE-QUEUE-3 over a fixture
+// whose arrival order and creation order disagree.
+func TestQueueOrderIsArrivalThenOrdinal(t *testing.T) {
 	h := newHarness(t)
 	first := h.add("earliest")
 	h.advance(time.Hour)
@@ -504,12 +504,32 @@ func TestQueueOrderIsArrivalThenIdentifier(t *testing.T) {
 	}
 }
 
-// TestTiesBreakByIdentifier asserts the second half of CORE-QUEUE-1, over two
-// cards that entered a state at the same instant.
-func TestTiesBreakByIdentifier(t *testing.T) {
+// TestTiesBreakByCreationOrdinal asserts the tie-break half of CORE-QUEUE-3
+// over two cards that entered a state at the same instant.
+//
+// The numbers are rewritten so that the creation order runs against the
+// identifier order, because the retired CORE-QUEUE-1 broke the same tie by
+// ascending identifier and a fixture where the two orders agree passes under
+// either rule.
+func TestTiesBreakByCreationOrdinal(t *testing.T) {
 	h := newHarness(t)
 	h.add("one")
 	h.add("two")
+
+	cards, err := h.library.Bench.Cards()
+	if err != nil {
+		t.Fatalf("cards: %v", err)
+	}
+	if len(cards) != 2 {
+		t.Fatalf("wanted 2 cards, got %d", len(cards))
+	}
+	// Cards reads in ascending identifier order, so numbering downwards from
+	// the count puts the lower creation ordinal on the higher identifier.
+	for i, card := range cards {
+		h.renumber(card.ID, len(cards)-i)
+	}
+	h.reopen()
+
 	listing, err := h.library.List(&Request{Verb: "ls", State: intake})
 	if err != nil {
 		t.Fatalf("list: %v", err)
@@ -517,8 +537,12 @@ func TestTiesBreakByIdentifier(t *testing.T) {
 	if len(listing.Cards) != 2 {
 		t.Fatalf("wanted 2 cards, got %d", len(listing.Cards))
 	}
-	if listing.Cards[0].ID > listing.Cards[1].ID {
-		t.Errorf("wanted ascending identifiers on a tie, got %s then %s", listing.Cards[0].ID, listing.Cards[1].ID)
+	first, second := h.card(listing.Cards[0].Ref), h.card(listing.Cards[1].Ref)
+	if first.Number > second.Number {
+		t.Errorf("wanted the lower creation ordinal first, got %d then %d", first.Number, second.Number)
+	}
+	if first.ID < second.ID {
+		t.Errorf("the tie followed the identifier rather than the ordinal, got %s then %s", first.ID, second.ID)
 	}
 }
 
@@ -565,7 +589,7 @@ func TestHistoryNeverResolvesAgainstTheBench(t *testing.T) {
 }
 
 // TestNextOffersWithoutTaking asserts the pull discipline: next reports the
-// card CORE-QUEUE-1 names and changes nothing about it.
+// card CORE-QUEUE-3 names and changes nothing about it.
 func TestNextOffersWithoutTaking(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("offered")

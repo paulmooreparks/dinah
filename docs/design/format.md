@@ -303,9 +303,10 @@ research and its concept as attachments.
 A new card enters the first state of the ordered list, substate `ready`, and
 its journal opens with the created event. Pull order is deterministic so two
 implementations agree on "the next card": highest declared priority first,
-cards without a priority after all cards with one, ties broken oldest-created
-first. A pull honors the destination's WIP limit and never takes a card out
-of an operator-owned state.
+cards without a priority after all cards with one, ties broken by ascending
+creation ordinal, which for a card is the `number` it was born with. A pull
+honors the destination's WIP limit and never takes a card out of an
+operator-owned state.
 
 Removal has two shapes with different promises. Archiving moves the card's
 whole directory to `archive/cards/<id>/`, history and all; see Archive
@@ -459,9 +460,10 @@ and stores nothing.
 ## Checklist items
 
 A checklist item is a card-scoped entity recording a structured judgment:
-`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, and timestamps
-in frontmatter, the item's text as the body, a resolution note required to
-leave pending, and attachments for evidence per the universal rule. Kinds
+`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, timestamps, and
+a creation ordinal in frontmatter, the item's text as the body, a resolution
+note required to leave pending, and attachments for evidence per the
+universal rule. Kinds
 are a closed set of three (acceptance_criterion, open_question, decision)
 and states a closed set (pending, resolved, verified, failed), closed
 because method text travels between boards and "file it with owner
@@ -485,14 +487,15 @@ assumed here.
 
 A comment is an entity like every other, per the no-exceptions rule in
 "Anchor files and collections": a hex directory under `comments/` whose
-anchor is `comment.md`, with timestamp and author in frontmatter and the
-comment as body, and its own `attachments/` on demand. Ordering comes from
-the timestamp field, not the directory name.
+anchor is `comment.md`, with timestamp, author and creation ordinal in
+frontmatter and the comment as body, and its own `attachments/` on demand.
+Ordering comes from the ordinal field, not from the timestamp and not from
+the directory name.
 
 An attachment is likewise an entity: a hex directory whose anchor,
-`attachment.md`, records the original filename, a description, and
-provenance, beside a `payload/` directory holding exactly one file
-carrying the bytes under their original name. The payload directory is
+`attachment.md`, records the original filename, a description, provenance,
+and a creation ordinal, beside a `payload/` directory holding exactly one
+file carrying the bytes under their original name. The payload directory is
 what makes the payload structurally identified: a stray file beside the
 anchor is unambiguously garbage rather than a candidate payload, and the
 payload's namespace contains no reserved names, so filename collisions
@@ -522,6 +525,46 @@ states and workstreams and states by groups, and a folders-of-anything
 generalization would compete with all three. Folders are additive and
 deferred from the first cut: a new entity kind inherits the whole rulebook
 by construction, so shipping them later leaks into no interface.
+
+## Creation ordinals
+
+A counted entity carries an `ordinal` field: a positive integer recording
+where the entity fell in the order somebody wrote the members of its
+collection. Comments, attachments, and checklist items carry one, and a
+card's own ordinal is the `number` it was born with rather than a second
+field saying the same thing twice.
+
+The ordinal is unique within one collection instance and nowhere wider. A
+particular card's `comments/` is one sequence, that card's `attachments/`
+is another, each of its comments has an `attachments/` of its own, and its
+`checklist/` is one more. That is the scope a positional reference asks
+about, since `<card>/comments/2` selects the second comment of one card and
+has nothing to say about any other collection.
+
+Assignment happens at creation, inside the lock the creating verb already
+holds over the nearest enclosing journal-bearing entity, so the scan for
+the highest ordinal in use and the write that follows it cannot be
+interleaved with another writer. Nothing creates a checklist item yet, and
+whatever eventually does owes the same field on the same terms.
+
+Ordinals exist because the two orderings already on disk both fail. A
+directory listing is ascending hex and a hex identifier is random, so the
+listing is in an order nobody wrote. A comment timestamp is wall clock,
+and two processes writing inside one second record the same value, which
+hands the tie back to the listing.
+
+A gap is legal and is left alone. Deletion is directory removal, so an
+ordinal disappears with the entity that carried it, and closing the gap
+would renumber every survivor after it and move every positional reference
+anybody had already written down. A duplicate is a defect, because it
+leaves a position with two answers, so `dinah fsck` reports duplicates and
+missing ordinals while saying nothing about gaps.
+
+A workbench written before the field existed is repaired once, by hand,
+with `dinah fsck --migrate-ordinals`, which replays each card's journal to
+recover the order its entities were written in. Nothing re-derives an
+ordinal on a read, so a workbench nobody migrated is caught by the
+checker rather than quietly ordered by its directory listing forever.
 
 ## Encoding
 

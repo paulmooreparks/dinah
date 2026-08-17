@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -83,16 +84,20 @@ func TestIdentifiersAreUniqueAcrossBothHalves(t *testing.T) {
 }
 
 // TestCommentAndAttach asserts the comment and attachment entities: the
-// anchors they write, the ordering by timestamp, and the journal events each
-// lifecycle act records.
+// anchors they write, the ordering by creation ordinal, and the journal events
+// each lifecycle act records.
+//
+// The clock runs backwards between the two comments, so the write order and
+// the timestamp order disagree and the assertion below can only pass on the
+// ordinal.
 func TestCommentAndAttach(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("annotated")
 
-	h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: ref, Text: "the second thought"})
+	h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: ref, Text: "the first thought"})
 	h.reopen()
-	h.advance(-1)
-	h.library.Comment(&Request{Verb: "comment", Actor: "bob", Card: ref, Text: "the first thought"})
+	h.advance(-time.Hour)
+	h.library.Comment(&Request{Verb: "comment", Actor: "bob", Card: ref, Text: "the second thought"})
 	h.reopen()
 
 	comments, err := bench.Comments(h.card(ref).Dir)
@@ -103,10 +108,13 @@ func TestCommentAndAttach(t *testing.T) {
 		t.Fatalf("wanted two comments, got %d", len(comments))
 	}
 	if !strings.Contains(comments[0].Body, "first thought") {
-		t.Errorf("comments should order by timestamp, got %q first", comments[0].Body)
+		t.Errorf("comments should order by creation ordinal, got %q first", comments[0].Body)
 	}
-	if comments[0].Author != "bob" {
-		t.Errorf("author: wanted bob, got %q", comments[0].Author)
+	if comments[0].Author != "alka" {
+		t.Errorf("author: wanted alka, got %q", comments[0].Author)
+	}
+	if comments[0].Ordinal != 1 || comments[1].Ordinal != 2 {
+		t.Errorf("wanted ordinals 1 and 2, got %d and %d", comments[0].Ordinal, comments[1].Ordinal)
 	}
 
 	source := filepath.Join(t.TempDir(), "notes.txt")
@@ -121,6 +129,34 @@ func TestCommentAndAttach(t *testing.T) {
 	payload := filepath.Join(h.card(ref).Dir, bench.AttachmentsDir, attached.Detail, bench.PayloadDir, "notes.txt")
 	if !bench.Exists(payload) {
 		t.Errorf("wanted the payload under its original name at %s", payload)
+	}
+
+	// Each collection instance counts from one on its own, so the card's
+	// first attachment is ordinal 1 even though the card already carries two
+	// comments, and the comment's own first attachment is ordinal 1 too.
+	cardAttachment, err := bench.LoadAttachment(filepath.Join(h.card(ref).Dir, bench.AttachmentsDir, attached.Detail))
+	if err != nil {
+		t.Fatalf("load the attachment: %v", err)
+	}
+	if cardAttachment.Ordinal != 1 {
+		t.Errorf("the card's first attachment carries ordinal %d, wanted 1", cardAttachment.Ordinal)
+	}
+	below := h.library.Attach(&Request{
+		Verb:  "attach",
+		Actor: "alka",
+		Ref:   ref + "/" + bench.CommentsDir + "/1",
+		File:  source,
+	})
+	if below.Outcome != contract.OutcomeOK {
+		t.Fatalf("attach to a comment: %s %s", below.Outcome, below.Refusal)
+	}
+	h.reopen()
+	onComment, err := bench.LoadAttachment(filepath.Join(comments[0].Dir, bench.AttachmentsDir, below.Detail))
+	if err != nil {
+		t.Fatalf("load the comment's attachment: %v", err)
+	}
+	if onComment.Ordinal != 1 {
+		t.Errorf("the comment's first attachment carries ordinal %d, wanted 1", onComment.Ordinal)
 	}
 
 	replacement := filepath.Join(t.TempDir(), "revised.txt")

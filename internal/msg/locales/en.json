@@ -401,6 +401,14 @@
       "text": "directory {detail} carries no anchor file, so it is not an entity",
       "context": "An fsck finding: a hex directory without its anchor."
     },
+    "fsck.ordinal-duplicate": {
+      "text": "entity {detail} carries a creation ordinal another entity of the same collection already carries, so a position names two of them",
+      "context": "An fsck finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
+    },
+    "fsck.ordinal-missing": {
+      "text": "entity {detail} carries no creation ordinal, so its position depends on the directory listing",
+      "context": "An fsck finding: an entity written before the ordinal field existed, or by hand; `dinah fsck --migrate-ordinals` stamps it."
+    },
     "fsck.position-diverges": {
       "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
       "context": "An fsck finding: frontmatter position against the journal's replay."

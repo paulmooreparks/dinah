@@ -116,7 +116,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 type Listing struct {
 	// State is the state listed, empty when the listing spans the bench.
 	State string `json:"state,omitempty"`
-	// Cards are the cards, in the order CORE-QUEUE-1 fixes.
+	// Cards are the cards, in the order CORE-QUEUE-3 fixes.
 	Cards []CardView `json:"cards"`
 }
 
@@ -355,8 +355,16 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 //
 // A request carrying the finish marker completes or rolls back the
 // interrupted structural acts first, so nobody finishes an act without the
-// report that named it, and then reports what the bench still carries.
+// report that named it, and then reports what the bench still carries. A
+// request carrying the migrate-ordinals marker stamps the creation ordinals a
+// workbench written before the field carries none of, which is a one-time
+// repair rather than a read-path fallback.
 func (l *Library) Fsck(req *Request) ([]bench.Finding, error) {
+	if req != nil && req.MigrateOrdinals {
+		if _, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now())); err != nil {
+			return nil, err
+		}
+	}
 	if req == nil || !req.Finish {
 		return l.Bench.Fsck()
 	}

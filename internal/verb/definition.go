@@ -112,6 +112,7 @@ var params = map[string][]Param{
 	},
 	"fsck": {
 		{Name: "finish", Flag: true, Marker: true},
+		{Name: "migrate-ordinals", Flag: true, Marker: true},
 	},
 	"whoami": {},
 	"version": {

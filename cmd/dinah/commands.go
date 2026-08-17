@@ -66,16 +66,17 @@ func init() {
 // resolved actor and whatever flags the command reads.
 func (s *session) request(name string, parsed *arguments) *verb.Request {
 	req := &verb.Request{
-		Verb:        name,
-		Actor:       s.actor,
-		State:       parsed.value("state"),
-		Kind:        parsed.value("kind"),
-		Description: parsed.value("description"),
-		Override:    parsed.has("override"),
-		Replace:     parsed.has("replace"),
-		Confirm:     parsed.has("yes"),
-		ReadyOnly:   parsed.has("ready"),
-		Finish:      parsed.has("finish"),
+		Verb:            name,
+		Actor:           s.actor,
+		State:           parsed.value("state"),
+		Kind:            parsed.value("kind"),
+		Description:     parsed.value("description"),
+		Override:        parsed.has("override"),
+		Replace:         parsed.has("replace"),
+		Confirm:         parsed.has("yes"),
+		ReadyOnly:       parsed.has("ready"),
+		Finish:          parsed.has("finish"),
+		MigrateOrdinals: parsed.has("migrate-ordinals"),
 	}
 	return req
 }

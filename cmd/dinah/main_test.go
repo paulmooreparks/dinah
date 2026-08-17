@@ -668,24 +668,25 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	}
 }
 
-// TestFsckDeclaresItsFinishFlagOnEverySurface asserts that the flag which
-// completes an interrupted structural act is declared once and projected
-// everywhere: the ratified help block's fsck line names it, the generated help
-// for the command names it from the same definition, and the argument parser
-// accepts it.
+// TestFsckDeclaresItsRepairFlagsOnEverySurface asserts that the two flags
+// which repair rather than report are declared once and projected everywhere:
+// the ratified help block's fsck line names them, the generated help for the
+// command names them from the same definition, and the argument parser accepts
+// them. One completes an interrupted structural act, the other stamps the
+// creation ordinals a workbench written before the field carries none of.
 //
 // The change to the fixture's fsck line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
 // asserted against it by TestToolSurfaceIsTheProjection.
-func TestFsckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
+func TestFsckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	fixture, err := os.ReadFile(filepath.Join("testdata", "help.txt"))
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  fsck [--finish] ") {
-		t.Error("the ratified block's fsck line does not name --finish")
+	if !strings.Contains(string(fixture), "  fsck [--finish] [--migrate-ordinals] ") {
+		t.Error("the ratified block's fsck line does not name both repair flags")
 	}
-	if got := verb.Usage("fsck"); got != "fsck [--finish]" {
+	if got := verb.Usage("fsck"); got != "fsck [--finish] [--migrate-ordinals]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -694,10 +695,12 @@ func TestFsckDeclaresItsFinishFlagOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help fsck: %d %s", generated.code, generated.errw)
 	}
-	if !strings.Contains(generated.out, "--finish") {
-		t.Errorf("the generated help does not name the flag:\n%s", generated.out)
-	}
-	if got := runCLI(t, root, "fsck", "--finish"); got.code != 0 {
-		t.Errorf("fsck --finish on a clean bench: %d %s", got.code, got.errw)
+	for _, flag := range []string{"--finish", "--migrate-ordinals"} {
+		if !strings.Contains(generated.out, flag) {
+			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
+		}
+		if got := runCLI(t, root, "fsck", flag); got.code != 0 {
+			t.Errorf("fsck %s on a clean bench: %d %s", flag, got.code, got.errw)
+		}
 	}
 }

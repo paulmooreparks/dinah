@@ -401,6 +401,14 @@
       "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
       "context": "An fsck finding: a hex directory without its anchor."
     },
+    "fsck.ordinal-duplicate": {
+      "text": "इकाई {detail} का रचना-क्रमांक उसी संग्रह की किसी और इकाई के क्रमांक जैसा है, इसलिए एक स्थान दो इकाइयों को नामित करता है",
+      "context": "An fsck finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
+    },
+    "fsck.ordinal-missing": {
+      "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
+      "context": "An fsck finding: an entity written before the ordinal field existed, or by hand; `dinah fsck --migrate-ordinals` stamps it."
+    },
     "fsck.position-diverges": {
       "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
       "context": "An fsck finding: frontmatter position against the journal's replay."

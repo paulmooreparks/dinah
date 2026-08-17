@@ -3,6 +3,7 @@ package bench
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -139,6 +140,33 @@ func TestFsckFindsEachInvariantViolation(t *testing.T) {
 			},
 			key: FindingTornJournal,
 		},
+		{
+			name: "an entity carrying no creation ordinal",
+			breakIt: func(t *testing.T, root string) {
+				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 0, "unstamped")
+			},
+			key: FindingOrdinalMissing,
+		},
+		{
+			name: "two entities of one collection sharing an ordinal",
+			breakIt: func(t *testing.T, root string) {
+				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 1, "first")
+				writeComment(t, root, "e00000000002", "2026-08-17T09:02:00Z", 1, "second")
+			},
+			key: FindingOrdinalDuplicate,
+		},
+		{
+			// A deletion leaves a gap, and closing one would renumber every
+			// entity after it and move every positional reference already
+			// written down, so a gap is not a defect. The empty key asserts
+			// that the whole bench reports nothing at all.
+			name: "a gap left where an entity was deleted",
+			breakIt: func(t *testing.T, root string) {
+				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 1, "first")
+				writeComment(t, root, "e00000000003", "2026-08-17T09:03:00Z", 3, "third")
+			},
+			key: "",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -198,6 +226,198 @@ func appendText(t *testing.T, path, text string) {
 	if _, err := f.WriteString(text); err != nil {
 		t.Fatalf("append: %v", err)
 	}
+}
+
+// writeComment puts a comment on the fixture card by hand, which is how a
+// test chooses both the identifier and the ordinal. An ordinal of zero writes
+// no ordinal field, standing for a comment written before the field existed.
+func writeComment(t *testing.T, root, id, ts string, ordinal int, body string) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("ts", ts)
+	fm.Set("author", "alka")
+	if ordinal > 0 {
+		fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	}
+	path := filepath.Join(root, CardsDir, "c00000000001", CommentsDir, id, CommentAnchor)
+	write(t, path, fm.Render(body+"\n"))
+}
+
+// writeAttachment puts an attachment on the fixture card by hand, with the
+// same ordinal convention writeComment uses.
+func writeAttachment(t *testing.T, root, id string, ordinal int) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("filename", id+".txt")
+	fm.Set("provenance", "alka")
+	if ordinal > 0 {
+		fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	}
+	path := filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir, id, AttachmentAnchor)
+	write(t, path, fm.Render(""))
+}
+
+// writeItem puts a checklist item on the fixture card by hand. No verb creates
+// one yet, so the ordinal on an item is a contract on whatever eventually
+// does, and the migration and the checker have to hold it meanwhile.
+func writeItem(t *testing.T, root, id string, ordinal int) {
+	t.Helper()
+	fm := NewFrontmatter()
+	fm.Set("kind", "decision")
+	fm.Set("state", "pending")
+	if ordinal > 0 {
+		fm.Set(OrdinalField, strconv.Itoa(ordinal))
+	}
+	path := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir, id, ItemAnchor)
+	write(t, path, fm.Render("An item.\n"))
+}
+
+// commentedEvent is the journal line recording that a comment was written,
+// which is what the migration recovers write order from.
+func commentedEvent(id, ts string) string {
+	return `{"ts":"` + ts + `","event":"commented","actor":"alka","comment":"` + id + `"}` + "\n"
+}
+
+// TestPositionFollowsWriteOrderRatherThanIdentifier asserts that a positional
+// reference below a card counts in creation order.
+//
+// The fixture claims its identifiers in the reverse of its write order, so the
+// directory listing and the creation order disagree on every position. That is
+// the whole point: a listing is ascending hex, a hex identifier is random, and
+// a reference that resolved through the listing named a different comment on
+// every workbench.
+func TestPositionFollowsWriteOrderRatherThanIdentifier(t *testing.T) {
+	root := newFixture(t)
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 1, "written first")
+	writeComment(t, root, "e00000000001", "2026-08-17T09:02:00Z", 2, "written second")
+
+	collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
+	if listed := ListIDs(collection); listed[0] != "e00000000001" {
+		t.Fatalf("the fixture no longer disagrees with the listing, which leads with %s", listed[0])
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	wanted := map[string]string{"1": "e00000000009", "2": "e00000000001"}
+	for position, id := range wanted {
+		path, err := opened.ResolvePath("fx-1/" + CommentsDir + "/" + position)
+		if err != nil {
+			t.Fatalf("resolve position %s: %v", position, err)
+		}
+		if got := filepath.Base(filepath.Dir(path)); got != id {
+			t.Errorf("position %s resolved to %s, wanted %s", position, got, id)
+		}
+	}
+
+	comments, err := Comments(filepath.Join(root, CardsDir, "c00000000001"))
+	if err != nil {
+		t.Fatalf("comments: %v", err)
+	}
+	if len(comments) != 2 || !strings.Contains(comments[0].Body, "written first") {
+		t.Errorf("the reading order is not the writing order: %+v", comments)
+	}
+}
+
+// TestOrdinalMigrationReplaysTheJournalAndIsIdempotent asserts the one-time
+// backfill: it recovers write order from the card's journal rather than from
+// the directory listing, it leaves an entity already carrying an ordinal
+// alone, and a second run changes nothing on disk.
+func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
+	root := newFixture(t)
+	journal := filepath.Join(root, CardsDir, "c00000000001", JournalName)
+
+	// The journal records the high identifier first, so a migration reading
+	// the listing instead would number these the other way around.
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "written first")
+	writeComment(t, root, "e00000000001", "2026-08-17T09:02:00Z", 0, "written second")
+	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
+	appendText(t, journal, commentedEvent("e00000000001", "2026-08-17T09:02:00Z"))
+
+	// An attachment the journal never mentions, and a checklist item no verb
+	// creates, both fall to listing order for their own uncovered stretch.
+	writeAttachment(t, root, "f00000000001", 0)
+	writeItem(t, root, "d00000000001", 0)
+	// A comment already stamped keeps the value it carries, and the ordinal
+	// it holds is stepped over rather than handed out twice.
+	writeComment(t, root, "e00000000005", "2026-08-17T09:03:00Z", 3, "already stamped")
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if stamped != 4 {
+		t.Errorf("wanted four entities stamped, got %d", stamped)
+	}
+
+	comments := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
+	wanted := map[string]int{"e00000000009": 1, "e00000000001": 2, "e00000000005": 3}
+	for id, ordinal := range wanted {
+		if got := EntityOrdinal(comments, id, CommentAnchor); got != ordinal {
+			t.Errorf("comment %s carries ordinal %d, wanted %d", id, got, ordinal)
+		}
+	}
+	attachments := filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir)
+	if got := EntityOrdinal(attachments, "f00000000001", AttachmentAnchor); got != 1 {
+		t.Errorf("the attachment carries ordinal %d, wanted 1", got)
+	}
+	checklist := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir)
+	if got := EntityOrdinal(checklist, "d00000000001", ItemAnchor); got != 1 {
+		t.Errorf("the checklist item carries ordinal %d, wanted 1", got)
+	}
+	if findings, err := opened.Fsck(); err != nil || len(findings) != 0 {
+		t.Errorf("a migrated bench should check clean, got %+v (%v)", findings, err)
+	}
+
+	before := snapshot(t, root)
+	again, err := opened.BackfillOrdinals("alka", "2026-08-17T11:00:00Z")
+	if err != nil {
+		t.Fatalf("second backfill: %v", err)
+	}
+	if again != 0 {
+		t.Errorf("a second run stamped %d entities, wanted none", again)
+	}
+	after := snapshot(t, root)
+	if len(before) != len(after) {
+		t.Fatalf("the second run changed the file count, %d then %d", len(before), len(after))
+	}
+	for path, text := range before {
+		if after[path] != text {
+			t.Errorf("the second run rewrote %s", path)
+		}
+	}
+}
+
+// snapshot reads every anchor file under a bench, keyed by path relative to
+// the root, which is how the idempotence check compares two runs byte for
+// byte rather than field by field.
+func snapshot(t *testing.T, root string) map[string]string {
+	t.Helper()
+	found := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			return err
+		}
+		text, readErr := ReadText(path)
+		if readErr != nil {
+			return readErr
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		found[filepath.ToSlash(relative)] = text
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	return found
 }
 
 // TestFrontmatterPreservesWhatItDoesNotKnow asserts the reader posture the
