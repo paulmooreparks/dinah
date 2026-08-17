@@ -226,10 +226,23 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 		s.line(s.r.T("workbenches.empty"))
 		return
 	}
+	for _, row := range s.formatCandidateRows(rows) {
+		s.line(row)
+	}
+}
+
+// formatCandidateRows renders each candidate as the padded title, slug and
+// path columns dinah workbenches prints, one row per string with its own
+// two-space lead. dinah.ambiguous-workbench prints the same rows beneath its
+// opening sentence, so this is the one place the column widths live; the two
+// callers can never draw the same candidates in different columns.
+func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
+	lines := make([]string, 0, len(rows))
 	for _, row := range rows {
 		lead := "  " + pad(row.Title, 32)
-		s.line(alignedRow(lead, s.slugCell(row.Slug), 16, row.Path))
+		lines = append(lines, alignedRow(lead, s.slugCell(row.Slug), 16, row.Path))
 	}
+	return lines
 }
 
 // slugCell renders a slug column's value: the slug itself when the entity has

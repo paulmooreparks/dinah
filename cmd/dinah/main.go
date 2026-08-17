@@ -221,6 +221,12 @@ type refusalReport struct {
 	// Context carries the refusal's named values as data, absent on a
 	// refusal that needs none.
 	Context map[string]string `json:"context,omitempty"`
+	// Workbenches carries the candidates a dinah.ambiguous-workbench refusal
+	// found, the same rows dinah workbenches would print for this same
+	// invocation, so a script reads them as structured fields rather than
+	// splitting a prose string. Every other refusal leaves this nil, and
+	// omitempty drops it.
+	Workbenches []bench.Candidate `json:"workbenches,omitempty"`
 }
 
 // reportError turns an error from a layer below into a report on stderr and
@@ -243,6 +249,9 @@ func reportError(errw io.Writer, r *msg.Renderer, err error) int {
 // refusal is emitted.
 func (s *session) reportError(err error) int {
 	refusal, ok := err.(*contract.Refusal)
+	if ok && refusal.Name == contract.AmbiguousWorkbench {
+		return s.reportAmbiguousWorkbench(refusal)
+	}
 	if ok && s.json {
 		s.emitJSON(refusalReport{
 			Outcome: contract.OutcomeRefused,
@@ -252,6 +261,37 @@ func (s *session) reportError(err error) int {
 		})
 	}
 	return reportError(s.errw, s.r, err)
+}
+
+// reportAmbiguousWorkbench reports dinah.ambiguous-workbench by pairing it
+// with the rows the workbenches listing would print for this same
+// invocation, since bench.Reachable shares Discover's own walk and cannot
+// name a different set of candidates. The rows are re-fetched rather than
+// carried on the refusal, so no plumbing beyond the base directory travels
+// through contract.Refusal for what is, today, the one refusal that wants
+// this.
+//
+// The text form prints an opening sentence naming the base, the candidate
+// rows beneath it in the shape dinah workbenches renders them, and a closing
+// line naming the two ways forward. The machine form drops the now-redundant
+// detail string and carries the same rows as a workbenches array instead.
+func (s *session) reportAmbiguousWorkbench(refusal *contract.Refusal) int {
+	rows, _ := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+	if s.json {
+		s.emitJSON(refusalReport{
+			Outcome:     contract.OutcomeRefused,
+			Refusal:     refusal.Name,
+			Context:     refusal.Extra,
+			Workbenches: rows,
+		})
+		return contract.ExitCode(contract.OutcomeRefused)
+	}
+	io.WriteString(s.errw, refusal.Name+" "+s.r.T("refusal."+refusal.Name, "base", refusal.Extra["base"])+"\n")
+	for _, row := range s.formatCandidateRows(rows) {
+		io.WriteString(s.errw, row+"\n")
+	}
+	io.WriteString(s.errw, s.r.T("refusal."+refusal.Name+".next")+"\n")
+	return contract.ExitCode(contract.OutcomeRefused)
 }
 
 // open discovers and opens the bench this invocation serves.

@@ -610,8 +610,12 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.ambiguous-workbench": {
-      "text": "{detail} सभी {base} से पहुँच योग्य हैं; --workbench <path> से एक चुनें, या उसके भीतर से चलाएँ",
-      "context": "The sentence printed after the refusal name dinah.ambiguous-workbench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
+      "text": "{base} से एक से अधिक वर्कबेंच पहुँच योग्य हैं",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-workbench, naming the directory the search found several workbenches under. The candidate rows print beneath it, in the same shape the workbenches listing renders, and refusal.dinah.ambiguous-workbench.next follows as the closing line naming the ways forward."
+    },
+    "refusal.dinah.ambiguous-workbench.next": {
+      "text": "--workbench <path> से एक चुनें, या उसके भीतर से चलाएँ",
+      "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है; उसे किनारे रखें, या कोई और डायरेक्टरी चुनें",

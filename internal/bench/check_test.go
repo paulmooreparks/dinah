@@ -895,13 +895,22 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 	if got := refusal.Extra["base"]; got != filepath.Join(inner, UserBaseName) {
 		t.Errorf("the base named: wanted the closest one, got %q", got)
 	}
+	rows, err := Reachable(inner, "", filepath.Join(tree, "home"), "")
+	if err != nil {
+		t.Fatalf("Reachable: %v", err)
+	}
+	titles := make([]string, 0, len(rows))
+	for _, row := range rows {
+		titles = append(titles, row.Title)
+	}
+	joined := strings.Join(titles, "; ")
 	for _, title := range []string{"Near one", "Near two"} {
-		if !strings.Contains(refusal.Detail, title) {
-			t.Errorf("the candidates should name %q, got %q", title, refusal.Detail)
+		if !strings.Contains(joined, title) {
+			t.Errorf("the candidates should name %q, got %q", title, joined)
 		}
 	}
-	if strings.Contains(refusal.Detail, "Far ") {
-		t.Errorf("the further ambiguity should not be reported, got %q", refusal.Detail)
+	if strings.Contains(joined, "Far ") {
+		t.Errorf("the further ambiguity should not be reported, got %q", joined)
 	}
 
 	// One workbench in a base is not ambiguous, and the search takes it.
