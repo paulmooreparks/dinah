@@ -1,6 +1,11 @@
 package bench
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"strings"
+
+	"dinah/internal/contract"
+)
 
 // RemoveStateID drops one identifier from the workbench's own ordered
 // states list and writes the anchor back, preserving every other key
@@ -29,6 +34,13 @@ func (b *Bench) RemoveStateID(id string) error {
 // own ordered states list in one write, and returns what it removed.
 // Unlike a slug backfill there is no title or further metadata to report:
 // the state's own directory is exactly what is missing.
+//
+// Removing every stranded id sometimes leaves the states list with none at
+// all, which CORE-BENCH-2 forbids the workbench from ending up with. When
+// that would happen, RemoveStrandedStates refuses with
+// contract.RepairWouldEmptyStates instead of writing, and leaves
+// StrandedStates and the file exactly as they were, so a following check
+// still reports the same findings it reported before the refusal.
 func (b *Bench) RemoveStrandedStates() ([]string, error) {
 	if len(b.StrandedStates) == 0 {
 		return nil, nil
@@ -43,6 +55,9 @@ func (b *Bench) RemoveStrandedStates() ([]string, error) {
 		if !stranded[existing] {
 			kept = append(kept, existing)
 		}
+	}
+	if len(kept) == 0 {
+		return nil, contract.Refuse(contract.RepairWouldEmptyStates, strings.Join(ids, ", "))
 	}
 	b.FM.SetSeq("states", kept)
 	if err := WriteText(filepath.Join(b.Root, WorkbenchAnchor), b.FM.Render(b.Standing)); err != nil {

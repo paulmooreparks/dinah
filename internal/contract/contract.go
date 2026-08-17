@@ -123,6 +123,13 @@ const (
 	// already exists; init has none yet at the path it is about to create,
 	// so the flag names nothing init can act on.
 	WorkbenchNotApplicable = LayerPrefix + "workbench-not-applicable"
+	// RepairWouldEmptyStates is dinah check --migrate-states declining to
+	// remove every remaining stranded state, which CORE-BENCH-2 forbids
+	// leaving the workbench definition with none of.
+	RepairWouldEmptyStates = LayerPrefix + "repair-would-empty-states"
+	// AddNeedsAState is Add declining to file a card into a workbench whose
+	// states list has no live entries left for the card to land in.
+	AddNeedsAState = LayerPrefix + "add-needs-a-state"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -130,7 +137,7 @@ var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
-	WorkbenchNotApplicable,
+	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

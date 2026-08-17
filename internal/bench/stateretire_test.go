@@ -1,9 +1,12 @@
 package bench
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"dinah/internal/contract"
 )
 
 // newStrandedFixture writes a workbench declaring two states, one backed by
@@ -93,59 +96,117 @@ func TestOpenToleratesAStateDirectoryThatIsNotThere(t *testing.T) {
 
 // TestCheckReportsStrandedStatesAndTheMigrationRepairsThem asserts AC-5 and
 // AC-6: check reports one check.stranded-state finding per stranded id,
-// naming the workbench anchor as its path, dinah check --migrate-states
+// naming the workbench anchor as its path, and dinah check --migrate-states
 // removes every stranded id from workbench.md's states list in one run and
-// reports what it removed, and a second run over the already-repaired
-// workbench reports nothing and removes nothing. The same shape and the
-// same repair hold whether the stranded id was the workbench's sole state or
-// one of several, with no hand edit to workbench.md at any point.
+// reports what it removed, when at least one non-stranded state remains, with
+// a second run over the already-repaired workbench reporting nothing and
+// removing nothing. When the stranded id is the workbench's only state,
+// removing it would leave the states list with none at all, so the migration
+// refuses instead (AC-1), asserted by the "the sole state" subtest below.
 func TestCheckReportsStrandedStatesAndTheMigrationRepairsThem(t *testing.T) {
-	cases := []struct {
-		name string
-		root string
-		gone string
-	}{
-		{"one of several", newStrandedFixture(t), "b00000000002"},
-		{"the sole state", newSoleStrandedFixture(t), "b00000000001"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			anchor := filepath.Join(c.root, WorkbenchAnchor)
-			opened, err := Open(c.root)
-			if err != nil {
-				t.Fatalf("open: %v", err)
-			}
-			findings, err := opened.Check()
-			if err != nil {
-				t.Fatalf("check: %v", err)
-			}
-			if len(findings) != 1 {
-				t.Fatalf("wanted one finding, got %+v", findings)
-			}
-			if findings[0].Key != FindingStrandedState || findings[0].Detail != c.gone || findings[0].Path != anchor {
-				t.Fatalf("wanted a stranded-state finding naming %s at %s, got %+v", c.gone, anchor, findings[0])
-			}
+	t.Run("one of several", func(t *testing.T) {
+		root := newStrandedFixture(t)
+		gone := "b00000000002"
+		anchor := filepath.Join(root, WorkbenchAnchor)
+		opened, err := Open(root)
+		if err != nil {
+			t.Fatalf("open: %v", err)
+		}
+		findings, err := opened.Check()
+		if err != nil {
+			t.Fatalf("check: %v", err)
+		}
+		if len(findings) != 1 {
+			t.Fatalf("wanted one finding, got %+v", findings)
+		}
+		if findings[0].Key != FindingStrandedState || findings[0].Detail != gone || findings[0].Path != anchor {
+			t.Fatalf("wanted a stranded-state finding naming %s at %s, got %+v", gone, anchor, findings[0])
+		}
 
-			removed, err := opened.RemoveStrandedStates()
-			if err != nil {
-				t.Fatalf("migrate: %v", err)
-			}
-			if len(removed) != 1 || removed[0] != c.gone {
-				t.Fatalf("wanted %s reported removed, got %v", c.gone, removed)
-			}
-			if len(opened.StrandedStates) != 0 {
-				t.Errorf("the migration left %v stranded on the open workbench", opened.StrandedStates)
-			}
+		removed, err := opened.RemoveStrandedStates()
+		if err != nil {
+			t.Fatalf("migrate: %v", err)
+		}
+		if len(removed) != 1 || removed[0] != gone {
+			t.Fatalf("wanted %s reported removed, got %v", gone, removed)
+		}
+		if len(opened.StrandedStates) != 0 {
+			t.Errorf("the migration left %v stranded on the open workbench", opened.StrandedStates)
+		}
 
-			// A second run over the same already-repaired bench finds and
-			// removes nothing, whatever the anchor now declares.
-			removedAgain, err := opened.RemoveStrandedStates()
-			if err != nil {
-				t.Fatalf("second migrate: %v", err)
-			}
-			if len(removedAgain) != 0 {
-				t.Errorf("a second run should remove nothing, got %v", removedAgain)
-			}
-		})
-	}
+		// A second run over the same already-repaired bench finds and
+		// removes nothing, whatever the anchor now declares.
+		removedAgain, err := opened.RemoveStrandedStates()
+		if err != nil {
+			t.Fatalf("second migrate: %v", err)
+		}
+		if len(removedAgain) != 0 {
+			t.Errorf("a second run should remove nothing, got %v", removedAgain)
+		}
+	})
+
+	// "the sole state" asserts AC-1: removing the workbench's only remaining
+	// (and stranded) state would leave the states list with none at all, so
+	// the migration refuses with contract.RepairWouldEmptyStates instead of
+	// writing, and leaves workbench.md and StrandedStates exactly as they
+	// were, so a following check still reports the same finding.
+	t.Run("the sole state", func(t *testing.T) {
+		root := newSoleStrandedFixture(t)
+		gone := "b00000000001"
+		anchor := filepath.Join(root, WorkbenchAnchor)
+		opened, err := Open(root)
+		if err != nil {
+			t.Fatalf("open: %v", err)
+		}
+		findings, err := opened.Check()
+		if err != nil {
+			t.Fatalf("check: %v", err)
+		}
+		if len(findings) != 1 {
+			t.Fatalf("wanted one finding, got %+v", findings)
+		}
+		if findings[0].Key != FindingStrandedState || findings[0].Detail != gone || findings[0].Path != anchor {
+			t.Fatalf("wanted a stranded-state finding naming %s at %s, got %+v", gone, anchor, findings[0])
+		}
+
+		before, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read anchor: %v", err)
+		}
+
+		removed, err := opened.RemoveStrandedStates()
+		if removed != nil {
+			t.Errorf("wanted nothing removed on refusal, got %v", removed)
+		}
+		refusal, ok := err.(*contract.Refusal)
+		if !ok || refusal.Name != contract.RepairWouldEmptyStates {
+			t.Fatalf("wanted the repair-would-empty-states refusal, got %v", err)
+		}
+		if !strings.Contains(refusal.Detail, gone) {
+			t.Errorf("wanted the refusal to name %s, got detail %q", gone, refusal.Detail)
+		}
+		if len(opened.StrandedStates) != 1 || opened.StrandedStates[0] != gone {
+			t.Errorf("wanted the stranded id still reported on the open workbench, got %v", opened.StrandedStates)
+		}
+
+		after, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read anchor after refusal: %v", err)
+		}
+		if string(before) != string(after) {
+			t.Errorf("wanted workbench.md unchanged by the refused migration")
+		}
+
+		reopened, err := Open(root)
+		if err != nil {
+			t.Fatalf("reopen: %v", err)
+		}
+		findingsAgain, err := reopened.Check()
+		if err != nil {
+			t.Fatalf("check again: %v", err)
+		}
+		if len(findingsAgain) != 1 || findingsAgain[0].Key != FindingStrandedState || findingsAgain[0].Detail != gone {
+			t.Fatalf("wanted the same finding reported again after the refusal, got %+v", findingsAgain)
+		}
+	})
 }
