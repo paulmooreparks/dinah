@@ -478,7 +478,7 @@
       "context": "The one-line summary of the global flag --workbench."
     },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {

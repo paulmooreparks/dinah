@@ -217,7 +217,18 @@ Workbenches live in an overlay that works like git's. `~/.dinah/` is the
 user base, holding workbenches that belong to no repository, keyed by
 workbench id. A workbench may equally live inside a project repository (or
 anywhere else); discovery walks up from the current directory before falling
-back to the user base. The user base may also hold pointers to repo-local
+back to the user base. `DINAH_HOME` moves the user base, so it moves where
+that fallback looks and where the user's own config and instruction layer
+are read from. The walk observes one boundary for its sake. At the machine's
+own home directory it looks for a `workbench.md` and skips that directory's
+`.dinah`. The real user base is left to the fallback alone, so a relocated
+base stays relocated even for a working directory sitting beneath the real
+home. The fallback runs at that home directory rather than after the climb,
+so the user base keeps the precedence it has always had over a `.dinah`
+sitting above the home. The tool settles which directory is the home by
+asking the filesystem whether two paths lead to one directory, since a home
+directory can be spelled several ways on Windows and on macOS alike. Every
+other directory's `.dinah` on the way up is consulted as it always was. The user base may also hold pointers to repo-local
 workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.

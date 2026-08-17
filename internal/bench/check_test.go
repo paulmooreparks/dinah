@@ -841,7 +841,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000003"), "Near one")
 	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000004"), "Near two")
 
-	_, err := Discover(inner, "", filepath.Join(tree, "home"))
+	_, err := Discover(inner, "", filepath.Join(tree, "home"), "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
@@ -867,7 +867,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	writeWorkbench(t, filepath.Join(sole, UserBaseName, "d00000000005"), "The only one")
-	found, err := Discover(sole, "", filepath.Join(tree, "home"))
+	found, err := Discover(sole, "", filepath.Join(tree, "home"), "")
 	if err != nil {
 		t.Fatalf("a base holding one workbench should resolve, got %v", err)
 	}
@@ -881,7 +881,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 // which is the one scenario dinah.no-bench still covers.
 func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	empty := t.TempDir()
-	_, err := Discover(empty, empty, "")
+	_, err := Discover(empty, empty, "", "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
@@ -980,11 +980,11 @@ func writeWorkbench(t *testing.T, root, title string) {
 func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	tree := t.TempDir()
 	root := filepath.VolumeName(tree) + string(filepath.Separator)
-	if found, ambiguous := benchIn(root); found != "" || len(ambiguous) > 0 {
+	if found, ambiguous := benchIn(root, false); found != "" || len(ambiguous) > 0 {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	home := filepath.Join(tree, "home")
-	_, err := Discover(root, "", home)
+	_, err := Discover(root, "", home, "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
@@ -997,6 +997,185 @@ func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	}
 	if got := refusal.Extra["home"]; got != filepath.Join(home, UserBaseName) {
 		t.Errorf("the refusal should name the user base, wanted %q, got %q", filepath.Join(home, UserBaseName), got)
+	}
+}
+
+// TestDiscoveryLeavesTheNativeHomeBaseToTheFallback asserts the boundary the
+// ancestor walk observes once the user base has been pointed elsewhere. A
+// working directory nested under the machine's own home no longer resolves to
+// the workbench under that home's .dinah, because relocating the user base is
+// meant to relocate all of it rather than only the fallback's half.
+//
+// The other two assertions fence the boundary in. Every .dinah above and below
+// the native home is consulted exactly as before, which is what keeps the
+// repository-nested convention working, and the anchor check still runs at the
+// native home itself, so a repository checked out there is still found.
+func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
+	native := filepath.Join(t.TempDir(), "native")
+	deep := filepath.Join(native, "src", "repos", "project", "internal", "part")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeWorkbench(t, filepath.Join(native, UserBaseName, "d00000000010"), "The real one")
+	relocated := t.TempDir()
+
+	_, err := Discover(deep, "", relocated, native)
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("the relocated search should find nothing, got %v", err)
+	}
+	if refusal.Name != contract.NoBenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	}
+	if got := refusal.Extra["home"]; got != filepath.Join(relocated, UserBaseName) {
+		t.Errorf("the refusal should name the relocated user base, wanted %q, got %q", filepath.Join(relocated, UserBaseName), got)
+	}
+
+	// An ordinary ancestor's own .dinah is untouched by the boundary, so the
+	// repository-nested convention resolves from the same starting directory.
+	nested := filepath.Join(native, "src", "repos", "project", UserBaseName, "d00000000011")
+	writeWorkbench(t, nested, "The repository one")
+	found, err := Discover(deep, "", relocated, native)
+	if err != nil {
+		t.Fatalf("a .dinah below the native home should still resolve, got %v", err)
+	}
+	if found != nested {
+		t.Errorf("the nested workbench: wanted %q, got %q", nested, found)
+	}
+
+	// Only the .dinah check is skipped at the native home. A workbench sitting
+	// there as a bare anchor is still discovered.
+	anchored := filepath.Join(t.TempDir(), "anchored")
+	inside := filepath.Join(anchored, "sub")
+	if err := os.MkdirAll(inside, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeWorkbench(t, anchored, "Checked out at home")
+	found, err = Discover(inside, "", t.TempDir(), anchored)
+	if err != nil {
+		t.Fatalf("an anchor at the native home should still resolve, got %v", err)
+	}
+	if found != anchored {
+		t.Errorf("the workbench at the native home: wanted %q, got %q", anchored, found)
+	}
+}
+
+// TestDiscoveryUnrelocatedStillFindsTheUserBase asserts that the boundary
+// costs nothing when nobody moved the user base. The walk skips the native
+// home's .dinah and the fallback then reads the same directory one step later,
+// so a person working under their own home reaches their own workbenches
+// exactly as they did before.
+func TestDiscoveryUnrelocatedStillFindsTheUserBase(t *testing.T) {
+	native := filepath.Join(t.TempDir(), "native")
+	deep := filepath.Join(native, "src", "project")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	want := filepath.Join(native, UserBaseName, "d00000000012")
+	writeWorkbench(t, want, "The only one")
+
+	found, err := Discover(deep, "", native, native)
+	if err != nil {
+		t.Fatalf("an unrelocated search should resolve, got %v", err)
+	}
+	if found != want {
+		t.Errorf("the user base workbench: wanted %q, got %q", want, found)
+	}
+}
+
+// TestTheBoundaryHoldsAgainstAnotherSpellingOfTheHome asserts that the walk
+// recognises its boundary when the home directory is named in a spelling that
+// differs from the one the climb produces. Windows gives a user name holding a
+// space a short 8.3 form and ignores case, and macOS mounts a case-insensitive
+// volume, so the home directory arrives under one spelling and the ancestor
+// under another; a boundary compared as text misses, and the search then reads
+// the real user base.
+//
+// The second spelling comes from anotherSpelling, which confirms it names the
+// same directory before the test asserts anything. A platform offering the
+// directory one spelling only has no aliasing to reproduce, so the test skips
+// there.
+func TestTheBoundaryHoldsAgainstAnotherSpellingOfTheHome(t *testing.T) {
+	tree := t.TempDir()
+	native := filepath.Join(tree, "native")
+	deep := filepath.Join(native, "src", "repos", "project")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	alias := anotherSpelling(t, tree, native)
+	if alias == "" {
+		t.Skip("this platform offers the directory one spelling only")
+	}
+	writeWorkbench(t, filepath.Join(native, UserBaseName, "d00000000013"), "The real one")
+	relocated := t.TempDir()
+
+	_, err := Discover(deep, "", relocated, alias)
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("the boundary should hold under the aliased spelling, got %v", err)
+	}
+	if refusal.Name != contract.NoBenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	}
+}
+
+// anotherSpelling returns a second path naming the directory at native, or an
+// empty string where the platform offers none. A symlink beside it is the
+// spelling macOS hands out for its own temporary directory, and no folding of
+// case absorbs it. Where the privilege to create one is missing, a spelling
+// differing only in case stands in, which names the same directory on a
+// case-insensitive volume and a different one anywhere else.
+func anotherSpelling(t *testing.T, tree, native string) string {
+	t.Helper()
+	linked := filepath.Join(tree, "linked")
+	if err := os.Symlink(native, linked); err == nil && oneDirectory(t, native, linked) {
+		return linked
+	}
+	cased := filepath.Join(tree, "NATIVE")
+	if oneDirectory(t, native, cased) {
+		return cased
+	}
+	return ""
+}
+
+// oneDirectory reports whether two paths name the same directory, asking the
+// filesystem the way samePath does so that the test skips on a filesystem that
+// has no aliasing rather than asserting something it cannot produce.
+func oneDirectory(t *testing.T, a, b string) bool {
+	t.Helper()
+	mine, err := os.Stat(a)
+	if err != nil {
+		t.Fatalf("stat %s: %v", a, err)
+	}
+	theirs, err := os.Stat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(mine, theirs)
+}
+
+// TestTheUserBaseBeatsABaseAboveTheHome asserts the precedence the user base
+// has always had. A .dinah sitting above the home directory is reached by the
+// climb after the home rung, and the home rung is where the walk consults the
+// user base, so the person's own workbench still answers rather than the one
+// belonging to a directory they share with every other account.
+func TestTheUserBaseBeatsABaseAboveTheHome(t *testing.T) {
+	accounts := t.TempDir()
+	native := filepath.Join(accounts, "native")
+	deep := filepath.Join(native, "src", "project")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeWorkbench(t, filepath.Join(accounts, UserBaseName, "d00000000014"), "The one above home")
+	want := filepath.Join(native, UserBaseName, "d00000000015")
+	writeWorkbench(t, want, "The user base one")
+
+	found, err := Discover(deep, "", native, native)
+	if err != nil {
+		t.Fatalf("the search should resolve to the user base, got %v", err)
+	}
+	if found != want {
+		t.Errorf("the user base should win over a base above the home, wanted %q, got %q", want, found)
 	}
 }
 
