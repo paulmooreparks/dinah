@@ -101,13 +101,18 @@ const (
 	// with nothing closer to choose between them. The tool refuses to
 	// guess, so it names the candidates instead.
 	AmbiguousWorkbench = LayerPrefix + "ambiguous-workbench"
+	// UnreadableBench is a workbench.md the discovery walk found and could
+	// not read. The walk stops there rather than climbing past it or
+	// reporting it as absent, because a file it could not open might be the
+	// real workbench.
+	UnreadableBench = LayerPrefix + "unreadable-workbench"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench,
+	NoWorkbenchFound, AmbiguousWorkbench, UnreadableBench,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

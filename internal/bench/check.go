@@ -38,6 +38,7 @@ const (
 	FindingSlugMissing        = "check.slug-missing"
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
+	FindingIgnoredAnchor      = "check.ignored-anchor"
 	// The last five are raised by a migration rather than by the checker,
 	// because each names something only the run that did the work can know:
 	// which entity it placed by guesswork, which card a lock kept it out of,
@@ -74,6 +75,9 @@ const (
 // forbid and returns every one it finds. A clean bench returns no findings.
 func (b *Bench) Check() ([]Finding, error) {
 	var findings []Finding
+	for _, path := range b.Passed {
+		findings = append(findings, Finding{Path: path, Key: FindingIgnoredAnchor})
+	}
 	for _, id := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), id)
 		// A card a structural act is in the middle of belongs to the
