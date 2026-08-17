@@ -23,6 +23,22 @@ type command struct {
 	group string
 	// run does the work and returns the process exit code.
 	run func(*session, *arguments) int
+	// bounded is how many of the command's own leading positional words are
+	// checked against the vocabulary the command knows (a card reference, a
+	// state name, a guide topic, or a path handed to the operating system).
+	// A word occupying one of these positions that looks like a mistyped
+	// flag is refused before the command's own run function ever sees it.
+	// config is not declared here; it dispatches on its own first word and
+	// runs the same check itself.
+	bounded int
+	// openTail says the words after bounded are free text the caller
+	// composed on purpose (a title, a reason, a comment, a config value),
+	// left untouched however they begin. False means the command declares
+	// no open tail, so every word in rest() is checked, not only the first
+	// bounded of them; a stray word beyond the command's own declared arity
+	// is exactly the shape this card closes for the zero-bounded commands,
+	// and the same walking rule holds it closed for every other one.
+	openTail bool
 }
 
 // The four groups of the surface, in the order the help block prints them.
