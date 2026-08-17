@@ -18,7 +18,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.2": {
-      "text": "the named state is one the bench declares",
+      "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.3": {
@@ -114,7 +114,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.extract.1": {
-      "text": "the target directory holds no bench already",
+      "text": "the target directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.guide.1": {
@@ -122,7 +122,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.1": {
-      "text": "the directory holds no bench already",
+      "text": "the directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.2": {
@@ -138,7 +138,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.ls.1": {
-      "text": "the named state is one the bench declares",
+      "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.move.1": {
@@ -174,7 +174,7 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.next.1": {
-      "text": "the named state is one the bench declares",
+      "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.path.1": {
@@ -254,15 +254,15 @@
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
     },
     "cmd.export.summary": {
-      "text": "write this bench's interchange form to stdout",
+      "text": "write this workbench's interchange form to stdout",
       "context": "The one-line summary of the export command, shown beside its syntax in the help block."
     },
     "cmd.extract.summary": {
-      "text": "copy this bench's definition out as a template",
+      "text": "copy this workbench's definition out as a template",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
     },
     "cmd.fsck.summary": {
-      "text": "check this bench for structural defects",
+      "text": "check this workbench for structural defects",
       "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
     },
     "cmd.guide.summary": {
@@ -274,7 +274,7 @@
       "context": "The one-line summary of the help command, shown beside its syntax in the help block."
     },
     "cmd.init.summary": {
-      "text": "create a bench here, optionally from a template",
+      "text": "create a workbench here, optionally from a template",
       "context": "The one-line summary of the init command, shown beside its syntax in the help block."
     },
     "cmd.instructions.summary": {
@@ -290,7 +290,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "serve this bench over MCP on stdio",
+      "text": "serve this workbench over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -318,7 +318,7 @@
       "context": "The one-line summary of the states command, shown beside its syntax in the help block."
     },
     "cmd.status.summary": {
-      "text": "where this bench stands, and what you hold",
+      "text": "where this workbench stands, and what you hold",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block."
     },
     "cmd.unblock.summary": {
@@ -342,7 +342,7 @@
       "context": "The one-line summary of the global flag --actor."
     },
     "flag.bench.summary": {
-      "text": "use this bench instead of the one discovered from here",
+      "text": "use this workbench instead of the one discovered from here",
       "context": "The one-line summary of the global flag --bench."
     },
     "flag.json.summary": {
@@ -410,7 +410,7 @@
       "context": "An fsck finding: a torn journal tail left by a crash."
     },
     "fsck.unknown-state": {
-      "text": "a card names state {detail}, which this bench does not declare",
+      "text": "a card names state {detail}, which this workbench does not declare",
       "context": "An fsck finding: every card's state identifier resolves."
     },
     "fsck.unknown-substate": {
@@ -434,7 +434,7 @@
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.bench": {
-      "text": "BENCH",
+      "text": "WORKBENCH",
       "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.group.read": {
@@ -462,7 +462,7 @@
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.done": {
-      "text": "Bench created at {root}.",
+      "text": "Workbench created at {root}.",
       "context": "Printed after init succeeds."
     },
     "instructions.global": {
@@ -474,7 +474,7 @@
       "context": "The label above the legal moves served with the instructions."
     },
     "instructions.standing": {
-      "text": "Instructions, this bench:",
+      "text": "Instructions, this workbench:",
       "context": "The label above the workbench's standing instructions."
     },
     "instructions.state": {
@@ -514,7 +514,7 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.exists": {
-      "text": "{detail} already holds a bench",
+      "text": "{detail} already holds a workbench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
@@ -526,7 +526,7 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "no bench was found from {detail} upward, and none in the user base",
+      "text": "no workbench was found from {detail} upward, and none in the user base",
       "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-editor": {
@@ -554,7 +554,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-path": {
-      "text": "nothing in this bench answers to {detail}",
+      "text": "nothing in this workbench answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.usage": {
@@ -574,7 +574,7 @@
       "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-operator": {
-      "text": "this bench designates no operator, so its reserved acts are dead",
+      "text": "this workbench designates no operator, so its reserved acts are dead",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner": {
@@ -610,11 +610,11 @@
       "context": "The fallback sentence for a refusal name no catalog entry covers."
     },
     "refusal.unknown-card": {
-      "text": "this bench carries no card {detail}",
+      "text": "this workbench carries no card {detail}",
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unknown-state": {
-      "text": "this bench declares no state {detail}",
+      "text": "this workbench declares no state {detail}",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unsupported-version": {
@@ -639,7 +639,7 @@
     },
     "status.bench": {
       "text": "{title}  ({root})",
-      "context": "The first line of status: the bench and where it was discovered."
+      "context": "The first line of status: the workbench and where it was discovered."
     },
     "status.blocked": {
       "text": "Blocked, waiting on the operator:",

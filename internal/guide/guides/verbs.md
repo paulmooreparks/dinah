@@ -1,8 +1,8 @@
 # The five verbs
 
 Five verbs change where a card stands, and the coordination contract fixes
-what each one does. A second tool reading the same bench answers the same way,
-which is what makes a bench something you can hand to somebody else.
+what each one does. A second tool reading the same workbench answers the same
+way, which is what makes a workbench something you can hand to somebody else.
 
 `claim` takes up a card that is waiting. Work here is taken rather than handed
 out, so you claim your own card and nobody assigns you one. A claim may carry
@@ -24,7 +24,7 @@ what makes the obstacle visible as an obstacle rather than as somebody being
 slow.
 
 `unblock` lifts a block, and only the operator may do it. An obstacle raised
-is an obstacle handed to whoever answers for the bench.
+is an obstacle handed to whoever answers for the workbench.
 
 Every verb reports one of four outcomes, and the tool keeps them apart because
 each calls for a different next move. `ok` means it happened. `refused` means

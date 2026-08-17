@@ -127,11 +127,15 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		argv  []string
 		code  int
 		token string
+		// sentence is a fragment the refusal a person reads must carry, set
+		// on the refusals whose wording names the workbench so that the
+		// product's word is pinned where the binary prints it.
+		sentence string
 	}{
 		{name: "an act that succeeded", argv: []string{"claim", "fx-1"}, code: 0, token: ""},
-		{name: "a card the bench does not carry", argv: []string{"claim", "fx-99"}, code: 2, token: contract.UnknownCard},
+		{name: "a card the bench does not carry", argv: []string{"claim", "fx-99"}, code: 2, token: contract.UnknownCard, sentence: "this workbench carries no card fx-99"},
 		{name: "a card another owner holds", argv: []string{"claim", "fx-1", "--actor", "bob"}, code: 2, token: contract.Held},
-		{name: "a state the bench does not declare", argv: []string{"move", "fx-1", "nowhere"}, code: 2, token: contract.UnknownState},
+		{name: "a state the bench does not declare", argv: []string{"move", "fx-1", "nowhere"}, code: 2, token: contract.UnknownState, sentence: "this workbench declares no state nowhere"},
 		{name: "a block carrying no reason", argv: []string{"block", "fx-1"}, code: 2, token: contract.NoReason},
 		{name: "an unblock by another owner", argv: []string{"unblock", "fx-1", "--actor", "bob"}, code: 2, token: contract.NotOperator},
 		{name: "a release by another owner", argv: []string{"release", "fx-1", "--actor", "bob"}, code: 2, token: contract.NotHolder},
@@ -140,9 +144,9 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a delete carrying no confirmation", argv: []string{"delete", "fx-1"}, code: 2, token: contract.Unconfirmed},
 		{name: "a guide topic nothing answers to", argv: []string{"guide", "nothing"}, code: 2, token: contract.UnknownGuide},
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
-		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath},
+		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
 		{name: "an archive of a state cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
-		{name: "an init into a directory that already holds a bench", argv: []string{"init"}, code: 2, token: contract.Exists},
+		{name: "an init into a directory that already holds a bench", argv: []string{"init"}, code: 2, token: contract.Exists, sentence: "already holds a workbench"},
 		{name: "an extract into a directory that already holds one", argv: []string{"extract", "."}, code: 2, token: contract.Exists},
 		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
 		// The explicit basis arrives with the remote arbiter, so this head
@@ -167,6 +171,9 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 			}
 			if len(strings.TrimSpace(got.errw)) <= len(c.token) {
 				t.Error("the refusal name should be followed by a sentence a person reads")
+			}
+			if c.sentence != "" && !strings.Contains(got.errw, c.sentence) {
+				t.Errorf("the refusal sentence: wanted %q in %q", c.sentence, got.errw)
 			}
 		})
 	}
@@ -483,6 +490,9 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 		name  string
 		build func(*testing.T) (string, []string)
 		token string
+		// sentence is a fragment the refusal a person reads must carry, set
+		// on the refusals whose wording names the workbench.
+		sentence string
 	}{
 		{
 			name: "a destination that has reached its limit",
@@ -523,7 +533,8 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				editAnchor(t, root, "operator: alka\n", "")
 				return root, []string{"claim", "lim-1"}
 			},
-			token: contract.NoOperator,
+			token:    contract.NoOperator,
+			sentence: "this workbench designates no operator, so its reserved acts are dead",
 		},
 		{
 			name: "a bench declaring a profile major this binary does not implement",
@@ -542,7 +553,8 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				t.Setenv("DINAH_BENCH", "")
 				return empty, []string{"status"}
 			},
-			token: contract.NoBench,
+			token:    contract.NoBench,
+			sentence: "no workbench was found from",
 		},
 	}
 	for _, c := range cases {
@@ -555,6 +567,9 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
 			if leading != c.token {
 				t.Errorf("leading token: wanted %s, got %q", c.token, got.errw)
+			}
+			if c.sentence != "" && !strings.Contains(got.errw, c.sentence) {
+				t.Errorf("the refusal sentence: wanted %q in %q", c.sentence, got.errw)
 			}
 		})
 	}
