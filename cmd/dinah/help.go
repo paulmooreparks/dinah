@@ -143,8 +143,9 @@ func (s *session) verbHelp(name string) string {
 	}
 	b.WriteString("\n" + s.r.T("help.refusals") + "\n")
 	for i, check := range checks {
-		order := pad(strconv.Itoa(i+1), 3)
-		b.WriteString("  " + order + pad(s.r.T(check.Key), 52) + check.Refusal + "\n")
+		lead := "  " + pad(strconv.Itoa(i+1), 3)
+		cells := []paddedCell{{s.r.T(check.Key), 52}}
+		b.WriteString(alignedRow(lead, cells, check.Refusal) + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	return b.String()
