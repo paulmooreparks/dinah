@@ -314,6 +314,11 @@ func writeStateFromMember(root, id, slug string, element map[string]json.RawMess
 // work behind, which is the cards, the workstreams, the journals and the
 // archive. Identifiers are kept, so a bench instantiated from the result is
 // structurally the bench it came from.
+//
+// The existence check ahead of the write tests Exists rather than
+// AnchorRecognized on purpose: this call overwrites whatever file sits at
+// the target path, so the question is whether a write here would destroy
+// somebody's file, not whether that file happens to be a Dinah workbench.
 func (b *Bench) Extract(target string) error {
 	if Exists(filepath.Join(target, WorkbenchAnchor)) {
 		return contract.Refuse(contract.Exists, target)
