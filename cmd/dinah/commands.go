@@ -374,7 +374,7 @@ func runInit(s *session, parsed *arguments) int {
 	if !bench.ValidSlug(slug) {
 		return s.fail(contract.Malformed, "slug")
 	}
-	written, err := verb.Init(root, slug, operator, parsed.value("from"))
+	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource)
 	if err != nil {
 		return s.reportError(err)
 	}

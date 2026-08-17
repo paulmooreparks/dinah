@@ -665,6 +665,10 @@
       "text": "{detail} समझ नहीं आया; कमांड की सूची के लिए dinah help चलाएँ",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.workbench-not-applicable": {
+      "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है। इसके बजाय init को लक्ष्य डायरेक्टरी सामान्य तर्क के रूप में दें।",
+      "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one."
+    },
     "refusal.held": {
       "text": "यह कार्ड {detail} ने लिया हुआ है",
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about."
