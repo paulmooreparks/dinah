@@ -319,3 +319,57 @@ func Slugify(name string) string {
 func ValidSlug(slug string) bool {
 	return slug != "" && Slugify(slug) == slug
 }
+
+// StateSlugPattern is the shape a state slug has to take. It is the workbench
+// slug's grammar with interior dashes admitted: an ASCII letter opens it, each
+// dash separates two runs of ASCII letters and digits, and no dash leads,
+// trails or doubles.
+//
+// A workbench slug carries no dash because a card reference glues it directly
+// to a number, where a dash would blur the boundary between the two. A state
+// slug carries no number after it, so that boundary does not exist, and the
+// reference grammar spells a state's path form with dashes.
+const StateSlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+
+// SlugifyDashed derives a conforming state slug from a name that need not
+// conform. The name lowercases by ASCII rules, digits survive, each run of
+// characters outside [a-z0-9] becomes one dash, and no dash is left leading or
+// trailing. A leading run of digits goes with any dash behind it, since the
+// grammar wants a letter first.
+//
+// This is not Slugify with dashes added. Slugify drops everything outside
+// [a-z0-9] rather than collapsing it, which is right for the dash-free
+// workbench grammar and wrong here, so the two share the ASCII lowering and
+// the leading-digit rule and nothing else.
+//
+// A name yielding nothing usable returns the empty string, and the caller
+// refuses rather than inventing a name of its own, exactly as Slugify's own
+// callers do.
+func SlugifyDashed(name string) string {
+	lowered := asciiLower(name)
+	var kept []byte
+	for i := 0; i < len(lowered); i++ {
+		c := lowered[i]
+		letter := c >= 'a' && c <= 'z'
+		digit := c >= '0' && c <= '9'
+		if letter || digit {
+			kept = append(kept, c)
+			continue
+		}
+		if len(kept) > 0 && kept[len(kept)-1] != '-' {
+			kept = append(kept, '-')
+		}
+	}
+	for len(kept) > 0 && (kept[0] < 'a' || kept[0] > 'z') {
+		kept = kept[1:]
+	}
+	for len(kept) > 0 && kept[len(kept)-1] == '-' {
+		kept = kept[:len(kept)-1]
+	}
+	return string(kept)
+}
+
+// ValidStateSlug reports whether a slug already conforms to StateSlugPattern.
+func ValidStateSlug(slug string) bool {
+	return slug != "" && SlugifyDashed(slug) == slug
+}

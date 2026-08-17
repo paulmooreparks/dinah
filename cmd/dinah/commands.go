@@ -77,6 +77,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		ReadyOnly:       parsed.has("ready"),
 		Finish:          parsed.has("finish"),
 		MigrateOrdinals: parsed.has("migrate-ordinals"),
+		MigrateSlugs:    parsed.has("migrate-slugs"),
 	}
 	return req
 }

@@ -269,6 +269,34 @@
       "text": "the reference resolves to a card or a path below one",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.slug-assigned.one": {
+      "text": "Assigned {count} state slug.",
+      "context": "The line the slug migration prints for what it assigned, for exactly one state."
+    },
+    "check.slug-assigned.other": {
+      "text": "Assigned {count} state slugs.",
+      "context": "The line the slug migration prints for what it assigned, for any other number."
+    },
+    "check.slug-duplicate": {
+      "text": "state {detail} carries a slug another state of this workbench also carries, so a reference to it names both",
+      "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes."
+    },
+    "check.slug-malformed": {
+      "text": "state {detail} carries a slug that is not a letter followed by letters, digits, and single interior dashes",
+      "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it."
+    },
+    "check.slug-missing": {
+      "text": "state {detail} carries no slug, so it is reachable only by its identifier or its quoted title",
+      "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.slug-underivable": {
+      "text": "state {detail} carries a title no slug can be derived from, so the migration gave it none",
+      "context": "A check finding the slug migration raises: no letter of the state's title survives the derivation, so a person retitles the state or writes a slug onto its anchor by hand."
+    },
+    "check.slug-unwritable": {
+      "text": "state {detail} could not be written to, so the migration gave it no slug and carried on",
+      "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
+    },
     "check.torn-journal": {
       "text": "the journal of card {detail} ends in a partial line",
       "context": "A check finding: a torn journal tail left by a crash."
