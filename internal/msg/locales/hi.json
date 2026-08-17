@@ -305,6 +305,14 @@
       "text": "स्थिति {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
       "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
     },
+    "check.states-removed.one": {
+      "text": "सूची से {count} स्थिति हटाई।",
+      "context": "The line the stranded-state migration prints for what it removed, for exactly one state. Followed by one line per removed identifier."
+    },
+    "check.states-removed.other": {
+      "text": "सूची से {count} स्थितियाँ हटाईं।",
+      "context": "The line the stranded-state migration prints for what it removed, for any other number. Followed by one line per removed identifier."
+    },
     "check.stranded-state": {
       "text": "कार्यक्षेत्र एक ऐसी स्थिति ({detail}) का नाम लेता है जिसकी निर्देशिका मौजूद नहीं है; `dinah check --migrate-states` उसे सूची से हटा देता है",
       "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at."

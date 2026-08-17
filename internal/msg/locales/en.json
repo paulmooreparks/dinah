@@ -305,6 +305,14 @@
       "text": "state {detail} could not be written to, so the migration gave it no slug and carried on",
       "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on."
     },
+    "check.states-removed.one": {
+      "text": "Removed {count} stranded state from the list.",
+      "context": "The line the stranded-state migration prints for what it removed, for exactly one state. Followed by one line per removed identifier."
+    },
+    "check.states-removed.other": {
+      "text": "Removed {count} stranded states from the list.",
+      "context": "The line the stranded-state migration prints for what it removed, for any other number. Followed by one line per removed identifier."
+    },
     "check.stranded-state": {
       "text": "the workbench names a state whose directory is not there ({detail}); dinah check --migrate-states removes it from the list",
       "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at."
