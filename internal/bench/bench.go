@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,7 +23,16 @@ const (
 	UserBaseName     = ".dinah"
 	ConfigName       = "config.md"
 	InstructionsName = "instructions.md"
+	IgnoreName       = ".gitignore"
 )
+
+// ignoreLocks is what a new bench's .gitignore carries. A bench inside a
+// repository is versioned by that repository, and a lock is coordination-plane
+// state on one machine, so committing one would ship a stale holder to
+// everybody who clones. Nothing the tool reads is affected either way, since
+// every listing walks the identifiers of a collection and no lock is ever a
+// member of one; this is about what git picks up.
+const ignoreLocks = "lock\n*.lock\n"
 
 // The collection directory names.
 const (
@@ -72,6 +82,26 @@ type State struct {
 	FM *Frontmatter
 }
 
+// ErrAborted is what a test's step hook returns to stand for a process that
+// died at that step. The act stops where it is, releasing nothing and
+// unwinding nothing, so the tree is left in the state a crash leaves and the
+// recovery path can be driven over it.
+var ErrAborted = errors.New("the structural act was aborted")
+
+// Hooks are the levers a test drives the protocol's own timing with. They are
+// nil on every bench outside a test, exactly as the verb layer's interleaving
+// hook is.
+type Hooks struct {
+	// AfterStep runs after each numbered step of the structural protocol
+	// completes. Returning ErrAborted stands for a crash at that step, and
+	// returning any other error stands for a live failure there.
+	AfterStep func(step int) error
+	// BeforeAnchorRead runs inside the state scan between the stat of one
+	// card's lock and the read of that card's anchor, which is the gap a
+	// wrongly ordered scan would let a whole critical section through.
+	BeforeAnchorRead func(id string)
+}
+
 // Bench is an opened workbench: its definition, its states in flow order and
 // the root directory everything below it hangs from.
 type Bench struct {
@@ -94,6 +124,8 @@ type Bench struct {
 	Profile string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+	// Hooks are the test-only levers on the structural protocol's timing.
+	Hooks *Hooks
 }
 
 // Discover finds the bench to serve. An override, from the --bench flag or

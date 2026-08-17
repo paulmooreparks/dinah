@@ -208,7 +208,7 @@ func TestArchiveAndDelete(t *testing.T) {
 		t.Fatalf("delete: %s %s", deleted.Outcome, deleted.Refusal)
 	}
 	h.reopen()
-	findings, err := h.library.Fsck()
+	findings, err := h.library.Fsck(&Request{Verb: "fsck", Actor: "alka"})
 	if err != nil {
 		t.Fatalf("fsck: %v", err)
 	}

@@ -351,8 +351,17 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 	return identity, nil
 }
 
-// Fsck checks the bench for structural defects.
-func (l *Library) Fsck() ([]bench.Finding, error) {
+// Fsck checks the bench for structural defects, and repairs nothing.
+//
+// A request carrying the finish marker completes or rolls back the
+// interrupted structural acts first, so nobody finishes an act without the
+// report that named it, and then reports what the bench still carries.
+func (l *Library) Fsck(req *Request) ([]bench.Finding, error) {
+	if req != nil && req.Finish {
+		if _, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now())); err != nil {
+			return nil, err
+		}
+	}
 	return l.Bench.Fsck()
 }
 

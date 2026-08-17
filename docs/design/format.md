@@ -783,6 +783,132 @@ Nothing auto-breaks a lock silently. A stale claim after a crash is a
 visible line in a text file that a human can fix with an editor, then run
 fsck.
 
+Lock scope is the nearest enclosing journal-bearing entity, a card for
+anything inside a card and the bench for everything else. Commenting on a
+card, attaching a file to it and moving it all take that card's lock, so the
+write inside the card's subtree and the event appended to its journal land on
+the same side of one acquisition. A write inside a state's directory or at
+bench level takes the bench's own `lock`, which sits beside `workbench.md` the
+way a card's sits beside `card.md`; the bench is an entity like every other
+and the no-exceptions rule reaches it too. Every acquisition anywhere in this
+format is a try that refuses rather than a wait that blocks, so no process
+ever holds one lock while waiting for another.
+
+Archiving, restoring and deleting need more than that scoping gives, since
+they move or remove the very directory an entity's lock lives in. An entity
+below a card is already safe, because the card's lock sits above the directory
+that moves and outlives it. A card is not safe, and neither is a state, and
+the two are exposed differently enough to need different answers.
+
+Those acts follow a protocol of three acquisitions in a fixed order. The
+bench's lock comes first and serializes the act against every other structural
+act and against anything appending to the bench journal. A sibling lock comes
+second, created beside the directory that is about to move and named for the
+entity within the entity's own collection: `cards/<id>.lock` beside
+`cards/<id>/`, `states/<id>.lock` beside `states/<id>/`. The sibling carries
+the same single JSON line every lock carries, extended with the operation
+(`archive`, `restore` or `delete`) and, where the act has a destination, the
+path the directory is going to. The entity's own `lock` comes last, and a lock
+another process holds refuses the act loudly, so a mutation already in flight
+stops an archive rather than being overwritten by one. Release runs in the
+reverse order, and no process takes an outer lock while holding an inner one,
+so the acquisition order is the deadlock rule as well, and try-locks make it
+one that timing cannot defeat.
+
+A sibling always lives in the live half of its collection, `cards/<id>.lock`
+whether the directory is on its way into the archive or on its way back out,
+so every writer reads one path and one identifier carries at most one act at a
+time across both halves. Which half the directory currently sits in is what
+the record's own fields say.
+
+The sibling earns its place at the moment the entity's own lock has to be
+given up. A lock must never travel into an archive, where nothing would ever
+release it, and it must never be held open across a removal, where a
+platform's own rules about open files would become load-bearing. The act
+therefore appends its event, deletes the entity's lock, and only then moves or
+removes the directory, and the sibling covers the window that opens the moment
+the lock is gone. Every writer that takes an entity's lock reads for a sibling
+immediately afterwards and gives the lock back when it finds one, the read
+paths that write included. A writer that got there first holds the lock and
+stops the structural act outright; a writer arriving later finds the sibling
+and stops itself.
+
+A state carries a second exposure those three acquisitions do not reach. A
+card enters a state through a move, which takes that card's own lock and none
+of the three, and through creation, which takes no lock at all, while the
+refusal to archive or delete an occupied state is a read. A card entering
+between that read and the move of the directory would be left pointing at a
+station resolvable only in the archive, and that is the pointer this format
+requires to resolve. Closing it needs no new machinery, only the same
+acquire-then-verify shape read from both sides. A write that stores a card's
+state reads the destination's sibling first, under the card lock it already
+holds; a creation reads it once `mkdir` has claimed the identifier and before
+the anchor is written. The structural act scans the live cards only after its
+own sibling exists, and refuses when it finds a card in the state, a card
+whose own lock is held, or a card directory that will not load. The last two
+refuse conservatively, since a held lock and a half-written directory are both
+writes whose destination cannot be read yet, and a refusal costs a retry while
+a guess costs a card pointing into the archive. Order is what makes the pair
+complete: a writer that reached the sibling first is one the scan cannot miss,
+and a writer arriving later reads the sibling and stops.
+
+A failure the tool sees for itself unwinds only while nothing has been
+recorded. Up to and including the journal append, a failure releases what was
+acquired in reverse order and leaves nothing behind. Once that append has
+landed the sibling stays where it is, the bench lock is released so no repair
+is deadlocked against it, and the failure is reported as an interruption, so a
+retry follows the path a crash leaves. Nothing about that is exotic. A reader
+holding an open handle inside a directory is enough to fail a rename on some
+platforms, and a tool that tidied its sibling away at that point would leave
+an `archived` event beside a live card with nothing on disk saying so.
+
+An interrupted structural act leaves its sibling behind, and that record is
+what turns a crash into a finishable operation. The journal decides the
+direction, the same way history determines the present everywhere else in this
+format. An event already on the record, `archived` or `restored` on the
+entity's own journal or `deleted` on the bench's, means the act was past its
+point of record and the finish completes it. No such event means nothing
+observable happened and the finish rolls the sibling away. A directory found
+at neither path or at both is reported and not resolved, because a directory
+rename is not atomic on every filesystem and choosing which half is complete
+would rest on the property this design refuses to assume.
+
+Finishing is `dinah fsck --finish` rather than anything a bare `fsck` does on
+sight, and the repair is journaled like every other. The bench lock is what
+tells a standing sibling from a running act, since an act holds that lock from
+its first acquisition to its last: a sibling found while the lock is free is
+one nobody is working on, and a sibling found while it is held refuses the
+finish and names the holder. Finishing takes the same locks in the same order
+as the act it completes, so a bench lock an interrupted process left behind
+refuses the finish until a human clears it, which is the stale-lock rule
+rather than an exception to it. A lock left inside the entity's own directory
+is deleted by the finish before the directory moves, since a lock may no more
+travel into an archive from a repair than from a live act, and only when the
+actor and pid it records are the ones the sibling records. A lock naming
+anyone else is a live process's, so the finish reports it and stops.
+
+Deleting a card destroys the journal inside it, so the record of the deletion
+goes to the bench's journal, which survives. `deleted` joins the closed event
+set beside `archived` and `restored`, carrying the identifier and the title as
+of the event. Without it the bench's history would carry a hole where a card
+used to be, and an interrupted deletion would have nothing to finish from.
+
+Restoring is the archive's mirror and runs the same steps in the same order,
+moving the directory out of the archive mirror and back into the live
+collection. Its event is `restored`, appended before the move because the
+entity's own journal travels with the directory, and an interruption finishes
+on the presence of that event exactly as an archive's does.
+
+An entity that vanished between the moment a caller resolved it and the moment
+the act reached its lock is reported as the unknown entity it has become, and
+whatever the act had already taken comes off on the way out.
+
+A rename the filesystem refuses is reported as a refusal and never retried as
+a copy followed by a delete. The fallback would trade one short non-atomic
+operation for a long one and multiply the states a crash can leave behind, and
+an archive mirror on a different volume from the bench it belongs to is a
+layout this format does not support.
+
 Remotely, the honest half: git does not support two machines sharing one
 working tree, and neither does Dinah. A bench on a sync service or a
 network share with concurrent writers is explicitly unsupported, because
@@ -873,7 +999,11 @@ quarantine case below, not a replay case, and the two inputs get different
 answers. Journal lost: the frontmatter still carries present truth, the
 history is gone, and fsck records a witnessed history-lost event rather
 than pretending otherwise. Torn journal tail after a crash: readers
-tolerate a trailing partial line, and fsck trims it with a witness. Anchor
+tolerate a trailing partial line, and fsck trims it with a witness.
+Sibling lock left behind: a structural act was interrupted, and the protocol
+in the Concurrency and atomicity section says which way it finishes and what
+fsck refuses to decide.
+Anchor
 file missing: the directory is quarantined to `lost+found/`, never silently
 deleted. Every repair is journaled as itself an event, so recovery leaves a
 trail instead of a mystery.
@@ -913,6 +1043,9 @@ archived halves: a card id may not repeat between cards/ and
 archive/cards/, while the same id under two different cards' comments/
 collections remains legal. Uniqueness is checked at creation against both
 halves; restoring an entity is moving its directory back.
+Both moves run the structural protocol of the Concurrency and atomicity
+section, so an archive or a restore interrupted halfway through is a
+finishable operation rather than an ambiguous one.
 
 ## The worked example
 

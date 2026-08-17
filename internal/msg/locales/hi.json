@@ -385,9 +385,17 @@
       "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
       "context": "An fsck finding: a links entry whose to resolves to no card."
     },
+    "fsck.entity-at-both-paths": {
+      "text": "इकाई {detail} सजीव संग्रह में और पुरालेख में, दोनों जगह मौजूद है, और fsck इनमें से किसी एक को नहीं चुनेगा",
+      "context": "An fsck finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
+    },
     "fsck.holder-on-unheld": {
       "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
       "context": "An fsck finding: a ready or blocked card carries no holder."
+    },
+    "fsck.interrupted-act": {
+      "text": "यहाँ एक संरचनात्मक क्रिया बाधित हुई: {detail}",
+      "context": "An fsck finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
     },
     "fsck.missing-anchor": {
       "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
@@ -508,6 +516,10 @@
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक बेंच है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.interrupted": {
+      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई, और `dinah fsck --finish` उसे पूरा करता है",
+      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.locked": {
       "text": "इस इकाई का ताला दूसरी प्रक्रिया के पास है; {detail} ने लिया",

@@ -73,6 +73,9 @@ type Request struct {
 	Confirm bool
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
+	// Finish asks fsck to complete or roll back the interrupted structural
+	// acts it reports, rather than only reporting them.
+	Finish bool
 }
 
 // CardView is the card as a response carries it.

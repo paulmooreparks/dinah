@@ -217,6 +217,9 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			fm.Delete("instructions")
 		}
 	}
+	if err := WriteText(filepath.Join(root, IgnoreName), ignoreLocks); err != nil {
+		return err
+	}
 	return WriteText(filepath.Join(root, WorkbenchAnchor), fm.Render(standing))
 }
 
