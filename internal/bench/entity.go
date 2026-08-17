@@ -283,7 +283,11 @@ func DeleteEntity(dir string) error {
 // a single pass, so this is written as its own walk rather than as a call to
 // it. What carries over from Cards is the treatment of a card that will not
 // load, and not the loop.
-func (b *Bench) StateOccupied(id string) error {
+//
+// id is what the occupancy comparison runs against; ref is what the
+// occupancy refusal names the state by, so a caller who typed a slug reads
+// that same slug back rather than the raw identifier behind it.
+func (b *Bench) StateOccupied(id, ref string) error {
 	for _, cardID := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), cardID)
 		locked := Exists(filepath.Join(dir, LockName))
@@ -295,7 +299,7 @@ func (b *Bench) StateOccupied(id string) error {
 			return contract.Refuse(contract.Locked, cardID)
 		}
 		if card.State == id {
-			return contract.Refuse(contract.Occupied, id)
+			return contract.Refuse(contract.Occupied, ref)
 		}
 		if locked {
 			return contract.Refuse(contract.Locked, cardID)
@@ -326,6 +330,12 @@ type StructuralAct struct {
 	// StateID is the identifier of the state being retired, empty for an
 	// act on any other kind. A non-empty one arms the occupancy scan.
 	StateID string
+	// StateRef is what a person typed, or could type, to reach that same
+	// state (its slug, falling back to its identifier). A refusal raised
+	// over the state names it by StateRef, never by the bare StateID, so
+	// a person who typed a slug is never told about an identifier they
+	// never saw. Empty exactly when StateID is.
+	StateRef string
 	// Record appends the act's event, and is called at the fourth step. It
 	// is the point of record: a failure before it unwinds everything, and a
 	// failure after it leaves the sibling standing.
@@ -394,11 +404,11 @@ func (b *Bench) Run(act *StructuralAct) error {
 		return unwind(contract.Refuse(contract.Exists, target), sibling, benchLock)
 	}
 	if act.StateID != "" {
-		if err := b.StateOccupied(act.StateID); err != nil {
+		if err := b.StateOccupied(act.StateID, act.StateRef); err != nil {
 			return unwind(err, sibling, benchLock)
 		}
 		if act.Op != OpRestore && len(b.States) <= 1 {
-			return unwind(contract.Refuse(contract.LastState, act.StateID), sibling, benchLock)
+			return unwind(contract.Refuse(contract.LastState, act.StateRef), sibling, benchLock)
 		}
 	}
 
@@ -506,6 +516,12 @@ type EntityRef struct {
 	Dir string
 	// ID is the entity's identifier, empty for the bench itself.
 	ID string
+	// Ref is what a person typed, or could type, to reach this entity: a
+	// state's slug (falling back to its identifier), empty for a kind that
+	// carries no human-readable form of its own. A refusal raised over this
+	// entity names it by Ref rather than by the bare ID, so a person who
+	// typed a slug is never told about a raw identifier they never saw.
+	Ref string
 	// Card is the card the entity belongs to, when one does.
 	Card *Card
 }
@@ -518,7 +534,7 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 		return &EntityRef{Kind: "workbench", Dir: b.Root}, nil
 	}
 	if state := b.StateByRef(ref); state != nil {
-		return &EntityRef{Kind: "state", Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID}, nil
+		return &EntityRef{Kind: "state", Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	found, err := b.ResolveCard(head)

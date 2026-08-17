@@ -349,6 +349,18 @@
       "text": "कोई स्वामी मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.workbench-slug-assigned": {
+      "text": "वर्कबेंच-उपनाम {slug} निर्धारित किया।",
+      "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench."
+    },
+    "check.workbench-slug-missing": {
+      "text": "वर्कबेंच पर कोई उपनाम नहीं, इसलिए उसके कार्ड केवल अपने पहचानकों से पहुँच में हैं",
+      "context": "A check finding: a workbench written before the workbench-level slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.workbench-slug-underivable": {
+      "text": "वर्कबेंच का शीर्षक ऐसा है जिससे कोई उपनाम नहीं निकाला जा सकता, इसलिए प्रवासन ने उसे कोई नहीं दिया",
+      "context": "A check finding the workbench-slug migration raises: no letter of the workbench's title survives the derivation, so a person retitles the workbench or writes a slug onto its anchor by hand."
+    },
     "check.workbench.1": {
       "text": "the workbench declares a major number the tool implements",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
@@ -514,7 +526,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
+      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help <command>' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.read": {
@@ -542,7 +554,7 @@
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
-      "text": "प्रयोग: dinah \u003ccommand\u003e [arguments]",
+      "text": "प्रयोग: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.done": {
@@ -744,6 +756,10 @@
     "show.links": {
       "text": "कड़ियाँ:",
       "context": "The label above a card's links."
+    },
+    "slug.missing": {
+      "text": "कोई उपनाम नहीं (check --migrate-slugs चलाएँ)",
+      "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string."
     },
     "states.operator-owned": {
       "text": "संचालक-स्वामित्व",

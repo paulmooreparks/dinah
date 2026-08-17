@@ -186,6 +186,20 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			},
 			key: "",
 		},
+		{
+			name: "a card carrying no creation ordinal",
+			breakIt: func(t *testing.T, root string) {
+				edit(t, root, "number: 1", "number: 0")
+			},
+			key: FindingOrdinalMissing,
+		},
+		{
+			name: "a workbench carrying no slug",
+			breakIt: func(t *testing.T, root string) {
+				editWorkbench(t, root, "slug: fx\n", "")
+			},
+			key: FindingWorkbenchSlugMissing,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -229,6 +243,21 @@ func edit(t *testing.T, root, from, to string) {
 	}
 	if !strings.Contains(text, from) {
 		t.Fatalf("the fixture card carries no %q", from)
+	}
+	write(t, path, strings.Replace(text, from, to, 1))
+}
+
+// editWorkbench rewrites the fixture's own workbench anchor, replacing one
+// line with another, the way edit does for the fixture card.
+func editWorkbench(t *testing.T, root, from, to string) {
+	t.Helper()
+	path := filepath.Join(root, WorkbenchAnchor)
+	text, err := ReadText(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.Contains(text, from) {
+		t.Fatalf("the fixture workbench carries no %q", from)
 	}
 	write(t, path, strings.Replace(text, from, to, 1))
 }

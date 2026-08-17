@@ -1776,6 +1776,72 @@ func TestStatesCarryTheirSlugOnBothSurfaces(t *testing.T) {
 	}
 }
 
+// TestStatesRenderNamesTheRepairInsteadOfPaddingBlank asserts AC-3: a state
+// with no slug prints a catalog-served placeholder naming the repair, not an
+// equal-width run of spaces indistinguishable from a rendering glitch.
+func TestStatesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
+	root := newBench(t)
+	stripSlugs(t, root)
+	got := runCLI(t, root, "states")
+	if got.code != 0 {
+		t.Fatalf("states: %d %s", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, "no slug") || !strings.Contains(got.out, "migrate-slugs") {
+		t.Errorf("the listing should name the repair for a state with no slug:\n%s", got.out)
+	}
+	for _, title := range []string{"Intake", "Doing", "Done"} {
+		if !strings.Contains(got.out, title) {
+			t.Errorf("the listing should still carry state %s:\n%s", title, got.out)
+		}
+	}
+}
+
+// TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank asserts AC-4: a
+// workbench with no slug prints the same placeholder convention in the human
+// listing, once the workbench-slug migration exists to point at, and the
+// machine form omits the key entirely rather than serving an empty string.
+func TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
+	root := newBench(t)
+	editAnchor(t, root, "slug: fx\n", "")
+
+	human := runCLI(t, root, "workbenches")
+	if human.code != 0 {
+		t.Fatalf("workbenches: %d %s", human.code, human.errw)
+	}
+	if !strings.Contains(human.out, "no slug") || !strings.Contains(human.out, "migrate-slugs") {
+		t.Errorf("the listing should name the repair for a workbench with no slug:\n%s", human.out)
+	}
+
+	machine := runCLI(t, root, "--json", "workbenches")
+	if machine.code != 0 {
+		t.Fatalf("workbenches --json: %d %s", machine.code, machine.errw)
+	}
+	if strings.Contains(machine.out, `"slug"`) {
+		t.Errorf("the machine form should omit the key for a workbench with none:\n%s", machine.out)
+	}
+
+	repaired := runCLI(t, root, "check", "--migrate-slugs")
+	if repaired.code != 0 {
+		t.Fatalf("check --migrate-slugs: %d %s", repaired.code, repaired.errw)
+	}
+	// The workbench's title is "workbench", the base name of the directory
+	// newBench built it in, since the migration derives from the title
+	// rather than remembering the --slug value the anchor lost.
+	if !strings.Contains(repaired.out, "Assigned the workbench slug workbench.") {
+		t.Errorf("the migration did not say what it derived for the workbench:\n%s", repaired.out)
+	}
+	again := runCLI(t, root, "workbenches")
+	if again.code != 0 {
+		t.Fatalf("workbenches after repair: %d %s", again.code, again.errw)
+	}
+	if strings.Contains(again.out, "no slug") {
+		t.Errorf("the repaired workbench should print its own slug, not the placeholder:\n%s", again.out)
+	}
+	if !strings.Contains(again.out, "workbench") {
+		t.Errorf("the repaired workbench should carry its derived slug:\n%s", again.out)
+	}
+}
+
 // TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField asserts the
 // one-time repair end to end: the checker names each state carrying no slug,
 // the repair derives one from the title and says which state got which slug on
@@ -2613,6 +2679,281 @@ func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
 	}
 }
 
+// TestCardAliasResolvesAcrossTheDeclaredCommandSurface is the fixture-level
+// regression AC-6 asks for: it pins every row of the spec's section 2 audit
+// table already marked done, driving the human-readable {slug}-{number}
+// alias through claim, move, release, block, unblock, comment, attach,
+// archive, delete, status, ls, next, show, log, instructions and path, so a
+// later change cannot silently reopen a card-alias gap this card's spec
+// found already closed.
+//
+// add, init, export and extract are not reference-accepting commands and
+// carry no row of their own to pin here; edit shares ResolvePath with path
+// and is not driven directly, since it launches a real editor process. guide,
+// config and whoami name no entity and mcp serves the same verbs this test
+// already exercises through the CLI.
+func TestCardAliasResolvesAcrossTheDeclaredCommandSurface(t *testing.T) {
+	root := newBench(t)
+
+	first := addCard(t, root, "Alias card")
+	second := addCard(t, root, "Second card")
+	if !strings.HasPrefix(first, "fx-") || !strings.HasPrefix(second, "fx-") {
+		t.Fatalf("wanted both cards to carry the fx- alias, got %q and %q", first, second)
+	}
+
+	// ls and next show the alias, not the bare identifier.
+	if listed := runCLI(t, root, "ls"); listed.code != 0 || !strings.Contains(listed.out, first) || !strings.Contains(listed.out, second) {
+		t.Fatalf("ls did not show both aliases: %d %q", listed.code, listed.out)
+	}
+	if offered := runCLI(t, root, "next"); offered.code != 0 || !strings.Contains(offered.out, first) {
+		t.Fatalf("next did not show the alias: %d %q", offered.code, offered.out)
+	}
+
+	// show and path resolve the alias.
+	if shown := runCLI(t, root, "show", first); shown.code != 0 || !strings.Contains(shown.out, first) {
+		t.Fatalf("show %s: %d %q", first, shown.code, shown.out)
+	}
+	if pathed := runCLI(t, root, "path", first); pathed.code != 0 || !strings.Contains(pathed.out, "cards") {
+		t.Fatalf("path %s: %d %q", first, pathed.code, pathed.out)
+	}
+
+	// claim, status, instructions and comment resolve the alias.
+	if claimed := runCLI(t, root, "claim", first); claimed.code != 0 || !strings.Contains(claimed.out, first) {
+		t.Fatalf("claim %s: %d %q", first, claimed.code, claimed.out)
+	}
+	if status := runCLI(t, root, "status"); status.code != 0 || !strings.Contains(status.out, first) {
+		t.Fatalf("status did not show the held alias: %d %q", status.code, status.out)
+	}
+	if instructed := runCLI(t, root, "instructions", first); instructed.code != 0 {
+		t.Fatalf("instructions %s: %d %q", first, instructed.code, instructed.errw)
+	}
+	if commented := runCLI(t, root, "comment", first, "a note"); commented.code != 0 || !strings.Contains(commented.out, first) {
+		t.Fatalf("comment %s: %d %q", first, commented.code, commented.out)
+	}
+
+	// move resolves the alias and the resulting card line still carries it.
+	if moved := runCLI(t, root, "move", first, "doing"); moved.code != 0 || !strings.Contains(moved.out, first) {
+		t.Fatalf("move %s: %d %q", first, moved.code, moved.out)
+	}
+	if logged := runCLI(t, root, "log", first); logged.code != 0 || !strings.Contains(logged.out, "moved") {
+		t.Fatalf("log %s: %d %q", first, logged.code, logged.out)
+	}
+
+	// block and unblock resolve the alias.
+	if blocked := runCLI(t, root, "block", first, "waiting on something"); blocked.code != 0 || !strings.Contains(blocked.out, first) {
+		t.Fatalf("block %s: %d %q", first, blocked.code, blocked.out)
+	}
+	if unblocked := runCLI(t, root, "unblock", first); unblocked.code != 0 || !strings.Contains(unblocked.out, first) {
+		t.Fatalf("unblock %s: %d %q", first, unblocked.code, unblocked.out)
+	}
+	if claimed := runCLI(t, root, "claim", first); claimed.code != 0 {
+		t.Fatalf("re-claim %s: %d %q", first, claimed.code, claimed.errw)
+	}
+	if released := runCLI(t, root, "release", first); released.code != 0 || !strings.Contains(released.out, first) {
+		t.Fatalf("release %s: %d %q", first, released.code, released.out)
+	}
+
+	// attach resolves the alias.
+	note := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(note, []byte("hi"), 0o644); err != nil {
+		t.Fatalf("write note: %v", err)
+	}
+	if attached := runCLI(t, root, "attach", first, note); attached.code != 0 {
+		t.Fatalf("attach %s: %d %q", first, attached.code, attached.errw)
+	}
+
+	// archive and delete each resolve the alias, on two different cards
+	// since an archived card no longer answers to a live reference.
+	if archived := runCLI(t, root, "archive", first); archived.code != 0 {
+		t.Fatalf("archive %s: %d %q", first, archived.code, archived.errw)
+	}
+	if deleted := runCLI(t, root, "delete", second, "--yes"); deleted.code != 0 {
+		t.Fatalf("delete %s: %d %q", second, deleted.code, deleted.errw)
+	}
+}
+
+// addCard files a card and returns the alias it was given.
+func addCard(t *testing.T, root, title string) string {
+	t.Helper()
+	got := runCLI(t, root, "--json", "add", title)
+	if got.code != 0 {
+		t.Fatalf("add %s: %d %s", title, got.code, got.errw)
+	}
+	var response struct {
+		Card *verb.CardView `json:"card"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &response); err != nil {
+		t.Fatalf("decode: %v\n%s", err, got.out)
+	}
+	if response.Card == nil || response.Card.Ref == "" {
+		t.Fatalf("add did not return a ref: %s", got.out)
+	}
+	return response.Card.Ref
+}
+
+// cardID resolves a card's own bare identifier from its alias, by asking
+// path for the card's file and reading the directory name that holds it.
+func cardID(t *testing.T, root, ref string) string {
+	t.Helper()
+	pathed := runCLI(t, root, "path", ref)
+	if pathed.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, pathed.code, pathed.errw)
+	}
+	return filepath.Base(filepath.Dir(strings.TrimSpace(pathed.out)))
+}
+
+// addLink hand-writes a links entry onto a card's own anchor, since no verb
+// in the declared surface writes one (card.go's Link comment: "a declaration
+// rather than an entity, and nothing in the tool reads one" for anything but
+// display).
+func addLink(t *testing.T, root, ref, kind, to string) {
+	t.Helper()
+	path := runCLI(t, root, "path", ref)
+	if path.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, path.code, path.errw)
+	}
+	cardPath := strings.TrimSpace(path.out)
+	text, err := os.ReadFile(cardPath)
+	if err != nil {
+		t.Fatalf("read card: %v", err)
+	}
+	closing := strings.LastIndex(string(text), "\n---\n")
+	if closing < 0 {
+		t.Fatalf("card %s carries no closing frontmatter fence", cardPath)
+	}
+	block := "\nlinks:\n  - kind: " + kind + "\n    to: " + to
+	edited := string(text[:closing]) + block + string(text[closing:])
+	if err := os.WriteFile(cardPath, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write card: %v", err)
+	}
+}
+
+// TestShowResolvesALinkToTheAliasNotTheBareIdentifier is armed by asserting
+// the alias in show's output and JSON form rather than the target's raw
+// identifier. A link records only an identifier, and the render used to
+// print that identifier verbatim: a destination a person is expected to type
+// back at show, path or move, printed as the one thing they could not read
+// comfortably. show now resolves it fresh on every read.
+func TestShowResolvesALinkToTheAliasNotTheBareIdentifier(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+	second := addCard(t, root, "Second")
+	targetID := cardID(t, root, second)
+	addLink(t, root, first, "relates_to", targetID)
+
+	shown := runCLI(t, root, "show", first)
+	if shown.code != 0 {
+		t.Fatalf("show %s: %d %s", first, shown.code, shown.errw)
+	}
+	if !strings.Contains(shown.out, second) {
+		t.Errorf("show did not print the link's alias %q, got %q", second, shown.out)
+	}
+	if strings.Contains(shown.out, targetID) {
+		t.Errorf("show printed the link's bare identifier %q instead of its alias: %q", targetID, shown.out)
+	}
+
+	jsonShown := runCLI(t, root, "--json", "show", first)
+	if jsonShown.code != 0 {
+		t.Fatalf("--json show %s: %d %s", first, jsonShown.code, jsonShown.errw)
+	}
+	var detail struct {
+		Links []verb.LinkView `json:"links"`
+	}
+	if err := json.Unmarshal([]byte(jsonShown.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, jsonShown.out)
+	}
+	if len(detail.Links) != 1 {
+		t.Fatalf("wanted one link, got %v", detail.Links)
+	}
+	if detail.Links[0].To != targetID {
+		t.Errorf("the machine form's to should stay the stable identifier %q, got %q", targetID, detail.Links[0].To)
+	}
+	if detail.Links[0].Ref != second {
+		t.Errorf("the machine form's ref should carry the alias %q, got %q", second, detail.Links[0].Ref)
+	}
+}
+
+// TestLegalMovesReportTheAliasNotTheBareStateIdentifier is armed by
+// asserting the ref field of a legal move rather than its state identifier.
+// The moves-this-card-may-make listing, printed after claim, move and show,
+// used to print the destination's bare identifier while move itself already
+// accepted the state's slug, so the one place the tool told a person what to
+// type next showed them something they could not comfortably type.
+func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+
+	claimed := runCLI(t, root, "--json", "claim", first)
+	if claimed.code != 0 {
+		t.Fatalf("claim %s: %d %s", first, claimed.code, claimed.errw)
+	}
+	var response struct {
+		LegalMoves []verb.LegalMove `json:"legal_moves"`
+	}
+	if err := json.Unmarshal([]byte(claimed.out), &response); err != nil {
+		t.Fatalf("decode: %v\n%s", err, claimed.out)
+	}
+	if len(response.LegalMoves) == 0 {
+		t.Fatal("wanted at least one legal move")
+	}
+	for _, move := range response.LegalMoves {
+		if move.Ref == "" {
+			t.Fatalf("legal move to %s carries no ref: %+v", move.State, move)
+		}
+		if move.Ref == move.State {
+			t.Errorf("legal move to %s: ref fell back to the bare identifier though the state carries a slug", move.State)
+		}
+		// The ref is what move actually accepts, proving it is not merely
+		// displayed but usable.
+		moved := runCLI(t, root, "move", first, move.Ref)
+		if moved.code != 0 {
+			t.Fatalf("move %s %s: %d %s", first, move.Ref, moved.code, moved.errw)
+		}
+		break
+	}
+}
+
+// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's two cases: a
+// cell under its column width pads in place, exactly as the plain pad-based
+// row it replaced did, and a cell that reaches or exceeds its column width
+// gets the line to itself with the remaining fields moved to a continuation
+// line indented to where the column would have ended, rather than the
+// non-truncating pad pushing every later field out of alignment (Convention
+// counterexamples: "A wording change that outgrows the column it is
+// rendered into"). Covers both a catalog placeholder and a long real slug,
+// since both are the cells this helper exists for.
+func TestAlignedRowBreaksOnAnOverrunningCell(t *testing.T) {
+	cases := []struct {
+		name string
+		cell string
+		want string
+	}{
+		{
+			name: "fits",
+			cell: "fx",
+			want: "  fx        rest",
+		},
+		{
+			name: "placeholder overruns",
+			cell: "no slug (run check --migrate-slugs)",
+			want: "  no slug (run check --migrate-slugs)\n            rest",
+		},
+		{
+			name: "long real slug overruns",
+			cell: "aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior",
+			want: "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := alignedRow("  ", c.cell, 10, "rest")
+			if got != c.want {
+				t.Errorf("alignedRow(%q, 10, %q):\n got  %q\n want %q", c.cell, "rest", got, c.want)
+			}
+		})
+	}
+}
+
 // wantUsage asserts an invocation refuses with dinah.usage and that the
 // refusal names the exact word given, which is the shape every case in this
 // card's tests wants.
@@ -2639,6 +2980,57 @@ func TestMistypedSingleDashRefusesOnAZeroBoundedCommand(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			wantUsage(t, runCLI(t, t.TempDir(), name, "-w"), "-w")
 		})
+	}
+}
+
+// TestWorkbenchesListingSurvivesAMissingSlug is the fixture-level twin of
+// TestAlignedRowBreaksOnAnOverrunningCell: it drives the actual
+// `workbenches` render, not the helper in isolation, over a row with no
+// slug at all, whose placeholder is longer than the column it prints into,
+// and asserts the row's path is still present and legible rather than
+// shifted into the previous column.
+func TestWorkbenchesListingSurvivesAMissingSlug(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+
+	noSlug := filepath.Join(container, "noslug")
+	if err := os.MkdirAll(noSlug, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, noSlug, "init", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	noSlugRoot := soleBenchDir(t, noSlug)
+	editWorkbenchAnchor(t, filepath.Join(noSlugRoot, "workbench.md"), "slug: noslug\n", "slug:\n")
+
+	got := runCLI(t, container, "--workbench", noSlugRoot, "workbenches")
+	if got.code != 0 {
+		t.Fatalf("workbenches: %d %s", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, noSlugRoot) {
+		t.Errorf("the missing-slug row's own path is missing or shifted out of the line: %q", got.out)
+	}
+	if strings.Count(got.out, "\n") < 2 {
+		t.Errorf("wanted the overrunning placeholder to break onto a continuation line, got %q", got.out)
+	}
+}
+
+// editWorkbenchAnchor rewrites one line of a workbench anchor already on
+// disk, the way editWorkbench does for the bench-package fixtures this test
+// mirrors.
+func editWorkbenchAnchor(t *testing.T, path, from, to string) {
+	t.Helper()
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.Contains(string(text), from) {
+		t.Fatalf("the workbench anchor carries no %q", from)
+	}
+	edited := strings.Replace(string(text), from, to, 1)
+	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
 	}
 }
 

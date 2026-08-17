@@ -234,6 +234,12 @@ type LinkView struct {
 	Kind string `json:"kind"`
 	// To is the identifier of the card the link names.
 	To string `json:"to"`
+	// Ref is what a person types to name that card on show or any other
+	// reference-accepting command: its alias when the card can still be
+	// found, the bare identifier otherwise. A link's own stored value never
+	// changes (card.go's Link carries an identifier, not an alias, by
+	// design), so this is resolved fresh on every read rather than stored.
+	Ref string `json:"ref"`
 }
 
 // CommentView is one comment as a read reports it.
@@ -272,7 +278,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}
 	for _, link := range card.Links {
-		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To})
+		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
 	}
 	comments, err := bench.Comments(card.Dir)
 	if err != nil {
@@ -283,6 +289,23 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		detail.Comments = append(detail.Comments, view)
 	}
 	return detail, "", nil
+}
+
+// linkRef resolves a link's stored card identifier to what a person types to
+// reach it. A link records only the identifier (card.go's Link comment: "a
+// declaration rather than an entity"), so the alias is resolved fresh on
+// every read rather than carried by the link itself, the same way a card's
+// own Ref is computed at view time rather than stored. A card the link names
+// that is no longer findable, archived or otherwise, still shows something
+// typeable: the bare identifier the link already carried.
+func (l *Library) linkRef(id string) string {
+	if card, err := bench.LoadCard(l.Bench.CardsRoot(), id); err == nil {
+		return card.Ref(l.Bench.Slug)
+	}
+	if card, err := bench.LoadCard(l.Bench.ArchivedCardsRoot(), id); err == nil {
+		return card.Ref(l.Bench.Slug)
+	}
+	return id
 }
 
 // History reports a card's recorded acts in the order they were recorded. An
@@ -382,6 +405,10 @@ type CheckReport struct {
 	// MigratedSlugs says the slug migration ran, so a caller can tell an
 	// empty list of assignments from a migration nobody asked for.
 	MigratedSlugs bool `json:"migrated_slugs,omitempty"`
+	// AssignedWorkbenchSlug is the slug the workbench-slug migration derived
+	// for the workbench itself, absent when the workbench already carried
+	// one or when no migration was asked for.
+	AssignedWorkbenchSlug *bench.WorkbenchSlugAssignment `json:"assigned_workbench_slug,omitempty"`
 	// RemovedStrandedStates are the identifiers the states migration removed
 	// from the workbench's own states list. It is absent from a request that
 	// asked for no migration and from a request that asked and found nothing
@@ -402,9 +429,10 @@ type CheckReport struct {
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback. A request carrying the
 // migrate-slugs marker does the same for the states of a workbench that
-// predate the slug field, and names the slug it gave each one. A request
-// carrying the migrate-states marker removes every stranded identifier from
-// the workbench's own states list.
+// predate the slug field, names the slug it gave each one, and derives the
+// workbench's own slug when the workbench itself predates that field. A
+// request carrying the migrate-states marker removes every stranded
+// identifier from the workbench's own states list.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -417,6 +445,12 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
+		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
+		report.AssignedWorkbenchSlug = wsAssigned
+		report.Findings = append(report.Findings, wsReported...)
+		if err != nil {
+			return report, err
+		}
 	}
 	if req != nil && req.MigrateStates {
 		removed, err := l.Bench.RemoveStrandedStates()

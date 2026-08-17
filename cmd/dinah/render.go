@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
+	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -121,7 +122,9 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
 	for _, move := range moves {
-		s.line("  " + pad(move.State, 14) + pad(move.Title, 32) + s.token(move.Direction))
+		lead := "  "
+		rest := pad(move.Title, 32) + s.token(move.Direction)
+		s.line(alignedRow(lead, move.Ref, 14, rest))
 	}
 }
 
@@ -159,6 +162,24 @@ func (s *session) yesNo(value bool) string {
 	return s.r.T("word.no")
 }
 
+// alignedRow composes a row whose one overflow-prone cell, a slug or a
+// catalog-served placeholder standing in for one, may run past its declared
+// column width: a workbench or state title is user-supplied and unbounded,
+// and the placeholder text is a full sentence fragment rather than a short
+// token. pad never truncates, so jamming the rest of the row onto the same
+// line would shift every later column out of alignment the moment the cell
+// reaches its width (Convention counterexamples: "A wording change that
+// outgrows the column it is rendered into"). When that happens the cell gets
+// the line to itself and the remaining fields move to a continuation line
+// indented to where the cell's column would have ended, rather than being
+// padded past it.
+func alignedRow(lead string, cell string, cellWidth int, rest string) string {
+	if len([]rune(cell)) >= cellWidth {
+		return lead + cell + "\n" + strings.Repeat(" ", len([]rune(lead))+cellWidth) + rest
+	}
+	return lead + pad(cell, cellWidth) + rest
+}
+
 // renderStates prints the flow in order with each station's occupancy.
 func (s *session) renderStates(states []verb.StateView) {
 	for _, state := range states {
@@ -166,11 +187,12 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.Capacity > 0 {
 			count += "/" + strconv.Itoa(state.Capacity)
 		}
-		row := "  " + pad(state.ID, 14) + pad(state.Slug, 24) + pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
+		rest := pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
 		if state.OperatorOwned {
-			row += s.r.T("states.operator-owned")
+			rest += s.r.T("states.operator-owned")
 		}
-		s.line(row)
+		lead := "  " + pad(state.ID, 14)
+		s.line(alignedRow(lead, s.slugCell(state.Slug), 24, rest))
 	}
 }
 
@@ -205,8 +227,21 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 		return
 	}
 	for _, row := range rows {
-		s.line("  " + pad(row.Title, 32) + pad(row.Slug, 16) + row.Path)
+		lead := "  " + pad(row.Title, 32)
+		s.line(alignedRow(lead, s.slugCell(row.Slug), 16, row.Path))
 	}
+}
+
+// slugCell renders a slug column's value: the slug itself when the entity has
+// one, and a catalog-served placeholder naming the repair when it does not.
+// A blank column gives a reader nothing to act on, indistinguishable from a
+// rendering glitch, so a missing slug says so instead of padding an empty
+// string.
+func (s *session) slugCell(slug string) string {
+	if slug == "" {
+		return s.r.T("slug.missing")
+	}
+	return slug
 }
 
 // renderOffers prints what each state offers next.
@@ -231,7 +266,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		s.line("")
 		s.line(s.r.T("show.links"))
 		for _, link := range detail.Links {
-			s.line("  " + pad(link.Kind, 14) + link.To)
+			s.line("  " + pad(link.Kind, 14) + link.Ref)
 		}
 	}
 	if len(detail.Comments) > 0 {
@@ -276,6 +311,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
 		for _, assignment := range report.AssignedSlugs {
 			s.line("  " + pad(assignment.Slug, 24) + assignment.Title)
+		}
+		if report.AssignedWorkbenchSlug != nil {
+			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
 		}
 	}
 	if report.StampedOrdinals != nil {

@@ -136,6 +136,11 @@ type Instructions struct {
 type LegalMove struct {
 	// State is the destination's identifier.
 	State string `json:"state"`
+	// Ref is what a person types to name this destination on a move: the
+	// state's own slug when it has one, the identifier otherwise. Mirrors
+	// CardView.Ref's fallback, so a state written before the slug field
+	// existed still gives a caller something to type.
+	Ref string `json:"ref"`
 	// Title is the destination's title.
 	Title string `json:"title"`
 	// Direction is forward or backward along the declared flow.
@@ -234,9 +239,16 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		if direction == Forward && current.Kind == contract.KindDone {
 			continue
 		}
-		moves = append(moves, LegalMove{State: state.ID, Title: state.Title, Direction: direction})
+		moves = append(moves, LegalMove{State: state.ID, Ref: stateRef(state), Title: state.Title, Direction: direction})
 	}
 	return moves
+}
+
+// stateRef is what a person types to reach a state. Thin wrapper over
+// bench.State.Ref so every caller in this package reads the same name it
+// already used before that method existed.
+func stateRef(state *bench.State) string {
+	return state.Ref()
 }
 
 // affordances names what a caller may do next with a card, which is the same
