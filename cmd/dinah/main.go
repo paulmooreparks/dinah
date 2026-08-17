@@ -181,6 +181,12 @@ func (s *session) sentence(name, detail string) string {
 // split, because CORE-OUT-5 gives one name to a broken definition and to a
 // request missing what the definition demands, so the difference rides on
 // whether a path is present.
+//
+// A usage refusal raised because a word looked like an unknown or
+// value-starved flag carries dashHint, and the fragment naming the "--"
+// end-of-options marker is spliced on the same way. Only parseArgs's two
+// flag-scan refusals ever set dashHint; every other dinah.usage site is
+// unchanged.
 func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
 	key := "refusal." + name
 	if !r.Has(key) {
@@ -191,10 +197,13 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 		pairs = append(pairs, named, extra[named])
 	}
 	text := r.T(key, pairs...)
-	if name != contract.Malformed || extra["path"] == "" {
-		return text
+	if name == contract.Malformed && extra["path"] != "" {
+		return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
 	}
-	return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
+	if name == contract.Usage && extra["dashHint"] != "" {
+		return text + r.T("refusal.dinah.usage.dash-hint")
+	}
+	return text
 }
 
 // sortedKeys returns a map's keys in order, so that one refusal renders the

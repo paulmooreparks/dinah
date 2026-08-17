@@ -3660,3 +3660,256 @@ func TestOpenTailKeepsAcceptingAnyNumberOfPlainWords(t *testing.T) {
 		t.Fatalf("comment with a many-word comment: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 }
+
+// showDetail runs `--json show` for a card and decodes the parts these tests
+// read: the title, the block reason, and the comments in order.
+func showDetail(t *testing.T, dir, ref string) verb.Detail {
+	t.Helper()
+	got := runCLI(t, dir, "--json", "show", ref)
+	if got.code != 0 {
+		t.Fatalf("--json show %s: %d %s", ref, got.code, got.errw)
+	}
+	var detail verb.Detail
+	if err := json.Unmarshal([]byte(got.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, got.out)
+	}
+	return detail
+}
+
+// TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition asserts dinah-92's
+// AC-1 and AC-2: a bare "--" ends the flag scan, so comment, block and add
+// all store a --prefixed word verbatim, whether it opens, sits in the middle
+// of, or closes the free text that follows the marker.
+func TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got := runCLI(t, root, "comment", "fx-1", "--", "--verbose", "is", "a", "flag", "some", "tools", "take")
+	if got.code != 0 {
+		t.Fatalf("comment, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, root, "comment", "fx-1", "--", "remember", "to", "pass", "--verbose", "next", "time")
+	if got.code != 0 {
+		t.Fatalf("comment, word in middle: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, root, "comment", "fx-1", "--", "next", "time", "pass", "--verbose")
+	if got.code != 0 {
+		t.Fatalf("comment, word at end: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 3 {
+		t.Fatalf("wanted 3 comments, got %d", len(detail.Comments))
+	}
+	wantComments := []string{
+		"--verbose is a flag some tools take",
+		"remember to pass --verbose next time",
+		"next time pass --verbose",
+	}
+	for i, want := range wantComments {
+		if detail.Comments[i].Body != want {
+			t.Errorf("comment %d: wanted %q, got %q", i, want, detail.Comments[i].Body)
+		}
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "--", "--waiting", "on", "external", "dep")
+	if got.code != 0 {
+		t.Fatalf("block, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	blocked := showDetail(t, root, "fx-1")
+	if blocked.Card.BlockReason != "--waiting on external dep" {
+		t.Errorf("block reason: wanted %q, got %q", "--waiting on external dep", blocked.Card.BlockReason)
+	}
+	runCLI(t, root, "unblock", "fx-1")
+
+	got = runCLI(t, root, "add", "--", "--urgent", "fix", "the", "thing")
+	if got.code != 0 {
+		t.Fatalf("add, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-2")
+	if added.Card.Title != "--urgent fix the thing" {
+		t.Errorf("add title: wanted %q, got %q", "--urgent fix the thing", added.Card.Title)
+	}
+}
+
+// TestMarkerAcceptsADashPrefixedConfigValue asserts dinah-92's AC-3: config
+// set stores a value containing a --prefixed word verbatim once the marker
+// precedes it.
+func TestMarkerAcceptsADashPrefixedConfigValue(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	got := runCLI(t, dir, "config", "set", "actor", "--", "--urgent", "tester")
+	if got.code != 0 {
+		t.Fatalf("config set past the marker: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "--urgent tester" {
+		t.Errorf("config get actor: wanted %q, got %d %q", "--urgent tester", got.code, got.out)
+	}
+}
+
+// TestMarkerHandlesTheAwkwardShapes asserts dinah-92's AC-4: a bare trailing
+// marker with nothing after it is consumed rather than refused by the flag
+// scan itself (config set's value is allowed to be empty, unlike comment's
+// text, so it is the vehicle for that half of the case), and a second "--"
+// already past the first one is ordinary text rather than a second marker.
+func TestMarkerHandlesTheAwkwardShapes(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	got := runCLI(t, dir, "config", "set", "actor", "--")
+	if got.code != 0 {
+		t.Fatalf("a bare trailing marker with nothing after it: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if strings.Contains(got.errw, "was not understood") {
+		t.Errorf("the bare marker should not be refused as an unrecognized flag: %q", got.errw)
+	}
+	got = runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "" {
+		t.Errorf("config get actor: wanted the empty value the marker left behind, got %d %q", got.code, got.out)
+	}
+
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got = runCLI(t, root, "comment", "fx-1", "--", "--")
+	if got.code != 0 {
+		t.Fatalf("two markers: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, root, "comment", "fx-1", "--", "please", "mention", "--", "here")
+	if got.code != 0 {
+		t.Fatalf("a marker inside text already past a marker: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 2 {
+		t.Fatalf("wanted 2 comments, got %d", len(detail.Comments))
+	}
+	wantComments := []string{
+		"--",
+		"please mention -- here",
+	}
+	for i, want := range wantComments {
+		if detail.Comments[i].Body != want {
+			t.Errorf("comment %d: wanted %q, got %q", i, want, detail.Comments[i].Body)
+		}
+	}
+}
+
+// TestMarkerFreesAWordASiblingCheckWouldOtherwiseRefuse asserts dinah-92's
+// last awkward case: a word after the marker that looksLikeMistypedFlag
+// would refuse as a single-dash word lands as literal text instead, because
+// the marker frees it into free text before that check ever sees it.
+func TestMarkerFreesAWordASiblingCheckWouldOtherwiseRefuse(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got := runCLI(t, root, "comment", "fx-1", "--", "the", "option", "is", "-w", "not", "what", "you", "want")
+	if got.code != 0 {
+		t.Fatalf("a single-dash word past the marker: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	want := "the option is -w not what you want"
+	if len(detail.Comments) != 1 || detail.Comments[0].Body != want {
+		t.Fatalf("wanted one comment %q, got %v", want, detail.Comments)
+	}
+
+	// The sibling checks still refuse a single-dash word in a bounded slot
+	// when no marker frees it: dinah-69's own case is unaffected.
+	wantUsage(t, runCLI(t, root, "claim", "-w"), "-w")
+}
+
+// TestBareMarkerAloneNoLongerRefusesItself asserts the open question the
+// spec settled: a bare "--" typed alone, with nothing after it, is consumed
+// as the marker rather than refused as an unrecognized flag. comment's own
+// domain still refuses the empty text that leaves behind, exactly as it
+// refuses an empty comment with no marker involved at all; what changes is
+// which refusal fires. Today's dinah.usage naming "--" itself is gone, and
+// malformed naming "text" takes its place.
+func TestBareMarkerAloneNoLongerRefusesItself(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	got := runCLI(t, root, "comment", "fx-1", "--")
+	if got.code != 2 {
+		t.Fatalf("a bare -- alone: wanted exit 2 (empty comment text, not the marker), got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Malformed {
+		t.Errorf("wanted the empty-text refusal (%s), got %q", contract.Malformed, got.errw)
+	}
+	if strings.Contains(got.errw, "was not understood") {
+		t.Errorf("the marker itself should not be refused as an unrecognized flag: %q", got.errw)
+	}
+}
+
+// TestKnownFlagBeforeAndAfterTheMarker asserts dinah-92's AC-5: a known
+// global flag written before the marker still parses as a flag exactly as it
+// does today, and the same flag word written after the marker is read as
+// literal text instead of being silently dropped.
+func TestKnownFlagBeforeAndAfterTheMarker(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	before := runCLI(t, root, "comment", "fx-1", "--json", "before", "the", "marker")
+	if before.code != 0 {
+		t.Fatalf("--json before the marker: wanted exit 0, got %d (%s)", before.code, before.errw)
+	}
+	var beforeReport struct {
+		Outcome string `json:"outcome"`
+	}
+	if err := json.Unmarshal([]byte(before.out), &beforeReport); err != nil {
+		t.Fatalf("--json before the marker should still parse as the flag and emit machine json: %v\n%s", err, before.out)
+	}
+	beforeDetail := showDetail(t, root, "fx-1")
+	if beforeDetail.Comments[0].Body != "before the marker" {
+		t.Errorf("comment: wanted %q, got %q", "before the marker", beforeDetail.Comments[0].Body)
+	}
+
+	after := runCLI(t, root, "comment", "fx-1", "--", "after", "the", "marker", "--json", "here")
+	if after.code != 0 {
+		t.Fatalf("--json after the marker: wanted exit 0, got %d (%s)", after.code, after.errw)
+	}
+	if strings.TrimSpace(after.out) != "" && json.Valid([]byte(after.out)) {
+		t.Errorf("--json after the marker should be literal text, not the flag, so this run should not have emitted machine json: %q", after.out)
+	}
+	detail := showDetail(t, root, "fx-1")
+	last := detail.Comments[len(detail.Comments)-1].Body
+	if last != "after the marker --json here" {
+		t.Errorf("comment: wanted %q, got %q (the flag word after the marker should be stored, not dropped)", "after the marker --json here", last)
+	}
+}
+
+// TestUsageRefusalNamesTheMarker asserts dinah-92's AC-6: the refusal for an
+// unrecognized --word and for a recognized valued flag missing its value
+// both carry the dash hint, and it names the "--" marker.
+func TestUsageRefusalNamesTheMarker(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	wantUnknown := "dinah.usage --bogus was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.\n"
+	unknown := runCLI(t, root, "comment", "fx-1", "nice", "work", "--bogus", "here")
+	if unknown.code != 2 {
+		t.Fatalf("unrecognized flag: wanted exit 2, got %d (%s)", unknown.code, unknown.errw)
+	}
+	if unknown.errw != wantUnknown {
+		t.Errorf("unrecognized flag refusal:\n got  %q\n want %q", unknown.errw, wantUnknown)
+	}
+
+	wantMissing := "dinah.usage --actor was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.\n"
+	missing := runCLI(t, root, "comment", "fx-1", "nice", "work", "--actor")
+	if missing.code != 2 {
+		t.Fatalf("valued flag missing its value: wanted exit 2, got %d (%s)", missing.code, missing.errw)
+	}
+	if missing.errw != wantMissing {
+		t.Errorf("missing-value refusal:\n got  %q\n want %q", missing.errw, wantMissing)
+	}
+
+	// A refusal not raised by parseArgs's two flag-scan sites carries no
+	// hint: extract with no target names dinah.usage but is unrelated to a
+	// dash-prefixed word.
+	unrelated := runCLI(t, root, "extract")
+	if strings.Contains(unrelated.errw, "Dinah reads a word starting with two dashes") {
+		t.Errorf("extract's own usage refusal should not carry the dash hint, got %q", unrelated.errw)
+	}
+	unrelatedConfig := runCLI(t, root, "config", "bogus")
+	if strings.Contains(unrelatedConfig.errw, "Dinah reads a word starting with two dashes") {
+		t.Errorf("config's own usage refusal should not carry the dash hint, got %q", unrelatedConfig.errw)
+	}
+}
