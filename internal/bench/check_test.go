@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"dinah/internal/contract"
 )
 
 // benchDefinition is the smallest bench check can be run against.
@@ -444,5 +446,184 @@ func TestSlugsAreDerivedToTheGrammar(t *testing.T) {
 	}
 	if ValidSlug("My Project") {
 		t.Error("a slug outside the grammar should not be valid")
+	}
+}
+
+// TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne asserts that a base
+// holding several workbenches is never reported as holding none. The walk
+// still climbs past it rather than guessing, and the ambiguity it passed is
+// what the refusal names when nothing closer resolves, together with the
+// candidates and the base they sit in.
+//
+// The reported ambiguity is the first one met, closest to the starting
+// directory, which is the base a reader is likeliest to have meant.
+func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
+	tree := t.TempDir()
+	outer := filepath.Join(tree, "outer")
+	inner := filepath.Join(outer, "inner")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeWorkbench(t, filepath.Join(outer, UserBaseName, "d00000000001"), "Far one")
+	writeWorkbench(t, filepath.Join(outer, UserBaseName, "d00000000002"), "Far two")
+	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000003"), "Near one")
+	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000004"), "Near two")
+
+	_, err := Discover(inner, "", filepath.Join(tree, "home"))
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("wanted a refusal, got %v", err)
+	}
+	if refusal.Name != contract.AmbiguousBench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousBench, refusal.Name)
+	}
+	if got := refusal.Extra["base"]; got != filepath.Join(inner, UserBaseName) {
+		t.Errorf("the base named: wanted the closest one, got %q", got)
+	}
+	for _, title := range []string{"Near one", "Near two"} {
+		if !strings.Contains(refusal.Detail, title) {
+			t.Errorf("the candidates should name %q, got %q", title, refusal.Detail)
+		}
+	}
+	if strings.Contains(refusal.Detail, "Far ") {
+		t.Errorf("the further ambiguity should not be reported, got %q", refusal.Detail)
+	}
+
+	// One workbench in a base is not ambiguous, and the search takes it.
+	sole := filepath.Join(t.TempDir(), "solo")
+	if err := os.MkdirAll(sole, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeWorkbench(t, filepath.Join(sole, UserBaseName, "d00000000005"), "The only one")
+	found, err := Discover(sole, "", filepath.Join(tree, "home"))
+	if err != nil {
+		t.Fatalf("a base holding one workbench should resolve, got %v", err)
+	}
+	if found != filepath.Join(sole, UserBaseName, "d00000000005") {
+		t.Errorf("the sole workbench: got %q", found)
+	}
+}
+
+// TestDiscoveryNamesTheDirectoryBenchWasPointedAt asserts that a --bench
+// override carrying no workbench is refused against the path the caller gave,
+// which is the one scenario dinah.no-bench still covers.
+func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
+	empty := t.TempDir()
+	_, err := Discover(empty, empty, "")
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("wanted a refusal, got %v", err)
+	}
+	if refusal.Name != contract.NoBench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoBench, refusal.Name)
+	}
+	if refusal.Detail != empty {
+		t.Errorf("the refusal should name the directory given, wanted %q, got %q", empty, refusal.Detail)
+	}
+}
+
+// TestMalformedCarriesTheFileItWasRaisedOver asserts that every malformed
+// refusal Open and readState raise names the file a reader has to repair,
+// which is what the sentence's location fragment renders from.
+func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
+	cases := []struct {
+		name   string
+		damage func(t *testing.T, root string)
+		detail string
+		path   func(root string) string
+	}{
+		{
+			name: "a workbench predating the profile line",
+			damage: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "profile: dinah-core/1.0\n", "", 1))
+			},
+			detail: "profile",
+			path:   func(root string) string { return filepath.Join(root, WorkbenchAnchor) },
+		},
+		{
+			name: "a workbench declaring no title",
+			damage: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "title: Fixture\n", "", 1))
+			},
+			detail: "title",
+			path:   func(root string) string { return filepath.Join(root, WorkbenchAnchor) },
+		},
+		{
+			name: "a workbench anchor that will not read at all",
+			damage: func(t *testing.T, root string) {
+				if err := os.Remove(filepath.Join(root, WorkbenchAnchor)); err != nil {
+					t.Fatalf("remove: %v", err)
+				}
+			},
+			detail: WorkbenchAnchor,
+			path:   func(root string) string { return filepath.Join(root, WorkbenchAnchor) },
+		},
+		{
+			name: "a state whose kind is outside the three",
+			damage: func(t *testing.T, root string) {
+				write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Only\nkind: dawdling\n---\n")
+			},
+			detail: "state b00000000001",
+			path: func(root string) string {
+				return filepath.Join(root, StatesDir, "b00000000001", StateAnchor)
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			root := newFixture(t)
+			c.damage(t, root)
+			_, err := Open(root)
+			refusal, ok := err.(*contract.Refusal)
+			if !ok {
+				t.Fatalf("wanted a refusal, got %v", err)
+			}
+			if refusal.Name != contract.Malformed {
+				t.Errorf("refusal name: wanted %s, got %s", contract.Malformed, refusal.Name)
+			}
+			if refusal.Detail != c.detail {
+				t.Errorf("detail: wanted %q, got %q", c.detail, refusal.Detail)
+			}
+			if got := refusal.Extra["path"]; got != c.path(root) {
+				t.Errorf("path: wanted %q, got %q", c.path(root), got)
+			}
+		})
+	}
+}
+
+// writeWorkbench puts a minimal workbench anchor carrying a title at a path,
+// which is all discovery reads of a candidate.
+func writeWorkbench(t *testing.T, root, title string) {
+	t.Helper()
+	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "title: Fixture", "title: "+title, 1))
+}
+
+// TestDiscoveryReportsAnExhaustedWalk asserts what a search that finds nothing
+// says: the directory it started from, the user base it fell back to, and the
+// two ways out of the situation.
+//
+// The search starts at the volume root, because a walk from anywhere deeper
+// climbs through directories the test does not control and can meet somebody
+// else's workbench on the way.
+func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
+	tree := t.TempDir()
+	root := filepath.VolumeName(tree) + string(filepath.Separator)
+	if found, ambiguous := benchIn(root); found != "" || len(ambiguous) > 0 {
+		t.Skip("the volume root carries a workbench of its own")
+	}
+	home := filepath.Join(tree, "home")
+	_, err := Discover(root, "", home)
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("wanted a refusal, got %v", err)
+	}
+	if refusal.Name != contract.NoBenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	}
+	if refusal.Detail != root {
+		t.Errorf("the refusal should name where the search began, wanted %q, got %q", root, refusal.Detail)
+	}
+	if got := refusal.Extra["home"]; got != filepath.Join(home, UserBaseName) {
+		t.Errorf("the refusal should name the user base, wanted %q, got %q", filepath.Join(home, UserBaseName), got)
 	}
 }

@@ -10,6 +10,7 @@ package main
 import (
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"dinah/internal/bench"
@@ -121,23 +122,89 @@ func (s *session) fail(name, detail string) int {
 
 // sentence renders the prose that follows a refusal name.
 func (s *session) sentence(name, detail string) string {
+	return refusalSentence(s.r, name, detail, nil)
+}
+
+// refusalSentence renders the prose that follows a refusal name, filling the
+// named values the catalog entry references beyond the detail.
+//
+// A malformed refusal raised over a file on disk carries the path it was
+// raised over, and the location and the repair reach the reader as two
+// fragments spliced on here rather than as a second template. The name cannot
+// split, because CORE-OUT-5 gives one name to a broken definition and to a
+// request missing what the definition demands, so the difference rides on
+// whether a path is present.
+func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
 	key := "refusal." + name
-	if !s.r.Has(key) {
-		return s.r.T("refusal.unknown", "name", name, "detail", detail)
+	if !r.Has(key) {
+		return r.T("refusal.unknown", "name", name, "detail", detail)
 	}
-	return s.r.T(key, "detail", detail)
+	pairs := []string{"detail", detail}
+	for _, named := range sortedKeys(extra) {
+		pairs = append(pairs, named, extra[named])
+	}
+	text := r.T(key, pairs...)
+	if name != contract.Malformed || extra["path"] == "" {
+		return text
+	}
+	return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
+}
+
+// sortedKeys returns a map's keys in order, so that one refusal renders the
+// same way twice however the map was built.
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// refusalReport is the machine form of a refusal raised before any verb ran.
+// It carries the members a verb's own refusal response carries, so a caller
+// parsing --json reads one shape whichever layer said no.
+type refusalReport struct {
+	// Outcome is refused, which is the only outcome this form reports.
+	Outcome string `json:"outcome"`
+	// Refusal is the refusal name.
+	Refusal string `json:"refusal"`
+	// Detail names what the refusal was about.
+	Detail string `json:"detail,omitempty"`
+	// Context carries the refusal's named values as data, absent on a
+	// refusal that needs none.
+	Context map[string]string `json:"context,omitempty"`
 }
 
 // reportError turns an error from a layer below into a report on stderr and
 // an exit code, without a session, for the failures that happen before one
-// can be built.
+// can be built. It writes text alone, because the flags that would have
+// carried --json are what failed to parse.
 func reportError(errw io.Writer, r *msg.Renderer, err error) int {
 	if refusal, ok := err.(*contract.Refusal); ok {
-		io.WriteString(errw, refusal.Name+" "+r.T("refusal."+refusal.Name, "detail", refusal.Detail)+"\n")
+		sentence := refusalSentence(r, refusal.Name, refusal.Detail, refusal.Extra)
+		io.WriteString(errw, refusal.Name+" "+sentence+"\n")
 		return contract.ExitCode(contract.OutcomeRefused)
 	}
 	io.WriteString(errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
 	return contract.ExitCode(contract.OutcomeUnreachable)
+}
+
+// reportError is the same report from inside a session, which is where every
+// discovery-time failure is raised. The machine form reaches stdout first
+// under --json, and the sentence follows it on stderr, exactly as a verb's own
+// refusal is emitted.
+func (s *session) reportError(err error) int {
+	refusal, ok := err.(*contract.Refusal)
+	if ok && s.json {
+		s.emitJSON(refusalReport{
+			Outcome: contract.OutcomeRefused,
+			Refusal: refusal.Name,
+			Detail:  refusal.Detail,
+			Context: refusal.Extra,
+		})
+	}
+	return reportError(s.errw, s.r, err)
 }
 
 // open discovers and opens the bench this invocation serves.
@@ -158,7 +225,7 @@ func (s *session) open() (*verb.Library, error) {
 func (s *session) withBench(do func(*verb.Library) int) int {
 	library, err := s.open()
 	if err != nil {
-		return reportError(s.errw, s.r, err)
+		return s.reportError(err)
 	}
 	return do(library)
 }

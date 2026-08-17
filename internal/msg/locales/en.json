@@ -513,6 +513,10 @@
       "text": "this card is blocked: {detail}",
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.ambiguous-bench": {
+      "text": "{detail} are all reachable from {base}; choose one with --bench <path>, or run from inside it",
+      "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all."
+    },
     "refusal.dinah.exists": {
       "text": "{detail} already holds a workbench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
@@ -526,8 +530,12 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "no workbench was found from {detail} upward, and none in the user base",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} was named by --bench, and it carries no workbench.md; point --bench at a directory that does, or drop --bench to search upward from here",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH."
+    },
+    "refusal.dinah.no-bench-found": {
+      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --bench <path> to point at one that exists",
+      "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-editor": {
       "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
@@ -570,8 +578,16 @@
       "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.malformed": {
-      "text": "{detail} is missing or will not read",
-      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
+      "text": "{detail} is missing, empty, or will not parse",
+      "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed."
+    },
+    "refusal.malformed.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to."
+    },
+    "refusal.malformed.fix": {
+      "text": "; hand-edit the file and add it, then run `dinah check` to confirm",
+      "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
     },
     "refusal.no-operator": {
       "text": "this workbench designates no operator, so its reserved acts are dead",

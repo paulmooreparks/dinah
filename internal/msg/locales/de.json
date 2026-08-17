@@ -27,7 +27,7 @@
       "skeleton": true
     },
     "check.add.2": {
-      "text": "the named state is one the bench declares",
+      "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -182,7 +182,7 @@
       "skeleton": true
     },
     "check.extract.1": {
-      "text": "the target directory holds no bench already",
+      "text": "the target directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -197,7 +197,7 @@
       "skeleton": true
     },
     "check.init.1": {
-      "text": "the directory holds no bench already",
+      "text": "the directory holds no workbench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -222,7 +222,7 @@
       "skeleton": true
     },
     "check.ls.1": {
-      "text": "the named state is one the bench declares",
+      "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -272,7 +272,7 @@
       "skeleton": true
     },
     "check.next.1": {
-      "text": "the named state is one the bench declares",
+      "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -322,7 +322,7 @@
       "skeleton": true
     },
     "check.unknown-state": {
-      "text": "a card names state {detail}, which this bench does not declare",
+      "text": "a card names state {detail}, which this workbench does not declare",
       "context": "A check finding: every card's state identifier resolves.",
       "skeleton": true
     },
@@ -367,7 +367,7 @@
       "skeleton": true
     },
     "cmd.check.summary": {
-      "text": "check this bench for structural defects",
+      "text": "look for structural defects in this workbench",
       "context": "The one-line summary of the check command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -397,12 +397,12 @@
       "skeleton": true
     },
     "cmd.export.summary": {
-      "text": "write this bench's interchange form to stdout",
+      "text": "write this workbench's interchange form to stdout",
       "context": "The one-line summary of the export command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.extract.summary": {
-      "text": "copy this bench's definition out as a template",
+      "text": "copy this workbench's definition out as a template",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -417,7 +417,7 @@
       "skeleton": true
     },
     "cmd.init.summary": {
-      "text": "create a bench here, optionally from a template",
+      "text": "create a workbench here, optionally from a template",
       "context": "The one-line summary of the init command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -437,7 +437,7 @@
       "skeleton": true
     },
     "cmd.mcp.summary": {
-      "text": "serve this bench over MCP on stdio",
+      "text": "serve this workbench over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -472,7 +472,7 @@
       "skeleton": true
     },
     "cmd.status.summary": {
-      "text": "where this bench stands, and what you hold",
+      "text": "where this workbench stands, and what you hold",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -502,7 +502,7 @@
       "skeleton": true
     },
     "flag.bench.summary": {
-      "text": "use this bench instead of the one discovered from here",
+      "text": "use this workbench instead of the one discovered from here",
       "context": "The one-line summary of the global flag --bench.",
       "skeleton": true
     },
@@ -542,7 +542,7 @@
       "skeleton": true
     },
     "help.group.bench": {
-      "text": "BENCH",
+      "text": "WORKBENCH",
       "context": "A heading of the help block, grouping the commands beneath it.",
       "skeleton": true
     },
@@ -577,7 +577,7 @@
       "skeleton": true
     },
     "init.done": {
-      "text": "Bench created at {root}.",
+      "text": "Workbench created at {root}.",
       "context": "Printed after init succeeds.",
       "skeleton": true
     },
@@ -592,7 +592,7 @@
       "skeleton": true
     },
     "instructions.standing": {
-      "text": "Instructions, this bench:",
+      "text": "Instructions, this workbench:",
       "context": "The label above the workbench's standing instructions.",
       "skeleton": true
     },
@@ -641,8 +641,13 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.ambiguous-bench": {
+      "text": "{detail} are all reachable from {base}; choose one with --bench \u003cpath\u003e, or run from inside it",
+      "context": "The sentence printed after the refusal name dinah.ambiguous-bench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all.",
+      "skeleton": true
+    },
     "refusal.dinah.exists": {
-      "text": "{detail} already holds a bench",
+      "text": "{detail} already holds a workbench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -657,8 +662,13 @@
       "skeleton": true
     },
     "refusal.dinah.no-bench": {
-      "text": "no bench was found from {detail} upward, and none in the user base",
-      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about.",
+      "text": "{detail} was named by --bench, and it carries no workbench.md; point --bench at a directory that does, or drop --bench to search upward from here",
+      "context": "The sentence printed after the refusal name dinah.no-bench. {detail} is the directory the caller named with --bench or DINAH_BENCH.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-bench-found": {
+      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --bench \u003cpath\u003e to point at one that exists",
+      "context": "The sentence printed after the refusal name dinah.no-bench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
       "skeleton": true
     },
     "refusal.dinah.no-editor": {
@@ -692,7 +702,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-path": {
-      "text": "nothing in this bench answers to {detail}",
+      "text": "nothing in this workbench answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -712,12 +722,22 @@
       "skeleton": true
     },
     "refusal.malformed": {
-      "text": "{detail} is missing or will not read",
-      "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about.",
+      "text": "{detail} is missing, empty, or will not parse",
+      "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed.",
+      "skeleton": true
+    },
+    "refusal.malformed.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
+      "skeleton": true
+    },
+    "refusal.malformed.fix": {
+      "text": "; hand-edit the file and add it, then run `dinah check` to confirm",
+      "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
       "skeleton": true
     },
     "refusal.no-operator": {
-      "text": "this bench designates no operator, so its reserved acts are dead",
+      "text": "this workbench designates no operator, so its reserved acts are dead",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -762,12 +782,12 @@
       "skeleton": true
     },
     "refusal.unknown-card": {
-      "text": "this bench carries no card {detail}",
+      "text": "this workbench carries no card {detail}",
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.unknown-state": {
-      "text": "this bench declares no state {detail}",
+      "text": "this workbench declares no state {detail}",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -798,7 +818,7 @@
     },
     "status.bench": {
       "text": "{title}  ({root})",
-      "context": "The first line of status: the bench and where it was discovered.",
+      "context": "The first line of status: the workbench and where it was discovered.",
       "skeleton": true
     },
     "status.blocked": {
