@@ -669,12 +669,13 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	}
 }
 
-// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the two flags
+// TestCheckDeclaresItsRepairFlagsOnEverySurface asserts that the three flags
 // which repair rather than report are declared once and projected everywhere:
 // the ratified help block's check line names them, the generated help for the
 // command names them from the same definition, and the argument parser accepts
-// them. One completes an interrupted structural act, the other stamps the
-// creation ordinals a workbench written before the field carries none of.
+// them. One completes an interrupted structural act, one stamps the creation
+// ordinals a workbench written before the field carries none of, and one
+// derives the slugs of states written before that field existed.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
@@ -684,10 +685,10 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] ") {
-		t.Error("the ratified block's check line does not name both repair flags")
+	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] ") {
+		t.Error("the ratified block's check line does not name every repair flag")
 	}
-	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals]" {
+	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -696,7 +697,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}

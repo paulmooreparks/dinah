@@ -269,6 +269,26 @@
       "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.slug-assigned.one": {
+      "text": "{count} स्थिति-उपनाम निर्धारित किया।",
+      "context": "The line the slug migration prints for what it assigned, for exactly one state."
+    },
+    "check.slug-assigned.other": {
+      "text": "{count} स्थिति-उपनाम निर्धारित किए।",
+      "context": "The line the slug migration prints for what it assigned, for any other number."
+    },
+    "check.slug-duplicate": {
+      "text": "उपनाम {detail} इस कार्यपीठ की दो स्थितियों पर है, इसलिए उसका संदर्भ दोनों को नामित करता है",
+      "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes."
+    },
+    "check.slug-malformed": {
+      "text": "उपनाम {detail} में अक्षर के बाद अक्षर, अंक और एकल आंतरिक डैश का रूप नहीं है",
+      "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it."
+    },
+    "check.slug-missing": {
+      "text": "स्थिति {detail} पर कोई उपनाम नहीं, इसलिए वह केवल अपने पहचानक या उद्धृत शीर्षक से पहुँच में है",
+      "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
     "check.torn-journal": {
       "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
       "context": "A check finding: a torn journal tail left by a crash."

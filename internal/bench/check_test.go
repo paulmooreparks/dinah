@@ -26,6 +26,7 @@ Standing text.
 // stateDefinition is the one state that bench declares.
 const stateDefinition = `---
 title: Only
+slug: only
 kind: work
 ---
 State text.

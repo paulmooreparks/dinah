@@ -35,6 +35,9 @@ const (
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
 	FindingOrdinalMissing     = "check.ordinal-missing"
 	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
+	FindingSlugMissing        = "check.slug-missing"
+	FindingSlugMalformed      = "check.slug-malformed"
+	FindingSlugDuplicate      = "check.slug-duplicate"
 	// The last three are raised by the ordinal migration rather than by the
 	// checker, because each names something only the run that did the work
 	// can know: which entity it placed by guesswork, which card a lock kept
@@ -88,6 +91,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		findings = append(findings, b.checkCard(card)...)
 	}
+	findings = append(findings, b.checkStateSlugs()...)
 	for _, standing := range b.interruptions() {
 		findings = append(findings, standing.finding())
 	}

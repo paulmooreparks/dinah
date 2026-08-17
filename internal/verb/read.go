@@ -13,6 +13,9 @@ import (
 type StateView struct {
 	// ID is the state's identifier.
 	ID string `json:"id"`
+	// Slug is the state's short handle. It is absent on a state written
+	// before the field existed and left out until the migration runs.
+	Slug string `json:"slug,omitempty"`
 	// Title is the state's title.
 	Title string `json:"title"`
 	// Kind is one of intake, work and done.
@@ -101,6 +104,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 	for _, state := range l.Bench.States {
 		view := StateView{
 			ID:            state.ID,
+			Slug:          state.Slug,
 			Title:         state.Title,
 			Kind:          state.Kind,
 			OperatorOwned: state.OperatorOwned,
@@ -366,6 +370,14 @@ type CheckReport struct {
 	// StampedOrdinals counts the creation ordinals the migration wrote, and
 	// is absent from a request that did not ask for the migration.
 	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
+	// AssignedSlugs are the states the slug migration repaired with the slug
+	// each one was given, and is absent from a request that did not ask for
+	// that migration. A request that asked and found nothing to do carries an
+	// empty list, which is a different answer from not having asked.
+	AssignedSlugs []bench.SlugAssignment `json:"assigned_slugs,omitempty"`
+	// MigratedSlugs says the slug migration ran, so a caller can tell an
+	// empty list of assignments from a migration nobody asked for.
+	MigratedSlugs bool `json:"migrated_slugs,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -376,7 +388,9 @@ type CheckReport struct {
 // report that named it, and then reports what the bench still carries. A
 // request carrying the migrate-ordinals marker stamps the creation ordinals a
 // workbench written before the field carries none of, which is a one-time
-// repair rather than a read-path fallback.
+// repair rather than a read-path fallback. A request carrying the
+// migrate-slugs marker does the same for the states of a workbench that
+// predate the slug field, and names the slug it gave each one.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -384,6 +398,12 @@ type CheckReport struct {
 // loses that account the same way the run it is reporting on must not.
 func (l *Library) Check(req *Request) (*CheckReport, error) {
 	report := &CheckReport{}
+	if req != nil && req.MigrateSlugs {
+		assigned, reported := l.Bench.BackfillStateSlugs()
+		report.MigratedSlugs = true
+		report.AssignedSlugs = assigned
+		report.Findings = append(report.Findings, reported...)
+	}
 	if req != nil && req.MigrateOrdinals {
 		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
 		report.StampedOrdinals = &stamped

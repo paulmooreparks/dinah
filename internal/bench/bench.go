@@ -61,12 +61,28 @@ const (
 // ProfileVersion is the conformance claim as the interchange form spells it.
 var ProfileVersion = ProfileName + "/" + strconv.Itoa(ProfileMajor) + "." + strconv.Itoa(ProfileMinor)
 
+// SlugMandatoryMajor is the major number CORE-STATE-10, which requires every
+// state to carry a slug, is published under. A workbench declaring an earlier
+// major is not held to that statement, because a conformance claim names one
+// major and is evaluated over the statements that revision publishes, so a
+// state carrying no slug opens there. A workbench declaring this major or a
+// later one is held to it and is refused.
+//
+// The gate is written against the major a workbench declares rather than
+// against ProfileMajor, so the day a release raises this binary's own claim,
+// no reader of a state has to be edited to make the requirement bite.
+const SlugMandatoryMajor = 3
+
 // State is one station of the flow.
 type State struct {
 	// ID is the state's 12-hex identifier and the name of its directory.
 	ID string
 	// Title is what a person calls the state.
 	Title string
+	// Slug is the short handle a person types instead of quoting the title.
+	// It is empty on a state written before the field existed, which is what
+	// the slug migration fills in.
+	Slug string
 	// Kind is one of intake, work and done.
 	Kind string
 	// OperatorOwned marks a state an owner other than the operator may not
@@ -254,6 +270,7 @@ func Open(root string) (*Bench, error) {
 		return nil, contract.Refuse(contract.Malformed, "states")
 	}
 	seen := map[string]bool{}
+	seenSlug := map[string]bool{}
 	for position, id := range ids {
 		if seen[id] {
 			return nil, contract.Refuse(contract.Malformed, "states")
@@ -263,9 +280,35 @@ func Open(root string) (*Bench, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := admitSlug(state, major, seenSlug); err != nil {
+			return nil, err
+		}
 		b.States = append(b.States, state)
 	}
 	return b, nil
+}
+
+// admitSlug applies the slug rules to one state as the bench is opened, given
+// the major the workbench declares and the slugs its earlier states took.
+//
+// An absent slug turns on the declared major: a workbench claiming the
+// revision that requires one is refused, and a workbench claiming an earlier
+// revision opens, which is what leaves an unmigrated workbench usable until
+// the migration has run over it. A slug that is present is held to the grammar
+// and to uniqueness at every major, because either defect is a corruption
+// rather than a field somebody has not filled in yet.
+func admitSlug(state *State, major int, seen map[string]bool) error {
+	if state.Slug == "" {
+		if major >= SlugMandatoryMajor {
+			return contract.Refuse(contract.Malformed, "slug")
+		}
+		return nil
+	}
+	if !ValidStateSlug(state.Slug) || seen[state.Slug] {
+		return contract.Refuse(contract.Malformed, "slug")
+	}
+	seen[state.Slug] = true
+	return nil
 }
 
 // splitProfile reads a conformance target of the form dinah-core/1.0 into its
@@ -302,6 +345,7 @@ func readState(root, id string, position int) (*State, error) {
 	state := &State{
 		ID:            id,
 		Title:         fm.Value("title"),
+		Slug:          fm.Value("slug"),
 		Kind:          fm.Value("kind"),
 		OperatorOwned: fm.Value("operator_owned") == "true",
 		Instructions:  body,
@@ -337,14 +381,25 @@ func (b *Bench) State(id string) *State {
 	return nil
 }
 
-// StateByRef returns the state a reference names, accepting the identifier or
-// the title compared without regard to ASCII case, which is what makes a
-// state nameable on a command line at all.
+// StateByRef returns the state a reference names, accepting the identifier,
+// then the slug, then the title, the last two compared without regard to ASCII
+// case, which is what makes a state nameable on a command line at all.
+//
+// The slug is tried ahead of the title so a reference matching one state's
+// slug and another state's title resolves to the state whose slug it is. No
+// two states of an open bench carry the same slug, so the slug pass itself is
+// never ambiguous; the title pass keeps the first-match-in-order behaviour it
+// has always had.
 func (b *Bench) StateByRef(ref string) *State {
 	if state := b.State(ref); state != nil {
 		return state
 	}
 	want := asciiLower(strings.TrimSpace(ref))
+	for _, state := range b.States {
+		if state.Slug != "" && asciiLower(state.Slug) == want {
+			return state
+		}
+	}
 	for _, state := range b.States {
 		if asciiLower(state.Title) == want {
 			return state

@@ -269,6 +269,26 @@
       "text": "the reference resolves to a card or a path below one",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.slug-assigned.one": {
+      "text": "Assigned {count} state slug.",
+      "context": "The line the slug migration prints for what it assigned, for exactly one state."
+    },
+    "check.slug-assigned.other": {
+      "text": "Assigned {count} state slugs.",
+      "context": "The line the slug migration prints for what it assigned, for any other number."
+    },
+    "check.slug-duplicate": {
+      "text": "slug {detail} is carried by two states of this workbench, so a reference to it names both",
+      "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes."
+    },
+    "check.slug-malformed": {
+      "text": "slug {detail} is not a letter followed by letters, digits and single interior dashes",
+      "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it."
+    },
+    "check.slug-missing": {
+      "text": "state {detail} carries no slug, so it is reachable only by its identifier or its quoted title",
+      "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title."
+    },
     "check.torn-journal": {
       "text": "the journal of card {detail} ends in a partial line",
       "context": "A check finding: a torn journal tail left by a crash."

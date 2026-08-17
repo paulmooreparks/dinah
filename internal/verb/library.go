@@ -81,6 +81,9 @@ type Request struct {
 	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
 	// of the workbench that predates the field, before it reports.
 	MigrateOrdinals bool
+	// MigrateSlugs asks check to derive a slug for every state of the
+	// workbench that predates the field, before it reports.
+	MigrateSlugs bool
 }
 
 // CardView is the card as a response carries it.
