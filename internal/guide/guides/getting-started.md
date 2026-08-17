@@ -1,8 +1,8 @@
 # Getting started
 
-A bench is a directory of plain-text files. Everything Dinah knows about your
-work lives there, so you can read it with an editor, search it with grep, and
-put it under git alongside the project it belongs to.
+A workbench is a directory of plain-text files. Everything Dinah knows about
+your work lives there, so you can read it with an editor, search it with grep,
+and put it under git alongside the project it belongs to.
 
 Create one where the work is:
 
@@ -12,10 +12,10 @@ dinah init --slug proj --operator alka
 
 The slug is what a card reference is built from, so `proj-1` names the first
 card you file; leave it out and Dinah derives one from the directory name. The
-operator is the owner who answers for the bench, and every bench designates
-one, because blocks are lifted by the operator alone and a bench with nobody
-in that seat has acts nobody can perform. Leave it out and Dinah records
-whoever you are acting as.
+operator is the owner who answers for the workbench, and every workbench
+designates one, because blocks are lifted by the operator alone and a
+workbench with nobody in that seat has acts nobody can perform. Leave it out
+and Dinah records whoever you are acting as.
 
 That writes `workbench.md`, which carries the flow and the standing
 instructions, and a `states/` directory holding one file per station. Open
@@ -48,6 +48,6 @@ Every one of those commands prints the instructions of the position the card
 now sits at, together with the moves the flow allows it. Pass `--quiet` when
 you have read them already.
 
-Dinah discovers its bench the way git discovers a repository, by walking up
-from where you are. Set `DINAH_BENCH` or pass `--bench` when you want a
+Dinah discovers its workbench the way git discovers a repository, by walking
+up from where you are. Set `DINAH_BENCH` or pass `--bench` when you want a
 different one.

@@ -170,7 +170,7 @@ func TestInitializeCarriesTheWorkingAgreement(t *testing.T) {
 	if result.ProtocolVersion == "" {
 		t.Error("initialize carried no protocol version")
 	}
-	for _, rule := range []string{"Claim a card before", "stopped working", "authority", "operator-owned"} {
+	for _, rule := range []string{"Claim a card before", "stopped working", "Treat the workbench as the authority", "operator-owned"} {
 		if !strings.Contains(result.Instructions, rule) {
 			t.Errorf("the working agreement is missing %q", rule)
 		}

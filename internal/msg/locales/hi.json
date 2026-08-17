@@ -18,7 +18,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.2": {
-      "text": "नामित स्थिति बेंच घोषित करती है",
+      "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.3": {
@@ -114,7 +114,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.extract.1": {
-      "text": "लक्ष्य निर्देशिका में पहले से बेंच नहीं",
+      "text": "लक्ष्य निर्देशिका में पहले से वर्कबेंच नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.guide.1": {
@@ -122,7 +122,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.1": {
-      "text": "निर्देशिका में पहले से बेंच नहीं",
+      "text": "निर्देशिका में पहले से वर्कबेंच नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.init.2": {
@@ -138,7 +138,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.ls.1": {
-      "text": "नामित स्थिति बेंच घोषित करती है",
+      "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.move.1": {
@@ -174,7 +174,7 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.next.1": {
-      "text": "नामित स्थिति बेंच घोषित करती है",
+      "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.path.1": {
@@ -254,15 +254,15 @@
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
     },
     "cmd.export.summary": {
-      "text": "इस बेंच का विनिमय रूप stdout पर लिखें",
+      "text": "इस वर्कबेंच का विनिमय रूप stdout पर लिखें",
       "context": "The one-line summary of the export command, shown beside its syntax in the help block."
     },
     "cmd.extract.summary": {
-      "text": "इस बेंच की परिभाषा साँचे के रूप में बाहर लिखें",
+      "text": "इस वर्कबेंच की परिभाषा साँचे के रूप में बाहर लिखें",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
     },
     "cmd.fsck.summary": {
-      "text": "इस बेंच में संरचनात्मक दोष जाँचें",
+      "text": "इस वर्कबेंच में संरचनात्मक दोष जाँचें",
       "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
     },
     "cmd.guide.summary": {
@@ -274,7 +274,7 @@
       "context": "The one-line summary of the help command, shown beside its syntax in the help block."
     },
     "cmd.init.summary": {
-      "text": "यहाँ बेंच बनाएँ, चाहें तो किसी साँचे से",
+      "text": "यहाँ वर्कबेंच बनाएँ, चाहें तो किसी साँचे से",
       "context": "The one-line summary of the init command, shown beside its syntax in the help block."
     },
     "cmd.instructions.summary": {
@@ -290,7 +290,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "इस बेंच को stdio पर MCP से परोसें",
+      "text": "इस वर्कबेंच को stdio पर MCP से परोसें",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -318,7 +318,7 @@
       "context": "The one-line summary of the states command, shown beside its syntax in the help block."
     },
     "cmd.status.summary": {
-      "text": "यह बेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
+      "text": "यह वर्कबेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block."
     },
     "cmd.unblock.summary": {
@@ -342,7 +342,7 @@
       "context": "The one-line summary of the global flag --actor."
     },
     "flag.bench.summary": {
-      "text": "यहाँ से खोजी गई बेंच के बजाय यह बेंच लें",
+      "text": "यहाँ से खोजी गई वर्कबेंच के बजाय यह वर्कबेंच लें",
       "context": "The one-line summary of the global flag --bench."
     },
     "flag.json.summary": {
@@ -410,7 +410,7 @@
       "context": "An fsck finding: a torn journal tail left by a crash."
     },
     "fsck.unknown-state": {
-      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह बेंच घोषित नहीं करती",
+      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
       "context": "An fsck finding: every card's state identifier resolves."
     },
     "fsck.unknown-substate": {
@@ -434,7 +434,7 @@
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.bench": {
-      "text": "बेंच",
+      "text": "वर्कबेंच",
       "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.group.read": {
@@ -462,7 +462,7 @@
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.done": {
-      "text": "{root} पर बेंच बन गई।",
+      "text": "{root} पर वर्कबेंच बन गई।",
       "context": "Printed after init succeeds."
     },
     "instructions.global": {
@@ -474,7 +474,7 @@
       "context": "The label above the legal moves served with the instructions."
     },
     "instructions.standing": {
-      "text": "निर्देश, यह बेंच:",
+      "text": "निर्देश, यह वर्कबेंच:",
       "context": "The label above the workbench's standing instructions."
     },
     "instructions.state": {
@@ -514,7 +514,7 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.exists": {
-      "text": "{detail} में पहले से एक बेंच है",
+      "text": "{detail} में पहले से एक वर्कबेंच है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
@@ -526,7 +526,7 @@
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-bench": {
-      "text": "{detail} से ऊपर कोई बेंच नहीं मिली, और उपयोगकर्ता आधार में भी नहीं",
+      "text": "{detail} से ऊपर कोई वर्कबेंच नहीं मिली, और उपयोगकर्ता आधार में भी नहीं",
       "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.no-editor": {
@@ -554,7 +554,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-path": {
-      "text": "इस बेंच में {detail} के नाम से कुछ नहीं मिला",
+      "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.usage": {
@@ -574,7 +574,7 @@
       "context": "The sentence printed after the refusal name malformed. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-operator": {
-      "text": "यह बेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",
+      "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसके आरक्षित कार्य मृत हैं",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner": {
@@ -610,11 +610,11 @@
       "context": "The fallback sentence for a refusal name no catalog entry covers."
     },
     "refusal.unknown-card": {
-      "text": "इस बेंच पर कोई कार्ड {detail} नहीं है",
+      "text": "इस वर्कबेंच पर कोई कार्ड {detail} नहीं है",
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unknown-state": {
-      "text": "यह बेंच कोई स्थिति {detail} घोषित नहीं करती",
+      "text": "यह वर्कबेंच कोई स्थिति {detail} घोषित नहीं करती",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.unsupported-version": {
