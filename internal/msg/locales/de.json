@@ -16,13 +16,18 @@
       "context": "The one line printed about a card after an act.",
       "skeleton": true
     },
+    "check.active-without-claim": {
+      "text": "card {detail} reads active and carries no holder",
+      "context": "A check finding: the converse of the claim implication.",
+      "skeleton": true
+    },
     "check.add.1": {
       "text": "the request carries a title",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.add.2": {
-      "text": "the named state is one the workbench declares",
+      "text": "the named state is one the bench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -51,6 +56,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.block-without-reason": {
+      "text": "card {detail} is blocked and carries no reason",
+      "context": "A check finding: every blocked card carries a reason.",
+      "skeleton": true
+    },
     "check.block.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile.",
@@ -69,6 +79,11 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
+    "check.claim-without-active": {
+      "text": "card {detail} carries claim fields without substate active",
+      "context": "A check finding: the claim fields and substate active imply each other.",
       "skeleton": true
     },
     "check.claim.1": {
@@ -96,6 +111,11 @@
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "skeleton": true
     },
+    "check.clean": {
+      "text": "No structural defects found.",
+      "context": "Printed when check finds nothing.",
+      "skeleton": true
+    },
     "check.comment.1": {
       "text": "the card exists",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -114,6 +134,21 @@
     "check.config.1": {
       "text": "the key is one this tool knows",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.count.one": {
+      "text": "{count} defect.",
+      "context": "The count line after check's findings, for exactly one finding.",
+      "skeleton": true
+    },
+    "check.count.other": {
+      "text": "{count} defects.",
+      "context": "The count line after check's findings, for any other number.",
+      "skeleton": true
+    },
+    "check.dangling-link": {
+      "text": "a link names card {detail}, which resolves in neither half of the collection",
+      "context": "A check finding: a links entry whose to resolves to no card.",
       "skeleton": true
     },
     "check.delete.1": {
@@ -141,8 +176,13 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.entity-at-both-paths": {
+      "text": "entity {detail} is present in the live collection and in the archive, and check will not choose between them",
+      "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
+      "skeleton": true
+    },
     "check.extract.1": {
-      "text": "the target directory holds no workbench already",
+      "text": "the target directory holds no bench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -151,8 +191,13 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.holder-on-unheld": {
+      "text": "card {detail} carries a holder while not active",
+      "context": "A check finding: a ready or blocked card carries no holder.",
+      "skeleton": true
+    },
     "check.init.1": {
-      "text": "the directory holds no workbench already",
+      "text": "the directory holds no bench already",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -166,14 +211,24 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.interrupted-act": {
+      "text": "a structural act was interrupted here: {detail}",
+      "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
+      "skeleton": true
+    },
     "check.log.1": {
       "text": "the card exists",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.ls.1": {
-      "text": "the named state is one the workbench declares",
+      "text": "the named state is one the bench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.missing-anchor": {
+      "text": "directory {detail} carries no anchor file, so it is not an entity",
+      "context": "A check finding: a hex directory without its anchor.",
       "skeleton": true
     },
     "check.move.1": {
@@ -217,13 +272,18 @@
       "skeleton": true
     },
     "check.next.1": {
-      "text": "the named state is one the workbench declares",
+      "text": "the named state is one the bench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.path.1": {
       "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.position-diverges": {
+      "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
+      "context": "A check finding: frontmatter position against the journal's replay.",
       "skeleton": true
     },
     "check.release.1": {
@@ -241,6 +301,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.torn-journal": {
+      "text": "the journal of card {detail} ends in a partial line",
+      "context": "A check finding: a torn journal tail left by a crash.",
+      "skeleton": true
+    },
     "check.unblock.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -254,6 +319,16 @@
     "check.unblock.3": {
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
+    "check.unknown-state": {
+      "text": "a card names state {detail}, which this bench does not declare",
+      "context": "A check finding: every card's state identifier resolves.",
+      "skeleton": true
+    },
+    "check.unknown-substate": {
+      "text": "substate {detail} is outside the three the format declares",
+      "context": "A check finding: a substate outside ready, active and blocked.",
       "skeleton": true
     },
     "check.whoami.1": {
@@ -291,6 +366,11 @@
       "context": "The one-line summary of the block command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.check.summary": {
+      "text": "check this bench for structural defects",
+      "context": "The one-line summary of the check command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.claim.summary": {
       "text": "take up a ready card",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block.",
@@ -317,18 +397,13 @@
       "skeleton": true
     },
     "cmd.export.summary": {
-      "text": "write this workbench's interchange form to stdout",
+      "text": "write this bench's interchange form to stdout",
       "context": "The one-line summary of the export command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.extract.summary": {
-      "text": "copy this workbench's definition out as a template",
+      "text": "copy this bench's definition out as a template",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block.",
-      "skeleton": true
-    },
-    "cmd.fsck.summary": {
-      "text": "check this workbench for structural defects",
-      "context": "The one-line summary of the fsck command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.guide.summary": {
@@ -342,7 +417,7 @@
       "skeleton": true
     },
     "cmd.init.summary": {
-      "text": "create a workbench here, optionally from a template",
+      "text": "create a bench here, optionally from a template",
       "context": "The one-line summary of the init command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -362,7 +437,7 @@
       "skeleton": true
     },
     "cmd.mcp.summary": {
-      "text": "serve this workbench over MCP on stdio",
+      "text": "serve this bench over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -397,7 +472,7 @@
       "skeleton": true
     },
     "cmd.status.summary": {
-      "text": "where this workbench stands, and what you hold",
+      "text": "where this bench stands, and what you hold",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -427,7 +502,7 @@
       "skeleton": true
     },
     "flag.bench.summary": {
-      "text": "use this workbench instead of the one discovered from here",
+      "text": "use this bench instead of the one discovered from here",
       "context": "The one-line summary of the global flag --bench.",
       "skeleton": true
     },
@@ -444,91 +519,6 @@
     "flag.quiet.summary": {
       "text": "suppress served instructions on claim and move",
       "context": "The one-line summary of the global flag --quiet.",
-      "skeleton": true
-    },
-    "fsck.active-without-claim": {
-      "text": "card {detail} reads active and carries no holder",
-      "context": "An fsck finding: the converse of the claim implication.",
-      "skeleton": true
-    },
-    "fsck.block-without-reason": {
-      "text": "card {detail} is blocked and carries no reason",
-      "context": "An fsck finding: every blocked card carries a reason.",
-      "skeleton": true
-    },
-    "fsck.claim-without-active": {
-      "text": "card {detail} carries claim fields without substate active",
-      "context": "An fsck finding: the claim fields and substate active imply each other.",
-      "skeleton": true
-    },
-    "fsck.clean": {
-      "text": "No structural defects found.",
-      "context": "Printed when fsck finds nothing.",
-      "skeleton": true
-    },
-    "fsck.count.one": {
-      "text": "{count} defect.",
-      "context": "The count line after fsck's findings, for exactly one finding.",
-      "skeleton": true
-    },
-    "fsck.count.other": {
-      "text": "{count} defects.",
-      "context": "The count line after fsck's findings, for any other number.",
-      "skeleton": true
-    },
-    "fsck.dangling-link": {
-      "text": "a link names card {detail}, which resolves in neither half of the collection",
-      "context": "An fsck finding: a links entry whose to resolves to no card.",
-      "skeleton": true
-    },
-    "fsck.entity-at-both-paths": {
-      "text": "entity {detail} is present in the live collection and in the archive, and fsck will not choose between them",
-      "context": "An fsck finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
-      "skeleton": true
-    },
-    "fsck.holder-on-unheld": {
-      "text": "card {detail} carries a holder while not active",
-      "context": "An fsck finding: a ready or blocked card carries no holder.",
-      "skeleton": true
-    },
-    "fsck.interrupted-act": {
-      "text": "a structural act was interrupted here: {detail}",
-      "context": "An fsck finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
-      "skeleton": true
-    },
-    "fsck.missing-anchor": {
-      "text": "directory {detail} carries no anchor file, so it is not an entity",
-      "context": "An fsck finding: a hex directory without its anchor.",
-      "skeleton": true
-    },
-    "fsck.ordinal-duplicate": {
-      "text": "entity {detail} carries a creation ordinal another entity of the same collection already carries, so a position names two of them",
-      "context": "An fsck finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers.",
-      "skeleton": true
-    },
-    "fsck.ordinal-missing": {
-      "text": "entity {detail} carries no creation ordinal, so its position depends on the directory listing",
-      "context": "An fsck finding: an entity written before the ordinal field existed, or by hand; `dinah fsck --migrate-ordinals` stamps it.",
-      "skeleton": true
-    },
-    "fsck.position-diverges": {
-      "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
-      "context": "An fsck finding: frontmatter position against the journal's replay.",
-      "skeleton": true
-    },
-    "fsck.torn-journal": {
-      "text": "the journal of card {detail} ends in a partial line",
-      "context": "An fsck finding: a torn journal tail left by a crash.",
-      "skeleton": true
-    },
-    "fsck.unknown-state": {
-      "text": "a card names state {detail}, which this workbench does not declare",
-      "context": "An fsck finding: every card's state identifier resolves.",
-      "skeleton": true
-    },
-    "fsck.unknown-substate": {
-      "text": "substate {detail} is outside the three the format declares",
-      "context": "An fsck finding: a substate outside ready, active and blocked.",
       "skeleton": true
     },
     "help.environment": {
@@ -552,7 +542,7 @@
       "skeleton": true
     },
     "help.group.bench": {
-      "text": "WORKBENCH",
+      "text": "BENCH",
       "context": "A heading of the help block, grouping the commands beneath it.",
       "skeleton": true
     },
@@ -587,7 +577,7 @@
       "skeleton": true
     },
     "init.done": {
-      "text": "Workbench created at {root}.",
+      "text": "Bench created at {root}.",
       "context": "Printed after init succeeds.",
       "skeleton": true
     },
@@ -602,7 +592,7 @@
       "skeleton": true
     },
     "instructions.standing": {
-      "text": "Instructions, this workbench:",
+      "text": "Instructions, this bench:",
       "context": "The label above the workbench's standing instructions.",
       "skeleton": true
     },
@@ -652,12 +642,12 @@
       "skeleton": true
     },
     "refusal.dinah.exists": {
-      "text": "{detail} already holds a workbench",
+      "text": "{detail} already holds a bench",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.interrupted": {
-      "text": "the act on {detail} was interrupted after it was recorded, and `dinah fsck --finish` completes it",
+      "text": "the act on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -667,7 +657,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-bench": {
-      "text": "no workbench was found from {detail} upward, and none in the user base",
+      "text": "no bench was found from {detail} upward, and none in the user base",
       "context": "The sentence printed after the refusal name dinah.no-bench. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -702,7 +692,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-path": {
-      "text": "nothing in this workbench answers to {detail}",
+      "text": "nothing in this bench answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -727,7 +717,7 @@
       "skeleton": true
     },
     "refusal.no-operator": {
-      "text": "this workbench designates no operator, so its reserved acts are dead",
+      "text": "this bench designates no operator, so its reserved acts are dead",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -772,12 +762,12 @@
       "skeleton": true
     },
     "refusal.unknown-card": {
-      "text": "this workbench carries no card {detail}",
+      "text": "this bench carries no card {detail}",
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.unknown-state": {
-      "text": "this workbench declares no state {detail}",
+      "text": "this bench declares no state {detail}",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -808,7 +798,7 @@
     },
     "status.bench": {
       "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered.",
+      "context": "The first line of status: the bench and where it was discovered.",
       "skeleton": true
     },
     "status.blocked": {

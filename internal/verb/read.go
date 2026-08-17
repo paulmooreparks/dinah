@@ -351,7 +351,25 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 	return identity, nil
 }
 
-// Fsck checks the bench for structural defects, and repairs nothing.
+// CheckReport is what check answers with: the structural defects the bench
+// carries, and the account of a repair the request asked for.
+//
+// The account is what keeps a repair from being silent. A migration that
+// stamped a creation ordinal it could only guess at, or that a lock kept out of
+// a card, is the only moment anybody can still tell a guess from a recovered
+// fact, so it says so here rather than leaving a workbench that reads clean
+// afterwards either way.
+type CheckReport struct {
+	// Findings are the defects the checker names, together with whatever a
+	// repair in the same request could not do.
+	Findings []bench.Finding `json:"findings"`
+	// StampedOrdinals counts the creation ordinals the migration wrote, and
+	// is absent from a request that did not ask for the migration.
+	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
+}
+
+// Check checks the bench for structural defects, and repairs nothing unless a
+// marker in the request asks it to.
 //
 // A request carrying the finish marker completes or rolls back the
 // interrupted structural acts first, so nobody finishes an act without the
@@ -359,20 +377,29 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 // request carrying the migrate-ordinals marker stamps the creation ordinals a
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback.
-func (l *Library) Fsck(req *Request) ([]bench.Finding, error) {
+func (l *Library) Check(req *Request) (*CheckReport, error) {
+	report := &CheckReport{}
 	if req != nil && req.MigrateOrdinals {
-		if _, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now())); err != nil {
+		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
+		if err != nil {
 			return nil, err
 		}
+		report.StampedOrdinals = &stamped
+		report.Findings = append(report.Findings, reported...)
 	}
 	if req == nil || !req.Finish {
-		return l.Bench.Fsck()
+		findings, err := l.Bench.Check()
+		if err != nil {
+			return nil, err
+		}
+		report.Findings = append(report.Findings, findings...)
+		return report, nil
 	}
 	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return nil, err
 	}
-	remaining, err := l.Bench.Fsck()
+	remaining, err := l.Bench.Check()
 	if err != nil {
 		return nil, err
 	}
@@ -383,14 +410,14 @@ func (l *Library) Fsck(req *Request) ([]bench.Finding, error) {
 	for _, finding := range unresolved {
 		reported[finding.Path] = true
 	}
-	findings := unresolved
+	report.Findings = append(report.Findings, unresolved...)
 	for _, finding := range remaining {
 		if reported[finding.Path] {
 			continue
 		}
-		findings = append(findings, finding)
+		report.Findings = append(report.Findings, finding)
 	}
-	return findings, nil
+	return report, nil
 }
 
 // Export writes the interchange form of the bench definition.

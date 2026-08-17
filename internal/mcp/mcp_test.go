@@ -195,7 +195,7 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 		`{"name":"whoami","arguments":{"actor":"alka"}}`,
 		`{"name":"version","arguments":{}}`,
 		`{"name":"export","arguments":{}}`,
-		`{"name":"fsck","arguments":{}}`,
+		`{"name":"check","arguments":{}}`,
 		`{"name":"claim","arguments":{"actor":"alka","card":"fx-99"}}`,
 		`{"name":"claim","arguments":{"actor":"alka","card":"fx-1"}}`,
 	}

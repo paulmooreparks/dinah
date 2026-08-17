@@ -32,7 +32,7 @@ it refers to as they stood at the time, so the history still reads years later
 when the states it names have been renamed or removed.
 
 Hand-editing is legal. Edit the frontmatter with an editor when you need to,
-then run `dinah fsck`, which reports the defects the format forbids: a claim
+then run `dinah check`, which reports the defects the format forbids: a claim
 without the substate that implies it, a block with no reason, a card naming a
 state the workbench does not declare, a link pointing at no card, and a
 position that disagrees with the journal.

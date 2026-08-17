@@ -148,17 +148,13 @@ There are no exceptions to the entity shape anywhere in the format. Every
 entity kind named in the Entities section, from the workbench down to a
 single attachment, is a hex directory claimed atomically by `mkdir` and
 made real by its anchor file. Every general rule (id claiming, anchor
-validity, archiving, fsck coverage) therefore applies to every entity kind
+validity, archiving, check coverage) therefore applies to every entity kind
 with no special cases, and a new entity kind added later inherits the whole
 rulebook by construction.
 
-Fsck's name and job are both borrowed from the Unix file system consistency
-check of the same name, whose checking role Dinah's bench checker inherits
-along with its spelling.
-
 The anchor file is what makes the hex directory an entity, the way `.git`
 makes a directory a repository. A card directory without `card.md` is
-garbage by definition, which gives fsck a free validity rule and gives
+garbage by definition, which gives check a free validity rule and gives
 entity creation a free crash story: make the directory, write the anchor,
 and an interruption leaves a detectably incomplete thing.
 
@@ -260,8 +256,8 @@ strictly worse failure than any dangling reference.
 
 The dangling-reference risk this creates is handled from both ends. Forward,
 the tool refuses to delete a state that cards currently occupy. Backward,
-`dinah fsck` verifies that every card's state id resolves and that the
-invariants hold. Fsck is what makes "manually editable if absolutely
+`dinah check` verifies that every card's state id resolves and that the
+invariants hold. Check is what makes "manually editable if absolutely
 necessary" safe: edit by hand, then ask the tool whether you broke anything.
 
 ### Substate
@@ -275,7 +271,7 @@ Andoneer's zone concept.
 
 A claim is two frontmatter fields on the card: `claim_holder` (an actor
 string, see Actors below) and `claim_since` (a timestamp). Present together
-with `substate: active`, absent together otherwise; fsck enforces the
+with `substate: active`, absent together otherwise; check enforces the
 implication both ways. A block is `block_reason` (required, posed so the
 operator can answer it without opening the card) and optionally `block_kind`
 and `block_since`, present exactly when `substate: blocked`. Clearing a block
@@ -355,8 +351,8 @@ Groups, the folders a wide board subdivides its states into, are a display
 overlay, not entities and not core: no verb consults a group, and an
 implementation that ignores them loses only visual comfort. A `groups:` map
 in `workbench.md` frontmatter names lists of state ids, kept separate from
-the states list so the single authority for order stays intact; fsck checks
-only that the referenced ids resolve. Whether groups enter the contract at
+the states list so the single authority for order stays intact; the check
+verifies only that the referenced ids resolve. Whether groups enter the contract at
 all is a boundary-table row.
 
 ### What "serve the instructions" composes
@@ -429,7 +425,7 @@ every claim never pay for history they are not reading. Cross-card views
 are a merge-sort over journals by timestamp.
 
 The journal is authoritative for history; the card frontmatter is
-authoritative for current position. They are reconciled by fsck and by the
+authoritative for current position. They are reconciled by check and by the
 manual-correction rule above.
 
 Journal events are self-contained history: any cross-entity reference in an
@@ -652,7 +648,7 @@ of any language setting. Localization applies exactly where a human reads.
 
 The profile ships its vocabulary as a machine-readable registry (a small JSON
 file listing every key, every enum, and what may appear where). One artifact
-feeds four consumers: the conformance suite, fsck and the lints, an LSP for
+feeds four consumers: the conformance suite, check and the lints, an LSP for
 people who hand-edit these files (completion and diagnostics fall out of a
 schema server), and localization catalogs. Nobody maintains four lists that
 drift.
@@ -675,7 +671,7 @@ and status in frontmatter and long-form notes as the body. Membership is
 card-owned, a `workstreams:` list of ids in card frontmatter, by the same
 single-writer logic as position: deleting a card removes its memberships
 with it, deleting a workstream that cards still reference is refused, and
-fsck catches danglers. Archiving a workstream moves its directory to
+check catches danglers. Archiving a workstream moves its directory to
 `archive/workstreams/<id>/` like any other entity.
 
 The real use case is within-bench grouping of concurrent efforts (several
@@ -718,7 +714,7 @@ the same thing tend to write it the same way. A bench writing something else
 is conforming.
 
 The id a link names is checked the way every other frontmatter reference is:
-fsck reports a `to:` that resolves to no card. The id space spans the live and
+check reports a `to:` that resolves to no card. The id space spans the live and
 archived halves of the cards collection, so archiving the card a link names
 leaves the link resolvable and deleting that card does not. Deletion is not
 refused on account of an inbound link. Refusing it would be a reference
@@ -824,7 +820,7 @@ A tool finding a stale lock refuses loudly and names the holder from the
 lock's own content, and a human removes it, the git contract exactly.
 Nothing auto-breaks a lock silently. A stale claim after a crash is a
 visible line in a text file that a human can fix with an editor, then run
-fsck.
+check.
 
 Lock scope is the nearest enclosing journal-bearing entity, a card for
 anything inside a card and the bench for everything else. Commenting on a
@@ -916,7 +912,7 @@ at neither path or at both is reported and not resolved, because a directory
 rename is not atomic on every filesystem and choosing which half is complete
 would rest on the property this design refuses to assume.
 
-Finishing is `dinah fsck --finish` rather than anything a bare `fsck` does on
+Finishing is `dinah check --finish` rather than anything a bare `check` does on
 sight, and the repair is journaled like every other. The bench lock is what
 tells a standing sibling from a running act, since an act holds that lock from
 its first acquisition to its last: a sibling found while the lock is free is
@@ -1035,17 +1031,17 @@ now succeed.
 
 Backup, and git when the bench lives in a repository, are the last resort;
 before them the format's own redundancy carries most recoveries, and
-`dinah fsck` is the tool that uses it. Frontmatter present but mangled:
+`dinah check` is the tool that uses it. Frontmatter present but mangled:
 the journal replays to reconstruct the card's current position, since
 history determines the present. An anchor that is absent entirely is the
 quarantine case below, not a replay case, and the two inputs get different
 answers. Journal lost: the frontmatter still carries present truth, the
-history is gone, and fsck records a witnessed history-lost event rather
+history is gone, and check records a witnessed history-lost event rather
 than pretending otherwise. Torn journal tail after a crash: readers
-tolerate a trailing partial line, and fsck trims it with a witness.
+tolerate a trailing partial line, and check trims it with a witness.
 Sibling lock left behind: a structural act was interrupted, and the protocol
 in the Concurrency and atomicity section says which way it finishes and what
-fsck refuses to decide.
+check refuses to decide.
 Anchor
 file missing: the directory is quarantined to `lost+found/`, never silently
 deleted. Every repair is journaled as itself an event, so recovery leaves a
@@ -1075,7 +1071,7 @@ Neither archiving nor deleting an entity can invalidate any journal, for
 two structural reasons: colocation (a journal travels or dies with its
 entity, never orphaned) and the rule that history describes then, not now.
 A journal's references to other entities are facts about the moment they
-were written, so fsck's reference checks apply to frontmatter, never to
+were written, so check's reference checks apply to frontmatter, never to
 journals; an implementation that verified historical ids against the live
 bench would turn normal housekeeping into false corruption reports across
 every old journal. Replay needs only the id sequence, and the present-tense

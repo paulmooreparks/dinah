@@ -31,7 +31,7 @@ WORKBENCH
   path <card|path>                       print the file path of a card or of anything below it
   edit <card|path>                       open that path in your editor
   config <get|set> <key> [value]         read or write your user settings
-  fsck [--finish] [--migrate-ordinals]   check this workbench for structural defects
+  check [--finish] [--migrate-ordinals]  look for structural defects in this workbench
   whoami                                 the actor your acts carry, and whether it is the operator
   version [--catalogs]                   what this binary is and what it conforms to
 

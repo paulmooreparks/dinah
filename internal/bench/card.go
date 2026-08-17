@@ -36,7 +36,7 @@ type Card struct {
 	// Substate is one of ready, active and blocked.
 	Substate string
 	// Holder and ClaimSince are present exactly when the substate is
-	// active, which is the implication fsck enforces both ways.
+	// active, which is the implication check enforces both ways.
 	Holder     string
 	ClaimSince string
 	// Expires is the moment a lease lapses, empty when the claim carries no

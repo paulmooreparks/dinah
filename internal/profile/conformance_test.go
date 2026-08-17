@@ -29,7 +29,7 @@ var outOfReach = map[string]string{
 	"CORE-CARD-2":  "retitling a card is an edit to card.md, and v0 offers no retitle verb",
 	"CORE-LINK-1":  "links are card data and v0 ships no link write-sugar, so a card carrying one is read but never offered to the tool",
 	"CORE-LINK-2":  "a malformed link is refused at a write surface v0 does not offer",
-	"CORE-LINK-3":  "a link naming an absent card is refused at a write surface v0 does not offer; fsck reports the dangler instead",
+	"CORE-LINK-3":  "a link naming an absent card is refused at a write surface v0 does not offer; check reports the dangler instead",
 	"CORE-LINK-4":  "no closed set is imposed because nothing in the tool reads a link at all",
 	"CORE-LINK-5":  "no verb consults a link, so no refusal can follow from one",
 	"CORE-LINK-6":  "nothing in the tool adds a link, so no link can be added as a consequence of another",

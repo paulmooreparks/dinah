@@ -6,7 +6,7 @@ import (
 	"dinah/internal/contract"
 )
 
-// Finding is one structural defect fsck reports, named together with the file
+// Finding is one structural defect check reports, named together with the file
 // it sits in so that whoever fixes it knows where to open an editor.
 type Finding struct {
 	// Path is the file the defect was found in.
@@ -18,23 +18,29 @@ type Finding struct {
 	Detail string
 }
 
-// The catalog keys fsck reports its findings under. Each names one invariant
+// The catalog keys check reports its findings under. Each names one invariant
 // the format document states.
 const (
-	FindingClaimWithoutActive = "fsck.claim-without-active"
-	FindingActiveWithoutClaim = "fsck.active-without-claim"
-	FindingBlockWithoutReason = "fsck.block-without-reason"
-	FindingHolderOnUnheld     = "fsck.holder-on-unheld"
-	FindingUnknownState       = "fsck.unknown-state"
-	FindingDanglingLink       = "fsck.dangling-link"
-	FindingPositionDiverges   = "fsck.position-diverges"
-	FindingMissingAnchor      = "fsck.missing-anchor"
-	FindingTornJournal        = "fsck.torn-journal"
-	FindingUnknownSubstate    = "fsck.unknown-substate"
-	FindingInterruptedAct     = "fsck.interrupted-act"
-	FindingEntityAtBothPaths  = "fsck.entity-at-both-paths"
-	FindingOrdinalMissing     = "fsck.ordinal-missing"
-	FindingOrdinalDuplicate   = "fsck.ordinal-duplicate"
+	FindingClaimWithoutActive = "check.claim-without-active"
+	FindingActiveWithoutClaim = "check.active-without-claim"
+	FindingBlockWithoutReason = "check.block-without-reason"
+	FindingHolderOnUnheld     = "check.holder-on-unheld"
+	FindingUnknownState       = "check.unknown-state"
+	FindingDanglingLink       = "check.dangling-link"
+	FindingPositionDiverges   = "check.position-diverges"
+	FindingMissingAnchor      = "check.missing-anchor"
+	FindingTornJournal        = "check.torn-journal"
+	FindingUnknownSubstate    = "check.unknown-substate"
+	FindingInterruptedAct     = "check.interrupted-act"
+	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
+	FindingOrdinalMissing     = "check.ordinal-missing"
+	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
+	// The last two are raised by the ordinal migration rather than by the
+	// checker, because each names something only the run that did the work
+	// can know: which entity it placed by guesswork, and which card a lock
+	// kept it out of. Neither survives on disk for a later check to find.
+	FindingOrdinalGuessed = "check.ordinal-guessed"
+	FindingOrdinalLocked  = "check.ordinal-locked"
 )
 
 // The directions an interrupted structural act is reported and finished in.
@@ -56,9 +62,9 @@ const (
 	DirectionLocked = "locked"
 )
 
-// Fsck checks a bench for the structural defects the format's invariants
+// Check checks a bench for the structural defects the format's invariants
 // forbid and returns every one it finds. A clean bench returns no findings.
-func (b *Bench) Fsck() ([]Finding, error) {
+func (b *Bench) Check() ([]Finding, error) {
 	var findings []Finding
 	for _, id := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), id)

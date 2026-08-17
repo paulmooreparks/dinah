@@ -13,16 +13,12 @@ as it settles.
 
 ## Library-first, one binary, many heads
 
-The real implementation is a library: the bench store, the verbs, fsck, the
+The real implementation is a library: the bench store, the verbs, check, the
 token registry, the locale catalogs. Every user-facing surface is a thin
 head over that library, and all the heads live in one binary as subcommands:
 the CLI verbs, an MCP server (`dinah mcp`, stdio), an HTTP server
 (`dinah serve`), and an LSP (`dinah lsp`). There is exactly one
 implementation of every verb no matter which protocol asked.
-
-Fsck is named for the Unix file system consistency check; Dinah's checker
-borrows the name and the role, structural checking, and applies both to a
-bench instead of a filesystem.
 
 The cautionary tale is git, which was never embeddable, so the ecosystem
 reimplemented it (libgit2 for embedders, JGit for the JVM), each lagging
@@ -102,7 +98,7 @@ is where most agent behavior is shaped. Embedded guides (bench authoring,
 instruction-writing conventions, operator-station discipline) are served on
 demand by a guide verb and as MCP resources. Shipped templates are complete
 bench definitions embedded in the binary, instantiated by `dinah init`;
-every shipped template must pass fsck and the conformance suite in CI, so
+every shipped template must pass check and the conformance suite in CI, so
 the scaffold is provably legal, and the experiment benches are the first
 drafts. The machine-surface rule holds throughout: served guidance is
 content an agent reads, but the tokens inside examples stay canonical.
@@ -150,7 +146,7 @@ sha and shown to the operator (state list and instruction summaries)
 before instantiation. Instantiate-and-own caps the blast radius: nothing
 upstream can mutate a bench already owned. Provenance (source and sha) is
 recorded in the new bench's workbench.md as display-tier fact. A template
-repository runs fsck and the conformance suite in CI, so contributed
+repository runs check and the conformance suite in CI, so contributed
 templates are machine-checked before a human reads them. After locale
 catalogs, they are the second well-shaped community contribution.
 
@@ -191,7 +187,7 @@ and never parses human output.
 The format side of extensions is declaration (dot-named kinds in the bench
 definition); the behavior side is a ladder, and each rung is machinery the
 design already owns. Rung zero is free: the uniform entity shape lets the
-CLI create, list, show, archive, journal, and structurally fsck any
+CLI create, list, show, archive, journal, and structurally check any
 declared kind with no kind-specific code. Rung one is instructions: what
 an extension entity means, and when agents act on it, is method text in
 the bench, with no CLI involvement. Rung two is the deferred hook design
@@ -248,7 +244,7 @@ happened, the resulting position, and the served instructions with the
 legal next moves, because the hosted product proved the claim response is
 where agent behavior is shaped. Errors are the trichotomy as types
 (refused with a coded reason; stale carrying the current revision), never
-strings the heads would have to parse. Fsck and template init/extract
+strings the heads would have to parse. Check and template init/extract
 round out the surface.
 
 Two of those mutations sit outside the core profile deliberately. The profile
@@ -293,7 +289,7 @@ next.
 
 ## Findings from the first hand-executed run
 
-A complete card (the fsck mini-concept) was run through a five-state bench
+A complete card (the check mini-concept) was run through a five-state bench
 with every verb performed by hand-editing files, three fresh-context review
 cycles, and a real operator gate. The run validated the format's redundancy
 twice for real (a fabricated citation caught by review; a

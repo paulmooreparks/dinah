@@ -13,6 +13,10 @@
       "text": "{ref}  {title}  [{state} / {substate}]",
       "context": "The one line printed about a card after an act."
     },
+    "check.active-without-claim": {
+      "text": "कार्ड {detail} active है पर कोई धारक नहीं",
+      "context": "A check finding: the converse of the claim implication."
+    },
     "check.add.1": {
       "text": "निवेदन में शीर्षक है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -41,6 +45,10 @@
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.block-without-reason": {
+      "text": "कार्ड {detail} बाधित है पर कारण नहीं",
+      "context": "A check finding: every blocked card carries a reason."
+    },
     "check.block.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
@@ -56,6 +64,10 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.claim-without-active": {
+      "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
+      "context": "A check finding: the claim fields and substate active imply each other."
     },
     "check.claim.1": {
       "text": "कार्ड मौजूद है",
@@ -77,6 +89,10 @@
       "text": "the card's substate is not `active`",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
+    "check.clean": {
+      "text": "कोई संरचनात्मक दोष नहीं मिला।",
+      "context": "Printed when check finds nothing."
+    },
     "check.comment.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -92,6 +108,18 @@
     "check.config.1": {
       "text": "कुंजी वह है जो यह उपकरण जानता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.count.one": {
+      "text": "{count} दोष।",
+      "context": "The count line after check's findings, for exactly one finding."
+    },
+    "check.count.other": {
+      "text": "{count} दोष।",
+      "context": "The count line after check's findings, for any other number."
+    },
+    "check.dangling-link": {
+      "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
+      "context": "A check finding: a links entry whose to resolves to no card."
     },
     "check.delete.1": {
       "text": "संदर्भ किसी इकाई तक पहुँचता है",
@@ -113,6 +141,10 @@
       "text": "सीढ़ी से कोई संपादक मिलता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.entity-at-both-paths": {
+      "text": "इकाई {detail} सजीव संग्रह में और पुरालेख में, दोनों जगह मौजूद है, और check इनमें से किसी एक को नहीं चुनेगा",
+      "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
+    },
     "check.extract.1": {
       "text": "लक्ष्य निर्देशिका में पहले से वर्कबेंच नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -120,6 +152,10 @@
     "check.guide.1": {
       "text": "उस विषय पर मार्गदर्शिका है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.holder-on-unheld": {
+      "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
+      "context": "A check finding: a ready or blocked card carries no holder."
     },
     "check.init.1": {
       "text": "निर्देशिका में पहले से वर्कबेंच नहीं",
@@ -133,6 +169,10 @@
       "text": "संदर्भ किसी कार्ड या स्थिति तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.interrupted-act": {
+      "text": "यहाँ एक संरचनात्मक क्रिया बाधित हुई: {detail}",
+      "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
+    },
     "check.log.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -140,6 +180,10 @@
     "check.ls.1": {
       "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.missing-anchor": {
+      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
+      "context": "A check finding: a hex directory without its anchor."
     },
     "check.move.1": {
       "text": "कार्ड मौजूद है",
@@ -177,9 +221,37 @@
       "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.ordinal-duplicate": {
+      "text": "इकाई {detail} का रचना-क्रमांक उसी संग्रह की किसी और इकाई के क्रमांक जैसा है, इसलिए एक स्थान दो इकाइयों को नामित करता है",
+      "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
+    },
+    "check.ordinal-guessed": {
+      "text": "इकाई {detail} को निर्देशिका सूची से रखा गया, क्योंकि कार्ड की पंजिका में उसकी रचना का कोई अभिलेख नहीं, इसलिए उसका स्थान एक अनुमान है",
+      "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead."
+    },
+    "check.ordinal-locked": {
+      "text": "कार्ड {detail} किसी अन्य प्रक्रिया द्वारा अवरुद्ध है, इसलिए प्रवासन ने उसके नीचे कुछ भी अंकित नहीं किया",
+      "context": "A check finding the ordinal migration raises: a lock stood on the card, the walk stepped over it and carried on."
+    },
+    "check.ordinal-missing": {
+      "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
+      "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
+    },
+    "check.ordinal-stamped.one": {
+      "text": "{count} रचना-क्रमांक अंकित किया।",
+      "context": "The line the ordinal migration prints for what it stamped, for exactly one entity."
+    },
+    "check.ordinal-stamped.other": {
+      "text": "{count} रचना-क्रमांक अंकित किए।",
+      "context": "The line the ordinal migration prints for what it stamped, for any other number."
+    },
     "check.path.1": {
       "text": "संदर्भ किसी पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.position-diverges": {
+      "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
+      "context": "A check finding: frontmatter position against the journal's replay."
     },
     "check.release.1": {
       "text": "कार्ड मौजूद है",
@@ -193,6 +265,10 @@
       "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.torn-journal": {
+      "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
+      "context": "A check finding: a torn journal tail left by a crash."
+    },
     "check.unblock.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -204,6 +280,14 @@
     "check.unblock.3": {
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
+    },
+    "check.unknown-state": {
+      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
+      "context": "A check finding: every card's state identifier resolves."
+    },
+    "check.unknown-substate": {
+      "text": "उपस्थिति {detail} उन तीन से बाहर है जो प्रारूप घोषित करता है",
+      "context": "A check finding: a substate outside ready, active and blocked."
     },
     "check.whoami.1": {
       "text": "सीढ़ी से कोई स्वामी मिलता है",
@@ -233,6 +317,10 @@
       "text": "बाधा दर्ज करें और कार्ड मुक्त करें",
       "context": "The one-line summary of the block command, shown beside its syntax in the help block."
     },
+    "cmd.check.summary": {
+      "text": "इस वर्कबेंच में संरचनात्मक दोष जाँचें",
+      "context": "The one-line summary of the check command, shown beside its syntax in the help block."
+    },
     "cmd.claim.summary": {
       "text": "तैयार कार्ड को उठाएँ",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block."
@@ -260,10 +348,6 @@
     "cmd.extract.summary": {
       "text": "इस वर्कबेंच की परिभाषा साँचे के रूप में बाहर लिखें",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block."
-    },
-    "cmd.fsck.summary": {
-      "text": "इस वर्कबेंच में संरचनात्मक दोष जाँचें",
-      "context": "The one-line summary of the fsck command, shown beside its syntax in the help block."
     },
     "cmd.guide.summary": {
       "text": "अंतर्निहित मार्गदर्शिकाएँ, या उनमें से एक",
@@ -357,74 +441,6 @@
       "text": "claim और move पर परोसे गए निर्देश दबाएँ",
       "context": "The one-line summary of the global flag --quiet."
     },
-    "fsck.active-without-claim": {
-      "text": "कार्ड {detail} active है पर कोई धारक नहीं",
-      "context": "An fsck finding: the converse of the claim implication."
-    },
-    "fsck.block-without-reason": {
-      "text": "कार्ड {detail} बाधित है पर कारण नहीं",
-      "context": "An fsck finding: every blocked card carries a reason."
-    },
-    "fsck.claim-without-active": {
-      "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
-      "context": "An fsck finding: the claim fields and substate active imply each other."
-    },
-    "fsck.clean": {
-      "text": "कोई संरचनात्मक दोष नहीं मिला।",
-      "context": "Printed when fsck finds nothing."
-    },
-    "fsck.count.one": {
-      "text": "{count} दोष।",
-      "context": "The count line after fsck's findings, for exactly one finding."
-    },
-    "fsck.count.other": {
-      "text": "{count} दोष।",
-      "context": "The count line after fsck's findings, for any other number."
-    },
-    "fsck.dangling-link": {
-      "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
-      "context": "An fsck finding: a links entry whose to resolves to no card."
-    },
-    "fsck.entity-at-both-paths": {
-      "text": "इकाई {detail} सजीव संग्रह में और पुरालेख में, दोनों जगह मौजूद है, और fsck इनमें से किसी एक को नहीं चुनेगा",
-      "context": "An fsck finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve."
-    },
-    "fsck.holder-on-unheld": {
-      "text": "कार्ड {detail} active नहीं है फिर भी धारक है",
-      "context": "An fsck finding: a ready or blocked card carries no holder."
-    },
-    "fsck.interrupted-act": {
-      "text": "यहाँ एक संरचनात्मक क्रिया बाधित हुई: {detail}",
-      "context": "An fsck finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
-    },
-    "fsck.missing-anchor": {
-      "text": "निर्देशिका {detail} में आधार फ़ाइल नहीं, इसलिए वह इकाई नहीं",
-      "context": "An fsck finding: a hex directory without its anchor."
-    },
-    "fsck.ordinal-duplicate": {
-      "text": "इकाई {detail} का रचना-क्रमांक उसी संग्रह की किसी और इकाई के क्रमांक जैसा है, इसलिए एक स्थान दो इकाइयों को नामित करता है",
-      "context": "An fsck finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
-    },
-    "fsck.ordinal-missing": {
-      "text": "इकाई {detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
-      "context": "An fsck finding: an entity written before the ordinal field existed, or by hand; `dinah fsck --migrate-ordinals` stamps it."
-    },
-    "fsck.position-diverges": {
-      "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
-      "context": "An fsck finding: frontmatter position against the journal's replay."
-    },
-    "fsck.torn-journal": {
-      "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
-      "context": "An fsck finding: a torn journal tail left by a crash."
-    },
-    "fsck.unknown-state": {
-      "text": "एक कार्ड स्थिति {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
-      "context": "An fsck finding: every card's state identifier resolves."
-    },
-    "fsck.unknown-substate": {
-      "text": "उपस्थिति {detail} उन तीन से बाहर है जो प्रारूप घोषित करता है",
-      "context": "An fsck finding: a substate outside ready, active and blocked."
-    },
     "help.environment": {
       "text": "पर्यावरण: DINAH_BENCH, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
@@ -438,7 +454,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help <command>' चलाएँ।",
+      "text": "किसी एक कमांड के तर्क, इनकार और निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.bench": {
@@ -466,7 +482,7 @@
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
-      "text": "प्रयोग: dinah <command> [arguments]",
+      "text": "प्रयोग: dinah \u003ccommand\u003e [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.done": {
@@ -526,7 +542,7 @@
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.interrupted": {
-      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई, और `dinah fsck --finish` उसे पूरा करता है",
+      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई, और `dinah check --finish` उसे पूरा करता है",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.locked": {
