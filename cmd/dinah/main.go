@@ -201,7 +201,7 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 		return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
 	}
 	if name == contract.Usage && extra["dashHint"] != "" {
-		return text + " " + r.T("refusal.dinah.usage.dash-hint")
+		return text + r.T("refusal.dinah.usage.dash-hint")
 	}
 	return text
 }

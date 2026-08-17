@@ -682,7 +682,7 @@
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.usage.dash-hint": {
-      "text": "Dinah दो डैश से शुरू होने वाले शब्द को विकल्प मानकर पढ़ता है। पहले `--` लिखें, और उसके बाद हर शब्द को Dinah सादे पाठ के रूप में पढ़ेगा, डैश सहित।",
+      "text": ". Dinah दो डैश से शुरू होने वाले शब्द को विकल्प मानकर पढ़ता है। पहले `--` लिखें, और उसके बाद हर शब्द को Dinah सादे पाठ के रूप में पढ़ेगा, डैश सहित।",
       "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does."
     },
     "refusal.dinah.workbench-not-applicable": {

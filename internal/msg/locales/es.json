@@ -852,7 +852,7 @@
       "skeleton": true
     },
     "refusal.dinah.usage.dash-hint": {
-      "text": "Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.",
+      "text": ". Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.",
       "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does.",
       "skeleton": true
     },

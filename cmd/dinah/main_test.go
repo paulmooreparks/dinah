@@ -3780,20 +3780,22 @@ func TestUsageRefusalNamesTheMarker(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
 
+	wantUnknown := "dinah.usage --bogus was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.\n"
 	unknown := runCLI(t, root, "comment", "fx-1", "nice", "work", "--bogus", "here")
 	if unknown.code != 2 {
 		t.Fatalf("unrecognized flag: wanted exit 2, got %d (%s)", unknown.code, unknown.errw)
 	}
-	if !strings.Contains(unknown.errw, "--") || !strings.Contains(unknown.errw, "Dinah reads a word starting with two dashes") {
-		t.Errorf("unrecognized flag refusal should carry the dash hint, got %q", unknown.errw)
+	if unknown.errw != wantUnknown {
+		t.Errorf("unrecognized flag refusal:\n got  %q\n want %q", unknown.errw, wantUnknown)
 	}
 
+	wantMissing := "dinah.usage --actor was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.\n"
 	missing := runCLI(t, root, "comment", "fx-1", "nice", "work", "--actor")
 	if missing.code != 2 {
 		t.Fatalf("valued flag missing its value: wanted exit 2, got %d (%s)", missing.code, missing.errw)
 	}
-	if !strings.Contains(missing.errw, "Dinah reads a word starting with two dashes") {
-		t.Errorf("missing-value refusal should carry the dash hint, got %q", missing.errw)
+	if missing.errw != wantMissing {
+		t.Errorf("missing-value refusal:\n got  %q\n want %q", missing.errw, wantMissing)
 	}
 
 	// A refusal not raised by parseArgs's two flag-scan sites carries no
