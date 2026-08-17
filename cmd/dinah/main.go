@@ -110,7 +110,34 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if !ok {
 		return s.fail(contract.UnknownVerb, name)
 	}
+	if word := mistypedFlagIn(command, parsed.rest()); word != "" {
+		return s.fail(contract.Usage, word)
+	}
 	return command.run(s, parsed)
+}
+
+// mistypedFlagIn reports the first word in a command's own arguments that
+// looks like a mistyped flag, empty when none does. A command declaring no
+// open tail has every word in rest() checked, which is what closes the
+// zero-bounded case (a stray dash word anywhere after the command name) and
+// what closes it the same way for a command a caller overshoots past its own
+// declared arity: nothing about a bounded, no-open-tail command reads or
+// stores a word past what it declares, so a mistyped flag landing there is
+// exactly as unread and exactly as worth refusing as one landing in a
+// declared slot. A command declaring an open tail has only the words before
+// the tail begins checked; everything from there onward is free text the
+// caller composed on purpose, dash or no dash.
+func mistypedFlagIn(c *command, words []string) string {
+	limit := len(words)
+	if c.openTail && c.bounded < limit {
+		limit = c.bounded
+	}
+	for i := 0; i < limit; i++ {
+		if looksLikeMistypedFlag(words[i]) {
+			return words[i]
+		}
+	}
+	return ""
 }
 
 // write puts a block of text on stdout, adding the trailing newline a block

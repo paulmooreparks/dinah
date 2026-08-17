@@ -73,6 +73,15 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 	return parsed, nil
 }
 
+// looksLikeMistypedFlag reports whether a word has exactly one leading dash
+// and is not the bare "-", which is the shape a mistyped long flag takes
+// (a single dash where two were meant, or a short form the tool has never
+// offered) rather than a real value a caller composed on purpose. The bare
+// "-" is excluded because it already means read the argument from a pipe.
+func looksLikeMistypedFlag(word string) bool {
+	return strings.HasPrefix(word, "-") && word != "-" && !strings.HasPrefix(word, "--")
+}
+
 // has reports whether a flag was given.
 func (a *arguments) has(name string) bool {
 	_, ok := a.flags[name]
