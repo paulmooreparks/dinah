@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/bench/compattest"
 	"dinah/internal/contract"
 )
 
@@ -52,14 +53,21 @@ func compatFixtures(t *testing.T) []string {
 
 // declaredProfile reads the profile string a fixture's anchor declares,
 // without opening the workbench, because the admission of that string is what
-// several of these tests are asserting.
+// several of these tests are asserting. Reads through this package's own
+// ReadText and ParseAnchor directly rather than through compattest: compattest
+// is imported by this file (for the fixture-manifest shape below), and this
+// file is itself part of package bench's own test binary, so a shared helper
+// that also imported bench back out of compattest would close an import
+// cycle. See the doc comment on compattest for the same reasoning from the
+// other side.
 func declaredProfile(t *testing.T, fixture string) string {
 	t.Helper()
-	profile, err := DeclaredProfile(filepath.Join(compatDir, fixture))
+	text, err := ReadText(filepath.Join(compatDir, fixture, WorkbenchAnchor))
 	if err != nil {
 		t.Fatalf("read the anchor of %s: %v", fixture, err)
 	}
-	return profile
+	fm, _ := ParseAnchor(text)
+	return fm.Value("profile")
 }
 
 // TestAdmitProfileReadsThePublishedLineAndRefusesTheRest asserts the window
@@ -266,7 +274,7 @@ func TestFloorHasNotMovedSincePromiseBound(t *testing.T) {
 // shape carries its own line in the same diff.
 func TestTheFixtureManifestMatchesWhatIsCommitted(t *testing.T) {
 	manifest := readManifest(t)
-	rows := map[string]FixtureRow{}
+	rows := map[string]compattest.FixtureRow{}
 	for _, row := range manifest.Fixtures {
 		rows[row.Directory] = row
 	}
@@ -312,9 +320,9 @@ func TestExactlyOneFixtureIsMarkedTheSampleForThisRevision(t *testing.T) {
 }
 
 // readManifest reads the fixture manifest.
-func readManifest(t *testing.T) FixtureManifest {
+func readManifest(t *testing.T) compattest.FixtureManifest {
 	t.Helper()
-	manifest, err := ReadFixtureManifest(compatDir)
+	manifest, err := compattest.ReadFixtureManifest(compatDir)
 	if err != nil {
 		t.Fatalf("read %s: %v", manifestName, err)
 	}

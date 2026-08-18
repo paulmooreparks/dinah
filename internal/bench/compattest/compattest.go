@@ -1,4 +1,19 @@
-package bench
+// Package compattest exists solely to be shared between the compatibility
+// test files in internal/bench and cmd/dinah, the way internal/testenv
+// exists solely to be shared between the test files that need it. No
+// production file imports it. It reads the compat-fixture manifest, so that
+// shape has exactly one definition rather than one per test package that
+// can drift apart.
+//
+// It deliberately imports nothing from internal/bench. internal/bench's own
+// compat tests are an internal test file (package bench), so a package this
+// package's own bench-facing helper would need to import bench from would
+// close an import cycle back through that test binary; each test package
+// instead reads an anchor's declared profile through its own few-line
+// helper calling bench.ReadText and bench.ParseAnchor directly, which the
+// cycle-1 review accepted as a nit precisely because cross-package sharing
+// here is awkward for this reason.
+package compattest
 
 import (
 	"encoding/json"
@@ -6,9 +21,9 @@ import (
 	"path/filepath"
 )
 
-// compatManifestName is the file listing each compat fixture with the digest
-// of its contents.
-const compatManifestName = "manifest.json"
+// manifestName is the file listing each compat fixture with the digest of
+// its contents.
+const manifestName = "manifest.json"
 
 // FixtureRow is one row of the compat-fixture manifest.
 type FixtureRow struct {
@@ -33,7 +48,7 @@ type FixtureManifest struct {
 // the manifest through this one function, so its shape has exactly one
 // definition rather than two that can drift apart.
 func ReadFixtureManifest(dir string) (FixtureManifest, error) {
-	data, err := os.ReadFile(filepath.Join(dir, compatManifestName))
+	data, err := os.ReadFile(filepath.Join(dir, manifestName))
 	if err != nil {
 		return FixtureManifest{}, err
 	}
@@ -42,17 +57,4 @@ func ReadFixtureManifest(dir string) (FixtureManifest, error) {
 		return FixtureManifest{}, err
 	}
 	return manifest, nil
-}
-
-// DeclaredProfile reads the profile string an anchor at root declares,
-// without opening the workbench. internal/bench's own compat tests and
-// cmd/dinah's compat tests both read it through this one function rather
-// than each keeping its own copy.
-func DeclaredProfile(root string) (string, error) {
-	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
-	if err != nil {
-		return "", err
-	}
-	fm, _ := ParseAnchor(text)
-	return fm.Value("profile"), nil
 }

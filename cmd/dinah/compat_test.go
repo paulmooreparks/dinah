@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"dinah/internal/bench"
+	"dinah/internal/bench/compattest"
 	"dinah/internal/contract"
 	"dinah/internal/verb"
 )
@@ -239,7 +240,7 @@ var eventConstant = regexp.MustCompile(`(?m)^\tEvent[A-Za-z]+\s+= "([a-z_]+)"`)
 // sample for the revision this build stamps.
 func sampleFixture(t *testing.T) string {
 	t.Helper()
-	manifest, err := bench.ReadFixtureManifest(compatDir)
+	manifest, err := compattest.ReadFixtureManifest(compatDir)
 	if err != nil {
 		t.Fatalf("read the fixture manifest: %v", err)
 	}
@@ -259,14 +260,20 @@ func sampleFixture(t *testing.T) string {
 	return filepath.Join(compatDir, marked[0])
 }
 
-// anchorProfile reads the profile string an anchor declares.
+// anchorProfile reads the profile string an anchor declares. Reads through
+// bench.ReadText and bench.ParseAnchor directly rather than through
+// compattest, because compattest deliberately imports nothing from
+// internal/bench (see its doc comment): internal/bench's own compat tests
+// import compattest too, and a bench-facing helper living there would close
+// an import cycle back through that test binary.
 func anchorProfile(t *testing.T, root string) string {
 	t.Helper()
-	profile, err := bench.DeclaredProfile(root)
+	text, err := bench.ReadText(filepath.Join(root, bench.WorkbenchAnchor))
 	if err != nil {
 		t.Fatalf("read the anchor at %s: %v", root, err)
 	}
-	return profile
+	fm, _ := bench.ParseAnchor(text)
+	return fm.Value("profile")
 }
 
 // replayPopulation creates a workbench with the build under test, replays the
