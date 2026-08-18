@@ -80,7 +80,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 1.0` and says nothing about
+once. A conformance claim names `dinah-core 0.4` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -120,17 +120,19 @@ MUST NOT ->  SHOULD NOT
 
 [DOC-VER-1] A patch increment MUST NOT change the extracted statement list.
 
-[DOC-VER-2] A minor increment MUST leave every identifier published by the prior revision present in the list.
+[DOC-VER-11] Before the document's own major number first reaches 1, a minor increment MUST leave every identifier published by the prior revision present in the list, except one the same revision's changelog entry marks as retired.
+
+[DOC-VER-12] Once the document's own major number has reached 1, a minor increment MUST leave every identifier published by the prior revision present in the list.
 
 [DOC-VER-4] The text of a published statement MUST NOT change except by weakening its keyword along the order stated in section 2.2.
 
 [DOC-VER-7] Before the document's own major number first reaches 1, retiring an identifier MUST take a minor increment, leaving the major number unchanged.
 
-[DOC-VER-8] Before the document's own major number first reaches 1, a revision whose difference from its predecessor cannot be classified by DOC-VER-1, DOC-VER-2, DOC-VER-4, DOC-VER-7 or DOC-VER-9 MUST take a minor increment, leaving the major number unchanged.
+[DOC-VER-8] Before the document's own major number first reaches 1, a revision whose difference from its predecessor cannot be classified by DOC-VER-1, DOC-VER-11, DOC-VER-4, DOC-VER-7, or DOC-VER-9 MUST take a minor increment, leaving the major number unchanged.
 
 [DOC-VER-9] Once the document's own major number has reached 1, retiring an identifier MUST take a major increment.
 
-[DOC-VER-10] Once the document's own major number has reached 1, a revision whose difference from its predecessor cannot be classified by DOC-VER-1, DOC-VER-2, DOC-VER-4, DOC-VER-7, DOC-VER-8 or DOC-VER-9 MUST take a major increment.
+[DOC-VER-10] Once the document's own major number has reached 1, a revision whose difference from its predecessor cannot be classified by DOC-VER-1, DOC-VER-12, DOC-VER-4, DOC-VER-7, DOC-VER-8, or DOC-VER-9 MUST take a major increment.
 
 [DOC-VER-6] An identifier retired by any revision MUST NOT be published again.
 
@@ -563,7 +565,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.4",
   "title": "Wedding",
   "states": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -1089,7 +1091,7 @@ quietly.
 | The layer declaration mechanism | in | Section 9 is required structure, and a profile that excluded concerns without saying how to add them back would be telling implementers to fork it. | | CORE-LAYER-1, CORE-LAYER-2, CORE-LAYER-3, DOC-LAYER-1, DOC-LAYER-2 |
 | The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-4 |
 | The conformance claim and what it is evaluated over | in | A claim nobody can check is a claim worth nothing, so the profile fixes what a claim names and which statements a run exercises. | | CORE-VER-1, CORE-VER-2, SUITE-CONF-1 |
-| This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-2, DOC-VER-4, DOC-VER-7, DOC-VER-8, DOC-VER-9, DOC-VER-10, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
+| This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-11, DOC-VER-12, DOC-VER-4, DOC-VER-7, DOC-VER-8, DOC-VER-9, DOC-VER-10, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
 | The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
 | The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4, CORE-BASIS-5 |
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
@@ -1241,12 +1243,13 @@ themselves carry meaning.
 | CORE-VER-2 | must not | tool | No conformance claim the tool reports carries a channel name. |
 | SUITE-CONF-1 | must | suite | A conformance run exercises the statements whose identifier begins with CORE and no others. |
 | DOC-VER-1 | must not | document | Extractions over two revisions differing by a patch increment are identical. |
-| DOC-VER-2 | must | document | Every identifier of the prior revision appears in the extraction of a minor revision. |
+| DOC-VER-11 | must | document | While the document's major number is 0, every identifier of the prior revision appears in the extraction of a minor revision, unless that revision's changelog entry marks it retired. |
+| DOC-VER-12 | must | document | Once the document's major number has reached 1, every identifier of the prior revision appears in the extraction of a minor revision. |
 | DOC-VER-4 | must not | document | For every identifier in both revisions, the texts match, or they differ only by a keyword weakened along the declared order. |
 | DOC-VER-7 | must | document | While the document's major number is 0, a revision whose extraction has lost an identifier carries an incremented minor number and an unchanged major number. |
-| DOC-VER-8 | must | document | While the document's major number is 0, a revision whose difference falls under none of DOC-VER-1, DOC-VER-2, DOC-VER-4, DOC-VER-7 or DOC-VER-9 carries an incremented minor number and an unchanged major number. |
+| DOC-VER-8 | must | document | While the document's major number is 0, a revision whose difference falls under none of DOC-VER-1, DOC-VER-11, DOC-VER-4, DOC-VER-7, or DOC-VER-9 carries an incremented minor number and an unchanged major number. |
 | DOC-VER-9 | must | document | Once the document's major number has reached 1, no revision whose extraction has lost an identifier carries an unchanged major number. |
-| DOC-VER-10 | must | document | Once the document's major number has reached 1, a revision whose difference falls under none of DOC-VER-1, DOC-VER-2, DOC-VER-4, DOC-VER-7, DOC-VER-8 or DOC-VER-9 carries an incremented major number. |
+| DOC-VER-10 | must | document | Once the document's major number has reached 1, a revision whose difference falls under none of DOC-VER-1, DOC-VER-12, DOC-VER-4, DOC-VER-7, DOC-VER-8, or DOC-VER-9 carries an incremented major number. |
 | DOC-VER-6 | must not | document | No identifier retired by an earlier revision appears in a later extraction. |
 | DOC-CHG-1 | must not | document | Every changelog entry of the prior revision appears unchanged in the current one. |
 | DOC-CHG-2 | must | document | Each changelog entry carries a version, a channel, a date, at least one marked identifier, and prose. |
@@ -1363,7 +1366,7 @@ themselves carry meaning.
 | CORE-LAYER-2 | must | tool | A workbench carrying a declared layer the tool does not understand still carries that layer's content after a read and a write. |
 | CORE-LAYER-3 | must | tool | A definition declaring a layer under a name this profile defines is refused with `layer-collision`. |
 
-The index carries 125 rows, which is the number of identifiers an extraction
+The index carries 126 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
@@ -1443,8 +1446,25 @@ this document's own major number is 0. DOC-VER-8, introduced, carrying
 DOC-VER-5's demand on the minor number under the same condition. DOC-VER-9,
 introduced, carrying DOC-VER-3's demand unchanged once the major number has
 reached 1. DOC-VER-10, introduced, carrying DOC-VER-5's demand unchanged
-under the same condition. No other identifier in the section 11 index is
-affected.
+under the same condition. DOC-VER-2, retired. DOC-VER-11, introduced,
+carrying DOC-VER-2's demand for as long as this document's own major number
+is 0, with the retirements DOC-VER-7 admits excepted from it. DOC-VER-12,
+introduced, carrying DOC-VER-2's demand unchanged once the major number has
+reached 1. No other identifier in the section 11 index is affected.
+
+DOC-VER-2 is retired because it and DOC-VER-7, introduced above, demanded
+opposite things of one act. DOC-VER-2 held that a minor increment leaves
+every identifier the prior revision published still present, while DOC-VER-7
+requires a retirement to take a minor increment while the major number is 0.
+This entry is the first revision where both would have applied at once, since
+it retires identifiers and moves the minor number. DOC-VER-12 keeps
+DOC-VER-2's guarantee word for word and scopes it to the period after the
+major number reaches 1. Somebody is building on the document by then, and an
+identifier that vanishes under a minor increment costs them work. DOC-VER-11
+carries the same guarantee before that crossing, excepting only an identifier
+the same revision's changelog entry marks as retired. Nothing disappears
+quietly under that exception, because DOC-CHG-2 obliges the entry that drops
+an identifier to name it.
 
 What this changelog recorded as 1.0, 2.0, and 3.0 is renamed 0.1, 0.2, and
 0.3 as of this entry. The three entries above are not edited and remain the
@@ -1461,7 +1481,7 @@ the entry's own number, since the entry is the last member of the sequence
 that renaming closes, and 4.0 renamed is 0.4. DOC-VER-7 and DOC-VER-8 do not
 reach backward to govern the entry that introduces them. The entry after
 this one carries no such self-reference: whoever writes it classifies it
-under whichever of DOC-VER-7 through DOC-VER-10 the document's crossing
+under whichever of DOC-VER-7 through DOC-VER-12 the document's crossing
 state calls for, with no renaming step of its own to apply.
 
 Consequence for a caller. No statement about a tool changed in this entry, so
@@ -1475,8 +1495,8 @@ profile describes had never been released. Section 2.1 says what the
 crossing to major 1 will be, namely the same named event that promotes this
 document to the `stable` channel, so a reader watching for the moment the
 profile becomes stable watches one event. Whoever writes the next entry
-classifies it under DOC-VER-7 through DOC-VER-10 rather than under
-DOC-VER-3 and DOC-VER-5, so while the major number is 0, a retirement or a
-change the other rules cannot classify moves the minor number and leaves the
-major number where it is. The document sits on the `dev` channel, so nothing
+classifies it under DOC-VER-7 through DOC-VER-12 rather than under
+DOC-VER-2, DOC-VER-3, and DOC-VER-5, so while the major number is 0, a
+retirement or a change the other rules cannot classify moves the minor
+number and leaves the major number where it is. The document sits on the `dev` channel, so nothing
 here binds a caller who has not already opted into `dinah-core 0.4`.
