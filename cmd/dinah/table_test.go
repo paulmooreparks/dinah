@@ -239,14 +239,38 @@ func backstopFixtures() []backstopFixture {
 		slug := strings.Repeat("s", width)
 		run.rows = append(run.rows, tableRow{fields: []string{slug, slug, "work", "12", "operator"}})
 	}
-	return []backstopFixture{{name: "ten ordinary state names", table: states}, {name: "a contiguous run of slug widths", table: run}}
+	fresh := table{
+		indent:  2,
+		columns: headed("Slug", "Name", "Kind", "Cards", "Owner"),
+		rows: rowsOf(
+			[]string{"intake", "Intake", "intake", "0", "agent"},
+			[]string{"doing", "Doing", "work", "0", "agent"},
+			[]string{"done", "Done", "done", "0", "agent"},
+		),
+	}
+	return []backstopFixture{
+		{name: "ten ordinary state names", table: states},
+		{name: "a contiguous run of slug widths", table: run},
+		{name: "a fresh workbench's three states", table: fresh},
+	}
+}
+
+// leadColumns is the display column the last column starts at: the indent and
+// every column before the last one with its own gutter after it. It is what
+// both backstop assertions compare against the window, from opposite sides.
+func leadColumns(laid laidTable) int {
+	lead := laid.indent
+	for c := 0; c < len(laid.widths)-1; c++ {
+		lead += laid.widths[c] + tableGutter
+	}
+	return lead
 }
 
 // TestTheBackstopHoldsWhateverTheWidthsWere asserts the post-condition the
 // narrow-window backstop exists for, read off the laid-out table rather than
-// off one rendering: the columns before the last one either leave
-// minTailColumns of the window after them, or every one of them stands at its
-// own heading, with nothing in between.
+// off one rendering: the columns before the last one either leave the room the
+// tail asks for, or every one of them stands at its own heading, with nothing
+// in between.
 //
 // This is the assertion the card shipped its first pass without, and the class
 // it catches is a pass that widens a column after the backstop has narrowed
@@ -260,11 +284,8 @@ func TestTheBackstopHoldsWhateverTheWidthsWere(t *testing.T) {
 	for _, fixture := range backstopFixtures() {
 		for window := minTailColumns; window <= 80; window++ {
 			laid := tableSession(window).layOut(fixture.table)
-			lead := laid.indent
-			for c := 0; c < len(laid.widths)-1; c++ {
-				lead += laid.widths[c] + tableGutter
-			}
-			if lead+minTailColumns <= window {
+			lead := leadColumns(laid)
+			if lead+tailRoom(laid) <= window {
 				continue
 			}
 			for c := 0; c < len(laid.widths)-1; c++ {
@@ -276,5 +297,59 @@ func TestTheBackstopHoldsWhateverTheWidthsWere(t *testing.T) {
 					fixture.name, window, lead, window-lead, c, laid.widths[c], floor)
 			}
 		}
+	}
+}
+
+// TestTheBackstopStandsAsideWhileTheRowsFit asserts the other half of the
+// backstop's contract, which the post-condition above cannot see: while the
+// window can hold the widths the measure chose, the backstop narrows nothing
+// at all.
+//
+// The post-condition is satisfied by a backstop that fires far too early,
+// since narrowing a table that already fitted still leaves every column with
+// room after it. That is the shape the card shipped: the backstop reserved a
+// flat minTailColumns for the tail whatever the last column had measured, so a
+// listing needing 38 display columns was squeezed at a window of 52 and broken
+// apart at 49. Every check on this card read either a rendering or the
+// post-condition, and both call an early squeeze correct, so the two
+// assertions are read together or not at all.
+//
+// It compares the widths a reader gets against the widths the measure chose at
+// the same window, so the fixture's own arithmetic is never restated here and
+// a fixture can be added without a number being computed by hand.
+func TestTheBackstopStandsAsideWhileTheRowsFit(t *testing.T) {
+	for _, fixture := range backstopFixtures() {
+		for window := minTailColumns; window <= 120; window++ {
+			chosen := measure(fixture.table, window)
+			needed := leadColumns(chosen) + chosen.widths[len(chosen.widths)-1]
+			if needed > window {
+				continue
+			}
+			laid := tableSession(window).layOut(fixture.table)
+			for c := range laid.widths {
+				if laid.widths[c] == chosen.widths[c] {
+					continue
+				}
+				t.Errorf("%s at a window of %d: the rows measure %d display columns and fit, and the backstop narrowed column %d from %d to %d",
+					fixture.name, window, needed, c, chosen.widths[c], laid.widths[c])
+			}
+		}
+	}
+}
+
+// TestATableNoRowFillsAtAllKeepsNoColumns asserts the far end of the
+// empty-column rule, which is where layout runs with nothing to lay out: every
+// column of the table is empty in every row, so all of them go, and what is
+// left has no last column for the backstop to read the tail's room from. The
+// case is degenerate and no call site draws it, and it reaches layout all the
+// same, so the passes hold rather than reaching past the end of the widths.
+func TestATableNoRowFillsAtAllKeepsNoColumns(t *testing.T) {
+	laid := tableSession(30).layOut(table{
+		indent:  2,
+		columns: headed("Card", "Title"),
+		rows:    rowsOf([]string{"", ""}, []string{"", ""}),
+	})
+	if len(laid.columns) != 0 || len(laid.widths) != 0 {
+		t.Errorf("a table no row fills anywhere kept %d columns and %d widths", len(laid.columns), len(laid.widths))
 	}
 }

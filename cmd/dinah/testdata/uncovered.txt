@@ -36,4 +36,4 @@ render.go:307.30,308.20  the reason a block carries in the history. Reachable an
 render.go:368.59,370.2  the human rendering of whoami, which the corpus asks for through --json alone. Reachable and unreached: worth a test.
 render.go:377.32,379.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
 table.go:91.30,93.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
-table.go:349.13,351.4  the drop rule finding no field it may drop, which cannot happen: the loop stops while one field is left, so a candidate always remains for as long as it runs. The guard stays because the search reports its own failure rather than trusting that argument.
+table.go:363.13,365.4  the drop rule finding no field it may drop, which cannot happen: the loop stops while one field is left, so a candidate always remains for as long as it runs. The guard stays because the search reports its own failure rather than trusting that argument.

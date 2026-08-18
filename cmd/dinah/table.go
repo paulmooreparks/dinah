@@ -171,6 +171,21 @@ func (s *session) layOut(t table) laidTable {
 	if window <= 0 {
 		window = assumedWindow
 	}
+	laid := measure(t, window)
+	narrowToWindow(&laid)
+	return laid
+}
+
+// measure runs the two passes before the backstop: it removes the columns no
+// row fills, chooses every column's width, and takes back the near misses.
+// What it returns is the table as the measure would have it, which is what the
+// backstop then bounds and what the window is compared against.
+//
+// It is a step of layOut rather than a second way to lay a table out, and it
+// is separate so that a test can hold the widths the measure chose beside the
+// widths a reader gets. TestTheBackstopStandsAsideWhileTheRowsFit is that
+// test.
+func measure(t table, window int) laidTable {
 	filled := withoutEmptyColumns(t)
 	laid := laidTable{
 		indent:  filled.indent,
@@ -180,7 +195,6 @@ func (s *session) layOut(t table) laidTable {
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
-	narrowToWindow(&laid)
 	return laid
 }
 
@@ -354,28 +368,31 @@ func fieldsOverWindow(fields []string, indent, window int) []bool {
 }
 
 // narrowToWindow is the backstop a narrow window needs. While the indent plus
-// every column but the last, each with its gutter, leaves less than
-// minTailColumns of the window for the text after them, narrow the widest
-// column that is still above its own heading's width, leftmost on a tie. It
-// stops when no column can be narrowed, since a heading is a floor.
+// every column but the last, each with its gutter, leaves less of the window
+// than tailRoom asks for, narrow the widest column that is still above its own
+// heading's width, leftmost on a tie. It stops when no column can be narrowed,
+// since a heading is a floor.
 //
 // The last column keeps whatever width it measured, because narrowing a column
 // nothing is ever padded to would change nothing a reader sees except the
 // length of one rule.
 //
 // This is the last pass of layOut, so what it leaves is what a reader gets:
-// either the columns before the last one leave minTailColumns of the window
-// after them, or every one of them stands at its own heading and the window is
+// either the columns before the last one leave tailRoom of the window after
+// them, or every one of them stands at its own heading and the window is
 // narrower than the headings alone.
 // TestTheBackstopHoldsWhateverTheWidthsWere asserts exactly that pair over the
-// laid-out table.
+// laid-out table, and TestTheBackstopStandsAsideWhileTheRowsFit asserts the
+// other half, that it narrows nothing while the window can hold the widths the
+// measure chose.
 func narrowToWindow(laid *laidTable) {
+	room := tailRoom(*laid)
 	for {
 		lead := laid.indent
 		for c := 0; c < len(laid.widths)-1; c++ {
 			lead += laid.widths[c] + tableGutter
 		}
-		if lead+minTailColumns <= laid.window {
+		if lead+room <= laid.window {
 			return
 		}
 		widest, at := 0, -1
@@ -393,6 +410,33 @@ func narrowToWindow(laid *laidTable) {
 		}
 		laid.widths[at]--
 	}
+}
+
+// tailRoom is how much of the window the columns before the last one have to
+// leave after them: what the last column measured, or minTailColumns,
+// whichever is smaller.
+//
+// The cap is what a narrow window needs. A last column holding a path or a
+// summary measures far more than any narrow window can give it, so reserving
+// its measured width would narrow every column to its heading and buy the
+// reader nothing; minTailColumns is the width below which no layout helps, so
+// that is where the reservation stops.
+//
+// Reading the measured width is what this pass got wrong before.
+// minTailColumns stood in for the tail's need back when the last column had no
+// width of its own. It has one now, so that the separator can draw a rule
+// under the whole column, and a flat reservation fires the backstop by the
+// difference between the two: a listing whose last column measures five
+// columns was squeezed fifteen columns of window before it was under any
+// pressure, and broken apart eleven columns before it had to be.
+func tailRoom(laid laidTable) int {
+	if len(laid.widths) == 0 {
+		return minTailColumns
+	}
+	if measured := laid.widths[len(laid.widths)-1]; measured < minTailColumns {
+		return measured
+	}
+	return minTailColumns
 }
 
 // headingLines returns the heading row and the separator row under it.
