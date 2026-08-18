@@ -1037,7 +1037,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			name: "a workbench declaring a profile major this binary does not implement",
 			build: func(t *testing.T) (string, []string) {
 				root := newLimitedBench(t)
-				editAnchor(t, root, "profile: dinah-core/1.0", "profile: dinah-core/9.0")
+				editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.0")
 				return root, []string{"status"}
 			},
 			token: contract.UnsupportedVer,
@@ -2270,7 +2270,7 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			name: "a workbench predating the profile line",
 			build: func(t *testing.T) (string, []string) {
 				root := newBench(t)
-				editAnchor(t, root, "profile: dinah-core/1.0\n", "")
+				editAnchor(t, root, "profile: "+bench.ProfileVersion+"\n", "")
 				return root, []string{"whoami"}
 			},
 			token: contract.Malformed,

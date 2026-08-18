@@ -2,6 +2,7 @@ package bench
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -116,7 +117,10 @@ type Definition struct {
 
 // ReadDefinition parses an interchange object and applies the checks the
 // profile puts on one: an object missing profile, title or states is
-// malformed, and so is a state element missing id, title or kind.
+// malformed, and so is a state element missing id, title or kind. A definition
+// declaring a revision outside the window admitProfile applies is refused
+// unsupported-version, on the same window Open applies, so the function that
+// clones a workbench admits exactly what the function that opens one admits.
 func ReadDefinition(data []byte) (*Definition, error) {
 	object := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &object); err != nil {
@@ -137,12 +141,11 @@ func ReadDefinition(data []byte) (*Definition, error) {
 	if definition.Title == "" {
 		return nil, contract.Refuse(contract.Malformed, "title")
 	}
-	major, _, ok := splitProfile(definition.Profile)
-	if !ok {
-		return nil, contract.Refuse(contract.Malformed, "profile")
-	}
-	if major != ProfileMajor {
-		return nil, contract.Refuse(contract.UnsupportedVer, definition.Profile)
+	if _, _, err := admitProfile(definition.Profile); err != nil {
+		if errors.Is(err, errProfileMalformed) {
+			return nil, contract.Refuse(contract.Malformed, "profile")
+		}
+		return nil, err
 	}
 	if err := json.Unmarshal(object["states"], &definition.States); err != nil {
 		return nil, contract.Refuse(contract.Malformed, "states")
@@ -177,6 +180,12 @@ func memberString(element map[string]json.RawMessage, member string) string {
 // Instantiate writes a bench to disk from an interchange definition. The
 // identifiers of the source are kept, which is what makes intra-definition
 // references survive and keeps benches born of one template comparable.
+//
+// The anchor declares ProfileVersion rather than the source's own profile,
+// because CORE-BENCH section 2.3 asks a workbench to name the revision it was
+// written against and a workbench this build writes was written against this
+// build's revision. A template carrying an older claim still opens, and the
+// workbench minted from it no longer inherits a retired spelling.
 func Instantiate(root, slug, operator string, definition *Definition) error {
 	if Exists(filepath.Join(root, WorkbenchAnchor)) {
 		return contract.Refuse(contract.Exists, root)
@@ -186,7 +195,7 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 	}
 	fm := NewFrontmatter()
 	fm.Set("format", strconv.Itoa(StorageFormat))
-	fm.Set("profile", definition.Profile)
+	fm.Set("profile", ProfileVersion)
 	fm.Set("title", definition.Title)
 	if slug != "" {
 		fm.Set("slug", slug)

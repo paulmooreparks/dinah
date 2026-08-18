@@ -957,6 +957,10 @@
       "text": "Dinah {detail} को लागू नहीं करती",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.unsupported-version.window": {
+      "text": "; यह बिल्ड {floor} से {ceiling} तक पढ़ती है",
+      "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them."
+    },
     "show.comments": {
       "text": "टिप्पणियाँ:",
       "context": "The label above a card's comments."
