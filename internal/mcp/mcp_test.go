@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -28,13 +27,16 @@ const definition = `{
 func newLibrary(t *testing.T) *verb.Library {
 	t.Helper()
 	base := t.TempDir()
-	source := filepath.Join(base, "definition.json")
-	if err := os.WriteFile(source, []byte(definition), 0o644); err != nil {
+	root := filepath.Join(base, "workbench")
+	// The fixture instantiates the bench directly rather than through
+	// verb.Init, which writes into a .dinah container under the directory it
+	// is given; these tests want a bench at a path they name.
+	read, err := bench.ReadDefinition([]byte(definition))
+	if err != nil {
 		t.Fatalf("definition: %v", err)
 	}
-	root := filepath.Join(base, "workbench")
-	if err := verb.Init(root, "fx", "alka", source); err != nil {
-		t.Fatalf("init: %v", err)
+	if err := bench.Instantiate(root, "fx", "alka", read); err != nil {
+		t.Fatalf("instantiate: %v", err)
 	}
 	opened, err := bench.Open(root)
 	if err != nil {

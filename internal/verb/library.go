@@ -84,6 +84,14 @@ type Request struct {
 	// MigrateSlugs asks check to derive a slug for every state of the
 	// workbench that predates the field, before it reports.
 	MigrateSlugs bool
+	// MigrateStates asks check to remove every stranded identifier from the
+	// workbench's own states list, before it reports.
+	MigrateStates bool
+	// WorkbenchSource names the rung that resolved the active workbench for
+	// this invocation (flag, environment, search, or config), set by the
+	// head once discovery has run, since that is the earliest point the
+	// answer is known.
+	WorkbenchSource string
 }
 
 // CardView is the card as a response carries it.
@@ -128,6 +136,11 @@ type Instructions struct {
 type LegalMove struct {
 	// State is the destination's identifier.
 	State string `json:"state"`
+	// Ref is what a person types to name this destination on a move: the
+	// state's own slug when it has one, the identifier otherwise. Mirrors
+	// CardView.Ref's fallback, so a state written before the slug field
+	// existed still gives a caller something to type.
+	Ref string `json:"ref"`
 	// Title is the destination's title.
 	Title string `json:"title"`
 	// Direction is forward or backward along the declared flow.
@@ -226,9 +239,16 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		if direction == Forward && current.Kind == contract.KindDone {
 			continue
 		}
-		moves = append(moves, LegalMove{State: state.ID, Title: state.Title, Direction: direction})
+		moves = append(moves, LegalMove{State: state.ID, Ref: stateRef(state), Title: state.Title, Direction: direction})
 	}
 	return moves
+}
+
+// stateRef is what a person types to reach a state. Thin wrapper over
+// bench.State.Ref so every caller in this package reads the same name it
+// already used before that method existed.
+func stateRef(state *bench.State) string {
+	return state.Ref()
 }
 
 // affordances names what a caller may do next with a card, which is the same

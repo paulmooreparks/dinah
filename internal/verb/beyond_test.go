@@ -56,6 +56,11 @@ func TestAddFilesACard(t *testing.T) {
 	h.reopen()
 	if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "second", State: doing}); response.Refusal != contract.AtCapacity {
 		t.Errorf("a filing into a full state: wanted at-capacity, got %s %s", response.Outcome, response.Refusal)
+	} else if response.Detail != "doing" {
+		// Named by the slug a caller could type back ("doing"), not by the
+		// raw identifier behind it: dinah-29 cycle 2 fixed this for the
+		// legal-moves listing and missed this refusal path.
+		t.Errorf("at-capacity refusal: wanted the slug %q, got %q", "doing", response.Detail)
 	}
 	h.reopen()
 	for i := 0; i < 3; i++ {
@@ -63,6 +68,33 @@ func TestAddFilesACard(t *testing.T) {
 			t.Fatalf("a filing into the first state should never be refused, got %s", response.Refusal)
 		}
 		h.reopen()
+	}
+}
+
+// TestAddRefusesRatherThanPanicsWithNoLiveStates asserts AC-7 and AC-8: Add
+// against a workbench whose live states list is empty raises
+// contract.AddNeedsAState rather than indexing Bench.States[0], which is the
+// crash the guard exists to stop, and creates no card directory.
+// Bench.Open tolerates this shape so check can diagnose it, so the harness
+// reaches it by clearing the in-memory slice after opening rather than by
+// writing a new fixture: no dinah check --migrate-states run is involved.
+func TestAddRefusesRatherThanPanicsWithNoLiveStates(t *testing.T) {
+	h := newHarness(t)
+	h.library.Bench.States = nil
+	response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "stranded filing"})
+	if response.Refusal != contract.AddNeedsAState {
+		t.Fatalf("wanted contract.AddNeedsAState, got %s %s", response.Outcome, response.Refusal)
+	}
+	want := filepath.Join(h.library.Bench.Root, bench.WorkbenchAnchor)
+	if response.Detail != want {
+		t.Errorf("wanted the workbench.md path %q as detail, got %q", want, response.Detail)
+	}
+	entries, err := os.ReadDir(h.library.Bench.CardsRoot())
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read cards root: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("wanted no card directory created, got %v", entries)
 	}
 }
 
@@ -264,6 +296,95 @@ func TestArchiveAndDelete(t *testing.T) {
 	}
 }
 
+// TestArchiveRemovesTheStateFromTheDefinition asserts AC-1: archiving an
+// unoccupied state that is not the sole remaining one drops the identifier
+// from workbench.md's states list in the same run, and every command that
+// opens the bench afterwards succeeds and no longer lists it.
+func TestArchiveRemovesTheStateFromTheDefinition(t *testing.T) {
+	h := newHarness(t)
+	before := len(h.library.Bench.States)
+	response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("archive: %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	if got := len(h.library.Bench.States); got != before-1 {
+		t.Fatalf("wanted %d states after the archive, got %d", before-1, got)
+	}
+	if h.library.Bench.State(aftercare) != nil {
+		t.Error("the archived state is still declared")
+	}
+	if findings := h.check(); len(findings) != 0 {
+		t.Errorf("a workbench with no dangling entry should check clean, got %+v", findings)
+	}
+}
+
+// TestDeleteRemovesTheStateFromTheDefinition asserts AC-2: deleting an
+// unoccupied state behaves identically to archiving it for the purposes of
+// AC-1.
+func TestDeleteRemovesTheStateFromTheDefinition(t *testing.T) {
+	h := newHarness(t)
+	before := len(h.library.Bench.States)
+	response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: review, Confirm: true})
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("delete: %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	if got := len(h.library.Bench.States); got != before-1 {
+		t.Fatalf("wanted %d states after the delete, got %d", before-1, got)
+	}
+	if h.library.Bench.State(review) != nil {
+		t.Error("the deleted state is still declared")
+	}
+	if findings := h.check(); len(findings) != 0 {
+		t.Errorf("a workbench with no dangling entry should check clean, got %+v", findings)
+	}
+}
+
+// TestRetiringTheLastStateIsRefused asserts AC-3: archiving or deleting the
+// sole remaining state is refused with dinah.last-state, both as the third
+// precondition row of archive and the fourth of delete, and the workbench
+// keeps opening and working normally afterwards.
+func TestRetiringTheLastStateIsRefused(t *testing.T) {
+	if got := Checks("archive"); len(got) != 3 || got[2].Refusal != contract.LastState {
+		t.Fatalf("archive's preconditions: wanted dinah.last-state third, got %+v", got)
+	}
+	if got := Checks("delete"); len(got) != 4 || got[3].Refusal != contract.LastState {
+		t.Fatalf("delete's preconditions: wanted dinah.last-state fourth, got %+v", got)
+	}
+
+	h := newHarness(t)
+	for _, id := range []string{doing, review, finished, aftercare} {
+		response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: id})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("archive %s: %s %s", id, response.Outcome, response.Refusal)
+		}
+		h.reopen()
+	}
+	if len(h.library.Bench.States) != 1 {
+		t.Fatalf("wanted one state left, got %d", len(h.library.Bench.States))
+	}
+	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: intake}); response.Refusal != contract.LastState {
+		t.Fatalf("archiving the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	} else if response.Detail != "intake" {
+		// Named by its slug, not by its raw identifier: a caller who typed
+		// "intake" is told about "intake", never about a12300000001.
+		t.Fatalf("last-state refusal: wanted the slug %q, got %q", "intake", response.Detail)
+	}
+	h.reopen()
+	if h.library.Bench.State(intake) == nil {
+		t.Fatal("the refused archive removed the last state anyway")
+	}
+	if findings := h.check(); len(findings) != 0 {
+		t.Errorf("a workbench holding its last state should check clean, got %+v", findings)
+	}
+	if response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: intake, Confirm: true}); response.Refusal != contract.LastState {
+		t.Fatalf("deleting the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	} else if response.Detail != "intake" {
+		t.Fatalf("last-state refusal: wanted the slug %q, got %q", "intake", response.Detail)
+	}
+}
+
 // TestInterchangeRoundTrip asserts CORE-JSON-1, CORE-JSON-2, CORE-JSON-3,
 // CORE-JSON-4, CORE-JSON-5, CORE-JSON-7 and CORE-CARD-9:
 // an object carrying an unknown member survives export, import and export,
@@ -271,6 +392,7 @@ func TestArchiveAndDelete(t *testing.T) {
 func TestInterchangeRoundTrip(t *testing.T) {
 	h := newHarness(t)
 	h.library.Bench.FM.Set("acme.department", `"catering"`)
+	h.library.Bench.Standing = "Review every card before claiming it."
 	if err := h.library.Bench.Save(); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -291,6 +413,9 @@ func TestInterchangeRoundTrip(t *testing.T) {
 	}
 	if object["acme.department"] != "catering" {
 		t.Errorf("CORE-JSON-7: the unrecognised member did not survive the export, got %v", object["acme.department"])
+	}
+	if object["instructions"] != h.library.Bench.Standing {
+		t.Errorf("the exported object should carry the standing instruction, got %v", object["instructions"])
 	}
 
 	definition, err := bench.ReadDefinition(first)
@@ -382,6 +507,38 @@ func TestExtractReproducesTheDefinition(t *testing.T) {
 	}
 }
 
+// TestInitFromATemplateCarriesTheStandingInstruction asserts the literal
+// path a person hits with a template: extracting a workbench that carries a
+// standing instruction, then instantiating a new workbench from that
+// directory with Init, produces a workbench whose own standing instruction
+// equals the source's.
+func TestInitFromATemplateCarriesTheStandingInstruction(t *testing.T) {
+	h := newHarness(t)
+	h.library.Bench.Standing = "Claim before you start, and never leave a card idle."
+	if err := h.library.Bench.Save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	h.reopen()
+
+	template := filepath.Join(t.TempDir(), "template")
+	if err := h.library.Extract(template); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+
+	created := filepath.Join(t.TempDir(), "new-workbench")
+	written, err := Init(created, "again", "alka", template, "", "")
+	if err != nil {
+		t.Fatalf("init --from: %v", err)
+	}
+	opened, err := bench.Open(written)
+	if err != nil {
+		t.Fatalf("open the new workbench: %v", err)
+	}
+	if opened.Standing != h.library.Bench.Standing {
+		t.Errorf("wanted the standing instruction %q, got %q", h.library.Bench.Standing, opened.Standing)
+	}
+}
+
 // TestActorLadderAndConfig asserts the actor ladder, the config surface and
 // the preservation of a key the tool does not know.
 func TestActorLadderAndConfig(t *testing.T) {
@@ -438,11 +595,12 @@ func TestActorLadderAndConfig(t *testing.T) {
 
 // TestVersionCarriesTheConformanceClaim asserts CORE-VER-1 and CORE-VER-2:
 // the claim carries a major and a minor number and no maturity channel, and
-// the coverage report names every shipped catalog.
+// the coverage report names every shipped catalog. It also asserts that the
+// release number a release build stamps into the binary reaches the report.
 func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	release := Version(true)
-	if release.Profile != "dinah-core/1.0" {
-		t.Errorf("conformance claim: wanted dinah-core/1.0, got %s", release.Profile)
+	if release.Profile != bench.ProfileVersion {
+		t.Errorf("conformance claim: wanted %s, got %s", bench.ProfileVersion, release.Profile)
 	}
 	for _, channel := range []string{"dev", "beta", "stable"} {
 		if strings.Contains(release.Profile, channel) {
@@ -471,6 +629,18 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	}
 	if len(wanted) > 0 {
 		t.Errorf("catalogs missing from the report: %v", wanted)
+	}
+	// A release build overwrites the release number with the tag it was built
+	// from, through -ldflags -X, which reaches a variable and not a constant.
+	// The assignment below is the assertion: it does not compile if anyone
+	// turns ToolRelease back into a constant, and the comparison catches a
+	// report that stops reading it.
+	original := ToolRelease
+	t.Cleanup(func() { ToolRelease = original })
+	ToolRelease = "v0.1.0-dev.42"
+	stamped := Version(false)
+	if stamped.Tool != "v0.1.0-dev.42" {
+		t.Errorf("a stamped release number should reach the report, got %s", stamped.Tool)
 	}
 }
 

@@ -28,7 +28,64 @@ Dinah coordinates work. It knows which card is where, who holds it, what the ins
 
 ## Status
 
-This repository currently contains a skeleton: a Go module, a placeholder binary that prints an identification line, and the build tooling and agent guardrails the project runs under. The on-disk format and the surface architecture are designed (see `docs/design/`); no contract verbs are implemented yet.
+Dinah works today. Clone the repository and build it with `go build -o dinah ./cmd/dinah`, and you get a single binary that creates workbenches, files cards, and carries them through the five contract verbs the design docs in `docs/design/` describe: claim, move, release, block, and unblock. `dinah help` lists every command, and each one runs end to end, including the read commands (`status`, `ls`, `show`, `log`), the workbench commands (`init`, `config`, `check`, `export`, and `extract`), and `dinah mcp`, which serves the same verb set to an agent over stdio.
+
+Dinah speaks English and Hindi in full. Run `dinah version --catalogs` and you will see every other listed language still sitting at zero translated strings.
+
+## Install
+
+Dinah ships as a single binary with no installer and nothing else to set up. On Linux or macOS, run:
+
+```
+curl -fsSL https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.sh | sh
+```
+
+On Windows, run this in PowerShell:
+
+```
+irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
+```
+
+You get the binary your machine needs, checked against its published SHA-256 before anything is installed, and put somewhere you can write without administrator privilege. On Linux and macOS that is `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
+
+On Windows you also get `%LOCALAPPDATA%\dinah\bin` added to your user PATH, so the next shell you open finds `dinah` by name. If you would rather keep your PATH as it is, set `DINAH_NO_PATH` before you run the one-liner:
+
+```
+$env:DINAH_NO_PATH = '1'
+irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
+```
+
+On Linux and macOS you keep your PATH exactly as it is. If `~/.local/bin` is not already on it, you get the line to add and a note saying where to put it.
+
+If you would rather not pipe a script into a shell, download the binary for your platform and `SHA256SUMS.txt` from the [releases page](https://github.com/paulmooreparks/dinah/releases). Then verify the download before you run it. On Linux:
+
+```
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+On macOS:
+
+```
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+```
+
+You have no `-c` equivalent on Windows, so compute the hash yourself and compare it by eye against the line for your binary in `SHA256SUMS.txt`. Use `certutil`, which Microsoft documents as shipping on Windows 10, Windows 11, and every currently supported Windows Server release, and which runs the same way from `cmd.exe` or PowerShell:
+
+```
+certutil -hashfile dinah-windows-amd64.exe SHA256
+```
+
+You get three lines back, not just the hash:
+
+```
+SHA256 hash of dinah-windows-amd64.exe:
+9572d7f4e812df12cd8c0d26e7308864c33cbb51b004cbe962ad545bc377a4a2
+CertUtil: -hashfile command completed successfully.
+```
+
+Compare the middle line against the line for your binary in `SHA256SUMS.txt`.
+
+These are dev builds, cut from every commit to `main`. They are unstable, and no release of Dinah promises compatibility with them.
 
 ## Building
 

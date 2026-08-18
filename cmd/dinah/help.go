@@ -23,6 +23,22 @@ type command struct {
 	group string
 	// run does the work and returns the process exit code.
 	run func(*session, *arguments) int
+	// bounded is how many of the command's own leading positional words are
+	// checked against the vocabulary the command knows (a card reference, a
+	// state name, a guide topic, or a path handed to the operating system).
+	// A word occupying one of these positions that looks like a mistyped
+	// flag is refused before the command's own run function ever sees it.
+	// config is not declared here; it dispatches on its own first word and
+	// runs the same check itself.
+	bounded int
+	// openTail says the words after bounded are free text the caller
+	// composed on purpose (a title, a reason, a comment, a config value),
+	// left untouched however they begin. False means the command declares no
+	// open tail, so every word past bounded is refused, not only one that
+	// looks like a mistyped flag: nothing about a bounded, no-open-tail
+	// command reads or stores a word past what it declares, so any word
+	// there, dash-led or plain, is unread and worth refusing.
+	openTail bool
 }
 
 // The four groups of the surface, in the order the help block prints them.
@@ -35,17 +51,6 @@ const (
 
 // groups are the headings in print order.
 var groups = []string{groupWork, groupRead, groupBench, groupServe}
-
-// usageColumn is the column the summary of a command starts in, counted from
-// the left margin of the help block. The two-space indent plus the padded
-// usage string reaches it.
-const usageColumn = 39
-
-// flagColumn is the same measure for the global flag list, whose syntax is
-// shorter than a command's. The widest entry is `--workbench <dir>` at
-// seventeen runes, so the column sits three past it and every summary in the
-// list still starts at the same place.
-const flagColumn = 20
 
 // globalFlags are the flags that belong to the invocation rather than to any
 // one command, in the order the help block prints them.
@@ -78,33 +83,36 @@ func (s *session) helpBlock() string {
 	var b strings.Builder
 	b.WriteString(s.r.T("help.tagline") + "\n\n")
 	b.WriteString(s.r.T("help.usage") + "\n")
+	list := table{indent: 2, columns: s.columns("commands", "command", "what")}
 	for _, group := range groups {
-		b.WriteString("\n" + s.r.T("help.group."+group) + "\n")
+		opening := true
 		for _, c := range commands {
 			if c.group != group {
 				continue
 			}
-			b.WriteString("  " + pad(verb.Usage(c.name), usageColumn) + s.r.T("cmd."+c.name+".summary") + "\n")
+			entry := tableRow{fields: []string{verb.Usage(c.name), s.r.T("cmd." + c.name + ".summary")}}
+			if opening {
+				entry.section = s.r.T("help.group." + group)
+				opening = false
+			}
+			list.rows = append(list.rows, entry)
 		}
 	}
+	for _, line := range s.tableLines(list) {
+		b.WriteString(line + "\n")
+	}
 	b.WriteString("\n" + s.r.T("help.flags") + "\n")
+	flags := table{indent: 2, columns: s.columns("flags", "option", "what")}
 	for _, flag := range globalFlags {
-		b.WriteString("  " + pad(flag.usage, flagColumn) + s.r.T("flag."+flag.name+".summary") + "\n")
+		flags.rows = append(flags.rows, tableRow{fields: []string{flag.usage, s.r.T("flag." + flag.name + ".summary")}})
+	}
+	for _, line := range s.tableLines(flags) {
+		b.WriteString(line + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.environment") + "\n")
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	b.WriteString("\n" + s.r.T("help.footer") + "\n")
 	return b.String()
-}
-
-// pad widens a syntax string to a column, counting runes rather than bytes so
-// that a placeholder word outside ASCII still lands where it should.
-func pad(text string, width int) string {
-	count := len([]rune(text))
-	if count >= width {
-		return text + " "
-	}
-	return text + strings.Repeat(" ", width-count)
 }
 
 // verbHelp composes the help of one command: what it takes, then its checks
@@ -126,9 +134,13 @@ func (s *session) verbHelp(name string) string {
 		return b.String()
 	}
 	b.WriteString("\n" + s.r.T("help.refusals") + "\n")
+	preconditions := table{indent: 2, columns: s.columns("help", "order", "check", "refusal")}
 	for i, check := range checks {
-		order := pad(strconv.Itoa(i+1), 3)
-		b.WriteString("  " + order + pad(s.r.T(check.Key), 52) + check.Refusal + "\n")
+		fields := []string{strconv.Itoa(i + 1), s.r.T(check.Key), check.Refusal}
+		preconditions.rows = append(preconditions.rows, tableRow{fields: fields})
+	}
+	for _, line := range s.tableLines(preconditions) {
+		b.WriteString(line + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	return b.String()

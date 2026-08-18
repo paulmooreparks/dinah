@@ -1,0 +1,17 @@
+{
+  "fixtures": [
+    {
+      "directory": "dinah-core-0.4",
+      "digest": "205db40edeb1fde5a41de4cabf4e46f24996e291f2101293c7347e4a118c4b37",
+      "sample": true
+    },
+    {
+      "directory": "dinah-core-1.0",
+      "digest": "c42ce45880771fa937f7406d4a10042237c7e057318bb2eca59f116dc2ab3c3b"
+    },
+    {
+      "directory": "dinah-core-1.0-pre-slug",
+      "digest": "b37652771397fb5f99b68016a82ede6f2906602bcdfa84cc90d049fc7b42dab2"
+    }
+  ]
+}

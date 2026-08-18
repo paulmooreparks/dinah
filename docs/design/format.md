@@ -233,6 +233,16 @@ workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
 
+A `workbench.md` on disk claims its directory only when its frontmatter
+carries `profile`, or carries `format` or `states` without it. The three keys
+are what a Dinah workbench always writes, and testing for them is what keeps
+the climb from stopping at somebody else's document that happens to share the
+filename. A `workbench.md` carrying none of the three is passed over in
+silence, and the search keeps climbing past it as though it were not there.
+A `workbench.md` that exists and cannot be read stops the search instead:
+the file might be the real workbench, so the walk refuses rather than
+guessing either way.
+
 A distributed workbench borrows git's model of a canonical home, pegged to a
 URL, without borrowing git's URL. Two addresses answer two different
 questions and neither is stored where the other lives. The git remote, when
@@ -336,6 +346,21 @@ the sequence of the flow, and it is the single authority for order. State
 files carry no position field; reordering the flow is reordering lines in one
 file. Trailing comments on the list entries are annotation for humans, and a
 lint warns when a comment drifts from the state's actual title.
+
+Retiring a state, whether by archiving it or by deleting it, removes its
+identifier from this ordered list in the same act, under the workbench lock
+the retiring act already holds. A workbench declaring an id whose directory does
+not exist at all still opens: the id is excluded from the flow and `dinah
+check` reports it, and `dinah check --migrate-states` removes it from the
+list. `dinah check --migrate-states` refuses instead of writing when removing
+every stranded id would leave the workbench with no states at all, and
+`dinah add` refuses the same way, naming the workbench file and the fix,
+instead of crashing, when a workbench's states list has already been
+emptied by any means. That tolerance covers only a state directory that is
+not there at all, the shape retiring a state produces; a state directory
+that is present but whose anchor cannot be read or parsed is the narrower
+case the "Corruption and recovery" section's quarantine promise below still
+answers, unimplemented today.
 
 Each `states/<id>/state.md` carries the state's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
@@ -880,6 +905,68 @@ One reader posture makes upgrades safe. Readers ignore keys they do not
 know, and the format version gates only changes that would make an old
 reader wrong rather than merely incomplete. Additive changes (a future
 `lane` key, a declared level set) need no bump.
+
+### The window of profile revisions a build opens
+
+Dinah opens a workbench whose declared profile revision falls inside a
+closed window. The floor is `dinah-core 0.1`, which is the oldest revision
+anything on disk declares, and the ceiling is the revision the build itself
+conforms to. A revision is identified by the ordered pair of its major and
+minor numbers rather than by the major alone, and one revision is older than
+another when its pair sorts lower. Nothing in the comparison reads the major
+on its own, so the window behaves the same way while the contract's own major
+number is 0 and after it reaches 1.
+
+The contract's 0.4 changelog entry renamed the three revisions published
+before it, so what that changelog recorded as 1.0, 2.0, and 3.0 now carries
+the names 0.1, 0.2, and 0.3. A workbench's `profile:` field refers to a
+revision, so Dinah reads it under the new names. Only one of the three
+retired spellings ever reached a workbench on disk. Dinah has stamped
+`dinah-core/1.0` into every workbench it has created and has never stamped
+the other two, so it resolves `dinah-core/1.0` to `dinah-core 0.1` and reads
+`dinah-core/2.0` and `dinah-core/3.0` literally, which keeps them refused as
+the future revisions they would name. The resolution is conditioned on the
+build's own ceiling and stops once that ceiling reaches `dinah-core 1.0`,
+because from that point the literal reading sits inside the window without
+help.
+
+A release raising the ceiling and a workbench advancing its own declared
+revision stay independent of each other. Dinah never rewrites a `profile:`
+field, so a workbench keeps declaring what it declared until somebody edits
+that field by hand, and a raised ceiling exposes no workbench to a
+requirement it was not already meeting. Migration stays on request through
+`dinah check --migrate-*` and never runs when a workbench is opened.
+
+### What keeps a later release from narrowing the window quietly
+
+The promise rests on fixture workbenches committed under
+`internal/bench/testdata/compat/`, one directory per fixture, each an anchor
+directory of the shape the tool writes. The assertions below turn each way of
+forgetting into a red build.
+
+- The bump alarm requires some fixture to declare exactly the revision this
+  build stamps, so moving the constant fails the build in the commit that
+  moves it.
+- The sample alarm replays `populate.txt` against a workbench the build under
+  test creates and compares one designated fixture's shape against the
+  result, so the fixture satisfying the bump alarm has to sample what the
+  build writes rather than merely declare the string it stamps.
+- The coverage alarm compares the journal event names that sample carries
+  against the event constants `internal/contract` declares, so adding an
+  event name turns the build red until the sequence reaches it.
+- The edit alarm digests every fixture in `manifest.json`, so an edit to a
+  published shape carries its own manifest line in the same diff.
+- The floor alarm refuses a floor raised past any committed fixture, which is
+  the one movement able to break the promise.
+
+Deleting a fixture is the route those assertions do not close. Removing a
+directory together with its manifest row passes all of them, unless the
+fixture was the floor's own, the only one declaring the current revision, or
+the one carrying the sample mark. No assertion in the tree can close it,
+since the assertion and the evidence sit in the same tree and one commit
+removes both. The floor bounds the consequence rather than the fixture set. A
+deleted sample costs something only when the floor later rises past the
+revision that sample declared.
 
 ## Actors and attribution
 

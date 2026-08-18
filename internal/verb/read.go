@@ -49,6 +49,9 @@ type Status struct {
 	Holding []CardView `json:"holding"`
 	// Blocked are the cards waiting on the operator.
 	Blocked []CardView `json:"blocked"`
+	// WorkbenchSource names which rung resolved the active workbench for
+	// this invocation: flag, environment, search, or config.
+	WorkbenchSource string `json:"workbench_source,omitempty"`
 }
 
 // Status reports where the bench stands.
@@ -58,14 +61,15 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		return nil, err
 	}
 	status := &Status{
-		Bench:      l.Bench.Title,
-		Root:       l.Bench.Root,
-		Actor:      req.Actor,
-		Operator:   l.Bench.Operator,
-		IsOperator: req.Actor != "" && req.Actor == l.Bench.Operator,
-		Profile:    l.Bench.Profile,
-		Holding:    []CardView{},
-		Blocked:    []CardView{},
+		Bench:           l.Bench.Title,
+		Root:            l.Bench.Root,
+		Actor:           req.Actor,
+		Operator:        l.Bench.Operator,
+		IsOperator:      req.Actor != "" && req.Actor == l.Bench.Operator,
+		Profile:         l.Bench.Profile,
+		Holding:         []CardView{},
+		Blocked:         []CardView{},
+		WorkbenchSource: req.WorkbenchSource,
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
@@ -230,6 +234,12 @@ type LinkView struct {
 	Kind string `json:"kind"`
 	// To is the identifier of the card the link names.
 	To string `json:"to"`
+	// Ref is what a person types to name that card on show or any other
+	// reference-accepting command: its alias when the card can still be
+	// found, the bare identifier otherwise. A link's own stored value never
+	// changes (card.go's Link carries an identifier, not an alias, by
+	// design), so this is resolved fresh on every read rather than stored.
+	Ref string `json:"ref"`
 }
 
 // CommentView is one comment as a read reports it.
@@ -268,7 +278,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}
 	for _, link := range card.Links {
-		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To})
+		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
 	}
 	comments, err := bench.Comments(card.Dir)
 	if err != nil {
@@ -279,6 +289,23 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		detail.Comments = append(detail.Comments, view)
 	}
 	return detail, "", nil
+}
+
+// linkRef resolves a link's stored card identifier to what a person types to
+// reach it. A link records only the identifier (card.go's Link comment: "a
+// declaration rather than an entity"), so the alias is resolved fresh on
+// every read rather than carried by the link itself, the same way a card's
+// own Ref is computed at view time rather than stored. A card the link names
+// that is no longer findable, archived or otherwise, still shows something
+// typeable: the bare identifier the link already carried.
+func (l *Library) linkRef(id string) string {
+	if card, err := bench.LoadCard(l.Bench.CardsRoot(), id); err == nil {
+		return card.Ref(l.Bench.Slug)
+	}
+	if card, err := bench.LoadCard(l.Bench.ArchivedCardsRoot(), id); err == nil {
+		return card.Ref(l.Bench.Slug)
+	}
+	return id
 }
 
 // History reports a card's recorded acts in the order they were recorded. An
@@ -378,6 +405,18 @@ type CheckReport struct {
 	// MigratedSlugs says the slug migration ran, so a caller can tell an
 	// empty list of assignments from a migration nobody asked for.
 	MigratedSlugs bool `json:"migrated_slugs,omitempty"`
+	// AssignedWorkbenchSlug is the slug the workbench-slug migration derived
+	// for the workbench itself, absent when the workbench already carried
+	// one or when no migration was asked for.
+	AssignedWorkbenchSlug *bench.WorkbenchSlugAssignment `json:"assigned_workbench_slug,omitempty"`
+	// RemovedStrandedStates are the identifiers the states migration removed
+	// from the workbench's own states list. It is absent from a request that
+	// asked for no migration and from a request that asked and found nothing
+	// to repair, which MigratedStates below is what separates.
+	RemovedStrandedStates []string `json:"removed_stranded_states,omitempty"`
+	// MigratedStates says the stranded-state migration ran, so a caller can
+	// tell an empty list of removals from a migration nobody asked for.
+	MigratedStates bool `json:"migrated_states,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -390,7 +429,10 @@ type CheckReport struct {
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback. A request carrying the
 // migrate-slugs marker does the same for the states of a workbench that
-// predate the slug field, and names the slug it gave each one.
+// predate the slug field, names the slug it gave each one, and derives the
+// workbench's own slug when the workbench itself predates that field. A
+// request carrying the migrate-states marker removes every stranded
+// identifier from the workbench's own states list.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -403,6 +445,20 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
+		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
+		report.AssignedWorkbenchSlug = wsAssigned
+		report.Findings = append(report.Findings, wsReported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	if req != nil && req.MigrateStates {
+		removed, err := l.Bench.RemoveStrandedStates()
+		report.MigratedStates = true
+		report.RemovedStrandedStates = removed
+		if err != nil {
+			return report, err
+		}
 	}
 	if req != nil && req.MigrateOrdinals {
 		stamped, reported, err := l.Bench.BackfillOrdinals(req.Actor, bench.Stamp(l.Now()))
@@ -475,23 +531,44 @@ type SettingView struct {
 	Source string `json:"source"`
 }
 
+// SettingsContext carries the per-invocation values Settings needs beyond
+// the config file itself, one field per input some setting's own ladder
+// reads. It exists so that adding a setting with a ladder of its own does not
+// keep growing Settings' own parameter list past what a reader can hold.
+type SettingsContext struct {
+	// LangFlag and ActorFlag are the --lang and --actor flags this
+	// invocation carried.
+	LangFlag, ActorFlag string
+	// WorkbenchFlag and WorkbenchEnv are --workbench and DINAH_WORKBENCH,
+	// the two override rungs the workbench setting's own ladder reads ahead
+	// of the search and the stored default.
+	WorkbenchFlag, WorkbenchEnv string
+	// GOOS and LookPath are what the editor ladder needs to test a fallback
+	// binary's presence.
+	GOOS     string
+	LookPath func(string) bool
+	// CWD, Home and NativeHome are what the workbench setting's ladder needs
+	// to run the same discovery walk a real invocation would.
+	CWD, Home, NativeHome string
+}
+
 // Settings reports every setting the tool knows, resolved through the ladder
 // that actually decides each one, followed by whatever else the config file
 // carries.
 //
 // The resolvers are called rather than restated, because the stored value a
 // caller reads with `config get` cannot tell an unset key from one somebody
-// set to the same word the default happens to use. The flags are the ones the
-// invocation carried, so the listing reports the ladder as it stands for this
-// run rather than for an imagined one.
+// set to the same word the default happens to use. ctx carries what this
+// invocation supplies each ladder, so the listing reports the ladder as it
+// stands for this run rather than for an imagined one.
 //
 // A key outside the tool's set is reported with its stored value and the
 // source unknown. It survives every write, so hiding it here would leave a
 // reader wondering why a setting they can see in the file does nothing.
-func Settings(cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) []SettingView {
+func Settings(cfg *bench.Config, ctx SettingsContext) []SettingView {
 	views := make([]SettingView, 0, len(bench.ConfigKeys))
 	for _, key := range bench.ConfigKeys {
-		views = append(views, setting(key, cfg, langFlag, actorFlag, goos, lookPath))
+		views = append(views, setting(key, cfg, ctx))
 	}
 	for _, key := range cfg.Keys() {
 		if bench.KnownConfigKey(key) {
@@ -505,16 +582,26 @@ func Settings(cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func
 // setting resolves one known key. A key this switch does not answer for is a
 // key somebody added to ConfigKeys without giving it a ladder, so it falls
 // back to the stored value, which is the one rung every setting has.
-func setting(key string, cfg *bench.Config, langFlag, actorFlag, goos string, lookPath func(string) bool) SettingView {
+func setting(key string, cfg *bench.Config, ctx SettingsContext) SettingView {
 	switch key {
 	case "lang":
-		value, source := bench.ResolveLangSource(langFlag, cfg)
+		value, source := bench.ResolveLangSource(ctx.LangFlag, cfg)
 		return SettingView{Key: key, Value: value, Source: source}
 	case "actor":
-		value, source := bench.ResolveActorSource(actorFlag, cfg)
+		value, source := bench.ResolveActorSource(ctx.ActorFlag, cfg)
 		return SettingView{Key: key, Value: value, Source: source}
 	case "editor":
-		value, source, _ := bench.ResolveEditorSource(cfg, goos, lookPath)
+		value, source, _ := bench.ResolveEditorSource(cfg, ctx.GOOS, ctx.LookPath)
+		return SettingView{Key: key, Value: value, Source: source}
+	case "workbench":
+		value, source := bench.ResolveWorkbenchSource(
+			ctx.CWD,
+			ctx.WorkbenchFlag,
+			ctx.WorkbenchEnv,
+			ctx.Home,
+			ctx.NativeHome,
+			cfg.Get("workbench"),
+		)
 		return SettingView{Key: key, Value: value, Source: source}
 	}
 	stored := cfg.Get(key)
@@ -554,8 +641,10 @@ type CatalogCoverage struct {
 }
 
 // ToolRelease is this binary's own release number. It is not the profile
-// version and is never conflated with it.
-const ToolRelease = "0.1.0"
+// version and is never conflated with it. A release build overwrites it with
+// the tag it was built from, through -ldflags -X, which only reaches a
+// variable; a build from source keeps the default below.
+var ToolRelease = "0.1.0"
 
 // Version reports what this binary is and what it conforms to, optionally
 // with the coverage of every shipped catalog.

@@ -10,7 +10,21 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/testenv"
 )
+
+// TestMain redirects this binary's temporary directory outside the
+// developer's home before any test runs, so the ancestor walk this
+// package's Discover and Reachable tests exercise cannot climb out of its
+// own synthetic fixture tree and reach the real workbenches sitting above
+// it. See internal/testenv's package comment for what this does and does
+// not cover.
+func TestMain(m *testing.M) {
+	restore := testenv.IsolateTempDir()
+	code := m.Run()
+	restore()
+	os.Exit(code)
+}
 
 // benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---
@@ -172,6 +186,20 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			},
 			key: "",
 		},
+		{
+			name: "a card carrying no creation ordinal",
+			breakIt: func(t *testing.T, root string) {
+				edit(t, root, "number: 1", "number: 0")
+			},
+			key: FindingOrdinalMissing,
+		},
+		{
+			name: "a workbench carrying no slug",
+			breakIt: func(t *testing.T, root string) {
+				editWorkbench(t, root, "slug: fx\n", "")
+			},
+			key: FindingWorkbenchSlugMissing,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -215,6 +243,21 @@ func edit(t *testing.T, root, from, to string) {
 	}
 	if !strings.Contains(text, from) {
 		t.Fatalf("the fixture card carries no %q", from)
+	}
+	write(t, path, strings.Replace(text, from, to, 1))
+}
+
+// editWorkbench rewrites the fixture's own workbench anchor, replacing one
+// line with another, the way edit does for the fixture card.
+func editWorkbench(t *testing.T, root, from, to string) {
+	t.Helper()
+	path := filepath.Join(root, WorkbenchAnchor)
+	text, err := ReadText(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.Contains(text, from) {
+		t.Fatalf("the fixture workbench carries no %q", from)
 	}
 	write(t, path, strings.Replace(text, from, to, 1))
 }
@@ -841,24 +884,33 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000003"), "Near one")
 	writeWorkbench(t, filepath.Join(inner, UserBaseName, "d00000000004"), "Near two")
 
-	_, err := Discover(inner, "", filepath.Join(tree, "home"), "")
+	_, _, err := Discover(inner, "", filepath.Join(tree, "home"), "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if refusal.Name != contract.AmbiguousBench {
-		t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousBench, refusal.Name)
+	if refusal.Name != contract.AmbiguousWorkbench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousWorkbench, refusal.Name)
 	}
 	if got := refusal.Extra["base"]; got != filepath.Join(inner, UserBaseName) {
 		t.Errorf("the base named: wanted the closest one, got %q", got)
 	}
+	rows, err := Reachable(inner, "", filepath.Join(tree, "home"), "")
+	if err != nil {
+		t.Fatalf("Reachable: %v", err)
+	}
+	titles := make([]string, 0, len(rows))
+	for _, row := range rows {
+		titles = append(titles, row.Title)
+	}
+	joined := strings.Join(titles, "; ")
 	for _, title := range []string{"Near one", "Near two"} {
-		if !strings.Contains(refusal.Detail, title) {
-			t.Errorf("the candidates should name %q, got %q", title, refusal.Detail)
+		if !strings.Contains(joined, title) {
+			t.Errorf("the candidates should name %q, got %q", title, joined)
 		}
 	}
-	if strings.Contains(refusal.Detail, "Far ") {
-		t.Errorf("the further ambiguity should not be reported, got %q", refusal.Detail)
+	if strings.Contains(joined, "Far ") {
+		t.Errorf("the further ambiguity should not be reported, got %q", joined)
 	}
 
 	// One workbench in a base is not ambiguous, and the search takes it.
@@ -867,7 +919,7 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	writeWorkbench(t, filepath.Join(sole, UserBaseName, "d00000000005"), "The only one")
-	found, err := Discover(sole, "", filepath.Join(tree, "home"), "")
+	found, _, err := Discover(sole, "", filepath.Join(tree, "home"), "")
 	if err != nil {
 		t.Fatalf("a base holding one workbench should resolve, got %v", err)
 	}
@@ -878,20 +930,167 @@ func TestDiscoveryTellsAnEmptySearchFromAnAmbiguousOne(t *testing.T) {
 
 // TestDiscoveryNamesTheDirectoryBenchWasPointedAt asserts that a --workbench
 // override carrying no workbench is refused against the path the caller gave,
-// which is the one scenario dinah.no-bench still covers.
+// which is the one scenario dinah.no-workbench still covers.
 func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	empty := t.TempDir()
-	_, err := Discover(empty, empty, "", "")
+	_, _, err := Discover(empty, empty, "", "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if refusal.Name != contract.NoBench {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBench, refusal.Name)
+	if refusal.Name != contract.NoWorkbench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbench, refusal.Name)
 	}
 	if refusal.Detail != empty {
 		t.Errorf("the refusal should name the directory given, wanted %q, got %q", empty, refusal.Detail)
 	}
+}
+
+// TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing asserts the whole
+// shape dinah-70 adds: a configured default opens a workbench when the walk
+// finds nothing local, is never consulted when the walk resolves a sole
+// workbench of its own, refuses by its own name when the configured path no
+// longer carries a workbench.md, and never breaks an ambiguous base's tie.
+func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
+	t.Run("answers when nothing local is reachable", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		root, source, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("wanted the configured default to answer, got %v", err)
+		}
+		if root != configured {
+			t.Errorf("root: wanted %q, got %q", configured, root)
+		}
+		if source != SourceConfig {
+			t.Errorf("source: wanted %s, got %s", SourceConfig, source)
+		}
+	})
+
+	t.Run("a local workbench wins over a configured default pointing elsewhere", func(t *testing.T) {
+		local := t.TempDir()
+		writeWorkbench(t, local, "Local one")
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Elsewhere")
+		root, source, _, err := DiscoverSource(local, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
+		}
+		if root != local {
+			t.Errorf("the local workbench should win, wanted %q, got %q", local, root)
+		}
+		if source != SourceSearch {
+			t.Errorf("source: wanted %s, got %s", SourceSearch, source)
+		}
+	})
+
+	t.Run("a local workbench wins even when the configured default is unreachable", func(t *testing.T) {
+		local := t.TempDir()
+		writeWorkbench(t, local, "Local one")
+		configured := filepath.Join(t.TempDir(), "does-not-exist")
+		root, source, _, err := DiscoverSource(local, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
+		}
+		if root != local {
+			t.Errorf("root: wanted %q, got %q", local, root)
+		}
+		if source != SourceSearch {
+			t.Errorf("source: wanted %s, got %s", SourceSearch, source)
+		}
+	})
+
+	t.Run("an ambiguous base still refuses and the configured default does not break the tie", func(t *testing.T) {
+		base := t.TempDir()
+		writeWorkbench(t, filepath.Join(base, UserBaseName, "d00000000006"), "One")
+		writeWorkbench(t, filepath.Join(base, UserBaseName, "d00000000007"), "Two")
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		_, _, _, err := DiscoverSource(base, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.AmbiguousWorkbench {
+			t.Errorf("refusal name: wanted %s, got %s", contract.AmbiguousWorkbench, refusal.Name)
+		}
+	})
+
+	t.Run("a configured path with no workbench.md refuses by its own name and does not fall through", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := t.TempDir() // exists, but writeWorkbench was never called here
+		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoConfiguredWorkbench {
+			t.Errorf("refusal name: wanted %s, got %s (dinah.no-workbench-found would be the silent fall-through this guards against)", contract.NoConfiguredWorkbench, refusal.Name)
+		}
+		if refusal.Detail != configured {
+			t.Errorf("the refusal should name the configured path, wanted %q, got %q", configured, refusal.Detail)
+		}
+	})
+
+	t.Run("a configured path that does not exist at all refuses the same way", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := filepath.Join(t.TempDir(), "gone")
+		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoConfiguredWorkbench {
+			t.Errorf("refusal name: wanted %s, got %s", contract.NoConfiguredWorkbench, refusal.Name)
+		}
+	})
+
+	t.Run("nothing local and nothing configured still refuses no-workbench-found", func(t *testing.T) {
+		nowhere := t.TempDir()
+		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", "")
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoWorkbenchFound {
+			t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
+		}
+	})
+
+	t.Run("an override names its own source and is never overridden by the configured default", func(t *testing.T) {
+		override := t.TempDir()
+		writeWorkbench(t, override, "Overridden")
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		root, source, _, err := DiscoverSource(t.TempDir(), override, SourceFlag, filepath.Join(t.TempDir(), "home"), "", configured)
+		if err != nil {
+			t.Fatalf("an override should resolve without consulting the configured default, got %v", err)
+		}
+		if root != override {
+			t.Errorf("root: wanted %q, got %q", override, root)
+		}
+		if source != SourceFlag {
+			t.Errorf("source: wanted %s, got %s", SourceFlag, source)
+		}
+	})
+
+	t.Run("Discover itself is unchanged: no rung named, no configured default consulted", func(t *testing.T) {
+		nowhere := t.TempDir()
+		configured := t.TempDir()
+		writeWorkbench(t, configured, "Configured one")
+		// Discover has no way to be handed a configured default at all, so a
+		// search that finds nothing still refuses dinah.no-workbench-found
+		// even though a workbench sits at `configured`.
+		_, _, err := Discover(nowhere, "", filepath.Join(t.TempDir(), "home"), "")
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoWorkbenchFound {
+			t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
+		}
+	})
 }
 
 // TestMalformedCarriesTheFileItWasRaisedOver asserts that every malformed
@@ -980,17 +1179,17 @@ func writeWorkbench(t *testing.T, root, title string) {
 func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	tree := t.TempDir()
 	root := filepath.VolumeName(tree) + string(filepath.Separator)
-	if found, ambiguous := benchIn(root, false); found != "" || len(ambiguous) > 0 {
+	if found, ambiguous, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	home := filepath.Join(tree, "home")
-	_, err := Discover(root, "", home, "")
+	_, _, err := Discover(root, "", home, "")
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if refusal.Name != contract.NoBenchFound {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
 	}
 	if refusal.Detail != root {
 		t.Errorf("the refusal should name where the search began, wanted %q, got %q", root, refusal.Detail)
@@ -1019,13 +1218,13 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 	writeWorkbench(t, filepath.Join(native, UserBaseName, "d00000000010"), "The real one")
 	relocated := t.TempDir()
 
-	_, err := Discover(deep, "", relocated, native)
+	_, _, err := Discover(deep, "", relocated, native)
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("the relocated search should find nothing, got %v", err)
 	}
-	if refusal.Name != contract.NoBenchFound {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
 	}
 	if got := refusal.Extra["home"]; got != filepath.Join(relocated, UserBaseName) {
 		t.Errorf("the refusal should name the relocated user base, wanted %q, got %q", filepath.Join(relocated, UserBaseName), got)
@@ -1035,7 +1234,7 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 	// repository-nested convention resolves from the same starting directory.
 	nested := filepath.Join(native, "src", "repos", "project", UserBaseName, "d00000000011")
 	writeWorkbench(t, nested, "The repository one")
-	found, err := Discover(deep, "", relocated, native)
+	found, _, err := Discover(deep, "", relocated, native)
 	if err != nil {
 		t.Fatalf("a .dinah below the native home should still resolve, got %v", err)
 	}
@@ -1051,7 +1250,7 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	writeWorkbench(t, anchored, "Checked out at home")
-	found, err = Discover(inside, "", t.TempDir(), anchored)
+	found, _, err = Discover(inside, "", t.TempDir(), anchored)
 	if err != nil {
 		t.Fatalf("an anchor at the native home should still resolve, got %v", err)
 	}
@@ -1074,7 +1273,7 @@ func TestDiscoveryUnrelocatedStillFindsTheUserBase(t *testing.T) {
 	want := filepath.Join(native, UserBaseName, "d00000000012")
 	writeWorkbench(t, want, "The only one")
 
-	found, err := Discover(deep, "", native, native)
+	found, _, err := Discover(deep, "", native, native)
 	if err != nil {
 		t.Fatalf("an unrelocated search should resolve, got %v", err)
 	}
@@ -1109,13 +1308,13 @@ func TestTheBoundaryHoldsAgainstAnotherSpellingOfTheHome(t *testing.T) {
 	writeWorkbench(t, filepath.Join(native, UserBaseName, "d00000000013"), "The real one")
 	relocated := t.TempDir()
 
-	_, err := Discover(deep, "", relocated, alias)
+	_, _, err := Discover(deep, "", relocated, alias)
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		t.Fatalf("the boundary should hold under the aliased spelling, got %v", err)
 	}
-	if refusal.Name != contract.NoBenchFound {
-		t.Errorf("refusal name: wanted %s, got %s", contract.NoBenchFound, refusal.Name)
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("refusal name: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
 	}
 }
 
@@ -1170,7 +1369,7 @@ func TestTheUserBaseBeatsABaseAboveTheHome(t *testing.T) {
 	want := filepath.Join(native, UserBaseName, "d00000000015")
 	writeWorkbench(t, want, "The user base one")
 
-	found, err := Discover(deep, "", native, native)
+	found, _, err := Discover(deep, "", native, native)
 	if err != nil {
 		t.Fatalf("the search should resolve to the user base, got %v", err)
 	}
