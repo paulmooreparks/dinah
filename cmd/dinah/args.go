@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
@@ -28,9 +29,11 @@ var markerFlags = []string{
 
 // sessionFlagNames are the five flags read directly off the parsed
 // arguments at session build time, before any command is looked up. A
-// caller may write one of these anywhere before the marker, including
-// inside an open-tail command's own free text, and dinah-96 leaves that
-// placement exactly as it was; dinah-99 tracks closing it.
+// caller may write one of these anywhere before the marker. dinah-100
+// bounds every open-tail command's free text to one already-delimited argv
+// word, so one of these flags can no longer occupy a position "inside" that
+// free text at all; it is either its own argv token, recognized here, or it
+// sits inside the free text's own quoting, where nothing examines it.
 var sessionFlagNames = map[string]bool{
 	"workbench": true, "lang": true, "actor": true, "json": true, "quiet": true,
 }
@@ -196,6 +199,29 @@ func at(words []string, index int) string {
 		return ""
 	}
 	return words[index]
+}
+
+// freeText resolves an open-tail command's free-text slot (add's title,
+// block's reason, comment's text, config set's value) to a single word,
+// which is dinah-100's rule: a caller composing several words quotes them
+// into one. words is what remains of the command line past the slot's own
+// bounded arguments. Zero or one word passes through unchanged, matching
+// today's behavior exactly (dinah-100 decision D-6). Two or more refuses
+// with dinah.multiple-words, naming the word count and rebuilding the
+// command line with the free text quoted so a caller can copy the fix;
+// lead is that command line up to and including the bounded arguments, in
+// the order a caller types them, with "dinah" and the slot's own quoted
+// value added here.
+func freeText(lead []string, words []string, label string) (string, *contract.Refusal) {
+	if len(words) <= 1 {
+		return at(words, 0), nil
+	}
+	example := "dinah " + strings.Join(lead, " ") + " \"" + strings.Join(words, " ") + "\""
+	return "", contract.RefuseWith(contract.MultipleWords, "", map[string]string{
+		"count":   strconv.Itoa(len(words)),
+		"label":   label,
+		"example": example,
+	})
 }
 
 // freeTextBoundary reports where a command's open tail begins, counted as

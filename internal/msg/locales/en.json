@@ -697,6 +697,10 @@
       "text": "this workbench has no states left to file a new card into; hand-edit {detail} to add a state to the states list and create its states/<id>/state.md, then run `dinah check` to confirm before trying `dinah add` again",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
     },
+    "refusal.dinah.multiple-words": {
+      "text": "Dinah read {count} separate words for {label}, and it only accepts one. Put quotation marks around the whole thing: {example}",
+      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). {example} is the command line rebuilt with the free text quoted."
+    },
     "refusal.held": {
       "text": "{detail} holds this card",
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about."
