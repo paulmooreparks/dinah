@@ -128,6 +128,15 @@ $ dinah ls
   dinah-dev-1  ready     tmp card
 ```
 
+Today, and unchanged by this card. `delete` refuses under the same name and keeps its own
+sentence, because Dinah picks the sentence from the refusal name together with the command
+that raised it.
+
+```text
+$ dinah delete wb-1
+dinah.unconfirmed delete destroys history, so it needs --yes
+```
+
 Today. The old reference still resolves after a rename, because a card reference resolves on
 its number and a prefix left over from a rename identifies exactly one card. This block was
 produced by editing the anchor by hand, which is the only rename available today.
@@ -151,7 +160,12 @@ C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f\wo
 
 ## 7. Help
 
-Proposed. The new command's help block follows the shape every other command's does.
+Proposed. The new command's help block follows the shape every other command's does. The
+order of the rows is the order Dinah checks them in, and it is the order the core profile's
+five tiers put them in: the workbench-level operator check first, then whether what you named
+exists, then whether what you typed is well formed, then whether you are entitled to write,
+and last whether you confirmed. A read stops after row 2, because reading a field is open to
+anybody.
 
 ```text
 $ dinah help workbench
@@ -160,13 +174,15 @@ workbench [get|set] [field] [value] [--yes]
 read this workbench's own fields, or write one
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                            Refusal
-  -----  -------------------------------------------  ------------------
-  1      the field is one this workbench records      dinah.unknown-key
-  2      the workbench designates an operator         no-operator
-  3      the writer is that operator                  not-operator
-  4      the value is present and well formed         malformed
-  5      a slug rename carries the confirmation flag  dinah.unconfirmed
+  Order  What can go wrong                             Refusal
+  -----  --------------------------------------------  ------------------
+  1      on a write, the workbench designates an operator
+                                                       no-operator
+  2      the field is one this workbench records       dinah.unknown-key
+  3      the value is present and well formed          malformed
+  4      on a write, the request names an owner        no-owner
+  5      that owner is the operator                    not-operator
+  6      a slug rename carries the confirmation flag   dinah.unconfirmed
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
@@ -202,6 +218,28 @@ $ dinah workbenches
   Workbench  Dinah development
   Slug       dinah-development
   Path       C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f
+```
+
+Proposed. One shape of dashed slug is refused, because Dinah would read it as a card
+reference. The reference parser splits on the last dash, so a slug whose own last segment is
+nothing but digits reads as a prefix and a card number.
+
+```text
+$ dinah init --slug sprint-2
+malformed a workbench slug may not end in a dash and digits, because Dinah reads sprint-2 as card 2
+```
+
+Proposed. A directory name that would derive such a slug is repaired rather than refused,
+which is what `dinah init` already does with every other character a directory name carries
+and the grammar does not.
+
+```text
+$ mkdir "Sprint 2" && cd "Sprint 2"
+$ dinah init
+$ dinah workbenches
+  Workbench  Sprint 2
+  Slug       sprint2
+  Path       C:\dinah-scratch\dinah-141-spec2\sandbox\Sprint 2\.dinah\1f0c4b9d22a7
 ```
 
 Today, and unchanged by this card. A dashed slug already resolves every reference correctly,
