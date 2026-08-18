@@ -738,8 +738,12 @@
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.actor.recorded": {
-      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, इसलिए आपके कार्य इसी नाम से होंगे। इसे बदलने के लिए `dinah config set actor <name>` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
+      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, और अब आप जो भी करेंगे, Dinah उस पर यही नाम दर्ज करेगी। इसे बदलने के लिए `dinah config set actor <name>` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
       "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
+    },
+    "init.actor.unrecorded": {
+      "text": "Dinah ने वर्कबेंच बना दिया, लेकिन {path} में आपको actor के रूप में दर्ज नहीं कर सकी ({reason})। आप कौन हैं यह बताने के लिए `dinah config set actor <name>` चलाएँ।",
+      "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.done": {
       "text": "{root} पर वर्कबेंच बन गई।",
@@ -918,7 +922,7 @@
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner": {
-      "text": "कोई स्वामी नहीं मिला; आप कौन हैं यह बताने के लिए `dinah config set actor <name>` चलाएँ",
+      "text": "Dinah नहीं जानती कि आप कौन हैं; यह बताने के लिए `dinah config set actor <name>` चलाएँ",
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-reason": {

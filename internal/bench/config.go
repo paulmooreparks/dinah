@@ -50,9 +50,10 @@ func (c *Config) Keys() []string {
 //
 // An empty value removes the key from the file rather than storing an empty
 // one. The two read alike to every resolver, since a ladder skips a blank
-// rung, so a person told to clear a setting gets the file back in the state
-// it was in before anybody set it, and `config` reports the key as unset
-// because nothing carries it any more. The removal has to be decided before
+// rung, so a person told to clear a setting gets a file that no longer carries
+// the key at all, and `config` reports it as unset because nothing carries it
+// any more. The file itself stays, holding whatever else was in it, and so
+// does the directory around it. The removal has to be decided before
 // filepath.Abs runs rather than inferred from its result, since
 // filepath.Abs("") resolves to the current directory instead of to nothing.
 //

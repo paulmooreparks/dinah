@@ -401,12 +401,12 @@ func runInit(s *session, parsed *arguments) int {
 		// The workbench exists by now, and init's exit code answers for
 		// the workbench, so a configuration Dinah could not write is
 		// reported rather than turned into a refusal of something that
-		// did happen. The cause reaches stderr through the ordinary
-		// path, and the no-owner sentence follows it because the person
-		// is now in exactly the position that refusal describes, with
-		// the command that fixes it already in the sentence.
-		s.reportError(err)
-		s.fail(contract.NoOwner, "")
+		// did happen. The report is one sentence carrying the cause and
+		// the command that recovers, and it leads with neither an
+		// outcome name nor a refusal name, because a caller reading the
+		// leading token of stderr would otherwise read a failure off a
+		// run that returned 0.
+		s.errLine(s.r.T("init.actor.unrecorded", "path", s.cfg.Path, "reason", err.Error()))
 		return 0
 	}
 	if recorded {

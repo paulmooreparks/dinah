@@ -1061,7 +1061,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				return root, []string{"claim", "lim-1"}
 			},
 			token:    contract.NoOwner,
-			sentence: "run `dinah config set actor <name>` to say who you are",
+			sentence: "Dinah does not know who you are; run `dinah config set actor <name>` to say so",
 		},
 		{
 			name: "a workbench designating no operator",
@@ -3925,8 +3925,9 @@ func TestMarkerAcceptsADashPrefixedConfigValue(t *testing.T) {
 
 // TestMarkerHandlesTheAwkwardShapes asserts dinah-92's AC-4: a bare trailing
 // marker with nothing after it is consumed rather than refused by the flag
-// scan itself (config set's value is allowed to be empty, unlike comment's
-// text, so it is the vehicle for that half of the case), and a second "--"
+// scan itself (config set takes an optional value, unlike comment's required
+// text, so it is the vehicle for that half of the case; an omitted value
+// clears the key), and a second "--"
 // already past the first one is ordinary text rather than a second marker.
 func TestMarkerHandlesTheAwkwardShapes(t *testing.T) {
 	_, dir := settingsHome(t)
@@ -3940,7 +3941,7 @@ func TestMarkerHandlesTheAwkwardShapes(t *testing.T) {
 	}
 	got = runCLI(t, dir, "config", "get", "actor")
 	if got.code != 0 || strings.TrimSpace(got.out) != "" {
-		t.Errorf("config get actor: wanted the empty value the marker left behind, got %d %q", got.code, got.out)
+		t.Errorf("config get actor: wanted nothing, since the bare marker cleared the key, got %d %q", got.code, got.out)
 	}
 
 	root := newBench(t)
@@ -4262,9 +4263,12 @@ func configPath(home string) string {
 	return filepath.Join(home, bench.UserBaseName, bench.ConfigName)
 }
 
-// configBytes reads the configuration file whole, returning nil when the file
-// is not there. An absent file and an empty one are different states here, and
-// nil is what tells them apart.
+// configBytes reads the configuration file whole, returning nil when it cannot
+// be read at all, which on these paths means it is not there.
+//
+// The nil does not by itself separate an absent file from an empty one, since
+// bytes.Equal reads nil and no bytes alike, so a caller that cares whether the
+// file exists asks bench.Exists as well. The suppression cases below do both.
 func configBytes(t *testing.T, home string) []byte {
 	t.Helper()
 	data, err := os.ReadFile(configPath(home))
@@ -4413,6 +4417,7 @@ func TestInitRecordsTheActorWhenNothingElseNamesOne(t *testing.T) {
 			root := newRoom(t, base)
 			c.prepare(t, root)
 			before := configBytes(t, home)
+			existedBefore := bench.Exists(configPath(home))
 
 			got := runCLI(t, root, c.argv...)
 			if got.code != 0 {
@@ -4424,6 +4429,13 @@ func TestInitRecordsTheActorWhenNothingElseNamesOne(t *testing.T) {
 			initReported(t, got)
 			if after := configBytes(t, home); !bytes.Equal(before, after) {
 				t.Errorf("the configuration should be untouched, before %q and after %q", before, after)
+			}
+			// The bytes alone would not catch a zero-byte file
+			// created where none existed, since bytes.Equal reads
+			// that as the nil configBytes returns for an absent
+			// one, so the existence is asserted on its own.
+			if existedAfter := bench.Exists(configPath(home)); existedAfter != existedBefore {
+				t.Errorf("the configuration file's existence changed, before %v and after %v", existedBefore, existedAfter)
 			}
 		})
 	}
@@ -4448,6 +4460,47 @@ func TestInitRecordsTheActorWhenNothingElseNamesOne(t *testing.T) {
 		}
 		if bench.Exists(configPath(home)) {
 			t.Errorf("the refused init wrote %s", configPath(home))
+		}
+	})
+
+	t.Run("a configuration Dinah cannot write is reported without a refusal name", func(t *testing.T) {
+		home, base := noActorHome(t)
+		root := newRoom(t, base)
+		// A regular file where the user base directory belongs makes
+		// the MkdirAll inside WriteText fail on Windows and on Linux
+		// alike, so the arm runs against a write that really failed
+		// rather than against a stand-in for one.
+		if err := os.MkdirAll(home, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		blocked := filepath.Join(home, bench.UserBaseName)
+		if err := os.WriteFile(blocked, []byte("a file where the user base belongs\n"), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+
+		got := runCLI(t, root, "init", "--operator", "paul")
+		if got.code != 0 {
+			t.Fatalf("init: wanted 0 because the workbench exists, got %d (%s)", got.code, got.errw)
+		}
+		// The created line still stands alone on stdout, and the
+		// announcement of a write that did not happen is absent.
+		initReported(t, got)
+
+		report := strings.TrimSuffix(got.errw, "\n")
+		if strings.Contains(report, "\n") {
+			t.Fatalf("the failure should reach stderr as one line, got %q", got.errw)
+		}
+		leading := strings.SplitN(report, " ", 2)[0]
+		for _, token := range []string{contract.OutcomeUnreachable, contract.NoOwner} {
+			if leading == token {
+				t.Errorf("the report leads with %s, which reads as a failure on a run that exited 0: %q", token, report)
+			}
+		}
+		if !strings.Contains(report, configPath(home)) {
+			t.Errorf("the report should name %s, got %q", configPath(home), report)
+		}
+		if !strings.Contains(report, "`dinah config set actor <name>`") {
+			t.Errorf("the report should name the command that recovers, got %q", report)
 		}
 	})
 
