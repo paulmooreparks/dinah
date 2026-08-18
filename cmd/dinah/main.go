@@ -200,6 +200,13 @@ func (s *session) sentence(name, detail string) string {
 // end-of-options marker is spliced on the same way. Only parseArgs's two
 // flag-scan refusals ever set dashHint; every other dinah.usage site is
 // unchanged.
+//
+// A multiple-words refusal (freeText, cmd/dinah/args.go) carries either
+// example, when the free text has no quotation mark and a rebuilt,
+// paste-ready command line reads back correctly in bash, cmd.exe and
+// PowerShell alike, or quoteInText, when it does and no single escaping is
+// correct in all three, so the caller is asked to quote the text themselves
+// instead. Exactly one of the two is ever set.
 func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
 	key := "refusal." + name
 	if !r.Has(key) {
@@ -215,6 +222,12 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 	}
 	if name == contract.Usage && extra["dashHint"] != "" {
 		return text + r.T("refusal.dinah.usage.dash-hint")
+	}
+	if name == contract.MultipleWords {
+		if extra["quoteInText"] != "" {
+			return text + r.T("refusal.dinah.multiple-words.quote-yourself")
+		}
+		return text + r.T("refusal.dinah.multiple-words.example", "example", extra["example"])
 	}
 	return text
 }

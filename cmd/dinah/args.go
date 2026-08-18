@@ -207,27 +207,39 @@ func at(words []string, index int) string {
 // into one. words is what remains of the command line past the slot's own
 // bounded arguments. Zero or one word passes through unchanged, matching
 // today's behavior exactly (dinah-100 decision D-6). Two or more refuses
-// with dinah.multiple-words, naming the word count and rebuilding the
-// command line with the free text quoted so a caller can copy the fix. Any
-// literal quote character inside the free text is backslash-escaped before
-// wrapping, since bash, cmd.exe and the parser dinah's own binary uses to
-// re-read the pasted line all read \" as a literal quote inside a
-// double-quoted argument; an unescaped quote would let the shell split the
-// example into several arguments and silently drop the character, filing
-// different content than the caller typed. lead is that command line up to
-// and including the bounded arguments, in the order a caller types them,
-// with "dinah" and the slot's own quoted value added here.
+// with dinah.multiple-words, naming the word count.
+//
+// Which shell is on the other end of the paste is undocumented and cannot be
+// asked for, so the rebuilt example this refusal offers is only ever built
+// for text with no quotation mark in it, where wrapping in double quotes is
+// already correct verbatim in bash, cmd.exe and PowerShell alike and nothing
+// needs escaping. The moment the free text itself contains a `"`, no single
+// escaping convention reads back correctly in all three: a backslash escape
+// round-trips in bash and cmd.exe but is not an escape character inside a
+// PowerShell double-quoted string, so it strings a quote-and-backslash
+// artifact into the result there instead of the caller's original text
+// (dinah-100 cycle-3 review, verified by pasting into all three shells).
+// Rather than hand back a command line that is wrong in whichever shell the
+// reader is using, freeText refuses with dinah.multiple-words.quote-yourself
+// and asks the caller to add the quoting themselves, naming the quotation
+// mark as the reason a ready-made line cannot be offered. lead is the
+// command line up to and including the bounded arguments, in the order a
+// caller types them, used only to build the example in the no-quote case.
 func freeText(lead []string, words []string, label string) (string, *contract.Refusal) {
 	if len(words) <= 1 {
 		return at(words, 0), nil
 	}
-	quoted := strings.ReplaceAll(strings.Join(words, " "), "\"", "\\\"")
-	example := "dinah " + strings.Join(lead, " ") + " \"" + quoted + "\""
-	return "", contract.RefuseWith(contract.MultipleWords, "", map[string]string{
-		"count":   strconv.Itoa(len(words)),
-		"label":   label,
-		"example": example,
-	})
+	joined := strings.Join(words, " ")
+	extra := map[string]string{
+		"count": strconv.Itoa(len(words)),
+		"label": label,
+	}
+	if strings.Contains(joined, "\"") {
+		extra["quoteInText"] = "1"
+	} else {
+		extra["example"] = "dinah " + strings.Join(lead, " ") + " \"" + joined + "\""
+	}
+	return "", contract.RefuseWith(contract.MultipleWords, "", extra)
 }
 
 // freeTextBoundary reports where a command's open tail begins, counted as

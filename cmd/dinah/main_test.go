@@ -3699,18 +3699,48 @@ func TestOpenTailKeepsAcceptingExactlyOneWord(t *testing.T) {
 	}
 }
 
-// TestOpenTailEscapesAnEmbeddedQuoteInTheRebuiltExample guards the review
-// finding on dinah-100: a caller whose free text itself contains a literal
-// quote character must get back a rebuilt example that reproduces that
-// character on paste, not one where the shell reads it as the end of the
-// argument and silently drops it.
-func TestOpenTailEscapesAnEmbeddedQuoteInTheRebuiltExample(t *testing.T) {
+// TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote guards the cycle-3
+// review finding on dinah-100: which shell reads back a pasted line is
+// undocumented, and bash, cmd.exe and PowerShell disagree on how to escape
+// an embedded quotation mark (a backslash escape round-trips in bash and
+// cmd.exe but is not an escape character inside a PowerShell double-quoted
+// string, so it mangles the text there instead). Rather than hand back a
+// rebuilt example that is wrong in whichever shell the caller is using, a
+// free-text value that itself contains a `"` refuses with an instruction to
+// quote it themselves and offers no example at all. A backslash alone, or a
+// single quote alone, carries no such ambiguity and keeps the ordinary
+// rebuilt-example refusal (TestOpenTailKeepsAcceptingExactlyOneWord).
+func TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote(t *testing.T) {
 	root := newBench(t)
 
 	got := runCLI(t, root, "add", "say", `"hi"`, "there")
-	want := `dinah.multiple-words Dinah read 3 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "say \"hi\" there"` + "\n"
+	want := "dinah.multiple-words Dinah read 3 separate words for the title, and it only accepts one." +
+		" That text has a quotation mark in it, so put quotation marks around the whole thing yourself." +
+		" No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.\n"
 	if got.code != 2 || got.errw != want {
 		t.Errorf("add with an embedded quote character:\n got  %d %q\n want 2 %q", got.code, got.errw, want)
+	}
+	if strings.Contains(got.errw, "dinah add") {
+		t.Errorf("a quote-in-text refusal should offer no rebuilt example, got %q", got.errw)
+	}
+
+	got = runCLI(t, root, "add", `C:\say"hi"`, "here")
+	if got.code != 2 || got.errw != "dinah.multiple-words Dinah read 2 separate words for the title, and it only accepts one."+
+		" That text has a quotation mark in it, so put quotation marks around the whole thing yourself."+
+		" No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.\n" {
+		t.Errorf("add with a backslash and an embedded quote:\n got  %d %q", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "add", "it's", "only", "a", "single", "quote")
+	wantSingleQuote := `dinah.multiple-words Dinah read 5 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "it's only a single quote"` + "\n"
+	if got.code != 2 || got.errw != wantSingleQuote {
+		t.Errorf("add with only a single (apostrophe) quote:\n got  %d %q\n want 2 %q", got.code, got.errw, wantSingleQuote)
+	}
+
+	got = runCLI(t, root, "add", `C:\path`, "here")
+	wantBackslash := `dinah.multiple-words Dinah read 2 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "C:\path here"` + "\n"
+	if got.code != 2 || got.errw != wantBackslash {
+		t.Errorf("add with a backslash and no quote:\n got  %d %q\n want 2 %q", got.code, got.errw, wantBackslash)
 	}
 }
 

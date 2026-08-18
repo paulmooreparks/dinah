@@ -698,8 +698,16 @@
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
     },
     "refusal.dinah.multiple-words": {
-      "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है। पूरे वाक्यांश को उद्धरण चिह्नों में रखें: {example}",
-      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). {example} is the command line rebuilt with the free text quoted."
+      "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है।",
+      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). One of two fragments is spliced on: refusal.dinah.multiple-words.example when the free text carries no quotation mark, refusal.dinah.multiple-words.quote-yourself when it does."
+    },
+    "refusal.dinah.multiple-words.example": {
+      "text": " पूरे वाक्यांश को उद्धरण चिह्नों में रखें: {example}",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text carries no quotation mark, so wrapping it in double quotes reads back correctly verbatim in bash, cmd.exe and PowerShell alike. {example} is the command line rebuilt with the free text quoted."
+    },
+    "refusal.dinah.multiple-words.quote-yourself": {
+      "text": " उस पाठ में एक उद्धरण चिह्न है, इसलिए पूरे वाक्यांश को स्वयं उद्धरण चिह्नों में रखें। जब पाठ में स्वयं उद्धरण चिह्न हो, तो Dinah द्वारा बनाई गई कोई भी कमांड लाइन हर शेल में सही ढंग से पेस्ट नहीं होती।",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text contains a literal quotation mark: which shell will read the pasted line back is undocumented and cannot be asked for, and bash, cmd.exe and PowerShell disagree on how to escape an embedded quote, so no single rebuilt example is correct in all three. The caller is asked to add the quoting themselves rather than being handed a line that is wrong somewhere."
     },
     "refusal.held": {
       "text": "यह कार्ड {detail} ने लिया हुआ है",
