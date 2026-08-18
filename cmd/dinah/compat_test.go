@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -157,6 +158,19 @@ func TestReplayingThePopulationSequenceReachesEveryShapeItNames(t *testing.T) {
 // The comparison is against the one fixture the manifest marks rather than
 // against the union of every fixture declaring the revision, because a union
 // lets a second fixture cover the first one's gaps.
+//
+// What this test does not prove (spec section 6.5): the containment shows the
+// sample fixture holds every shape this build's own replay writes, and that
+// is completeness within the sequence populate.txt drives, nothing more. A
+// shape the sequence never exercises is absent from both sides and this test
+// stays silent about it. It says nothing about where the sample fixture's
+// bytes came from; provenance rests on the capture commit named in the
+// fixture's manifest row and on a reader replaying it, not on any assertion
+// here. wantedKeys above tells a reader which top-level keys the sequence
+// samples, and it does not say that Instantiate and writeStateFromMember copy
+// an unrecognised definition or state member straight into the anchor they
+// write, so the workbench.md and state.md key sets are open in a way this
+// comparison cannot see (OQ-7).
 func TestTheSampleFixtureCarriesEveryShapeThisBuildWrites(t *testing.T) {
 	sample := readShape(t, sampleFixture(t))
 	fresh := readShape(t, replayPopulation(t))
@@ -225,18 +239,9 @@ var eventConstant = regexp.MustCompile(`(?m)^\tEvent[A-Za-z]+\s+= "([a-z_]+)"`)
 // sample for the revision this build stamps.
 func sampleFixture(t *testing.T) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(compatDir, "manifest.json"))
+	manifest, err := bench.ReadFixtureManifest(compatDir)
 	if err != nil {
 		t.Fatalf("read the fixture manifest: %v", err)
-	}
-	manifest := struct {
-		Fixtures []struct {
-			Directory string `json:"directory"`
-			Sample    bool   `json:"sample"`
-		} `json:"fixtures"`
-	}{}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		t.Fatalf("parse the fixture manifest: %v", err)
 	}
 	var marked []string
 	for _, row := range manifest.Fixtures {
@@ -257,12 +262,11 @@ func sampleFixture(t *testing.T) string {
 // anchorProfile reads the profile string an anchor declares.
 func anchorProfile(t *testing.T, root string) string {
 	t.Helper()
-	text, err := bench.ReadText(filepath.Join(root, bench.WorkbenchAnchor))
+	profile, err := bench.DeclaredProfile(root)
 	if err != nil {
 		t.Fatalf("read the anchor at %s: %v", root, err)
 	}
-	fm, _ := bench.ParseAnchor(text)
-	return fm.Value("profile")
+	return profile
 }
 
 // replayPopulation creates a workbench with the build under test, replays the
@@ -354,14 +358,7 @@ func tokenize(line string) ([]string, error) {
 }
 
 // errUnbalancedQuote reports a populate.txt line whose quoting does not close.
-var errUnbalancedQuote = errorString("a quoted argument does not close")
-
-// errorString is an error a constant string carries, which is what these test
-// helpers need and what errors.New would otherwise allocate at init.
-type errorString string
-
-// Error renders the message.
-func (e errorString) Error() string { return string(e) }
+var errUnbalancedQuote = errors.New("a quoted argument does not close")
 
 // readShape reads the three sets a tree is compared on.
 func readShape(t *testing.T, root string) shape {

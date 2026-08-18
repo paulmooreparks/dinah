@@ -918,8 +918,8 @@ on its own, so the window behaves the same way while the contract's own major
 number is 0 and after it reaches 1.
 
 The contract's 0.4 changelog entry renamed the three revisions published
-before it, so what that changelog recorded as 1.0, 2.0 and 3.0 now carries
-the names 0.1, 0.2 and 0.3. A workbench's `profile:` field refers to a
+before it, so what that changelog recorded as 1.0, 2.0, and 3.0 now carries
+the names 0.1, 0.2, and 0.3. A workbench's `profile:` field refers to a
 revision, so Dinah reads it under the new names. Only one of the three
 retired spellings ever reached a workbench on disk. Dinah has stamped
 `dinah-core/1.0` into every workbench it has created and has never stamped

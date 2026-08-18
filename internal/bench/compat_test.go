@@ -3,7 +3,6 @@ package bench
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -28,24 +27,6 @@ const compatRepoPrefix = "internal/bench/testdata/compat"
 // manifestName is the file listing each fixture with the digest of its
 // contents.
 const manifestName = "manifest.json"
-
-// fixtureRow is one row of the manifest.
-type fixtureRow struct {
-	// Directory is the fixture directory's name under testdata/compat.
-	Directory string `json:"directory"`
-	// Digest is the SHA-256 of the fixture's files, as digestFixture computes
-	// it.
-	Digest string `json:"digest"`
-	// Sample marks the fixture the shape comparison in cmd/dinah reads.
-	// Exactly one fixture declaring a given revision may carry it.
-	Sample bool `json:"sample,omitempty"`
-}
-
-// fixtureManifest is the manifest file's whole shape.
-type fixtureManifest struct {
-	// Fixtures are the rows, one per fixture directory.
-	Fixtures []fixtureRow `json:"fixtures"`
-}
 
 // compatFixtures lists the fixture directory names under testdata/compat, in
 // sorted order. A test globs rather than naming them, so a fixture added later
@@ -74,12 +55,11 @@ func compatFixtures(t *testing.T) []string {
 // several of these tests are asserting.
 func declaredProfile(t *testing.T, fixture string) string {
 	t.Helper()
-	text, err := ReadText(filepath.Join(compatDir, fixture, WorkbenchAnchor))
+	profile, err := DeclaredProfile(filepath.Join(compatDir, fixture))
 	if err != nil {
 		t.Fatalf("read the anchor of %s: %v", fixture, err)
 	}
-	fm, _ := ParseAnchor(text)
-	return fm.Value("profile")
+	return profile
 }
 
 // TestAdmitProfileReadsThePublishedLineAndRefusesTheRest asserts the window
@@ -168,6 +148,13 @@ func TestTheRetiredSpellingResolvesOnlyWhileTheCeilingSitsBelowIt(t *testing.T) 
 // directory under testdata/compat opens under this build and gives up its
 // states and its cards. A fixture added later is picked up by the glob with no
 // change here.
+//
+// What this test does not prove (spec section 6.5): it shows the binary
+// accepts a committed tree and reads it, and it settles nothing about
+// completeness. A hand-built tree carrying only the path names and keys this
+// test happens to touch would open and read here as readily as a genuine
+// capture; the coverage claim belongs to the sample and coverage alarms
+// above, not to this test.
 func TestEveryCompatFixtureOpensAndReads(t *testing.T) {
 	for _, fixture := range compatFixtures(t) {
 		b, err := Open(filepath.Join(compatDir, fixture))
@@ -279,7 +266,7 @@ func TestFloorHasNotMovedSincePromiseBound(t *testing.T) {
 // shape carries its own line in the same diff.
 func TestTheFixtureManifestMatchesWhatIsCommitted(t *testing.T) {
 	manifest := readManifest(t)
-	rows := map[string]fixtureRow{}
+	rows := map[string]FixtureRow{}
 	for _, row := range manifest.Fixtures {
 		rows[row.Directory] = row
 	}
@@ -325,15 +312,11 @@ func TestExactlyOneFixtureIsMarkedTheSampleForThisRevision(t *testing.T) {
 }
 
 // readManifest reads the fixture manifest.
-func readManifest(t *testing.T) fixtureManifest {
+func readManifest(t *testing.T) FixtureManifest {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(compatDir, manifestName))
+	manifest, err := ReadFixtureManifest(compatDir)
 	if err != nil {
 		t.Fatalf("read %s: %v", manifestName, err)
-	}
-	manifest := fixtureManifest{}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		t.Fatalf("parse %s: %v", manifestName, err)
 	}
 	return manifest
 }
