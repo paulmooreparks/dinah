@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -8,10 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 	"unicode/utf8"
+
+	"dinah/internal/textwidth"
 )
 
 // lockAcquisition matches the exclusive-create primitive a lock is taken with.
@@ -872,5 +877,533 @@ func foldStringConcat(expr ast.Expr) (string, bool) {
 		return foldStringConcat(e.X)
 	default:
 		return "", false
+	}
+}
+
+// theOneRenderer is the file every columnar row in this codebase is laid out
+// in. Padding a field, breaking a row whose field outruns its column, and
+// measuring how many columns a string draws all live there, and this guard is
+// what keeps them there.
+const theOneRenderer = "cmd/dinah/row.go"
+
+// theRenderingHead is the package whose non-test sources are read for a row
+// built out of bare spaces. Tree-wide that pattern is unusable, since several
+// packages carry legitimate multi-space literals, and inside this package the
+// conversion leaves exactly one, which the guard exempts by its shape in the
+// AST rather than by its line number.
+const theRenderingHead = "cmd/dinah/"
+
+// columnarCatalogKeys are the two catalog entries that compose columns inside
+// a translated string, where the translator owns the spacing and no column is
+// declared. Both are present in every shipped catalog, and the guard asserts
+// that each still matches something, so a retired entry cannot leave a stale
+// name covering another one.
+var columnarCatalogKeys = []string{"card.line", "status.workbench"}
+
+// rowLayoutReason is what a reader who trips this guard needs: why the shape
+// is refused here, and what to do instead of working around it.
+const rowLayoutReason = "every columnar line is built as a row and laid out by " +
+	"formatRow in " + theOneRenderer + "; padding a field anywhere else counts " +
+	"characters where a terminal counts columns, and the row drifts the moment " +
+	"the field carries text from a script that disagrees with a rune count"
+
+// printfWidthVerb matches a printf verb carrying a width and taking a string,
+// which is how a Go programmer pads a column with no import at all. The verb
+// set stops at s, v, q and x, so a width on a number, such as the one in a
+// zero-padded timestamp, is left alone.
+var printfWidthVerb = regexp.MustCompile(`%[-+ #0]*(\[[0-9]+\])?([0-9]+|\*)(\.[0-9]+)?[svqx]`)
+
+// spacedRun matches a run of two or more spaces, which is a row laid out by
+// hand once it sits inside a Go string literal in the rendering head.
+var spacedRun = regexp.MustCompile(`  +`)
+
+// rowLayoutPattern names one shape a row laid out by hand takes. The numbers
+// are the ones the spec and TestGuardCatchesAHandRolledRow both count in, so a
+// failure names a pattern a reader can look up.
+type rowLayoutPattern int
+
+const (
+	patternTabwriter rowLayoutPattern = iota + 1
+	patternStringsRepeat
+	patternPrintfWidth
+	patternRuneCount
+	patternSpacedLiteral
+	patternColumnarCatalogEntry
+	patternPadCall
+)
+
+// rowLayoutFinding is one place a row is laid out outside the one renderer.
+type rowLayoutFinding struct {
+	// where names the file and, for a Go source, the line.
+	where string
+	// pattern is which of the seven shapes was found.
+	pattern rowLayoutPattern
+	// detail is the text that tripped it.
+	detail string
+}
+
+// TestNoRowIsLaidOutOutsideTheOneRenderer asserts that nothing in the shipped
+// binary lays a columnar row out except formatRow in cmd/dinah/row.go, and
+// that no message catalog composes columns inside an entry except the two
+// entries meant to.
+//
+// The guard parses each Go file and asks the AST, which is how it tells a call
+// from a comment and a literal from an identifier. Four of the seven patterns
+// are AST shapes rather than text: an import, two callees, and a length over a
+// conversion to runes.
+//
+// Test sources are outside the scan. A test that builds a row by hand is
+// standing in for output another version of the code produced, and no such
+// line reaches a person reading the tool.
+func TestNoRowIsLaidOutOutsideTheOneRenderer(t *testing.T) {
+	root := filepath.Join("..", "..")
+	scanned := 0
+	var findings []rowLayoutFinding
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skippedTrees[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		name := filepath.ToSlash(relative)
+		if name == theOneRenderer {
+			return nil
+		}
+		found, scanErr := scanGoForRowLayout(path, name)
+		if scanErr != nil {
+			return scanErr
+		}
+		scanned++
+		findings = append(findings, found...)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if scanned == 0 {
+		t.Error("no source was scanned, so this guard proves nothing")
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneRenderer))); err != nil {
+		t.Errorf("the one renderer is not where this guard exempts it: %v", err)
+	}
+
+	catalogs := filepath.Join(root, "internal", "msg", "locales")
+	onDisk, err := os.ReadDir(catalogs)
+	if err != nil {
+		t.Fatalf("read locales dir: %v", err)
+	}
+	wanted := 0
+	for _, entry := range onDisk {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".json" {
+			wanted++
+		}
+	}
+	read, matched, catalogFindings, err := scanCatalogsForRowLayout(catalogs)
+	if err != nil {
+		t.Fatalf("scan catalogs: %v", err)
+	}
+	findings = append(findings, catalogFindings...)
+	if read == 0 || read != wanted {
+		t.Errorf("the catalog walk read %d of the %d catalogs on disk, so this guard proves less than it claims", read, wanted)
+	}
+	for _, key := range columnarCatalogKeys {
+		if matched[key] == 0 {
+			t.Errorf("the exemption names %s and no catalog entry matches it, so the name covers nothing and may be covering something else; drop it or correct the key", key)
+		}
+	}
+
+	for _, finding := range findings {
+		t.Errorf("%s lays out a row by hand (pattern %d): %s\n%s", finding.where, finding.pattern, finding.detail, rowLayoutReason)
+	}
+}
+
+// scanGoForRowLayout reports every finding of the six patterns a Go source can
+// carry in one file. name is the file's slash-separated path from the
+// repository root, which is what decides whether the patterns confined to the
+// rendering head apply to it.
+func scanGoForRowLayout(path, name string) ([]rowLayoutFinding, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	at := func(pos token.Pos) string {
+		return name + ":" + strconv.Itoa(fset.Position(pos).Line)
+	}
+	var findings []rowLayoutFinding
+
+	for _, imported := range file.Imports {
+		if imported.Path.Value == strconv.Quote("text/tabwriter") {
+			findings = append(findings, rowLayoutFinding{
+				where:   at(imported.Pos()),
+				pattern: patternTabwriter,
+				detail:  "imports text/tabwriter, whose column writer measures bytes",
+			})
+		}
+	}
+
+	indents := map[token.Pos]bool{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) != 3 || !isSelectorCall(call.Fun, "json", "MarshalIndent") {
+			return true
+		}
+		if literal, ok := call.Args[2].(*ast.BasicLit); ok {
+			indents[literal.Pos()] = true
+		}
+		return true
+	})
+
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch {
+		case isSelectorCall(call.Fun, "strings", "Repeat"):
+			findings = append(findings, rowLayoutFinding{
+				where:   at(call.Pos()),
+				pattern: patternStringsRepeat,
+				detail:  "calls strings.Repeat, which is how a run of padding is built",
+			})
+		case isSelectorCall(call.Fun, "utf8", "RuneCountInString"), isSelectorCall(call.Fun, "utf8", "RuneCount"):
+			findings = append(findings, rowLayoutFinding{
+				where:   at(call.Pos()),
+				pattern: patternRuneCount,
+				detail:  "counts runes, which is not what a terminal counts",
+			})
+		case isBareIdent(call.Fun, "len") && len(call.Args) == 1 && isRuneConversion(call.Args[0]):
+			findings = append(findings, rowLayoutFinding{
+				where:   at(call.Pos()),
+				pattern: patternRuneCount,
+				detail:  "takes the length of a conversion to runes, which is not what a terminal counts",
+			})
+		case isBareIdent(call.Fun, "pad"):
+			findings = append(findings, rowLayoutFinding{
+				where:   at(call.Pos()),
+				pattern: patternPadCall,
+				detail:  "calls pad, which widens a field to a column outside the one renderer",
+			})
+		}
+		return true
+	})
+
+	held, err := goStringLiterals(path)
+	if err != nil {
+		return nil, err
+	}
+	for _, literal := range held {
+		if printfWidthVerb.MatchString(literal.text) {
+			findings = append(findings, rowLayoutFinding{
+				where:   name + ":" + strconv.Itoa(literal.line),
+				pattern: patternPrintfWidth,
+				detail:  "carries a printf width on a string verb: " + literal.text,
+			})
+		}
+	}
+
+	if !strings.HasPrefix(name, theRenderingHead) {
+		return findings, nil
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.BasicLit)
+		if !ok || literal.Kind != token.STRING || indents[literal.Pos()] {
+			return true
+		}
+		value, err := strconv.Unquote(literal.Value)
+		if err != nil {
+			return true
+		}
+		if spacedRun.MatchString(value) {
+			findings = append(findings, rowLayoutFinding{
+				where:   at(literal.Pos()),
+				pattern: patternSpacedLiteral,
+				detail:  "carries a run of spaces wide enough to be a column: " + literal.Value,
+			})
+		}
+		return true
+	})
+	return findings, nil
+}
+
+// isSelectorCall reports whether expr names pkg.name.
+func isSelectorCall(expr ast.Expr, pkg, name string) bool {
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != name {
+		return false
+	}
+	return isBareIdent(selector.X, pkg)
+}
+
+// isBareIdent reports whether expr is the identifier name on its own.
+func isBareIdent(expr ast.Expr, name string) bool {
+	ident, ok := expr.(*ast.Ident)
+	return ok && ident.Name == name
+}
+
+// isRuneConversion reports whether expr converts something to a slice of
+// runes.
+func isRuneConversion(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	array, ok := call.Fun.(*ast.ArrayType)
+	if !ok || array.Len != nil {
+		return false
+	}
+	return isBareIdent(array.Elt, "rune")
+}
+
+// scanCatalogsForRowLayout reads every catalog in a directory and reports each
+// entry composing columns inside its own text, which is a row no scan of Go
+// sources can see. It returns how many catalogs it read, how many entries each
+// exempted key matched, and the findings.
+func scanCatalogsForRowLayout(dir string) (int, map[string]int, []rowLayoutFinding, error) {
+	onDisk, err := os.ReadDir(dir)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	exempt := map[string]bool{}
+	for _, key := range columnarCatalogKeys {
+		exempt[key] = true
+	}
+	matched := map[string]int{}
+	read := 0
+	var findings []rowLayoutFinding
+	for _, entry := range onDisk {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		source, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return read, matched, findings, err
+		}
+		var catalog struct {
+			Entries map[string]struct {
+				Text string `json:"text"`
+			} `json:"entries"`
+		}
+		if err := json.Unmarshal(source, &catalog); err != nil {
+			return read, matched, findings, err
+		}
+		read++
+		for _, key := range sortedCatalogKeys(catalog.Entries) {
+			text := catalog.Entries[key].Text
+			if !composesColumns(text) {
+				continue
+			}
+			if exempt[key] {
+				matched[key]++
+				continue
+			}
+			findings = append(findings, rowLayoutFinding{
+				where:   entry.Name() + " " + key,
+				pattern: patternColumnarCatalogEntry,
+				detail:  "composes columns inside its own text: " + strconv.Quote(text),
+			})
+		}
+	}
+	return read, matched, findings, nil
+}
+
+// sortedCatalogKeys returns a catalog's keys in order, so two runs report the
+// same findings in the same order.
+func sortedCatalogKeys[T any](entries map[string]T) []string {
+	keys := make([]string, 0, len(entries))
+	for key := range entries {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// composesColumns reports whether text lays out columns: a run of space
+// characters separating two non-space characters and measuring two or more
+// columns on screen.
+//
+// The run is measured in columns rather than counted in characters, which is
+// what catches a single IDEOGRAPHIC SPACE, the one a translator working in a
+// CJK locale reaches for by habit and the one an ASCII-space pattern reads as
+// ordinary text. A pair of no-break spaces is caught the same way. A run at
+// the start or the end of an entry indents or trails it rather than separating
+// two fields, so the run has to sit between two non-space characters.
+func composesColumns(text string) bool {
+	runes := []rune(text)
+	for i := 0; i < len(runes); i++ {
+		if !unicode.Is(unicode.Zs, runes[i]) {
+			continue
+		}
+		start := i
+		for i < len(runes) && unicode.Is(unicode.Zs, runes[i]) {
+			i++
+		}
+		if start == 0 || i >= len(runes) {
+			continue
+		}
+		if textwidth.Columns(string(runes[start:i])) >= 2 {
+			return true
+		}
+	}
+	return false
+}
+
+// handRolledFixtures are one planted row per pattern the Go scan carries, each
+// written the way somebody would write it who had not read the renderer.
+// Removing any one pattern from the guard makes the fixture beside it go
+// unreported, which is what TestGuardCatchesAHandRolledRow fails on.
+//
+// Fixture 7 is the one a six-pattern guard passed. Its indent is a single
+// space, so it carries no multi-space literal, no repeat, no printf width, and
+// no rune count, and nothing but the callee itself sees it.
+var handRolledFixtures = []struct {
+	// pattern is the shape this fixture is planted to trip.
+	pattern rowLayoutPattern
+	// source is a whole Go file.
+	source string
+}{
+	{
+		pattern: patternTabwriter,
+		source:  "package planted\n\nimport \"text/tabwriter\"\n\nvar writer *tabwriter.Writer\n",
+	},
+	{
+		pattern: patternStringsRepeat,
+		source:  "package planted\n\nimport \"strings\"\n\nconst gap = \" \"\n\nfunc padded(text string, n int) string { return text + strings.Repeat(gap, n) }\n",
+	},
+	{
+		pattern: patternPrintfWidth,
+		source:  "package planted\n\nimport \"fmt\"\n\nfunc padded(ref string) string { return fmt.Sprintf(\"%-14s\", ref) }\n",
+	},
+	{
+		pattern: patternRuneCount,
+		source:  "package planted\n\nfunc drawn(text string) int { return len([]rune(text)) }\n",
+	},
+	{
+		pattern: patternSpacedLiteral,
+		source:  "package planted\n\nfunc header(ts, author string) string { return \"  \" + ts + \"  \" + author }\n",
+	},
+	{
+		pattern: patternPadCall,
+		source:  "package planted\n\nfunc pad(text string, width int) string { return text }\n\nfunc held(ref, title string) string { return \" \" + pad(ref, 14) + title }\n",
+	},
+}
+
+// TestGuardCatchesAHandRolledRow plants one row per pattern and asserts each is
+// reported, so that removing a pattern from the guard fails this test rather
+// than quietly narrowing what the guard sees. It plants the two shapes the
+// guard has to let through as well, since a guard that reports everything
+// protects nothing either.
+//
+// Every fixture lives under t.TempDir() and is removed with the test, so no
+// planted row reaches a file the production scan walks.
+func TestGuardCatchesAHandRolledRow(t *testing.T) {
+	dir := t.TempDir()
+	for _, fixture := range handRolledFixtures {
+		name := "pattern" + strconv.Itoa(int(fixture.pattern))
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(dir, name+".go")
+			if err := os.WriteFile(path, []byte(fixture.source), 0o644); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			found, err := scanGoForRowLayout(path, theRenderingHead+name+".go")
+			if err != nil {
+				t.Fatalf("scan fixture: %v", err)
+			}
+			for _, finding := range found {
+				if finding.pattern == fixture.pattern {
+					return
+				}
+			}
+			t.Errorf("the planted row was not reported by pattern %d; the guard reported %v", fixture.pattern, found)
+		})
+	}
+
+	t.Run("the indent of a machine form is not a column", func(t *testing.T) {
+		path := filepath.Join(dir, "marshal.go")
+		source := "package planted\n\nimport \"encoding/json\"\n\nfunc form(value any) ([]byte, error) { return json.MarshalIndent(value, \"\", \"  \") }\n"
+		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		found, err := scanGoForRowLayout(path, theRenderingHead+"marshal.go")
+		if err != nil {
+			t.Fatalf("scan fixture: %v", err)
+		}
+		if len(found) != 0 {
+			t.Errorf("the indent argument of a machine form was reported as a column: %v", found)
+		}
+	})
+
+	t.Run("a run of spaces outside the rendering head is not a column", func(t *testing.T) {
+		path := filepath.Join(dir, "elsewhere.go")
+		source := "package planted\n\nconst prompt = \"a  b\"\n"
+		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		found, err := scanGoForRowLayout(path, "internal/planted/elsewhere.go")
+		if err != nil {
+			t.Fatalf("scan fixture: %v", err)
+		}
+		if len(found) != 0 {
+			t.Errorf("a multi-space literal outside the rendering head was reported: %v", found)
+		}
+	})
+}
+
+// TestGuardCatchesAColumnarCatalogEntry plants a catalog carrying the three
+// shapes a translator lays columns out with and asserts each is reported. The
+// ideographic space and the pair of no-break spaces are the two an ASCII-space
+// pattern reads as ordinary text, and a translator working in a CJK locale
+// reaches for the first of them by habit.
+//
+// The same planted catalog carries neither exempted key, so the run also
+// asserts that an exemption matching nothing is reported rather than passing
+// as though it had covered something.
+func TestGuardCatchesAColumnarCatalogEntry(t *testing.T) {
+	dir := t.TempDir()
+	planted := `{"tag":"xx","entries":{` +
+		`"planted.ascii":{"text":"{a}  {b}"},` +
+		`"planted.ideographic":{"text":"{a}　{b}"},` +
+		`"planted.nobreak":{"text":"{a}  {b}"},` +
+		`"planted.indented":{"text":"  {a} {b}"},` +
+		`"planted.plain":{"text":"{a} {b}"}}}`
+	if err := os.WriteFile(filepath.Join(dir, "xx.json"), []byte(planted), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	read, matched, findings, err := scanCatalogsForRowLayout(dir)
+	if err != nil {
+		t.Fatalf("scan catalogs: %v", err)
+	}
+	if read != 1 {
+		t.Fatalf("read %d catalogs, want 1", read)
+	}
+	reported := map[string]bool{}
+	for _, finding := range findings {
+		reported[finding.where] = true
+	}
+	for _, key := range []string{"planted.ascii", "planted.ideographic", "planted.nobreak"} {
+		if !reported["xx.json "+key] {
+			t.Errorf("the planted columnar entry %s was not reported; the guard reported %v", key, findings)
+		}
+	}
+	for _, key := range []string{"planted.indented", "planted.plain"} {
+		if reported["xx.json "+key] {
+			t.Errorf("%s lays out no columns and was reported anyway", key)
+		}
+	}
+	for _, key := range columnarCatalogKeys {
+		if matched[key] != 0 {
+			t.Errorf("the exemption for %s matched %d entries in a catalog that carries none", key, matched[key])
+		}
 	}
 }
