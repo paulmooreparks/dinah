@@ -225,20 +225,24 @@ func TestSomeFixtureDeclaresTheRevisionThisBuildStamps(t *testing.T) {
 // TestSomeFixtureDeclaresTheFloor keeps the oldest revision this build opens
 // from losing its own sample, which is the one part of the deletion route an
 // in-tree assertion can close.
+//
+// The declared string is resolved before it is compared, rather than matched
+// against ProfileFloorVersion as text, because the floor revision reaches a
+// workbench on disk under the spelling the profile's 0.4 changelog entry
+// retired. A fixture declaring dinah-core/1.0 is a sample of the floor while
+// this build resolves that spelling.
 func TestSomeFixtureDeclaresTheFloor(t *testing.T) {
-	wanted := []string{ProfileFloorVersion}
-	if aliasesRetiredName([2]int{ProfileMajor, ProfileMinor}) {
-		wanted = append(wanted, ProfileName+"/1.0")
-	}
+	floor := [2]int{ProfileFloorMajor, ProfileFloorMinor}
 	for _, fixture := range compatFixtures(t) {
-		declared := declaredProfile(t, fixture)
-		for _, candidate := range wanted {
-			if declared == candidate {
-				return
-			}
+		major, minor, err := admitProfile(declaredProfile(t, fixture))
+		if err != nil {
+			continue
+		}
+		if [2]int{major, minor} == floor {
+			return
 		}
 	}
-	t.Fatalf("no fixture under %s declares the floor revision, spelled %s", compatDir, strings.Join(wanted, " or "))
+	t.Fatalf("no fixture under %s samples the floor revision, which this build reads as %s and which reaches disk spelled %s", compatDir, ProfileFloorVersion, ProfileName+"/1.0")
 }
 
 // TestEveryFixtureDeclaresARevisionThisBuildAdmits is the floor alarm. Raising

@@ -187,52 +187,39 @@ func TestTheSampleFixtureCarriesEveryShapeThisBuildWrites(t *testing.T) {
 // from the fixture, so both sides of the containment stay silent.
 func TestTheSampleFixtureCarriesEveryJournalEventTheContractDeclares(t *testing.T) {
 	sample := readShape(t, sampleFixture(t))
-	declared := []string{
-		contract.EventCreated,
-		contract.EventClaimed,
-		contract.EventMoved,
-		contract.EventReleased,
-		contract.EventBlocked,
-		contract.EventUnblocked,
-		contract.EventExpired,
-		contract.EventCommented,
-		contract.EventAttached,
-		contract.EventAttachmentReplaced,
-		contract.EventAttachmentRemoved,
-		contract.EventArchived,
-		contract.EventRestored,
-		contract.EventDeleted,
-		contract.EventManualCorrection,
-	}
-	if len(declared) != contractEventCount(t) {
-		t.Fatalf("internal/contract declares %d event names and this test lists %d; extend %s until the new event lands in a capture, or add it to unwrittenEvents with the reason nothing writes it", contractEventCount(t), len(declared), populateName)
-	}
-	for _, event := range declared {
+	for _, event := range declaredEvents(t) {
 		if sample.members[event] != nil {
 			continue
 		}
 		if _, exempt := unwrittenEvents[event]; exempt {
 			continue
 		}
-		t.Errorf("internal/contract declares the %s event, the sample fixture carries none, and unwrittenEvents says nothing about why", event)
+		t.Errorf("internal/contract declares the %s event, the sample fixture carries no line of it, and unwrittenEvents says nothing about why. Extend %s until the event lands in a capture, or add it to unwrittenEvents with the reason nothing writes it", event, populateName)
 	}
 }
 
-// contractEventCount counts the event constants internal/contract declares, by
-// reading the source rather than the values, so a constant added without a
-// value this test knows still moves the count.
-func contractEventCount(t *testing.T) int {
+// declaredEvents reads the event names internal/contract declares out of the
+// source rather than out of a list kept here, so a constant added there reaches
+// this test without anybody remembering to add it.
+func declaredEvents(t *testing.T) []string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "internal", "contract", "contract.go"))
 	if err != nil {
 		t.Fatalf("read internal/contract/contract.go: %v", err)
 	}
-	return len(eventConstant.FindAllString(string(data), -1))
+	var names []string
+	for _, match := range eventConstant.FindAllStringSubmatch(string(data), -1) {
+		names = append(names, match[1])
+	}
+	if len(names) == 0 {
+		t.Fatal("internal/contract declares no event-name constant this test can read, so its own pattern has gone stale")
+	}
+	return names
 }
 
 // eventConstant matches one event-name constant declaration in
-// internal/contract.
-var eventConstant = regexp.MustCompile(`(?m)^\tEvent[A-Za-z]+\s+= "`)
+// internal/contract, capturing the name the journal actually carries.
+var eventConstant = regexp.MustCompile(`(?m)^\tEvent[A-Za-z]+\s+= "([a-z_]+)"`)
 
 // sampleFixture returns the directory of the fixture the manifest marks as the
 // sample for the revision this build stamps.
