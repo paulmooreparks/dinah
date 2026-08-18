@@ -11,6 +11,11 @@
 # /tmp is a separate filesystem on many machines, and a move across a
 # filesystem boundary is a copy followed by a delete, which can leave a
 # truncated binary at the install path if it is interrupted.
+#
+# The channel manifest says which release is current, and SHA256SUMS.txt
+# inside that release says what the bytes should be. Reading the checksum from
+# the checksum file rather than out of the manifest's JSON keeps this script
+# working whatever layout the manifest is published in.
 
 set -eu
 
@@ -42,19 +47,49 @@ if ! mkdir -p "$install_dir" 2>/dev/null || [ ! -w "$install_dir" ]; then
 	exit 1
 fi
 
-# Step 3: read the channel manifest.
+# Step 3: read the channel manifest, which says which release is current. Only
+# one value is taken from it, the download location, and whitespace carries no
+# meaning between JSON tokens, so the document is flattened onto one line
+# before it is read. No layout the publisher happens to emit, compact or
+# pretty-printed, changes the answer.
 if ! manifest="$(curl -fsSL "$manifest_url")"; then
 	echo "could not fetch the release manifest from GitHub; check your network connection and try again" >&2
 	exit 1
 fi
-download_base="$(printf '%s\n' "$manifest" | sed -n 's/.*"downloadBase"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
-want_sha="$(printf '%s\n' "$manifest" | sed -n 's/.*"'"$binary"'"[[:space:]]*:[[:space:]]*{[[:space:]]*"sha256"[[:space:]]*:[[:space:]]*"\([0-9a-fA-F]*\)".*/\1/p')"
-if [ -z "$download_base" ] || [ -z "$want_sha" ]; then
-	echo "could not fetch the release manifest from GitHub; check your network connection and try again" >&2
+flat_manifest="$(printf '%s' "$manifest" | tr '\n\r\t' '   ')"
+download_base="$(printf '%s\n' "$flat_manifest" | sed -n 's/.*"downloadBase"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+if [ -z "$download_base" ]; then
+	echo "the release manifest from GitHub named no download location, so there is nothing to fetch; the release may still be publishing, so try again in a few minutes" >&2
 	exit 1
 fi
 
-# Step 4: stage the download inside the install directory itself. mktemp's
+# Step 4: read the checksum this download has to match, from the SHA256SUMS.txt
+# published beside the binaries in that same release. sha256sum writes that
+# file one line per binary, so a shell reads it a line and two fields at a
+# time, the way the format was meant to be read. Nothing here digs a hash out
+# of JSON, so reformatting the manifest cannot break the install, and this is
+# also the file README tells you to check by hand.
+if ! sums="$(curl -fsSL "${download_base}SHA256SUMS.txt")"; then
+	echo "could not fetch SHA256SUMS.txt from the release; check your network connection and try again" >&2
+	exit 1
+fi
+want_sha=""
+while read -r sum name; do
+	# sha256sum marks a binary-mode line with a * before the name.
+	name="${name#\*}"
+	if [ "$name" = "$binary" ]; then
+		want_sha="$sum"
+		break
+	fi
+done <<SUMS
+$(printf '%s' "$sums" | tr -d '\r')
+SUMS
+if [ -z "$want_sha" ]; then
+	echo "the $channel channel publishes no $binary, so there is no build for your machine to install; build one from source with: go build -o dinah ./cmd/dinah" >&2
+	exit 1
+fi
+
+# Step 5: stage the download inside the install directory itself. mktemp's
 # template resolves to a name nothing in that directory already holds, so the
 # staging file cannot collide with a dinah from an earlier run.
 tmpfile=""
@@ -70,7 +105,7 @@ if [ -z "$tmpfile" ]; then
 fi
 trap 'rm -f "$tmpfile"' EXIT
 
-# Step 5: download. curl's -f turns a non-2xx response into a non-zero exit
+# Step 6: download. curl's -f turns a non-2xx response into a non-zero exit
 # rather than an error page saved as if it were a binary, and a dropped
 # connection exits non-zero as well.
 if ! curl -fsSL -o "$tmpfile" "${download_base}${binary}"; then
@@ -78,7 +113,7 @@ if ! curl -fsSL -o "$tmpfile" "${download_base}${binary}"; then
 	exit 1
 fi
 
-# Step 6: verify the bytes. Reaching here means the transfer finished, so a
+# Step 7: verify the bytes. Reaching here means the transfer finished, so a
 # mismatch is corruption or a manifest that no longer describes what is being
 # served, which is a different failure from the one above.
 if command -v sha256sum >/dev/null 2>&1; then
@@ -90,17 +125,17 @@ else
 	exit 1
 fi
 if [ "$got_sha" != "$want_sha" ]; then
-	echo "downloaded file's checksum does not match the manifest for $binary; the download will not be installed" >&2
+	echo "downloaded file's checksum does not match the published checksum for $binary; the download will not be installed" >&2
 	exit 1
 fi
 
-# Step 7: the one step that changes what sits at the install path, and it runs
+# Step 8: the one step that changes what sits at the install path, and it runs
 # only on a complete, verified download.
 chmod +x "$tmpfile"
 mv "$tmpfile" "$install_dir/dinah"
 echo "Installed $binary as $install_dir/dinah"
 
-# Step 8: say how to reach it, without editing a startup file this script did
+# Step 9: say how to reach it, without editing a startup file this script did
 # not write.
 case ":${PATH}:" in
 *":${install_dir}:"*) ;;

@@ -29,14 +29,19 @@ on:
 
   workflow_dispatch: {}
 
+# Read-only by default, with each job asking for what it actually needs. Only
+# the two jobs that write to the repository get write access, and the job that
+# reads check runs asks for the checks scope its API call documents.
 permissions:
-  contents: write # needed to create tags, releases, and release assets
+  contents: read
 
 jobs:
   # Resolve and reserve the tag once, at the top of the run, so every job
   # below builds and publishes under the same name.
   compute-version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the tag ref
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
@@ -105,6 +110,9 @@ jobs:
   # and its siblings, plus the single gofmt job.
   wait-for-ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read # documented requirement of the check-runs endpoint below
     steps:
       - name: Wait for CI to pass on this commit
         env:
@@ -114,9 +122,15 @@ jobs:
         run: |
           echo "Waiting for ci.yml's four check runs on $SHA"
           for attempt in $(seq 1 60); do
-            RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test"))) | .status + ":" + (.conclusion // "none")' \
-              2>/dev/null || echo "")
+            # A failing API call prints its own error and stops the run. Hiding
+            # it here would turn a 403 or a rate limit into the same five-minute
+            # timeout a commit with no CI produces, and those need different
+            # answers from whoever reads the log.
+            if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test"))) | .status + ":" + (.conclusion // "none")'); then
+              echo "::error::could not read the check runs for $SHA; the API error is above"
+              exit 1
+            fi
             BAD=$(printf '%s\n' "$RUNS" | grep '^completed:' | grep -vc ':success$' || true)
             if [ "$BAD" -gt 0 ]; then
               echo "::error::a CI check on $SHA finished without success; not publishing this commit"
@@ -140,6 +154,8 @@ jobs:
   build:
     needs: [compute-version, wait-for-ci]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -191,12 +207,36 @@ jobs:
   release:
     needs: [compute-version, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the release and uploads its assets
     steps:
       - name: Download every binary
         uses: actions/download-artifact@v4
         with:
           path: dist/
           merge-multiple: true
+
+      # A release naming fewer binaries than the matrix builds is worse than no
+      # release, because the manifest would tell a person on a missing platform
+      # that no build exists for their machine. The steps below publish
+      # whatever landed in dist/, so this names what has to be there.
+      - name: Confirm every binary arrived
+        run: |
+          set -e
+          EXPECTED="dinah-windows-amd64.exe dinah-windows-arm64.exe dinah-linux-amd64 dinah-linux-arm64 dinah-darwin-amd64 dinah-darwin-arm64"
+          MISSING=""
+          for binary in $EXPECTED; do
+            if [ ! -f "dist/$binary" ]; then
+              MISSING="$MISSING $binary"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::the build did not produce:$MISSING"
+            echo "dist/ holds:"
+            ls -1 dist
+            exit 1
+          fi
+          echo "All six binaries arrived."
 
       - name: Check the release number reached the binary
         env:
@@ -282,3 +322,25 @@ jobs:
           fi
           gh release upload channels manifest/dev.json --repo "$REPO" --clobber
           echo "Updated dev.json on the 'channels' release"
+
+  # The tag is reserved before CI has ruled, which is what makes two concurrent
+  # runs collide loudly rather than overwrite each other. A run that then fails
+  # would leave a tag with no release behind it, so anyone checking that tag out
+  # would land on code that did not pass. This deletes the tag the failed run
+  # reserved, and it runs only when the reservation itself succeeded and
+  # something after it did not.
+  cleanup-tag:
+    needs: [compute-version, wait-for-ci, build, release]
+    if: always() && needs.compute-version.result == 'success' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # deletes the tag ref this run created
+    steps:
+      - name: Delete the tag this run reserved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.compute-version.outputs.tag }}
+        run: |
+          echo "This run reserved $TAG and then failed, so the tag is being deleted."
+          gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG"

@@ -1,7 +1,8 @@
 # Install Dinah on Windows, into %LOCALAPPDATA%\dinah\bin, with no
 # administrator privilege.
 #
-# Set DINAH_CHANNEL to choose a channel. It defaults to dev.
+# Set DINAH_CHANNEL to choose a channel. It defaults to dev. Set DINAH_NO_PATH
+# to any value and this script leaves your PATH alone.
 #
 #   irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
 #
@@ -47,20 +48,31 @@ catch {
     exit 1
 }
 
-# Step 3: read the channel manifest.
+# Step 3: read the channel manifest. ConvertFrom-Json reads the document as
+# JSON rather than as lines of text, so however the manifest is laid out when
+# it is published, this reads the same values out of it.
 try {
     $response = Invoke-WebRequest -Uri $manifestUrl -UseBasicParsing
     $manifest = $response.Content | ConvertFrom-Json
-    $entry = $manifest.binaries.PSObject.Properties[$binary].Value
-    $wantSha = $entry.sha256
-    $downloadBase = $manifest.downloadBase
 }
 catch {
     Write-Failure 'could not fetch the release manifest from GitHub; check your network connection and try again'
     exit 1
 }
-if (-not $wantSha -or -not $downloadBase) {
-    Write-Failure 'could not fetch the release manifest from GitHub; check your network connection and try again'
+$downloadBase = $manifest.downloadBase
+if (-not $downloadBase) {
+    Write-Failure 'the release manifest from GitHub named no download location, so there is nothing to fetch; the release may still be publishing, so try again in a few minutes'
+    exit 1
+}
+$wantSha = $null
+if ($manifest.binaries) {
+    $entry = $manifest.binaries.PSObject.Properties[$binary]
+    if ($entry) {
+        $wantSha = $entry.Value.sha256
+    }
+}
+if (-not $wantSha) {
+    Write-Failure "the $channel channel publishes no $binary, so there is no build for your machine to install; build one from source with: go build -o dinah ./cmd/dinah"
     exit 1
 }
 
@@ -100,10 +112,71 @@ finally {
 
 # Step 8: put the install directory on the user's PATH, which needs no
 # administrator privilege. A shell started after this can run dinah by name.
-$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-$alreadyThere = $userPath -and (($userPath -split ';') -contains $installDir)
-if (-not $alreadyThere) {
-    $newPath = if ([string]::IsNullOrEmpty($userPath)) { $installDir } else { "$userPath;$installDir" }
-    [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+#
+# Set DINAH_NO_PATH to any value to keep this script away from your PATH. The
+# one-liner that pipes this script into PowerShell cannot pass an argument, so
+# an environment variable is the way to say no.
+#
+# Your PATH is read straight out of the registry without expanding anything in
+# it, and written back as an expandable value. An entry you wrote as
+# %USERPROFILE%\bin stays written that way, rather than being frozen to
+# whatever it stood for on the day you installed Dinah.
+if ($env:DINAH_NO_PATH) {
+    Write-Host "DINAH_NO_PATH is set, so your PATH is unchanged. Run Dinah as $(Join-Path $installDir 'dinah.exe'), or put $installDir on your PATH yourself."
+    exit 0
+}
+
+$environmentKey = 'HKCU:\Environment'
+try {
+    $rawPath = (Get-Item -Path $environmentKey).GetValue(
+        'PATH', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+}
+catch {
+    Write-Host "Could not read your PATH, so it is unchanged. Run Dinah as $(Join-Path $installDir 'dinah.exe'), or put $installDir on your PATH yourself."
+    exit 0
+}
+
+# An entry that differs only by a trailing backslash is the same directory, and
+# Windows compares paths without regard to case, which -eq also does.
+$wanted = $installDir.TrimEnd('\')
+$alreadyThere = @($rawPath -split ';' | ForEach-Object { $_.Trim().TrimEnd('\') } |
+    Where-Object { $_ -eq $wanted }).Count -gt 0
+if ($alreadyThere) {
+    Write-Host "$installDir is already on your PATH."
+    exit 0
+}
+
+# Trailing semicolons are dropped before appending. An empty entry in PATH
+# means the current directory on Windows, and putting one there would make
+# every command you type look in whatever directory you happen to be in.
+$newPath = if ([string]::IsNullOrEmpty($rawPath)) { $installDir } else { $rawPath.TrimEnd(';') + ';' + $installDir }
+Set-ItemProperty -Path $environmentKey -Name 'PATH' -Value $newPath -Type ExpandString
+
+# Writing the registry does not tell programs already running to read it again.
+# Broadcasting WM_SETTINGCHANGE for 'Environment' is how Windows is told, and
+# it is what lets a shell you open next find Dinah.
+$broadcast = $true
+try {
+    if (-not ('Dinah.NativeMethods' -as [type])) {
+        Add-Type -Namespace 'Dinah' -Name 'NativeMethods' -MemberDefinition @'
+[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+public static extern IntPtr SendMessageTimeout(
+    IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
+    uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+'@
+    }
+    $unused = [UIntPtr]::Zero
+    # HWND_BROADCAST, WM_SETTINGCHANGE, SMTO_ABORTIFHUNG, five seconds.
+    [void][Dinah.NativeMethods]::SendMessageTimeout(
+        [IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, 'Environment', 0x0002, 5000, [ref]$unused)
+}
+catch {
+    $broadcast = $false
+}
+
+if ($broadcast) {
     Write-Host "Added $installDir to your PATH. Open a new shell to pick it up."
+}
+else {
+    Write-Host "Added $installDir to your PATH. Open a new shell to pick it up, and if Dinah is still not found there, sign out and back in."
 }

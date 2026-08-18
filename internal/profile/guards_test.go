@@ -1,11 +1,19 @@
 package profile
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -872,5 +880,168 @@ func foldStringConcat(expr ast.Expr) (string, bool) {
 		return foldStringConcat(e.X)
 	default:
 		return "", false
+	}
+}
+
+// releaseBinaries names every binary .github/workflows/release.yml builds, in
+// the order its matrix declares them.
+var releaseBinaries = []string{
+	"dinah-windows-amd64.exe",
+	"dinah-windows-arm64.exe",
+	"dinah-linux-amd64",
+	"dinah-linux-arm64",
+	"dinah-darwin-amd64",
+	"dinah-darwin-arm64",
+}
+
+// publishedRelease is a stand-in for a dev release: the six binaries, the
+// SHA256SUMS.txt written over them, and the channel manifest, all assembled the
+// way release.yml assembles them.
+type publishedRelease struct {
+	binaries map[string][]byte
+	sums     []byte
+	manifest []byte
+}
+
+// buildPublishedRelease reproduces release.yml's "Write the checksums and the
+// channel manifest" step. That step writes the manifest as compact one-line
+// entries and then reformats the whole document through a JSON pretty-printer,
+// which puts each binary's name and its sha256 on separate lines. A consumer
+// that reads the checksum with a line-scoped match cannot see both at once, so
+// a fixture written by hand in the compact shape tests something the workflow
+// never publishes.
+func buildPublishedRelease(downloadBase string) (publishedRelease, error) {
+	release := publishedRelease{binaries: map[string][]byte{}}
+	var sums bytes.Buffer
+	var compact bytes.Buffer
+	compact.WriteString("{\n")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "channel", "dev")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "version", "v0.1.0-dev.7")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "tag", "v0.1.0-dev.7")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "publishedAt", "2026-01-01T00:00:00Z")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "downloadBase", downloadBase)
+	compact.WriteString("  \"binaries\": {\n")
+	for i, name := range releaseBinaries {
+		content := []byte("stand-in for " + name + "\n")
+		release.binaries[name] = content
+		sum := fmt.Sprintf("%x", sha256.Sum256(content))
+		fmt.Fprintf(&sums, "%s  %s\n", sum, name)
+		if i > 0 {
+			compact.WriteString(",\n")
+		}
+		fmt.Fprintf(&compact, "    %q: { %q: %q, %q: %d }", name, "sha256", sum, "size", len(content))
+	}
+	compact.WriteString("\n  }\n}\n")
+
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, compact.Bytes(), "", "    "); err != nil {
+		return publishedRelease{}, err
+	}
+	release.sums = sums.Bytes()
+	release.manifest = pretty.Bytes()
+	return release, nil
+}
+
+// TestInstallScriptReadsWhatTheWorkflowPublishes runs scripts/install.sh
+// against a stand-in release assembled by release.yml's own steps, and asserts
+// it installs a verified binary.
+//
+// The script reads the download location out of the manifest and the checksum
+// out of SHA256SUMS.txt, which sha256sum writes one line per binary. Reading
+// the checksum out of the manifest's JSON instead made the install depend on
+// how the manifest happened to be laid out, and every Linux and macOS install
+// failed the first time the layout changed. The fixture below is therefore
+// built by the publisher's own steps rather than written by hand, and the test
+// asserts the manifest really did come out in the expanded shape, so it cannot
+// quietly revert to a shape no release carries.
+func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
+	for _, tool := range []string{"sh", "curl"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("this machine has no %s, which scripts/install.sh needs", tool)
+		}
+	}
+	if _, shaErr := exec.LookPath("sha256sum"); shaErr != nil {
+		if _, sumErr := exec.LookPath("shasum"); sumErr != nil {
+			t.Skip("this machine has neither sha256sum nor shasum, which scripts/install.sh needs")
+		}
+	}
+
+	const wanted = "dinah-linux-amd64"
+	var release publishedRelease
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
+			w.Write(release.manifest)
+		case strings.HasSuffix(r.URL.Path, "/SHA256SUMS.txt"):
+			w.Write(release.sums)
+		default:
+			name := path.Base(r.URL.Path)
+			content, ok := release.binaries[name]
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			w.Write(content)
+		}
+	}))
+	defer server.Close()
+
+	built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.0-dev.7/")
+	if err != nil {
+		t.Fatalf("assembling the stand-in release: %v", err)
+	}
+	release = built
+
+	// The fixture has to carry the defect's precondition, or it proves nothing.
+	for _, line := range strings.Split(string(release.manifest), "\n") {
+		if strings.Contains(line, `"`+wanted+`"`) && strings.Contains(line, "sha256") {
+			t.Fatalf("the fixture manifest puts %s and its sha256 on one line, which is not the shape release.yml publishes: %q", wanted, line)
+		}
+	}
+
+	root := filepath.Join("..", "..")
+	source, err := os.ReadFile(filepath.Join(root, "scripts", "install.sh"))
+	if err != nil {
+		t.Fatalf("reading scripts/install.sh: %v", err)
+	}
+	// Only the origin is rewritten. Everything the script does with what it
+	// fetches is the shipped code.
+	script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+	if !strings.Contains(script, server.URL) {
+		t.Fatal("the test server URL did not reach the script under test")
+	}
+
+	home := t.TempDir()
+	scriptDir := t.TempDir()
+	scriptPath := filepath.Join(scriptDir, "install.sh")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("writing the script under test: %v", err)
+	}
+
+	// The script asks uname which binary this machine needs. A shim answers for
+	// a linux/amd64 machine, so the test asserts the same thing on every
+	// platform it runs on.
+	shimDir := t.TempDir()
+	shim := "#!/bin/sh\ncase \"$1\" in\n-s) echo Linux ;;\n-m) echo x86_64 ;;\n*) echo Linux ;;\nesac\n"
+	if err := os.WriteFile(filepath.Join(shimDir, "uname"), []byte(shim), 0o755); err != nil {
+		t.Fatalf("writing the uname shim: %v", err)
+	}
+
+	command := exec.Command("sh", scriptPath)
+	command.Env = append(os.Environ(),
+		"HOME="+home,
+		"PATH="+shimDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("scripts/install.sh failed against what release.yml publishes: %v\n%s", err, output)
+	}
+
+	installed, err := os.ReadFile(filepath.Join(home, ".local", "bin", "dinah"))
+	if err != nil {
+		t.Fatalf("no binary was installed: %v\n%s", err, output)
+	}
+	if !bytes.Equal(installed, release.binaries[wanted]) {
+		t.Errorf("installed binary is not the published %s\ngot:  %q\nwant: %q", wanted, installed, release.binaries[wanted])
 	}
 }

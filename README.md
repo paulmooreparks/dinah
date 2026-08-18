@@ -40,9 +40,18 @@ On Windows, run this in PowerShell:
 irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
 ```
 
-Either script works out which binary your machine needs, checks its SHA-256 against the published checksum before it installs anything, and puts `dinah` somewhere you can write without administrator privilege. On Linux and macOS that is `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
+You get the binary your machine needs, checked against its published SHA-256 before anything is installed, and put somewhere you can write without administrator privilege. On Linux and macOS that is `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
 
-If you would rather not pipe a script into a shell, download the binary for your platform and `SHA256SUMS.txt` from the [releases page](https://github.com/paulmooreparks/dinah/releases), then verify the download before you run it. On Linux:
+On Windows you also get `%LOCALAPPDATA%\dinah\bin` added to your user PATH, so the next shell you open finds `dinah` by name. If you would rather keep your PATH as it is, set `DINAH_NO_PATH` before you run the one-liner:
+
+```
+$env:DINAH_NO_PATH = '1'
+irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
+```
+
+On Linux and macOS you keep your PATH exactly as it is. If `~/.local/bin` is not already on it, you get the line to add and a note saying where to put it.
+
+If you would rather not pipe a script into a shell, download the binary for your platform and `SHA256SUMS.txt` from the [releases page](https://github.com/paulmooreparks/dinah/releases). Then verify the download before you run it. On Linux:
 
 ```
 sha256sum -c SHA256SUMS.txt --ignore-missing
@@ -54,7 +63,7 @@ On macOS:
 shasum -a 256 -c SHA256SUMS.txt --ignore-missing
 ```
 
-Windows ships no equivalent of `-c`, so print the hash and compare it by eye against the line for your binary in `SHA256SUMS.txt`:
+You have no `-c` equivalent on Windows, so print the hash and compare it by eye against the line for your binary in `SHA256SUMS.txt`:
 
 ```
 Get-FileHash dinah-windows-amd64.exe -Algorithm SHA256
