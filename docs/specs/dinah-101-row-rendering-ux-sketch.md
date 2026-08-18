@@ -49,10 +49,10 @@ nothing.
 ## Case 2: the refusal column of a Hindi command help drifts by a column
 
 `dinah help add --lang hi` prints one row per precondition, with the refusal
-name after a column 52 wide. Devanagari writes its vowels as combining marks,
-and a combining mark occupies no column of its own. The padder counts
-characters, so each row pays for its own marks and comes up short by however
-many it happens to carry.
+name after a column 52 wide. Hindi ships today. Devanagari writes its vowels as
+combining marks, a combining mark occupies no column of its own, and the padder
+counts characters, so a row pays for every mark it carries and comes up that
+many columns short of where the next field was supposed to start.
 
 ### Today
 
@@ -62,7 +62,7 @@ many it happens to carry.
   3  नामित स्थिति अपनी सीमा से नीचे है                   at-capacity
 ```
 
-The refusal names start at display columns 52, 52, 53, and they are meant to start at the same one.
+The refusal names start at display columns 52, 52, and 53, and they are meant to start at the same one.
 
 ### After
 
@@ -80,7 +80,10 @@ rows carry the same words they carried before.
 
 `dinah workbenches` prints the title in a column 32 wide. A Japanese character
 occupies two columns on screen and counts as one character, so a title of five
-characters is padded as though it drew five columns when it draws ten.
+characters is padded as though it drew five columns when it draws ten, and
+every field after it on that row starts five columns further right than the
+layout says. The workbench below was created by naming a directory in Japanese.
+Nothing exotic happened to it.
 
 ### Today
 
