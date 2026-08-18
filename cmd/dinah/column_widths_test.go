@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -171,21 +172,39 @@ func startColumnOf(line, marker string) int {
 
 // TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn asserts the case this
 // card was filed over. dinah help add --lang hi draws three rows, each an
-// ordinal three columns wide and a check sentence fifty-two wide, with the
-// refusal name after them. Devanagari writes its vowels as combining marks and
-// half of them take no column of their own, so a padder counting characters
-// pays for every mark and comes up short: the three names began at display
-// columns 52, 52 and 53 before this card.
+// ordinal, a check sentence and the refusal name after them. Devanagari writes
+// its vowels as combining marks and half of them take no column of their own,
+// so a padder counting characters pays for every mark and comes up short: the
+// three names began at display columns 52, 52 and 53 before dinah-101.
 //
-// The literal is asserted as well as the agreement, since 57 is what the
-// declared layout promises and three names agreeing on the wrong column is
-// what the old measure produced.
+// The column the names start in is computed here from the same catalog entries
+// the head reads, since dinah-115 measures the block rather than declaring it:
+// the indent, then the widest of the ordinals and their own heading, then the
+// gutter, then the widest of the three check sentences and their heading, then
+// the gutter again. A number typed into this test would assert what somebody
+// once measured rather than what the rule produces.
 func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	root := newBench(t)
 	got := runCLI(t, root, "help", "add", "--lang", "hi")
 	if got.code != 0 {
 		t.Fatalf("help add --lang hi: %d %s", got.code, got.errw)
 	}
+	hindi := msg.For("hi")
+	order := displayWidth(hindi.T("column.help.order"))
+	check := displayWidth(hindi.T("column.help.check"))
+	checks := verb.Checks("add")
+	if len(checks) != 3 {
+		t.Fatalf("add declares %d checks, and this test is written for the three the profile carries", len(checks))
+	}
+	for i, one := range checks {
+		if drawn := displayWidth(strconv.Itoa(i + 1)); drawn > order {
+			order = drawn
+		}
+		if drawn := displayWidth(hindi.T(one.Key)); drawn > check {
+			check = drawn
+		}
+	}
+	want := 2 + order + 2 + check + 2
 	names := []string{contract.Malformed, contract.UnknownState, contract.AtCapacity}
 	found := 0
 	for _, line := range strings.Split(got.out, "\n") {
@@ -195,8 +214,8 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 				continue
 			}
 			found++
-			if at != 57 {
-				t.Errorf("the refusal name %s begins at display column %d and the declared layout puts it at 57:\n%q", name, at, line)
+			if at != want {
+				t.Errorf("the refusal name %s begins at display column %d and the measured layout puts it at %d:\n%q", name, at, want, line)
 			}
 		}
 	}
@@ -206,14 +225,22 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 }
 
 // TestEnglishCommandListStartsEverySummaryAtOneColumn asserts that every
-// summary of the block bare dinah prints begins at display column 41, and that
-// the two entries whose usage reaches the thirty-nine-column usage field
+// summary of the block bare dinah prints begins at one display column, and
+// that the two entries whose syntax cannot be laid out inside the window
 // continue on a line of their own instead of pushing their summary right.
+//
+// The column is computed from the fixture's own syntax lines rather than typed
+// in: it is the indent, the widest syntax among the entries that fit an
+// eighty-column window packed tight, and the gutter. That comes to 41, which
+// is where the declared width of 39 started every summary before dinah-115,
+// and computing it is what makes this test read the rule rather than the
+// number a previous measurement produced.
 func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	got := runCLI(t, t.TempDir())
 	if got.code != 0 {
 		t.Fatalf("the help block: %d %s", got.code, got.errw)
 	}
+	want := 2 + widestFittingSyntax(t) + 2
 	lines := strings.Split(got.out, "\n")
 	continued, summaries := 0, 0
 	for _, c := range commands {
@@ -232,8 +259,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 				continued++
 				at = startColumnOf(lines[i+1], summary)
 			}
-			if at != 41 {
-				t.Errorf("the summary of %s begins at display column %d and the declared layout puts it at 41", c.name, at)
+			if at != want {
+				t.Errorf("the summary of %s begins at display column %d and the measured layout puts it at %d", c.name, at, want)
 			}
 			break
 		}
@@ -242,16 +269,52 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 		t.Errorf("read %d command entries out of the block, want 29", summaries)
 	}
 	if continued != 2 {
-		t.Errorf("%d entries continued on a line of their own, want the two whose usage reaches the column", continued)
+		t.Errorf("%d entries continued on a line of their own, want the two whose syntax cannot be laid out inside the window", continued)
+	}
+	if want != 41 {
+		t.Errorf("the measured summary column is %d, and every block of this shape has started it at 41 since the width was declared", want)
 	}
 }
 
+// widestFittingSyntax is the widest syntax line among the command entries that
+// can be laid out inside an eighty-column window with their fields packed
+// tight. An entry that cannot be laid out inside the window however the
+// columns are chosen does not get to widen the column, so the two long syntax
+// lines are left out of this the same way the table leaves them out.
+func widestFittingSyntax(t *testing.T) int {
+	t.Helper()
+	widest := displayWidth(msg.For(msg.Base).T("column.commands.command"))
+	fits := 0
+	for _, c := range commands {
+		if c.group == "" {
+			continue
+		}
+		usage := verb.Usage(c.name)
+		summary := msg.For(msg.Base).T("cmd." + c.name + ".summary")
+		if 2+displayWidth(usage)+2+displayWidth(summary) > 80 {
+			continue
+		}
+		fits++
+		if drawn := displayWidth(usage); drawn > widest {
+			widest = drawn
+		}
+	}
+	if fits == 0 {
+		t.Fatal("no command entry fits the window, so this measure asserts nothing")
+	}
+	return widest
+}
+
 // TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong asserts that a
-// workbench titled in a script drawing two columns per rune starts the slug
-// column at display column 34 and the path column at 50, which is where a row
-// of Latin titles has always put them. A five-character title of this kind
+// workbench titled in a script drawing two columns per rune starts the columns
+// after it where the measure puts them. A five-character title of this kind
 // draws ten columns and counts as five characters, so a padder counting
-// characters started the slug column at 39.
+// characters started the slug column five columns late.
+//
+// Both columns are computed from the fixture's own values and the headings the
+// catalog serves, since dinah-115 measures this block: the title draws ten and
+// its heading nine, so the slug starts at 14, and the slug draws two and its
+// heading four, so the path starts at 20.
 func TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong(t *testing.T) {
 	base := t.TempDir()
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
@@ -275,19 +338,30 @@ func TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong(t *testing.T)
 	if got.code != 0 {
 		t.Fatalf("workbenches: %d %s", got.code, got.errw)
 	}
+	english := msg.For(msg.Base)
+	workbench := displayWidth(title)
+	if heading := displayWidth(english.T("column.workbenches.workbench")); heading > workbench {
+		workbench = heading
+	}
+	slug := displayWidth("wb")
+	if heading := displayWidth(english.T("column.workbenches.slug")); heading > slug {
+		slug = heading
+	}
+	wantSlug := 2 + workbench + 2
+	wantPath := wantSlug + slug + 2
 	rows := 0
 	for _, line := range strings.Split(got.out, "\n") {
 		if !strings.Contains(line, title) {
 			continue
 		}
 		rows++
-		if at := startColumnOf(line, "wb"); at != 34 {
-			t.Errorf("the slug column begins at display column %d and the declared layout puts it at 34:\n%q", at, line)
+		if at := startColumnOf(line, "wb"); at != wantSlug {
+			t.Errorf("the slug column begins at display column %d and the measured layout puts it at %d:\n%q", at, wantSlug, line)
 		}
 		fields := strings.Fields(line)
 		path := fields[len(fields)-1]
-		if at := displayWidth(line) - displayWidth(path); at != 50 {
-			t.Errorf("the path column begins at display column %d and the declared layout puts it at 50:\n%q", at, line)
+		if at := displayWidth(line) - displayWidth(path); at != wantPath {
+			t.Errorf("the path column begins at display column %d and the measured layout puts it at %d:\n%q", at, wantPath, line)
 		}
 	}
 	if rows != 1 {

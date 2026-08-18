@@ -1799,6 +1799,44 @@ const theOneRenderer = "cmd/dinah/row.go"
 // AST rather than by its line number.
 const theRenderingHead = "cmd/dinah/"
 
+// theOneTable is the file every table is measured and laid out in. Choosing
+// each column's width, drawing a heading and a rule over it, and handing each
+// row to the one renderer all live there, and the four patterns this file adds
+// are what keep them there.
+const theOneTable = "cmd/dinah/table.go"
+
+// streamWriters are the functions of the rendering head that may name an
+// output stream. Everything a person reads reaches a stream through one of
+// them, so a mention anywhere else is either a row being written outside the
+// renderer or a second way to write, and pattern 11 refuses both.
+//
+// The first six are the writers themselves. reportError hands the stream to
+// the package-level reporter of the same name, and the last three hand a
+// stream to something outside the head: the value config <key> writes, the
+// child process an editor runs in, and the MCP server that serves on stdio.
+//
+// The guard asserts every name here still resolves to a function in the
+// rendering head, so a renamed writer fails rather than leaving a stale name
+// covering something else.
+var streamWriters = []string{
+	"write",
+	"line",
+	"fail",
+	"reportOutcome",
+	"reportAmbiguousWorkbench",
+	"emitJSON",
+	"emit",
+	"reportError",
+	"runPath",
+	"runEdit",
+	"runMCP",
+}
+
+// processStreamHolders are the two functions that may name the process's own
+// streams: main, which hands them to run, and windowWidth, which asks the
+// terminal behind stdout how wide it is.
+var processStreamHolders = []string{"main", "windowWidth"}
+
 // columnarCatalogKeys are the two catalog entries that compose columns inside
 // a translated string, where the translator owns the spacing and no column is
 // declared. Both are present in every shipped catalog, and the guard asserts
@@ -1836,6 +1874,10 @@ const (
 	patternSpacedLiteral
 	patternColumnarCatalogEntry
 	patternPadCall
+	patternCellLiteral
+	patternRowCall
+	patternMeasure
+	patternStreamMention
 )
 
 // rowLayoutFinding is one place a row is laid out outside the one renderer.
@@ -1933,6 +1975,23 @@ func TestNoRowIsLaidOutOutsideTheOneRenderer(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneRenderer))); err != nil {
 		t.Errorf("the one renderer is not where this guard exempts it: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneTable))); err != nil {
+		t.Errorf("the one table is not where this guard exempts it: %v", err)
+	}
+
+	// Every name pattern 11 lets name a stream has to still be a function of
+	// the rendering head. A renamed writer would otherwise leave its old name
+	// on the list, covering whatever function takes the name next, which is
+	// the same failure the catalog exemption above is checked for.
+	declared, err := functionsOfTheRenderingHead(root)
+	if err != nil {
+		t.Fatalf("read the rendering head: %v", err)
+	}
+	for _, name := range append(append([]string{}, streamWriters...), processStreamHolders...) {
+		if !declared[name] {
+			t.Errorf("pattern 11 exempts %s and the rendering head declares no such function, so the name covers nothing and may be covering something else; drop it or correct it", name)
+		}
 	}
 
 	catalogs := filepath.Join(root, "internal", "msg", "locales")
@@ -2050,9 +2109,39 @@ func scanGoForRowLayout(path, name string) ([]rowLayoutFinding, error) {
 		}
 	}
 
+	if name != theOneTable {
+		ast.Inspect(file, func(node ast.Node) bool {
+			switch shape := node.(type) {
+			case *ast.CompositeLit:
+				if namesTheCellType(shape.Type) {
+					findings = append(findings, rowLayoutFinding{
+						where:   at(shape.Pos()),
+						pattern: patternCellLiteral,
+						detail:  "builds a cell, which carries a width no call site chooses",
+					})
+				}
+			case *ast.CallExpr:
+				if callsTheRenderer(shape.Fun) {
+					findings = append(findings, rowLayoutFinding{
+						where:   at(shape.Pos()),
+						pattern: patternRowCall,
+						detail:  "lays a row out itself, which only the table does",
+					})
+				}
+			}
+			return true
+		})
+	}
+
 	if !strings.HasPrefix(name, theRenderingHead) {
 		return findings, nil
 	}
+
+	if name != theOneRenderer && name != theOneTable {
+		findings = append(findings, measurementFindings(file, at)...)
+		findings = append(findings, streamMentions(file, at)...)
+	}
+
 	ast.Inspect(file, func(node ast.Node) bool {
 		literal, ok := node.(*ast.BasicLit)
 		if !ok || literal.Kind != token.STRING || indents[literal.Pos()] {
@@ -2072,6 +2161,167 @@ func scanGoForRowLayout(path, name string) ([]rowLayoutFinding, error) {
 		return true
 	})
 	return findings, nil
+}
+
+// functionsOfTheRenderingHead reports the name of every function the head
+// declares, methods included, read from its non-test sources.
+func functionsOfTheRenderingHead(root string) (map[string]bool, error) {
+	dir := filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(theRenderingHead, "/")))
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	declared := map[string]bool{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, entry.Name()), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range file.Decls {
+			if function, ok := node.(*ast.FuncDecl); ok {
+				declared[function.Name.Name] = true
+			}
+		}
+	}
+	return declared, nil
+}
+
+// namesTheCellType reports whether a composite literal is a cell or a slice of
+// them. The element type of a []cell literal is what the guard reads, so the
+// elements of such a literal, which carry no type of their own, are caught by
+// the literal that holds them.
+func namesTheCellType(expr ast.Expr) bool {
+	if isBareIdent(expr, "cell") {
+		return true
+	}
+	array, ok := expr.(*ast.ArrayType)
+	if !ok || array.Len != nil {
+		return false
+	}
+	return isBareIdent(array.Elt, "cell")
+}
+
+// callsTheRenderer reports whether a call reaches formatRow, row or rowLine.
+//
+// The match is on the callee's own name and nothing else: a bare identifier,
+// or a selector whose final name is one of the three whatever the receiver is
+// spelled. It is deliberately not isSelectorCall, which keys on the receiver
+// identifier, because a receiver renamed from s would walk straight past that.
+func callsTheRenderer(expr ast.Expr) bool {
+	named := ""
+	switch callee := expr.(type) {
+	case *ast.Ident:
+		named = callee.Name
+	case *ast.SelectorExpr:
+		named = callee.Sel.Name
+	default:
+		return false
+	}
+	return named == "formatRow" || named == "row" || named == "rowLine"
+}
+
+// measurementFindings reports every place under the rendering head that
+// measures how wide something draws. After the table, a call site has no
+// reason to ask: the table measures its own rows and the renderer lays them
+// out.
+//
+// This pattern does not stop a hand-rolled table measuring. It stops one
+// measuring correctly, and a byte length is what a hand-rolled table reaches
+// for instead.
+func measurementFindings(file *ast.File, at func(token.Pos) string) []rowLayoutFinding {
+	var findings []rowLayoutFinding
+	for _, imported := range file.Imports {
+		if imported.Path.Value == strconv.Quote("dinah/internal/textwidth") {
+			findings = append(findings, rowLayoutFinding{
+				where:   at(imported.Pos()),
+				pattern: patternMeasure,
+				detail:  "imports the display-width measure, which only the renderer and the table read",
+			})
+		}
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, isSelector := call.Fun.(*ast.SelectorExpr)
+		if isBareIdent(call.Fun, "displayWidth") || (isSelector && isBareIdent(selector.X, "textwidth")) {
+			findings = append(findings, rowLayoutFinding{
+				where:   at(call.Pos()),
+				pattern: patternMeasure,
+				detail:  "measures how wide text draws, which only the renderer and the table do",
+			})
+		}
+		return true
+	})
+	return findings
+}
+
+// streamMentions reports every mention of an output stream outside the writers
+// that own it, which is the pattern that closes the routes a printing call can
+// take. Writing at the stream, calling its write method, and wrapping it in a
+// buffer are three of them, and each has to name the stream to reach it.
+//
+// The fmt printing family is refused wherever it appears under the head, since
+// the head has no use for any of it: every line a person reads is composed
+// through the catalog and written by one of the writers above.
+func streamMentions(file *ast.File, at func(token.Pos) string) []rowLayoutFinding {
+	writers := map[string]bool{}
+	for _, name := range streamWriters {
+		writers[name] = true
+	}
+	holders := map[string]bool{}
+	for _, name := range processStreamHolders {
+		holders[name] = true
+	}
+	var findings []rowLayoutFinding
+	for _, declared := range file.Decls {
+		function, ok := declared.(*ast.FuncDecl)
+		if !ok || function.Body == nil {
+			continue
+		}
+		within := function.Name.Name
+		ast.Inspect(function.Body, func(node ast.Node) bool {
+			selector, ok := node.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if isBareIdent(selector.X, "fmt") && strings.HasPrefix(selector.Sel.Name, "Fprint") {
+				findings = append(findings, rowLayoutFinding{
+					where:   at(selector.Pos()),
+					pattern: patternStreamMention,
+					detail:  "calls fmt." + selector.Sel.Name + ", which the head never has a use for",
+				})
+				return true
+			}
+			if isBareIdent(selector.X, "s") && (selector.Sel.Name == "out" || selector.Sel.Name == "errw") {
+				if writers[within] {
+					return true
+				}
+				findings = append(findings, rowLayoutFinding{
+					where:   at(selector.Pos()),
+					pattern: patternStreamMention,
+					detail:  "names the stream s." + selector.Sel.Name + " inside " + within + ", which is not one of the writers that own it",
+				})
+				return true
+			}
+			if isBareIdent(selector.X, "os") && (selector.Sel.Name == "Stdout" || selector.Sel.Name == "Stderr") {
+				if holders[within] {
+					return true
+				}
+				findings = append(findings, rowLayoutFinding{
+					where:   at(selector.Pos()),
+					pattern: patternStreamMention,
+					detail:  "names os." + selector.Sel.Name + " inside " + within + ", which is neither main nor the window query",
+				})
+			}
+			return true
+		})
+	}
+	return findings
 }
 
 // isSelectorCall reports whether expr names pkg.name.
@@ -2234,6 +2484,87 @@ var handRolledFixtures = []struct {
 		pattern: patternPadCall,
 		source:  "package planted\n\nfunc pad(text string, width int) string { return text }\n\nfunc held(ref, title string) string { return \" \" + pad(ref, 14) + title }\n",
 	},
+	{
+		pattern: patternCellLiteral,
+		source:  "package planted\n\nvar columns = []cell{{\"fx-1\", 14}, {\"ready\", 10}}\n",
+	},
+	{
+		pattern: patternRowCall,
+		source:  "package planted\n\nfunc listed(s *session, ref string) { s.row(row{indent: 2, tail: ref}) }\n",
+	},
+	{
+		pattern: patternMeasure,
+		source:  "package planted\n\nfunc drawn(text string) int { return displayWidth(text) }\n",
+	},
+	{
+		pattern: patternStreamMention,
+		source:  "package planted\n\nimport \"io\"\n\nfunc listed(s *session, line string) { io.WriteString(s.out, line) }\n",
+	},
+}
+
+// widenHelper is the padding every planted table below shares: a loop that
+// counts bytes, which is what somebody reaches for who has not read the
+// renderer, and which trips none of the eleven patterns on its own. Spelling
+// the indent and the gutter through it rather than as a literal holding two
+// spaces is what walks a plant past pattern 5, and the spec says as much.
+const widenHelper = "\nfunc widen(text string, n int) string {\n\tfor len(text) < n {\n\t\ttext += \" \"\n\t}\n\treturn text\n}\n"
+
+// handRolledTables are the seven whole tables the spec tabulates as routes A
+// through G, each drawing the rows of dinah ls and each padding its first
+// column by counting bytes.
+//
+// Five of them are caught and two are not, and the fixture asserts both, since
+// the claim that decides this card is that a scan of Go sources cannot see
+// every route. Route C hands the stream to a helper that writes on its
+// behalf, from inside a writer that is allowed to name the stream, and
+// deciding whether that helper composes columns is a whole-program analysis
+// rather than a pattern. Route D passes the composed row into a translated
+// message, where the outermost expression a scan reads is the translator's own
+// call, which every scan has to approve.
+//
+// A later relaxation cannot quietly move a route from caught to uncaught, and
+// a later tightening cannot quietly claim one of the two, because both
+// directions are asserted here.
+var handRolledTables = []struct {
+	// route is the letter the spec's table gives this shape.
+	route string
+	// caught says whether the source patterns report it at all.
+	caught bool
+	// why names, for a caught route, the pattern that reports it, and for an
+	// uncaught one, what a scan of Go sources would have to do to see it.
+	why string
+	// source is a whole Go file, scanned as though it sat in the rendering
+	// head.
+	source string
+}{
+	{
+		route: "A", caught: true, why: "pattern 11 refuses fmt.Fprintln and the mention of the stream",
+		source: "package planted\n\nimport \"fmt\"\n\nfunc (s *session) renderListing(cards []string) {\n\tfor _, card := range cards {\n\t\tfmt.Fprintln(s.out, widen(card, 14)+\"ready\")\n\t}\n}\n" + widenHelper,
+	},
+	{
+		route: "B", caught: true, why: "pattern 11 refuses the mention of the stream, whatever is called on it",
+		source: "package planted\n\nfunc (s *session) renderListing(cards []string) {\n\tfor _, card := range cards {\n\t\ts.out.Write([]byte(widen(card, 14) + \"ready\"))\n\t}\n}\n" + widenHelper,
+	},
+	{
+		route: "C", caught: false, why: "the stream is handed to a helper from a writer that owns it, and the helper writes through its own parameter",
+		source: "package planted\n\nimport \"io\"\n\nfunc (s *session) write(cards []string) {\n\temitLines(s.out, listingLines(cards))\n}\n\nfunc emitLines(w io.Writer, lines []string) {\n\tfor _, line := range lines {\n\t\tio.WriteString(w, line+\"\\n\")\n\t}\n}\n\nfunc listingLines(cards []string) []string {\n\tlines := []string{}\n\tfor _, card := range cards {\n\t\tlines = append(lines, widen(\"\", 2)+widen(card, 14)+\"ready\")\n\t}\n\treturn lines\n}\n" + widenHelper,
+	},
+	{
+		route: "D", caught: false, why: "the row rides into a translated message as a substitution value, behind the translator's own call",
+		source: "package planted\n\nfunc (s *session) renderListing(cards []string) {\n\tfor _, card := range cards {\n\t\ts.line(s.r.T(\"outcome.unreachable\", \"detail\", widen(\"\", 2)+widen(card, 14)+\"ready\"))\n\t}\n}\n" + widenHelper,
+	},
+	{
+		route: "E", caught: true, why: "pattern 11 refuses the mention of the stream the buffer wraps",
+		source: "package planted\n\nimport \"bufio\"\n\nfunc (s *session) renderListing(cards []string) {\n\tbuffered := bufio.NewWriter(s.out)\n\tfor _, card := range cards {\n\t\tbuffered.WriteString(widen(card, 14) + \"ready\")\n\t}\n\tbuffered.Flush()\n}\n" + widenHelper,
+	},
+	{
+		route: "F", caught: true, why: "pattern 11 refuses fmt.Fprintf and the mention of the stream, where pattern 3 is silent for want of a width verb",
+		source: "package planted\n\nimport \"fmt\"\n\nfunc (s *session) renderListing(cards []string) {\n\tfor _, card := range cards {\n\t\tfmt.Fprintf(s.out, \"%s%s\\n\", widen(card, 14), \"ready\")\n\t}\n}\n" + widenHelper,
+	},
+	{
+		route: "G", caught: true, why: "pattern 10 refuses the measure it pads by",
+		source: "package planted\n\nimport \"strings\"\n\nfunc (s *session) renderListing(cards []string) {\n\tfor _, card := range cards {\n\t\tfields := []string{widen(card, 14-displayWidth(card)), \"ready\"}\n\t\ts.line(strings.Join(fields, widen(\"\", 2)))\n\t}\n}\n" + widenHelper,
+	},
 }
 
 // TestGuardCatchesAHandRolledRow plants one row per pattern and asserts each is
@@ -2280,6 +2611,26 @@ func TestGuardCatchesAHandRolledRow(t *testing.T) {
 			t.Errorf("the indent argument of a machine form was reported as a column: %v", found)
 		}
 	})
+
+	for _, planted := range handRolledTables {
+		t.Run("route "+planted.route, func(t *testing.T) {
+			path := filepath.Join(dir, "route"+planted.route+".go")
+			if err := os.WriteFile(path, []byte(planted.source), 0o644); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			found, err := scanGoForRowLayout(path, theRenderingHead+"route"+planted.route+".go")
+			if err != nil {
+				t.Fatalf("scan fixture: %v", err)
+			}
+			if planted.caught && len(found) == 0 {
+				t.Errorf("route %s draws a whole table by hand and the guard reported nothing; it is meant to be caught, %s", planted.route, planted.why)
+			}
+			if !planted.caught && len(found) != 0 {
+				t.Errorf("route %s is one of the two the spec says a scan of Go sources cannot see, %s, and the guard reported %v; the spec's own claim about what these patterns establish has to be corrected before this passes",
+					planted.route, planted.why, found)
+			}
+		})
+	}
 
 	t.Run("a run of spaces outside the rendering head is not a column", func(t *testing.T) {
 		path := filepath.Join(dir, "elsewhere.go")

@@ -120,13 +120,12 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	}
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
+	t := table{indent: 2, columns: s.columns("moves", "state", "name", "direction")}
 	for _, move := range moves {
-		s.row(row{
-			indent: 2,
-			cells:  []cell{{move.Ref, 14}, {move.Title, 32}},
-			tail:   s.token(move.Direction),
-		})
+		fields := []string{move.Ref, move.Title, s.token(move.Direction)}
+		t.rows = append(t.rows, tableRow{fields: fields})
 	}
+	s.table(t)
 }
 
 // renderStatus prints where the bench stands.
@@ -142,16 +141,20 @@ func (s *session) renderStatus(status *verb.Status) {
 	if len(status.Holding) > 0 {
 		s.line("")
 		s.line(s.r.T("status.holding"))
+		held := table{indent: 2, columns: s.columns("holding", "card", "title")}
 		for _, card := range status.Holding {
-			s.row(row{indent: 2, cells: []cell{{card.Ref, 14}}, tail: card.Title})
+			held.rows = append(held.rows, tableRow{fields: []string{card.Ref, card.Title}})
 		}
+		s.table(held)
 	}
 	if len(status.Blocked) > 0 {
 		s.line("")
 		s.line(s.r.T("status.blocked"))
+		blocked := table{indent: 2, columns: s.columns("blocked", "card", "reason")}
 		for _, card := range status.Blocked {
-			s.row(row{indent: 2, cells: []cell{{card.Ref, 14}}, tail: card.BlockReason})
+			blocked.rows = append(blocked.rows, tableRow{fields: []string{card.Ref, card.BlockReason}})
 		}
+		s.table(blocked)
 	}
 }
 
@@ -165,27 +168,20 @@ func (s *session) yesNo(value bool) string {
 
 // renderStates prints the flow in order with each station's occupancy.
 func (s *session) renderStates(states []verb.StateView) {
+	t := table{indent: 2, columns: s.columns("states", "slug", "name", "kind", "cards", "owner")}
 	for _, state := range states {
 		count := strconv.Itoa(state.Count)
 		if state.Capacity > 0 {
 			count += "/" + strconv.Itoa(state.Capacity)
 		}
-		tail := ""
+		owner := s.r.T("states.moved-by.agent")
 		if state.OperatorOwned {
-			tail = s.r.T("states.operator-owned")
+			owner = s.r.T("states.moved-by.operator")
 		}
-		s.row(row{
-			indent: 2,
-			cells: []cell{
-				{state.ID, 14},
-				{s.slugCell(state.Slug), 24},
-				{state.Title, 32},
-				{s.token(state.Kind), 10},
-				{count, 8},
-			},
-			tail: tail,
-		})
+		fields := []string{s.slugCell(state.Slug), state.Title, s.token(state.Kind), count, owner}
+		t.rows = append(t.rows, tableRow{fields: fields})
 	}
+	s.table(t)
 }
 
 // renderListing prints a state's cards in queue order.
@@ -194,13 +190,11 @@ func (s *session) renderListing(listing *verb.Listing) {
 		s.line(s.r.T("ls.empty"))
 		return
 	}
+	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "title")}
 	for _, card := range listing.Cards {
-		s.row(row{
-			indent: 2,
-			cells:  []cell{{card.Ref, 14}, {s.token(card.Substate), 10}},
-			tail:   card.Title,
-		})
+		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.Substate), card.Title}})
 	}
+	s.table(t)
 }
 
 // renderSettings prints each setting with the value in force and the rung of
@@ -208,13 +202,11 @@ func (s *session) renderListing(listing *verb.Listing) {
 // value beside the source that says so, because the row itself is the answer
 // to whether anybody has ever set the key.
 func (s *session) renderSettings(settings []verb.SettingView) {
+	t := table{indent: 2, columns: s.columns("config", "setting", "value", "source")}
 	for _, view := range settings {
-		s.row(row{
-			indent: 2,
-			cells:  []cell{{view.Key, 12}, {view.Value, 24}},
-			tail:   s.token(view.Source),
-		})
+		t.rows = append(t.rows, tableRow{fields: []string{view.Key, view.Value, s.token(view.Source)}})
 	}
+	s.table(t)
 }
 
 // renderWorkbenches prints one row per reachable workbench, and the line that
@@ -237,15 +229,12 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 // opening sentence, so this is the one place the column widths live; the two
 // callers can never draw the same candidates in different columns.
 func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
-	lines := make([]string, 0, len(rows))
+	t := table{indent: 2, columns: s.columns("workbenches", "workbench", "slug", "path")}
 	for _, candidate := range rows {
-		lines = append(lines, s.rowLine(row{
-			indent: 2,
-			cells:  []cell{{candidate.Title, 32}, {s.slugCell(candidate.Slug), 16}},
-			tail:   candidate.Path,
-		}))
+		fields := []string{candidate.Title, s.slugCell(candidate.Slug), candidate.Path}
+		t.rows = append(t.rows, tableRow{fields: fields})
 	}
-	return lines
+	return s.tableLines(t)
 }
 
 // slugCell renders a slug column's value: the slug itself when the entity has
@@ -262,21 +251,16 @@ func (s *session) slugCell(slug string) string {
 
 // renderOffers prints what each state offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
+	t := table{indent: 2, columns: s.columns("next", "state", "card", "title")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			s.row(row{
-				indent: 2,
-				cells:  []cell{{offer.Title, 32}},
-				tail:   s.r.T("next.none"),
-			})
+			t.rows = append(t.rows, tableRow{fields: []string{offer.Title, s.r.T("next.none")}})
 			continue
 		}
-		s.row(row{
-			indent: 2,
-			cells:  []cell{{offer.Title, 32}, {offer.Card.Ref, 14}},
-			tail:   offer.Card.Title,
-		})
+		fields := []string{offer.Title, offer.Card.Ref, offer.Card.Title}
+		t.rows = append(t.rows, tableRow{fields: fields})
 	}
+	s.table(t)
 }
 
 // renderDetail prints a card, its links and its comments.
@@ -289,17 +273,21 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	if len(detail.Links) > 0 {
 		s.line("")
 		s.line(s.r.T("show.links"))
+		links := table{indent: 2, columns: s.columns("links", "link", "card")}
 		for _, link := range detail.Links {
-			s.row(row{indent: 2, cells: []cell{{link.Kind, 14}}, tail: link.Ref})
+			links.rows = append(links.rows, tableRow{fields: []string{link.Kind, link.Ref}})
 		}
+		s.table(links)
 	}
 	if len(detail.Comments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.comments"))
+		comments := table{indent: 2, columns: s.columns("comments", "when", "who")}
 		for _, comment := range detail.Comments {
-			s.row(row{indent: 2, cells: []cell{{comment.TS, 22}}, tail: comment.Author})
-			s.write(comment.Body)
+			fields := []string{comment.TS, comment.Author}
+			comments.rows = append(comments.rows, tableRow{fields: fields, note: comment.Body})
 		}
+		s.table(comments)
 	}
 }
 
@@ -307,6 +295,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 // identifier carried in an act is never resolved against the bench as it now
 // stands, so the titles printed are the ones the act itself carries.
 func (s *session) renderHistory(events []bench.Event) {
+	t := table{indent: 2, columns: s.columns("log", "when", "action", "actor", "detail")}
 	for _, ev := range events {
 		var tail string
 		switch ev.Event {
@@ -320,16 +309,10 @@ func (s *session) renderHistory(events []bench.Event) {
 		case contract.EventCreated:
 			tail = ev.Title
 		}
-		s.row(row{
-			indent: 2,
-			cells: []cell{
-				{ev.TS, 22},
-				{s.token(ev.Event), 14},
-				{ev.Actor, 16},
-			},
-			tail: tail,
-		})
+		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, tail}
+		t.rows = append(t.rows, tableRow{fields: fields})
 	}
+	s.table(t)
 }
 
 // renderCheck prints what a check answered with: the account of the repair it
@@ -341,13 +324,11 @@ func (s *session) renderHistory(events []bench.Event) {
 func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedSlugs {
 		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
+		assigned := table{indent: 2, columns: s.columns("slugs", "slug", "title")}
 		for _, assignment := range report.AssignedSlugs {
-			s.row(row{
-				indent: 2,
-				cells:  []cell{{assignment.Slug, 24}},
-				tail:   assignment.Title,
-			})
+			assigned.rows = append(assigned.rows, tableRow{fields: []string{assignment.Slug, assignment.Title}})
 		}
+		s.table(assigned)
 		if report.AssignedWorkbenchSlug != nil {
 			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
 		}
@@ -357,9 +338,11 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	}
 	if report.MigratedStates {
 		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
+		removed := table{indent: 2, columns: listColumn()}
 		for _, id := range report.RemovedStrandedStates {
-			s.row(row{indent: 2, tail: id})
+			removed.rows = append(removed.rows, tableRow{fields: []string{id}})
 		}
+		s.table(removed)
 	}
 	return s.renderFindings(report.Findings)
 }
@@ -371,9 +354,12 @@ func (s *session) renderFindings(findings []bench.Finding) int {
 		s.line(s.r.T("check.clean"))
 		return 0
 	}
+	t := table{indent: 2, columns: listColumn()}
 	for _, finding := range findings {
-		s.row(row{indent: 2, tail: s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")"})
+		reported := s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")"
+		t.rows = append(t.rows, tableRow{fields: []string{reported}})
 	}
+	s.table(t)
 	s.line(s.r.TN("check.count", len(findings)))
 	return contract.ExitCode(contract.OutcomeRefused)
 }
@@ -393,8 +379,10 @@ func (s *session) renderVersion(release *verb.VersionReport) {
 	}
 	s.line("")
 	s.line(s.r.T("version.catalogs"))
+	t := table{indent: 2, columns: s.columns("catalogs", "language", "translated")}
 	for _, catalog := range release.Catalogs {
 		coverage := strconv.Itoa(catalog.Translated) + "/" + strconv.Itoa(catalog.Total)
-		s.row(row{indent: 2, cells: []cell{{catalog.Tag, 8}}, tail: coverage})
+		t.rows = append(t.rows, tableRow{fields: []string{catalog.Tag, coverage}})
 	}
+	s.table(t)
 }
