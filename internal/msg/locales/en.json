@@ -777,6 +777,10 @@
       "text": "Dinah does not implement {detail}",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.unsupported-version.window": {
+      "text": "; this build reads {floor} through {ceiling}",
+      "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them."
+    },
     "show.comments": {
       "text": "Comments:",
       "context": "The label above a card's comments."

@@ -49,17 +49,44 @@ const (
 // declaring a higher number is refused loudly, naming the version it wanted.
 const StorageFormat = 1
 
-// The profile version this binary conforms to. The two numbers are the
+// The profile revision this build conforms to. The two numbers are the
 // conformance claim CORE-VER-1 requires, and no channel name joins them,
-// which CORE-VER-2 forbids.
+// which CORE-VER-2 forbids. They are also the ceiling of the window
+// admitProfile applies.
 const (
 	ProfileName  = "dinah-core"
-	ProfileMajor = 1
-	ProfileMinor = 0
+	ProfileMajor = 0
+	ProfileMinor = 4
+)
+
+// The oldest profile revision this build opens. Every workbench any build of
+// this tool has written declares dinah-core/1.0, which the profile's own 0.4
+// changelog entry renames dinah-core 0.1, so the floor is that revision.
+// Below it lies nothing anyone published.
+const (
+	ProfileFloorMajor = 0
+	ProfileFloorMinor = 1
+)
+
+// The moment the never-refuse promise started binding, and the floor as it
+// stood then. PromiseBoundAt names the release tag, and it reads empty until
+// a release has bound the promise, which the operator ruled happens at the
+// first stable release rather than at a dev build. The release card that cuts
+// that build sets all three together, recording whatever the floor reads on
+// the day. TestFloorHasNotMovedSincePromiseBound asserts nothing while the tag
+// is empty, so no number is written down before the ruling that fixes it.
+const (
+	PromiseBoundAt    = ""
+	PromiseFloorMajor = 0
+	PromiseFloorMinor = 0
 )
 
 // ProfileVersion is the conformance claim as the interchange form spells it.
 var ProfileVersion = ProfileName + "/" + strconv.Itoa(ProfileMajor) + "." + strconv.Itoa(ProfileMinor)
+
+// ProfileFloorVersion is the floor of the compatibility window, spelled the
+// way a workbench's profile field spells a revision.
+var ProfileFloorVersion = ProfileName + "/" + strconv.Itoa(ProfileFloorMajor) + "." + strconv.Itoa(ProfileFloorMinor)
 
 // SlugMandatoryMajor is the major number CORE-STATE-10, which requires every
 // state to carry a slug, is published under. A workbench declaring an earlier
@@ -605,8 +632,8 @@ func describeAll(candidates []string) []Candidate {
 //
 // The refusals here are the profile's own: a definition missing a title, a
 // state list or a profile declaration is malformed, a definition declaring a
-// major number this binary does not implement is unsupported-version, and a
-// bench whose storage format is newer than this binary knows is refused with
+// revision outside the window admitProfile applies is unsupported-version, and
+// a bench whose storage format is newer than this binary knows is refused with
 // the version it wanted named. Each malformed refusal carries the file it was
 // raised over, so a reader knows which workbench to repair.
 func Open(root string) (*Bench, error) {
@@ -631,12 +658,12 @@ func Open(root string) (*Bench, error) {
 	if b.Profile == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
-	major, minor, ok := splitProfile(b.Profile)
-	if !ok {
+	major, _, err := admitProfile(b.Profile)
+	if errors.Is(err, errProfileMalformed) {
 		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
-	if major != ProfileMajor || minor > ProfileMinor {
-		return nil, contract.Refuse(contract.UnsupportedVer, b.Profile)
+	if err != nil {
+		return nil, err
 	}
 	b.Format = StorageFormat
 	if declared := fm.Value("format"); declared != "" {
@@ -727,6 +754,83 @@ func splitProfile(declared string) (int, int, bool) {
 		return 0, 0, false
 	}
 	return major, minor, true
+}
+
+// sortsBelow reports whether one revision is older than another. The major
+// number decides it and the minor number breaks the tie, which is the ordering
+// the profile's own 0.4 changelog entry establishes: while the document's
+// major is 0, section 2.2 sends every retirement and every strengthening to
+// the minor number, so the minor is where compatibility lives today.
+func sortsBelow(a, b [2]int) bool {
+	if a[0] != b[0] {
+		return a[0] < b[0]
+	}
+	return a[1] < b[1]
+}
+
+// retiredProfileName is the one spelling the profile's 0.4 changelog entry
+// retired that a workbench on disk actually carries, and retiredProfileMeans
+// is the revision that spelling now names. That entry renamed what it recorded
+// as 1.0, 2.0 and 3.0 to 0.1, 0.2 and 0.3, and is the sole authority for those
+// names. Only 1.0 is aliased here, because ProfileVersion has read
+// dinah-core/1.0 in every build this tool has shipped and no workbench
+// declaring 2.0 or 3.0 was ever written. Leaving those two unaliased keeps
+// them refused as the future revisions they would name.
+var (
+	retiredProfileName  = [2]int{1, 0}
+	retiredProfileMeans = [2]int{0, 1}
+)
+
+// aliasesRetiredName reports whether a build whose ceiling is the given pair
+// resolves the retired spelling. It stops once the ceiling reaches the pair the
+// spelling reads as literally, because from that point the literal reading sits
+// inside the window on its own and an old workbench opens without the alias.
+func aliasesRetiredName(ceiling [2]int) bool {
+	return sortsBelow(ceiling, retiredProfileName)
+}
+
+// errProfileMalformed reports a declared string that does not parse. It carries
+// no refusal of its own, because the two call sites refuse a malformed profile
+// differently and each keeps its own sentence.
+var errProfileMalformed = errors.New("profile does not parse")
+
+// admitProfile reads a declared conformance target, resolves the revision it
+// names to that revision's current name, and refuses it when the revision falls
+// outside the window this build reads. The pair it returns is the pair the
+// window was applied to, which is not a durable identity for a revision: the
+// alias condition changes what a declared dinah-core/1.0 normalizes to once a
+// build's ceiling reaches 1.0.
+func admitProfile(declared string) (int, int, error) {
+	return admitProfileWithin(declared, [2]int{ProfileFloorMajor, ProfileFloorMinor}, [2]int{ProfileMajor, ProfileMinor})
+}
+
+// admitProfileWithin is admitProfile with the window supplied rather than read
+// from this build's constants. The window is a parameter so a test can drive
+// the alias condition at a ceiling this build does not carry, which is the only
+// way to exercise what a later build does with the retired spelling.
+func admitProfileWithin(declared string, floor, ceiling [2]int) (int, int, error) {
+	major, minor, ok := splitProfile(declared)
+	if !ok {
+		return 0, 0, errProfileMalformed
+	}
+	pair := [2]int{major, minor}
+	if pair == retiredProfileName && aliasesRetiredName(ceiling) {
+		pair = retiredProfileMeans
+	}
+	if sortsBelow(pair, floor) || sortsBelow(ceiling, pair) {
+		return 0, 0, contract.RefuseWith(contract.UnsupportedVer, declared, map[string]string{
+			"floor":   revisionText(floor),
+			"ceiling": revisionText(ceiling),
+		})
+	}
+	return pair[0], pair[1], nil
+}
+
+// revisionText spells a revision the way the profile's changelog spells one,
+// with a space between the name and the numbers, which is the form a person
+// reads in the refusal that names the window.
+func revisionText(pair [2]int) string {
+	return ProfileName + " " + strconv.Itoa(pair[0]) + "." + strconv.Itoa(pair[1])
 }
 
 // readState reads one state anchor and applies the profile's own checks on a

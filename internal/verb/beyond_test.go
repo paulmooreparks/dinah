@@ -599,8 +599,8 @@ func TestActorLadderAndConfig(t *testing.T) {
 // release number a release build stamps into the binary reaches the report.
 func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	release := Version(true)
-	if release.Profile != "dinah-core/1.0" {
-		t.Errorf("conformance claim: wanted dinah-core/1.0, got %s", release.Profile)
+	if release.Profile != bench.ProfileVersion {
+		t.Errorf("conformance claim: wanted %s, got %s", bench.ProfileVersion, release.Profile)
 	}
 	for _, channel := range []string{"dev", "beta", "stable"} {
 		if strings.Contains(release.Profile, channel) {
