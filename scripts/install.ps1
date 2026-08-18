@@ -65,10 +65,12 @@ if (-not $downloadBase) {
     exit 1
 }
 $wantSha = $null
+$wantSize = $null
 if ($manifest.binaries) {
     $entry = $manifest.binaries.PSObject.Properties[$binary]
     if ($entry) {
         $wantSha = $entry.Value.sha256
+        $wantSize = $entry.Value.size
     }
 }
 if (-not $wantSha) {
@@ -90,7 +92,22 @@ try {
         exit 1
     }
 
-    # Step 6: verify the bytes. Reaching here means the transfer finished, so
+    # Step 6: confirm the transfer actually finished before trusting it enough
+    # to hash. When a proxy or a CDN edge cuts a download short and closes the
+    # connection cleanly, Invoke-WebRequest reports no error and -OutFile
+    # simply stops writing, leaving a short file that never reaches the catch
+    # above. The manifest already carries each binary's size, so a length
+    # mismatch here is reported as a short download, distinct from both the
+    # network-error message above and the checksum-mismatch message below;
+    # without this check a short download reaches the hash compare and is
+    # misreported as corruption instead.
+    $gotSize = (Get-Item -Path $tmpfile).Length
+    if ($wantSize -and $gotSize -ne $wantSize) {
+        Write-Failure "download of $binary is incomplete ($gotSize of $wantSize bytes); nothing was installed, and it is safe to run this script again"
+        exit 1
+    }
+
+    # Step 7: verify the bytes. Reaching here means the transfer finished, so
     # a mismatch is corruption or a manifest that no longer describes what is
     # being served, which is a different failure from the one above.
     $gotSha = (Get-FileHash -Path $tmpfile -Algorithm SHA256).Hash
@@ -99,7 +116,7 @@ try {
         exit 1
     }
 
-    # Step 7: the one step that changes what sits at the install path, and it
+    # Step 8: the one step that changes what sits at the install path, and it
     # runs only on a complete, verified download.
     Move-Item -Path $tmpfile -Destination (Join-Path $installDir 'dinah.exe') -Force
     Write-Host "Installed $binary as $(Join-Path $installDir 'dinah.exe')"
@@ -110,7 +127,7 @@ finally {
     }
 }
 
-# Step 8: put the install directory on the user's PATH, which needs no
+# Step 9: put the install directory on the user's PATH, which needs no
 # administrator privilege. A shell started after this can run dinah by name.
 #
 # Set DINAH_NO_PATH to any value to keep this script away from your PATH. The

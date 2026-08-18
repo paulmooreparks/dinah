@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -1044,4 +1046,207 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 	if !bytes.Equal(installed, release.binaries[wanted]) {
 		t.Errorf("installed binary is not the published %s\ngot:  %q\nwant: %q", wanted, installed, release.binaries[wanted])
 	}
+}
+
+// hijackTruncated takes over an already-accepted HTTP request and writes a
+// response whose declared Content-Length is the length of full, but whose
+// body stops after sendLen bytes, then closes the connection cleanly (a FIN,
+// never a RST). That is what a proxy or a CDN edge does when it terminates a
+// transfer early: nothing raises, and a client that only watches for a
+// transport error never learns the transfer was short. sendLen == len(full)
+// serves the whole declared length but with the wrong bytes past corruptFrom,
+// which is a different failure (the transfer completed, the content is
+// wrong) that must be reported with a different message.
+func hijackTruncated(t *testing.T, w http.ResponseWriter, full []byte, sendLen int) {
+	t.Helper()
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		t.Fatal("test server does not support hijacking")
+	}
+	conn, buf, err := hijacker.Hijack()
+	if err != nil {
+		t.Fatalf("hijacking the connection: %v", err)
+	}
+	defer conn.Close()
+	fmt.Fprintf(buf, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n", len(full))
+	buf.Write(full[:sendLen])
+	buf.Flush()
+	if tc, ok := conn.(*net.TCPConn); ok {
+		tc.CloseWrite()
+	}
+}
+
+// TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption proves
+// two things about both install scripts: a download a proxy or CDN edge cuts
+// short, closing the connection cleanly, is reported as a short download
+// (never as a checksum mismatch), and a download that completes but carries
+// the wrong bytes is still reported as a checksum mismatch. The two messages
+// have to stay distinct in both directions, or a person on a flaky link is
+// told their download is corrupt when it was only cut short.
+func TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption(t *testing.T) {
+	full := bytes.Repeat([]byte("dinah release payload for the truncation test "), 200)
+	sum := fmt.Sprintf("%x", sha256.Sum256(full))
+	corrupted := append([]byte(nil), full...)
+	corrupted[0] ^= 0xff // still the declared length; the bytes are simply wrong
+
+	root := filepath.Join("..", "..")
+
+	newManifestServer := func(binary, mode string) *httptest.Server {
+		var server *httptest.Server
+		server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
+				compact := fmt.Sprintf(`{
+  "channel": "dev",
+  "version": "v0.1.0-dev.7",
+  "tag": "v0.1.0-dev.7",
+  "publishedAt": "2026-01-01T00:00:00Z",
+  "downloadBase": %q,
+  "binaries": {
+    %q: { "sha256": %q, "size": %d }
+  }
+}
+`, server.URL+"/releases/download/v0.1.0-dev.7/", binary, sum, len(full))
+				var pretty bytes.Buffer
+				if err := json.Indent(&pretty, []byte(compact), "", "    "); err != nil {
+					t.Fatalf("indenting the stand-in manifest: %v", err)
+				}
+				w.Write(pretty.Bytes())
+			case strings.HasSuffix(r.URL.Path, "/SHA256SUMS.txt"):
+				fmt.Fprintf(w, "%s  %s\n", sum, binary)
+			case strings.HasSuffix(r.URL.Path, "/"+binary):
+				switch mode {
+				case "truncated":
+					hijackTruncated(t, w, full, len(full)/2)
+				case "corrupted":
+					hijackTruncated(t, w, corrupted, len(corrupted))
+				default:
+					t.Fatalf("unknown mode %q", mode)
+				}
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		return server
+	}
+
+	t.Run("install.sh", func(t *testing.T) {
+		for _, tool := range []string{"sh", "curl"} {
+			if _, err := exec.LookPath(tool); err != nil {
+				t.Skipf("this machine has no %s, which scripts/install.sh needs", tool)
+			}
+		}
+		source, err := os.ReadFile(filepath.Join(root, "scripts", "install.sh"))
+		if err != nil {
+			t.Fatalf("reading scripts/install.sh: %v", err)
+		}
+
+		run := func(mode string) (string, error) {
+			server := newManifestServer("dinah-linux-amd64", mode)
+			defer server.Close()
+			script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+			home := t.TempDir()
+			scriptDir := t.TempDir()
+			scriptPath := filepath.Join(scriptDir, "install.sh")
+			if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+				t.Fatalf("writing the script under test: %v", err)
+			}
+			shimDir := t.TempDir()
+			shim := "#!/bin/sh\ncase \"$1\" in\n-s) echo Linux ;;\n-m) echo x86_64 ;;\n*) echo Linux ;;\nesac\n"
+			if err := os.WriteFile(filepath.Join(shimDir, "uname"), []byte(shim), 0o755); err != nil {
+				t.Fatalf("writing the uname shim: %v", err)
+			}
+			cmd := exec.Command("sh", scriptPath)
+			cmd.Env = append(os.Environ(),
+				"HOME="+home,
+				"PATH="+shimDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+			)
+			output, err := cmd.CombinedOutput()
+			if _, statErr := os.Stat(filepath.Join(home, ".local", "bin", "dinah")); statErr == nil {
+				t.Errorf("%s: a file was installed even though the download never verified", mode)
+			}
+			return string(output), err
+		}
+
+		truncatedOut, truncatedErr := run("truncated")
+		if truncatedErr == nil {
+			t.Fatalf("truncated download: expected install.sh to fail, it exited 0\n%s", truncatedOut)
+		}
+		if !strings.Contains(truncatedOut, "did not complete (network error)") {
+			t.Errorf("truncated download: expected the network-error message, got:\n%s", truncatedOut)
+		}
+		if strings.Contains(truncatedOut, "checksum does not match") {
+			t.Errorf("truncated download: reported as a checksum mismatch instead of a short download:\n%s", truncatedOut)
+		}
+
+		corruptedOut, corruptedErr := run("corrupted")
+		if corruptedErr == nil {
+			t.Fatalf("corrupted download: expected install.sh to fail, it exited 0\n%s", corruptedOut)
+		}
+		if !strings.Contains(corruptedOut, "checksum does not match") {
+			t.Errorf("corrupted download: expected the checksum-mismatch message, got:\n%s", corruptedOut)
+		}
+		if strings.Contains(corruptedOut, "did not complete (network error)") {
+			t.Errorf("corrupted download: reported as a network error instead of a checksum mismatch:\n%s", corruptedOut)
+		}
+	})
+
+	t.Run("install.ps1", func(t *testing.T) {
+		if runtime.GOOS != "windows" {
+			t.Skip("scripts/install.ps1 targets Windows PowerShell")
+		}
+		psExe, err := exec.LookPath("powershell.exe")
+		if err != nil {
+			t.Skip("this machine has no powershell.exe, which scripts/install.ps1 needs")
+		}
+		source, err := os.ReadFile(filepath.Join(root, "scripts", "install.ps1"))
+		if err != nil {
+			t.Fatalf("reading scripts/install.ps1: %v", err)
+		}
+
+		run := func(mode string) (string, error) {
+			server := newManifestServer("dinah-windows-amd64.exe", mode)
+			defer server.Close()
+			script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+			localAppData := t.TempDir()
+			scriptDir := t.TempDir()
+			scriptPath := filepath.Join(scriptDir, "install.ps1")
+			if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+				t.Fatalf("writing the script under test: %v", err)
+			}
+			cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+			cmd.Env = append(os.Environ(),
+				"LOCALAPPDATA="+localAppData,
+				"PROCESSOR_ARCHITECTURE=AMD64",
+				"DINAH_NO_PATH=1", // never touch the real PATH from a test
+			)
+			output, err := cmd.CombinedOutput()
+			if _, statErr := os.Stat(filepath.Join(localAppData, "dinah", "bin", "dinah.exe")); statErr == nil {
+				t.Errorf("%s: a file was installed even though the download never verified", mode)
+			}
+			return string(output), err
+		}
+
+		truncatedOut, truncatedErr := run("truncated")
+		if truncatedErr == nil {
+			t.Fatalf("truncated download: expected install.ps1 to fail, it exited 0\n%s", truncatedOut)
+		}
+		if !strings.Contains(truncatedOut, "is incomplete") {
+			t.Errorf("truncated download: expected the incomplete-download message, got:\n%s", truncatedOut)
+		}
+		if strings.Contains(truncatedOut, "checksum does not match") {
+			t.Errorf("truncated download: reported as a checksum mismatch instead of a short download:\n%s", truncatedOut)
+		}
+
+		corruptedOut, corruptedErr := run("corrupted")
+		if corruptedErr == nil {
+			t.Fatalf("corrupted download: expected install.ps1 to fail, it exited 0\n%s", corruptedOut)
+		}
+		if !strings.Contains(corruptedOut, "checksum does not match") {
+			t.Errorf("corrupted download: expected the checksum-mismatch message, got:\n%s", corruptedOut)
+		}
+		if strings.Contains(corruptedOut, "is incomplete") {
+			t.Errorf("corrupted download: reported as incomplete instead of a checksum mismatch:\n%s", corruptedOut)
+		}
+	})
 }
