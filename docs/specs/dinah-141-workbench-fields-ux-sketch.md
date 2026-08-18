@@ -73,8 +73,8 @@ $ dinah workbench get title
 Dinah development
 ```
 
-Proposed. A key outside the three refuses under the name `config` already uses for the same
-mistake.
+Proposed. A field name outside the three refuses under the name `config` already uses for
+the same mistake.
 
 ```text
 $ dinah workbench get profile
