@@ -208,15 +208,21 @@ func at(words []string, index int) string {
 // bounded arguments. Zero or one word passes through unchanged, matching
 // today's behavior exactly (dinah-100 decision D-6). Two or more refuses
 // with dinah.multiple-words, naming the word count and rebuilding the
-// command line with the free text quoted so a caller can copy the fix;
-// lead is that command line up to and including the bounded arguments, in
-// the order a caller types them, with "dinah" and the slot's own quoted
-// value added here.
+// command line with the free text quoted so a caller can copy the fix. Any
+// literal quote character inside the free text is backslash-escaped before
+// wrapping, since bash, cmd.exe and the parser dinah's own binary uses to
+// re-read the pasted line all read \" as a literal quote inside a
+// double-quoted argument; an unescaped quote would let the shell split the
+// example into several arguments and silently drop the character, filing
+// different content than the caller typed. lead is that command line up to
+// and including the bounded arguments, in the order a caller types them,
+// with "dinah" and the slot's own quoted value added here.
 func freeText(lead []string, words []string, label string) (string, *contract.Refusal) {
 	if len(words) <= 1 {
 		return at(words, 0), nil
 	}
-	example := "dinah " + strings.Join(lead, " ") + " \"" + strings.Join(words, " ") + "\""
+	quoted := strings.ReplaceAll(strings.Join(words, " "), "\"", "\\\"")
+	example := "dinah " + strings.Join(lead, " ") + " \"" + quoted + "\""
 	return "", contract.RefuseWith(contract.MultipleWords, "", map[string]string{
 		"count":   strconv.Itoa(len(words)),
 		"label":   label,

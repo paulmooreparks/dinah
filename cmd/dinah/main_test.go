@@ -3699,6 +3699,21 @@ func TestOpenTailKeepsAcceptingExactlyOneWord(t *testing.T) {
 	}
 }
 
+// TestOpenTailEscapesAnEmbeddedQuoteInTheRebuiltExample guards the review
+// finding on dinah-100: a caller whose free text itself contains a literal
+// quote character must get back a rebuilt example that reproduces that
+// character on paste, not one where the shell reads it as the end of the
+// argument and silently drops it.
+func TestOpenTailEscapesAnEmbeddedQuoteInTheRebuiltExample(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "say", `"hi"`, "there")
+	want := `dinah.multiple-words Dinah read 3 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "say \"hi\" there"` + "\n"
+	if got.code != 2 || got.errw != want {
+		t.Errorf("add with an embedded quote character:\n got  %d %q\n want 2 %q", got.code, got.errw, want)
+	}
+}
+
 // showDetail runs `--json show` for a card and decodes the parts these tests
 // read: the title, the block reason, and the comments in order.
 func showDetail(t *testing.T, dir, ref string) verb.Detail {
@@ -4079,13 +4094,15 @@ func TestFlagBeforeTheFreeTextBoundaryIsUnaffected(t *testing.T) {
 	}
 }
 
-// TestAValueStarvedTrailingFlagFallsThroughToLiteralText asserts dinah-96's
-// AC-14/D-5: a title ending in a flag name that expects a value, with
-// nothing left in the free text to serve as that value, is accepted as
-// literal text instead of refusing. A valued domain flag missing its value
-// anywhere else, before an open-tail command's boundary or in a command
-// with no open tail, still refuses exactly as before.
-func TestAValueStarvedTrailingFlagFallsThroughToLiteralText(t *testing.T) {
+// TestAValueStarvedFlagRefusesRatherThanFallingThrough asserts dinah-100's
+// own D-3 shape for this case: a domain flag that expects a value, with
+// nothing left in the free text to serve as that value, is no longer
+// spliced back in as literal text (dinah-96's AC-14/D-5 behavior). Once
+// resolveOpenTailFlags stops running for add, block and comment, the flag
+// is recognized eagerly wherever it is typed, so a value-starved --kind
+// consumes the flag and leaves the reason empty, surfacing as no-reason
+// instead.
+func TestAValueStarvedFlagRefusesRatherThanFallingThrough(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "a card to block")
 

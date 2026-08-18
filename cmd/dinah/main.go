@@ -112,7 +112,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	}
 	// resolveOpenTailFlags exists to decide whether a flag-shaped word
 	// sitting inside a multi-word free-text zone is prose or a flag
-	// (dinah-96). add, block and comment have no such zone left to be mid
+	// (dinah-96). add, block, and comment have no such zone left to be mid
 	// of: dinah-100 bounds each to exactly one free-text word, so a domain
 	// flag typed anywhere is applied by parseArgs itself, correctly, with
 	// nothing here left to correct. config declares no domain flag of its
