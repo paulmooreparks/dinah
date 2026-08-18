@@ -4,14 +4,75 @@ In this guide you take one workbench from an empty directory to a finished card,
 and you meet every command Dinah offers along the way. A workbench is the folder
 of plain files that holds a board's work.
 
-Every transcript below is real output from `dinah 0.1.0`. You will see absolute
-paths in that output, written here as `C:\work\...` and `C:\Users\ana\...`; they
-name the directories the session ran in, and nothing else in the output is
-edited. A few blocks show you a file's contents rather than a transcript. You
-type those into the file yourself, and each one says so where it appears.
+Every transcript below is real output from a published build of Dinah. The
+session ran on Linux, under a home directory belonging to a person called ana,
+and no character of its output is edited. Windows readers lose little by that choice,
+since the commands are the same and Dinah prints Windows paths where this
+session prints POSIX ones. Where a step really does differ between platforms,
+this guide gives you both forms. A few blocks
+show you a file's contents, or a command to type, rather than a transcript, and
+each one says so where it appears.
 
 Read the guide in order the first time. After that, use the section headings as
 an index.
+
+## Install Dinah
+
+Dinah is one binary with no installer to click through and nothing else to set
+up. On Linux or macOS, run this:
+
+```
+$ curl -fsSL https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.sh | sh
+Installed dinah-linux-amd64 as /home/ana/.local/bin/dinah
+
+You installed dinah to /home/ana/.local/bin, but this shell does not have that directory on PATH yet.
+Debian and Ubuntu add ~/.local/bin to PATH automatically the next time a login shell starts, but only once the directory exists, and it did not exist before this install created it. Log out and back in to pick it up, or run this now to use dinah in this shell:
+    export PATH="$HOME/.local/bin:$PATH"
+Add that line to your shell's startup file (~/.profile, ~/.bashrc, ~/.zshrc, or wherever you keep it) to make it permanent.
+[exit 0]
+```
+
+On Windows, run this in PowerShell instead:
+
+```
+irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
+```
+
+Either script fetches the binary your machine needs, checks it against its
+published SHA-256 before installing anything, and puts it somewhere you can
+write without administrator privilege. On Linux and macOS that is
+`~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
+
+The two platforms part company over your PATH. On Windows the installer adds
+`%LOCALAPPDATA%\dinah\bin` to your user PATH for you, so the next shell you open
+finds `dinah` by name, and you can keep your PATH as it is by setting
+`DINAH_NO_PATH` before you run the one-liner. On Linux and macOS the installer
+changes nothing and prints the line to add instead, which is what you see at the
+end of the transcript above.
+
+If you would rather not pipe a script into a shell, download your platform's
+binary and `SHA256SUMS.txt` from the [releases
+page](https://github.com/paulmooreparks/dinah/releases) and check the download
+yourself before you run it. The command to type is not a transcript, and it
+differs on all three platforms. On Linux:
+
+```
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+On macOS:
+
+```
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+```
+
+Windows gives you nothing that reads a checksum file, so you compute the hash
+yourself and compare it by eye against the line for your binary. Use `certutil`,
+which ships with Windows and runs the same way from `cmd.exe` or PowerShell:
+
+```
+certutil -hashfile dinah-windows-amd64.exe SHA256
+```
 
 ## Shells
 
@@ -20,26 +81,24 @@ They use only plain arguments, relative paths, `mkdir`, and `cd`, and they leave
 it to Dinah to find the workbench by walking up from the working directory. You
 do two things differently in each of those shells: you set an environment
 variable, and you substitute one command's output into another. You meet each of
-those once below, written out as a labeled pair. One further
-block uses a utility that only POSIX systems carry, and it too says so where it
-appears.
+those once below, written out as a labeled pair. One further block uses a
+utility that only POSIX systems carry, and it too says so where it appears.
 
-The leading `$` marks a command line, so do not type it. This session ran on
-Windows, so Dinah prints Windows paths in the output below. On macOS or Linux
-you would see POSIX paths from the same runs.
+The leading `$` marks a command line, so do not type it.
 
 ## What Dinah tells you about itself
 
 ```
 $ dinah version
-dinah 0.1.0
-conforms to dinah-core/1.0
+dinah v0.1.0-dev.4
+conforms to dinah-core/0.4
 storage format 1
 [exit 0]
 ```
 
 Dinah tells you three things there. The first line names the build you are
-running. The second line names the shared rule set that build follows, and any
+running, and yours will carry a later number than the one above, because every
+release publishes a new one. The second line names the shared rule set that build follows, and any
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
@@ -48,7 +107,7 @@ into. Dinah does not accept `--help`:
 
 ```
 $ dinah --help
-dinah.usage --help was not understood; run dinah help for the surface
+dinah.usage --help was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.
 [exit 2]
 ```
 
@@ -65,11 +124,18 @@ version control alongside the project it belongs to.
 ```
 $ mkdir release-notes
 $ cd release-notes
-
 $ dinah init --slug rel --operator ana
-Workbench created at C:\work\release-notes.
+Workbench created at /home/ana/release-notes/.dinah/d0e41d414bb5.
 [exit 0]
 ```
+
+Dinah put everything it wrote in one place rather than scattering it through the
+directory you were standing in. It made a `.dinah` directory there, and inside
+that one more directory named with the workbench's own twelve-hex identifier,
+and everything it writes from now on lives under that. Inside it you have
+`workbench.md`, a `states/` directory
+holding one file per state, and a `.gitignore` that keeps Dinah's lock files out
+of your commits. You have nothing else yet.
 
 Every card in a workbench has a human-readable prefix, called a slug. You passed
 `rel` above, so the first card you file here will be `rel-1`, the second
@@ -81,10 +147,6 @@ block or force a move past a limit, so if you leave that seat empty, nobody can
 perform those actions. If you don't name an operator with the `--operator`
 option, Dinah records whoever you are acting as.
 
-Dinah wrote you three things: `workbench.md`, a `states/` directory holding one
-file per state, and a `.gitignore` that keeps Dinah's lock files out of your
-commits. You have nothing else yet.
-
 You run every command from here on inside the workbench directory, and you never
 have to give any of them a path. Dinah finds the workbench by walking up from
 wherever you are, the way git finds a repository. If that climb finds nothing,
@@ -95,8 +157,11 @@ outside a workbench comes back to it.
 
 ## Say who you are
 
-Dinah assigns an owner to every action it takes, and it will not invent one for
-you.
+Naming ana as the operator settled who answers for this workbench. It did not
+settle who you are. The operator is a seat the workbench records, and the owner
+of an action is whoever typed it, so Dinah still has to be told which owner your
+own commands carry. It assigns an owner to every action it takes, though it will
+not invent one for you.
 
 ```
 $ dinah whoami
@@ -106,17 +171,15 @@ no-owner no owner was resolvable; set one with --actor, DINAH_ACTOR or config ac
 
 The error message names the places where Dinah looked, in the order it looked
 in them. It takes the `--actor` flag first, then the `DINAH_ACTOR` environment
-variable, then your own configuration file. To avoid this error, you may set the
-`actor` configuration value once:
+variable, then your own configuration file. Set the `actor` configuration value
+once and you are done with the question:
 
 ```
 $ dinah config set actor ana
 [exit 0]
-
 $ dinah config get actor
 ana
 [exit 0]
-
 $ dinah whoami
 ana, operator: yes
 [exit 0]
@@ -133,28 +196,36 @@ value each one currently resolves to, and where that value came from:
 
 ```
 $ dinah config
-  lang        en                      default
-  actor       ana                     config
-  editor      notepad                 fallback
+  Setting    Value                                        Source
+  ---------  -------------------------------------------  --------
+  lang       en                                           default
+  actor      ana                                          config
+  editor     nano                                         fallback
+  workbench  /home/ana/release-notes/.dinah/d0e41d414bb5  search
 [exit 0]
 ```
 
 Read that third column whenever a value surprises you. You set none of `lang`,
 so Dinah fell back to its own default; you wrote `actor` into your
-configuration file a moment ago; and Dinah found `editor` on the machine rather
-than taking a program you chose. Dinah labels an environment variable the same
-way, so a value you cannot account for tells you where it came from:
+configuration file a moment ago; Dinah found `editor` on the machine rather than
+taking a program you chose; and `workbench` is not a setting you wrote at all,
+but the workbench this run resolved, marked `search` because the climb found it.
+Dinah labels an environment variable the same way, so a value you cannot account
+for tells you where it came from:
 
 ```
 $ dinah config
-  lang        en                      default
-  actor       bo                      environment
-  editor      notepad                 fallback
+  Setting    Value                                        Source
+  ---------  -------------------------------------------  -----------
+  lang       en                                           default
+  actor      bo                                           environment
+  editor     nano                                         fallback
+  workbench  /home/ana/release-notes/.dinah/d0e41d414bb5  search
 [exit 0]
 ```
 
-Dinah knows three settings in this version, `actor`, `lang`, and `editor`, and
-it accepts no other name:
+Dinah knows four settings in this version, `actor`, `lang`, `editor`, and
+`workbench`, and it accepts no other name:
 
 ```
 $ dinah config set colour green
@@ -170,36 +241,46 @@ where you put it.
 
 ```
 $ dinah states
-  1d2f2a07a38b  intake                  Intake                          intake    0
-  df8cd3d7f024  doing                   Doing                           work      0
-  acd3a55081b7  done                    Done                            done      0
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
+  intake  Intake  intake  0      agent
+  doing   Doing   work    0      agent
+  done    Done    done    0      agent
 [exit 0]
 ```
 
-You get one row per state, and each row gives you the state's identifier, its
-slug, its title, its kind, and how many cards stand in it. A state's kind is
-`intake`, `work`, or `done`. Dinah runs the flow in the order `workbench.md`
-lists the states, so when you move a card to a later state you move it forward,
-and when you move it to an earlier state you move it backward. Dinah generates
-the identifiers per workbench, so yours will differ from the ones printed here.
+You get one row per state. The slug is the short name you type, the name is what
+you called the state, the kind is one of `intake`, `work`, and `done`, and the
+count is how many cards stand there. Dinah runs the flow in the order
+`workbench.md` lists the states, so when you move a card to a later state you
+move it forward, and when you move it to an earlier state you move it backward.
 
-You type the slug, which is the short name. Every command that takes a state
-accepts the identifier, the slug, or the title, and Dinah ignores case when it
-matches them. Dinah derives the slugs from the titles when it creates the
-workbench, so if you have a workbench made before slugs existed, its states
-carry none, and you fill them in with `dinah check --migrate-slugs`.
+That last column says who may move a card out of the state. It reads `agent` for
+a state anybody can work and `operator` for one where the departure is the
+operator's alone, and you choose the second by writing `operator_owned: true`
+into the state's own file. Every state starts out an agent's.
 
-Run `status` when you sit down. Dinah prints you that same list and adds the
-cards you hold yourself.
+Dinah also gives each state a twelve-hex identifier, which you will meet in
+`workbench.md`, in `export`, and in the card files themselves, though no listing
+prints it at you. Every command that takes a state accepts the identifier, the
+slug, or the title, and Dinah ignores case when it matches them. Dinah derives
+the slugs from the titles when it creates the workbench, so if you have a
+workbench made before slugs existed, its states carry none, and you fill them in
+with `dinah check --migrate-slugs`.
+
+Run `status` when you sit down. Dinah prints you that same list, tells you which
+workbench it resolved and how, and adds the cards you hold yourself.
 
 ```
 $ dinah status
-release-notes  (C:\work\release-notes)
+release-notes  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  1d2f2a07a38b  intake                  Intake                          intake    0
-  df8cd3d7f024  doing                   Doing                           work      0
-  acd3a55081b7  done                    Done                            done      0
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
+  intake  Intake  intake  0      agent
+  doing   Doing   work    0      agent
+  done    Done    done    0      agent
 [exit 0]
 ```
 
@@ -214,14 +295,14 @@ transcript:
 ```
 ---
 format: 1
-profile: dinah-core/1.0
+profile: dinah-core/0.4
 title: Release 0.2
 slug: rel
 operator: ana
 states:
-  - 1d2f2a07a38b
-  - df8cd3d7f024
-  - acd3a55081b7
+  - 003b09ee6e31
+  - 780659205f6b
+  - fcd0d92e167a
 ---
 Every card on this workbench ends with a line in the changelog.
 ```
@@ -248,14 +329,15 @@ Check your work whenever you have been editing by hand:
 $ dinah check
 No structural defects found.
 [exit 0]
-
 $ dinah status
-Release 0.2  (C:\work\release-notes)
+Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  1d2f2a07a38b  intake                  Intake                          intake    0
-  df8cd3d7f024  doing                   Doing                           work      0/1
-  acd3a55081b7  done                    Done                            done      0
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
+  intake  Intake  intake  0      agent
+  doing   Doing   work    0/1    agent
+  done    Done    done    0      agent
 [exit 0]
 ```
 
@@ -283,11 +365,9 @@ instructions for wherever that card is standing.
 $ dinah add "Write the release notes"
 rel-1  Write the release notes  [Intake / ready]
 [exit 0]
-
 $ dinah add "Draft the changelog"
 rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
-
 $ dinah add "Check the download links" --state doing
 rel-3  Check the download links  [Doing / ready]
 [exit 0]
@@ -307,30 +387,35 @@ fast you type.
 
 ```
 $ dinah ls
-  rel-1         ready     Write the release notes
-  rel-2         ready     Draft the changelog
-  rel-3         ready     Check the download links
+  Card   Standing  Title
+  -----  --------  ------------------------
+  rel-1  ready     Write the release notes
+  rel-2  ready     Draft the changelog
+  rel-3  ready     Check the download links
 [exit 0]
-
 $ dinah ls doing
-  rel-3         ready     Check the download links
+  Card   Standing  Title
+  -----  --------  ------------------------
+  rel-3  ready     Check the download links
 [exit 0]
-
 $ dinah ls intake --ready
-  rel-1         ready     Write the release notes
-  rel-2         ready     Draft the changelog
+  Card   Standing  Title
+  -----  --------  -----------------------
+  rel-1  ready     Write the release notes
+  rel-2  ready     Draft the changelog
 [exit 0]
-
 $ dinah next
-  Intake                          rel-1         Write the release notes
-  Doing                           rel-3         Check the download links
-  Done                            nothing ready
+  State   Card   Title
+  ------  -----  ------------------------
+  Intake  rel-1  Write the release notes
+  Doing   rel-3  Check the download links
+  Done    nothing ready
 [exit 0]
-
 $ dinah next doing
-  Doing                           rel-3         Check the download links
+  State  Card   Title
+  -----  -----  ------------------------
+  Doing  rel-3  Check the download links
 [exit 0]
-
 $ dinah show rel-1
 rel-1  Write the release notes  [Intake / ready]
 [exit 0]
@@ -354,8 +439,10 @@ Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
 Moves this card may make:
-  df8cd3d7f024  Doing                           forward
-  acd3a55081b7  Done                            forward
+  State  Name   Direction
+  -----  -----  ---------
+  doing  Doing  forward
+  done   Done   forward
 [exit 0]
 ```
 
@@ -377,7 +464,7 @@ above, and `rel-3` already stands there, so Dinah refuses the move below:
 
 ```
 $ dinah move rel-1 doing
-at-capacity state df8cd3d7f024 has reached its limit
+at-capacity state doing has reached its limit
 [exit 2]
 ```
 
@@ -397,8 +484,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  1d2f2a07a38b  Intake                          backward
-  acd3a55081b7  Done                            forward
+  State   Name    Direction
+  ------  ------  ---------
+  intake  Intake  backward
+  done    Done    forward
 [exit 0]
 ```
 
@@ -409,7 +498,6 @@ $ dinah comment rel-1 "Drafted entries for the four merged branches."
 rel-1  Write the release notes  [Doing / active]
   held by ana
 [exit 0]
-
 $ dinah comment rel-1 "Second half needs the signing certificate."
 rel-1  Write the release notes  [Doing / active]
   held by ana
@@ -437,18 +525,24 @@ as a short label you can group blocks by later. You see your blocked cards in
 
 ```
 $ dinah status
-Release 0.2  (C:\work\release-notes)
+Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  1d2f2a07a38b  intake                  Intake                          intake    1
-  df8cd3d7f024  doing                   Doing                           work      2/1
-  acd3a55081b7  done                    Done                            done      0
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
+  intake  Intake  intake  1      agent
+  doing   Doing   work    2/1    agent
+  done    Done    done    0      agent
 
 You are holding:
-  rel-1         Write the release notes
+  Card   Title
+  -----  -----------------------
+  rel-1  Write the release notes
 
 Blocked, waiting on the operator:
-  rel-2         Waiting on the signing certificate
+  Card   Reason
+  -----  ----------------------------------
+  rel-2  Waiting on the signing certificate
 [exit 0]
 ```
 
@@ -457,9 +551,8 @@ to whoever answers for the workbench:
 
 ```
 $ dinah unblock rel-2 --actor bo
-not-operator this act is the operator's, and you are bo
+not-operator this action is the operator's, and you are bo
 [exit 2]
-
 $ dinah unblock rel-2
 rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
@@ -473,12 +566,10 @@ lapses, Dinah returns the card to the queue and records the lapse:
 $ dinah release rel-1
 rel-1  Write the release notes  [Doing / ready]
 [exit 0]
-
 $ dinah claim rel-1 --expires 8h --quiet
 rel-1  Write the release notes  [Doing / active]
   held by ana
 [exit 0]
-
 $ dinah move rel-1 done
 rel-1  Write the release notes  [Done / active]
   held by ana
@@ -487,8 +578,10 @@ Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
 Moves this card may make:
-  1d2f2a07a38b  Intake                          backward
-  df8cd3d7f024  Doing                           backward
+  State   Name    Direction
+  ------  ------  ---------
+  intake  Intake  backward
+  doing   Doing   backward
 [exit 0]
 ```
 
@@ -536,27 +629,24 @@ provenance: ana
 ordinal: 1
 ---
 [exit 0]
-
 $ dinah show rel-1/comments/1
 ---
-ts: 2026-08-17T09:41:54Z
+ts: 2026-08-18T21:02:23Z
 author: ana
 ordinal: 1
 ---
 Drafted entries for the four merged branches.
 [exit 0]
-
 $ dinah show rel-1/comments/2
 ---
-ts: 2026-08-17T09:41:56Z
+ts: 2026-08-18T21:02:23Z
 author: ana
 ordinal: 2
 ---
 Second half needs the signing certificate.
 [exit 0]
-
 $ dinah path rel-1/attachments/1/payload
-C:\work\release-notes\cards\55cce32b3c43\attachments\d1af8cf49f49\payload\notes.txt
+/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/payload/notes.txt
 [exit 0]
 ```
 
@@ -570,23 +660,23 @@ journal oldest first:
 
 ```
 $ dinah path rel-1
-C:\work\release-notes\cards\55cce32b3c43\card.md
+/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md
 [exit 0]
-
 $ dinah path rel-1/journal
-C:\work\release-notes\cards\55cce32b3c43\journal.ndjson
+/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/journal.ndjson
 [exit 0]
-
 $ dinah log rel-1
-  2026-08-17T09:41:49Z  created       ana             Write the release notes
-  2026-08-17T09:41:53Z  claimed       ana
-  2026-08-17T09:41:54Z  moved         ana             Intake to Doing (override)
-  2026-08-17T09:41:54Z  commented     ana
-  2026-08-17T09:41:56Z  commented     ana
-  2026-08-17T09:41:56Z  released      ana
-  2026-08-17T09:41:56Z  claimed       ana
-  2026-08-17T09:41:56Z  moved         ana             Doing to Done
-  2026-08-17T09:41:56Z  attached      ana
+  When                  Action     Actor  Detail
+  --------------------  ---------  -----  --------------------------
+  2026-08-18T21:02:23Z  created    ana    Write the release notes
+  2026-08-18T21:02:23Z  claimed    ana
+  2026-08-18T21:02:23Z  moved      ana    Intake to Doing (override)
+  2026-08-18T21:02:23Z  commented  ana
+  2026-08-18T21:02:23Z  commented  ana
+  2026-08-18T21:02:23Z  released   ana
+  2026-08-18T21:02:23Z  claimed    ana
+  2026-08-18T21:02:23Z  moved      ana    Doing to Done
+  2026-08-18T21:02:23Z  attached   ana
 [exit 0]
 ```
 
@@ -596,88 +686,96 @@ still reads as it did.
 
 ## Taking things out
 
-`archive` takes a card, or a comment or attachment on one, out of the listings
-and keeps its files. `delete` destroys the same things and their history. Dinah
-says nothing to you when either one succeeds.
+`archive` takes a card, a state, or a comment or attachment on one, out of the
+listings and keeps its files. `delete` destroys the same things and their
+history. Dinah says nothing to you when either one succeeds.
 
 ```
 $ dinah archive rel-3
 [exit 0]
-
 $ dinah ls done
-  rel-1         active    Write the release notes
+  Card   Standing  Title
+  -----  --------  -----------------------
+  rel-1  active    Write the release notes
 [exit 0]
-
 $ dinah delete rel-1/comments/2
 dinah.unconfirmed delete destroys history, so it needs --yes
 [exit 2]
-
 $ dinah delete rel-1/comments/2 --yes
 [exit 0]
 ```
 
 When you archive a card, Dinah moves it under `archive/cards/` in the workbench
-and stops listing it. You cannot recover anything you delete, so `delete` makes
-you pass `--yes`.
+and stops listing it. Archiving a state asks more of you, since Dinah refuses
+while any card still stands there and refuses again if the state is the last one
+left. You cannot recover anything you delete, so `delete` makes you pass `--yes`.
 
 ## When the files are wrong
 
 You may edit the files by hand, and when you do you can make mistakes in them,
 so run `check` to find them. The workbench answering below is not the one you
-have been working in. It was damaged on purpose for this example, and a card in
-it names a state that no longer exists:
+have been working in. It was damaged on purpose for this example, and its cards
+name a state that no longer exists:
 
 ```
 $ dinah check
-  a card names state 000000000000, which this workbench does not declare (C:\work\release-notes\cards\eafed105f127\card.md)
-  the journal puts this card in state 1d2f2a07a38b, and its frontmatter disagrees (C:\work\release-notes\cards\eafed105f127\card.md)
-2 defects.
+  a card names state 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
+  the journal puts this card in state fcd0d92e167a, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
+  a card names state 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
+  the journal puts this card in state 003b09ee6e31, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
+4 defects.
 [exit 2]
 ```
 
 Dinah names the file to open on every line. Open each one in your editor, fix
-it, and run `check` again:
-
-```
-$ dinah check
-No structural defects found.
-[exit 0]
-```
+it, and run `check` again.
 
 `check` also catches a claim without the substate that implies it, a block with
 no reason, a link pointing at no card, a journal whose last line was cut off,
 and a directory sitting where an entity should be. It only reads and reports,
 and it changes nothing unless you ask it to.
 
-`check` reports two things that mark an older workbench rather than a mistake,
+`check` reports three things that mark an older workbench rather than a mistake,
 and you repair each of them with a flag. The workbench answering below is that
 older one, kept for this example rather than the workbench you have been
 building, so your own `check` still reports nothing at this point. A state
-written before slugs existed carries no slug, and an entity written before
-ordinals existed carries no ordinal:
+written before slugs existed carries no slug, an entity written before ordinals
+existed carries no ordinal, and a state that was moved or removed without an
+edit to `workbench.md` leaves its identifier stranded in the list:
 
 ```
 $ dinah check
-  entity 263a62237a3b carries no creation ordinal, so its position depends on the directory listing (C:\work\legacy\cards\55cce32b3c43\comments\263a62237a3b\comment.md)
-  entity d1af8cf49f49 carries no creation ordinal, so its position depends on the directory listing (C:\work\legacy\cards\55cce32b3c43\attachments\d1af8cf49f49\attachment.md)
-  state 1d2f2a07a38b carries no slug, so it is reachable only by its identifier or its quoted title (C:\work\legacy\states\1d2f2a07a38b\state.md)
-  state df8cd3d7f024 carries no slug, so it is reachable only by its identifier or its quoted title (C:\work\legacy\states\df8cd3d7f024\state.md)
-  state acd3a55081b7 carries no slug, so it is reachable only by its identifier or its quoted title (C:\work\legacy\states\acd3a55081b7\state.md)
-5 defects.
+  aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
+  fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
+  state 003b09ee6e31 carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/states/003b09ee6e31/state.md)
+  state 780659205f6b carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/states/780659205f6b/state.md)
+  state fcd0d92e167a carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/states/fcd0d92e167a/state.md)
+  the workbench names a state whose directory is not there (000000000000); dinah check --migrate-states removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
+6 defects.
 [exit 2]
-
 $ dinah check --migrate-slugs
 Assigned 3 state slugs.
-  intake                  Intake
-  doing                   Doing
-  done                    Done
-  entity 263a62237a3b carries no creation ordinal, so its position depends on the directory listing (C:\work\legacy\cards\55cce32b3c43\comments\263a62237a3b\comment.md)
-  entity d1af8cf49f49 carries no creation ordinal, so its position depends on the directory listing (C:\work\legacy\cards\55cce32b3c43\attachments\d1af8cf49f49\attachment.md)
-2 defects.
+  Slug    Title
+  ------  ------
+  intake  Intake
+  doing   Doing
+  done    Done
+  aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
+  fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
+  the workbench names a state whose directory is not there (000000000000); dinah check --migrate-states removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
+3 defects.
 [exit 2]
-
 $ dinah check --migrate-ordinals
 Stamped 2 creation ordinals.
+  the workbench names a state whose directory is not there (000000000000); dinah check --migrate-states removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
+1 defect.
+[exit 2]
+$ dinah check --migrate-states
+Removed 1 stranded state from the list.
+  000000000000
+No structural defects found.
+[exit 0]
+$ dinah check
 No structural defects found.
 [exit 0]
 ```
@@ -685,10 +783,10 @@ No structural defects found.
 Dinah prints what each migration wrote and then reports whatever it did not fix,
 so you keep getting exit code 2 until the workbench is clean. Dinah takes the
 slugs from the titles and reads the ordinals back out of each card's journal, so
-keep your journals intact. If the workbench matters to you, run either migration
-against a copy first.
+keep your journals intact. If the workbench matters to you, run any of the
+migrations against a copy first.
 
-You use a third flag, `--finish`, in a rarer case. If a power cut or a killed
+You use a fourth flag, `--finish`, in a rarer case. If a power cut or a killed
 process interrupts Dinah part way through a structural act, Dinah leaves a lock
 file behind naming what it was doing, and `check` reports that as an interrupted
 act. `check --finish` reads the journal to decide whether the act reached its
@@ -744,7 +842,7 @@ translate that sentence. It never translates the name. In bash or zsh, you cut
 that first word out:
 
 ```
-$ dinah claim rel-9 2>&1 >/dev/null | cut -d' ' -f1
+$ dinah claim rel-9 2>&1 >/dev/null | cut -d" " -f1
 unknown-card
 ```
 
@@ -782,16 +880,16 @@ any language setting.
 ```
 $ dinah ls intake --json
 {
-  "state": "1d2f2a07a38b",
+  "state": "003b09ee6e31",
   "cards": [
     {
-      "id": "eafed105f127",
+      "id": "9a556a230e09",
       "ref": "rel-2",
       "title": "Draft the changelog",
-      "state": "1d2f2a07a38b",
+      "state": "003b09ee6e31",
       "state_title": "Intake",
       "substate": "ready",
-      "revision": "sha256:f444a5cd6bc00b33da0e8db29e6b8f40f9e8b7ca200b9129dc35161376e2e772"
+      "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c"
     }
   ]
 }
@@ -828,15 +926,19 @@ person reading the screen.
 
 ```
 $ dinah --lang hi status
-Release 0.2  (C:\work\release-notes)
+Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [खोज]
 ana के रूप में, संचालक: हाँ
 
-  1d2f2a07a38b  intake                  Intake                          आवक       1
-  df8cd3d7f024  doing                   Doing                           काम       0/1
-  acd3a55081b7  done                    Done                            समाप्त    1
+  उपनाम   नाम     प्रकार  कार्ड  स्वामी
+  ------  ------  -----  ----  -----
+  intake  Intake  आवक    1     एजेंट
+  doing   Doing   काम    0/1   एजेंट
+  done    Done    समाप्त  1     एजेंट
 
 आपके पास:
-  rel-1         Write the release notes
+  कार्ड   शीर्षक
+  -----  -----------------------
+  rel-1  Write the release notes
 [exit 0]
 ```
 
@@ -846,19 +948,21 @@ carries, ask:
 
 ```
 $ dinah version --catalogs
-dinah 0.1.0
-conforms to dinah-core/1.0
+dinah v0.1.0-dev.4
+conforms to dinah-core/0.4
 storage format 1
 
 Catalogs:
-  en      222/222
-  af      0/222
-  cs      0/222
-  de      0/222
-  es      0/222
-  fil     0/222
-  hi      222/222
-  id      0/222
+  Language  Translated
+  --------  ----------
+  en        291/291
+  af        0/291
+  cs        0/291
+  de        0/291
+  es        0/291
+  fil       0/291
+  hi        291/291
+  id        0/291
 [exit 0]
 ```
 
@@ -875,7 +979,7 @@ run, so if you want git and Dinah to open different editors, you have nowhere
 else to say so.
 
 Set `DINAH_EDITOR` the way your shell sets any variable, as the scripting
-section above shows. The run below points it at `more`, so you see the file
+section above shows. The run below points it at `cat`, so you see the file
 printed instead of a window opening:
 
 ```
@@ -883,11 +987,11 @@ $ dinah edit rel-1
 ---
 title: Write the release notes
 number: 1
-state: acd3a55081b7
+state: fcd0d92e167a
 substate: active
 claim_holder: ana
-claim_since: 2026-08-17T09:41:56Z
-claim_expires: 2026-08-17T17:41:56Z
+claim_since: 2026-08-18T21:02:23Z
+claim_expires: 2026-08-19T05:02:23Z
 ---
 [exit 0]
 ```
@@ -896,11 +1000,10 @@ Dinah runs that value as a program name, so give it the name of an editor rather
 than a command line with flags in it:
 
 ```
-$ dinah config set editor notepad
+$ dinah config set editor nano
 [exit 0]
-
 $ dinah config get editor
-notepad
+nano
 [exit 0]
 ```
 
@@ -916,11 +1019,11 @@ error, and it tells you plainly when it reached none:
 
 ```
 $ dinah workbenches
-  Release 0.2                     rel             C:\work\release-notes
+  Workbench    Slug  Path
+  -----------  ----  -------------------------------------------
+  Release 0.2  rel   /home/ana/release-notes/.dinah/d0e41d414bb5
 [exit 0]
-
 $ cd ..
-
 $ dinah workbenches
 no workbench is reachable from here
 [exit 0]
@@ -928,45 +1031,80 @@ no workbench is reachable from here
 
 Dinah only climbs, so it reaches a workbench above you and never one in a
 directory beside you. From outside, name the workbench you want with
-`--workbench`, or set `DINAH_WORKBENCH`:
+`--workbench`, or set `DINAH_WORKBENCH`. Point either one at the workbench
+itself, the `.dinah/<identifier>` directory holding `workbench.md`, rather than
+at the project directory above it:
 
 ```
-$ dinah --workbench release-notes status
-Release 0.2  (C:\work\release-notes)
+$ dinah --workbench release-notes/.dinah/d0e41d414bb5 status
+Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [flag]
 acting as ana, operator: yes
 
-  1d2f2a07a38b  intake                  Intake                          intake    1
-  df8cd3d7f024  doing                   Doing                           work      0/1
-  acd3a55081b7  done                    Done                            done      1
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
+  intake  Intake  intake  1      agent
+  doing   Doing   work    0/1    agent
+  done    Done    done    1      agent
 
 You are holding:
-  rel-1         Write the release notes
+  Card   Title
+  -----  -----------------------
+  rel-1  Write the release notes
 [exit 0]
+```
+
+If Dinah reaches no workbench at all, it fails with `dinah.no-workbench-found`
+and names both the directory the climb started from and the home directory it
+fell back to. You are standing in ana's home now, and it holds no workbench of
+its own yet:
+
+```
+$ dinah status
+dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, or pass --workbench <path> to point at one that exists
+[exit 2]
 ```
 
 You can keep workbenches of your own in your home directory, in the `.dinah`
 directory beside your settings, and Dinah falls back to those when the climb
 finds nothing. If you keep two or more of them there, Dinah will not choose
-between them for you. The listing below comes from ana's own home directory,
-which holds two workbenches for this example. You will see the same thing only
-if you have made more than one workbench there yourself:
+between them for you. The two below are ana's own, made in her home directory
+and titled by hand afterwards. You will see the same thing only if you have made
+more than one workbench there yourself:
 
 ```
-$ dinah workbenches
-  0f1e2d3c4b5a                    bet             C:\Users\ana\.dinah\0f1e2d3c4b5a
-  a1b2c3d4e5f6                    alp             C:\Users\ana\.dinah\a1b2c3d4e5f6
+$ dinah init --slug alp --operator ana
+Workbench created at /home/ana/.dinah/cd20d36303bc.
 [exit 0]
-
+$ dinah init --slug bet --operator ana
+Workbench created at /home/ana/.dinah/2ae23a55a39c.
+[exit 0]
+$ dinah workbenches
+  Workbench     Slug  Path
+  ------------  ----  -----------------------------
+  Household     bet   /home/ana/.dinah/2ae23a55a39c
+  Reading list  alp   /home/ana/.dinah/cd20d36303bc
+[exit 0]
 $ dinah status
-dinah.ambiguous-bench 0f1e2d3c4b5a (C:\Users\ana\.dinah\0f1e2d3c4b5a); a1b2c3d4e5f6 (C:\Users\ana\.dinah\a1b2c3d4e5f6) are all reachable from C:\Users\ana\.dinah; choose one with --workbench <path>, or run from inside it
+dinah.ambiguous-workbench more than one workbench is reachable from /home/ana/.dinah
+  Workbench     Slug  Path
+  ------------  ----  -----------------------------
+  Household     bet   /home/ana/.dinah/2ae23a55a39c
+  Reading list  alp   /home/ana/.dinah/cd20d36303bc
+choose one with --workbench <path>, or run from inside it
 [exit 2]
 ```
 
 If you run `show` with no argument, Dinah prints that same listing. You asked it
 to show you something, it cannot tell which workbench you meant, so it shows you
-the choices. If Dinah reaches no workbench at all, it fails with
-`dinah.no-bench-found` and names both the directory the climb started from and
-the home directory it fell back to.
+the choices:
+
+```
+$ dinah show
+  Workbench     Slug  Path
+  ------------  ----  -----------------------------
+  Household     bet   /home/ana/.dinah/2ae23a55a39c
+  Reading list  alp   /home/ana/.dinah/cd20d36303bc
+```
 
 You move that fallback directory by setting `DINAH_HOME`. If you point it
 somewhere else, Dinah reads your settings file and any workbenches under it from
@@ -980,27 +1118,27 @@ and another program built to the same rules can read what it prints:
 
 ```
 $ cd release-notes
-
 $ dinah export
 {
-  "profile": "dinah-core/1.0",
+  "instructions": "Every card on this workbench ends with a line in the changelog.\n",
+  "profile": "dinah-core/0.4",
   "states": [
     {
-      "id": "1d2f2a07a38b",
+      "id": "003b09ee6e31",
       "kind": "intake",
       "slug": "intake",
       "title": "Intake"
     },
     {
       "capacity": 1,
-      "id": "df8cd3d7f024",
+      "id": "780659205f6b",
       "instructions": "Work the card until it is finished or until something stops you.\nLeave a comment saying what you did before you carry it on.\n",
       "kind": "work",
       "slug": "doing",
       "title": "Doing"
     },
     {
-      "id": "acd3a55081b7",
+      "id": "fcd0d92e167a",
       "kind": "done",
       "slug": "done",
       "title": "Done"
@@ -1019,30 +1157,39 @@ start a new workbench from a template with `init --from`:
 $ dinah extract ../release-template
 Definition written to ../release-template.
 [exit 0]
-
 $ cd ..
 $ mkdir release-0.3
 $ cd release-0.3
-
 $ dinah init --from ../release-template --slug rel3 --operator ana
-Workbench created at C:\work\release-0.3.
+Workbench created at /home/ana/release-0.3/.dinah/e65a73e02874.
 [exit 0]
-
 $ dinah states
-  1d2f2a07a38b  intake                  Intake                          intake    0
-  df8cd3d7f024  doing                   Doing                           work      0/1
-  acd3a55081b7  done                    Done                            done      0
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
+  intake  Intake  intake  0      agent
+  doing   Doing   work    0/1    agent
+  done    Done    done    0      agent
+[exit 0]
+$ dinah instructions doing
+
+Instructions, this workbench:
+Every card on this workbench ends with a line in the changelog.
+
+Instructions, this state:
+Work the card until it is finished or until something stops you.
+Leave a comment saying what you did before you carry it on.
 [exit 0]
 ```
+
+The template carries the state identifiers, the slugs, and both layers of
+instructions, so a workbench you start from it names its states exactly as the
+old one does and serves the same standing text. That last `cd` puts you back in
+the workbench this guide started in, and the commands below expect you to run
+them there.
 
 ```
 $ cd ../release-notes
 ```
-
-The template carries the state identifiers and the slugs too, so you name the
-states in the new workbench exactly as you name them in the old one. That last
-`cd` puts you back in the workbench this guide started in, and the commands
-below expect you to run them there.
 
 ## The guides that ship inside Dinah
 
@@ -1051,9 +1198,11 @@ repository checkout:
 
 ```
 $ dinah guide
-  getting-started     Getting started
-  verbs               The five verbs
-  workbench-layout    What a workbench looks like on disk
+  Topic             Title
+  ----------------  -----------------------------------
+  getting-started   Getting started
+  verbs             The five verbs
+  workbench-layout  What a workbench looks like on disk
 [exit 0]
 ```
 
@@ -1064,8 +1213,9 @@ because it maps the whole directory for you.
 
 `dinah mcp` serves the workbench over MCP on its standard input and output, so
 an AI colleague can work the same board you do. Configure it in your MCP client
-as the command `dinah mcp`, and either run it with the workbench directory as
-its working directory or set `DINAH_WORKBENCH` to that directory. Dinah hands
+as the command `dinah mcp`, and either run it from somewhere inside the
+workbench or point `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory, the
+same path `--workbench` takes. Dinah hands
 the client the rules for working this workbench and one tool for each command,
 so your AI colleague claims, moves, releases, and blocks under the same rules
 and leaves the same journal entries you do.
@@ -1085,14 +1235,17 @@ claim <card> [--expires <duration>]
 
 take up a ready card
 
-Refusals, in the order the checks are made:
-  1  the workbench declares a major number the tool implements unsupported-version
-  2  the workbench designates an operator                no-operator
-  3  the card exists                                     unknown-card
-  4  the request names an owner                          no-owner
-  5  the owner named as holder is the owner asking       not-requester
-  6  the card's substate is not `blocked`                blocked
-  7  the card's substate is not `active`                 held
+What can go wrong, in the order each is checked:
+  Order  What can go wrong                              Refusal
+  -----  ---------------------------------------------  -------------------
+  1      the workbench declares a major number the tool implements
+                                                        unsupported-version
+  2      the workbench designates an operator           no-operator
+  3      the card exists                                unknown-card
+  4      the request names an owner                     no-owner
+  5      the owner named as holder is the owner asking  not-requester
+  6      the card's substate is not `blocked`           blocked
+  7      the card's substate is not `active`            held
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]
