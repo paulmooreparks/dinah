@@ -785,9 +785,17 @@
       "text": "स्थिति {detail} अपनी सीमा पर पहुँच गई है",
       "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.at-capacity.next": {
+      "text": "; पहले {detail} से कोई कार्ड हटाएँ, या उस स्थिति की wip_limit बढ़ाएँ",
+      "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the state that has reached its limit."
+    },
     "refusal.blocked": {
       "text": "यह कार्ड बाधित है: {detail}",
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.blocked.next": {
+      "text": "; संचालक से इसे `dinah unblock {card}` से हटाने को कहें",
+      "context": "Spliced onto refusal.blocked as the next step. {card} is the card reference the reader named."
     },
     "refusal.dinah.ambiguous-workbench": {
       "text": "{base} से एक से अधिक वर्कबेंच पहुँच योग्य हैं",
@@ -798,84 +806,168 @@
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
     "refusal.dinah.exists": {
-      "text": "{detail} में पहले से एक workbench.md है; उसे किनारे रखें, या कोई और डायरेक्टरी चुनें",
+      "text": "{detail} में पहले से एक workbench.md है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.exists.next": {
+      "text": "; उसे किनारे रखें, या कोई और डायरेक्टरी चुनें",
+      "context": "Spliced onto refusal.dinah.exists as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.last-state": {
-      "text": "{detail} ही बची हुई एकमात्र स्थिति है; इसे सेवानिवृत्त करने से पहले एक और स्थिति जोड़ें",
+      "text": "{detail} ही बची हुई एकमात्र स्थिति है",
       "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.last-state.next": {
+      "text": "; इसे सेवानिवृत्त करने से पहले एक और स्थिति जोड़ें",
+      "context": "Spliced onto refusal.dinah.last-state as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.interrupted": {
-      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई, और `dinah check --finish` उसे पूरा करता है",
+      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.interrupted.next": {
+      "text": ", और `dinah check --finish` उसे पूरा करता है",
+      "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.locked": {
       "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.locked.unnamed": {
+      "text": "इस पर पहले से ताला है",
+      "context": "The sentence printed after the refusal name dinah.locked when the lock record names nobody, in place of refusal.dinah.locked."
+    },
+    "refusal.dinah.locked.next": {
+      "text": "; इसके पूरा होने की प्रतीक्षा करके दोबारा आज़माएँ, या यदि वह कभी पूरा न हो तो `dinah check --finish` चलाएँ",
+      "context": "Spliced onto refusal.dinah.locked as the next step, and onto refusal.dinah.locked.unnamed, since the advice is the same whether the lock names somebody or nobody."
+    },
     "refusal.dinah.no-configured-workbench": {
-      "text": "वर्कबेंच सेटिंग {detail} बताती है, और उसमें कोई workbench.md नहीं है; `dinah config set workbench <path>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
+      "text": "वर्कबेंच सेटिंग {detail} बताती है, और उसमें कोई workbench.md नहीं है",
       "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried."
     },
+    "refusal.dinah.no-configured-workbench.next": {
+      "text": "; `dinah config set workbench <path>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
+      "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.no-workbench": {
-      "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
+      "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
     },
+    "refusal.dinah.no-workbench.next": {
+      "text": "; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.no-workbench-found": {
-      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <path> दें",
+      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली",
       "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
+    "refusal.dinah.no-workbench-found.next": {
+      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <path> दें",
+      "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.no-editor": {
-      "text": "कोई संपादक नहीं मिला; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
+      "text": "कोई संपादक नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.no-editor.next": {
+      "text": "; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
+      "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
     },
     "refusal.dinah.occupied": {
       "text": "स्थिति {detail} में अभी भी कार्ड हैं",
       "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.occupied.next": {
+      "text": "; पहले `dinah move` से उन्हें बाहर ले जाएँ, फिर दोबारा आज़माएँ",
+      "context": "Spliced onto refusal.dinah.occupied as the next step."
+    },
     "refusal.dinah.unconfirmed": {
-      "text": "delete इतिहास मिटाता है, इसलिए --yes चाहिए",
+      "text": "delete इतिहास मिटाता है",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unconfirmed.next": {
+      "text": ", इसलिए --yes चाहिए",
+      "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.unknown-command.next": {
+      "text": "; कमांड की सूची के लिए `dinah help` चलाएँ, जो काम के अनुसार समूहित है",
+      "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints."
+    },
     "refusal.dinah.unknown-guide": {
-      "text": "{detail} विषय पर कोई मार्गदर्शिका नहीं है",
+      "text": "{detail} विषय पर कोई मार्गदर्शिका नहीं है; Dinah इन विषयों पर मार्गदर्शिकाएँ रखती है",
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.unknown-guide.next": {
+      "text": "इनमें से किसी एक के साथ `dinah guide <topic>` चलाएँ",
+      "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation."
+    },
     "refusal.dinah.unknown-key": {
-      "text": "यह उपकरण {detail} नाम की कोई सेटिंग नहीं जानता",
+      "text": "यह उपकरण {detail} नाम की कोई सेटिंग नहीं जानता; यह ये जानता है",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-key.next": {
+      "text": "इनमें से किसी एक का नाम दें, या हर सेटिंग का मान देखने के लिए `dinah config` चलाएँ",
+      "context": "Printed under the settings refusal.dinah.unknown-key lists, on its own line and with no leading punctuation. It names no subcommand, because this refusal answers config get and config set alike."
     },
     "refusal.dinah.unknown-path": {
       "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.unknown-path.next-file": {
+      "text": "; देखें कि {file} मौजूद है और आप उसे यहाँ से पढ़ सकते हैं",
+      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal carries a file: a path on the filesystem the reader named."
+    },
+    "refusal.dinah.unknown-path.next": {
+      "text": "; इस वर्कबेंच में क्या है यह देखने के लिए `dinah ls` चलाएँ",
+      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to."
+    },
     "refusal.dinah.unreadable-workbench": {
-      "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी; इसकी अनुमतियां ठीक करें, या --workbench को ऐसी डायरेक्टरी पर सेट करें जिसे खोज को खोलना न पड़े",
+      "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."
     },
+    "refusal.dinah.unreadable-workbench.next": {
+      "text": "; इसकी अनुमतियां ठीक करें, या --workbench को ऐसी डायरेक्टरी पर सेट करें जिसे खोज को खोलना न पड़े",
+      "context": "Spliced onto refusal.dinah.unreadable-workbench as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.usage": {
-      "text": "{detail} समझ नहीं आया; कमांड की सूची के लिए dinah help चलाएँ",
+      "text": "{detail} समझ नहीं आया",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.usage.next": {
+      "text": "; कमांड की सूची के लिए dinah help चलाएँ",
+      "context": "Spliced onto refusal.dinah.usage as the next step, carrying the clause that base entry used to end with. It is spliced ahead of refusal.dinah.usage.dash-hint, which is the position it held inside the sentence."
     },
     "refusal.dinah.usage.dash-hint": {
       "text": ". Dinah दो डैश से शुरू होने वाले शब्द को विकल्प मानकर पढ़ता है। पहले `--` लिखें, और उसके बाद हर शब्द को Dinah सादे पाठ के रूप में पढ़ेगा, डैश सहित।",
       "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does."
     },
     "refusal.dinah.workbench-not-applicable": {
-      "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है। इसके बजाय init को लक्ष्य डायरेक्टरी सामान्य तर्क के रूप में दें।",
+      "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है।",
       "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one."
     },
+    "refusal.dinah.workbench-not-applicable.next": {
+      "text": " इसके बजाय init को लक्ष्य डायरेक्टरी सामान्य तर्क के रूप में दें।",
+      "context": "Spliced onto refusal.dinah.workbench-not-applicable as the next step, carrying the sentence that base entry used to end with."
+    },
     "refusal.dinah.repair-would-empty-states": {
-      "text": "{detail} वर्कबेंच में बची हर स्थिति के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई स्थिति नहीं बचेगी, इसलिए dinah check --migrate-states मना करता है। कोई स्थिति जोड़ने के लिए वर्कबेंच की states सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-states फिर से चलाएँ।",
+      "text": "{detail} वर्कबेंच में बची हर स्थिति के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई स्थिति नहीं बचेगी, इसलिए dinah check --migrate-states मना करता है।",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list."
     },
+    "refusal.dinah.repair-would-empty-states.next": {
+      "text": " कोई स्थिति जोड़ने के लिए वर्कबेंच की states सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-states फिर से चलाएँ।",
+      "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with."
+    },
     "refusal.dinah.add-needs-a-state": {
-      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्थिति नहीं बची है; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्थिति नहीं बची है",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
+    },
+    "refusal.dinah.add-needs-a-state.next": {
+      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit."
     },
     "refusal.dinah.multiple-words": {
       "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है।",
@@ -893,13 +985,33 @@
       "text": "यह कार्ड {detail} ने लिया हुआ है",
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.held.next": {
+      "text": "; {detail} के छोड़ने की प्रतीक्षा करें",
+      "context": "Spliced onto refusal.held as the next step. {detail} is the owner holding the card. It names no command, because held answers claim, move and block alike."
+    },
     "refusal.layer-collision": {
       "text": "परत {detail} उस नाम से घोषित है जो यह प्रोफ़ाइल पहले से देती है",
       "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.layer-collision.next": {
+      "text": "; परत का नाम बदलें, फिर पुष्टि के लिए `dinah check` चलाएँ",
+      "context": "Spliced onto refusal.layer-collision as the next step. Written for a refusal nothing raises today."
+    },
     "refusal.malformed": {
       "text": "{detail} अनुपस्थित है, खाली है, या पार्स नहीं हो सकता",
       "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed."
+    },
+    "refusal.malformed.in-file": {
+      "text": ", {file} में",
+      "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse."
+    },
+    "refusal.malformed.next-file": {
+      "text": "; {file} को स्वयं संपादित करके ठीक करें, फिर कमांड दोबारा चलाएँ",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal carries a file. It names no dinah check, because the command that read the file created no workbench to check."
+    },
+    "refusal.malformed.next": {
+      "text": "; कमांड को `dinah {usage}` की तरह लिखकर दोबारा आज़माएँ",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed."
     },
     "refusal.malformed.at": {
       "text": ", {path} में",
@@ -913,33 +1025,73 @@
       "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसकी आरक्षित क्रियाएँ मृत हैं",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.no-operator.next": {
+      "text": "; वर्कबेंच की workbench.md में operator पंक्ति जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
+      "context": "Spliced onto refusal.no-operator as the next step. operator is a key name and stays in Latin script."
+    },
     "refusal.no-owner": {
-      "text": "कोई स्वामी नहीं मिला; --actor, DINAH_ACTOR या config actor से एक नियत करें",
+      "text": "कोई स्वामी नहीं मिला",
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.no-owner.next": {
+      "text": "; --actor, DINAH_ACTOR या config actor से एक नियत करें",
+      "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.no-reason": {
       "text": "बाधा के साथ कारण आता है, ऐसा लिखा कि संचालक उसका उत्तर दे सके",
       "context": "The sentence printed after the refusal name no-reason. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.no-reason.next": {
+      "text": "; `dinah block {card} \"वह प्रश्न जिसका उत्तर संचालक को देना है\"` चलाएँ",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal."
+    },
     "refusal.not-blocked": {
       "text": "यह कार्ड बाधित नहीं है, इसलिए हटाने को कुछ नहीं है",
       "context": "The sentence printed after the refusal name not-blocked. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-blocked.next": {
+      "text": "; यह कहाँ खड़ा है यह देखने के लिए `dinah show {card}` चलाएँ",
+      "context": "Spliced onto refusal.not-blocked as the next step. {card} is the card reference the reader named."
     },
     "refusal.not-holder": {
       "text": "यह कार्ड आपने नहीं लिया है; {detail} ने लिया है",
       "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.not-holder.unnamed": {
+      "text": "यह कार्ड किसी ने नहीं लिया है, इसलिए छोड़ने को कुछ नहीं है",
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal."
+    },
+    "refusal.not-holder.next": {
+      "text": "; Dinah आपको कौन मानता है यह देखने के लिए `dinah whoami` चलाएँ, या {detail} से इसे छोड़ने को कहें",
+      "context": "Spliced onto refusal.not-holder as the next step when somebody else holds the card. {detail} is that owner."
+    },
+    "refusal.not-holder.next-unheld": {
+      "text": "; पहले `dinah claim {card}` से इसे लें",
+      "context": "Spliced onto refusal.not-holder.unnamed as the next step when nobody holds the card. {card} is the card reference the reader named."
+    },
     "refusal.not-operator": {
       "text": "यह क्रिया संचालक की है, और आप {detail} हैं",
       "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.not-operator.next": {
+      "text": "; संचालक से इसे चलाने को कहें, या Dinah आपको कौन मानता है यह देखने के लिए `dinah whoami` चलाएँ",
+      "context": "Spliced onto refusal.not-operator as the next step."
     },
     "refusal.not-requester": {
       "text": "दावा अपने माँगने वाले को ही धारक बताता है, यह {detail} को बताता है",
       "context": "The sentence printed after the refusal name not-requester. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.not-requester.next": {
+      "text": "; स्वयं को धारक बताएँ, या {detail} के रूप में इसे लें",
+      "context": "Spliced onto refusal.not-requester as the next step. {detail} is the holder the claim named. Written for claim, the one verb that raises this refusal."
+    },
     "refusal.terminal": {
       "text": "स्थिति {detail} समाप्त है, और उससे आगे कुछ नहीं जाता",
       "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.terminal.next": {
+      "text": "; इसके बजाय कोई पहले की स्थिति बताएँ",
+      "context": "Spliced onto refusal.terminal as the next step."
     },
     "refusal.unknown": {
       "text": "{name} दर्ज हुआ, और Dinah के पास उसका संदेश नहीं है: {detail}",
@@ -949,13 +1101,25 @@
       "text": "इस वर्कबेंच पर कोई कार्ड {detail} नहीं है",
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.unknown-card.next": {
+      "text": "; इस वर्कबेंच के कार्ड देखने के लिए `dinah ls` चलाएँ",
+      "context": "Spliced onto refusal.unknown-card as the next step."
+    },
     "refusal.unknown-state": {
-      "text": "यह वर्कबेंच कोई स्थिति {detail} घोषित नहीं करती",
+      "text": "यह वर्कबेंच कोई स्थिति {detail} घोषित नहीं करती; यह ये घोषित करती है",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unknown-state.next": {
+      "text": "इनमें से किसी एक के साथ `dinah {command}` चलाएँ",
+      "context": "Printed under the states refusal.unknown-state lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next."
     },
     "refusal.unsupported-version": {
       "text": "Dinah {detail} को लागू नहीं करती",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.unsupported-version.next": {
+      "text": "; नया Dinah स्थापित करें, या इस वर्कबेंच को उसे पढ़ने वाली बिल्ड से खोलें",
+      "context": "Spliced onto refusal.unsupported-version as the next step, after the window clause."
     },
     "refusal.unsupported-version.window": {
       "text": "; यह बिल्ड {floor} से {ceiling} तक पढ़ती है",
@@ -972,6 +1136,22 @@
     "slug.missing": {
       "text": "कोई उपनाम नहीं (check --migrate-slugs चलाएँ)",
       "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string."
+    },
+    "slot.title": {
+      "text": "शीर्षक",
+      "context": "Names add's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "slot.reason": {
+      "text": "कारण",
+      "context": "Names block's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "slot.comment": {
+      "text": "टिप्पणी",
+      "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "slot.value": {
+      "text": "मान",
+      "context": "Names config set's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
     "states.moved-by.agent": {
       "text": "एजेंट",

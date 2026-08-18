@@ -258,3 +258,26 @@ type Unreachable struct {
 func (u *Unreachable) Error() string {
 	return "unreachable: " + u.Detail
 }
+
+// With returns a copy of a refusal carrying one more named value, so a caller
+// holding something the raise site below it could not know attaches it on the
+// way out without that site being edited.
+//
+// Anything that is not a refusal comes back unchanged, and so does a refusal
+// handed an empty value, which is what lets a caller wrap unconditionally: a
+// dinah init that named no source attaches nothing, and the rule that no
+// placeholder is ever filled with an empty string holds with no test at the
+// call site. The copy is built here because contract is the one package that
+// builds a refusal at all.
+func With(err error, name, value string) error {
+	refusal, ok := err.(*Refusal)
+	if !ok || value == "" {
+		return err
+	}
+	extra := make(map[string]string, len(refusal.Extra)+1)
+	for key, carried := range refusal.Extra {
+		extra[key] = carried
+	}
+	extra[name] = value
+	return RefuseWith(refusal.Name, refusal.Detail, extra)
+}

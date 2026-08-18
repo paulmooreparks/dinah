@@ -2645,8 +2645,16 @@ func TestBareShowStillRefusesWhereThereIsNoChoice(t *testing.T) {
 	if got.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
 	}
-	if got.errw != contract.UnknownCard+" this workbench carries no card \n" {
-		t.Errorf("the refusal should be the one a single workbench has always raised, got %q", got.errw)
+	// The sentence gained its next step with dinah-102, which gave one to each
+	// of the twenty-one refusals that offered none. The empty {detail} ahead
+	// of it is what a bare show has always rendered, since nobody named a card
+	// for the sentence to be about; the shape table declares no subject for
+	// unknown-card, so that fill is unchanged here and is filed rather than
+	// repaired.
+	want := contract.UnknownCard + " this workbench carries no card " +
+		msg.For(msg.Base).T("refusal.unknown-card.next") + "\n"
+	if got.errw != want {
+		t.Errorf("the refusal should be the one a single workbench has always raised, with its next step:\n got  %q\n want %q", got.errw, want)
 	}
 	machine := runCLI(t, sole, "--json", "show")
 	if !strings.Contains(machine.out, `"refusal": "`+contract.UnknownCard+`"`) {

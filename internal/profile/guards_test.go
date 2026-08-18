@@ -1810,8 +1810,9 @@ const theOneTable = "cmd/dinah/table.go"
 // them, so a mention anywhere else is either a row being written outside the
 // renderer or a second way to write, and pattern 11 refuses both.
 //
-// The first six are the writers themselves. reportError hands the stream to
-// the package-level reporter of the same name, and the last three hand a
+// The first five are the writers themselves, and composeRefusal is not among
+// them: it returns lines rather than writing them, which is what lets the text
+// path and the machine path share one composition. The last three hand a
 // stream to something outside the head: the value config <key> writes, the
 // child process an editor runs in, and the MCP server that serves on stdio.
 //
@@ -1823,7 +1824,6 @@ var streamWriters = []string{
 	"line",
 	"fail",
 	"reportOutcome",
-	"reportAmbiguousWorkbench",
 	"emitJSON",
 	"emit",
 	"reportError",

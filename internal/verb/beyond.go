@@ -153,7 +153,7 @@ func (l *Library) Attach(req *Request) *Response {
 		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
 	if !bench.Exists(req.File) {
-		return l.refuse(req, entity.Card, contract.UnknownPath, req.File)
+		return l.refuseWith(req, entity.Card, contract.UnknownPath, req.File, map[string]string{"file": req.File})
 	}
 	now := bench.Stamp(l.Now())
 	// The new entity is written inside the target's directory and the event
@@ -404,7 +404,7 @@ func Init(root, slug, operator, source, override, overrideSource string) (string
 	}
 	written := filepath.Join(container, id)
 	if err := bench.Instantiate(written, slug, operator, definition); err != nil {
-		return "", err
+		return "", contract.With(err, "file", source)
 	}
 	return written, nil
 }
@@ -429,9 +429,10 @@ func readSource(root, source string) (*bench.Definition, error) {
 	}
 	data, err := os.ReadFile(source)
 	if err != nil {
-		return nil, contract.Refuse(contract.UnknownPath, source)
+		return nil, contract.With(contract.Refuse(contract.UnknownPath, source), "file", source)
 	}
-	return bench.ReadDefinition(data)
+	definition, readErr := bench.ReadDefinition(data)
+	return definition, contract.With(readErr, "file", source)
 }
 
 // defaultDefinition is the flow a bench created from nothing carries: one
