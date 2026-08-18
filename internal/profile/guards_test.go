@@ -885,6 +885,70 @@ func foldStringConcat(expr ast.Expr) (string, bool) {
 	}
 }
 
+// stubbedPlatform returns scripts/install.sh with a prologue spliced in after
+// its shebang line: a shell function answering the platform questions the
+// script asks, and, when onPath is true, a line putting the install directory
+// on PATH before the script reads it. Nothing else in the script is touched.
+//
+// The stub is a shell function rather than an executable named uname planted
+// in a directory prepended to PATH. A function outranks an external command of
+// the same name in every POSIX shell, so it is reached however the shell works
+// out PATH; a planted directory is reached only if the shell keeps the PATH it
+// was handed, and Git for Windows' bin\sh.exe does not. That sh.exe is a
+// wrapper which rewrites PATH to put /mingw64/bin and /usr/bin first, so the
+// real uname shadowed the planted stub, answered MINGW64_NT-10.0-26100, and
+// every shell-script test here failed on the Windows CI leg while passing on
+// Linux and macOS. Which sh.exe answers is a property of the machine's PATH,
+// not of anything this test can see, so the fix is to stop depending on it.
+//
+// The PATH entry is spliced in for the same reason, and for a second one: the
+// script asks whether $HOME/.local/bin is on PATH, and only the shell knows
+// what it calls that directory. A Go-built entry, joined with filepath.Join
+// and separated with os.PathListSeparator, is a Windows path in a
+// semicolon-separated list, which is not what the script compares against.
+func stubbedPlatform(t *testing.T, script, systemName, machineName string, onPath bool) string {
+	t.Helper()
+	const shebang = "#!/bin/sh\n"
+	if !strings.HasPrefix(script, shebang) {
+		t.Fatal("scripts/install.sh no longer opens with a #!/bin/sh line, so the test prologue has nowhere to go")
+	}
+	var prologue strings.Builder
+	fmt.Fprintf(&prologue, "uname() {\n\tcase \"$1\" in\n\t-s) echo %s ;;\n\t-m) echo %s ;;\n\t*) echo %s ;;\n\tesac\n}\n", systemName, machineName, systemName)
+	if onPath {
+		prologue.WriteString("PATH=\"$HOME/.local/bin:$PATH\"\nexport PATH\n")
+	}
+	return shebang + prologue.String() + strings.TrimPrefix(script, shebang)
+}
+
+// windowsPowerShellEnv returns the environment a powershell.exe child is run
+// with: this process's own environment less PSModulePath, plus extra.
+//
+// Get-FileHash is a function of the Microsoft.PowerShell.Utility module rather
+// than one of the cmdlets Windows PowerShell's default session already holds,
+// so Windows PowerShell reaches it by autoloading that module off
+// PSModulePath. A windows-latest step on GitHub Actions runs in PowerShell 7,
+// whose PSModulePath names PowerShell 7's own module directory ahead of
+// Windows PowerShell's; handed that value, Windows PowerShell autoloads
+// PowerShell 7's Microsoft.PowerShell.Utility, which carries no Get-FileHash
+// for it, and the install script died on CommandNotFoundException at the
+// checksum step. Dropping the variable leaves Windows PowerShell to work out
+// its own module path, which is what it does when the variable is absent.
+//
+// Every cmdlet the install script uses besides Get-FileHash is part of the
+// default session and never needed the module, which is why the script got as
+// far as downloading and length-checking before it failed.
+func windowsPowerShellEnv(extra ...string) []string {
+	inherited := os.Environ()
+	env := make([]string, 0, len(inherited)+len(extra))
+	for _, entry := range inherited {
+		if name, _, ok := strings.Cut(entry, "="); ok && strings.EqualFold(name, "PSModulePath") {
+			continue
+		}
+		env = append(env, entry)
+	}
+	return append(env, extra...)
+}
+
 // releaseBinaries names every binary .github/workflows/release.yml builds, in
 // the order its matrix declares them.
 var releaseBinaries = []string{
@@ -1012,6 +1076,10 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 	if !strings.Contains(script, server.URL) {
 		t.Fatal("the test server URL did not reach the script under test")
 	}
+	// The script asks uname which binary this machine needs. The stub answers
+	// for a linux/amd64 machine, so the test asserts the same thing on every
+	// platform it runs on.
+	script = stubbedPlatform(t, script, "Linux", "x86_64", false)
 
 	home := t.TempDir()
 	scriptDir := t.TempDir()
@@ -1020,20 +1088,8 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 		t.Fatalf("writing the script under test: %v", err)
 	}
 
-	// The script asks uname which binary this machine needs. A shim answers for
-	// a linux/amd64 machine, so the test asserts the same thing on every
-	// platform it runs on.
-	shimDir := t.TempDir()
-	shim := "#!/bin/sh\ncase \"$1\" in\n-s) echo Linux ;;\n-m) echo x86_64 ;;\n*) echo Linux ;;\nesac\n"
-	if err := os.WriteFile(filepath.Join(shimDir, "uname"), []byte(shim), 0o755); err != nil {
-		t.Fatalf("writing the uname shim: %v", err)
-	}
-
 	command := exec.Command("sh", scriptPath)
-	command.Env = append(os.Environ(),
-		"HOME="+home,
-		"PATH="+shimDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-	)
+	command.Env = append(os.Environ(), "HOME="+home)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("scripts/install.sh failed against what release.yml publishes: %v\n%s", err, output)
@@ -1078,8 +1134,8 @@ func TestInstallScriptSaysWhetherDinahIsReadyToRun(t *testing.T) {
 
 	cases := []struct {
 		name        string
-		unameS      string // what the uname -s shim reports
-		unameM      string // what the uname -m shim reports
+		unameS      string // what the uname -s stub reports
+		unameM      string // what the uname -m stub reports
 		binary      string
 		onPath      bool
 		wantSubstrs []string
@@ -1157,6 +1213,7 @@ func TestInstallScriptSaysWhetherDinahIsReadyToRun(t *testing.T) {
 			release = built
 
 			script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+			script = stubbedPlatform(t, script, tc.unameS, tc.unameM, tc.onPath)
 			home := t.TempDir()
 			scriptDir := t.TempDir()
 			scriptPath := filepath.Join(scriptDir, "install.sh")
@@ -1164,23 +1221,8 @@ func TestInstallScriptSaysWhetherDinahIsReadyToRun(t *testing.T) {
 				t.Fatalf("writing the script under test: %v", err)
 			}
 
-			shimDir := t.TempDir()
-			shim := fmt.Sprintf("#!/bin/sh\ncase \"$1\" in\n-s) echo %s ;;\n-m) echo %s ;;\n*) echo %s ;;\nesac\n", tc.unameS, tc.unameM, tc.unameS)
-			if err := os.WriteFile(filepath.Join(shimDir, "uname"), []byte(shim), 0o755); err != nil {
-				t.Fatalf("writing the uname shim: %v", err)
-			}
-
-			testPath := shimDir + string(os.PathListSeparator) + os.Getenv("PATH")
-			if tc.onPath {
-				installDir := filepath.Join(home, ".local", "bin")
-				testPath = testPath + string(os.PathListSeparator) + installDir
-			}
-
 			cmd := exec.Command("sh", scriptPath)
-			cmd.Env = append(os.Environ(),
-				"HOME="+home,
-				"PATH="+testPath,
-			)
+			cmd.Env = append(os.Environ(), "HOME="+home)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("scripts/install.sh failed: %v\n%s", err, output)
@@ -1306,22 +1348,15 @@ func TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption(t *testi
 			server := newManifestServer("dinah-linux-amd64", mode)
 			defer server.Close()
 			script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+			script = stubbedPlatform(t, script, "Linux", "x86_64", false)
 			home := t.TempDir()
 			scriptDir := t.TempDir()
 			scriptPath := filepath.Join(scriptDir, "install.sh")
 			if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 				t.Fatalf("writing the script under test: %v", err)
 			}
-			shimDir := t.TempDir()
-			shim := "#!/bin/sh\ncase \"$1\" in\n-s) echo Linux ;;\n-m) echo x86_64 ;;\n*) echo Linux ;;\nesac\n"
-			if err := os.WriteFile(filepath.Join(shimDir, "uname"), []byte(shim), 0o755); err != nil {
-				t.Fatalf("writing the uname shim: %v", err)
-			}
 			cmd := exec.Command("sh", scriptPath)
-			cmd.Env = append(os.Environ(),
-				"HOME="+home,
-				"PATH="+shimDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-			)
+			cmd.Env = append(os.Environ(), "HOME="+home)
 			output, err := cmd.CombinedOutput()
 			if _, statErr := os.Stat(filepath.Join(home, ".local", "bin", "dinah")); statErr == nil {
 				t.Errorf("%s: a file was installed even though the download never verified", mode)
@@ -1376,7 +1411,7 @@ func TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption(t *testi
 				t.Fatalf("writing the script under test: %v", err)
 			}
 			cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
-			cmd.Env = append(os.Environ(),
+			cmd.Env = windowsPowerShellEnv(
 				"LOCALAPPDATA="+localAppData,
 				"PROCESSOR_ARCHITECTURE=AMD64",
 				"DINAH_NO_PATH=1", // never touch the real PATH from a test
@@ -1425,6 +1460,7 @@ func psQuote(s string) string {
 func runPS(t *testing.T, psExe, command string) error {
 	t.Helper()
 	cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command)
+	cmd.Env = windowsPowerShellEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v\n%s", err, output)
@@ -1438,6 +1474,7 @@ func readRegistryPath(t *testing.T, psExe, key string) (string, error) {
 	t.Helper()
 	cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
 		fmt.Sprintf("(Get-Item -Path %s -ErrorAction SilentlyContinue).GetValue('PATH','',[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)", psQuote(key)))
+	cmd.Env = windowsPowerShellEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%v\n%s", err, output)
@@ -1589,7 +1626,7 @@ func TestInstallPS1SaysWhetherDinahIsReadyToRun(t *testing.T) {
 			}
 
 			cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
-			cmd.Env = append(os.Environ(),
+			cmd.Env = windowsPowerShellEnv(
 				"LOCALAPPDATA="+localAppData,
 				"PROCESSOR_ARCHITECTURE=AMD64",
 				"PATH="+envPath,
