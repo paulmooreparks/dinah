@@ -16,6 +16,10 @@ Under the hood, Dinah is a reference implementation of a shared coordination con
 
 <br clear="right">
 
+## Start here
+
+[The quick start](docs/quick-start.md) walks one workbench from an empty directory through every command the binary offers, with the real output of each step alongside it. Reading it takes one sitting, and it is the shortest route to using the tool for real work.
+
 ## Name
 
 Dinah is a recursive acronym: **Dinah Is Not A Harness.**
