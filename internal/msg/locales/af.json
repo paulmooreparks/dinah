@@ -611,6 +611,231 @@
       "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "column.blocked.card": {
+      "text": "Card",
+      "context": "Heading over the reference a person types to name the card, in the block of blocked cards, inside `dinah status`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.blocked.reason": {
+      "text": "Reason",
+      "context": "Heading over why the card was blocked, in the block of blocked cards, inside `dinah status`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.catalogs.language": {
+      "text": "Language",
+      "context": "Heading over the language tag the catalog answers to, in the catalog coverage `dinah version --catalogs` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.catalogs.translated": {
+      "text": "Translated",
+      "context": "Heading over how many of the base catalog's messages the language carries translated, in the catalog coverage `dinah version --catalogs` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.commands.command": {
+      "text": "Command",
+      "context": "Heading over the command with the arguments it takes, in the command list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.commands.what": {
+      "text": "What it does",
+      "context": "Heading over what the command does, in the command list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.comments.when": {
+      "text": "When",
+      "context": "Heading over when the comment was written, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.comments.who": {
+      "text": "Who",
+      "context": "Heading over who wrote the comment, in the comments of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.config.setting": {
+      "text": "Setting",
+      "context": "Heading over the setting's name, in the settings `dinah config` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.config.source": {
+      "text": "Source",
+      "context": "Heading over the rung of the ladder that produced the value, in the settings `dinah config` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.config.value": {
+      "text": "Value",
+      "context": "Heading over the value in force, in the settings `dinah config` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.flags.option": {
+      "text": "Option",
+      "context": "Heading over the flag with the value it takes, in the global flag list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.flags.what": {
+      "text": "What it does",
+      "context": "Heading over what the flag does, in the global flag list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.guide.title": {
+      "text": "Title",
+      "context": "Heading over what the guide is about, in the guide topics `dinah guide` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.guide.topic": {
+      "text": "Topic",
+      "context": "Heading over the topic a person types to read the guide, in the guide topics `dinah guide` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.help.check": {
+      "text": "What can go wrong",
+      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.help.order": {
+      "text": "Order",
+      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.help.refusal": {
+      "text": "Refusal",
+      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.holding.card": {
+      "text": "Card",
+      "context": "Heading over the reference a person types to name the card, in the block of cards you hold, inside `dinah status`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.holding.title": {
+      "text": "Title",
+      "context": "Heading over the card's title, in the block of cards you hold, inside `dinah status`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.links.card": {
+      "text": "Card",
+      "context": "Heading over the card at the other end of the link, in the links of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.links.link": {
+      "text": "Link",
+      "context": "Heading over the kind of link, in the links of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.log.action": {
+      "text": "Action",
+      "context": "Heading over what was done to the card, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.log.actor": {
+      "text": "Actor",
+      "context": "Heading over who did it, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.log.detail": {
+      "text": "Detail",
+      "context": "Heading over what the act carried, such as the states a move ran between, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.log.when": {
+      "text": "When",
+      "context": "Heading over when the act was recorded, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.ls.card": {
+      "text": "Card",
+      "context": "Heading over the reference a person types to name the card, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.ls.standing": {
+      "text": "Standing",
+      "context": "Heading over whether the card is ready, active or blocked, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.ls.title": {
+      "text": "Title",
+      "context": "Heading over the card's title, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.moves.direction": {
+      "text": "Direction",
+      "context": "Heading over whether the move runs forward or backward along the flow, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.moves.name": {
+      "text": "Name",
+      "context": "Heading over the destination's display name, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.moves.state": {
+      "text": "State",
+      "context": "Heading over the destination a person types on a move, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.next.card": {
+      "text": "Card",
+      "context": "Heading over the reference a person types to name the card offered, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.next.state": {
+      "text": "State",
+      "context": "Heading over the state making the offer, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.next.title": {
+      "text": "Title",
+      "context": "Heading over the offered card's title, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.slugs.slug": {
+      "text": "Slug",
+      "context": "Heading over the handle the repair assigned, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.slugs.title": {
+      "text": "Title",
+      "context": "Heading over the state the handle was assigned to, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.states.cards": {
+      "text": "Cards",
+      "context": "Heading over how many live cards the state holds, with its limit where it declares one, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.states.kind": {
+      "text": "Kind",
+      "context": "Heading over the state's kind: intake, work or done, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.states.name": {
+      "text": "Name",
+      "context": "Heading over the state's display name, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.states.owner": {
+      "text": "Owner",
+      "context": "Heading over who may move a card out of the state, reading agent or operator, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.states.slug": {
+      "text": "Slug",
+      "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbenches.path": {
+      "text": "Path",
+      "context": "Heading over where the workbench sits on disk, which is what --workbench takes, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbenches.slug": {
+      "text": "Slug",
+      "context": "Heading over the workbench's short handle, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbenches.workbench": {
+      "text": "Workbench",
+      "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
     "extract.done": {
       "text": "Definition written to {dir}.",
       "context": "Printed after extract succeeds.",
@@ -986,9 +1211,14 @@
       "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string.",
       "skeleton": true
     },
-    "states.operator-owned": {
-      "text": "operator-owned",
-      "context": "The mark beside a state only the operator moves a card out of.",
+    "states.moved-by.agent": {
+      "text": "agent",
+      "context": "The value under the states listing's Owner column on a state an agent may move a card out of.",
+      "skeleton": true
+    },
+    "states.moved-by.operator": {
+      "text": "operator",
+      "context": "The value under the states listing's Owner column on a state only the operator may move a card out of.",
       "skeleton": true
     },
     "status.actor": {
