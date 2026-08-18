@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -130,7 +129,11 @@ func runBlock(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Block, parsed)
 	req.Card = at(words, 0)
-	req.Reason = strings.Join(words[min(1, len(words)):], " ")
+	reason, refusal := freeText([]string{"block", req.Card}, words[min(1, len(words)):], "the reason")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Reason = reason
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
 	})
@@ -148,7 +151,11 @@ func runUnblock(s *session, parsed *arguments) int {
 // runAdd files a new card.
 func runAdd(s *session, parsed *arguments) int {
 	req := s.request("add", parsed)
-	req.Title = strings.Join(parsed.rest(), " ")
+	title, refusal := freeText([]string{"add"}, parsed.rest(), "the title")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Title = title
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Add(req))
 	})
@@ -160,7 +167,11 @@ func runComment(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("comment", parsed)
 	req.Card = at(words, 0)
-	req.Text = strings.Join(words[min(1, len(words)):], " ")
+	text, refusal := freeText([]string{"comment", req.Card}, words[min(1, len(words)):], "the comment")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Text = text
 	if req.Text == "-" {
 		piped, err := io.ReadAll(s.in)
 		if err != nil {
@@ -515,7 +526,10 @@ func runConfig(s *session, parsed *arguments) int {
 		if looksLikeMistypedFlag(key) {
 			return s.fail(contract.Usage, key)
 		}
-		value := strings.Join(words[min(2, len(words)):], " ")
+		value, refusal := freeText([]string{"config", "set", key}, words[min(2, len(words)):], "the value")
+		if refusal != nil {
+			return s.reportError(refusal)
+		}
 		if err := s.cfg.Set(key, value); err != nil {
 			return s.reportError(err)
 		}

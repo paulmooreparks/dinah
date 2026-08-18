@@ -110,8 +110,18 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if !ok {
 		return s.fail(contract.UnknownVerb, name)
 	}
-	if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
-		return s.reportError(refusal)
+	// resolveOpenTailFlags exists to decide whether a flag-shaped word
+	// sitting inside a multi-word free-text zone is prose or a flag
+	// (dinah-96). add, block, and comment have no such zone left to be mid
+	// of: dinah-100 bounds each to exactly one free-text word, so a domain
+	// flag typed anywhere is applied by parseArgs itself, correctly, with
+	// nothing here left to correct. config declares no domain flag of its
+	// own and keeps calling this function only to splice an unrecognized
+	// flag-shaped word back into its value as literal text.
+	if command.name != "add" && command.name != "block" && command.name != "comment" {
+		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
+			return s.reportError(refusal)
+		}
 	}
 	if word := unreadWordIn(command, parsed.rest()); word != "" {
 		return s.fail(contract.Usage, word)
@@ -190,6 +200,13 @@ func (s *session) sentence(name, detail string) string {
 // end-of-options marker is spliced on the same way. Only parseArgs's two
 // flag-scan refusals ever set dashHint; every other dinah.usage site is
 // unchanged.
+//
+// A multiple-words refusal (freeText, cmd/dinah/args.go) carries either
+// example, when the free text has no quotation mark and a rebuilt,
+// paste-ready command line reads back correctly in bash, cmd.exe and
+// PowerShell alike, or quoteInText, when it does and no single escaping is
+// correct in all three, so the caller is asked to quote the text themselves
+// instead. Exactly one of the two is ever set.
 func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
 	key := "refusal." + name
 	if !r.Has(key) {
@@ -205,6 +222,12 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 	}
 	if name == contract.Usage && extra["dashHint"] != "" {
 		return text + r.T("refusal.dinah.usage.dash-hint")
+	}
+	if name == contract.MultipleWords {
+		if extra["quoteInText"] != "" {
+			return text + r.T("refusal.dinah.multiple-words.quote-yourself")
+		}
+		return text + r.T("refusal.dinah.multiple-words.example", "example", extra["example"])
 	}
 	return text
 }

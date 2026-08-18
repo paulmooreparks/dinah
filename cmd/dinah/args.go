@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
@@ -28,9 +29,11 @@ var markerFlags = []string{
 
 // sessionFlagNames are the five flags read directly off the parsed
 // arguments at session build time, before any command is looked up. A
-// caller may write one of these anywhere before the marker, including
-// inside an open-tail command's own free text, and dinah-96 leaves that
-// placement exactly as it was; dinah-99 tracks closing it.
+// caller may write one of these anywhere before the marker. dinah-100
+// bounds every open-tail command's free text to one already-delimited argv
+// word, so one of these flags can no longer occupy a position "inside" that
+// free text at all; it is either its own argv token, recognized here, or it
+// sits inside the free text's own quoting, where nothing examines it.
 var sessionFlagNames = map[string]bool{
 	"workbench": true, "lang": true, "actor": true, "json": true, "quiet": true,
 }
@@ -196,6 +199,47 @@ func at(words []string, index int) string {
 		return ""
 	}
 	return words[index]
+}
+
+// freeText resolves an open-tail command's free-text slot (add's title,
+// block's reason, comment's text, config set's value) to a single word,
+// which is dinah-100's rule: a caller composing several words quotes them
+// into one. words is what remains of the command line past the slot's own
+// bounded arguments. Zero or one word passes through unchanged, matching
+// today's behavior exactly (dinah-100 decision D-6). Two or more refuses
+// with dinah.multiple-words, naming the word count.
+//
+// Which shell is on the other end of the paste is undocumented and cannot be
+// asked for, so the rebuilt example this refusal offers is only ever built
+// for text with no quotation mark in it, where wrapping in double quotes is
+// already correct verbatim in bash, cmd.exe and PowerShell alike and nothing
+// needs escaping. The moment the free text itself contains a `"`, no single
+// escaping convention reads back correctly in all three: a backslash escape
+// round-trips in bash and cmd.exe but is not an escape character inside a
+// PowerShell double-quoted string, so it strings a quote-and-backslash
+// artifact into the result there instead of the caller's original text
+// (dinah-100 cycle-3 review, verified by pasting into all three shells).
+// Rather than hand back a command line that is wrong in whichever shell the
+// reader is using, freeText refuses with dinah.multiple-words.quote-yourself
+// and asks the caller to add the quoting themselves, naming the quotation
+// mark as the reason a ready-made line cannot be offered. lead is the
+// command line up to and including the bounded arguments, in the order a
+// caller types them, used only to build the example in the no-quote case.
+func freeText(lead []string, words []string, label string) (string, *contract.Refusal) {
+	if len(words) <= 1 {
+		return at(words, 0), nil
+	}
+	joined := strings.Join(words, " ")
+	extra := map[string]string{
+		"count": strconv.Itoa(len(words)),
+		"label": label,
+	}
+	if strings.Contains(joined, "\"") {
+		extra["quoteInText"] = "1"
+	} else {
+		extra["example"] = "dinah " + strings.Join(lead, " ") + " \"" + joined + "\""
+	}
+	return "", contract.RefuseWith(contract.MultipleWords, "", extra)
 }
 
 // freeTextBoundary reports where a command's open tail begins, counted as
