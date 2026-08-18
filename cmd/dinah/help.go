@@ -63,6 +63,11 @@ const usageColumn = 39
 // list still starts at the same place.
 const flagColumn = 20
 
+// checkColumn is the column a precondition's refusal name starts in within the
+// per-command help, counted from the left margin of the block. The two-space
+// indent, the three-column ordinal, and the padded check sentence reach it.
+const checkColumn = 52
+
 // globalFlags are the flags that belong to the invocation rather than to any
 // one command, in the order the help block prints them.
 var globalFlags = []struct {
@@ -100,27 +105,25 @@ func (s *session) helpBlock() string {
 			if c.group != group {
 				continue
 			}
-			b.WriteString("  " + pad(verb.Usage(c.name), usageColumn) + s.r.T("cmd."+c.name+".summary") + "\n")
+			b.WriteString(s.rowLine(row{
+				indent: 2,
+				cells:  []cell{{verb.Usage(c.name), usageColumn}},
+				tail:   s.r.T("cmd." + c.name + ".summary"),
+			}) + "\n")
 		}
 	}
 	b.WriteString("\n" + s.r.T("help.flags") + "\n")
 	for _, flag := range globalFlags {
-		b.WriteString("  " + pad(flag.usage, flagColumn) + s.r.T("flag."+flag.name+".summary") + "\n")
+		b.WriteString(s.rowLine(row{
+			indent: 2,
+			cells:  []cell{{flag.usage, flagColumn}},
+			tail:   s.r.T("flag." + flag.name + ".summary"),
+		}) + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.environment") + "\n")
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	b.WriteString("\n" + s.r.T("help.footer") + "\n")
 	return b.String()
-}
-
-// pad widens a syntax string to a column, counting runes rather than bytes so
-// that a placeholder word outside ASCII still lands where it should.
-func pad(text string, width int) string {
-	count := len([]rune(text))
-	if count >= width {
-		return text + " "
-	}
-	return text + strings.Repeat(" ", width-count)
 }
 
 // verbHelp composes the help of one command: what it takes, then its checks
@@ -143,9 +146,11 @@ func (s *session) verbHelp(name string) string {
 	}
 	b.WriteString("\n" + s.r.T("help.refusals") + "\n")
 	for i, check := range checks {
-		lead := "  " + pad(strconv.Itoa(i+1), 3)
-		cells := []paddedCell{{s.r.T(check.Key), 52}}
-		b.WriteString(alignedRow(lead, cells, check.Refusal) + "\n")
+		b.WriteString(s.rowLine(row{
+			indent: 2,
+			cells:  []cell{{strconv.Itoa(i + 1), 3}, {s.r.T(check.Key), checkColumn}},
+			tail:   check.Refusal,
+		}) + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	return b.String()

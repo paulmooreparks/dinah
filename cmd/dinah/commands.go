@@ -355,7 +355,7 @@ func runGuide(s *session, parsed *arguments) int {
 	topic := at(parsed.rest(), 0)
 	if topic == "" {
 		for _, known := range guide.Topics() {
-			s.line("  " + pad(known, 20) + guide.Title(known))
+			s.row(row{indent: 2, cells: []cell{{known, 20}}, tail: guide.Title(known)})
 		}
 		return 0
 	}
