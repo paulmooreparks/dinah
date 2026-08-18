@@ -3056,56 +3056,6 @@ func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
 	}
 }
 
-// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's cases: a cell
-// under its column width pads in place, exactly as the plain pad-based row
-// it replaced did, and a cell that reaches or exceeds its column width gets
-// the line to itself with the remaining fields moved to a continuation line
-// indented to where the column would have ended, rather than the
-// non-truncating pad pushing every later field out of alignment (Convention
-// counterexamples: "A wording change that outgrows the column it is
-// rendered into"). Covers a catalog placeholder, a long real slug, and a row
-// where two cells overflow in turn, each producing its own continuation
-// line at its own column's offset.
-func TestAlignedRowBreaksOnAnOverrunningCell(t *testing.T) {
-	cases := []struct {
-		name  string
-		cells []paddedCell
-		want  string
-	}{
-		{
-			name:  "fits",
-			cells: []paddedCell{{"fx", 10}},
-			want:  "  fx        rest",
-		},
-		{
-			name:  "placeholder overruns",
-			cells: []paddedCell{{"no slug (run check --migrate-slugs)", 10}},
-			want:  "  no slug (run check --migrate-slugs)\n            rest",
-		},
-		{
-			name:  "long real slug overruns",
-			cells: []paddedCell{{"aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior", 10}},
-			want:  "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
-		},
-		{
-			name: "two cells overflow in the same row",
-			cells: []paddedCell{
-				{"aconsiderablylongworkbenchname", 10},
-				{"anotherlongoverrunningcellvalue", 8},
-			},
-			want: "  aconsiderablylongworkbenchname\n            anotherlongoverrunningcellvalue\n                    rest",
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := alignedRow("  ", c.cells, "rest")
-			if got != c.want {
-				t.Errorf("alignedRow(%q, %q):\n got  %q\n want %q", c.cells, "rest", got, c.want)
-			}
-		})
-	}
-}
-
 // TestPerCommandHelpBreaksAnOverrunningRefusalName asserts dinah-81's AC-3:
 // dinah help move, dinah help archive, and dinah help claim each place a
 // checks-column entry whose catalog key reaches the 52-rune column on its

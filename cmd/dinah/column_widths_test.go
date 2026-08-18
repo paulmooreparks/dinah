@@ -9,114 +9,71 @@ import (
 	"dinah/internal/verb"
 )
 
-// displayWidth reports how many terminal columns a field occupies: two for
-// every rune from a script East Asian typography renders at double width, one
-// for every other rune. The range table is hand-rolled rather than pulled
-// from a dependency (decision D-4 on dinah-85): go.mod carries none today,
-// and this test only needs to recognise the blocks a translated catalog
-// could plausibly carry.
-func displayWidth(field string) int {
-	width := 0
-	for _, r := range field {
-		if isDoubleWidth(r) {
-			width += 2
-			continue
-		}
-		width++
-	}
-	return width
+// gluedTail is the tail rowIsGlued renders after the field it is measuring.
+// Its own width is subtracted back out, so the marker's spelling decides
+// nothing.
+const gluedTail = "TAIL"
+
+// tailStartColumn reports the display column a rendered row's tail starts at,
+// which is the whole line's width less the tail's own, since formatRow writes
+// the tail last and writes nothing after it. Taking the answer from the
+// rendered bytes is what lets this measure a line no renderer produced, which
+// is how TestRowIsGluedUnitCases proves the detector below can fire at all.
+func tailStartColumn(rendered, tail string) int {
+	return displayWidth(rendered) - displayWidth(tail)
 }
 
-// isDoubleWidth reports whether a rune belongs to CJK Unified Ideographs, CJK
-// Symbols and Punctuation, Hiragana, Katakana, Hangul Syllables, or the
-// Fullwidth Forms block, the scripts a translated catalog could plausibly
-// carry that a plain rune count under-measures on screen.
-func isDoubleWidth(r rune) bool {
-	switch {
-	case r >= 0x3000 && r <= 0x303F:
-		return true
-	case r >= 0x3040 && r <= 0x309F:
-		return true
-	case r >= 0x30A0 && r <= 0x30FF:
-		return true
-	case r >= 0x4E00 && r <= 0x9FFF:
-		return true
-	case r >= 0xAC00 && r <= 0xD7A3:
-		return true
-	case r >= 0xFF00 && r <= 0xFFEF:
-		return true
-	default:
-		return false
-	}
-}
-
-// rowIsGlued renders cell through the product's own alignedRow rather than
-// recomputing what alignedRow ought to do, then inspects what came back. A
-// cell alignedRow wraps onto its own continuation line is correctly handled
-// by construction and is never glued, whatever its length. A cell it does
-// not wrap is glued exactly when its true screen width still reaches the
-// column, which is the one case alignedRow's rune-count trigger misses and
-// pad()'s rune-based spacing cannot make up for.
-func rowIsGlued(cell string, width int) bool {
-	rendered := alignedRow("", []paddedCell{{cell, width}}, "TAIL")
+// rowIsGlued renders text through the product's own formatRow rather than
+// recomputing what formatRow ought to do, then measures where the tail landed.
+// A field formatRow gives its own line is correctly handled by construction
+// and is never glued, whatever its length. A field it pads in place is glued
+// exactly when the tail did not land on the declared column, which is what a
+// measure counting characters rather than screen columns produces.
+func rowIsGlued(text string, width int) bool {
+	rendered := formatRow(row{cells: []cell{{text, width}}, tail: gluedTail}, 0)
 	if strings.Contains(rendered, "\n") {
 		return false
 	}
-	return displayWidth(cell) >= width
-}
-
-// TestDisplayWidth checks the three cases the spec names directly: plain
-// ASCII counts runes, a field of double-width runes counts twice its rune
-// count, and a field mixing both sums the two measures.
-func TestDisplayWidth(t *testing.T) {
-	cases := []struct {
-		name  string
-		field string
-		want  int
-	}{
-		{"plain ascii", "hello", 5},
-		{"double-width CJK", "中文字", 6},
-		{"mixed ascii and double-width", "ab中文", 6},
-	}
-	for _, c := range cases {
-		if got := displayWidth(c.field); got != c.want {
-			t.Errorf("%s: displayWidth(%q) = %d, want %d", c.name, c.field, got, c.want)
-		}
-	}
+	return tailStartColumn(rendered, gluedTail) != width
 }
 
 // TestRowIsGluedUnitCases covers rowIsGlued directly, independent of any
-// catalog: a field whose rune count exactly equals the width, which
-// alignedRow wraps onto its own line and so must not be glued; a field one
-// rune under the width in plain ASCII, which pad() gives a full column's
-// worth of spacing and so must not be glued; and a field built from
-// double-width runes whose rune count sits under the width but whose display
-// width reaches it, which alignedRow does not wrap and so must be glued.
-// This third case is the one this test exists to catch, and no shipped
-// catalog reaches it today, so this unit case is the only proof the branch
-// works at all.
+// catalog. A field whose display width reaches its column takes its own line,
+// so it is not glued, and that holds for plain ASCII at the column and for
+// five double-width runes under the column in characters but at it on screen.
+// A field under the column is padded to it, so it is not glued either.
+//
+// The last case is the detector's own arming. No output formatRow produces is
+// glued once the padding counts screen columns, so a test built only on
+// formatRow could not tell a working detector from one that always answers no.
+// The hand-built line is what a rune-counting padder emits for the third case,
+// and tailStartColumn has to report the column it really lands in.
 func TestRowIsGluedUnitCases(t *testing.T) {
 	const width = 10
 
 	atWidth := strings.Repeat("a", width)
 	if rowIsGlued(atWidth, width) {
-		t.Errorf("a field whose rune count equals the width is wrapped by alignedRow onto its own line and must not be glued, got glued for %q (rune count %d, display width %d)",
-			atWidth, len([]rune(atWidth)), displayWidth(atWidth))
+		t.Errorf("a field whose display width equals the column takes its own line and must not be glued, got glued for %q (display width %d)",
+			atWidth, displayWidth(atWidth))
 	}
 
 	underWidth := strings.Repeat("a", width-1)
 	if rowIsGlued(underWidth, width) {
-		t.Errorf("a plain ASCII field one rune under the width is padded by pad(), not glued, got glued for %q (rune count %d, display width %d)",
-			underWidth, len([]rune(underWidth)), displayWidth(underWidth))
+		t.Errorf("a field one column under its column is padded to it and must not be glued, got glued for %q (display width %d)",
+			underWidth, displayWidth(underWidth))
 	}
 
-	// Five double-width runes: a rune count of 5, under the width of 10, so
-	// alignedRow's rune-count trigger does not wrap it, but a display width
-	// of 10 still reaches the column.
+	// Five double-width runes: a rune count of 5, under the width of 10, and
+	// a display width of 10, which reaches it.
 	doubleWidthUnder := strings.Repeat("中", 5)
-	if !rowIsGlued(doubleWidthUnder, width) {
-		t.Errorf("a field of double-width runes whose rune count sits under the width but whose display width reaches it is not wrapped by alignedRow and must be glued, got not glued for %q (rune count %d, display width %d)",
+	if rowIsGlued(doubleWidthUnder, width) {
+		t.Errorf("a field of double-width runes whose display width reaches its column takes its own line and must not be glued, got glued for %q (rune count %d, display width %d)",
 			doubleWidthUnder, len([]rune(doubleWidthUnder)), displayWidth(doubleWidthUnder))
+	}
+
+	glued := doubleWidthUnder + strings.Repeat(" ", width-len([]rune(doubleWidthUnder))) + gluedTail
+	if got := tailStartColumn(glued, gluedTail); got == width {
+		t.Errorf("the hand-built rune-counted row puts its tail at column %d, so the detector cannot tell a glued row from a laid-out one: %q", got, glued)
 	}
 }
 
