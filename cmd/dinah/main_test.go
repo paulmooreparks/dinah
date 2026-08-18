@@ -2504,18 +2504,43 @@ func ambiguousTree(t *testing.T) (string, []string) {
 
 // listedRows reads a listing's human form back into the paths it named, which
 // is the member of a row that identifies which workbench it stands for.
+//
+// The path is read from the display column its own heading starts at rather
+// than as the last whitespace-separated field of a line. A workbench whose
+// title cannot be laid out inside the window takes a line of its own and the
+// slug and path resume underneath it, so the last field of a line is the
+// title on one line and the path on the next.
+//
+// A line is read only where the path column really begins a field on it: a
+// continuation line resuming exactly there, or a line whose field before the
+// column ended in the gutter. A field that ran through the column belongs to
+// the column it started in, and its tail is not a path.
 func listedRows(t *testing.T, got invocation) []string {
 	t.Helper()
 	if got.code != 0 {
 		t.Fatalf("a listing should exit 0, got %d (%s)", got.code, got.errw)
 	}
+	lines := indentedBlock(got.out, "")
+	if len(lines) < 2 {
+		return nil
+	}
+	at := startColumnOf(lines[0], msg.For(msg.Base).T("column.workbenches.path"))
+	if at < 0 {
+		t.Fatalf("the listing carries no path heading:\n%s", got.out)
+	}
 	paths := make([]string, 0, 2)
-	for _, line := range strings.Split(strings.TrimRight(got.out, "\n"), "\n") {
-		if !strings.HasPrefix(line, "  ") {
+	for _, line := range lines[2:] {
+		if sweptLead(line) > at {
 			continue
 		}
-		fields := strings.Fields(line)
-		paths = append(paths, fields[len(fields)-1])
+		if sweptLead(line) < at && !sweptSpaceAt(line, at-1) {
+			continue
+		}
+		value := strings.TrimSpace(sweptField(line, at, -1))
+		if value == "" {
+			continue
+		}
+		paths = append(paths, value)
 	}
 	return paths
 }
@@ -2546,9 +2571,9 @@ func TestBareShowListsTheChoiceItCannotMake(t *testing.T) {
 		t.Errorf("the listing should name each reachable workbench, wanted %v, got %q", rooms, got.out)
 	}
 	for i, slug := range []string{"one", "two"} {
-		row := strings.Split(strings.TrimRight(got.out, "\n"), "\n")[i]
-		if !strings.Contains(row, slug) || !strings.Contains(row, filepath.Base(rooms[i])) {
-			t.Errorf("a row should carry the title and the slug, wanted %q in %q", slug, row)
+		if !strings.Contains(got.out, slug) || !strings.Contains(got.out, filepath.Base(rooms[i])) {
+			t.Errorf("the listing should carry the title and the slug of each workbench, wanted %q and %q in:\n%s",
+				slug, filepath.Base(rooms[i]), got.out)
 		}
 	}
 	if got.errw != "" {
@@ -3152,12 +3177,18 @@ func TestPerCommandHelpBreaksAnOverrunningRefusalName(t *testing.T) {
 	}
 }
 
-// TestAttachmentHistoryEventsAlignTheirActorColumn asserts dinah-81's AC-4:
-// a card history log carrying an attachment_replaced or attachment_removed
-// event, whose 19- and 18-rune event tokens both reach the 14-rune event
-// column, renders the actor field on its own continuation line at the
-// column's designed offset rather than glued one space past the event
-// token.
+// TestAttachmentHistoryEventsAlignTheirActorColumn asserts dinah-81's AC-4
+// against the measured layout dinah-115 ships: a card history carrying an
+// attachment_replaced or attachment_removed event, whose 19- and 18-rune
+// event tokens are the widest that column ever holds, starts the actor field
+// at the same display column on those rows as on every other row and as the
+// heading above it.
+//
+// The subject has not moved and the mechanism has. The column is now as wide
+// as the widest token in it, so the two long tokens no longer reach a
+// declared width and no longer take a continuation line; what they must not
+// do, and what this test still refuses, is push the actor along behind
+// them.
 func TestAttachmentHistoryEventsAlignTheirActorColumn(t *testing.T) {
 	container := t.TempDir()
 	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
@@ -3203,24 +3234,24 @@ func TestAttachmentHistoryEventsAlignTheirActorColumn(t *testing.T) {
 	if !replacedOK || !removedOK {
 		t.Fatalf("catalog carries no token for an attachment history event")
 	}
+	lines := indentedBlock(got.out, "")
+	if len(lines) < 3 {
+		t.Fatalf("the history drew no rows under its heading:\n%s", got.out)
+	}
+	actorColumn := startColumnOf(lines[0], msg.For(msg.Base).T("column.log.actor"))
+	if actorColumn < 0 {
+		t.Fatalf("the history carries no actor heading:\n%s", got.out)
+	}
 	for _, token := range []string{replacedEntry.Text, removedEntry.Text} {
-		lines := strings.Split(got.out, "\n")
 		found := false
-		for i, line := range lines {
+		for _, line := range lines[2:] {
 			if !strings.Contains(line, token) {
 				continue
 			}
 			found = true
-			if i+1 >= len(lines) {
-				t.Fatalf("%q: wanted a continuation line carrying the actor, got none:\n%s", token, got.out)
-			}
-			next := lines[i+1]
-			if !strings.Contains(next, "tester") {
-				t.Errorf("%q: wanted the actor on the continuation line, got %q", token, next)
-			}
-			indent := len(next) - len(strings.TrimLeft(next, " "))
-			if indent != len("  ")+22+14 {
-				t.Errorf("%q: actor continuation line indented to %d, wanted %d:\n%q", token, indent, len("  ")+22+14, next)
+			if at := startColumnOf(line, "tester"); at != actorColumn {
+				t.Errorf("%q: the actor begins at display column %d and its heading begins at %d:\n%q",
+					token, at, actorColumn, line)
 			}
 		}
 		if !found {

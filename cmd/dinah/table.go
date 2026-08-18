@@ -145,8 +145,44 @@ func (s *session) layOut(t table) laidTable {
 		rows:    filled.rows,
 	}
 	laid.widths = chooseWidths(laid)
+	clearTheGutter(&laid)
 	narrowToWindow(&laid)
+	clearTheGutter(&laid)
 	return laid
+}
+
+// clearTheGutter widens a column by the one column that decides whether the
+// field after it is touched.
+//
+// A cell is padded to its column plus the gutter, and the row renderer gives a
+// field the rest of its own line once it reaches that. A field exactly one
+// column wider than what its column was measured at is the single case that
+// falls between the two: it is too wide to leave the gutter after it and too
+// narrow to take its own line, so it would print with one space behind it
+// where every other field has two. Widening the column by one puts the field
+// back inside it and gives the gutter back.
+//
+// Only a field the window rules out of the measurement, or a column the
+// backstop has narrowed, can land there. Widening costs one column and buys
+// the row a line, which is why a near miss is worth taking back and the wide
+// outlier the drop rule exists for is not: the command list's 74-column syntax
+// is nowhere near its column and still takes its own line.
+func clearTheGutter(laid *laidTable) {
+	for c := 0; c < len(laid.widths)-1; c++ {
+		widened := true
+		for widened {
+			widened = false
+			for _, r := range laid.rows {
+				if c >= len(r.fields) || c == len(r.fields)-1 {
+					continue
+				}
+				if displayWidth(r.fields[c]) == laid.widths[c]+1 {
+					laid.widths[c]++
+					widened = true
+				}
+			}
+		}
+	}
 }
 
 // withoutEmptyColumns drops every column no row carries a value in, heading
