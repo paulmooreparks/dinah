@@ -1,13 +1,19 @@
 # dinah-141 UX sketch: reading and writing a workbench's own fields
 
-Two kinds of block appear below. A block headed **today** came out of a binary built from
-commit `a62b6fb`, run in a scratch workbench created for this card, and it is the tool as it
-stands. A block headed **proposed** is drawn by hand to this card's spec, because the
-commands it shows do not exist yet.
+Two kinds of block appear below. A block headed **Today** came out of a binary built from
+commit `a62b6fb`, which is the current head of `main`, run in a scratch workbench created
+for this card, and it is quoted verbatim. A block headed **Proposed** is drawn by hand to
+this card's spec, because the command it shows does not exist yet.
+
+Every proposed table below was laid out through the product's own layout algorithm at the
+eighty-column width an unbounded run measures against, and the algorithm was checked against
+the real binary's output for `dinah help delete`, `dinah help move`, and `dinah help unblock`
+first. So a column width, a rule length, and a wrapped row here are what the shipped command
+prints rather than what a drawing guessed at.
 
 The scratch workbench was created by running `dinah init` in a directory named
 `Dinah development`, so its title is `Dinah development` and the slug `dinah init` derived
-for it is `dinahdevelopment`.
+for it is `dinahdevelopment`. It holds two cards.
 
 ## 1. What a workbench reference reaches today
 
@@ -49,12 +55,14 @@ $ dinah workbench
 ```
 
 Proposed. A workbench written before the slug field existed carries none, and the row names
-the repair rather than standing blank.
+the repair rather than standing blank. The cell comes from the helper `dinah states` and
+`dinah workbenches` already use, so the three listings say the same thing about a missing
+slug.
 
 ```text
 $ dinah workbench
   Field     Value
-  --------  ------------------------------
+  --------  -----------------------------------
   title     Dinah development
   slug      no slug (run check --migrate-slugs)
   operator  paul
@@ -74,11 +82,15 @@ Dinah development
 ```
 
 Proposed. A field name outside the three refuses under the name `config` already uses for
-the same mistake.
+the same mistake, and it renders the sentence `config` renders. That sentence gains the word
+`field`, because one message now covers a user setting and a workbench field alike.
 
 ```text
 $ dinah workbench get profile
-dinah.unknown-key this workbench records no field called profile
+dinah.unknown-key Dinah knows no setting or field called profile
+
+$ dinah config get profile
+dinah.unknown-key Dinah knows no setting or field called profile
 ```
 
 ## 4. Writing the title
@@ -110,13 +122,18 @@ malformed title is missing, empty, or will not parse
 
 ## 5. Renaming the slug
 
-Proposed. The first attempt refuses and shows you what the rename would do to a reference you
-already know.
+Proposed. The first attempt refuses and tells you what the rename costs.
 
 ```text
 $ dinah workbench set slug dinah-dev
-dinah.unconfirmed the slug is the first half of every card reference in this workbench, so dinahdevelopment-1 becomes dinah-dev-1 and every reference written down elsewhere stops matching; run it again with --yes
+dinah.unconfirmed Dinah renames every card in this workbench when you change the slug to dinah-dev, so every card reference you have written down elsewhere stops matching. Run the command again with --yes.
 ```
+
+The sentence names the new slug and not the old one, and that is a limit of the mechanism
+rather than a choice about what is worth saying. Dinah picks this sentence by pairing the
+refusal name with the command that raised it, and the object the command hands the renderer
+carries exactly one value for the sentence to fill. An earlier draft of this sketch drew
+`dinahdevelopment-1 becomes dinah-dev-1`, which needs two.
 
 Proposed. The second attempt carries the flag and Dinah renames.
 
@@ -124,16 +141,18 @@ Proposed. The second attempt carries the flag and Dinah renames.
 $ dinah workbench set slug dinah-dev --yes
 $ dinah ls
   Card         Standing  Title
-  -----------  --------  --------
+  -----------  --------  -------------
   dinah-dev-1  ready     tmp card
+  dinah-dev-2  ready     a second card
 ```
 
-Today, and unchanged by this card. `delete` refuses under the same name and keeps its own
-sentence, because Dinah picks the sentence from the refusal name together with the command
-that raised it.
+Today. `delete` refuses under the same name and prints the sentence below, and this card
+leaves that sentence and its eight translations untouched. Dinah reaches it by falling back
+to the shared entry when the command that raised the refusal has added no sentence of its
+own.
 
 ```text
-$ dinah delete wb-1
+$ dinah delete dinahdevelopment-1
 dinah.unconfirmed delete destroys history, so it needs --yes
 ```
 
@@ -152,20 +171,23 @@ Proposed. `path` and `edit` accept the two spellings `attach` already accepts.
 
 ```text
 $ dinah path workbench
-C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f\workbench.md
+C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da\workbench.md
 
 $ dinah path .
-C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f\workbench.md
+C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da\workbench.md
 ```
 
 ## 7. Help
 
 Proposed. The new command's help block follows the shape every other command's does. The
 order of the rows is the order Dinah checks them in, and it is the order the core profile's
-five tiers put them in: the workbench-level operator check first, then whether what you named
-exists, then whether what you typed is well formed, then whether you are entitled to write,
-and last whether you confirmed. A read stops after row 2, because reading a field is open to
-anybody.
+tiers put them in: whether what you named exists, then whether what you typed is well
+formed, then whether you are entitled to write, and last whether you confirmed. A read stops
+after row 1, because reading a field is open to anybody.
+
+Dinah also checks that the workbench designates an operator, ahead of every row below, and
+that row is not listed. No command outside the five the profile specifies lists a
+workbench-level check in its help, so `delete` and `attach` leave the same row out of theirs.
 
 ```text
 $ dinah help workbench
@@ -174,15 +196,13 @@ workbench [get|set] [field] [value] [--yes]
 read this workbench's own fields, or write one
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                             Refusal
-  -----  --------------------------------------------  ------------------
-  1      on a write, the workbench designates an operator
-                                                       no-operator
-  2      the field is one this workbench records       dinah.unknown-key
-  3      the value is present and well formed          malformed
-  4      on a write, the request names an owner        no-owner
-  5      that owner is the operator                    not-operator
-  6      a slug rename carries the confirmation flag   dinah.unconfirmed
+  Order  What can go wrong                            Refusal
+  -----  -------------------------------------------  -----------------
+  1      the field is one this workbench records      dinah.unknown-key
+  2      the value is present and well formed         malformed
+  3      on a write, the request names an owner       no-owner
+  4      that owner is the operator                   not-operator
+  5      a slug rename carries the confirmation flag  dinah.unconfirmed
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
@@ -194,17 +214,21 @@ Today. `dinah init` drops the space rather than replacing it, so the two words r
 ```text
 $ mkdir "Dinah development" && cd "Dinah development"
 $ dinah init
-Workbench created at C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f.
+Workbench created at C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da.
 $ dinah workbenches
   Workbench  Dinah development
   Slug       dinahdevelopment
-  Path       C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f
+  Path       C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da
 ```
 
-Today. A slug you write by hand is refused if it carries a dash.
+Today. A slug you write by hand is refused if it carries a dash, whatever the dash is doing
+in it.
 
 ```text
 $ dinah init --slug dinah-dev
+malformed slug is missing, empty, or will not parse
+
+$ dinah init --slug sprint-2
 malformed slug is missing, empty, or will not parse
 ```
 
@@ -213,33 +237,36 @@ yourself.
 
 ```text
 $ dinah init
-Workbench created at C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f.
+Workbench created at C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da.
 $ dinah workbenches
   Workbench  Dinah development
   Slug       dinah-development
-  Path       C:\dinah-scratch\dinah-141-spec\sandbox\Dinah development\.dinah\9675dcfddb9f
+  Path       C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da
 ```
 
-Proposed. One shape of dashed slug is refused, because Dinah would read it as a card
+Proposed. One shape of dashed slug stays refused, because Dinah would read it as a card
 reference. The reference parser splits on the last dash, so a slug whose own last segment is
-nothing but digits reads as a prefix and a card number.
+nothing but digits reads as a prefix and a card number. The refusal keeps the name it has
+today and gains a clause naming the slug, spliced on the way the `malformed` refusal already
+splices the file it was raised over.
 
 ```text
 $ dinah init --slug sprint-2
-malformed a workbench slug may not end in a dash and digits, because Dinah reads sprint-2 as card 2
+malformed slug is missing, empty, or will not parse; Dinah reads sprint-2 as a card reference, so a workbench slug may not end in a dash and a number
 ```
 
-Proposed. A directory name that would derive such a slug is repaired rather than refused,
-which is what `dinah init` already does with every other character a directory name carries
-and the grammar does not.
+Today, and unchanged by this card. A directory name that would derive such a slug is
+repaired rather than refused, because `dinah init` already repairs every other character a
+directory name carries and the grammar does not.
 
 ```text
 $ mkdir "Sprint 2" && cd "Sprint 2"
 $ dinah init
+Workbench created at C:\dinah-scratch\dinah-141-spec3\sandbox\Sprint 2\.dinah\e7f838aa56d3.
 $ dinah workbenches
-  Workbench  Sprint 2
-  Slug       sprint2
-  Path       C:\dinah-scratch\dinah-141-spec2\sandbox\Sprint 2\.dinah\1f0c4b9d22a7
+  Workbench  Slug     Path
+  ---------  -------  ----------------------------------------------------------
+  Sprint 2   sprint2  C:\dinah-scratch\dinah-141-spec3\sandbox\Sprint 2\.dinah\e7f838aa56d3
 ```
 
 Today, and unchanged by this card. A dashed slug already resolves every reference correctly,
@@ -250,12 +277,28 @@ segment. This block was produced by writing a dashed slug into the anchor by han
 $ dinah ls
   Card         Standing  Title
   -----------  --------  -------------
-  dinah-dev-1  ready     A first card
-  dinah-dev-2  ready     A second card
+  dinah-dev-1  ready     tmp card
+  dinah-dev-2  ready     a second card
 
 $ dinah show dinah-dev-1
-dinah-dev-1  A first card  [Intake / ready]
+dinah-dev-1  tmp card  [Intake / ready]
 
 $ dinah path dinah-dev-1
-C:\dinah-scratch\dinah-141-spec\sandbox\dashed\.dinah\7d4380dc8eae\cards\b51dd2700612\card.md
+C:\dinah-scratch\dinah-141-spec3\sandbox\Dinah development\.dinah\83dd4ec392da\cards\ccb8c5921ea1\card.md
 ```
+
+Today. Dinah opens a workbench whose stored slug is `sprint-2` without complaint, and
+`dinah check` finds nothing to report. The reference then reaches a card instead of the
+workbench, in silence, because a read carries no stale-prefix warning.
+
+```text
+$ dinah show sprint-2
+sprint-2-2  a second card  [Intake / ready]
+$ echo $?
+0
+$ dinah check
+No structural defects found.
+```
+
+Proposed. `dinah check` reports that stored slug under a finding of its own, and the
+workbench still opens, so the checker can say what the write path now refuses.
