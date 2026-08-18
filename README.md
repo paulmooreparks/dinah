@@ -28,8 +28,6 @@ Dinah works today. Clone the repository and build it with `go build -o dinah ./c
 
 Dinah speaks English and Hindi in full. Run `dinah version --catalogs` and you will see every other listed language still sitting at zero translated strings.
 
-You cannot download a release yet, so build from source to get a binary today, though a release pipeline is in progress.
-
 ## Install
 
 Dinah ships as a single binary with no installer and nothing else to set up. On Linux or macOS, run:
