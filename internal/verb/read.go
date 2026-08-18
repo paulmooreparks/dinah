@@ -641,8 +641,10 @@ type CatalogCoverage struct {
 }
 
 // ToolRelease is this binary's own release number. It is not the profile
-// version and is never conflated with it.
-const ToolRelease = "0.1.0"
+// version and is never conflated with it. A release build overwrites it with
+// the tag it was built from, through -ldflags -X, which only reaches a
+// variable; a build from source keeps the default below.
+var ToolRelease = "0.1.0"
 
 // Version reports what this binary is and what it conforms to, optionally
 // with the coverage of every shipped catalog.
