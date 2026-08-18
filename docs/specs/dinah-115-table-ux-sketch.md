@@ -39,21 +39,23 @@ After:
 dinah-115-play  (C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece)  [search]
 acting as spec-agent, operator: yes
 
-  Identifier    Slug    Name    Kind    Cards  Moved by
-  ------------  ------  ------  ------  -----  --------
-  9e4458bda555  intake  Intake  intake  3      agent
-  2b1e63102b81  doing   Doing   work    0      agent
-  a6a4a85f7144  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Moved by
+  ------  ------  ------  -----  --------
+  intake  Intake  intake  3      agent
+  doing   Doing   work    0      agent
+  done    Done    done    0      agent
 ```
 
-The row is now 55 columns and its last glyph starts at 47. Three things changed
+The row is now 38 columns and its last glyph starts at 34. Three things changed
 and they all follow from measuring the rows instead of declaring the columns at
 the call site: the headings appear, the padding between columns closes up, and
 the trailing run of spaces goes. That trailing run is invisible on screen. It
 shows up in a diff, in a pasted transcript, and in a defect report, which is
-where it costs somebody time.
+where it costs somebody time. A fourth change is the operator's own ruling,
+covered in section 2: the column of twelve-character identifiers this report
+was taken from is gone.
 
-The third column used to be called nothing at all, and the obvious word for it
+The second column used to be called nothing at all, and the obvious word for it
 is wrong. Every row in this table is a state, so a heading reading `State` names
 the table rather than the column. What the column holds is the state's display
 name, as against the slug beside it, so the heading is `Name`.
@@ -65,24 +67,17 @@ indistinguishable from a rendering fault, and the tree already argues this way:
 `slugCell` in `render.go` prints a placeholder naming the repair rather than
 padding an empty string, and its comment says exactly that.
 
-## 2. The same listing without the column of identifiers
+## 2. Why the identifier column is gone
 
-Whether that column stays is an open question this card carries, and the spec
-recommends keeping it. Here is what dropping it would look like, so the ruling
-can be given on a picture rather than on a description.
-
-```
-  Slug    Name    Kind    Cards  Moved by
-  ------  ------  ------  -----  --------
-  intake  Intake  intake  3      agent
-  doing   Doing   work    0      agent
-  done    Done    done    0      agent
-```
-
-The block loses fourteen columns off its left edge. Every remaining column stays
-where it was relative to the others. What a reader loses is the state's internal
-identity, which `--json` still carries and which the workbench on disk still
-uses for its directory names.
+The operator ruled to drop it: he has said twice that he almost never wants to
+see a twelve-character identifier, and section 1's after picture already
+reflects that ruling. The column cost fourteen display columns off the left
+edge of the widest block the tool prints, for a heading that could only say
+`Identifier`, which was the very thing the original report was about. Nothing
+a person types is lost: `dinah ls` already gives a reader a slug to act on, and
+the identifier still appears in `--json` and in the workbench on disk, so
+nothing that reads Dinah programmatically loses it either. Showing it on
+request is `dinah-124`, filed and deliberately not part of this card.
 
 ## 3. The card listing, where a declared width was already too narrow
 
@@ -275,27 +270,31 @@ column right.
 ## 7. The same block in Hindi
 
 Headings come out of the message catalog, so a language whose words run longer
-widens the columns holding them and touches nothing else. The Hindi check
-sentences measure shorter than their English counterparts, and the refusal
-column moves left to follow:
+widens the columns holding them and touches nothing else. The Hindi heading
+words are written for this card rather than left to fall back: the operator
+ruled that Hindi does not drop from complete to partial, so the catalog carries
+all forty-five new heading keys in Hindi before this ships. The check sentences
+below measure longer than their headings either way, so the column widths come
+from the sentences and not from the words above them:
 
 ```
 $ dinah help add --lang hi
-  Order  What can go wrong               Refusal
-  -----  ------------------------------  -------------
-  1      निवेदन में शीर्षक है                 malformed
-  2      नामित स्थिति वर्कबेंच घोषित करती है  unknown-state
-  3      नामित स्थिति अपनी सीमा से नीचे है   at-capacity
+  क्रम  क्या गलत हो सकता है               अस्वीकृति
+  ---  -----------------------------  -------------
+  1    निवेदन में शीर्षक है                malformed
+  2    नामित स्थिति वर्कबेंच घोषित करती है  unknown-state
+  3    नामित स्थिति अपनी सीमा से नीचे है   at-capacity
 ```
 
-Two things about that block are worth saying. The Hindi heading words are not
-written yet, which is one of the questions the card carries, so the headings
-above fall back to English while the rows print in Hindi. And the block is
-aligned by the measure rather than by eye: every refusal name begins at display
-column 41, counted in the columns a terminal gives Devanagari rather than in
-characters. A font that draws a combining mark its own way will show something
-else, and that is the terminal disagreeing with the standard rather than the
-table drifting.
+Two things about that block are worth saying. The three heading words shown
+here are illustrative, not a translator's final wording; whoever writes the
+Hindi catalog decides what its own equivalent of `Order`, `What can go wrong`,
+and `Refusal` is, the same as any other catalog. And the block is aligned by
+the measure rather than by eye: every refusal name begins at display column 39,
+counted in the columns a terminal gives Devanagari rather than in characters. A
+font that draws a combining mark its own way will show something else, and
+that is the terminal disagreeing with the standard rather than the table
+drifting.
 
 ## 8. The separator
 
@@ -344,11 +343,11 @@ and a width taken from the values alone would put a six-column rule under an
 eight-column word. The same block on the widest table the tool prints:
 
 ```
-  Identifier    Slug    Name    Kind    Cards  Moved by
-  ------------  ------  ------  ------  -----  --------
-  9e4458bda555  intake  Intake  intake  3      agent
-  2b1e63102b81  doing   Doing   work    0      agent
-  a6a4a85f7144  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Moved by
+  ------  ------  ------  -----  --------
+  intake  Intake  intake  3      agent
+  doing   Doing   work    0      agent
+  done    Done    done    0      agent
 ```
 
 A rule stops at the right edge of the display. The column of summaries in the
@@ -381,9 +380,9 @@ widths are chosen against a window of 80 when nothing states one.
 ```
 $ dinah states > states.txt
 $ cat states.txt
-  Identifier    Slug    Name    Kind    Cards  Moved by
-  ------------  ------  ------  ------  -----  --------
-  9e4458bda555  intake  Intake  intake  3      agent
+  Slug    Name    Kind    Cards  Moved by
+  ------  ------  ------  -----  --------
+  intake  Intake  intake  3      agent
 ```
 
 The alternative is to drop them when nobody appears to be watching. Then the
@@ -397,12 +396,13 @@ grew a heading.
 Every column names its value by what a reader does with it, in the reader's
 words, never by the field's name in the code. Where the value is something a
 person types on the command line, the heading is the word the command line uses
-for it. Where the value is an internal identifier nobody types, the heading says
-`Identifier` and claims nothing more.
+for it. An internal identifier nobody types earns no column at all: that is why
+the state listing's own identifier column is gone, and section 2 covers the
+ruling.
 
 | Table | Headings |
 |---|---|
-| `states`, and the same block inside `status` | Identifier, Slug, Name, Kind, Cards, Moved by |
+| `states`, and the same block inside `status` | Slug, Name, Kind, Cards, Moved by |
 | the cards you hold, inside `status` | Card, Title |
 | the blocked cards, inside `status` | Card, Reason |
 | `ls` | Card, Standing, Title |
@@ -420,7 +420,7 @@ for it. Where the value is an internal identifier nobody types, the heading says
 | `help <command>` | Order, What can go wrong, Refusal |
 | the slugs `check --migrate-slugs` assigned | Slug, Title |
 
-Forty-six headings in all. Two blocks print a single column and take no heading
+Forty-five headings in all. Two blocks print a single column and take no heading
 and no separator: the findings of `check`, and the stranded states
 `check --migrate-states` removed. One column under a sentence that already names
 it is a list.
