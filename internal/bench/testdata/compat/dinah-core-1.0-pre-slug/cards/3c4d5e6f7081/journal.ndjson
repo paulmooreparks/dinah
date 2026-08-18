@@ -1,0 +1,3 @@
+{"ts":"2026-01-02T03:04:05Z","event":"created","actor":"sam","title":"a card written before slugs","to":"1a2b3c4d5e6f","to_title":"Intake"}
+{"ts":"2026-01-02T03:05:06Z","event":"commented","actor":"sam","comment":"4d5e6f708192"}
+{"ts":"2026-01-02T03:06:07Z","event":"attached","actor":"sam","attachment":"5e6f708192a3","filename":"payload-one.txt"}

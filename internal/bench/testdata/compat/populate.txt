@@ -1,0 +1,35 @@
+init --from definition.json --slug sample --operator sam
+add "first card"
+add "second card"
+add "third card"
+add "fourth card"
+add "fifth card"
+add "sixth card"
+add "seventh card"
+comment sample-1 "a first comment"
+comment sample-1 "a second comment"
+archive sample-1/comments/1
+attach sample-1 payload-one.txt
+attach sample-1 payload-two.txt
+attach sample-1/attachments/1 payload-two.txt --replace
+delete sample-1/attachments/2 --yes
+attach sample-1 payload-three.txt --description "the third payload"
+archive sample-1/attachments/2
+attach sample-1 payload-two.txt --description "the surviving payload"
+claim sample-2
+release sample-2
+claim sample-3 --expires 8h
+block sample-4 "a vendor has not answered" --kind external
+unblock sample-4
+block sample-5 "a second obstacle" --kind external
+move sample-6 doing
+archive sample-6
+claim sample-7 --expires 200ms
+wait 400ms
+show sample-7
+move sample-2 doing
+move sample-3 doing
+move sample-7 doing --override
+add "eighth card"
+delete sample-8 --yes
+archive done

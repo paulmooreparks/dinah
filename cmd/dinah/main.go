@@ -200,6 +200,12 @@ func (s *session) sentence(name, detail string) string {
 // request missing what the definition demands, so the difference rides on
 // whether a path is present.
 //
+// An unsupported-version refusal raised over a declared profile revision
+// carries floor and ceiling, and the clause naming the window this build reads
+// is spliced on the same way. The same refusal name also refuses a storage
+// format newer than this build knows, and that one carries no window and
+// renders without the clause.
+//
 // A usage refusal raised because a word looked like an unknown or
 // value-starved flag carries dashHint, and the fragment naming the "--"
 // end-of-options marker is spliced on the same way. Only parseArgs's two
@@ -224,6 +230,9 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 	text := r.T(key, pairs...)
 	if name == contract.Malformed && extra["path"] != "" {
 		return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
+	}
+	if name == contract.UnsupportedVer && extra["floor"] != "" {
+		return text + r.T("refusal.unsupported-version.window", "floor", extra["floor"], "ceiling", extra["ceiling"])
 	}
 	if name == contract.Usage && extra["dashHint"] != "" {
 		return text + r.T("refusal.dinah.usage.dash-hint")
