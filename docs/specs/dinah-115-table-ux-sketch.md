@@ -106,7 +106,7 @@ After:
 
 ```
   Card            Standing  Title
-  --------------  --------  -----
+  --------------  --------  -------------------------------------------------
   dinah115play-1  active    Wire the export path through the interchange form
   dinah115play-2  blocked   研究テーブルの見出し
   dinah115play-3  ready     हिन्दी शीर्षक की जाँच
@@ -132,7 +132,7 @@ After, at `COLUMNS=80`:
 
 ```
   Setting    Value       Source
-  ---------  ----------  ------
+  ---------  ----------  -----------
   lang       en          default
   actor      spec-agent  environment
   editor     notepad     fallback
@@ -151,7 +151,7 @@ window to 40 and the backstop starts work:
 
 ```
   Setting  Value    Source
-  -------  -------  ------
+  -------  -------  -----------
   lang     en       default
   actor    spec-agent
                     environment
@@ -178,7 +178,7 @@ heading:
 
 ```
   Command                                What it does
-  -------------------------------------  ------------
+  -------------------------------------  ---------------------------------------
   add <title> [--state <state>]          file a new card in the first state
   claim <card> [--expires <duration>]    take up a ready card
   move <card> <state> [--override]       carry a card to another state
@@ -209,7 +209,7 @@ declared width was 20:
 
 ```
   Option             What it does
-  -----------------  ------------
+  -----------------  ----------------------------------------------------------
   --workbench <dir>  use this workbench instead of the one discovered from here
   --json             emit the canonical machine form
   --quiet            suppress served instructions on claim and move
@@ -222,21 +222,21 @@ declared width was 20:
 ```
 $ dinah next
   State   Card            Title
-  ------  --------------  -----
+  ------  --------------  ------------------
   Intake  dinah115play-3  हिन्दी शीर्षक की जाँच
   Doing   nothing ready
   Done    nothing ready
 
 $ dinah log dinah115play-1
   When                  Action     Actor       Detail
-  --------------------  ---------  ----------  ------
+  --------------------  ---------  ----------  ---------------------------------
   2026-08-18T09:07:27Z  created    spec-agent  Wire the export path through the interchange form
   2026-08-18T09:08:51Z  claimed    spec-agent
   2026-08-18T09:08:51Z  commented  spec-agent
 
 $ dinah guide
   Topic             Title
-  ----------------  -----
+  ----------------  -----------------------------------
   getting-started   Getting started
   verbs             The five verbs
   workbench-layout  What a workbench looks like on disk
@@ -261,7 +261,7 @@ $ dinah version --catalogs
 
 $ dinah help add
   Order  What can go wrong                              Refusal
-  -----  ---------------------------------------------  -------
+  -----  ---------------------------------------------  -------------
   1      the request carries a title                    malformed
   2      the named state is one the workbench declares  unknown-state
   3      the named state is below its capacity limit    at-capacity
@@ -282,7 +282,7 @@ column moves left to follow:
 ```
 $ dinah help add --lang hi
   Order  What can go wrong               Refusal
-  -----  ------------------------------  -------
+  -----  ------------------------------  -------------
   1      निवेदन में शीर्षक है                 malformed
   2      नामित स्थिति वर्कबेंच घोषित करती है  unknown-state
   3      नामित स्थिति अपनी सीमा से नीचे है   at-capacity
@@ -297,16 +297,18 @@ characters. A font that draws a combining mark its own way will show something
 else, and that is the terminal disagreeing with the standard rather than the
 table drifting.
 
-## 8. The separator, and the two forms to choose between
+## 8. The separator
 
 A separator under the headings is required and it carries the job in every
 language. Capitalisation is what English adds on top of it. Most of the
 languages this project ships have no case at all, so the rule cannot be about
 capitals, and each catalog decides for itself how its headings read as headings.
 
-The separator's width is measured, never typed. A rule is exactly as wide as the
-column it sits under, counted in screen columns. This is the shape it must never
-take:
+The separator is one rule for each column and the gaps between the rules stay,
+so the rules never join into a single line running across the heading row. A
+reader sees the columns as separate things because of those gaps. Each rule is
+exactly as wide as the column above it, counted in screen columns and never
+typed. This is the shape a separator must never take:
 
 ```
   Identifier    Slug    State   Kind    Cards
@@ -319,43 +321,57 @@ columns, so the third rule starts one column left of the third heading and
 nothing below them lines up. That is this card's own defect, reappearing inside
 the fix for it.
 
-Two forms are on the table. Form A puts a rule under each column:
+Here is the card listing drawn the way the operator ruled:
 
 ```
   Card            Standing  Title
-  --------------  --------  -----
+  --------------  --------  -------------------------------------------------
   dinah115play-1  active    Wire the export path through the interchange form
   dinah115play-2  blocked   研究テーブルの見出し
+  dinah115play-3  ready     हिन्दी शीर्षक की जाँच
 ```
 
-Form B puts one rule under the whole heading row:
+The rule under `Title` draws forty-nine because the widest thing in that column
+draws forty-nine. A last column used to have no width at all, since it takes the
+rest of the line rather than being padded to anything, and it now carries one:
+the longest of its heading and its values, measured the way every other column
+is measured. That width reaches the rule and nothing else. The fields under it
+are still printed unpadded, so no row picks up a trailing run of spaces.
 
-```
-  Card            Standing  Title
-  -------------------------------
-  dinah115play-1  active    Wire the export path through the interchange form
-  dinah115play-2  blocked   研究テーブルの見出し
-```
-
-One detail decides between them, and it is the last column. The last column of a
-row is never padded, because it takes the rest of the line, so it has no chosen
-width for a rule to trace. Form A therefore draws the last rule as wide as its
-own heading, so `Title` gets five dashes above a field drawing 49. Form B never
-asks the question. Its single rule ends where the heading row ends, and the last
-column is not a special case in it.
-
-Here is the same pair on the widest block the tool prints, where form A's
-raggedness is easier to judge:
+The heading counts as content of its column, which matters where a heading is
+the widest thing in the column. `Standing` draws eight over values drawing six,
+and a width taken from the values alone would put a six-column rule under an
+eight-column word. The same block on the widest table the tool prints:
 
 ```
   Identifier    Slug    Name    Kind    Cards  Moved by
   ------------  ------  ------  ------  -----  --------
   9e4458bda555  intake  Intake  intake  3      agent
-
-  Identifier    Slug    Name    Kind    Cards  Moved by
-  -----------------------------------------------------
-  9e4458bda555  intake  Intake  intake  3      agent
+  2b1e63102b81  doing   Doing   work    0      agent
+  a6a4a85f7144  done    Done    done    0      agent
 ```
+
+A rule stops at the right edge of the display. The column of summaries in the
+command list measures seventy-three, its column starts at display column 41, and
+an eighty-column window leaves thirty-nine, so the rule draws thirty-nine while
+the summaries themselves run on as they always have:
+
+```
+  Command                                What it does
+  -------------------------------------  ---------------------------------------
+  add <title> [--state <state>]          file a new card in the first state
+  claim <card> [--expires <duration>]    take up a ready card
+  archive <ref>                          move a card, a state, or anything below a card, out of the live set
+  delete <ref> --yes                     destroy a card, a state, or anything below a card, along with its history
+```
+
+The clamp shortens a rule and changes no other line. A heading is where it was,
+a value the window cannot hold takes the rest of its own line in the shape the
+row renderer already ships, and a single unbroken value with nowhere to wrap
+runs past the edge with its rule stopping short of it. The `dinah log` block in
+section 6 is the other place the clamp binds today, where a detail column
+measuring forty-nine starts at display column 47 and draws a rule of
+thirty-three.
 
 ## 9. Piped output
 
