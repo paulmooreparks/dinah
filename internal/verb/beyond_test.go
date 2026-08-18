@@ -595,7 +595,8 @@ func TestActorLadderAndConfig(t *testing.T) {
 
 // TestVersionCarriesTheConformanceClaim asserts CORE-VER-1 and CORE-VER-2:
 // the claim carries a major and a minor number and no maturity channel, and
-// the coverage report names every shipped catalog.
+// the coverage report names every shipped catalog. It also asserts that the
+// release number a release build stamps into the binary reaches the report.
 func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	release := Version(true)
 	if release.Profile != "dinah-core/1.0" {
@@ -628,6 +629,18 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	}
 	if len(wanted) > 0 {
 		t.Errorf("catalogs missing from the report: %v", wanted)
+	}
+	// A release build overwrites the release number with the tag it was built
+	// from, through -ldflags -X, which reaches a variable and not a constant.
+	// The assignment below is the assertion: it does not compile if anyone
+	// turns ToolRelease back into a constant, and the comparison catches a
+	// report that stops reading it.
+	original := ToolRelease
+	t.Cleanup(func() { ToolRelease = original })
+	ToolRelease = "v0.1.0-dev.42"
+	stamped := Version(false)
+	if stamped.Tool != "v0.1.0-dev.42" {
+		t.Errorf("a stamped release number should reach the report, got %s", stamped.Tool)
 	}
 }
 

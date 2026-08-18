@@ -26,6 +26,42 @@ Dinah coordinates work. It knows which card is where, who holds it, what the ins
 
 This repository currently contains a skeleton: a Go module, a placeholder binary that prints an identification line, and the build tooling and agent guardrails the project runs under. The on-disk format and the surface architecture are designed (see `docs/design/`); no contract verbs are implemented yet.
 
+## Install
+
+Dinah ships as a single binary with no installer and nothing else to set up. On Linux or macOS, run:
+
+```
+curl -fsSL https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.sh | sh
+```
+
+On Windows, run this in PowerShell:
+
+```
+irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
+```
+
+Either script works out which binary your machine needs, checks its SHA-256 against the published checksum before it installs anything, and puts `dinah` somewhere you can write without administrator privilege. On Linux and macOS that is `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
+
+If you would rather not pipe a script into a shell, download the binary for your platform and `SHA256SUMS.txt` from the [releases page](https://github.com/paulmooreparks/dinah/releases), then verify the download before you run it. On Linux:
+
+```
+sha256sum -c SHA256SUMS.txt --ignore-missing
+```
+
+On macOS:
+
+```
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+```
+
+Windows ships no equivalent of `-c`, so print the hash and compare it by eye against the line for your binary in `SHA256SUMS.txt`:
+
+```
+Get-FileHash dinah-windows-amd64.exe -Algorithm SHA256
+```
+
+These are dev builds, cut from every commit to `main`. They are unstable, and no release of Dinah promises compatibility with them.
+
 ## Building
 
 This is a Go module. From the repository root:
