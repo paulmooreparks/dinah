@@ -135,13 +135,29 @@ chmod +x "$tmpfile"
 mv "$tmpfile" "$install_dir/dinah"
 echo "Installed $binary as $install_dir/dinah"
 
-# Step 9: say how to reach it, without editing a startup file this script did
-# not write.
+# Step 9: say whether dinah can be run right now, without editing a startup
+# file this script did not write. The answer depends on this shell's PATH at
+# this moment, not on the platform alone: ~/.local/bin is the documented
+# location for a user's own executables on Linux, but a first install is not
+# enough to reach it there either. Debian and Ubuntu add ~/.local/bin to PATH
+# from the login profile only once the directory already exists, so the
+# session that just created it is not the session that picks it up. macOS
+# never adds it; its default PATH comes from /etc/paths and carries nothing
+# under the home directory.
 case ":${PATH}:" in
-*":${install_dir}:"*) ;;
+*":${install_dir}:"*)
+	echo "You can run dinah now."
+	echo "    dinah version"
+	;;
 *)
 	echo ""
-	echo "$install_dir is not on your PATH. Add this line to your shell's startup file (~/.bashrc, ~/.zshrc, or the equivalent):"
+	echo "You installed dinah to $install_dir, but this shell does not have that directory on PATH yet."
+	if [ "$goos" = "linux" ]; then
+		echo "Debian and Ubuntu add ~/.local/bin to PATH automatically the next time a login shell starts, but only once the directory exists, and it did not exist before this install created it. Log out and back in to pick it up, or run this now to use dinah in this shell:"
+	else
+		echo "macOS does not add ~/.local/bin to PATH by default. Run this now to use dinah in this shell:"
+	fi
 	echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+	echo "Add that line to your shell's startup file (~/.profile, ~/.bashrc, ~/.zshrc, or wherever you keep it) to make it permanent."
 	;;
 esac

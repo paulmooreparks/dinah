@@ -143,23 +143,42 @@ if ($env:DINAH_NO_PATH) {
     exit 0
 }
 
+# An entry that differs only by a trailing backslash is the same directory, and
+# Windows compares paths without regard to case, which -eq also does. This
+# session's PATH and the persisted registry PATH are two different questions:
+# writing the registry does not change what this already-running process can
+# see, so a person who just ran this script in one window and typed dinah in
+# the same window needs to be told that, rather than reading advice that only
+# makes sense for the next shell they open.
+$wanted = $installDir.TrimEnd('\')
+$sessionHasIt = @($env:Path -split ';' | ForEach-Object { $_.Trim().TrimEnd('\') } |
+    Where-Object { $_ -eq $wanted }).Count -gt 0
+
 $environmentKey = 'HKCU:\Environment'
 try {
     $rawPath = (Get-Item -Path $environmentKey).GetValue(
         'PATH', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
 }
 catch {
-    Write-Host "Could not read your PATH, so it is unchanged. Run Dinah as $(Join-Path $installDir 'dinah.exe'), or put $installDir on your PATH yourself."
+    if ($sessionHasIt) {
+        Write-Host "$installDir is on this session's PATH. Run: dinah version"
+    }
+    else {
+        Write-Host "Could not read your PATH, so it is unchanged. Run Dinah as $(Join-Path $installDir 'dinah.exe'), or put $installDir on your PATH yourself."
+    }
     exit 0
 }
 
-# An entry that differs only by a trailing backslash is the same directory, and
-# Windows compares paths without regard to case, which -eq also does.
-$wanted = $installDir.TrimEnd('\')
 $alreadyThere = @($rawPath -split ';' | ForEach-Object { $_.Trim().TrimEnd('\') } |
     Where-Object { $_ -eq $wanted }).Count -gt 0
 if ($alreadyThere) {
-    Write-Host "$installDir is already on your PATH."
+    if ($sessionHasIt) {
+        Write-Host "$installDir is on your PATH. Run: dinah version"
+    }
+    else {
+        Write-Host "$installDir is already configured on your PATH, but this session started before that took effect. Open a new PowerShell window to pick it up, or run this to use dinah now:"
+        Write-Host "    `$env:Path = `"$installDir;`$env:Path`""
+    }
     exit 0
 }
 
@@ -191,9 +210,14 @@ catch {
     $broadcast = $false
 }
 
-if ($broadcast) {
-    Write-Host "Added $installDir to your PATH. Open a new shell to pick it up."
+if ($sessionHasIt) {
+    Write-Host "Added $installDir to your PATH for future sessions. It is already on this session's PATH, so you can run dinah now."
+}
+elseif ($broadcast) {
+    Write-Host "Added $installDir to your PATH. Open a new shell to pick it up, or run this to use dinah now:"
+    Write-Host "    `$env:Path = `"$installDir;`$env:Path`""
 }
 else {
-    Write-Host "Added $installDir to your PATH. Open a new shell to pick it up, and if Dinah is still not found there, sign out and back in."
+    Write-Host "Added $installDir to your PATH. Open a new shell to pick it up, and if Dinah is still not found there, sign out and back in. To use dinah now in this session, run:"
+    Write-Host "    `$env:Path = `"$installDir;`$env:Path`""
 }

@@ -1048,6 +1048,167 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 	}
 }
 
+// TestInstallScriptSaysWhetherDinahIsReadyToRun runs scripts/install.sh to a
+// successful finish under four combinations of platform and PATH state, and
+// asserts the final message matches what is actually true of that run: ready
+// to run when the install directory is already on PATH, and the accurate,
+// platform-specific explanation when it is not. Debian and Ubuntu add
+// ~/.local/bin to PATH from the login profile only once the directory
+// exists, so a first install is not picked up by the session that just
+// created it; macOS never adds it. A script that prints the same advice
+// regardless leaves a colleague on either path concluding the install
+// failed.
+func TestInstallScriptSaysWhetherDinahIsReadyToRun(t *testing.T) {
+	for _, tool := range []string{"sh", "curl"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("this machine has no %s, which scripts/install.sh needs", tool)
+		}
+	}
+	if _, shaErr := exec.LookPath("sha256sum"); shaErr != nil {
+		if _, sumErr := exec.LookPath("shasum"); sumErr != nil {
+			t.Skip("this machine has neither sha256sum nor shasum, which scripts/install.sh needs")
+		}
+	}
+
+	root := filepath.Join("..", "..")
+	source, err := os.ReadFile(filepath.Join(root, "scripts", "install.sh"))
+	if err != nil {
+		t.Fatalf("reading scripts/install.sh: %v", err)
+	}
+
+	cases := []struct {
+		name        string
+		unameS      string // what the uname -s shim reports
+		unameM      string // what the uname -m shim reports
+		binary      string
+		onPath      bool
+		wantSubstrs []string
+		mustNotHave []string
+	}{
+		{
+			name:        "linux, already on PATH",
+			unameS:      "Linux",
+			unameM:      "x86_64",
+			binary:      "dinah-linux-amd64",
+			onPath:      true,
+			wantSubstrs: []string{"You can run dinah now."},
+			mustNotHave: []string{"Debian and Ubuntu", "macOS does not add"},
+		},
+		{
+			name:   "linux, first install, not yet on PATH",
+			unameS: "Linux",
+			unameM: "x86_64",
+			binary: "dinah-linux-amd64",
+			onPath: false,
+			wantSubstrs: []string{
+				"Debian and Ubuntu add ~/.local/bin to PATH automatically",
+				`export PATH="$HOME/.local/bin:$PATH"`,
+			},
+			mustNotHave: []string{"You can run dinah now.", "macOS does not add"},
+		},
+		{
+			name:        "darwin, already on PATH",
+			unameS:      "Darwin",
+			unameM:      "x86_64",
+			binary:      "dinah-darwin-amd64",
+			onPath:      true,
+			wantSubstrs: []string{"You can run dinah now."},
+			mustNotHave: []string{"Debian and Ubuntu", "macOS does not add"},
+		},
+		{
+			name:   "darwin, not on PATH",
+			unameS: "Darwin",
+			unameM: "x86_64",
+			binary: "dinah-darwin-amd64",
+			onPath: false,
+			wantSubstrs: []string{
+				"macOS does not add ~/.local/bin to PATH by default.",
+				`export PATH="$HOME/.local/bin:$PATH"`,
+			},
+			mustNotHave: []string{"You can run dinah now.", "Debian and Ubuntu"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var release publishedRelease
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
+					w.Write(release.manifest)
+				case strings.HasSuffix(r.URL.Path, "/SHA256SUMS.txt"):
+					w.Write(release.sums)
+				default:
+					name := path.Base(r.URL.Path)
+					content, ok := release.binaries[name]
+					if !ok {
+						http.NotFound(w, r)
+						return
+					}
+					w.Write(content)
+				}
+			}))
+			defer server.Close()
+
+			built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.0-dev.7/")
+			if err != nil {
+				t.Fatalf("assembling the stand-in release: %v", err)
+			}
+			release = built
+
+			script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+			home := t.TempDir()
+			scriptDir := t.TempDir()
+			scriptPath := filepath.Join(scriptDir, "install.sh")
+			if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+				t.Fatalf("writing the script under test: %v", err)
+			}
+
+			shimDir := t.TempDir()
+			shim := fmt.Sprintf("#!/bin/sh\ncase \"$1\" in\n-s) echo %s ;;\n-m) echo %s ;;\n*) echo %s ;;\nesac\n", tc.unameS, tc.unameM, tc.unameS)
+			if err := os.WriteFile(filepath.Join(shimDir, "uname"), []byte(shim), 0o755); err != nil {
+				t.Fatalf("writing the uname shim: %v", err)
+			}
+
+			testPath := shimDir + string(os.PathListSeparator) + os.Getenv("PATH")
+			if tc.onPath {
+				installDir := filepath.Join(home, ".local", "bin")
+				testPath = testPath + string(os.PathListSeparator) + installDir
+			}
+
+			cmd := exec.Command("sh", scriptPath)
+			cmd.Env = append(os.Environ(),
+				"HOME="+home,
+				"PATH="+testPath,
+			)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("scripts/install.sh failed: %v\n%s", err, output)
+			}
+
+			got := string(output)
+			for _, want := range tc.wantSubstrs {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected output to contain %q, got:\n%s", want, got)
+				}
+			}
+			for _, unwanted := range tc.mustNotHave {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("expected output NOT to contain %q, got:\n%s", unwanted, got)
+				}
+			}
+
+			installed, err := os.ReadFile(filepath.Join(home, ".local", "bin", "dinah"))
+			if err != nil {
+				t.Fatalf("no binary was installed: %v\n%s", err, got)
+			}
+			if !bytes.Equal(installed, release.binaries[tc.binary]) {
+				t.Errorf("installed binary is not the published %s", tc.binary)
+			}
+		})
+	}
+}
+
 // hijackTruncated takes over an already-accepted HTTP request and writes a
 // response whose declared Content-Length is the length of full, but whose
 // body stops after sendLen bytes, then closes the connection cleanly (a FIN,
@@ -1249,4 +1410,206 @@ func TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption(t *testi
 			t.Errorf("corrupted download: reported as incomplete instead of a checksum mismatch:\n%s", corruptedOut)
 		}
 	})
+}
+
+// psQuote wraps a string in double quotes for interpolation into a
+// PowerShell command line. Go's %q escapes backslashes for Go source syntax,
+// which corrupts a Windows registry path (HKCU:\Software\...) built with it;
+// none of the strings this test passes through contain a double quote, so
+// plain wrapping is enough.
+func psQuote(s string) string {
+	return `"` + s + `"`
+}
+
+// runPS runs a short PowerShell command and fails the test if it errors.
+func runPS(t *testing.T, psExe, command string) error {
+	t.Helper()
+	cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v\n%s", err, output)
+	}
+	return nil
+}
+
+// readRegistryPath reads the PATH value under a registry key, unexpanded, the
+// same way scripts/install.ps1 reads it. An absent value reads back as "".
+func readRegistryPath(t *testing.T, psExe, key string) (string, error) {
+	t.Helper()
+	cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+		fmt.Sprintf("(Get-Item -Path %s -ErrorAction SilentlyContinue).GetValue('PATH','',[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)", psQuote(key)))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("%v\n%s", err, output)
+	}
+	return strings.TrimRight(string(output), "\r\n"), nil
+}
+
+// TestInstallPS1SaysWhetherDinahIsReadyToRun exercises scripts/install.ps1's
+// PATH message across the four states persisted PATH and this session's PATH
+// can combine into: registry and session can each independently already have
+// the install directory or not. Writing the registry does not change what an
+// already-running PowerShell process can see, so "already on your PATH" is
+// only true of a session that started after that write landed; a session
+// that started before it needs a different, still accurate, message.
+//
+// The registry key the script reads and writes is redirected to a throwaway
+// key created and torn down by this test, never HKCU:\Environment on the
+// machine running it, per the standing rule against touching real PATH. The
+// real key's value is read before the test and confirmed unchanged after.
+func TestInstallPS1SaysWhetherDinahIsReadyToRun(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("scripts/install.ps1 targets Windows PowerShell")
+	}
+	psExe, err := exec.LookPath("powershell.exe")
+	if err != nil {
+		t.Skip("this machine has no powershell.exe, which scripts/install.ps1 needs")
+	}
+
+	root := filepath.Join("..", "..")
+	source, err := os.ReadFile(filepath.Join(root, "scripts", "install.ps1"))
+	if err != nil {
+		t.Fatalf("reading scripts/install.ps1: %v", err)
+	}
+
+	const realKey = `HKCU:\Environment`
+	realBefore, err := readRegistryPath(t, psExe, realKey)
+	if err != nil {
+		t.Fatalf("reading the real %s before the test: %v", realKey, err)
+	}
+	t.Cleanup(func() {
+		realAfter, err := readRegistryPath(t, psExe, realKey)
+		if err != nil {
+			t.Fatalf("reading the real %s after the test: %v", realKey, err)
+		}
+		if realAfter != realBefore {
+			t.Fatalf("this test modified the real Windows user PATH: before %q, after %q", realBefore, realAfter)
+		}
+	})
+
+	throwawayKey := fmt.Sprintf(`HKCU:\Software\DinahInstallTest%d`, os.Getpid())
+	t.Cleanup(func() {
+		runPS(t, psExe, fmt.Sprintf("Remove-Item -Path %s -Recurse -Force -ErrorAction SilentlyContinue", psQuote(`HKCU:\Software\DinahInstallTest`+fmt.Sprint(os.Getpid()))))
+	})
+
+	script := strings.ReplaceAll(string(source), `HKCU:\Environment`, throwawayKey)
+	if !strings.Contains(script, throwawayKey) {
+		t.Fatal("the throwaway registry key did not reach the script under test")
+	}
+
+	full := []byte("stand-in dinah.exe payload\n")
+	sum := fmt.Sprintf("%x", sha256.Sum256(full))
+	const binary = "dinah-windows-amd64.exe"
+
+	cases := []struct {
+		name          string
+		registryHasIt bool
+		sessionHasIt  bool
+		wantSubstrs   []string
+		mustNotHave   []string
+	}{
+		{
+			name:          "already configured, this session sees it",
+			registryHasIt: true,
+			sessionHasIt:  true,
+			wantSubstrs:   []string{"Run: dinah version"},
+			mustNotHave:   []string{"Open a new"},
+		},
+		{
+			name:          "already configured, this session predates it",
+			registryHasIt: true,
+			sessionHasIt:  false,
+			wantSubstrs:   []string{"this session started before that took effect", `$env:Path = "`},
+			mustNotHave:   []string{"Run: dinah version"},
+		},
+		{
+			name:          "freshly added, session already sees the directory",
+			registryHasIt: false,
+			sessionHasIt:  true,
+			wantSubstrs:   []string{"already on this session's PATH, so you can run dinah now"},
+			mustNotHave:   []string{"Open a new shell"},
+		},
+		{
+			name:          "freshly added, ordinary first install",
+			registryHasIt: false,
+			sessionHasIt:  false,
+			wantSubstrs:   []string{"Open a new shell to pick it up, or run this to use dinah now", `$env:Path = "`},
+			mustNotHave:   []string{"Run: dinah version"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var real *httptest.Server
+			real = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
+					fmt.Fprintf(w, `{
+  "channel": "dev",
+  "version": "v0.1.0-dev.7",
+  "tag": "v0.1.0-dev.7",
+  "publishedAt": "2026-01-01T00:00:00Z",
+  "downloadBase": %q,
+  "binaries": {
+    %q: { "sha256": %q, "size": %d }
+  }
+}
+`, real.URL+"/releases/download/v0.1.0-dev.7/", binary, sum, len(full))
+				case strings.HasSuffix(r.URL.Path, "/"+binary):
+					w.Write(full)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer real.Close()
+
+			runScript := strings.ReplaceAll(script, "https://github.com/paulmooreparks/dinah", real.URL)
+
+			localAppData := t.TempDir()
+			installDir := filepath.Join(localAppData, "dinah", "bin")
+
+			if err := runPS(t, psExe, fmt.Sprintf("Remove-Item -Path %s -Force -ErrorAction SilentlyContinue; New-Item -Path %s -Force | Out-Null", psQuote(throwawayKey), psQuote(throwawayKey))); err != nil {
+				t.Fatalf("resetting the throwaway registry key: %v", err)
+			}
+			if tc.registryHasIt {
+				if err := runPS(t, psExe, fmt.Sprintf("Set-ItemProperty -Path %s -Name PATH -Value %s -Type ExpandString", psQuote(throwawayKey), psQuote(installDir))); err != nil {
+					t.Fatalf("seeding the throwaway registry PATH: %v", err)
+				}
+			}
+
+			scriptDir := t.TempDir()
+			scriptPath := filepath.Join(scriptDir, "install.ps1")
+			if err := os.WriteFile(scriptPath, []byte(runScript), 0o644); err != nil {
+				t.Fatalf("writing the script under test: %v", err)
+			}
+
+			envPath := os.Getenv("PATH")
+			if tc.sessionHasIt {
+				envPath = installDir + string(os.PathListSeparator) + envPath
+			}
+
+			cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+			cmd.Env = append(os.Environ(),
+				"LOCALAPPDATA="+localAppData,
+				"PROCESSOR_ARCHITECTURE=AMD64",
+				"PATH="+envPath,
+			)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("scripts/install.ps1 failed: %v\n%s", err, output)
+			}
+
+			got := string(output)
+			for _, want := range tc.wantSubstrs {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected output to contain %q, got:\n%s", want, got)
+				}
+			}
+			for _, unwanted := range tc.mustNotHave {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("expected output NOT to contain %q, got:\n%s", unwanted, got)
+				}
+			}
+		})
+	}
 }
