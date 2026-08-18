@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -63,10 +64,28 @@ type sweptBlock struct {
 	shape func(t *testing.T, tag string, rows [][]string)
 }
 
-// sweptWindow is the window every block below is measured against. The suite
-// clears COLUMNS before any test runs, so no documented source states a width
-// and the table reads that as eighty columns.
-const sweptWindow = 80
+// sweptWindows are the three windows every block below is drawn at: the one
+// nobody stated, the eighty columns the table reads that as, and a window
+// narrow enough to put the backstop and the clamp to work. A rule counted
+// against the wrong edge is what the last of the three catches.
+var sweptWindows = []struct {
+	// columns is what COLUMNS is set to, empty for the window nobody stated.
+	columns string
+	// window is the width the table measures against, which is eighty when
+	// no documented source states one.
+	window int
+	// full says every assertion runs on this pass. It is false on the narrow
+	// pass, where the row renderer's own clamp moves a continuation line left
+	// of the column it continues, by design and since dinah-101, so the rows
+	// cannot be folded back against the headings there. What the narrow pass
+	// asserts instead is the clamp this card adds: no rule past the right
+	// edge, every rule under its own heading, and no line ending in a space.
+	full bool
+}{
+	{columns: "", window: 80, full: true},
+	{columns: "80", window: 80, full: true},
+	{columns: "40", window: 40},
+}
 
 // sweptGutter is the two display columns that separate one column from the
 // next, which is the table's own constant read from the output side.
@@ -129,6 +148,27 @@ type sweptWorkbenches struct {
 // what fails when a column is narrower than the rows it holds.
 func TestEveryRowStartsItsColumnsAtOneDisplayColumn(t *testing.T) {
 	benches := buildSweptWorkbenches(t)
+	for pass, drawn := range sweptWindows {
+		t.Setenv("COLUMNS", drawn.columns)
+		sweptWindow = drawn.window
+		sweptPass = strconv.Itoa(pass)
+		assertEveryBlockLinesUp(t, benches, drawn.full)
+	}
+}
+
+// sweptWindow is the width the pass now running measures against, which every
+// assertion below reads when it asks where the right edge is.
+var sweptWindow = 80
+
+// sweptPass names the pass now running, which goes into the name of every
+// fixture tree a repair mutates. A migration repairs the workbench it runs
+// against and draws nothing the second time, so each pass builds its own.
+var sweptPass = "0"
+
+// assertEveryBlockLinesUp runs the six assertions over every block in every
+// shipped language, at whatever window the pass is drawing at.
+func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full bool) {
+	t.Helper()
 	for _, block := range sweptBlocks() {
 		rendered := 0
 		for _, tag := range msg.Tags() {
@@ -145,6 +185,10 @@ func TestEveryRowStartsItsColumnsAtOneDisplayColumn(t *testing.T) {
 			}
 			columns := assertHeadingRow(t, block, tag, lines)
 			if columns == nil {
+				continue
+			}
+			if !full {
+				assertNoRuleRunsPastTheEdge(t, block, tag, lines[1], columns)
 				continue
 			}
 			rows := readSweptRows(t, block, tag, lines[2:], columns)
@@ -263,6 +307,47 @@ func assertSeparatorRow(t *testing.T, block sweptBlock, tag, separator string, c
 		if drawn.width != want {
 			t.Errorf("%s (%s), locale %s: the rule under %s draws %d display columns and its column is %d wide:\n%q",
 				block.site, block.label, tag, block.keys[i], drawn.width, want, separator)
+		}
+	}
+}
+
+// assertNoRuleRunsPastTheEdge is what the narrow pass asserts in place of the
+// six: every rule sits under its own heading, none is wider than its column,
+// none runs past the right edge of the window, and none is narrower than one
+// column.
+//
+// The rows are not read here. A value wider than the column the backstop left
+// it takes its own line, and the row renderer clamps the continuation under it
+// so that the line keeps room for its own text, which moves the fields after
+// it left of the columns they belong to. That is dinah-101's behaviour and
+// this card does not reopen it, so the narrow pass asserts what this card is
+// answerable for.
+func assertNoRuleRunsPastTheEdge(t *testing.T, block sweptBlock, tag, separator string, columns []int) {
+	t.Helper()
+	rules := sweptRules(separator)
+	if len(rules) != len(columns) {
+		t.Errorf("%s (%s), locale %s: the separator draws %d rules under %d columns:\n%q",
+			block.site, block.label, tag, len(rules), len(columns), separator)
+		return
+	}
+	for i, drawn := range rules {
+		if drawn.at != columns[i] {
+			t.Errorf("%s (%s), locale %s: the rule under %s begins at display column %d and its heading begins at %d:\n%q",
+				block.site, block.label, tag, block.keys[i], drawn.at, columns[i], separator)
+			continue
+		}
+		if drawn.width < 1 {
+			t.Errorf("%s (%s), locale %s: the rule under %s draws nothing at all:\n%q", block.site, block.label, tag, block.keys[i], separator)
+		}
+		if room := sweptWindow - columns[i]; drawn.width > room && room >= 1 {
+			t.Errorf("%s (%s), locale %s: the rule under %s draws %d display columns and the window leaves %d before its right edge:\n%q",
+				block.site, block.label, tag, block.keys[i], drawn.width, room, separator)
+		}
+		if i < len(columns)-1 {
+			if width := columns[i+1] - columns[i] - sweptGutter; drawn.width > width {
+				t.Errorf("%s (%s), locale %s: the rule under %s draws %d display columns and its column is %d wide:\n%q",
+					block.site, block.label, tag, block.keys[i], drawn.width, width, separator)
+			}
 		}
 	}
 }
@@ -758,21 +843,21 @@ func sweptBlocks() []sweptBlock {
 			site: "render.go:331", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, sweptStrippedTree(t, w, "slugs-"+tag), tag, "check", "--migrate-slugs"), "")
+				return indentedBlock(sweptRun(t, sweptStrippedTree(t, w, "slugs-"+tag+"-"+sweptPass), tag, "check", "--migrate-slugs"), "")
 			},
 		},
 		{
 			site: "render.go:345", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag), tag, "check", "--migrate-states"), "")
+				return indentedBlock(sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states"), "")
 			},
 		},
 		{
 			site: "render.go:362", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag), tag, "check"), "")
+				return indentedBlock(sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check"), "")
 			},
 		},
 		{
