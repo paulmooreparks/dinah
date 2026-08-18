@@ -130,6 +130,12 @@ const (
 	// AddNeedsAState is Add declining to file a card into a workbench whose
 	// states list has no live entries left for the card to land in.
 	AddNeedsAState = LayerPrefix + "add-needs-a-state"
+	// MultipleWords is an open-tail command's free-text slot (add's title,
+	// block's reason, comment's text, config set's value) getting more than
+	// one unquoted word. The sentence names the word count and rebuilds the
+	// command line with the free text quoted, since that is the whole cost
+	// of the rule and the fix a reader needs to see.
+	MultipleWords = LayerPrefix + "multiple-words"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -137,7 +143,7 @@ var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
-	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState,
+	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

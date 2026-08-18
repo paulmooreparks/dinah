@@ -3421,7 +3421,7 @@ func TestOpenTailContinuesToAcceptALeadingDashWord(t *testing.T) {
 		t.Errorf("the title should carry the dash-led word verbatim, got %q", got.out)
 	}
 
-	got = runCLI(t, root, "block", "fx-1", "-not-a-flag", "the actual reason")
+	got = runCLI(t, root, "block", "fx-1", "-not-a-flag the actual reason")
 	if got.code != 0 {
 		t.Fatalf("block with a dash-led reason: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3620,12 +3620,12 @@ func TestConfigGetRefusesAThirdWord(t *testing.T) {
 		t.Errorf("config get with only its key: wanted exit 0 and \"somebody\", got %d %q", got.code, got.out)
 	}
 
-	got = runCLI(t, dir, "config", "set", "actor", "a", "whole", "name")
+	got = runCLI(t, dir, "config", "set", "actor", "a whole name")
 	if got.code != 0 {
-		t.Fatalf("config set with a several-word value: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("config set with a quoted multi-word value: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 	if got := runCLI(t, dir, "config", "get", "actor"); got.code != 0 || strings.TrimSpace(got.out) != "a whole name" {
-		t.Errorf("config set should have stored the whole joined value, got %d %q", got.code, got.out)
+		t.Errorf("config set should have stored the quoted value verbatim, got %d %q", got.code, got.out)
 	}
 
 	// config's own existing checks are unaffected: a bare bogus word, a
@@ -3639,25 +3639,108 @@ func TestConfigGetRefusesAThirdWord(t *testing.T) {
 	wantUsage(t, runCLI(t, dir, "config", "get", "-w"), "-w")
 }
 
-// TestOpenTailKeepsAcceptingAnyNumberOfPlainWords asserts dinah-90's AC-5:
-// every open-tail command keeps accepting a plain trailing word, and any
-// number of them, as content.
+// TestOpenTailKeepsAcceptingAnyNumberOfPlainWords asserts dinah-100's AC-2:
+// every open-tail command keeps accepting a many-word phrase as content, so
+// long as it arrives quoted into the one argument the slot now takes; a
+// second, separate unquoted word is what dinah.multiple-words exists to
+// catch instead (TestOpenTailKeepsAcceptingExactlyOneWord below).
 func TestOpenTailKeepsAcceptingAnyNumberOfPlainWords(t *testing.T) {
 	root := newBench(t)
 
-	got := runCLI(t, root, "add", "A", "whole", "title")
+	got := runCLI(t, root, "add", "A whole title")
 	if got.code != 0 {
-		t.Fatalf("add with a many-word title: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("add with a quoted many-word title: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 
-	got = runCLI(t, root, "block", "fx-1", "a", "whole", "reason")
+	got = runCLI(t, root, "block", "fx-1", "a whole reason")
 	if got.code != 0 {
-		t.Fatalf("block with a many-word reason: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("block with a quoted many-word reason: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 
-	got = runCLI(t, root, "comment", "fx-1", "a", "whole", "comment")
+	got = runCLI(t, root, "comment", "fx-1", "a whole comment")
 	if got.code != 0 {
-		t.Fatalf("comment with a many-word comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("comment with a quoted many-word comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestOpenTailKeepsAcceptingExactlyOneWord asserts dinah-100's own contract
+// directly: a second unquoted word past an open-tail command's fixed
+// arguments refuses with dinah.multiple-words naming the word count and the
+// slot, and rebuilds the command line with the free text quoted so the
+// caller can copy the fix.
+func TestOpenTailKeepsAcceptingExactlyOneWord(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "Fix", "the", "login", "bug")
+	wantMultipleWords := "dinah.multiple-words Dinah read 4 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add \"Fix the login bug\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("add with four loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	runCLI(t, root, "add", "A card")
+
+	got = runCLI(t, root, "block", "fx-1", "the", "door", "jammed")
+	wantMultipleWords = "dinah.multiple-words Dinah read 3 separate words for the reason, and it only accepts one. Put quotation marks around the whole thing: dinah block fx-1 \"the door jammed\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("block with three loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	got = runCLI(t, root, "comment", "fx-1", "done", "and", "dusted")
+	wantMultipleWords = "dinah.multiple-words Dinah read 3 separate words for the comment, and it only accepts one. Put quotation marks around the whole thing: dinah comment fx-1 \"done and dusted\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("comment with three loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	_, dir := settingsHome(t)
+	got = runCLI(t, dir, "config", "set", "actor", "Paul", "Parks")
+	wantMultipleWords = "dinah.multiple-words Dinah read 2 separate words for the value, and it only accepts one. Put quotation marks around the whole thing: dinah config set actor \"Paul Parks\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("config set with two loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+}
+
+// TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote guards the cycle-3
+// review finding on dinah-100: which shell reads back a pasted line is
+// undocumented, and bash, cmd.exe and PowerShell disagree on how to escape
+// an embedded quotation mark (a backslash escape round-trips in bash and
+// cmd.exe but is not an escape character inside a PowerShell double-quoted
+// string, so it mangles the text there instead). Rather than hand back a
+// rebuilt example that is wrong in whichever shell the caller is using, a
+// free-text value that itself contains a `"` refuses with an instruction to
+// quote it themselves and offers no example at all. A backslash alone, or a
+// single quote alone, carries no such ambiguity and keeps the ordinary
+// rebuilt-example refusal (TestOpenTailKeepsAcceptingExactlyOneWord).
+func TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "say", `"hi"`, "there")
+	want := "dinah.multiple-words Dinah read 3 separate words for the title, and it only accepts one." +
+		" That text has a quotation mark in it, so put quotation marks around the whole thing yourself." +
+		" No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.\n"
+	if got.code != 2 || got.errw != want {
+		t.Errorf("add with an embedded quote character:\n got  %d %q\n want 2 %q", got.code, got.errw, want)
+	}
+	if strings.Contains(got.errw, "dinah add") {
+		t.Errorf("a quote-in-text refusal should offer no rebuilt example, got %q", got.errw)
+	}
+
+	got = runCLI(t, root, "add", `C:\say"hi"`, "here")
+	if got.code != 2 || got.errw != "dinah.multiple-words Dinah read 2 separate words for the title, and it only accepts one."+
+		" That text has a quotation mark in it, so put quotation marks around the whole thing yourself."+
+		" No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.\n" {
+		t.Errorf("add with a backslash and an embedded quote:\n got  %d %q", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "add", "it's", "only", "a", "single", "quote")
+	wantSingleQuote := `dinah.multiple-words Dinah read 5 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "it's only a single quote"` + "\n"
+	if got.code != 2 || got.errw != wantSingleQuote {
+		t.Errorf("add with only a single (apostrophe) quote:\n got  %d %q\n want 2 %q", got.code, got.errw, wantSingleQuote)
+	}
+
+	got = runCLI(t, root, "add", `C:\path`, "here")
+	wantBackslash := `dinah.multiple-words Dinah read 2 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "C:\path here"` + "\n"
+	if got.code != 2 || got.errw != wantBackslash {
+		t.Errorf("add with a backslash and no quote:\n got  %d %q\n want 2 %q", got.code, got.errw, wantBackslash)
 	}
 }
 
@@ -3676,23 +3759,24 @@ func showDetail(t *testing.T, dir, ref string) verb.Detail {
 	return detail
 }
 
-// TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition asserts dinah-92's
-// AC-1 and AC-2: a bare "--" ends the flag scan, so comment, block and add
-// all store a --prefixed word verbatim, whether it opens, sits in the middle
-// of, or closes the free text that follows the marker.
+// TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition asserts
+// dinah-100's AC-5: a bare "--" still ends the flag scan, so comment, block
+// and add all store a quoted word beginning with -- verbatim, whether the
+// -- prefix opens, sits in the middle of, or closes the one free-text word
+// that follows the marker.
 func TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
 
-	got := runCLI(t, root, "comment", "fx-1", "--", "--verbose", "is", "a", "flag", "some", "tools", "take")
+	got := runCLI(t, root, "comment", "fx-1", "--", "--verbose is a flag some tools take")
 	if got.code != 0 {
 		t.Fatalf("comment, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
-	got = runCLI(t, root, "comment", "fx-1", "--", "remember", "to", "pass", "--verbose", "next", "time")
+	got = runCLI(t, root, "comment", "fx-1", "--", "remember to pass --verbose next time")
 	if got.code != 0 {
 		t.Fatalf("comment, word in middle: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
-	got = runCLI(t, root, "comment", "fx-1", "--", "next", "time", "pass", "--verbose")
+	got = runCLI(t, root, "comment", "fx-1", "--", "next time pass --verbose")
 	if got.code != 0 {
 		t.Fatalf("comment, word at end: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3711,7 +3795,7 @@ func TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition(t *testing.T) {
 		}
 	}
 
-	got = runCLI(t, root, "block", "fx-1", "--", "--waiting", "on", "external", "dep")
+	got = runCLI(t, root, "block", "fx-1", "--", "--waiting on external dep")
 	if got.code != 0 {
 		t.Fatalf("block, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3721,7 +3805,7 @@ func TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition(t *testing.T) {
 	}
 	runCLI(t, root, "unblock", "fx-1")
 
-	got = runCLI(t, root, "add", "--", "--urgent", "fix", "the", "thing")
+	got = runCLI(t, root, "add", "--", "--urgent fix the thing")
 	if got.code != 0 {
 		t.Fatalf("add, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3731,13 +3815,13 @@ func TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition(t *testing.T) {
 	}
 }
 
-// TestMarkerAcceptsADashPrefixedConfigValue asserts dinah-92's AC-3: config
-// set stores a value containing a --prefixed word verbatim once the marker
+// TestMarkerAcceptsADashPrefixedConfigValue asserts dinah-100's AC-5: config
+// set stores a quoted value beginning with -- verbatim once the marker
 // precedes it.
 func TestMarkerAcceptsADashPrefixedConfigValue(t *testing.T) {
 	_, dir := settingsHome(t)
 
-	got := runCLI(t, dir, "config", "set", "actor", "--", "--urgent", "tester")
+	got := runCLI(t, dir, "config", "set", "actor", "--", "--urgent tester")
 	if got.code != 0 {
 		t.Fatalf("config set past the marker: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3774,7 +3858,7 @@ func TestMarkerHandlesTheAwkwardShapes(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("two markers: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
-	got = runCLI(t, root, "comment", "fx-1", "--", "please", "mention", "--", "here")
+	got = runCLI(t, root, "comment", "fx-1", "--", "please mention -- here")
 	if got.code != 0 {
 		t.Fatalf("a marker inside text already past a marker: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3801,7 +3885,7 @@ func TestMarkerFreesAWordASiblingCheckWouldOtherwiseRefuse(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
 
-	got := runCLI(t, root, "comment", "fx-1", "--", "the", "option", "is", "-w", "not", "what", "you", "want")
+	got := runCLI(t, root, "comment", "fx-1", "--", "the option is -w not what you want")
 	if got.code != 0 {
 		t.Fatalf("a single-dash word past the marker: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3847,7 +3931,7 @@ func TestKnownFlagBeforeAndAfterTheMarker(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
 
-	before := runCLI(t, root, "comment", "fx-1", "--json", "before", "the", "marker")
+	before := runCLI(t, root, "comment", "fx-1", "--json", "before the marker")
 	if before.code != 0 {
 		t.Fatalf("--json before the marker: wanted exit 0, got %d (%s)", before.code, before.errw)
 	}
@@ -3862,7 +3946,7 @@ func TestKnownFlagBeforeAndAfterTheMarker(t *testing.T) {
 		t.Errorf("comment: wanted %q, got %q", "before the marker", beforeDetail.Comments[0].Body)
 	}
 
-	after := runCLI(t, root, "comment", "fx-1", "--", "after", "the", "marker", "--json", "here")
+	after := runCLI(t, root, "comment", "fx-1", "--", "after the marker --json here")
 	if after.code != 0 {
 		t.Fatalf("--json after the marker: wanted exit 0, got %d (%s)", after.code, after.errw)
 	}
@@ -3914,13 +3998,13 @@ func TestUsageRefusalNamesTheMarker(t *testing.T) {
 	}
 }
 
-// TestTrailingDomainFlagStillApplies asserts dinah-96's AC-10: add's title
-// and block's reason keep applying their own documented trailing flag
-// exactly as before, when it is genuinely trailing.
+// TestTrailingDomainFlagStillApplies asserts dinah-100's AC-6: add's title
+// and block's reason keep applying their own documented flag exactly as
+// before when it trails the free text, now a single quoted word.
 func TestTrailingDomainFlagStillApplies(t *testing.T) {
 	root := newBench(t)
 
-	got := runCLI(t, root, "add", "the", "rollout", "failed", "because", "of", "--state", "doing")
+	got := runCLI(t, root, "add", "the rollout failed because of", "--state", "doing")
 	if got.code != 0 {
 		t.Fatalf("add trailing --state: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3932,7 +4016,7 @@ func TestTrailingDomainFlagStillApplies(t *testing.T) {
 		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
 	}
 
-	got = runCLI(t, root, "block", "fx-1", "the", "rollout", "failed", "--kind", "external")
+	got = runCLI(t, root, "block", "fx-1", "the rollout failed", "--kind", "external")
 	if got.code != 0 {
 		t.Fatalf("block trailing --kind: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -3945,64 +4029,56 @@ func TestTrailingDomainFlagStillApplies(t *testing.T) {
 	}
 }
 
-// TestNonTrailingDomainFlagIsLiteral asserts dinah-96's AC-11: a flag-shaped
-// word inside add/block/comment's free text is stored verbatim, with no
-// refusal, whenever it is not a genuinely trailing occurrence of that
-// command's own flag: mid-text, repeated, and a flag belonging to a
-// different command all land as literal text with exit 0.
+// TestNonTrailingDomainFlagIsLiteral asserts dinah-100's AC-6, its leading
+// half: a command's own domain flag typed before the free text applies
+// exactly as the same flag typed after it does (TestTrailingDomainFlagStillApplies),
+// with neither position swallowing the flag into the free text or the free
+// text into the flag's value. dinah-96's own case (a flag-shaped word
+// literal inside a multi-word free-text zone) no longer arises: the zone is
+// gone now that the slot takes exactly one word, so any additional unquoted
+// word, flag-shaped or not, is what dinah.multiple-words refuses instead
+// (TestOpenTailKeepsAcceptingExactlyOneWord).
 func TestNonTrailingDomainFlagIsLiteral(t *testing.T) {
 	root := newBench(t)
 
-	cases := []struct {
-		name string
-		argv []string
-		want string
-	}{
-		{"add mid-text", []string{"add", "the", "rollout", "--state", "deploy", "failed", "twice"}, "the rollout --state deploy failed twice"},
-		{"add repeated", []string{"add", "first", "--state", "one", "then", "--state", "two", "happened"}, "first --state one then --state two happened"},
-		{"add foreign flag", []string{"add", "blocked", "on", "the", "--kind", "change", "from", "ops"}, "blocked on the --kind change from ops"},
+	got := runCLI(t, root, "add", "--state", "doing", "the rollout failed")
+	if got.code != 0 {
+		t.Fatalf("add with a leading --state: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := runCLI(t, root, c.argv...)
-			if got.code != 0 {
-				t.Fatalf("wanted exit 0, got %d (%s)", got.code, got.errw)
-			}
-			if !strings.Contains(got.out, c.want) {
-				t.Errorf("wanted the title to carry %q, got %q", c.want, got.out)
-			}
-		})
+	added := showDetail(t, root, "fx-1")
+	if added.Card.Title != "the rollout failed" {
+		t.Errorf("title: wanted %q, got %q", "the rollout failed", added.Card.Title)
+	}
+	if added.Card.StateTitle != "Doing" {
+		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
 	}
 
 	runCLI(t, root, "add", "a card to block")
-	got := runCLI(t, root, "block", "fx-4", "waiting", "on", "the", "--from", "team", "to", "reply")
+	got = runCLI(t, root, "block", "fx-2", "--kind", "external_dep", "the door jammed")
 	if got.code != 0 {
-		t.Fatalf("block foreign flag: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("block with a leading --kind: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
-	blocked := showDetail(t, root, "fx-4")
-	if blocked.Card.BlockReason != "waiting on the --from team to reply" {
-		t.Errorf("reason: wanted verbatim text, got %q", blocked.Card.BlockReason)
+	blocked := showDetail(t, root, "fx-2")
+	if blocked.Card.BlockReason != "the door jammed" {
+		t.Errorf("reason: wanted %q, got %q", "the door jammed", blocked.Card.BlockReason)
 	}
-
-	got = runCLI(t, root, "comment", "fx-4", "please", "say", "--yes", "to", "this", "request")
-	if got.code != 0 {
-		t.Fatalf("comment: wanted exit 0, got %d (%s)", got.code, got.errw)
-	}
-	detail := showDetail(t, root, "fx-4")
-	last := detail.Comments[len(detail.Comments)-1].Body
-	if last != "please say --yes to this request" {
-		t.Errorf("comment: wanted %q, got %q", "please say --yes to this request", last)
+	if blocked.Card.BlockKind != "external_dep" {
+		t.Errorf("kind: wanted external_dep, got %q", blocked.Card.BlockKind)
 	}
 }
 
-// TestCommentAndConfigSetDeclareNoFlagOfTheirOwn asserts dinah-96's AC-12:
-// comment's text and config set's value never recognize any flag at all, at
-// any position, because neither command declares one of its own.
+// TestCommentAndConfigSetDeclareNoFlagOfTheirOwn asserts dinah-100 leaves
+// nothing for a global flag name to consume once it sits inside the one
+// quoted free-text word: comment's text and config set's value store a
+// --prefixed substring verbatim, because a quoted word is never split into
+// several argv words for the flag scan to see, whatever it starts with
+// internally. Neither command declares a domain flag of its own, so this is
+// the only shape the old dinah-96 guarantee still has to hold in.
 func TestCommentAndConfigSetDeclareNoFlagOfTheirOwn(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "a card")
 
-	got := runCLI(t, root, "comment", "fx-1", "please", "--state", "deploy", "done")
+	got := runCLI(t, root, "comment", "fx-1", "please --state deploy done")
 	if got.code != 0 {
 		t.Fatalf("comment: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -4012,7 +4088,7 @@ func TestCommentAndConfigSetDeclareNoFlagOfTheirOwn(t *testing.T) {
 	}
 
 	_, dir := settingsHome(t)
-	got = runCLI(t, dir, "config", "set", "actor", "please", "--state", "deploy", "done")
+	got = runCLI(t, dir, "config", "set", "actor", "please --state deploy done")
 	if got.code != 0 {
 		t.Fatalf("config set: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
@@ -4048,40 +4124,42 @@ func TestFlagBeforeTheFreeTextBoundaryIsUnaffected(t *testing.T) {
 	}
 }
 
-// TestAValueStarvedTrailingFlagFallsThroughToLiteralText asserts dinah-96's
-// AC-14/D-5: a title ending in a flag name that expects a value, with
-// nothing left in the free text to serve as that value, is accepted as
-// literal text instead of refusing. A valued domain flag missing its value
-// anywhere else, before an open-tail command's boundary or in a command
-// with no open tail, still refuses exactly as before.
-func TestAValueStarvedTrailingFlagFallsThroughToLiteralText(t *testing.T) {
+// TestAValueStarvedFlagRefusesRatherThanFallingThrough asserts dinah-100's
+// own D-3 shape for this case: a domain flag that expects a value, with
+// nothing left in the free text to serve as that value, is no longer
+// spliced back in as literal text (dinah-96's AC-14/D-5 behavior). Once
+// resolveOpenTailFlags stops running for add, block and comment, the flag
+// is recognized eagerly wherever it is typed, so a value-starved --kind
+// consumes the flag and leaves the reason empty, surfacing as no-reason
+// instead.
+func TestAValueStarvedFlagRefusesRatherThanFallingThrough(t *testing.T) {
 	root := newBench(t)
+	runCLI(t, root, "add", "a card to block")
 
-	got := runCLI(t, root, "add", "another", "title", "ending", "in", "--state")
-	if got.code != 0 {
-		t.Fatalf("add with a value-starved trailing --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+	got := runCLI(t, root, "block", "fx-1", "--kind")
+	if got.code != 2 {
+		t.Fatalf("block with only a value-starved --kind: wanted exit 2, got %d (%s)", got.code, got.errw)
 	}
-	added := showDetail(t, root, "fx-1")
-	if added.Card.Title != "another title ending in --state" {
-		t.Errorf("title: wanted %q, got %q", "another title ending in --state", added.Card.Title)
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.NoReason {
+		t.Errorf("wanted %s (no reason given, not the flag name landing in the reason), got %q", contract.NoReason, got.errw)
 	}
 
 	wantUsage(t, runCLI(t, root, "move", "fx-1", "doing", "--state"), "--state")
 }
 
-// TestANonTrailingFlagThatWouldFailValidationNowSucceeds asserts dinah-96's
-// AC-18/D-7: a non-trailing occurrence of the command's own flag that would
-// fail a downstream check under today's behavior now succeeds instead,
-// because it is never read as a flag at all.
-func TestANonTrailingFlagThatWouldFailValidationNowSucceeds(t *testing.T) {
+// TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText asserts the
+// reverse of dinah-96's AC-18/D-7, dinah-100 (D-3): add's own domain flag is
+// read as a flag wherever it is typed relative to the one-word free text,
+// leading or trailing, so a bogus value now reaches add's own downstream
+// state check and refuses, in place of the literal text dinah-96 would have
+// accepted for the same input.
+func TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText(t *testing.T) {
 	root := newBench(t)
 
-	got := runCLI(t, root, "add", "the", "rollout", "--state", "bogus", "failed")
-	if got.code != 0 {
-		t.Fatalf("add with a mid-text bogus state: wanted exit 0, got %d (%s)", got.code, got.errw)
-	}
-	added := showDetail(t, root, "fx-1")
-	if added.Card.Title != "the rollout --state bogus failed" {
-		t.Errorf("title: wanted %q, got %q", "the rollout --state bogus failed", added.Card.Title)
+	got := runCLI(t, root, "add", "--state", "bogus", "the rollout failed")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if got.code == 0 || leading != contract.UnknownState {
+		t.Errorf("add with a leading bogus --state: wanted %s, got %d (%s)", contract.UnknownState, got.code, got.errw)
 	}
 }
