@@ -110,6 +110,12 @@ once the major number has reached 1 it moves the major number under
 DOC-ORDER-3. The comparison stays mechanical, because the orders are
 published as fixed lists and two revisions' lists compare as text.
 
+Whether a rule governs a revision at all is judged when the revision opens,
+while which half of a conditioned rule applies is judged against the version
+the revision publishes rather than against its predecessor, so the entry that
+publishes 1.0 is governed by DOC-VER-9, DOC-VER-10, DOC-VER-12, and
+DOC-ORDER-3 and takes the major increment they demand.
+
 Two rules make the classification mechanical rather than a judgement about
 prose. First, the text of a published statement is frozen, so a change in
 what a statement demands is made by retiring its identifier and publishing a
@@ -1506,7 +1512,12 @@ major increment DOC-VER-3 demands, which numbers this entry 4.0 against 3.0,
 the most recent entry published before it. The renaming above then reaches
 the entry's own number, since the entry is the last member of the sequence
 that renaming closes, and 4.0 renamed is 0.4. DOC-VER-7 and DOC-VER-8 do not
-reach backward to govern the entry that introduces them. The entry after
+reach backward to govern the entry that introduces them. Whether a rule
+governs a revision at all is judged when the revision opens, while which
+half of a conditioned rule applies is judged against the version the
+revision publishes rather than against its predecessor, so the entry that
+publishes 1.0 is governed by DOC-VER-9, DOC-VER-10, DOC-VER-12, and
+DOC-ORDER-3 and takes the major increment they demand. The entry after
 this one carries no such self-reference: whoever writes it classifies it
 under whichever of DOC-VER-7 through DOC-VER-12 the document's crossing
 state calls for, with no renaming step of its own to apply.
