@@ -741,6 +741,46 @@ func TestHindiRendersDevanagari(t *testing.T) {
 	if leading != contract.Blocked {
 		t.Errorf("the refusal name should keep its canonical spelling under any language, got %q", refused.errw)
 	}
+
+	// The line init prints when it records an actor is a catalog entry like
+	// any other, so a Hindi reader gets it in Devanagari with the product
+	// name still in Latin script. This subtest builds a home of its own,
+	// because newBench above resolves an actor and init records nothing
+	// when one is already resolvable.
+	t.Run("the line init prints when it records an actor", func(t *testing.T) {
+		home, base := noActorHome(t)
+		room := newRoom(t, base)
+
+		created := runCLI(t, room, "--lang", "hi", "init", "--operator", "paul")
+		if created.code != 0 {
+			t.Fatalf("init: %d %s", created.code, created.errw)
+		}
+		lines := strings.Split(strings.TrimSuffix(created.out, "\n"), "\n")
+		if len(lines) != 2 {
+			t.Fatalf("init should print the created line and the recorded line, got %q", created.out)
+		}
+		announcement := lines[1]
+		if !strings.Contains(announcement, "दर्ज") {
+			t.Errorf("wanted the Devanagari rendering of the recorded line, got %q", announcement)
+		}
+		if !strings.Contains(announcement, "Dinah") {
+			t.Errorf("the product name should stay in Latin script, got %q", announcement)
+		}
+		if !strings.Contains(announcement, "paul") || !strings.Contains(announcement, configPath(home)) {
+			t.Errorf("the recorded line should name the actor and the file, got %q", announcement)
+		}
+		if strings.ContainsRune(created.out, '�') {
+			t.Error("the output carries a replacement character")
+		}
+
+		identity := runCLI(t, room, "--lang", "hi", "whoami")
+		if identity.code != 0 {
+			t.Fatalf("whoami: %d %s", identity.code, identity.errw)
+		}
+		if !strings.Contains(identity.out, "संचालक") {
+			t.Errorf("wanted the Devanagari rendering of whoami, got %q", identity.out)
+		}
+	})
 }
 
 // TestPathCarriesThePlumbingGuarantee asserts that path writes the resolved
@@ -1020,7 +1060,8 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				t.Setenv("DINAH_ACTOR", "")
 				return root, []string{"claim", "lim-1"}
 			},
-			token: contract.NoOwner,
+			token:    contract.NoOwner,
+			sentence: "run `dinah config set actor <name>` to say who you are",
 		},
 		{
 			name: "a workbench designating no operator",
@@ -4213,4 +4254,259 @@ func TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText(t *testing.T) 
 	if got.code == 0 || leading != contract.UnknownState {
 		t.Errorf("add with a leading bogus --state: wanted %s, got %d (%s)", contract.UnknownState, got.code, got.errw)
 	}
+}
+
+// configPath is the configuration file a user base holds, which is the file
+// `init` records an actor in.
+func configPath(home string) string {
+	return filepath.Join(home, bench.UserBaseName, bench.ConfigName)
+}
+
+// configBytes reads the configuration file whole, returning nil when the file
+// is not there. An absent file and an empty one are different states here, and
+// nil is what tells them apart.
+func configBytes(t *testing.T, home string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(configPath(home))
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+// noActorHome points the user base at a directory of this test's own with
+// every rung of the actor ladder empty, and proves the emptiness rather than
+// trusting it.
+//
+// The proof carries the weight. newBench and emptyTree both export
+// DINAH_ACTOR, so a test that reached for either would resolve an actor, take
+// the branch where `init` records nothing, and pass without exercising the
+// recording at all. Returning only once the listing reports the actor unset
+// and the user base carries no configuration file means a later change to the
+// shared setup fails these tests loudly instead of hollowing them out.
+func noActorHome(t *testing.T) (string, string) {
+	t.Helper()
+	home, base := settingsHome(t)
+	rows := settingRows(t, runCLI(t, base, "--json", "config"))
+	if rows["actor"].Value != "" || rows["actor"].Source != bench.SourceUnset {
+		t.Fatalf("no rung should carry an actor here, got %q from the %s rung", rows["actor"].Value, rows["actor"].Source)
+	}
+	if bench.Exists(configPath(home)) {
+		t.Fatalf("the user base should carry no configuration file yet, %s exists", configPath(home))
+	}
+	return home, base
+}
+
+// newRoom makes an empty directory to create a workbench in, so that discovery
+// from it reaches the workbench `init` writes and nothing else.
+func newRoom(t *testing.T, base string) string {
+	t.Helper()
+	root := filepath.Join(base, "qs")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	return root
+}
+
+// TestInitRecordsTheActorWhenNothingElseNamesOne asserts dinah-137: creating a
+// workbench on a machine that knows nobody records the operator as the actor
+// in the person's own configuration, says so, and leaves the person able to
+// file a card with no command in between. It asserts the whole rule, including
+// the three ways an actor already resolved suppresses the write and the
+// ordering that keeps a refused creation from recording anything.
+func TestInitRecordsTheActorWhenNothingElseNamesOne(t *testing.T) {
+	t.Run("a machine with no configuration files a card straight after init", func(t *testing.T) {
+		home, base := noActorHome(t)
+		root := newRoom(t, base)
+
+		created := runCLI(t, root, "init", "--operator", "paul")
+		if created.code != 0 {
+			t.Fatalf("init: %d %s", created.code, created.errw)
+		}
+		lines := strings.Split(strings.TrimSuffix(created.out, "\n"), "\n")
+		if len(lines) != 2 {
+			t.Fatalf("init should print the created line and the recorded line, got %q", created.out)
+		}
+		announcement := lines[1]
+		if !strings.Contains(announcement, "paul") {
+			t.Errorf("the announcement should name the actor it recorded, got %q", announcement)
+		}
+		if !strings.Contains(announcement, configPath(home)) {
+			t.Errorf("the announcement should name %s, got %q", configPath(home), announcement)
+		}
+		// The removal command is the bare form with no name after it,
+		// which is the spelling that takes the value out rather than
+		// replacing it. The subtest below runs it and checks it does.
+		if !strings.Contains(announcement, "`dinah config set actor`") {
+			t.Errorf("the announcement should name the command that removes the value, got %q", announcement)
+		}
+
+		filed := runCLI(t, root, "add", "Write the release notes")
+		if filed.code != 0 {
+			t.Fatalf("add straight after init: %d %s", filed.code, filed.errw)
+		}
+
+		stored, err := os.ReadFile(configPath(home))
+		if err != nil {
+			t.Fatalf("the configuration should exist: %v", err)
+		}
+		if !strings.Contains(string(stored), "actor: paul") {
+			t.Errorf("the configuration should carry actor: paul, got %q", stored)
+		}
+		rows := settingRows(t, runCLI(t, root, "--json", "config"))
+		if rows["actor"].Value != "paul" || rows["actor"].Source != bench.SourceConfig {
+			t.Errorf("the listing should report paul from the config rung, got %q from %q", rows["actor"].Value, rows["actor"].Source)
+		}
+	})
+
+	t.Run("the command the announcement names removes the recorded value", func(t *testing.T) {
+		home, base := noActorHome(t)
+		root := newRoom(t, base)
+		if got := runCLI(t, root, "init", "--operator", "paul"); got.code != 0 {
+			t.Fatalf("init: %d %s", got.code, got.errw)
+		}
+
+		if got := runCLI(t, root, "config", "set", "actor"); got.code != 0 {
+			t.Fatalf("config set actor with no name: %d %s", got.code, got.errw)
+		}
+		stored, err := os.ReadFile(configPath(home))
+		if err != nil {
+			t.Fatalf("the configuration should still exist: %v", err)
+		}
+		if strings.Contains(string(stored), "actor") {
+			t.Errorf("the key should be gone from the file rather than emptied, got %q", stored)
+		}
+		rows := settingRows(t, runCLI(t, root, "--json", "config"))
+		if rows["actor"].Value != "" || rows["actor"].Source != bench.SourceUnset {
+			t.Errorf("the listing should report the actor unset, got %q from %q", rows["actor"].Value, rows["actor"].Source)
+		}
+	})
+
+	suppression := []struct {
+		name    string
+		prepare func(t *testing.T, root string)
+		argv    []string
+	}{
+		{
+			name:    "the flag",
+			prepare: func(t *testing.T, root string) {},
+			argv:    []string{"init", "--operator", "paul", "--actor", "bo"},
+		},
+		{
+			name:    "the environment",
+			prepare: func(t *testing.T, root string) { t.Setenv("DINAH_ACTOR", "bo") },
+			argv:    []string{"init", "--operator", "paul"},
+		},
+		{
+			name: "the configuration",
+			prepare: func(t *testing.T, root string) {
+				if got := runCLI(t, root, "config", "set", "actor", "bo"); got.code != 0 {
+					t.Fatalf("config set: %d %s", got.code, got.errw)
+				}
+			},
+			argv: []string{"init", "--operator", "paul"},
+		},
+	}
+	for _, c := range suppression {
+		t.Run("an actor at "+c.name+" suppresses the write and the line", func(t *testing.T) {
+			home, base := noActorHome(t)
+			root := newRoom(t, base)
+			c.prepare(t, root)
+			before := configBytes(t, home)
+
+			got := runCLI(t, root, c.argv...)
+			if got.code != 0 {
+				t.Fatalf("init: %d %s", got.code, got.errw)
+			}
+			// initReported fails unless stdout is the created line
+			// alone, which is the assertion that no second line was
+			// printed.
+			initReported(t, got)
+			if after := configBytes(t, home); !bytes.Equal(before, after) {
+				t.Errorf("the configuration should be untouched, before %q and after %q", before, after)
+			}
+		})
+	}
+
+	t.Run("a refused init records nothing", func(t *testing.T) {
+		home, base := noActorHome(t)
+		root := filepath.Join(base, "workbench")
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Bare")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(root, "bare", "ana", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+
+		got := runCLI(t, root, "init", "--slug", "other", "--operator", "paul")
+		if got.code != 2 {
+			t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+		}
+		if leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]; leading != contract.Exists {
+			t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
+		}
+		if bench.Exists(configPath(home)) {
+			t.Errorf("the refused init wrote %s", configPath(home))
+		}
+	})
+
+	t.Run("a workbench somebody else operates leaves the actor alone", func(t *testing.T) {
+		home, base := noActorHome(t)
+		root := newRoom(t, base)
+		t.Setenv("DINAH_ACTOR", "bo")
+
+		got := runCLI(t, root, "init", "--operator", "ana")
+		if got.code != 0 {
+			t.Fatalf("init: %d %s", got.code, got.errw)
+		}
+		initReported(t, got)
+		if bench.Exists(configPath(home)) {
+			t.Errorf("init wrote %s for somebody whose actor was already resolvable", configPath(home))
+		}
+		opened, err := bench.Open(benchDir(t, root))
+		if err != nil {
+			t.Fatalf("open: %v", err)
+		}
+		if opened.Operator != "ana" {
+			t.Errorf("the workbench's operator: wanted ana, got %q", opened.Operator)
+		}
+		identity := runCLI(t, root, "whoami")
+		if identity.code != 0 {
+			t.Fatalf("whoami: %d %s", identity.code, identity.errw)
+		}
+		if strings.TrimSpace(identity.out) != "bo, operator: no" {
+			t.Errorf("whoami: wanted %q, got %q", "bo, operator: no", identity.out)
+		}
+	})
+
+	t.Run("the no-owner refusal names a command that fixes it", func(t *testing.T) {
+		_, base := noActorHome(t)
+		root := newRoom(t, base)
+		if got := runCLI(t, root, "init", "--actor", "bo", "--operator", "ana"); got.code != 0 {
+			t.Fatalf("init: %d %s", got.code, got.errw)
+		}
+
+		refused := runCLI(t, root, "whoami")
+		if refused.code != 2 {
+			t.Fatalf("whoami with no actor: wanted 2, got %d (%s)", refused.code, refused.out)
+		}
+		if leading := strings.SplitN(strings.TrimSpace(refused.errw), " ", 2)[0]; leading != contract.NoOwner {
+			t.Errorf("leading token: wanted %s, got %q", contract.NoOwner, refused.errw)
+		}
+		if !strings.Contains(refused.errw, "`dinah config set actor <name>`") {
+			t.Errorf("the refusal should name the command that fixes it, got %q", refused.errw)
+		}
+
+		if got := runCLI(t, root, "config", "set", "actor", "bo"); got.code != 0 {
+			t.Fatalf("the named command: %d %s", got.code, got.errw)
+		}
+		repaired := runCLI(t, root, "whoami")
+		if repaired.code != 0 {
+			t.Fatalf("whoami after the named command: %d %s", repaired.code, repaired.errw)
+		}
+		if strings.TrimSpace(repaired.out) != "bo, operator: no" {
+			t.Errorf("whoami: wanted %q, got %q", "bo, operator: no", repaired.out)
+		}
+	})
 }

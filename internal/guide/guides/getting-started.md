@@ -21,6 +21,14 @@ nobody in that seat has actions nobody can perform. If you leave
 you carry that name on every action you take, and Dinah prints it back when
 you run `dinah whoami`.
 
+If Dinah does not already know who you are, it records the operator you named
+as your actor when it creates the workbench, and it prints the file it wrote
+that name to. You do not have to set an actor before you file your first card.
+To change the name later, run `dinah config set actor <name>`, and to remove
+it, run `dinah config set actor` with no name. Dinah does not touch a name you
+have already given it with `--actor`, with the `DINAH_ACTOR` variable, or with
+`dinah config set actor`.
+
 Dinah writes the workbench inside a `.dinah` directory here rather than loose
 in your working directory, so it always sits somewhere later commands can find
 it. Dinah prints the path it wrote, `.dinah/<id>/`, where `<id>` is a

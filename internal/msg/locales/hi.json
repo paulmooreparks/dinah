@@ -737,6 +737,10 @@
       "text": "प्रयोग: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
+    "init.actor.recorded": {
+      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, इसलिए आपके कार्य इसी नाम से होंगे। इसे बदलने के लिए `dinah config set actor <name>` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
+      "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
+    },
     "init.done": {
       "text": "{root} पर वर्कबेंच बन गई।",
       "context": "Printed after init succeeds."
@@ -914,7 +918,7 @@
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner": {
-      "text": "कोई स्वामी नहीं मिला; --actor, DINAH_ACTOR या config actor से एक नियत करें",
+      "text": "कोई स्वामी नहीं मिला; आप कौन हैं यह बताने के लिए `dinah config set actor <name>` चलाएँ",
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-reason": {

@@ -395,7 +395,45 @@ func runInit(s *session, parsed *arguments) int {
 		return s.reportError(err)
 	}
 	s.line(s.r.T("init.done", "root", written))
+	// Read before the write, because recordActor fills the field it tests.
+	recorded := s.actor == ""
+	if err := recordActor(s, operator); err != nil {
+		// The workbench exists by now, and init's exit code answers for
+		// the workbench, so a configuration Dinah could not write is
+		// reported rather than turned into a refusal of something that
+		// did happen. The cause reaches stderr through the ordinary
+		// path, and the no-owner sentence follows it because the person
+		// is now in exactly the position that refusal describes, with
+		// the command that fixes it already in the sentence.
+		s.reportError(err)
+		s.fail(contract.NoOwner, "")
+		return 0
+	}
+	if recorded {
+		s.line(s.r.T("init.actor.recorded", "actor", operator, "path", s.cfg.Path))
+	}
 	return 0
+}
+
+// recordActor records the operator as the actor in the person's own
+// configuration, so that somebody who has just named themselves the operator
+// of a new workbench can act in it without typing a second command.
+//
+// Dinah writes only when the actor ladder resolved nothing at any rung, which
+// on this path means the person supplied the operator with --operator and the
+// machine knows them by no other name. An actor already carried by the flag,
+// by DINAH_ACTOR, or by the configuration is left exactly as it was, and the
+// workbench's own operator is never consulted, because the operator of a
+// workbench and the owner of an act stay separate.
+func recordActor(s *session, operator string) error {
+	if s.actor != "" {
+		return nil
+	}
+	if err := s.cfg.Set("actor", operator); err != nil {
+		return err
+	}
+	s.actor = operator
+	return nil
 }
 
 // runExport writes the bench's interchange form to stdout, which composes
