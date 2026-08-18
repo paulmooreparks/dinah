@@ -71,7 +71,7 @@ You have no `-c` equivalent on Windows, so compute the hash yourself and compare
 certutil -hashfile dinah-windows-amd64.exe SHA256
 ```
 
-That prints three lines, not just the hash:
+You get three lines back, not just the hash:
 
 ```
 SHA256 hash of dinah-windows-amd64.exe:
