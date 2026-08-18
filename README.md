@@ -65,11 +65,21 @@ On macOS:
 shasum -a 256 -c SHA256SUMS.txt --ignore-missing
 ```
 
-You have no `-c` equivalent on Windows, so compute the hash yourself and compare it by eye against the line for your binary in `SHA256SUMS.txt`. Use `System.Security.Cryptography.SHA256` directly rather than the `Get-FileHash` cmdlet. `Get-FileHash` ships in the `Microsoft.PowerShell.Utility` module and loads only through `$env:PSModulePath`, so a machine where another PowerShell edition's module directory takes precedence can leave Windows PowerShell unable to find it. The `SHA256` class lives in the .NET base class library instead, so PowerShell reaches it without loading any module.
+You have no `-c` equivalent on Windows, so compute the hash yourself and compare it by eye against the line for your binary in `SHA256SUMS.txt`. Use `certutil`, which Microsoft documents as shipping on Windows 10, Windows 11, and every currently supported Windows Server release, and which runs the same way from `cmd.exe` or PowerShell:
 
 ```
-[System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.IO.File]::ReadAllBytes('dinah-windows-amd64.exe'))) -replace '-'
+certutil -hashfile dinah-windows-amd64.exe SHA256
 ```
+
+That prints three lines, not just the hash:
+
+```
+SHA256 hash of dinah-windows-amd64.exe:
+<hash, printed as 32 two-digit hex bytes separated by spaces>
+CertUtil: -hashfile command completed successfully.
+```
+
+Compare the middle line, with the spaces removed, against the line for your binary in `SHA256SUMS.txt`.
 
 These are dev builds, cut from every commit to `main`. They are unstable, and no release of Dinah promises compatibility with them.
 
