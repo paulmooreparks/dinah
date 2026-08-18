@@ -399,17 +399,24 @@ func TestAnUnusableWindowRendersUnbounded(t *testing.T) {
 }
 
 // TestANarrowWindowClampsEveryContinuationLine asserts both bounds of the
-// clamp on real output: at COLUMNS=40 no continuation line is indented past
-// display column 20, and none is indented below its own row's indent.
+// clamp at a window of 40: no continuation line is indented past display
+// column 20, and none is indented below its own row's indent.
+//
+// The block it renders holds a field wider than the window itself, which is
+// the case the clamp still governs. A block whose columns stand at their
+// headings while a field under one of them reaches its column no longer draws
+// a continuation line at all, since it stacks.
 func TestANarrowWindowClampsEveryContinuationLine(t *testing.T) {
-	root := newBench(t)
-	t.Setenv("COLUMNS", "40")
-	got := runCLI(t, root, "help", "move")
-	if got.code != 0 {
-		t.Fatalf("help move: %d %s", got.code, got.errw)
-	}
+	drawn := tableSession(40).tableLines(table{
+		indent:  2,
+		columns: headed("Command", "What it does"),
+		rows: rowsOf(
+			[]string{"add <title> [--state]", "file a card"},
+			[]string{strings.Repeat("x", 60), "does a thing"},
+		),
+	})
 	continuations := 0
-	for _, line := range strings.Split(got.out, "\n") {
+	for _, line := range drawn {
 		if strings.TrimSpace(line) == "" || !strings.HasPrefix(line, "   ") {
 			continue
 		}

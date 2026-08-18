@@ -2542,9 +2542,10 @@ func listedRows(t *testing.T, got invocation) []string {
 	if len(lines) < 2 {
 		return nil
 	}
-	at := startColumnOf(lines[0], msg.For(msg.Base).T("column.workbenches.path"))
+	heading := msg.For(msg.Base).T("column.workbenches.path")
+	at := startColumnOf(lines[0], heading)
 	if at < 0 {
-		t.Fatalf("the listing carries no path heading:\n%s", got.out)
+		return stackedValues(splitLines(got.out), heading)
 	}
 	paths := make([]string, 0, 2)
 	for _, line := range lines[2:] {
@@ -2561,6 +2562,29 @@ func listedRows(t *testing.T, got invocation) []string {
 		paths = append(paths, value)
 	}
 	return paths
+}
+
+// stackedValues reads one column's values out of a stacked block, which is the
+// form the workbench listing takes whenever a temporary directory makes its
+// path long enough to take both of the other columns down to their headings.
+// A record draws one labelled line per field, so the value wanted is whatever
+// follows the column's own heading on the line that carries it. The whole
+// output is walked rather than one indented run of it, since the blank line
+// between two records ends such a run.
+func stackedValues(lines []string, heading string) []string {
+	values := make([]string, 0, 2)
+	for _, line := range lines {
+		text := strings.TrimSpace(line)
+		if !strings.HasPrefix(text, heading) {
+			continue
+		}
+		value := strings.TrimSpace(strings.TrimPrefix(text, heading))
+		if value == "" {
+			continue
+		}
+		values = append(values, value)
+	}
+	return values
 }
 
 // jsonRows reads a listing's machine form, which is a bare array with no

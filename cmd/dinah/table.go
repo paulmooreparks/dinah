@@ -111,12 +111,18 @@ func (s *session) table(t table) {
 // about an empty listing is the whole answer. A table of one column returns
 // its rows and neither a heading nor a separator, since one column under a
 // sentence that already names it is a list.
+//
+// A table the window cannot hold returns a stack instead, one block per
+// record, which stacks explains.
 func (s *session) tableLines(t table) []string {
 	recordTableSite()
 	if len(t.rows) == 0 {
 		return nil
 	}
 	laid := s.layOut(t)
+	if laid.stacks() {
+		return laid.stackLines()
+	}
 	var lines []string
 	for i, r := range laid.rows {
 		if r.section != "" {
@@ -437,6 +443,98 @@ func tailRoom(laid laidTable) int {
 		return measured
 	}
 	return minTailColumns
+}
+
+// stacks reports whether a column stands at its own heading and still cannot
+// hold a field under it, which is the point at which the table becomes a
+// stack.
+//
+// Both halves of that carry weight. A field reaching its column takes the rest
+// of its own line and the fields after it resume underneath, which is the
+// staircase a reader sees go wrong. A column standing at its heading is what
+// separates a window too narrow for the table from a single field too wide for
+// any window: a column above its heading was given room and chose to let one
+// outlier overflow, which is what the drop rule in chooseWidths exists to
+// produce and what the command list of bare dinah relies on at eighty columns,
+// while a column already at its heading has nothing left to give.
+//
+// A block of one column never stacks. It carries no heading, so it has no
+// label to draw and no column that can stand at one.
+func (laid laidTable) stacks() bool {
+	if len(laid.columns) < 2 {
+		return false
+	}
+	for _, r := range laid.rows {
+		for c, field := range r.fields {
+			if c == len(r.fields)-1 {
+				continue
+			}
+			if laid.widths[c] > displayWidth(laid.columns[c].heading) {
+				continue
+			}
+			if displayWidth(field) >= laid.widths[c]+tableGutter {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// stackLines draws each record as its own block, one field to a line, with the
+// column's heading in front of the value as its label.
+//
+// A field holding no text draws no line, since a label over nothing tells a
+// reader nothing. Every label is padded to the widest heading in the table, so
+// every value in the stack begins at one display column, across records as
+// well as within one. One blank line separates one record from the next, and a
+// section replaces the blank line the record it opens would otherwise have
+// drawn.
+//
+// Neither the heading row nor the separator row is drawn. Each label carries
+// its own heading, and a stack has no columns for a rule to trace.
+func (laid laidTable) stackLines() []string {
+	label := 0
+	for _, column := range laid.columns {
+		if drawn := displayWidth(column.heading); drawn > label {
+			label = drawn
+		}
+	}
+	var lines []string
+	for i, r := range laid.rows {
+		switch {
+		case r.section != "":
+			lines = append(lines, "", r.section)
+		case i > 0:
+			lines = append(lines, "")
+		}
+		for c, field := range r.fields {
+			if field == "" {
+				continue
+			}
+			lines = append(lines, splitLines(laid.stackLine(laid.columns[c].heading, label, field))...)
+		}
+		if r.note != "" {
+			lines = append(lines, splitLines(strings.TrimSuffix(r.note, "\n"))...)
+		}
+	}
+	return lines
+}
+
+// stackLine lays one labelled line out through the row renderer, as a row of
+// one cell holding the label and a tail holding the value.
+//
+// The line never breaks. The label is padded to the widest heading in the
+// table, so it is always narrower than the cell it sits in, and the value
+// takes the tail, which the row renderer never breaks. A value wider than what
+// is left of the window wraps in the terminal, exactly as the last field of a
+// table row does.
+func (laid laidTable) stackLine(heading string, label int, value string) string {
+	built := row{
+		indent: laid.indent,
+		cells:  []cell{{text: heading, width: label + tableGutter}},
+		tail:   value,
+	}
+	return formatRow(built, laid.window)
 }
 
 // headingLines returns the heading row and the separator row under it.

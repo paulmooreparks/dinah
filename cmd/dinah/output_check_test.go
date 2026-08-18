@@ -211,6 +211,15 @@ func columnarFields(line string) []columnarField {
 // The three lines are what a padder counting bytes emits for a card listing
 // carrying a Japanese title: the title measures ten display columns and counts
 // as five characters, so the field after it starts five columns early.
+//
+// The last case records what the check cannot see rather than what it catches.
+// A stacked block whose labels pad to the widest heading of each record rather
+// than of the whole table puts the values of one block at two different display
+// columns, and the check reports nothing: it reads each record as a two-column
+// table of its own, finds that table's own values lined up, and the blank line
+// between records closes its run before it can compare one against the next.
+// The stacked form is asserted in the rendered-output sweep instead, where the
+// declared heading keys of each block are known.
 func TestTheOutputCheckReportsAMisalignedBlock(t *testing.T) {
 	byteCounted := []string{
 		"  fx-1     " + wideTitle + "     ready",
@@ -242,6 +251,28 @@ func TestTheOutputCheckReportsAMisalignedBlock(t *testing.T) {
 	if len(blocks[0].findings()) == 0 {
 		t.Errorf("the check reported nothing about a line ending in a space: %q", trailing[0])
 	}
+
+	stacked := []string{
+		"  Card      demo-1",
+		"  Standing  ready",
+		"  Title     a card",
+		"",
+		"  Card   demo-2",
+		"  Title  another card",
+	}
+	if found := foldedFindings(strings.Join(stacked, "\n")); len(found) != 0 {
+		t.Errorf("this case records what the check cannot see and it now sees it, so the record is out of date:\n%s", strings.Join(found, "\n"))
+	}
+}
+
+// foldedFindings folds an output into blocks and returns every finding the
+// check reports over all of them.
+func foldedFindings(out string) []string {
+	var found []string
+	for _, block := range foldColumnarBlocks(out) {
+		found = append(found, block.findings()...)
+	}
+	return found
 }
 
 // theRenderingHeadDir is where this package's own sources sit, relative to the

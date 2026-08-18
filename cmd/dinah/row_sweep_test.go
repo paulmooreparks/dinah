@@ -62,6 +62,14 @@ type sweptBlock struct {
 	// block two entries share. It is nil on every block whose entry asserts
 	// nothing beyond the six below.
 	shape func(t *testing.T, tag string, rows [][]string)
+	// blanksAreLost says the fixture harvests only the block's own indented
+	// lines, so the blank line the stacked form draws between two records
+	// never reaches this sweep. A block carrying a note has to be harvested
+	// that way, since the note is printed at no indent between one record and
+	// the next. The stacked assertions then read a label that does not advance
+	// as the start of the next record rather than as a missing separator, and
+	// everything else about the block is asserted as it is anywhere else.
+	blanksAreLost bool
 }
 
 // sweptWindows are the three windows every block below is drawn at: the one
@@ -81,10 +89,18 @@ var sweptWindows = []struct {
 	// asserts instead is the clamp this card adds: no rule past the right
 	// edge, every rule under its own heading, and no line ending in a space.
 	full bool
+	// stacked says the window is narrow enough that a table gives up its shape
+	// and draws each record as its own block. The pass fails when no block of
+	// the corpus stacked, since a window that turns out to be too wide would
+	// otherwise pass on an empty set. It is not asserted of every block: a
+	// table of short fields under short headings holds its shape at any width,
+	// and a block that keeps it is asserted as a table.
+	stacked bool
 }{
 	{columns: "", window: 80, full: true},
 	{columns: "80", window: 80, full: true},
 	{columns: "40", window: 40},
+	{columns: "20", window: 20, stacked: true},
 }
 
 // sweptGutter is the two display columns that separate one column from the
@@ -132,6 +148,13 @@ type sweptWorkbenches struct {
 //     a width is declared rather than measured.
 //  6. No line ends in a space.
 //
+// A block the window is too narrow for draws as a stack instead, one record to
+// a block and one field to a line, and assertStackedBlock is what reads that
+// form. The last pass draws the whole corpus at a window narrow enough to
+// stack most of it and fails when none of it stacked; the workbench listing
+// reaches the same assertions at eighty columns, where a long path takes its
+// other two columns down to their headings.
+//
 // It is one of the backstops for what the source guard cannot see. A row
 // padded with a byte length, a row padded by filling a slice of bytes with
 // spaces, and a row composed inside a message catalog all reach a person as
@@ -153,7 +176,7 @@ func TestEveryRowStartsItsColumnsAtOneDisplayColumn(t *testing.T) {
 		t.Setenv("COLUMNS", drawn.columns)
 		sweptWindow = drawn.window
 		sweptPass = strconv.Itoa(pass)
-		assertEveryBlockLinesUp(t, benches, drawn.full)
+		assertEveryBlockLinesUp(t, benches, drawn.full, drawn.stacked)
 	}
 }
 
@@ -168,8 +191,14 @@ var sweptPass = "0"
 
 // assertEveryBlockLinesUp runs the six assertions over every block in every
 // shipped language, at whatever window the pass is drawing at.
-func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full bool) {
+//
+// A block the window is too narrow for draws as a stack rather than as a
+// table, and the stacked form has assertions of its own. That happens on every
+// block of the narrow pass and on the workbench listing wherever a fixture's
+// path is long enough, which at eighty columns it is.
+func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stacked bool) {
 	t.Helper()
+	stacks := 0
 	for _, block := range sweptBlocks() {
 		rendered := 0
 		for _, tag := range msg.Tags() {
@@ -182,6 +211,11 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full bool)
 			assertNoLineEndsInASpace(t, block, tag, lines)
 			if len(block.keys) == 0 {
 				assertNoHeadingIsDrawn(t, block, tag, lines)
+				continue
+			}
+			if !carriesTheHeadingRow(block, tag, lines[0]) {
+				assertStackedBlock(t, block, tag, lines)
+				stacks++
 				continue
 			}
 			columns := assertHeadingRow(t, block, tag, lines)
@@ -209,6 +243,182 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full bool)
 			t.Errorf("%s (%s) rendered in no locale at all", block.site, block.label)
 		}
 	}
+	if !stacked {
+		return
+	}
+	if stacks == 0 {
+		t.Errorf("no block of the inventory stacked at a window of %d, so this pass asserts nothing about the stacked form", sweptWindow)
+	}
+	assertTheStackedCheckCanFail(t)
+}
+
+// assertTheStackedCheckCanFail arms the stacked assertions on a block of the
+// pass's own, in every shipped language.
+//
+// Every stacked record the corpus draws carries a field under the widest
+// heading its block declares, and where that is true a build padding each
+// record to its own widest heading draws exactly what a correct one draws. So
+// the corpus cannot tell the two apart, and a check that passes on both proves
+// nothing. The block below is the one shape that separates them: its second
+// record holds no standing, so a per-record padding puts that record's values
+// three display columns left of the first record's, which is assertion four.
+//
+// It is rendered through the head's own tableLines and read by the same
+// assertions the corpus is read by, so it arms them rather than standing in
+// for them.
+func assertTheStackedCheckCanFail(t *testing.T) {
+	t.Helper()
+	block := sweptBlock{
+		site:  "row_sweep_test.go",
+		label: "the control block the narrow pass arms itself with",
+		keys:  []string{"column.ls.card", "column.ls.standing", "column.ls.title"},
+	}
+	for _, tag := range msg.Tags() {
+		s := &session{r: msg.For(tag), width: sweptWindow}
+		lines := s.tableLines(table{
+			indent:  sweptIndent,
+			columns: s.columns("ls", "card", "standing", "title"),
+			rows: []tableRow{
+				{fields: []string{"demo-1", msg.For(tag).T("token.ready"), "a card of some length"}},
+				{fields: []string{"demo-2", "", "a second card of some length"}},
+			},
+		})
+		if carriesTheHeadingRow(block, tag, lines[0]) {
+			t.Errorf("locale %s: the control block held its shape at a window of %d, so it arms nothing:\n%q", tag, sweptWindow, lines[0])
+			continue
+		}
+		assertStackedBlock(t, block, tag, lines)
+	}
+}
+
+// carriesTheHeadingRow reports whether a line is the heading row a block
+// declares, which is what tells a table apart from the stack a window too
+// narrow for it draws instead. It reads the same catalog entries in the same
+// order assertHeadingRow does and reports rather than failing, since either
+// answer is a shape this sweep asserts against.
+func carriesTheHeadingRow(block sweptBlock, tag, line string) bool {
+	cursor := 0
+	for _, key := range block.keys {
+		text := msg.For(tag).T(key)
+		at := strings.Index(line[cursor:], text)
+		if at < 0 {
+			return false
+		}
+		cursor += at + len(text)
+	}
+	return true
+}
+
+// assertStackedBlock asserts the six things the stacked form promises, per
+// block and per language. It is the check the stacked form needs of its own:
+// the output check that runs after every CLI invocation reads a stacked record
+// as a two-column table, finds its values lined up, and can see nothing else
+// about it.
+//
+//  1. The block draws neither a heading row nor a separator row.
+//  2. Every line splits into a label and a value, where the label is the
+//     catalog's text, in this language, for one of the block's declared
+//     heading keys.
+//  3. Each record's lines carry the block's columns in column order, one field
+//     to a line, with a field holding no text absent.
+//  4. Every value in the block begins at one display column, measured in
+//     display columns against the widest heading the block declares, across
+//     records as well as within one.
+//  5. Exactly one blank line separates one record from the next, and the first
+//     record draws none above it.
+//  6. No line is a continuation, so the block draws exactly as many lines as
+//     its records carry fields, plus the blank lines between them.
+func assertStackedBlock(t *testing.T, block sweptBlock, tag string, lines []string) {
+	t.Helper()
+	fail := func(format string, args ...any) {
+		t.Helper()
+		t.Errorf("%s (%s), locale %s: "+format, append([]any{block.site, block.label, tag}, args...)...)
+	}
+	labels := make([]string, 0, len(block.keys))
+	widest := 0
+	for _, key := range block.keys {
+		text := msg.For(tag).T(key)
+		labels = append(labels, text)
+		if drawn := displayWidth(text); drawn > widest {
+			widest = drawn
+		}
+	}
+	values := sweptIndent + widest + sweptGutter
+	held, blank, records := -1, false, 0
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			if records == 0 {
+				fail("a blank line stands above the first record:\n%q", line)
+				return
+			}
+			if blank {
+				fail("two blank lines separate one record from the next")
+				return
+			}
+			blank, held = true, -1
+			continue
+		}
+		if carriesTheHeadingRow(block, tag, line) {
+			fail("the stacked form drew a heading row:\n%q", line)
+			return
+		}
+		if strings.Trim(strings.TrimSpace(line), string(ruleGlyph)) == "" {
+			fail("the stacked form drew a separator row:\n%q", line)
+			return
+		}
+		if lead := sweptLead(line); lead != sweptIndent {
+			fail("a line begins at display column %d and every label of the block begins at %d, so the line is a continuation:\n%q", lead, sweptIndent, line)
+			return
+		}
+		at := stackedLabel(line, labels)
+		if at < 0 {
+			fail("a line carries no label the block declares a heading for:\n%q", line)
+			return
+		}
+		if at <= held {
+			if !blank && !block.blanksAreLost {
+				fail("the label %q follows %q with no blank line between the two records:\n%q", labels[at], labels[held], line)
+				return
+			}
+			records++
+		}
+		if records == 0 {
+			records++
+		}
+		held, blank = at, false
+		if !sweptBlank(line, sweptIndent+displayWidth(labels[at]), values) {
+			fail("the label %q is followed by something other than padding before display column %d:\n%q", labels[at], values, line)
+			return
+		}
+		if sweptSpaceAt(line, values) || displayWidth(line) <= values {
+			fail("the value after the label %q does not begin at display column %d, where the widest heading of the block leaves it:\n%q", labels[at], values, line)
+			return
+		}
+	}
+	if blank {
+		fail("the block ends on a blank line, so a record was separated from nothing")
+	}
+	if records == 0 {
+		fail("the block drew no record at all")
+	}
+}
+
+// stackedLabel reports which of a block's headings a stacked line is labelled
+// with, or minus one when it carries none. The longest match wins, since one
+// heading can open another and a line labelled with the longer one would
+// otherwise be read as the shorter.
+func stackedLabel(line string, labels []string) int {
+	text := strings.TrimLeft(line, " ")
+	at, held := -1, 0
+	for i, label := range labels {
+		if !strings.HasPrefix(text, label) {
+			continue
+		}
+		if drawn := displayWidth(label); at < 0 || drawn > held {
+			at, held = i, drawn
+		}
+	}
+	return at
 }
 
 // assertHeadingRow asserts that the block opens with a heading row carrying
@@ -830,6 +1040,7 @@ func sweptBlocks() []sweptBlock {
 		{
 			site: "render.go:290", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
+			blanksAreLost: true,
 			constantReason: "a timestamp is one format in one time zone, so every comment header draws its stamp " +
 				"at the same width; the author in the last column is what this block's assertion rests on",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
