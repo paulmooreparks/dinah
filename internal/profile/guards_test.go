@@ -958,6 +958,7 @@ type rowLayoutFinding struct {
 func TestNoRowIsLaidOutOutsideTheOneRenderer(t *testing.T) {
 	root := filepath.Join("..", "..")
 	scanned := 0
+	scannedRenderingHead := 0
 	var findings []rowLayoutFinding
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -985,6 +986,9 @@ func TestNoRowIsLaidOutOutsideTheOneRenderer(t *testing.T) {
 			return scanErr
 		}
 		scanned++
+		if strings.HasPrefix(name, theRenderingHead) {
+			scannedRenderingHead++
+		}
 		findings = append(findings, found...)
 		return nil
 	})
@@ -993,6 +997,33 @@ func TestNoRowIsLaidOutOutsideTheOneRenderer(t *testing.T) {
 	}
 	if scanned == 0 {
 		t.Error("no source was scanned, so this guard proves nothing")
+	}
+	// scanned == 0 would still hold from internal/ alone if the walk ever
+	// stopped reaching cmd/dinah, which is the one directory this guard was
+	// filed to watch. Count what is actually on disk there and require the
+	// walk to have matched it, the same shape the catalog check below uses
+	// for its own directory, so a change that quietly excludes the rendering
+	// head fails here rather than passing on unrelated coverage.
+	wantRenderingHead := 0
+	renderingHeadDir := filepath.Join(root, filepath.FromSlash(strings.TrimSuffix(theRenderingHead, "/")))
+	renderingHeadEntries, err := os.ReadDir(renderingHeadDir)
+	if err != nil {
+		t.Fatalf("read %s: %v", renderingHeadDir, err)
+	}
+	for _, entry := range renderingHeadEntries {
+		if entry.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		if theRenderingHead+entry.Name() == theOneRenderer {
+			continue
+		}
+		wantRenderingHead++
+	}
+	if scannedRenderingHead == 0 || scannedRenderingHead != wantRenderingHead {
+		t.Errorf("the walk scanned %d of the %d non-test sources under %s, so this guard proves less than it claims about the rendering head it exists to watch", scannedRenderingHead, wantRenderingHead, theRenderingHead)
 	}
 	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneRenderer))); err != nil {
 		t.Errorf("the one renderer is not where this guard exempts it: %v", err)

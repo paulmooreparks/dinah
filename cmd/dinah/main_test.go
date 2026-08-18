@@ -26,12 +26,38 @@ import (
 // package's tests exercise through the CLI cannot climb out of its own
 // synthetic fixture tree and reach the real workbenches sitting above it.
 // See internal/testenv's package comment for what this does and does not
-// cover.
+// cover. It also clears COLUMNS for the whole run, so a shell that exports
+// it does not reach a test that never asked to see it.
 func TestMain(m *testing.M) {
-	restore := testenv.IsolateTempDir()
+	restoreTemp := testenv.IsolateTempDir()
+	restoreColumns := isolateColumns()
 	code := m.Run()
-	restore()
+	restoreColumns()
+	restoreTemp()
 	os.Exit(code)
+}
+
+// isolateColumns clears COLUMNS for the whole test binary before any test
+// runs, restoring whatever the environment held once every test has
+// finished. windowWidth (row.go) reads COLUMNS straight from the
+// environment, so an exported COLUMNS reaches every test in this package,
+// not only the ones that set it on purpose. A handful of tests already call
+// t.Setenv("COLUMNS", ...) to control the value they need, and that call
+// keeps working exactly as before: t.Setenv overrides for the one test and
+// restores automatically when it ends, so it composes with an unset starting
+// point the same way it composes with any other. What clearing it here buys
+// is every test that never mentions COLUMNS at all, present or future,
+// which is where the hazard actually lives.
+func isolateColumns() (restore func()) {
+	prev, had := os.LookupEnv("COLUMNS")
+	os.Unsetenv("COLUMNS")
+	return func() {
+		if had {
+			os.Setenv("COLUMNS", prev)
+			return
+		}
+		os.Unsetenv("COLUMNS")
+	}
 }
 
 // invocation is one run of the head with its streams captured.
