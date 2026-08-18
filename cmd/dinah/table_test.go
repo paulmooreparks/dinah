@@ -143,24 +143,35 @@ func TestARuleStopsAtTheDisplayEdge(t *testing.T) {
 // TestAFieldTheWindowCannotTakeDoesNotWidenItsColumn asserts the drop rule and
 // the case it exists for: one long value among short ones takes its own line
 // rather than pushing every other row's columns out behind it.
+//
+// It reads the widths the measure chose and the lines they draw, rather than
+// the whole block. The table this builds stacks, since Value stands at its own
+// heading while a field under it reaches the column, and the drop rule is
+// about which widths were chosen rather than about which of the two forms the
+// window leaves room for.
 func TestAFieldTheWindowCannotTakeDoesNotWidenItsColumn(t *testing.T) {
-	drawn := tableSession(80).tableLines(table{
+	long := strings.Repeat("p", 70)
+	laid := measure(table{
 		indent:  2,
 		columns: headed("Setting", "Value", "Source"),
 		rows: rowsOf(
 			[]string{"lang", "en", "default"},
 			[]string{"actor", "alka", "environment"},
-			[]string{"workbench", strings.Repeat("p", 70), "search"},
+			[]string{"workbench", long, "search"},
 		),
-	})
-	if drawn[0] != "  Setting    Value  Source" {
-		t.Errorf("the heading row is %q, and the seventy-column value should not have widened its column", drawn[0])
+	}, 80)
+	narrowToWindow(&laid)
+	if laid.widths[1] != displayWidth("Value") {
+		t.Errorf("the Value column measured %d and its heading draws %d, so the seventy-column value widened its column", laid.widths[1], displayWidth("Value"))
 	}
-	if drawn[2] != "  lang       en     default" {
-		t.Errorf("the first row is %q", drawn[2])
+	if laid.widths[0] != displayWidth("workbench") {
+		t.Errorf("the Setting column measured %d and its widest value draws %d", laid.widths[0], displayWidth("workbench"))
 	}
-	if !strings.HasSuffix(drawn[4], strings.Repeat("p", 70)) {
-		t.Errorf("the long value should take the rest of its own line, got %q", drawn[4])
+	if line := laid.rowLine(laid.rows[0]); line != "  lang       en     default" {
+		t.Errorf("the first row is %q", line)
+	}
+	if lines := splitLines(laid.rowLine(laid.rows[2])); !strings.HasSuffix(lines[0], long) {
+		t.Errorf("the long value should take the rest of its own line, got %q", lines[0])
 	}
 }
 
@@ -168,28 +179,27 @@ func TestAFieldTheWindowCannotTakeDoesNotWidenItsColumn(t *testing.T) {
 // backstop and its floor: it takes the widest column down until the window
 // leaves room for the text after it, and stops where a column reaches its own
 // heading rather than eating it.
+// It reads the widths the backstop left rather than the block they draw,
+// since a table whose columns all stand at their headings while a value still
+// reaches one of them is the stacked case, and the floor is about the widths.
 func TestTheBackstopNarrowsToTheHeadingAndStops(t *testing.T) {
-	drawn := tableSession(30).tableLines(table{
+	laid := measure(table{
 		indent:  2,
 		columns: headed("Setting", "Value", "Source"),
 		rows: rowsOf(
 			[]string{"lang", "a value of some length", "default"},
 			[]string{"actor", "alka", "environment"},
 		),
-	})
-	fields := strings.Fields(drawn[0])
-	if len(fields) != 3 {
-		t.Fatalf("the heading row drew %d fields: %q", len(fields), drawn[0])
+	}, 30)
+	narrowToWindow(&laid)
+	if laid.widths[0] != displayWidth("Setting") {
+		t.Errorf("the Setting column stands at %d and its heading draws %d, so the backstop stopped short of the floor or ate it", laid.widths[0], displayWidth("Setting"))
 	}
-	floor := 2 + len("Setting") + tableGutter + len("Value") + tableGutter
-	if at := startColumnOf(drawn[0], "Source"); at != floor {
-		t.Errorf("the last column begins at display column %d and the headings leave it no room before %d:\n%q", at, floor, drawn[0])
+	if laid.widths[1] != displayWidth("Value") {
+		t.Errorf("the Value column stands at %d and its heading draws %d, so the backstop narrowed a column below its own heading", laid.widths[1], displayWidth("Value"))
 	}
-	if at := startColumnOf(drawn[0], "Value"); at != 2+len("Setting")+tableGutter {
-		t.Errorf("the backstop narrowed a column below its own heading:\n%q", drawn[0])
-	}
-	if !strings.HasSuffix(drawn[2], "a value of some length") {
-		t.Errorf("a value the narrowed column cannot hold should take the rest of its own line, got %q", drawn[2])
+	if lines := splitLines(laid.rowLine(laid.rows[0])); !strings.HasSuffix(lines[0], "a value of some length") {
+		t.Errorf("a value the narrowed column cannot hold should take the rest of its own line, got %q", lines[0])
 	}
 }
 
@@ -351,5 +361,66 @@ func TestATableNoRowFillsAtAllKeepsNoColumns(t *testing.T) {
 	})
 	if len(laid.columns) != 0 || len(laid.widths) != 0 {
 		t.Errorf("a table no row fills anywhere kept %d columns and %d widths", len(laid.columns), len(laid.widths))
+	}
+}
+
+// TestASectionSurvivesTheStackedForm asserts what a group label does when the
+// table it groups gives up its shape. The section keeps its place and replaces
+// the blank line the record it opens would otherwise have drawn, so a stack
+// separates its records exactly once however they are introduced.
+func TestASectionSurvivesTheStackedForm(t *testing.T) {
+	drawn := tableSession(20).tableLines(table{
+		indent:  2,
+		columns: headed("Slug", "Name"),
+		rows: []tableRow{
+			{fields: []string{"intake", "Intake of some length"}},
+			{section: "WORK", fields: []string{"doing", "Doing along name"}},
+		},
+	})
+	want := []string{
+		"  Slug  intake",
+		"  Name  Intake of some length",
+		"",
+		"WORK",
+		"  Slug  doing",
+		"  Name  Doing along name",
+	}
+	if strings.Join(drawn, "\n") != strings.Join(want, "\n") {
+		t.Errorf("a stack carrying a section drew:\n%s\nwant:\n%s", strings.Join(drawn, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// TestAStackedRecordDropsAFieldHoldingNoText asserts that a label over nothing
+// is not drawn, and that the record's other values stay where every other
+// record's do.
+func TestAStackedRecordDropsAFieldHoldingNoText(t *testing.T) {
+	drawn := tableSession(30).tableLines(table{
+		indent:  2,
+		columns: headed("Card", "Standing", "Title"),
+		rows: rowsOf(
+			[]string{"demo-1", "ready", "a card of some length"},
+			[]string{"demo-2", "", "a second card of some length"},
+		),
+	})
+	want := []string{
+		"  Card      demo-1",
+		"  Standing  ready",
+		"  Title     a card of some length",
+		"",
+		"  Card      demo-2",
+		"  Title     a second card of some length",
+	}
+	if strings.Join(drawn, "\n") != strings.Join(want, "\n") {
+		t.Errorf("a stack holding an empty field drew:\n%s\nwant:\n%s", strings.Join(drawn, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// TestARuleKeepsOneColumnWhereTheWindowLeavesNone asserts the floor under the
+// clamp: a column starting at or past the right edge still draws a rule of one
+// column rather than a negative repeat count.
+func TestARuleKeepsOneColumnWhereTheWindowLeavesNone(t *testing.T) {
+	laid := laidTable{indent: 2, window: 20, columns: headed("Card"), widths: []int{5}}
+	if got := laid.ruleWidth(0, laid.window+10); got != 1 {
+		t.Errorf("a rule starting past the right edge draws %d columns, and one is the floor", got)
 	}
 }
