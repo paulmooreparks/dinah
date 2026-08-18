@@ -110,7 +110,42 @@ try {
     # Step 7: verify the bytes. Reaching here means the transfer finished, so
     # a mismatch is corruption or a manifest that no longer describes what is
     # being served, which is a different failure from the one above.
-    $gotSha = (Get-FileHash -Path $tmpfile -Algorithm SHA256).Hash
+    #
+    # The digest is computed with the .NET SHA256 class directly, over a
+    # FileStream, rather than with Get-FileHash. Get-FileHash is exported by
+    # the Microsoft.PowerShell.Utility module (Microsoft Learn's own cmdlet
+    # reference states this), not one of the cmdlets Windows PowerShell's
+    # default session already carries, so Windows PowerShell reaches it only
+    # by autoloading that module off PSModulePath (documented in
+    # about_Modules and about_PSModulePath). A machine with both PowerShell
+    # editions installed can hand Windows PowerShell a PSModulePath that
+    # lists PowerShell 7's module directory ahead of Windows PowerShell's
+    # own; Windows PowerShell then autoloads PowerShell 7's copy of that
+    # module, which exposes no Get-FileHash to it, and the script would die
+    # here with CommandNotFoundException after a successful download instead
+    # of verifying it. System.Security.Cryptography.SHA256 is a base class
+    # library type, not a module export, so it needs no autoload and does not
+    # depend on PSModulePath at all.
+    try {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $stream = [System.IO.File]::OpenRead($tmpfile)
+            try {
+                $hashBytes = $sha256.ComputeHash($stream)
+            }
+            finally {
+                $stream.Dispose()
+            }
+        }
+        finally {
+            $sha256.Dispose()
+        }
+        $gotSha = ([BitConverter]::ToString($hashBytes)).Replace('-', '')
+    }
+    catch {
+        Write-Failure "could not compute a SHA-256 checksum for $binary on this machine, so the download cannot be verified; nothing was installed"
+        exit 1
+    }
     if ($gotSha -ne $wantSha) {
         Write-Failure "downloaded file's checksum does not match the manifest for $binary; the download will not be installed"
         exit 1

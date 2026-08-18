@@ -1447,6 +1447,137 @@ func TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption(t *testi
 	})
 }
 
+// TestInstallPS1VerifiesWithoutGetFileHash runs scripts/install.ps1 to a
+// successful, checksum-verified finish under a PSModulePath that shadows
+// Windows PowerShell's own Get-FileHash with a PowerShell 7 installation's
+// module directory, the shape a colleague's machine takes on when both
+// PowerShell editions are installed.
+//
+// Get-FileHash is exported by the Microsoft.PowerShell.Utility module
+// (Microsoft Learn's own cmdlet reference names it), not one of the cmdlets
+// Windows PowerShell's default session already carries, so Windows
+// PowerShell reaches it only by autoloading that module off PSModulePath
+// (documented in about_Modules and about_PSModulePath). PowerShell 7 ships
+// its own copy of Microsoft.PowerShell.Utility built into pwsh.exe itself
+// rather than as a discoverable module under its Modules directory, so a
+// Windows PowerShell session handed a PSModulePath naming that directory
+// finds no Get-FileHash there and dies with CommandNotFoundException, after a
+// successful download. install.ps1 closes this by computing the digest with
+// System.Security.Cryptography.SHA256 directly: a base class library type,
+// not a module export, so it needs no autoload and does not depend on
+// PSModulePath.
+//
+// This test proves the fix rather than assuming the mechanism: it first
+// confirms, against the real powershell.exe and pwsh.exe on this machine,
+// that the poisoned PSModulePath really does make Get-FileHash unresolvable,
+// and skips rather than passing vacuously if it does not.
+func TestInstallPS1VerifiesWithoutGetFileHash(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("scripts/install.ps1 targets Windows PowerShell")
+	}
+	psExe, err := exec.LookPath("powershell.exe")
+	if err != nil {
+		t.Skip("this machine has no powershell.exe, which scripts/install.ps1 needs")
+	}
+	pwshExe, err := exec.LookPath("pwsh.exe")
+	if err != nil {
+		t.Skip("this machine has no pwsh.exe (PowerShell 7), so the two-edition shape this test reproduces cannot be built here")
+	}
+
+	// Ask PowerShell 7 for its own PSModulePath, then take the one entry
+	// that lives under its own installation directory. That is the entry a
+	// machine with both editions installed can hand to Windows PowerShell
+	// when the two inherit the same variable, and it is the shape that
+	// produced the original failure.
+	out, err := exec.Command(pwshExe, "-NoProfile", "-NonInteractive", "-Command", "$env:PSModulePath").CombinedOutput()
+	if err != nil {
+		t.Fatalf("asking pwsh.exe for its PSModulePath: %v\n%s", err, out)
+	}
+	pwshDir := strings.ToLower(filepath.Dir(pwshExe))
+	var poison string
+	for _, entry := range strings.Split(strings.TrimSpace(string(out)), ";") {
+		if strings.HasPrefix(strings.ToLower(entry), pwshDir) {
+			poison = entry
+			break
+		}
+	}
+	if poison == "" {
+		t.Skip("could not find a PowerShell 7 module directory under its own install path in $env:PSModulePath, so the two-edition shape cannot be built here")
+	}
+
+	// Precondition: this really does shadow Get-FileHash from Windows
+	// PowerShell on this machine, or the test proves nothing.
+	probe := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-Command", `Get-FileHash C:\Windows\win.ini -Algorithm SHA256`)
+	probe.Env = windowsPowerShellEnv("PSModulePath=" + poison)
+	if probeOut, probeErr := probe.CombinedOutput(); probeErr == nil {
+		t.Skipf("Get-FileHash resolved under PSModulePath=%s on this machine, so it does not reproduce the two-edition shadowing this test targets:\n%s", poison, probeOut)
+	}
+
+	root := filepath.Join("..", "..")
+	source, err := os.ReadFile(filepath.Join(root, "scripts", "install.ps1"))
+	if err != nil {
+		t.Fatalf("reading scripts/install.ps1: %v", err)
+	}
+
+	full := []byte("stand-in dinah.exe payload for the PSModulePath test\n")
+	sum := fmt.Sprintf("%x", sha256.Sum256(full))
+	const binary = "dinah-windows-amd64.exe"
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
+			fmt.Fprintf(w, `{
+  "channel": "dev",
+  "version": "v0.1.0-dev.7",
+  "tag": "v0.1.0-dev.7",
+  "publishedAt": "2026-01-01T00:00:00Z",
+  "downloadBase": %q,
+  "binaries": {
+    %q: { "sha256": %q, "size": %d }
+  }
+}
+`, server.URL+"/releases/download/v0.1.0-dev.7/", binary, sum, len(full))
+		case strings.HasSuffix(r.URL.Path, "/"+binary):
+			w.Write(full)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+	localAppData := t.TempDir()
+	scriptDir := t.TempDir()
+	scriptPath := filepath.Join(scriptDir, "install.ps1")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+		t.Fatalf("writing the script under test: %v", err)
+	}
+
+	cmd := exec.Command(psExe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+	cmd.Env = windowsPowerShellEnv(
+		"LOCALAPPDATA="+localAppData,
+		"PROCESSOR_ARCHITECTURE=AMD64",
+		"DINAH_NO_PATH=1",
+		"PSModulePath="+poison,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("scripts/install.ps1 failed under a PSModulePath that shadows Get-FileHash: %v\n%s", err, output)
+	}
+	if strings.Contains(string(output), "CommandNotFoundException") {
+		t.Errorf("install.ps1 still depends on something PSModulePath can shadow:\n%s", output)
+	}
+
+	installed, err := os.ReadFile(filepath.Join(localAppData, "dinah", "bin", "dinah.exe"))
+	if err != nil {
+		t.Fatalf("no binary was installed: %v\n%s", err, output)
+	}
+	if !bytes.Equal(installed, full) {
+		t.Errorf("installed binary does not match the published bytes\ngot:  %q\nwant: %q", installed, full)
+	}
+}
+
 // psQuote wraps a string in double quotes for interpolation into a
 // PowerShell command line. Go's %q escapes backslashes for Go source syntax,
 // which corrupts a Windows registry path (HKCU:\Software\...) built with it;
