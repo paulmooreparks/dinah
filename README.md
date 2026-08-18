@@ -75,11 +75,11 @@ You get three lines back, not just the hash:
 
 ```
 SHA256 hash of dinah-windows-amd64.exe:
-<hash, printed as 32 two-digit hex bytes separated by spaces>
+9572d7f4e812df12cd8c0d26e7308864c33cbb51b004cbe962ad545bc377a4a2
 CertUtil: -hashfile command completed successfully.
 ```
 
-Compare the middle line, with the spaces removed, against the line for your binary in `SHA256SUMS.txt`.
+Compare the middle line against the line for your binary in `SHA256SUMS.txt`.
 
 These are dev builds, cut from every commit to `main`. They are unstable, and no release of Dinah promises compatibility with them.
 
