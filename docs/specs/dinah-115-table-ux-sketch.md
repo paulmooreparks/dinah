@@ -39,8 +39,8 @@ After:
 dinah-115-play  (C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece)  [search]
 acting as spec-agent, operator: yes
 
-  Slug    Name    Kind    Cards  Moved by
-  ------  ------  ------  -----  --------
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
   intake  Intake  intake  3      agent
   doing   Doing   work    0      agent
   done    Done    done    0      agent
@@ -340,15 +340,27 @@ are still printed unpadded, so no row picks up a trailing run of spaces.
 The heading counts as content of its column, which matters where a heading is
 the widest thing in the column. `Standing` draws eight over values drawing six,
 and a width taken from the values alone would put a six-column rule under an
-eight-column word. The same block on the widest table the tool prints:
+eight-column word. The same block on the widest table the tool prints, with a
+fourth state added to the fixture, `Review`, an operator-owned state whose
+column reads `operator`:
 
 ```
-  Slug    Name    Kind    Cards  Moved by
+  Slug    Name    Kind    Cards  Owner
   ------  ------  ------  -----  --------
   intake  Intake  intake  3      agent
   doing   Doing   work    0      agent
   done    Done    done    0      agent
+  review  Review  work    1      operator
 ```
+
+The added row is why this block is drawn wider than section 1's, and it makes
+the opposite point from `Standing`: `Owner` draws five and would set the
+column no wider than that if every value read `agent`, the way they do in the
+three-state fixture. The fourth row's `operator` draws eight, so the column
+and its rule widen to eight the moment content asks for it, on a board where
+an operator-owned state is the ordinary case rather than the exception. A
+width taken from the heading alone would have missed this the same way a
+width taken from the values alone missed `Standing`.
 
 A rule stops at the right edge of the display. The column of summaries in the
 command list measures seventy-three, its column starts at display column 41, and
@@ -380,8 +392,8 @@ widths are chosen against a window of 80 when nothing states one.
 ```
 $ dinah states > states.txt
 $ cat states.txt
-  Slug    Name    Kind    Cards  Moved by
-  ------  ------  ------  -----  --------
+  Slug    Name    Kind    Cards  Owner
+  ------  ------  ------  -----  -----
   intake  Intake  intake  3      agent
 ```
 
@@ -402,7 +414,7 @@ ruling.
 
 | Table | Headings |
 |---|---|
-| `states`, and the same block inside `status` | Slug, Name, Kind, Cards, Moved by |
+| `states`, and the same block inside `status` | Slug, Name, Kind, Cards, Owner |
 | the cards you hold, inside `status` | Card, Title |
 | the blocked cards, inside `status` | Card, Reason |
 | `ls` | Card, Standing, Title |
@@ -425,7 +437,8 @@ and no separator: the findings of `check`, and the stranded states
 `check --migrate-states` removed. One column under a sentence that already names
 it is a list.
 
-The word most worth a second look is `Moved by`. It heads the column that now
-reads `agent` or `operator` on every row of the state listing, and it is the one
-heading in the table above naming a question rather than a value. `Owner` and
-`Who moves it` are the alternatives.
+The column that reads `agent` or `operator` on every row of the state listing
+was first drawn as `Moved by`, the one heading in the table above naming a
+question rather than a value, alongside two alternatives, `Owner` and `Who
+moves it`. The operator ruled: `Owner`, which names the value the column
+holds rather than a question about it. `Who moves it` was never taken.
