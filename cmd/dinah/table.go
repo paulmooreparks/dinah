@@ -155,6 +155,17 @@ type laidTable struct {
 
 // layOut removes the columns no row fills, chooses every column's width, and
 // returns what the heading, separator and rows are all drawn from.
+//
+// The three passes run in one order and the order is load-bearing. The measure
+// comes first, the near-miss widening second, and the narrow-window backstop
+// last, so that the backstop has the final word on how much of the window the
+// columns before the last one may take. Nothing widens a column after it. An
+// earlier reading of this ran the widening a second time at the end and priced
+// it at one display column, which is what one step costs rather than what a
+// loop over every value costs: each value between a narrowed column's floor
+// and the width it was measured at is a step the widening climbs back, so ten
+// ordinary state names at a forty-column window walked three columns out again
+// and put the last column past the room left for it.
 func (s *session) layOut(t table) laidTable {
 	window := s.width
 	if window <= 0 {
@@ -170,7 +181,6 @@ func (s *session) layOut(t table) laidTable {
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
 	narrowToWindow(&laid)
-	clearTheGutter(&laid)
 	return laid
 }
 
@@ -185,11 +195,17 @@ func (s *session) layOut(t table) laidTable {
 // where every other field has two. Widening the column by one puts the field
 // back inside it and gives the gutter back.
 //
-// Only a field the window rules out of the measurement, or a column the
-// backstop has narrowed, can land there. Widening costs one column and buys
-// the row a line, which is why a near miss is worth taking back and the wide
-// outlier the drop rule exists for is not: the command list's 74-column syntax
-// is nowhere near its column and still takes its own line.
+// Only a field the window ruled out of the measurement can land there, since
+// this runs on the widths the measure chose and before the backstop narrows
+// anything. Taking a near miss back costs one column and buys the row a line.
+// The wide outlier the drop rule exists for is a different case and is left
+// alone: the command list's 74-column syntax is nowhere near its column and
+// still takes its own line.
+//
+// This runs before narrowToWindow and never after it. A column the backstop
+// has narrowed holds values at every width between its floor and the width it
+// was measured at, so a widening pass behind the backstop walks the column
+// back out one value at a time and undoes the narrowing it was meant to keep.
 func clearTheGutter(laid *laidTable) {
 	for c := 0; c < len(laid.widths)-1; c++ {
 		widened := true
@@ -346,6 +362,13 @@ func fieldsOverWindow(fields []string, indent, window int) []bool {
 // The last column keeps whatever width it measured, because narrowing a column
 // nothing is ever padded to would change nothing a reader sees except the
 // length of one rule.
+//
+// This is the last pass of layOut, so what it leaves is what a reader gets:
+// either the columns before the last one leave minTailColumns of the window
+// after them, or every one of them stands at its own heading and the window is
+// narrower than the headings alone.
+// TestTheBackstopHoldsWhateverTheWidthsWere asserts exactly that pair over the
+// laid-out table.
 func narrowToWindow(laid *laidTable) {
 	for {
 		lead := laid.indent

@@ -144,8 +144,9 @@ type sweptWorkbenches struct {
 // column in front of the last one to differ in display width between two rows,
 // since a measured column takes the widest field and a block whose fields
 // never vary cannot show that the measure was right. And a block whose rows
-// all fit the window is asserted to draw no continuation line at all, which is
-// what fails when a column is narrower than the rows it holds.
+// all fit the window, every field of them inside its own column, is asserted
+// to draw no continuation line at all, which is what fails when an unpadded
+// last field runs past the edge of a line that had room for every column.
 func TestEveryRowStartsItsColumnsAtOneDisplayColumn(t *testing.T) {
 	benches := buildSweptWorkbenches(t)
 	for pass, drawn := range sweptWindows {
@@ -444,15 +445,19 @@ func assertNoLineEndsInASpace(t *testing.T, block sweptBlock, tag string, lines 
 }
 
 // assertNoRowThatFitsIsContinued asserts that a block whose every row can be
-// laid out inside the window draws one line per row, which is what fails when
-// a column is narrower than the rows it holds.
+// laid out inside the window, with every field inside its own column, draws
+// one line per row. What that catches is a last field, which nothing pads,
+// running past the edge of a line that had room for every column before it.
 //
-// Two shapes sit outside it and say so rather than being quietly excused. A
-// block holding a row the window cannot take however the columns are chosen
-// draws that row over two lines by design, and so does a block holding a
-// field wider than the column it sits in, which is what a field the window
-// ruled out of the measurement and a column the narrow-window backstop took
-// down both leave behind.
+// Two shapes sit outside it and the check stands aside for both rather than
+// excusing them quietly. A block holding a row the window cannot take however
+// the columns are chosen draws that row over two lines by design, and so does
+// a block holding a field wider than the column it sits in, which is what a
+// field the window ruled out of the measurement and a column the narrow-window
+// backstop took down both leave behind. The second of those bails out of this
+// check entirely, so a column narrower than the rows it holds is a shape this
+// assertion does not speak to at all. The narrow-window post-condition in
+// TestTheBackstopHoldsWhateverTheWidthsWere is what covers it.
 func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, lines []string, columns []int, rows [][]string) {
 	t.Helper()
 	for _, row := range rows {

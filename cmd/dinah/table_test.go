@@ -213,3 +213,68 @@ func TestTheGutterSurvivesAFieldOneColumnWiderThanItsOwn(t *testing.T) {
 		}
 	}
 }
+
+// backstopFixture is one table the narrow-window post-condition is asserted
+// over, with a name a failure can report.
+type backstopFixture struct {
+	name  string
+	table table
+}
+
+// backstopFixtures are the shapes a narrow window is hardest on: a listing of
+// ordinary state names, where many values sit a column or two apart, and a
+// listing whose slugs draw a contiguous run of widths, where every width
+// between a narrowed column's floor and its measured width is present in some
+// row.
+func backstopFixtures() []backstopFixture {
+	states := table{indent: 2, columns: headed("Slug", "Name", "Kind", "Cards", "Owner")}
+	for _, slug := range []string{
+		"intake", "spec", "design-review", "build-queue", "implement",
+		"code-review", "test", "operator-review", "merge", "done",
+	} {
+		states.rows = append(states.rows, tableRow{fields: []string{slug, slug, "work", "3", "agent"}})
+	}
+	run := table{indent: 2, columns: headed("Slug", "Name", "Kind", "Cards", "Owner")}
+	for width := 4; width <= 16; width++ {
+		slug := strings.Repeat("s", width)
+		run.rows = append(run.rows, tableRow{fields: []string{slug, slug, "work", "12", "operator"}})
+	}
+	return []backstopFixture{{name: "ten ordinary state names", table: states}, {name: "a contiguous run of slug widths", table: run}}
+}
+
+// TestTheBackstopHoldsWhateverTheWidthsWere asserts the post-condition the
+// narrow-window backstop exists for, read off the laid-out table rather than
+// off one rendering: the columns before the last one either leave
+// minTailColumns of the window after them, or every one of them stands at its
+// own heading, with nothing in between.
+//
+// This is the assertion the card shipped its first pass without, and the class
+// it catches is a pass that widens a column after the backstop has narrowed
+// it. Such a pass climbs back one value at a time, so the columns end up where
+// the measure put them and the last column starts past the room the window has
+// for it. Every other check on this card reads a rendering, and a rendering of
+// re-widened columns is indistinguishable from a rendering of a block that was
+// always that wide, so the class went unseen. Reading the widths
+// against the window is what separates the two.
+func TestTheBackstopHoldsWhateverTheWidthsWere(t *testing.T) {
+	for _, fixture := range backstopFixtures() {
+		for window := minTailColumns; window <= 80; window++ {
+			laid := tableSession(window).layOut(fixture.table)
+			lead := laid.indent
+			for c := 0; c < len(laid.widths)-1; c++ {
+				lead += laid.widths[c] + tableGutter
+			}
+			if lead+minTailColumns <= window {
+				continue
+			}
+			for c := 0; c < len(laid.widths)-1; c++ {
+				floor := displayWidth(laid.columns[c].heading)
+				if laid.widths[c] <= floor {
+					continue
+				}
+				t.Errorf("%s at a window of %d: the columns before the last one run to display column %d and leave %d of the window after them, while column %d stands at %d over a heading of %d",
+					fixture.name, window, lead, window-lead, c, laid.widths[c], floor)
+			}
+		}
+	}
+}

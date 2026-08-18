@@ -28,7 +28,7 @@ render.go:93.19,95.3  a token the catalog carries no rendering for, and every to
 render.go:114.3,116.22  an instruction layer carrying text, which the fixtures the corpus serves instructions from leave empty.
 render.go:118.21,120.3  a served instruction offering no legal move, which needs a state with nothing after it.
 render.go:166.2,166.25  the human rendering of a false answer, so a status or whoami printed by somebody who is not the operator. Reachable and unreached: worth a test.
-render.go:174.25,176.4  a state declaring a capacity limit in the human states listing. Reachable and unreached: the limited flow is driven through the machine surface alone.
+render.go:174.25,176.4  a state declaring a capacity limit in the human states listing, since the limited flow is driven through the machine surface alone. Reachable and unreached: worth a test.
 render.go:189.29,192.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
 render.go:269.23,272.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
 render.go:304.19,306.5  the override mark on a move in the history. Reachable and unreached: worth a test.
@@ -36,4 +36,4 @@ render.go:307.30,308.20  the reason a block carries in the history. Reachable an
 render.go:368.59,370.2  the human rendering of whoami, which the corpus asks for through --json alone. Reachable and unreached: worth a test.
 render.go:377.32,379.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
 table.go:91.30,93.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
-table.go:333.13,335.4  the backstop finding no column it may narrow, which needs a window narrower than the headings themselves and is reached through the row renderer's own clamp instead.
+table.go:349.13,351.4  the drop rule finding no field it may drop, which cannot happen: the loop stops while one field is left, so a candidate always remains for as long as it runs. The guard stays because the search reports its own failure rather than trusting that argument.

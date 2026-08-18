@@ -54,6 +54,17 @@ import (
 //     for as long as every field is ASCII, so the fixtures that carry the
 //     three wide-script card titles are what make a byte count visible, and a
 //     command whose every field is a token proves nothing about the measure.
+//   - A block whose only field wider in display columns than in bytes is the
+//     last one. Padding by counting bytes lines a block up whenever nothing
+//     follows the field the count is wrong about, so a hand-rolled table can
+//     carry the wide-script titles the fixtures exist to supply and still
+//     reach this check aligned. That is the shape of `dinah ls`, whose title
+//     is both the wide field and the last one, and it is the listing a reader
+//     meets most: a hand-rolled block planted there is invisible here, and
+//     only the source patterns speak to it. A plant reaches this check only
+//     when the block carries another field after its wide one, and the states
+//     listing is where this card's arming proofs planted theirs for that
+//     reason.
 //   - Anything written to somewhere other than the two streams run was given.
 //     Pattern 11 of the source guard is what holds that, and pattern 11 is a
 //     source scan.
