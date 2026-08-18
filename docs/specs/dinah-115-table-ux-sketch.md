@@ -53,8 +53,6 @@ the trailing run of spaces goes. That trailing run is invisible on screen. It
 shows up in a diff, in a pasted transcript, and in a defect report, which is
 where it costs somebody time.
 
-Two of the changes deserve their own note.
-
 The third column used to be called nothing at all, and the obvious word for it
 is wrong. Every row in this table is a state, so a heading reading `State` names
 the table rather than the column. What the column holds is the state's display
