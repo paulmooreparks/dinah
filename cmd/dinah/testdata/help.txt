@@ -3,6 +3,8 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
+  Command                                What it does
+  -------------------------------------  ---------------------------------------
   add <title> [--state <state>]          file a new card in the first state
   claim <card> [--expires <duration>]    take up a ready card
   move <card> <state> [--override]       carry a card to another state
@@ -42,11 +44,13 @@ SERVE
   mcp                                    serve this workbench over MCP on stdio
 
 Global flags:
-  --workbench <dir>   use this workbench instead of the one discovered from here
-  --json              emit the canonical machine form
-  --quiet             suppress served instructions on claim and move
-  --lang <tag>        render in this language
-  --actor <name>      act as this owner
+  Option             What it does
+  -----------------  ----------------------------------------------------------
+  --workbench <dir>  use this workbench instead of the one discovered from here
+  --json             emit the canonical machine form
+  --quiet            suppress served instructions on claim and move
+  --lang <tag>       render in this language
+  --actor <name>     act as this owner
 
 Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR
 
