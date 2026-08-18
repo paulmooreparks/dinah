@@ -152,13 +152,23 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			continue
 		}
 		listed++
-		if !strings.Contains(string(fixture), "  "+verb.Usage(c.name)+" ") {
+		if !blockLists(string(fixture), verb.Usage(c.name)) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
 	if listed != 29 {
 		t.Errorf("wanted twenty-nine listed commands, got %d", listed)
 	}
+}
+
+// blockLists reports whether the ratified help block carries a command's
+// usage line under the block's own indent. A usage that fits its column is
+// followed by the padding before its summary, and one that reaches the column
+// takes the rest of its line and is followed by the line ending instead, so
+// asking for a trailing space alone would read a wrapped entry as a missing
+// one.
+func blockLists(block, usage string) bool {
+	return strings.Contains(block, "  "+usage+" ") || strings.Contains(block, "  "+usage+"\n")
 }
 
 // diffLines reports the first line at which two blocks differ, which is what
@@ -1160,7 +1170,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] ") {
+	if !blockLists(string(fixture), "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]") {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
 	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]" {
