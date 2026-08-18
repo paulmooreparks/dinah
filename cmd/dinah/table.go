@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"runtime"
+	"strings"
+)
 
 // tableColumn is one column of a table: the heading a reader sees above it,
 // already rendered in the reader's language.
@@ -75,8 +78,27 @@ func (s *session) columns(block string, names ...string) []tableColumn {
 	return rendered
 }
 
+// tableSiteRecorder is how the suite learns which call sites really drew a
+// table. It is nil in a shipped binary and costs one comparison per table; the
+// test that arms it pairs what the corpus reached against what an AST walk
+// found, in both directions, so a site no test draws and a site no walk sees
+// are both failures rather than silences.
+var tableSiteRecorder func(file string, line int)
+
+// recordTableSite reports its caller's caller, which is the call site of
+// whichever of the two entry points below is running.
+func recordTableSite() {
+	if tableSiteRecorder == nil {
+		return
+	}
+	if _, file, line, ok := runtime.Caller(2); ok {
+		tableSiteRecorder(file, line)
+	}
+}
+
 // table lays a table out and writes it to stdout.
 func (s *session) table(t table) {
+	recordTableSite()
 	for _, line := range s.tableLines(t) {
 		s.line(line)
 	}
@@ -90,6 +112,7 @@ func (s *session) table(t table) {
 // its rows and neither a heading nor a separator, since one column under a
 // sentence that already names it is a list.
 func (s *session) tableLines(t table) []string {
+	recordTableSite()
 	if len(t.rows) == 0 {
 		return nil
 	}

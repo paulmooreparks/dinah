@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,7 +22,8 @@ import (
 	"dinah/internal/verb"
 )
 
-// TestMain redirects this binary's temporary directory outside the
+// TestMain arms two records for the whole run and reports one of them after
+// it. It redirects this binary's temporary directory outside the
 // developer's home before any test runs, so the ancestor walk this
 // package's tests exercise through the CLI cannot climb out of its own
 // synthetic fixture tree and reach the real workbenches sitting above it.
@@ -31,7 +33,13 @@ import (
 func TestMain(m *testing.M) {
 	restoreTemp := testenv.IsolateTempDir()
 	restoreColumns := isolateColumns()
+	tableSiteRecorder = recordReachedTableSite
 	code := m.Run()
+	tableSiteRecorder = nil
+	for _, complaint := range unreachedTableSites() {
+		fmt.Fprintln(os.Stderr, complaint)
+		code = 1
+	}
 	restoreColumns()
 	restoreTemp()
 	os.Exit(code)
@@ -102,6 +110,14 @@ func resolvedDir(t *testing.T, dir string) string {
 // runCLI runs the head in a directory, with the streams captured.
 func runCLI(t *testing.T, dir string, argv ...string) invocation {
 	t.Helper()
+	return runCLIWithInput(t, dir, strings.NewReader(""), argv...)
+}
+
+// runCLIWithInput is runCLI for the one command that reads its argument from a
+// pipe. Both go through here, so run is driven from one place and the output
+// check below reads both streams of every invocation any test makes.
+func runCLIWithInput(t *testing.T, dir string, in io.Reader, argv ...string) invocation {
+	t.Helper()
 	previous, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -112,7 +128,9 @@ func runCLI(t *testing.T, dir string, argv ...string) invocation {
 	defer os.Chdir(previous)
 	out := &bytes.Buffer{}
 	errw := &bytes.Buffer{}
-	code := run(argv, strings.NewReader(""), out, errw)
+	code := run(argv, in, out, errw)
+	checkColumnsLineUp(t, "stdout", out.String())
+	checkColumnsLineUp(t, "stderr", errw.String())
 	return invocation{code: code, out: out.String(), errw: errw.String()}
 }
 
@@ -3451,17 +3469,9 @@ func TestOpenTailContinuesToAcceptALeadingDashWord(t *testing.T) {
 		t.Errorf("config set should have stored -w verbatim, got %d %q", got.code, got.out)
 	}
 
-	piped := &bytes.Buffer{}
-	piped.WriteString("piped comment text")
-	out, errw := &bytes.Buffer{}, &bytes.Buffer{}
-	previous, _ := os.Getwd()
-	if err := os.Chdir(root); err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	code := run([]string{"comment", "fx-1", "-"}, piped, out, errw)
-	os.Chdir(previous)
-	if code != 0 {
-		t.Fatalf("comment fx-1 -: wanted exit 0, got %d (%s)", code, errw.String())
+	piped := strings.NewReader("piped comment text")
+	if got := runCLIWithInput(t, root, piped, "comment", "fx-1", "-"); got.code != 0 {
+		t.Fatalf("comment fx-1 -: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 
 	// A single-dash word given as an explicit flag's own value is unaffected
