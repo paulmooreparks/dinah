@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -26,32 +25,35 @@ var commands []*command
 
 func init() {
 	commands = []*command{
-		{name: "add", group: groupWork, run: runAdd},
-		{name: "claim", group: groupWork, run: runClaim},
-		{name: "move", group: groupWork, run: runMove},
-		{name: "release", group: groupWork, run: runRelease},
-		{name: "block", group: groupWork, run: runBlock},
-		{name: "unblock", group: groupWork, run: runUnblock},
-		{name: "comment", group: groupWork, run: runComment},
-		{name: "attach", group: groupWork, run: runAttach},
-		{name: "archive", group: groupWork, run: runArchive},
-		{name: "delete", group: groupWork, run: runDelete},
+		{name: "add", group: groupWork, run: runAdd, openTail: true},
+		{name: "claim", group: groupWork, run: runClaim, bounded: 1},
+		{name: "move", group: groupWork, run: runMove, bounded: 2},
+		{name: "release", group: groupWork, run: runRelease, bounded: 1},
+		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true},
+		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
+		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true},
+		{name: "attach", group: groupWork, run: runAttach, bounded: 2},
+		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
+		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "states", group: groupRead, run: runStates},
-		{name: "ls", group: groupRead, run: runList},
-		{name: "next", group: groupRead, run: runNext},
-		{name: "show", group: groupRead, run: runShow},
-		{name: "log", group: groupRead, run: runLog},
-		{name: "instructions", group: groupRead, run: runInstructions},
-		{name: "guide", group: groupRead, run: runGuide},
+		{name: "ls", group: groupRead, run: runList, bounded: 1},
+		{name: "next", group: groupRead, run: runNext, bounded: 1},
+		{name: "show", group: groupRead, run: runShow, bounded: 1},
+		{name: "log", group: groupRead, run: runLog, bounded: 1},
+		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
+		{name: "guide", group: groupRead, run: runGuide, bounded: 1},
 
-		{name: "init", group: groupBench, run: runInit},
+		{name: "init", group: groupBench, run: runInit, bounded: 1},
 		{name: "export", group: groupBench, run: runExport},
-		{name: "extract", group: groupBench, run: runExtract},
-		{name: "path", group: groupBench, run: runPath},
-		{name: "edit", group: groupBench, run: runEdit},
-		{name: "config", group: groupBench, run: runConfig},
+		{name: "extract", group: groupBench, run: runExtract, bounded: 1},
+		{name: "path", group: groupBench, run: runPath, bounded: 1},
+		{name: "edit", group: groupBench, run: runEdit, bounded: 1},
+		// config dispatches on its own first word and runs the same
+		// mistyped-flag check itself (see runConfig), so it declares an open
+		// tail here to keep the generic walk in run() out of its way entirely.
+		{name: "config", group: groupBench, run: runConfig, openTail: true},
 		{name: "check", group: groupBench, run: runCheck},
 		{name: "whoami", group: groupBench, run: runWhoami},
 		{name: "workbenches", group: groupBench, run: runWorkbenches},
@@ -59,7 +61,7 @@ func init() {
 
 		{name: "mcp", group: groupServe, run: runMCP},
 
-		{name: "help", run: runHelp},
+		{name: "help", run: runHelp, bounded: 1},
 	}
 }
 
@@ -79,6 +81,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		Finish:          parsed.has("finish"),
 		MigrateOrdinals: parsed.has("migrate-ordinals"),
 		MigrateSlugs:    parsed.has("migrate-slugs"),
+		MigrateStates:   parsed.has("migrate-states"),
 	}
 	return req
 }
@@ -126,7 +129,11 @@ func runBlock(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Block, parsed)
 	req.Card = at(words, 0)
-	req.Reason = strings.Join(words[min(1, len(words)):], " ")
+	reason, refusal := freeText([]string{"block", req.Card}, words[min(1, len(words)):], "the reason")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Reason = reason
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
 	})
@@ -144,7 +151,11 @@ func runUnblock(s *session, parsed *arguments) int {
 // runAdd files a new card.
 func runAdd(s *session, parsed *arguments) int {
 	req := s.request("add", parsed)
-	req.Title = strings.Join(parsed.rest(), " ")
+	title, refusal := freeText([]string{"add"}, parsed.rest(), "the title")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Title = title
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Add(req))
 	})
@@ -156,7 +167,11 @@ func runComment(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("comment", parsed)
 	req.Card = at(words, 0)
-	req.Text = strings.Join(words[min(1, len(words)):], " ")
+	text, refusal := freeText([]string{"comment", req.Card}, words[min(1, len(words)):], "the comment")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Text = text
 	if req.Text == "-" {
 		piped, err := io.ReadAll(s.in)
 		if err != nil {
@@ -202,6 +217,7 @@ func runDelete(s *session, parsed *arguments) int {
 func runStatus(s *session, parsed *arguments) int {
 	req := s.request("status", parsed)
 	return s.withBench(func(l *verb.Library) int {
+		req.WorkbenchSource = s.workbenchSource
 		status, err := l.Status(req)
 		if err != nil {
 			return s.reportError(err)
@@ -351,7 +367,8 @@ func runGuide(s *session, parsed *arguments) int {
 	return 0
 }
 
-// runInit creates a bench here, optionally from a template.
+// runInit creates a bench in the .dinah container here, optionally from a
+// template, and reports the directory it was written to.
 func runInit(s *session, parsed *arguments) int {
 	root := s.cwd
 	if named := at(parsed.rest(), 0); named != "" {
@@ -371,10 +388,11 @@ func runInit(s *session, parsed *arguments) int {
 	if !bench.ValidSlug(slug) {
 		return s.fail(contract.Malformed, "slug")
 	}
-	if err := verb.Init(root, slug, operator, parsed.value("from")); err != nil {
+	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource)
+	if err != nil {
 		return s.reportError(err)
 	}
-	s.line(s.r.T("init.done", "root", root))
+	s.line(s.r.T("init.done", "root", written))
 	return 0
 }
 
@@ -458,17 +476,33 @@ func onPath(name string) bool {
 // with no argument. The listing resolves each setting through its own ladder,
 // so it answers a question `get` cannot: a key nobody ever set and a key set
 // to the value the default carries read alike through the stored value alone.
+//
+// config does not fit the generic bounded/openTail shape every other command
+// declares in the commands table, since it dispatches on its own first word
+// rather than reading fixed positions, so it runs its own arity and
+// mistyped-flag checks: once on the first word before the switch, once more
+// on the second word inside get and set before bench.KnownConfigKey ever sees
+// it, and once more on get's third word, which get never reads and now
+// refuses rather than silently drops.
 func runConfig(s *session, parsed *arguments) int {
 	words := parsed.rest()
-	switch at(words, 0) {
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	switch first {
 	case "":
-		settings := verb.Settings(
-			s.cfg,
-			parsed.value("lang"),
-			parsed.value("actor"),
-			runtime.GOOS,
-			onPath,
-		)
+		settings := verb.Settings(s.cfg, verb.SettingsContext{
+			LangFlag:      parsed.value("lang"),
+			ActorFlag:     parsed.value("actor"),
+			WorkbenchFlag: parsed.value("workbench"),
+			WorkbenchEnv:  os.Getenv("DINAH_WORKBENCH"),
+			GOOS:          runtime.GOOS,
+			LookPath:      onPath,
+			CWD:           s.cwd,
+			Home:          s.home,
+			NativeHome:    s.nativeHome,
+		})
 		if s.json {
 			return s.emitJSON(settings)
 		}
@@ -476,19 +510,32 @@ func runConfig(s *session, parsed *arguments) int {
 		return 0
 	case "get":
 		key := at(words, 1)
+		if looksLikeMistypedFlag(key) {
+			return s.fail(contract.Usage, key)
+		}
+		if extra := at(words, 2); extra != "" {
+			return s.fail(contract.Usage, extra)
+		}
 		if !bench.KnownConfigKey(key) {
 			return s.fail(contract.UnknownKey, key)
 		}
 		s.line(s.cfg.Get(key))
 		return 0
 	case "set":
-		key, value := at(words, 1), strings.Join(words[min(2, len(words)):], " ")
+		key := at(words, 1)
+		if looksLikeMistypedFlag(key) {
+			return s.fail(contract.Usage, key)
+		}
+		value, refusal := freeText([]string{"config", "set", key}, words[min(2, len(words)):], "the value")
+		if refusal != nil {
+			return s.reportError(refusal)
+		}
 		if err := s.cfg.Set(key, value); err != nil {
 			return s.reportError(err)
 		}
 		return 0
 	}
-	return s.fail(contract.Usage, "config")
+	return s.fail(contract.Usage, first)
 }
 
 // runCheck checks the bench for structural defects.

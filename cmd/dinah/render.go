@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
+	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -121,13 +122,18 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
 	for _, move := range moves {
-		s.line("  " + pad(move.State, 14) + pad(move.Title, 32) + s.token(move.Direction))
+		cells := []paddedCell{{move.Ref, 14}, {move.Title, 32}}
+		s.line(alignedRow("  ", cells, s.token(move.Direction)))
 	}
 }
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.workbench", "title", status.Bench, "root", status.Root))
+	s.line(s.r.T("status.workbench",
+		"title", status.Bench,
+		"root", status.Root,
+		"source", s.token(status.WorkbenchSource),
+	))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
 	s.renderStates(status.States)
@@ -155,6 +161,43 @@ func (s *session) yesNo(value bool) string {
 	return s.r.T("word.no")
 }
 
+// paddedCell is one column of a row that may run past its declared width: a
+// slug, a title, a catalog token, or any other text sharing a line with a
+// column that follows it.
+type paddedCell struct {
+	text  string
+	width int
+}
+
+// alignedRow lays lead, then each cell padded to its own width in turn, then
+// an unpadded tail. A workbench or state title is user-supplied and
+// unbounded, and a catalog-served placeholder is a full sentence fragment
+// rather than a short token, so any cell may reach its column's width. pad
+// never truncates, so jamming the rest of the row onto the same line would
+// shift every later column out of alignment the moment a cell reaches its
+// width (Convention counterexamples: "A wording change that outgrows the
+// column it is rendered into"). Whenever a cell's rune count reaches its
+// width, that cell gets the rest of its line to itself and every field
+// after it, guarded cells included, resumes on a continuation line indented
+// to where the cell's own column would have ended. The check repeats
+// independently for each remaining cell, so two overflowing cells in one row
+// each get their own continuation line rather than only the first.
+func alignedRow(lead string, cells []paddedCell, tail string) string {
+	var b strings.Builder
+	b.WriteString(lead)
+	indent := len([]rune(lead))
+	for _, c := range cells {
+		if len([]rune(c.text)) >= c.width {
+			b.WriteString(c.text + "\n" + strings.Repeat(" ", indent+c.width))
+		} else {
+			b.WriteString(pad(c.text, c.width))
+		}
+		indent += c.width
+	}
+	b.WriteString(tail)
+	return b.String()
+}
+
 // renderStates prints the flow in order with each station's occupancy.
 func (s *session) renderStates(states []verb.StateView) {
 	for _, state := range states {
@@ -162,11 +205,18 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.Capacity > 0 {
 			count += "/" + strconv.Itoa(state.Capacity)
 		}
-		row := "  " + pad(state.ID, 14) + pad(state.Slug, 24) + pad(state.Title, 32) + pad(s.token(state.Kind), 10) + pad(count, 8)
+		tail := ""
 		if state.OperatorOwned {
-			row += s.r.T("states.operator-owned")
+			tail = s.r.T("states.operator-owned")
 		}
-		s.line(row)
+		lead := "  " + pad(state.ID, 14)
+		cells := []paddedCell{
+			{s.slugCell(state.Slug), 24},
+			{state.Title, 32},
+			{s.token(state.Kind), 10},
+			{count, 8},
+		}
+		s.line(alignedRow(lead, cells, tail))
 	}
 }
 
@@ -177,7 +227,9 @@ func (s *session) renderListing(listing *verb.Listing) {
 		return
 	}
 	for _, card := range listing.Cards {
-		s.line("  " + pad(card.Ref, 14) + pad(s.token(card.Substate), 10) + card.Title)
+		lead := "  " + pad(card.Ref, 14)
+		cells := []paddedCell{{s.token(card.Substate), 10}}
+		s.line(alignedRow(lead, cells, card.Title))
 	}
 }
 
@@ -187,7 +239,9 @@ func (s *session) renderListing(listing *verb.Listing) {
 // to whether anybody has ever set the key.
 func (s *session) renderSettings(settings []verb.SettingView) {
 	for _, view := range settings {
-		s.line("  " + pad(view.Key, 12) + pad(view.Value, 24) + s.token(view.Source))
+		lead := "  " + pad(view.Key, 12)
+		cells := []paddedCell{{view.Value, 24}}
+		s.line(alignedRow(lead, cells, s.token(view.Source)))
 	}
 }
 
@@ -200,19 +254,46 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 		s.line(s.r.T("workbenches.empty"))
 		return
 	}
-	for _, row := range rows {
-		s.line("  " + pad(row.Title, 32) + pad(row.Slug, 16) + row.Path)
+	for _, row := range s.formatCandidateRows(rows) {
+		s.line(row)
 	}
+}
+
+// formatCandidateRows renders each candidate as the padded title, slug and
+// path columns dinah workbenches prints, one row per string with its own
+// two-space lead. dinah.ambiguous-workbench prints the same rows beneath its
+// opening sentence, so this is the one place the column widths live; the two
+// callers can never draw the same candidates in different columns.
+func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
+	lines := make([]string, 0, len(rows))
+	for _, row := range rows {
+		cells := []paddedCell{{row.Title, 32}, {s.slugCell(row.Slug), 16}}
+		lines = append(lines, alignedRow("  ", cells, row.Path))
+	}
+	return lines
+}
+
+// slugCell renders a slug column's value: the slug itself when the entity has
+// one, and a catalog-served placeholder naming the repair when it does not.
+// A blank column gives a reader nothing to act on, indistinguishable from a
+// rendering glitch, so a missing slug says so instead of padding an empty
+// string.
+func (s *session) slugCell(slug string) string {
+	if slug == "" {
+		return s.r.T("slug.missing")
+	}
+	return slug
 }
 
 // renderOffers prints what each state offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
 	for _, offer := range offers {
 		if offer.Card == nil {
-			s.line("  " + pad(offer.Title, 32) + s.r.T("next.none"))
+			s.line(alignedRow("  ", []paddedCell{{offer.Title, 32}}, s.r.T("next.none")))
 			continue
 		}
-		s.line("  " + pad(offer.Title, 32) + pad(offer.Card.Ref, 14) + offer.Card.Title)
+		cells := []paddedCell{{offer.Title, 32}, {offer.Card.Ref, 14}}
+		s.line(alignedRow("  ", cells, offer.Card.Title))
 	}
 }
 
@@ -227,7 +308,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		s.line("")
 		s.line(s.r.T("show.links"))
 		for _, link := range detail.Links {
-			s.line("  " + pad(link.Kind, 14) + link.To)
+			s.line("  " + pad(link.Kind, 14) + link.Ref)
 		}
 	}
 	if len(detail.Comments) > 0 {
@@ -245,19 +326,21 @@ func (s *session) renderDetail(detail *verb.Detail) {
 // stands, so the titles printed are the ones the act itself carries.
 func (s *session) renderHistory(events []bench.Event) {
 	for _, ev := range events {
-		line := "  " + pad(ev.TS, 22) + pad(s.token(ev.Event), 14) + pad(ev.Actor, 16)
+		var tail string
 		switch ev.Event {
 		case contract.EventMoved:
-			line += s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
+			tail = s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
 			if ev.Override {
-				line += " " + s.r.T("log.override")
+				tail += " " + s.r.T("log.override")
 			}
 		case contract.EventBlocked:
-			line += ev.Reason
+			tail = ev.Reason
 		case contract.EventCreated:
-			line += ev.Title
+			tail = ev.Title
 		}
-		s.line(line)
+		lead := "  " + pad(ev.TS, 22)
+		cells := []paddedCell{{s.token(ev.Event), 14}, {ev.Actor, 16}}
+		s.line(alignedRow(lead, cells, tail))
 	}
 }
 
@@ -271,11 +354,21 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedSlugs {
 		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
 		for _, assignment := range report.AssignedSlugs {
-			s.line("  " + pad(assignment.Slug, 24) + assignment.Title)
+			cells := []paddedCell{{assignment.Slug, 24}}
+			s.line(alignedRow("  ", cells, assignment.Title))
+		}
+		if report.AssignedWorkbenchSlug != nil {
+			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
 		}
 	}
 	if report.StampedOrdinals != nil {
 		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
+	}
+	if report.MigratedStates {
+		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
+		for _, id := range report.RemovedStrandedStates {
+			s.line("  " + id)
+		}
 	}
 	return s.renderFindings(report.Findings)
 }

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // lockAcquisition matches the exclusive-create primitive a lock is taken with.
@@ -120,6 +121,19 @@ const vocabularyReason = "the product's word is workbench, and the short word " 
 	"contract tokens this guard lists; rewrite the text rather than widening " +
 	"the exceptions"
 
+// foldStringConcat's known gaps: it folds only a +-chain of string literals
+// inside one expression. It does not resolve a named constant or variable
+// even when that identifier's own value is itself a literal chain defined
+// elsewhere; it does not follow a value built across more than one
+// statement, such as repeated strings.Builder.WriteString calls, a
+// compound += assignment, fmt.Sprintf, or strings.Join; and it has no
+// notion of a value crossing a function or package boundary. Closing any
+// of those needs real dataflow analysis or a type-checked pass with
+// go/types, and is out of scope here on the judgement that the narrow
+// case (see dinah-72) is the one this guard has actually been asked to
+// catch, and a broader attempt risks false confidence more than it buys
+// coverage.
+
 // scannedExtensions are the file kinds this guard reads whole, which are the
 // ones carrying text a person meets: documents, message catalogs, the
 // byte-enforced help fixture, and CI workflow files.
@@ -209,15 +223,7 @@ var skippedTrees = map[string]bool{".git": true, ".dinah": true, "logo": true, "
 // standing to silence this guard.
 func report(t *testing.T, name string, number int, subject, source string) {
 	t.Helper()
-	if strings.HasSuffix(name, "_test.go") && strings.Contains(source, theDeliberateSpelling) {
-		return
-	}
-	stripped := subject
-	for _, allowed := range vocabularyExceptions {
-		stripped = strings.ReplaceAll(stripped, allowed, "")
-	}
-	stripped = theLongWord.ReplaceAllString(stripped, "")
-	if !theShortWord.MatchString(stripped) {
+	if !carriesTheShortWord(name, subject, source) {
 		return
 	}
 	where := name
@@ -227,9 +233,568 @@ func report(t *testing.T, name string, number int, subject, source string) {
 	t.Errorf("%s carries the short word: %s\n%s", where, strings.TrimSpace(subject), vocabularyReason)
 }
 
+// carriesTheShortWord is report's decision, factored out so it can be
+// asserted on directly (TestGuardCatchesAConcatenatedRetiredWord) without
+// having to fail a *testing.T to observe the answer.
+func carriesTheShortWord(name, subject, source string) bool {
+	if strings.HasSuffix(name, "_test.go") && strings.Contains(source, theDeliberateSpelling) {
+		return false
+	}
+	stripped := subject
+	for _, allowed := range vocabularyExceptions {
+		stripped = strings.ReplaceAll(stripped, allowed, "")
+	}
+	stripped = theLongWord.ReplaceAllString(stripped, "")
+	return theShortWord.MatchString(stripped)
+}
+
 // theLongWord matches the spelling the product ruled for, removed from a line
 // before the short one is looked for.
 var theLongWord = regexp.MustCompile(`(?i)workbench`)
+
+// nonLatinEntry holds one script's known transliteration(s) of one watched
+// word: the retired word or the product name today, and whichever this
+// table is next asked to catch. The current word's own spelling is
+// stripped from a line first, exactly as theLongWord is stripped from the
+// Latin scan, so a transliteration embedded inside a legitimate spelling
+// does not trip its own guard. carriesNonLatinSpelling's boundary check
+// (below) is the second layer that still applies after the strip, and the
+// only one available to an entry whose longWord cannot appear in the
+// target script.
+type nonLatinEntry struct {
+	// subject names which watched word this entry catches a transliteration
+	// of (retiredWordSubject or productNameSubject), so
+	// TestTheRetiredWordHasNoNonLatinSpelling and
+	// TestTheProductNameHasNoNonLatinSpelling can each read only the
+	// entries that are theirs out of a shared per-locale slice, and report
+	// a hit with the right reason.
+	subject string
+	// longWord is the spelling stripped from a line before a
+	// transliteration is looked for: the current word's own rendering in
+	// this locale's script for a retired-word entry, or the product name's
+	// own Latin spelling for a product-name entry, since the product name
+	// is never transliterated in any locale.
+	longWord string
+	// shortWords are known transliterations of the watched word into this
+	// locale's script.
+	shortWords []string
+}
+
+// retiredWordSubject and productNameSubject are the two watched-word
+// identities a nonLatinEntry can carry.
+const (
+	retiredWordSubject = "the retired word"
+	productNameSubject = "the product name"
+)
+
+// nonLatinRetiredSpellings maps a BCP-47 locale tag to the nonLatinEntry
+// values for every non-Latin-script locale carrying a known
+// transliteration of a watched word worth cataloging. A tag may carry more
+// than one entry, one per subject; entryFor reads the one a caller wants.
+var nonLatinRetiredSpellings = map[string][]nonLatinEntry{
+	"hi": {
+		{
+			subject:    retiredWordSubject,
+			longWord:   "वर्कबेंच",
+			shortWords: []string{"बेंच"},
+		},
+		{
+			subject:    productNameSubject,
+			longWord:   "Dinah",
+			shortWords: []string{"डिना"},
+		},
+	},
+}
+
+// entryFor returns tag's nonLatinEntry for subject out of
+// nonLatinRetiredSpellings, and whether one exists. Both production tests
+// and both fixture tests use it, rather than each re-walking the slice, so
+// a locale carrying entries for more than one subject is read the same way
+// everywhere.
+func entryFor(tag, subject string) (nonLatinEntry, bool) {
+	for _, entry := range nonLatinRetiredSpellings[tag] {
+		if entry.subject == subject {
+			return entry, true
+		}
+	}
+	return nonLatinEntry{}, false
+}
+
+// nonLatinRetiredSpellings' known gaps: an entry lists only the
+// transliteration(s) somebody thought to add, and transliteration has no
+// single correct spelling, so a translator choosing a different but equally
+// defensible rendering of the same sound passes unnoticed. Devanagari has
+// more than one defensible way to render the retired word's sound, using a
+// different vowel matra than बेंच does, and none of those alternate
+// renderings appear anywhere in the shipped catalogs today; adding one here
+// would be inventing a spelling rather than cataloging one, so the entry
+// stays at the single spelling actually grounded in existing text. The
+// table only ever grows by a person adding to it; nothing here derives a
+// script's transliteration from first principles. Closing this gap needs a
+// phonetic model of the target script, out of scope here on the same
+// judgement foldStringConcat's own comment records: a curated table cheap
+// enough to trust is worth more than a broader attempt that risks false
+// confidence. TestEveryLocaleIsClassifiedForScript is the maintenance
+// backstop below, and it is what keeps this table from going stale
+// unnoticed.
+//
+// The product-name entry has the same gap for the same reason: Devanagari
+// admits more than one defensible rendering of "Dinah," none of which are
+// grounded in anything a contributor has actually written, and the table
+// stops at डिना rather than inventing further variants, for the reason
+// dinah-73's own OQ-1 already gives for the retired word.
+// TestEveryLocaleIsClassifiedForScript is the same maintenance backstop for
+// this entry as for the retired word's.
+//
+// The boundary check carriesNonLatinSpelling applies (below) stops a
+// shortWord embedded inside a longer, legitimate word, but it cannot tell
+// a genuine standalone Hindi homograph of a shortWord from a real hit,
+// since the two are indistinguishable by shape alone; none is known to
+// exist, per dinah-83's own investigation into whether डिना collides with
+// any real Hindi word or word fragment.
+//
+// The boundary check treats the Devanagari danda, double danda, and
+// abbreviation sign as boundaries, so a name at the end of a Hindi sentence
+// is caught, but it still treats a Devanagari digit glued directly against
+// a match, with no separator, as still part of a word, so a shortWord
+// immediately against a Devanagari numeral with nothing between them would
+// not be flagged. This is judged acceptable because a digit is not how a
+// Hindi sentence ends or pauses, and it is named here rather than fixed.
+
+// noKnownTransliterationLocales classifies a non-Latin-script locale for
+// which nobody has found a transliteration of the retired word worth
+// cataloging. The map is the honest alternative to an entry with an empty
+// shortWords slice: an empty slice is indistinguishable from an entry
+// nobody finished, while a key here demands a reason. The value is a
+// human-readable justification, checked only for non-emptiness; its quality
+// is a reviewer's call, not a machine's, the same way a code comment's
+// honesty is a reviewer's call. No locale needs an entry here today; the
+// map exists so the next non-Latin locale that genuinely carries no known
+// risk can say so instead of shipping a blank line.
+var noKnownTransliterationLocales = map[string]string{}
+
+// latinScriptLocales are the shipped locales theShortWord already reads
+// correctly, so they need no entry in nonLatinRetiredSpellings or
+// noKnownTransliterationLocales.
+var latinScriptLocales = map[string]bool{
+	"af": true, "cs": true, "de": true, "en": true,
+	"es": true, "fil": true, "id": true,
+}
+
+// TestEveryLocaleIsClassifiedForScript asserts that every locale file under
+// internal/msg/locales has been classified into exactly one of
+// latinScriptLocales, nonLatinRetiredSpellings, and
+// noKnownTransliterationLocales, and that the classification does work
+// rather than standing in for one: a nonLatinRetiredSpellings entry must
+// list at least one transliteration, and a noKnownTransliterationLocales
+// entry must carry a justification that is not blank once trimmed. A locale
+// file cannot ship, translated or still a skeleton, without somebody having
+// decided, and recorded, whether its script carries transliteration risk.
+func TestEveryLocaleIsClassifiedForScript(t *testing.T) {
+	root := filepath.Join("..", "..", "internal", "msg", "locales")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("read locales dir: %v", err)
+	}
+	found := 0
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		found++
+		tag := strings.TrimSuffix(entry.Name(), ".json")
+		buckets := 0
+		if latinScriptLocales[tag] {
+			buckets++
+		}
+		if entries, ok := nonLatinRetiredSpellings[tag]; ok {
+			buckets++
+			if len(entries) == 0 {
+				t.Errorf("%s: nonLatinRetiredSpellings entry lists no transliteration entries; belongs in noKnownTransliterationLocales with a reason instead", tag)
+			}
+			for i, entry := range entries {
+				if len(entry.shortWords) == 0 {
+					t.Errorf("%s: nonLatinRetiredSpellings entry %d (%s) lists no transliterations; belongs in noKnownTransliterationLocales with a reason instead", tag, i, entry.subject)
+				}
+			}
+		}
+		if justification, ok := noKnownTransliterationLocales[tag]; ok {
+			buckets++
+			if strings.TrimSpace(justification) == "" {
+				t.Errorf("%s: noKnownTransliterationLocales entry carries no justification", tag)
+			}
+		}
+		switch buckets {
+		case 0:
+			t.Errorf("%s is not classified in latinScriptLocales, nonLatinRetiredSpellings, or noKnownTransliterationLocales", tag)
+		case 1:
+			// classified exactly once, as required
+		default:
+			t.Errorf("%s is classified in more than one of latinScriptLocales, nonLatinRetiredSpellings, and noKnownTransliterationLocales", tag)
+		}
+	}
+	if found == 0 {
+		t.Error("no locale files were found, so this guard proves nothing")
+	}
+}
+
+// TestTheRetiredWordHasNoNonLatinSpelling asserts that no catalog named in
+// nonLatinRetiredSpellings carries a standalone transliteration of the
+// retired word. For every line, every occurrence of the entry's longWord is
+// stripped first, exactly as theLongWord is stripped from the Latin scan,
+// and what remains is checked against the entry's shortWords.
+func TestTheRetiredWordHasNoNonLatinSpelling(t *testing.T) {
+	root := filepath.Join("..", "..", "internal", "msg", "locales")
+	checked := 0
+	for tag := range nonLatinRetiredSpellings {
+		entry, ok := entryFor(tag, retiredWordSubject)
+		if !ok {
+			continue
+		}
+		path := filepath.Join(root, tag+".json")
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%s: %v", tag, err)
+		}
+		for number, line := range strings.Split(string(source), "\n") {
+			if held, hit := carriesNonLatinSpelling(line, entry); hit {
+				t.Errorf("%s.json:%d carries the short word: %s\n%s", tag, number+1, held, vocabularyReason)
+			}
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Error("no non-Latin catalogs were checked, so this guard proves nothing")
+	}
+}
+
+// productNameReason is what a reader who trips this guard on the product
+// name needs: why it is refused, distinct from vocabularyReason so a hit
+// on Dinah is never reported as though it were a hit on the retired word.
+const productNameReason = "the product name Dinah is never translated or " +
+	"transliterated; it stays in Latin script in every locale, so rewrite " +
+	"the text rather than respelling the name"
+
+// TestTheProductNameHasNoNonLatinSpelling asserts that no catalog carries a
+// standalone transliteration of the product name into a non-Latin script,
+// the same absence check TestTheRetiredWordHasNoNonLatinSpelling runs for
+// the retired word, against the productNameSubject entries of the same
+// per-locale table. It is a separate function from
+// TestTheRetiredWordHasNoNonLatinSpelling rather than a merged one, because
+// the two report a different reason and a merged failure message would blur
+// which word was caught.
+func TestTheProductNameHasNoNonLatinSpelling(t *testing.T) {
+	root := filepath.Join("..", "..", "internal", "msg", "locales")
+	checked := 0
+	for tag := range nonLatinRetiredSpellings {
+		entry, ok := entryFor(tag, productNameSubject)
+		if !ok {
+			continue
+		}
+		path := filepath.Join(root, tag+".json")
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%s: %v", tag, err)
+		}
+		for number, line := range strings.Split(string(source), "\n") {
+			if held, hit := carriesNonLatinSpelling(line, entry); hit {
+				t.Errorf("%s.json:%d carries a transliteration of the product name: %s\n%s", tag, number+1, held, productNameReason)
+			}
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Error("no non-Latin catalogs were checked, so this guard proves nothing")
+	}
+}
+
+// carriesNonLatinSpelling reports whether line, with entry.longWord
+// stripped out first, still holds a standalone occurrence of one of
+// entry.shortWords: not immediately preceded or followed by another
+// Devanagari letter or combining mark. The boundary check stands in for
+// the strip when entry.longWord cannot appear in the target script at
+// all (the product-name entry's longWord is the Latin spelling "Dinah",
+// inert against Devanagari text): it stops a shortWord that sits inside
+// a longer, legitimate word the same way the strip stops one that sits
+// inside entry.longWord itself. It cannot tell a genuine standalone
+// Hindi homograph of a shortWord from a real hit, since the two are
+// indistinguishable by shape alone; none is known to exist (see the
+// collision-question section of dinah-83's spec).
+func carriesNonLatinSpelling(line string, entry nonLatinEntry) (string, bool) {
+	stripped := strings.ReplaceAll(line, entry.longWord, "")
+	for _, short := range entry.shortWords {
+		for start := 0; ; {
+			i := strings.Index(stripped[start:], short)
+			if i < 0 {
+				break
+			}
+			matchStart := start + i
+			matchEnd := matchStart + len(short)
+			if !adjacentToDevanagari(stripped, matchStart, matchEnd) {
+				return short, true
+			}
+			start = matchStart + 1
+		}
+	}
+	return "", false
+}
+
+// devanagariPunctuation lists the code points in the Devanagari Unicode
+// block (U+0900-U+097F) that Go's unicode package classifies as
+// punctuation (General Category Po) rather than as a letter, a combining
+// mark, or a digit: DEVANAGARI DANDA, DEVANAGARI DOUBLE DANDA, and
+// DEVANAGARI ABBREVIATION SIGN. This list was produced by running every
+// code point in the block through unicode.IsLetter, unicode.IsMark,
+// unicode.IsNumber, and unicode.IsPunct and reading off the category each
+// one actually falls in, not by reading the Unicode block chart. These
+// three are the only punctuation code points the block contains.
+var devanagariPunctuation = map[rune]bool{
+	0x0964: true, // DEVANAGARI DANDA "।", the plain sentence-ending mark
+	0x0965: true, // DEVANAGARI DOUBLE DANDA "॥", the verse/emphatic mark
+	0x0970: true, // DEVANAGARI ABBREVIATION SIGN "॰"
+}
+
+// adjacentToDevanagari reports whether the rune immediately before start
+// or immediately after end in s is a Devanagari letter or combining mark
+// (in the Unicode block U+0900-U+097F but not in devanagariPunctuation),
+// meaning the [start:end) match sits inside a longer run of Devanagari
+// word text rather than standing alone. A combining mark (a vowel sign,
+// virama, nukta, anusvara, visarga, or candrabindu) counts as
+// non-boundary because it modifies the letter it attaches to and stays
+// part of the same word; a Devanagari punctuation mark does not, because
+// it ends or pauses a sentence the same way a comma, a line end, or a
+// Latin letter already does.
+func adjacentToDevanagari(s string, start, end int) bool {
+	if start > 0 {
+		if r, _ := utf8.DecodeLastRuneInString(s[:start]); r >= 0x0900 && r <= 0x097F && !devanagariPunctuation[r] {
+			return true
+		}
+	}
+	if end < len(s) {
+		if r, _ := utf8.DecodeRuneInString(s[end:]); r >= 0x0900 && r <= 0x097F && !devanagariPunctuation[r] {
+			return true
+		}
+	}
+	return false
+}
+
+// TestGuardCatchesANonLatinRetiredWord reproduces this card's own gap: a
+// standalone Devanagari transliteration of the retired word with no
+// surrounding legitimate spelling, in a synthetic file the production scan
+// never walks. The fixture lives under t.TempDir() and is removed with the
+// test, so the reproduction string never reaches a file the production scan
+// would itself trip on.
+func TestGuardCatchesANonLatinRetiredWord(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "planted.json")
+	source := `{"planted": "यह एक बेंच है"}` + "\n"
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	planted, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	entry, ok := entryFor("hi", retiredWordSubject)
+	if !ok {
+		t.Fatal("hi carries no retiredWordSubject entry to test against")
+	}
+	tripped := false
+	for _, line := range strings.Split(string(planted), "\n") {
+		if _, hit := carriesNonLatinSpelling(line, entry); hit {
+			tripped = true
+		}
+	}
+	if !tripped {
+		t.Error("the planted non-Latin retired-word fixture did not trip the guard")
+	}
+}
+
+// TestGuardCatchesANonLatinProductName reproduces this card's own gap: a
+// standalone Devanagari transliteration of the product name with no Latin
+// spelling anywhere on the line, in a synthetic file the production scan
+// never walks. The fixture lives under t.TempDir() and is removed with the
+// test, so the reproduction string never reaches a file the production scan
+// would itself trip on.
+//
+// It also plants two boundary cases on the same fixture: a डिना genuinely
+// embedded inside a longer Devanagari word (AC-8), which must not trip the
+// guard, and a डिना adjacent to a danda on each side with no space (AC-9),
+// which must trip the guard even though the earlier, pre-D-8 boundary rule
+// would have missed it, alongside a डिना embedded beside a danda with no
+// other separator, which must not trip the guard.
+func TestGuardCatchesANonLatinProductName(t *testing.T) {
+	dir := t.TempDir()
+	entry, ok := entryFor("hi", productNameSubject)
+	if !ok {
+		t.Fatal("hi carries no productNameSubject entry to test against")
+	}
+
+	t.Run("standalone occurrence trips the guard", func(t *testing.T) {
+		path := filepath.Join(dir, "standalone.json")
+		source := `{"planted": "यह डिना का काम है"}` + "\n"
+		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		planted, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read fixture: %v", err)
+		}
+		tripped := false
+		for _, line := range strings.Split(string(planted), "\n") {
+			if _, hit := carriesNonLatinSpelling(line, entry); hit {
+				tripped = true
+			}
+		}
+		if !tripped {
+			t.Error("the planted non-Latin product-name fixture did not trip the guard")
+		}
+	})
+
+	t.Run("embedded occurrence does not trip the guard, standalone elsewhere on the line still does (AC-8)", func(t *testing.T) {
+		path := filepath.Join(dir, "embedded.json")
+		// डिनाबिंदुडिनाकर embeds डिना twice inside a longer synthetic
+		// Devanagari run with no boundary on either side; the separately
+		// spaced डिना later on the line is the standalone control.
+		source := `{"planted": "डिनाबिंदुडिनाकर और यह भी डिना है"}` + "\n"
+		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		planted, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read fixture: %v", err)
+		}
+		tripped := false
+		for _, line := range strings.Split(string(planted), "\n") {
+			if held, hit := carriesNonLatinSpelling(line, entry); hit {
+				tripped = true
+				if held != "डिना" {
+					t.Errorf("unexpected match text %q", held)
+				}
+			}
+		}
+		if !tripped {
+			t.Error("the standalone occurrence on the embedded-run line did not trip the guard")
+		}
+	})
+
+	t.Run("standalone occurrences beside a danda trip the guard, embedded-beside-a-danda does not (AC-9, D-8)", func(t *testing.T) {
+		path := filepath.Join(dir, "danda.json")
+		source := `{"planted": "यह डिना।"}` + "\n"
+		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		planted, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read fixture: %v", err)
+		}
+		tripped := false
+		for _, line := range strings.Split(string(planted), "\n") {
+			if _, hit := carriesNonLatinSpelling(line, entry); hit {
+				tripped = true
+			}
+		}
+		if !tripped {
+			t.Error("the standalone product-name occurrence immediately before a danda did not trip the guard")
+		}
+
+		precedingPath := filepath.Join(dir, "danda-preceding.json")
+		precedingSource := `{"planted": "।डिना यह है"}` + "\n"
+		if err := os.WriteFile(precedingPath, []byte(precedingSource), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		precedingPlanted, err := os.ReadFile(precedingPath)
+		if err != nil {
+			t.Fatalf("read fixture: %v", err)
+		}
+		precedingTripped := false
+		for _, line := range strings.Split(string(precedingPlanted), "\n") {
+			if _, hit := carriesNonLatinSpelling(line, entry); hit {
+				precedingTripped = true
+			}
+		}
+		if !precedingTripped {
+			t.Error("the standalone product-name occurrence immediately after a danda did not trip the guard")
+		}
+
+		embeddedPath := filepath.Join(dir, "danda-embedded.json")
+		// मधुडिनाकर embeds डिना inside a longer word immediately before a
+		// danda with no other separator; it must not be reported as a hit.
+		embeddedSource := `{"planted": "मधुडिनाकर।"}` + "\n"
+		if err := os.WriteFile(embeddedPath, []byte(embeddedSource), 0o644); err != nil {
+			t.Fatalf("write fixture: %v", err)
+		}
+		embeddedPlanted, err := os.ReadFile(embeddedPath)
+		if err != nil {
+			t.Fatalf("read fixture: %v", err)
+		}
+		for _, line := range strings.Split(string(embeddedPlanted), "\n") {
+			if held, hit := carriesNonLatinSpelling(line, entry); hit {
+				t.Errorf("the embedded-beside-a-danda occurrence tripped the guard: %s", held)
+			}
+		}
+	})
+}
+
+// TestFoldStringConcat asserts what the fold catches and what it declines,
+// against expressions built with go/parser.ParseExpr so each case exercises
+// the same AST shapes the guard walks rather than a hand-built stand-in.
+func TestFoldStringConcat(t *testing.T) {
+	tests := []struct {
+		name string
+		expr string
+		want string
+		ok   bool
+	}{
+		{name: "two literals", expr: `"foo" + "bar"`, want: "foobar", ok: true},
+		{name: "three literals nested left to right", expr: `"foo" + "bar" + "baz"`, want: "foobarbaz", ok: true},
+		{name: "parenthesised sub-chain", expr: `"foo" + ("bar" + "baz")`, want: "foobarbaz", ok: true},
+		{name: "one non-literal operand", expr: `"--" + name`, ok: false},
+		{name: "bare single literal", expr: `"foo"`, want: "foo", ok: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expr, err := parser.ParseExpr(tt.expr)
+			if err != nil {
+				t.Fatalf("ParseExpr(%q): %v", tt.expr, err)
+			}
+			got, ok := foldStringConcat(expr)
+			if ok != tt.ok {
+				t.Fatalf("foldStringConcat(%q) ok = %v, want %v", tt.expr, ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Errorf("foldStringConcat(%q) = %q, want %q", tt.expr, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestGuardCatchesAConcatenatedRetiredWord reproduces the card's own gap: a
+// retired-word string assembled from more than one string literal joined
+// with +, in a synthetic file the production guard never walks. The fixture
+// lives under t.TempDir() and is removed with the test, so the reproduction
+// string never reaches a file the production scan would trip on itself.
+func TestGuardCatchesAConcatenatedRetiredWord(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "planted.go")
+	source := "package planted\n\nconst planted = \"the \" + \"b\" + \"ench is back\"\n"
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	found, err := goStringLiterals(path)
+	if err != nil {
+		t.Fatalf("goStringLiterals: %v", err)
+	}
+	tripped := false
+	for _, held := range found {
+		if carriesTheShortWord("planted.go", held.text, "") {
+			tripped = true
+		}
+	}
+	if !tripped {
+		t.Error("the concatenated retired-word fixture did not trip the guard")
+	}
+}
 
 // literal is one Go string literal with the line it sits on.
 type literal struct {
@@ -239,9 +804,11 @@ type literal struct {
 	text string
 }
 
-// goStringLiterals returns every string literal of a Go file. The parser is
-// what separates a literal from a comment or an identifier, which a regular
-// expression over the source could not do.
+// goStringLiterals returns every string literal of a Go file, folding any
+// chain of literals joined end to end with + within one expression into a
+// single reported value. The parser is what separates a literal from a
+// comment or an identifier, which a regular expression over the source
+// could not do.
 func goStringLiterals(path string) ([]literal, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
@@ -250,6 +817,16 @@ func goStringLiterals(path string) ([]literal, error) {
 	}
 	var found []literal
 	ast.Inspect(file, func(node ast.Node) bool {
+		if binary, ok := node.(*ast.BinaryExpr); ok {
+			if value, ok := foldStringConcat(binary); ok {
+				found = append(found, literal{
+					line: fset.Position(binary.Pos()).Line,
+					text: strconv.Quote(value),
+				})
+				return false // the fold already covers every operand below this node
+			}
+			return true // some operand isn't a literal; let Inspect still find any pure-literal sub-chain or bare literal beneath
+		}
 		held, ok := node.(*ast.BasicLit)
 		if !ok || held.Kind != token.STRING {
 			return true
@@ -258,4 +835,42 @@ func goStringLiterals(path string) ([]literal, error) {
 		return true
 	})
 	return found, nil
+}
+
+// foldStringConcat evaluates expr as a compile-time string constant built
+// from string literals joined with +, and reports whether it succeeded.
+// A parenthesised sub-expression is unwrapped before folding. Any operand
+// that is not itself a string literal or a further +-chain of them, an
+// identifier, a call, a conversion, anything reading a value at runtime,
+// stops the fold and returns false: the guard does not try to resolve what
+// that operand holds.
+func foldStringConcat(expr ast.Expr) (string, bool) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		if e.Kind != token.STRING {
+			return "", false
+		}
+		value, err := strconv.Unquote(e.Value)
+		if err != nil {
+			return "", false
+		}
+		return value, true
+	case *ast.BinaryExpr:
+		if e.Op != token.ADD {
+			return "", false
+		}
+		left, ok := foldStringConcat(e.X)
+		if !ok {
+			return "", false
+		}
+		right, ok := foldStringConcat(e.Y)
+		if !ok {
+			return "", false
+		}
+		return left + right, true
+	case *ast.ParenExpr:
+		return foldStringConcat(e.X)
+	default:
+		return "", false
+	}
 }

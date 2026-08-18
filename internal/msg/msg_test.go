@@ -100,6 +100,26 @@ func TestMissingKeysFallBackPerKey(t *testing.T) {
 	}
 }
 
+// TestTheProductNameStaysLatinInEveryLocale asserts that a translated message
+// naming the product carries the Latin spelling Dinah rather than a
+// transliteration into the target script. A key untranslated in a given
+// catalog falls back to the English text, which already carries the name, so
+// this only fails where a translated string dropped or respelled it.
+func TestTheProductNameStaysLatinInEveryLocale(t *testing.T) {
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok || !strings.Contains(entry.Text, "Dinah") {
+			continue
+		}
+		for _, tag := range Tags() {
+			rendered := For(tag).T(key)
+			if !strings.Contains(rendered, "Dinah") {
+				t.Errorf("%s/%s: wanted the Latin spelling Dinah, got %q", tag, key, rendered)
+			}
+		}
+	}
+}
+
 // TestRegionalTagsWalkTheHierarchy asserts the BCP 47 lookup: a regional tag
 // falls back to its base language rather than to English.
 func TestRegionalTagsWalkTheHierarchy(t *testing.T) {

@@ -43,6 +43,36 @@ type invocation struct {
 	errw string
 }
 
+// resolvedDir returns the path the head itself resolves as its own working
+// directory once it has chdir'd into dir: this test's own os.Getwd() call,
+// made from dir, which is the exact mechanism runCLI uses and main.go's
+// session captures right after. A path built by joining onto the raw
+// t.TempDir() value can spell the same directory differently than what a
+// running head reports for it: macOS's default temporary directory sits
+// behind a symlink, and a CI-provisioned Windows temp directory can already
+// be handed out as an 8.3 short name that a generic symlink-resolution pass
+// would "helpfully" expand back to its long form, which is itself a second
+// mismatch of the same kind. Reproducing the head's own os.Chdir/os.Getwd
+// sequence, rather than guessing at whichever platform quirk explains a
+// given mismatch, is what keeps this correct on every platform without
+// asserting anything about which quirk is in play. dir must already exist.
+func resolvedDir(t *testing.T, dir string) string {
+	t.Helper()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir into %q: %v", dir, err)
+	}
+	defer os.Chdir(previous)
+	resolved, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	return resolved
+}
+
 // runCLI runs the head in a directory, with the streams captured.
 func runCLI(t *testing.T, dir string, argv ...string) invocation {
 	t.Helper()
@@ -78,6 +108,20 @@ func newBench(t *testing.T) string {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
 	return root
+}
+
+// soleBenchDir resolves the one workbench directory a container built by
+// newBench actually holds, which sits under container's own .dinah rather
+// than at container itself since dinah-76. Tests that hand a workbench path
+// to --workbench or to `config set workbench`, which stat the directory
+// itself rather than searching it, need this rather than the container.
+func soleBenchDir(t *testing.T, container string) string {
+	t.Helper()
+	ids := bench.ListIDs(filepath.Join(container, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("wanted one workbench in the container, got %v", ids)
+	}
+	return filepath.Join(container, bench.UserBaseName, ids[0])
 }
 
 // TestHelpBlockIsTheRatifiedSurface asserts that `dinah` with no arguments
@@ -164,8 +208,7 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
 		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
 		{name: "an archive of a state cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
-		{name: "an init into a directory that already holds a workbench", argv: []string{"init"}, code: 2, token: contract.Exists, sentence: "already holds a workbench"},
-		{name: "an extract into a directory that already holds one", argv: []string{"extract", "."}, code: 2, token: contract.Exists},
+		{name: "an extract into a directory that already holds one", argv: []string{"extract", benchDir(t, root)}, code: 2, token: contract.Exists},
 		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
 		// The explicit basis arrives with the remote arbiter, so this head
 		// offers no way to write one and the flag is not understood.
@@ -194,6 +237,383 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 				t.Errorf("the refusal sentence: wanted %q in %q", c.sentence, got.errw)
 			}
 		})
+	}
+}
+
+// TestInitWritesIntoTheContainerAndSaysWhere asserts what `init` creates and
+// what it reports: a workbench inside the .dinah container of the directory it
+// was run in, named by a generated identifier, with nothing left bare at that
+// directory, and a message naming the directory it actually wrote to. The slug
+// and the title come from the directory rather than from the identifier.
+func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "release-notes")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, root, "init", "--operator", "ana")
+	if got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench, got %v", ids)
+	}
+	written := filepath.Join(root, bench.UserBaseName, ids[0])
+	reported := initReported(t, got)
+	if !sameDirs(t, []string{reported}, []string{written}) {
+		t.Errorf("the message should name the directory init wrote, wanted %s, got %s", written, reported)
+	}
+	if !bench.IsID(filepath.Base(reported)) || filepath.Base(filepath.Dir(reported)) != bench.UserBaseName {
+		t.Errorf("the path should be a generated identifier inside the container, got %s", reported)
+	}
+	if !bench.Exists(filepath.Join(written, "workbench.md")) {
+		t.Errorf("%s carries no workbench.md", written)
+	}
+	if bench.Exists(filepath.Join(root, "workbench.md")) {
+		t.Error("init wrote a workbench bare at the directory it was run in")
+	}
+	opened, err := bench.Open(written)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if opened.Slug != bench.Slugify("release-notes") || opened.Title != "release-notes" {
+		t.Errorf("the slug and the title should name the directory, got %q and %q", opened.Slug, opened.Title)
+	}
+	if bench.IsID(opened.Slug) || bench.IsID(opened.Title) {
+		t.Error("the slug and the title should not come from the generated identifier")
+	}
+}
+
+// TestASecondInitAddsAWorkbenchBesideTheFirst asserts that a directory whose
+// container already holds a workbench takes another one, and that the search
+// then reports the choice it cannot make rather than picking.
+func TestASecondInitAddsAWorkbenchBesideTheFirst(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "init", "--slug", "second", "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("the second init: %d %s", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 2 {
+		t.Fatalf("the container should hold two workbenches, got %v", ids)
+	}
+	reported := runCLI(t, root, "status")
+	if reported.code != 2 {
+		t.Fatalf("an unqualified status over two workbenches: wanted 2, got %d (%s)", reported.code, reported.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
+	if leading != contract.AmbiguousWorkbench {
+		t.Errorf("leading token: wanted %s, got %q", contract.AmbiguousWorkbench, reported.errw)
+	}
+	for _, id := range ids {
+		if !strings.Contains(reported.errw, id) {
+			t.Errorf("the refusal should name both workbenches, %s is missing from %q", id, reported.errw)
+		}
+	}
+}
+
+// TestInitRefusesADirectoryCarryingABareWorkbench asserts the one refusal
+// creation keeps. A container written beside a bare workbench.md would sit
+// where the climbing search never looks, so `init` refuses there and writes
+// nothing.
+func TestInitRefusesADirectoryCarryingABareWorkbench(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "workbench")
+	definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Bare")))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := bench.Instantiate(root, "bare", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Exists {
+		t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
+	}
+	if !strings.Contains(got.errw, "already carries a workbench.md") {
+		t.Errorf("the refusal sentence: wanted %q in %q", "already carries a workbench.md", got.errw)
+	}
+	if bench.Exists(filepath.Join(root, bench.UserBaseName)) {
+		t.Error("the refused init left a container behind")
+	}
+}
+
+// TestInitProceedsPastAForeignWorkbenchFile asserts dinah-84's AC-2: a
+// directory holding a workbench.md that carries none of Dinah's frontmatter
+// keys no longer stops `init`, since init writes into a fresh container
+// beside that file and never touches it. The foreign file is left
+// byte-for-byte unchanged and the new bench lands in the container.
+func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "workbench")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(root, "workbench.md")
+	before := []byte("just a note, not dinah's\n")
+	if err := os.WriteFile(foreign, before, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("init past a foreign anchor: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench, got %v", ids)
+	}
+	written := filepath.Join(root, bench.UserBaseName, ids[0])
+	if _, err := bench.Open(written); err != nil {
+		t.Fatalf("the written workbench should open cleanly: %v", err)
+	}
+	after, err := os.ReadFile(foreign)
+	if err != nil {
+		t.Fatalf("read foreign anchor: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the foreign file should be untouched, wanted %q, got %q", before, after)
+	}
+}
+
+// TestInitRefusesTheWorkbenchFlag asserts dinah-86: init refuses --workbench
+// and DINAH_WORKBENCH rather than writing wherever either one names, in
+// every shape the flag can reach it in (before the verb, after it, together
+// with a positional root that disagrees, or from the environment alone), and
+// leaves no workbench anywhere a refused run could have written one. The
+// refusal names whichever of the two actually supplied the value, never the
+// other.
+func TestInitRefusesTheWorkbenchFlag(t *testing.T) {
+	assertRefused := func(t *testing.T, base, elsewhere string, got invocation, wantSpelling string) {
+		t.Helper()
+		if got.code != 2 {
+			t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+		}
+		leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+		if leading != contract.WorkbenchNotApplicable {
+			t.Errorf("leading token: wanted %s, got %q", contract.WorkbenchNotApplicable, got.errw)
+		}
+		if !strings.Contains(got.errw, wantSpelling) {
+			t.Errorf("the refusal should name %s, got %q", wantSpelling, got.errw)
+		}
+		other := "DINAH_WORKBENCH"
+		if wantSpelling == "DINAH_WORKBENCH" {
+			other = "--workbench"
+		}
+		if strings.Contains(got.errw, other) {
+			t.Errorf("the refusal should not name %s, got %q", other, got.errw)
+		}
+		if bench.Exists(filepath.Join(base, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the current directory")
+		}
+		if bench.Exists(filepath.Join(elsewhere, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the flag's target")
+		}
+	}
+
+	t.Run("the flag before the verb", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "--workbench", elsewhere, "init", "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+	})
+
+	t.Run("the flag after the verb", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "init", "--workbench", elsewhere, "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+	})
+
+	t.Run("the flag with an agreeing positional root", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "init", elsewhere, "--workbench", elsewhere, "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+		if bench.Exists(filepath.Join(elsewhere, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the positional root")
+		}
+	})
+
+	t.Run("the flag with a disagreeing positional root", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		positional := filepath.Join(base, "positional")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.MkdirAll(positional, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, base, "init", positional, "--workbench", elsewhere, "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "--workbench")
+		if bench.Exists(filepath.Join(positional, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the disagreeing positional root")
+		}
+	})
+
+	t.Run("the environment variable alone", func(t *testing.T) {
+		base := emptyTree(t)
+		elsewhere := filepath.Join(base, "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		t.Setenv("DINAH_WORKBENCH", elsewhere)
+		got := runCLI(t, base, "init", "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, elsewhere, got, "DINAH_WORKBENCH")
+	})
+
+	t.Run("the environment variable and the flag together names the flag", func(t *testing.T) {
+		base := emptyTree(t)
+		flagTarget := filepath.Join(base, "flag-target")
+		envTarget := filepath.Join(base, "env-target")
+		if err := os.MkdirAll(flagTarget, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.MkdirAll(envTarget, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		t.Setenv("DINAH_WORKBENCH", envTarget)
+		got := runCLI(t, base, "--workbench", flagTarget, "init", "--slug", "sample", "--operator", "alka")
+		assertRefused(t, base, flagTarget, got, "--workbench")
+		if bench.Exists(filepath.Join(envTarget, bench.UserBaseName)) {
+			t.Error("a refused init left a container at the environment's target")
+		}
+	})
+
+	t.Run("neither set still creates at the working directory, unchanged", func(t *testing.T) {
+		base := emptyTree(t)
+		root := filepath.Join(base, "plain")
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, root, "init", "--operator", "alka")
+		if got.code != 0 {
+			t.Fatalf("init with neither set: wanted 0, got %d (%s)", got.code, got.errw)
+		}
+		ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+		if len(ids) != 1 {
+			t.Fatalf("the container should hold one workbench, got %v", ids)
+		}
+	})
+}
+
+// TestInitStillHonoursThePositionalRootAlone asserts dinah-86's AC-2: a
+// positional root argument, with neither --workbench nor DINAH_WORKBENCH
+// set, still creates the workbench at that positional root exactly as
+// before this card, since the flag refusal above must not swallow the
+// plain positional case it sits beside.
+func TestInitStillHonoursThePositionalRootAlone(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "target")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, base, "init", root, "--operator", "alka")
+	if got.code != 0 {
+		t.Fatalf("init with a positional root alone: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container should hold one workbench at the positional root, got %v", ids)
+	}
+	if bench.Exists(filepath.Join(base, bench.UserBaseName)) {
+		t.Error("init with a positional root should not also write a container at the working directory")
+	}
+}
+
+// TestInitHelpKeepsItsRefusalList asserts that the help a person reads before
+// running `init` still summarises the command the same way and still names the
+// refusal creation keeps, since writing into the container removed no check.
+func TestInitHelpKeepsItsRefusalList(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "help", "init")
+	if got.code != 0 {
+		t.Fatalf("help init: %d %s", got.code, got.errw)
+	}
+	for _, carried := range []string{
+		"create a workbench here, optionally from a template",
+		"no workbench.md file sits at this exact path",
+		contract.Exists,
+		"the source definition carries what the profile requires",
+	} {
+		if !strings.Contains(got.out, carried) {
+			t.Errorf("the help should carry %q, got %q", carried, got.out)
+		}
+	}
+}
+
+// TestExtractStillRefusesOnAForeignWorkbenchFileAndLeavesItAlone asserts
+// dinah-84's AC-4: unlike init, extract keeps its bare existence check.
+// Extract overwrites whatever sits at the target path, so a foreign
+// workbench.md there is exactly as much at risk as a real one, and the
+// refusal (and the file's survival) does not depend on frontmatter
+// recognition. This is the regression guard for the "no silent loss"
+// requirement: it must keep passing since Extract itself does not change.
+func TestExtractStillRefusesOnAForeignWorkbenchFileAndLeavesItAlone(t *testing.T) {
+	root := newBench(t)
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(target, "workbench.md")
+	before := []byte("an unrelated document, not dinah's\n")
+	if err := os.WriteFile(foreign, before, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "extract", target)
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Exists {
+		t.Errorf("leading token: wanted %s, got %q", contract.Exists, got.errw)
+	}
+	after, err := os.ReadFile(foreign)
+	if err != nil {
+		t.Fatalf("read foreign anchor: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("the foreign file should survive a refused extract, wanted %q, got %q", before, after)
+	}
+}
+
+// TestInitRefusesOnAnUnreadableAnchor asserts dinah-84's AC-5: a
+// workbench.md that exists at init's target root but cannot be read refuses
+// with contract.UnreadableBench rather than contract.Exists. The read is
+// forced to fail by making workbench.md a directory rather than a file,
+// which every platform this tool runs on refuses to read as text, so the
+// failure is provoked the same way on Windows as everywhere else without
+// depending on permission bits (see readAnchorContent's own comment).
+func TestInitRefusesOnAnUnreadableAnchor(t *testing.T) {
+	base := emptyTree(t)
+	root := filepath.Join(base, "workbench")
+	if err := os.MkdirAll(filepath.Join(root, "workbench.md"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	got := runCLI(t, root, "init", "--slug", "other", "--operator", "alka")
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.out)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.UnreadableBench {
+		t.Errorf("leading token: wanted %s, got %q", contract.UnreadableBench, got.errw)
 	}
 }
 
@@ -557,7 +977,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 				return root, []string{"claim", "lim-1"}
 			},
 			token:    contract.NoOperator,
-			sentence: "this workbench designates no operator, so its reserved acts are dead",
+			sentence: "this workbench designates no operator, so its reserved actions are dead",
 		},
 		{
 			name: "a workbench declaring a profile major this binary does not implement",
@@ -605,17 +1025,61 @@ func newLimitedBench(t *testing.T) string {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if got := runCLI(t, root, "init", "--from", source, "--slug", "lim", "--operator", "alka"); got.code != 0 {
+	got := runCLI(t, root, "init", "--from", source, "--slug", "lim", "--operator", "alka")
+	if got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
+	// A workbench built from a template lands in the container like any
+	// other, and the message names the directory it landed in, which is
+	// where every later command in these tests reads it from.
+	written := benchDir(t, root)
+	if reported := initReported(t, got); !sameDirs(t, []string{reported}, []string{written}) {
+		t.Fatalf("the message should name the directory init wrote, wanted %s, got %s", written, reported)
+	}
+	if !bench.Exists(filepath.Join(written, "workbench.md")) {
+		t.Fatalf("%s carries no workbench.md", written)
+	}
 	return root
+}
+
+// initReported asserts the wording of the message `init` printed and returns
+// the path that message named.
+//
+// The wording is asserted literally and the path is handed to sameDirs rather
+// than compared as a string, because macOS reaches its temporary directory
+// through a symlink and Windows hands out the short 8.3 form of a long user
+// name, so the tool prints a spelling of the path the test did not build.
+func initReported(t *testing.T, got invocation) string {
+	t.Helper()
+	const prefix = "Workbench created at "
+	line := strings.TrimSuffix(got.out, "\n")
+	if strings.Contains(line, "\n") || !strings.HasPrefix(line, prefix) || !strings.HasSuffix(line, ".") {
+		t.Fatalf("the message: wanted one line reading %q<path>%q, got %q", prefix, ".", got.out)
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(line, prefix), ".")
+}
+
+// benchDir returns the directory holding the workbench that a CLI run in root
+// resolves to: root itself when a bare workbench sits there, and the sole
+// entry of root's container otherwise, which is where `init` writes.
+func benchDir(t *testing.T, root string) string {
+	t.Helper()
+	if bench.Exists(filepath.Join(root, "workbench.md")) {
+		return root
+	}
+	base := filepath.Join(root, bench.UserBaseName)
+	ids := bench.ListIDs(base)
+	if len(ids) != 1 {
+		t.Fatalf("%s holds %d workbenches, wanted one", base, len(ids))
+	}
+	return filepath.Join(base, ids[0])
 }
 
 // editAnchor rewrites the workbench anchor, which is how the cases above build
 // a bench that a hand edit has put outside what the tool will serve.
 func editAnchor(t *testing.T, root, from, to string) {
 	t.Helper()
-	path := filepath.Join(root, "workbench.md")
+	path := filepath.Join(benchDir(t, root), "workbench.md")
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -696,10 +1160,10 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] ") {
+	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] ") {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
-	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs]" {
+	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]" {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -708,7 +1172,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-states"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -928,6 +1392,284 @@ func TestConfigGetAndSetAreUnchanged(t *testing.T) {
 	}
 }
 
+// TestConfigSetWorkbenchStoresAnAbsolutePathAndClears asserts dinah-70's
+// write-time behaviour: a relative path handed to `config set workbench`
+// is stored as the absolute path it named from the directory the command
+// ran in, and a bare `config set workbench` with no value clears it, the
+// same as every other key.
+func TestConfigSetWorkbenchStoresAnAbsolutePathAndClears(t *testing.T) {
+	_, dir := settingsHome(t)
+	target := filepath.Join(dir, "elsewhere")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// Resolved after creation, and after the mkdir above, so it matches the
+	// path the head resolves through its own working directory rather than
+	// the raw value t.TempDir() handed this test (see resolvedDir).
+	wantTarget := resolvedDir(t, target)
+
+	if got := runCLI(t, dir, "config", "set", "workbench", "elsewhere"); got.code != 0 {
+		t.Fatalf("config set: %d %s", got.code, got.errw)
+	}
+	stored := runCLI(t, dir, "config", "get", "workbench")
+	if stored.code != 0 {
+		t.Fatalf("config get: %d %s", stored.code, stored.errw)
+	}
+	if got := strings.TrimSpace(stored.out); got != wantTarget {
+		t.Errorf("a relative path should be stored absolute, wanted %q, got %q", wantTarget, got)
+	}
+
+	if got := runCLI(t, dir, "config", "set", "workbench"); got.code != 0 {
+		t.Fatalf("config set with no value: %d %s", got.code, got.errw)
+	}
+	cleared := runCLI(t, dir, "config", "get", "workbench")
+	if cleared.code != 0 {
+		t.Fatalf("config get: %d %s", cleared.code, cleared.errw)
+	}
+	if got := strings.TrimSpace(cleared.out); got != "" {
+		t.Errorf("clearing the setting: wanted an empty value, got %q", got)
+	}
+}
+
+// TestConfiguredWorkbenchAnswersOnlyWhereDiscoveryRefuses asserts dinah-70's
+// placement end to end, through the head rather than the library: the
+// configured default opens a workbench standing anywhere on the filesystem
+// when nothing local is reachable, a local workbench always wins over it, an
+// ambiguous base still refuses with the configured default sitting there
+// unconsulted, and a configured path gone stale refuses by its own name
+// instead of falling through to the generic exhausted-search refusal.
+func TestConfiguredWorkbenchAnswersOnlyWhereDiscoveryRefuses(t *testing.T) {
+	t.Run("opens the configured workbench when nothing local is reachable", func(t *testing.T) {
+		here := emptyTree(t)
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Configured")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(elsewhere, "cf", "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+		if got := runCLI(t, here, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, here, "status")
+		if reported.code != 0 {
+			t.Fatalf("status: %d %s", reported.code, reported.errw)
+		}
+		if !strings.Contains(reported.out, "Configured") {
+			t.Errorf("status should open the configured workbench, got:\n%s", reported.out)
+		}
+	})
+
+	t.Run("a local workbench wins over a workbench configured elsewhere", func(t *testing.T) {
+		root := newBench(t)
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Elsewhere")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(elsewhere, "el", "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+		if got := runCLI(t, root, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, root, "status")
+		if reported.code != 0 {
+			t.Fatalf("status: %d %s", reported.code, reported.errw)
+		}
+		if strings.Contains(reported.out, "Elsewhere") {
+			t.Errorf("the local workbench should win over the configured default, got:\n%s", reported.out)
+		}
+	})
+
+	t.Run("an ambiguous base still refuses with a workbench configured", func(t *testing.T) {
+		tree := emptyTree(t)
+		rooms := map[string]string{"d00000000001": "one", "d00000000002": "two"}
+		for id, slug := range rooms {
+			room := filepath.Join(tree, ".dinah", id)
+			definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, id)))
+			if err != nil {
+				t.Fatalf("definition: %v", err)
+			}
+			if err := bench.Instantiate(room, slug, "alka", definition); err != nil {
+				t.Fatalf("instantiate: %v", err)
+			}
+		}
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, "Configured")))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
+		}
+		if err := bench.Instantiate(elsewhere, "cf", "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
+		}
+		if got := runCLI(t, tree, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, tree, "status")
+		if reported.code != 2 {
+			t.Fatalf("an ambiguous base with a workbench configured: wanted 2, got %d (%s)", reported.code, reported.out)
+		}
+		leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
+		if leading != contract.AmbiguousWorkbench {
+			t.Errorf("leading token: wanted %s, got %q (the configured default should not break the tie)", contract.AmbiguousWorkbench, reported.errw)
+		}
+	})
+
+	t.Run("a stale configured workbench refuses by its own name", func(t *testing.T) {
+		here := emptyTree(t)
+		gone := filepath.Join(t.TempDir(), "gone")
+		if err := os.MkdirAll(gone, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if got := runCLI(t, here, "config", "set", "workbench", gone); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, here, "status")
+		if reported.code != 2 {
+			t.Fatalf("a stale configured default: wanted 2, got %d (%s)", reported.code, reported.out)
+		}
+		leading := strings.SplitN(strings.TrimSpace(reported.errw), " ", 2)[0]
+		if leading != contract.NoConfiguredWorkbench {
+			t.Errorf("leading token: wanted %s, got %q (a fall-through to %s would be the silent bug this guards against)", contract.NoConfiguredWorkbench, reported.errw, contract.NoWorkbenchFound)
+		}
+		if !strings.Contains(reported.errw, gone) {
+			t.Errorf("the refusal should name the configured path, got %q", reported.errw)
+		}
+		if !strings.Contains(reported.errw, "config set workbench") {
+			t.Errorf("the refusal should say how to fix it, got %q", reported.errw)
+		}
+	})
+}
+
+// TestStatusNamesTheRungThatAnswered asserts dinah-70's own open question:
+// `dinah status` names which rung resolved the active workbench, on both the
+// rendered line and the --json form, and the rendered word goes through the
+// message catalog rather than a raw internal token.
+func TestStatusNamesTheRungThatAnswered(t *testing.T) {
+	t.Run("search", func(t *testing.T) {
+		root := newBench(t)
+		reported := runCLI(t, root, "status")
+		if !strings.Contains(reported.out, "[search]") {
+			t.Errorf("the rendered line should name the search rung, got:\n%s", reported.out)
+		}
+		machine := runCLI(t, root, "--json", "status")
+		var status verb.Status
+		if err := json.Unmarshal([]byte(machine.out), &status); err != nil {
+			t.Fatalf("the machine form should parse: %v\n%s", err, machine.out)
+		}
+		if status.WorkbenchSource != bench.SourceSearch {
+			t.Errorf("workbench_source: wanted %s, got %q", bench.SourceSearch, status.WorkbenchSource)
+		}
+		// The new rung goes through the message catalog like every other
+		// one, rather than leaking a raw internal token when the reader's
+		// language is not English.
+		hindi := runCLI(t, root, "--lang", "hi", "status")
+		if hindi.code != 0 {
+			t.Fatalf("status --lang hi: %d %s", hindi.code, hindi.errw)
+		}
+		if !strings.Contains(hindi.out, "[खोज]") {
+			t.Errorf("the search rung's Hindi rendering should reach the status line, got:\n%s", hindi.out)
+		}
+	})
+
+	t.Run("flag", func(t *testing.T) {
+		actual := soleBenchDir(t, newBench(t))
+		reported := runCLI(t, t.TempDir(), "status", "--workbench", actual)
+		if !strings.Contains(reported.out, "[flag]") {
+			t.Errorf("the rendered line should name the flag rung, got:\n%s", reported.out)
+		}
+	})
+
+	t.Run("config, and rendered in another language rather than the raw token", func(t *testing.T) {
+		here := emptyTree(t)
+		configured := soleBenchDir(t, newBench(t))
+		if got := runCLI(t, here, "config", "set", "workbench", configured); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		reported := runCLI(t, here, "status")
+		if !strings.Contains(reported.out, "[config]") {
+			t.Errorf("the rendered line should name the config rung, got:\n%s", reported.out)
+		}
+		machine := runCLI(t, here, "--json", "status")
+		var status verb.Status
+		if err := json.Unmarshal([]byte(machine.out), &status); err != nil {
+			t.Fatalf("the machine form should parse: %v\n%s", err, machine.out)
+		}
+		if status.WorkbenchSource != bench.SourceConfig {
+			t.Errorf("workbench_source: wanted %s, got %q", bench.SourceConfig, status.WorkbenchSource)
+		}
+
+		hindi := runCLI(t, here, "--lang", "hi", "status")
+		if hindi.code != 0 {
+			t.Fatalf("status --lang hi: %d %s", hindi.code, hindi.errw)
+		}
+		if !strings.Contains(hindi.out, "[कॉन्फ़िग]") {
+			t.Errorf("the config rung's Hindi rendering should reach the status line, got:\n%s", hindi.out)
+		}
+	})
+}
+
+// TestConfigListingReportsTheWorkbenchRow asserts AC-10's own shape: the
+// listing's workbench row carries the same resolved value and rung a real
+// status would open, and an empty value with the unset source when nothing
+// answers, matching the actor row's existing convention.
+func TestConfigListingReportsTheWorkbenchRow(t *testing.T) {
+	t.Run("nothing answers", func(t *testing.T) {
+		here := emptyTree(t)
+		rows := settingRows(t, runCLI(t, here, "--json", "config"))
+		row, ok := rows["workbench"]
+		if !ok {
+			t.Fatalf("the listing drops the workbench key")
+		}
+		if row.Value != "" || row.Source != bench.SourceUnset {
+			t.Errorf("nothing reachable and nothing configured: wanted an empty value at %s, got %+v", bench.SourceUnset, row)
+		}
+	})
+
+	t.Run("a configured default answers", func(t *testing.T) {
+		here := emptyTree(t)
+		target := soleBenchDir(t, newBench(t))
+		if got := runCLI(t, here, "config", "set", "workbench", target); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		rows := settingRows(t, runCLI(t, here, "--json", "config"))
+		row := rows["workbench"]
+		if row.Value != target || row.Source != bench.SourceConfig {
+			t.Errorf("wanted %q at %s, got %+v", target, bench.SourceConfig, row)
+		}
+	})
+
+	t.Run("a local workbench answers ahead of a configured default", func(t *testing.T) {
+		container := newBench(t)
+		// Resolved to match what the head's own search reports for the same
+		// directory once it has chdir'd into it (see resolvedDir).
+		actual := resolvedDir(t, soleBenchDir(t, container))
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if got := runCLI(t, container, "config", "set", "workbench", elsewhere); got.code != 0 {
+			t.Fatalf("config set: %d %s", got.code, got.errw)
+		}
+		rows := settingRows(t, runCLI(t, container, "--json", "config"))
+		row := rows["workbench"]
+		if row.Value != actual || row.Source != bench.SourceSearch {
+			t.Errorf("wanted the local workbench %q at %s, got %+v", actual, bench.SourceSearch, row)
+		}
+	})
+}
+
 // TestTheOrdinalMigrationSaysWhatItGuessed asserts that the repair reports
 // itself on both the surfaces a caller reads: the human form prints what it
 // stamped and names the entity it could only place by the directory listing,
@@ -1034,6 +1776,72 @@ func TestStatesCarryTheirSlugOnBothSurfaces(t *testing.T) {
 	}
 }
 
+// TestStatesRenderNamesTheRepairInsteadOfPaddingBlank asserts AC-3: a state
+// with no slug prints a catalog-served placeholder naming the repair, not an
+// equal-width run of spaces indistinguishable from a rendering glitch.
+func TestStatesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
+	root := newBench(t)
+	stripSlugs(t, root)
+	got := runCLI(t, root, "states")
+	if got.code != 0 {
+		t.Fatalf("states: %d %s", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, "no slug") || !strings.Contains(got.out, "migrate-slugs") {
+		t.Errorf("the listing should name the repair for a state with no slug:\n%s", got.out)
+	}
+	for _, title := range []string{"Intake", "Doing", "Done"} {
+		if !strings.Contains(got.out, title) {
+			t.Errorf("the listing should still carry state %s:\n%s", title, got.out)
+		}
+	}
+}
+
+// TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank asserts AC-4: a
+// workbench with no slug prints the same placeholder convention in the human
+// listing, once the workbench-slug migration exists to point at, and the
+// machine form omits the key entirely rather than serving an empty string.
+func TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
+	root := newBench(t)
+	editAnchor(t, root, "slug: fx\n", "")
+
+	human := runCLI(t, root, "workbenches")
+	if human.code != 0 {
+		t.Fatalf("workbenches: %d %s", human.code, human.errw)
+	}
+	if !strings.Contains(human.out, "no slug") || !strings.Contains(human.out, "migrate-slugs") {
+		t.Errorf("the listing should name the repair for a workbench with no slug:\n%s", human.out)
+	}
+
+	machine := runCLI(t, root, "--json", "workbenches")
+	if machine.code != 0 {
+		t.Fatalf("workbenches --json: %d %s", machine.code, machine.errw)
+	}
+	if strings.Contains(machine.out, `"slug"`) {
+		t.Errorf("the machine form should omit the key for a workbench with none:\n%s", machine.out)
+	}
+
+	repaired := runCLI(t, root, "check", "--migrate-slugs")
+	if repaired.code != 0 {
+		t.Fatalf("check --migrate-slugs: %d %s", repaired.code, repaired.errw)
+	}
+	// The workbench's title is "workbench", the base name of the directory
+	// newBench built it in, since the migration derives from the title
+	// rather than remembering the --slug value the anchor lost.
+	if !strings.Contains(repaired.out, "Assigned the workbench slug workbench.") {
+		t.Errorf("the migration did not say what it derived for the workbench:\n%s", repaired.out)
+	}
+	again := runCLI(t, root, "workbenches")
+	if again.code != 0 {
+		t.Fatalf("workbenches after repair: %d %s", again.code, again.errw)
+	}
+	if strings.Contains(again.out, "no slug") {
+		t.Errorf("the repaired workbench should print its own slug, not the placeholder:\n%s", again.out)
+	}
+	if !strings.Contains(again.out, "workbench") {
+		t.Errorf("the repaired workbench should carry its derived slug:\n%s", again.out)
+	}
+}
+
 // TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField asserts the
 // one-time repair end to end: the checker names each state carrying no slug,
 // the repair derives one from the title and says which state got which slug on
@@ -1069,6 +1877,174 @@ func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
 	}
 	if !strings.Contains(again.out, `"migrated_slugs"`) {
 		t.Errorf("a second run did not say the migration ran:\n%s", again.out)
+	}
+}
+
+// TestCheckMigrateStatesNamesWhatItRemovedOnTheTerminal asserts the terminal
+// rendering of the stranded-state repair, not just the internal function it
+// calls: a clean check and a real repair must not print the same line, and
+// the repair must say which state identifier it took out of the list.
+//
+// dinah check --migrate-states edits workbench.md whether or not the caller
+// is told, so this is the one place that confirms the edit is also reported;
+// a change to the internal repair function alone would leave this test
+// passing or failing on its own, with no dependency on the renderer at all.
+func TestCheckMigrateStatesNamesWhatItRemovedOnTheTerminal(t *testing.T) {
+	root := newBench(t)
+	gone := strandState(t, root, 2)
+
+	clean := runCLI(t, root, "check")
+	if clean.code == 0 {
+		t.Fatalf("a stranded state should be reported, not pass clean")
+	}
+	if !strings.Contains(clean.out, gone) {
+		t.Errorf("the checker did not name the stranded state:\n%s", clean.out)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-states")
+	if migrated.code != 0 {
+		t.Fatalf("check --migrate-states: %d %s", migrated.code, migrated.errw)
+	}
+	if !strings.Contains(migrated.out, "Removed 1 stranded state") {
+		t.Errorf("the migration did not say how many states it removed:\n%s", migrated.out)
+	}
+	if !strings.Contains(migrated.out, gone) {
+		t.Errorf("the migration did not name the state it removed:\n%s", migrated.out)
+	}
+
+	again := runCLI(t, root, "check", "--migrate-states")
+	if again.code != 0 {
+		t.Fatalf("a second run: %d %s", again.code, again.errw)
+	}
+	if strings.Contains(again.out, gone) {
+		t.Errorf("a second run should have nothing left to name:\n%s", again.out)
+	}
+	if !strings.Contains(again.out, "Removed 0 stranded states") {
+		t.Errorf("a second run did not say it removed nothing:\n%s", again.out)
+	}
+}
+
+// strandState hand-strands one state of a workbench the way retirement's own
+// pre-fix defect used to: it removes the state's directory without touching
+// workbench.md's states list, and returns the identifier left dangling.
+func strandState(t *testing.T, root string, position int) string {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "states")
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if position >= len(states) {
+		t.Fatalf("the workbench carries %d states", len(states))
+	}
+	id := states[position].ID
+	dir := filepath.Join(benchDir(t, root), bench.StatesDir, id)
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatalf("remove %s: %v", dir, err)
+	}
+	return id
+}
+
+// strandAllStates hand-strands every state a fresh newBench declares, one at
+// a time: each call to strandState re-reads the live list, which shrinks by
+// one member as its predecessor is stranded, so position 0 always names
+// whichever state is still live. It returns the stranded identifiers in the
+// order they were stranded, leaving workbench.md's raw states list
+// unchanged and every id on it stranded, which is the shape a real
+// workbench reaches after every other state was already retired and this
+// last one was retired or removed under the pre-dinah-49 code.
+func strandAllStates(t *testing.T, root string) []string {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "states")
+	var states []verb.StateView
+	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	gone := make([]string, 0, len(states))
+	for range states {
+		gone = append(gone, strandState(t, root, 0))
+	}
+	return gone
+}
+
+// TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition asserts AC-2:
+// dinah check --migrate-states against a workbench whose states list is
+// entirely stranded ids exits 2 with the new refusal, leaves workbench.md
+// unchanged, and a following plain dinah check reports the same
+// check.stranded-state finding(s) it would have reported before the
+// migration attempt.
+func TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition(t *testing.T) {
+	root := newBench(t)
+	anchor := filepath.Join(benchDir(t, root), bench.WorkbenchAnchor)
+	gone := strandAllStates(t, root)
+
+	before, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read anchor: %v", err)
+	}
+
+	migrated := runCLI(t, root, "check", "--migrate-states")
+	if migrated.code != 2 {
+		t.Fatalf("check --migrate-states: wanted exit 2, got %d\n%s", migrated.code, migrated.errw)
+	}
+	if !strings.Contains(migrated.errw, contract.RepairWouldEmptyStates) {
+		t.Errorf("wanted the repair-would-empty-states refusal, got:\n%s", migrated.errw)
+	}
+	for _, id := range gone {
+		if !strings.Contains(migrated.errw, id) {
+			t.Errorf("the refusal did not name the stranded state %s:\n%s", id, migrated.errw)
+		}
+	}
+
+	after, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read anchor after refusal: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("the refused migration touched workbench.md")
+	}
+
+	plain := runCLI(t, root, "check")
+	if plain.code == 0 {
+		t.Fatalf("a following check should still report the stranded states")
+	}
+	for _, id := range gone {
+		if !strings.Contains(plain.out, id) {
+			t.Errorf("the following check did not name %s:\n%s", id, plain.out)
+		}
+	}
+}
+
+// TestAddRefusesWithNoLiveStates asserts AC-8's CLI-level half: dinah add
+// against a workbench whose states list is entirely stranded prints and
+// exits on the AddNeedsAState refusal, naming the workbench.md path and the
+// dinah check / dinah add follow-up, and creates no card directory.
+func TestAddRefusesWithNoLiveStates(t *testing.T) {
+	root := newBench(t)
+	dir := benchDir(t, root)
+	anchor := filepath.Join(dir, bench.WorkbenchAnchor)
+	strandAllStates(t, root)
+
+	got := runCLI(t, root, "add", "stranded card")
+	if got.code != 2 {
+		t.Fatalf("add: wanted exit 2, got %d\n%s", got.code, got.errw)
+	}
+	if !strings.Contains(got.errw, contract.AddNeedsAState) {
+		t.Errorf("wanted the add-needs-a-state refusal, got:\n%s", got.errw)
+	}
+	if !strings.Contains(got.errw, anchor) {
+		t.Errorf("the refusal did not name the workbench.md path:\n%s", got.errw)
+	}
+	if !strings.Contains(got.errw, "dinah check") || !strings.Contains(got.errw, "dinah add") {
+		t.Errorf("the refusal did not name both follow-up commands:\n%s", got.errw)
+	}
+
+	entries, err := os.ReadDir(filepath.Join(dir, bench.CardsDir))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read cards dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("wanted no card directory created, got %v", entries)
 	}
 }
 
@@ -1163,7 +2139,7 @@ func writeStateSlug(t *testing.T, root string, position int, slug string) (strin
 	if position >= len(states) {
 		t.Fatalf("the workbench carries %d states", len(states))
 	}
-	path := filepath.Join(root, "states", states[position].ID, "state.md")
+	path := filepath.Join(benchDir(t, root), "states", states[position].ID, "state.md")
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
@@ -1188,7 +2164,7 @@ func writeStateSlug(t *testing.T, root string, position int, slug string) (strin
 // the shape a workbench written before the field has on disk.
 func stripSlugs(t *testing.T, root string) {
 	t.Helper()
-	states := filepath.Join(root, "states")
+	states := filepath.Join(benchDir(t, root), "states")
 	entries, err := os.ReadDir(states)
 	if err != nil {
 		t.Fatalf("read states: %v", err)
@@ -1246,7 +2222,11 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			token: contract.Malformed,
 			carries: []string{
 				"profile is missing, empty, or will not parse",
-				filepath.Join("workbench", "workbench.md"),
+				// `init` writes into the container, so the anchor the
+				// refusal names sits under it rather than at the directory
+				// the command was run in.
+				filepath.Join("workbench", bench.UserBaseName),
+				"workbench.md",
 				"dinah check",
 			},
 			context: []string{"path"},
@@ -1277,17 +2257,22 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				rooms := map[string]string{"d00000000001": "one", "d00000000002": "two"}
 				for id, slug := range rooms {
 					room := filepath.Join(tree, ".dinah", id)
-					if err := os.MkdirAll(room, 0o755); err != nil {
-						t.Fatalf("mkdir: %v", err)
+					definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, id)))
+					if err != nil {
+						t.Fatalf("definition: %v", err)
 					}
-					if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
-						t.Fatalf("init: %d %s", got.code, got.errw)
+					if err := bench.Instantiate(room, slug, "alka", definition); err != nil {
+						t.Fatalf("instantiate: %v", err)
 					}
 				}
 				return tree, []string{"status"}
 			},
-			token:   contract.AmbiguousWorkbench,
-			carries: []string{"are all reachable from", "choose one with --workbench"},
+			token: contract.AmbiguousWorkbench,
+			carries: []string{
+				"more than one workbench is reachable from",
+				"choose one with --workbench",
+				"d00000000001", "d00000000002", "one", "two",
+			},
 			context: []string{"base"},
 		},
 	}
@@ -1327,7 +2312,27 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 			if report["refusal"] != c.token {
 				t.Errorf("refusal: wanted %s, got %v", c.token, report["refusal"])
 			}
-			if report["detail"] == nil || report["detail"] == "" {
+			if c.token == contract.AmbiguousWorkbench {
+				if report["detail"] != nil {
+					t.Errorf("detail: wanted absent, got %v", report["detail"])
+				}
+				workbenches, ok := report["workbenches"].([]any)
+				if !ok || len(workbenches) != 2 {
+					t.Fatalf("workbenches: wanted a two-element array, got %v", report["workbenches"])
+				}
+				titles := map[string]bool{}
+				for _, row := range workbenches {
+					fields, _ := row.(map[string]any)
+					if title, ok := fields["title"].(string); ok {
+						titles[title] = true
+					}
+				}
+				for _, title := range []string{"d00000000001", "d00000000002"} {
+					if !titles[title] {
+						t.Errorf("workbenches: wanted a row titled %q, got %v", title, report["workbenches"])
+					}
+				}
+			} else if report["detail"] == nil || report["detail"] == "" {
 				t.Error("the machine form should name what the refusal was about")
 			}
 			carried, _ := report["context"].(map[string]any)
@@ -1337,6 +2342,22 @@ func TestRefusalsSayWhereTheToolLookedAndWhatComesNext(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestWorkbenchFlagResolvesAnAmbiguousCandidate asserts that --workbench,
+// pointed at one of several candidates a base holds, resolves to that
+// candidate rather than refusing with dinah.ambiguous-workbench: the flag
+// names an exact directory and never runs the walk that finds the ambiguity
+// in the first place.
+func TestWorkbenchFlagResolvesAnAmbiguousCandidate(t *testing.T) {
+	tree, rooms := ambiguousTree(t)
+	got := runCLI(t, tree, "status", "--workbench", rooms[0])
+	if got.code != 0 {
+		t.Fatalf("status --workbench <candidate>: wanted 0, got %d (%s)", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, "[flag]") {
+		t.Errorf("the rendered line should name the flag rung, got:\n%s", got.out)
 	}
 }
 
@@ -1370,18 +2391,38 @@ func emptyTree(t *testing.T) string {
 	return tree
 }
 
+// baseDefinition is the flow populateBase writes each workbench from, taking
+// the title as its one argument. It stands in for the flow `init` builds when
+// no source is named.
+const baseDefinition = `{
+  "profile": "dinah-core/1.0",
+  "title": %q,
+  "states": [
+    { "id": "c00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "c00000000002", "title": "Doing", "kind": "work" },
+    { "id": "c00000000003", "title": "Done", "kind": "done" }
+  ]
+}`
+
 // populateBase writes one workbench per slug into a base directory, and
 // returns the directory each one landed in, in the order the slugs were given.
+//
+// Each workbench is instantiated at the directory named for it rather than
+// created through `init`, which writes into a .dinah container under the
+// directory it is given. The discovery these tests exercise reads a base whose
+// entries are workbenches, so they need the deterministic path directly.
 func populateBase(t *testing.T, base string, slugs ...string) []string {
 	t.Helper()
 	rooms := make([]string, 0, len(slugs))
 	for i, slug := range slugs {
-		room := filepath.Join(base, fmt.Sprintf("d0000000000%d", i+1))
-		if err := os.MkdirAll(room, 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
+		name := fmt.Sprintf("d0000000000%d", i+1)
+		room := filepath.Join(base, name)
+		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, name)))
+		if err != nil {
+			t.Fatalf("definition: %v", err)
 		}
-		if got := runCLI(t, room, "init", "--slug", slug, "--operator", "alka"); got.code != 0 {
-			t.Fatalf("init: %d %s", got.code, got.errw)
+		if err := bench.Instantiate(room, slug, "alka", definition); err != nil {
+			t.Fatalf("instantiate: %v", err)
 		}
 		rooms = append(rooms, room)
 	}
@@ -1545,7 +2586,7 @@ func TestWorkbenchesReportsWhateverTheSearchFinds(t *testing.T) {
 
 	t.Run("one reachable", func(t *testing.T) {
 		sole := newBench(t)
-		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{sole}) {
+		if listed := listedRows(t, runCLI(t, sole, "workbenches")); !sameDirs(t, listed, []string{benchDir(t, sole)}) {
 			t.Errorf("wanted the one workbench, got %v", listed)
 		}
 		rows := jsonRows(t, runCLI(t, sole, "--json", "workbenches"))
@@ -1700,5 +2741,1425 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 	ignored := runCLI(t, tree, "workbenches")
 	if listed := listedRows(t, ignored); sameDirs(t, listed, []string{rooms[1]}) {
 		t.Error("the retired variable should select nothing, and it selected a workbench")
+	}
+}
+
+// TestAForeignWorkbenchFileIsPassedOverByTheClimb asserts AC-7: a directory
+// holding a workbench.md that carries none of profile, format or states,
+// sitting below a real workbench, no longer stops the search. `dinah
+// workbenches`, run from inside the foreign-holding directory, lists the real
+// ancestor workbench by title and does not list the foreign directory.
+func TestAForeignWorkbenchFileIsPassedOverByTheClimb(t *testing.T) {
+	root := newBench(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.MkdirAll(notes, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(notes, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, notes, "workbenches")
+	if got.code != 0 {
+		t.Fatalf("a foreign workbench.md should not stop the search, got %d %q", got.code, got.errw)
+	}
+	listed := listedRows(t, got)
+	if !sameDirs(t, listed, []string{benchDir(t, root)}) {
+		t.Errorf("wanted only the real ancestor workbench, got %v", listed)
+	}
+	if strings.Contains(got.out, "notes") {
+		t.Errorf("the foreign directory should not be listed, got %q", got.out)
+	}
+}
+
+// TestCheckReportsTheForeignAnchorsAWalkPassedOver asserts the CLI half of
+// AC-8: `dinah check`, run against a bench resolved through a foreign
+// workbench.md, reports a check.ignored-anchor finding naming that file's
+// path.
+func TestCheckReportsTheForeignAnchorsAWalkPassedOver(t *testing.T) {
+	root := newBench(t)
+	notes := filepath.Join(root, "notes")
+	if err := os.MkdirAll(notes, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	foreign := filepath.Join(notes, "workbench.md")
+	if err := os.WriteFile(foreign, []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, notes, "check")
+	if got.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a workbench carrying a finding exits refused, got %d %q", got.code, got.errw)
+	}
+	catalog := msg.For(msg.Base)
+	if !strings.Contains(got.out, catalog.T(bench.FindingIgnoredAnchor)) || !strings.Contains(got.out, foreign) {
+		t.Errorf("wanted a check.ignored-anchor finding naming %q, got %q", foreign, got.out)
+	}
+}
+
+// TestTheOverrideSkipsRecognitionAndLeavesItToOpen asserts AC-9: --workbench
+// and DINAH_WORKBENCH test only file presence, unchanged. A recognition
+// problem in the pointed-at file (no frontmatter carrying profile, format or
+// states at all) is reported by Open's existing malformed refusal rather than
+// by a refusal the walk's new recognition test would raise.
+func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
+	root := newBench(t)
+	foreign := filepath.Join(root, "notes")
+	if err := os.MkdirAll(foreign, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(foreign, "workbench.md"), []byte("# Just some notes\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got := runCLI(t, root, "show", "--workbench", foreign)
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Malformed {
+		t.Errorf("leading token: wanted %s, got %q (%s)", contract.Malformed, leading, got.errw)
+	}
+}
+
+// TestCardAliasResolvesAcrossTheDeclaredCommandSurface is the fixture-level
+// regression AC-6 asks for: it pins every row of the spec's section 2 audit
+// table already marked done, driving the human-readable {slug}-{number}
+// alias through claim, move, release, block, unblock, comment, attach,
+// archive, delete, status, ls, next, show, log, instructions and path, so a
+// later change cannot silently reopen a card-alias gap this card's spec
+// found already closed.
+//
+// add, init, export and extract are not reference-accepting commands and
+// carry no row of their own to pin here; edit shares ResolvePath with path
+// and is not driven directly, since it launches a real editor process. guide,
+// config and whoami name no entity and mcp serves the same verbs this test
+// already exercises through the CLI.
+func TestCardAliasResolvesAcrossTheDeclaredCommandSurface(t *testing.T) {
+	root := newBench(t)
+
+	first := addCard(t, root, "Alias card")
+	second := addCard(t, root, "Second card")
+	if !strings.HasPrefix(first, "fx-") || !strings.HasPrefix(second, "fx-") {
+		t.Fatalf("wanted both cards to carry the fx- alias, got %q and %q", first, second)
+	}
+
+	// ls and next show the alias, not the bare identifier.
+	if listed := runCLI(t, root, "ls"); listed.code != 0 || !strings.Contains(listed.out, first) || !strings.Contains(listed.out, second) {
+		t.Fatalf("ls did not show both aliases: %d %q", listed.code, listed.out)
+	}
+	if offered := runCLI(t, root, "next"); offered.code != 0 || !strings.Contains(offered.out, first) {
+		t.Fatalf("next did not show the alias: %d %q", offered.code, offered.out)
+	}
+
+	// show and path resolve the alias.
+	if shown := runCLI(t, root, "show", first); shown.code != 0 || !strings.Contains(shown.out, first) {
+		t.Fatalf("show %s: %d %q", first, shown.code, shown.out)
+	}
+	if pathed := runCLI(t, root, "path", first); pathed.code != 0 || !strings.Contains(pathed.out, "cards") {
+		t.Fatalf("path %s: %d %q", first, pathed.code, pathed.out)
+	}
+
+	// claim, status, instructions and comment resolve the alias.
+	if claimed := runCLI(t, root, "claim", first); claimed.code != 0 || !strings.Contains(claimed.out, first) {
+		t.Fatalf("claim %s: %d %q", first, claimed.code, claimed.out)
+	}
+	if status := runCLI(t, root, "status"); status.code != 0 || !strings.Contains(status.out, first) {
+		t.Fatalf("status did not show the held alias: %d %q", status.code, status.out)
+	}
+	if instructed := runCLI(t, root, "instructions", first); instructed.code != 0 {
+		t.Fatalf("instructions %s: %d %q", first, instructed.code, instructed.errw)
+	}
+	if commented := runCLI(t, root, "comment", first, "a note"); commented.code != 0 || !strings.Contains(commented.out, first) {
+		t.Fatalf("comment %s: %d %q", first, commented.code, commented.out)
+	}
+
+	// move resolves the alias and the resulting card line still carries it.
+	if moved := runCLI(t, root, "move", first, "doing"); moved.code != 0 || !strings.Contains(moved.out, first) {
+		t.Fatalf("move %s: %d %q", first, moved.code, moved.out)
+	}
+	if logged := runCLI(t, root, "log", first); logged.code != 0 || !strings.Contains(logged.out, "moved") {
+		t.Fatalf("log %s: %d %q", first, logged.code, logged.out)
+	}
+
+	// block and unblock resolve the alias.
+	if blocked := runCLI(t, root, "block", first, "waiting on something"); blocked.code != 0 || !strings.Contains(blocked.out, first) {
+		t.Fatalf("block %s: %d %q", first, blocked.code, blocked.out)
+	}
+	if unblocked := runCLI(t, root, "unblock", first); unblocked.code != 0 || !strings.Contains(unblocked.out, first) {
+		t.Fatalf("unblock %s: %d %q", first, unblocked.code, unblocked.out)
+	}
+	if claimed := runCLI(t, root, "claim", first); claimed.code != 0 {
+		t.Fatalf("re-claim %s: %d %q", first, claimed.code, claimed.errw)
+	}
+	if released := runCLI(t, root, "release", first); released.code != 0 || !strings.Contains(released.out, first) {
+		t.Fatalf("release %s: %d %q", first, released.code, released.out)
+	}
+
+	// attach resolves the alias.
+	note := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(note, []byte("hi"), 0o644); err != nil {
+		t.Fatalf("write note: %v", err)
+	}
+	if attached := runCLI(t, root, "attach", first, note); attached.code != 0 {
+		t.Fatalf("attach %s: %d %q", first, attached.code, attached.errw)
+	}
+
+	// archive and delete each resolve the alias, on two different cards
+	// since an archived card no longer answers to a live reference.
+	if archived := runCLI(t, root, "archive", first); archived.code != 0 {
+		t.Fatalf("archive %s: %d %q", first, archived.code, archived.errw)
+	}
+	if deleted := runCLI(t, root, "delete", second, "--yes"); deleted.code != 0 {
+		t.Fatalf("delete %s: %d %q", second, deleted.code, deleted.errw)
+	}
+}
+
+// addCard files a card and returns the alias it was given.
+func addCard(t *testing.T, root, title string) string {
+	t.Helper()
+	got := runCLI(t, root, "--json", "add", title)
+	if got.code != 0 {
+		t.Fatalf("add %s: %d %s", title, got.code, got.errw)
+	}
+	var response struct {
+		Card *verb.CardView `json:"card"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &response); err != nil {
+		t.Fatalf("decode: %v\n%s", err, got.out)
+	}
+	if response.Card == nil || response.Card.Ref == "" {
+		t.Fatalf("add did not return a ref: %s", got.out)
+	}
+	return response.Card.Ref
+}
+
+// cardID resolves a card's own bare identifier from its alias, by asking
+// path for the card's file and reading the directory name that holds it.
+func cardID(t *testing.T, root, ref string) string {
+	t.Helper()
+	pathed := runCLI(t, root, "path", ref)
+	if pathed.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, pathed.code, pathed.errw)
+	}
+	return filepath.Base(filepath.Dir(strings.TrimSpace(pathed.out)))
+}
+
+// addLink hand-writes a links entry onto a card's own anchor, since no verb
+// in the declared surface writes one (card.go's Link comment: "a declaration
+// rather than an entity, and nothing in the tool reads one" for anything but
+// display).
+func addLink(t *testing.T, root, ref, kind, to string) {
+	t.Helper()
+	path := runCLI(t, root, "path", ref)
+	if path.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, path.code, path.errw)
+	}
+	cardPath := strings.TrimSpace(path.out)
+	text, err := os.ReadFile(cardPath)
+	if err != nil {
+		t.Fatalf("read card: %v", err)
+	}
+	closing := strings.LastIndex(string(text), "\n---\n")
+	if closing < 0 {
+		t.Fatalf("card %s carries no closing frontmatter fence", cardPath)
+	}
+	block := "\nlinks:\n  - kind: " + kind + "\n    to: " + to
+	edited := string(text[:closing]) + block + string(text[closing:])
+	if err := os.WriteFile(cardPath, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write card: %v", err)
+	}
+}
+
+// TestShowResolvesALinkToTheAliasNotTheBareIdentifier is armed by asserting
+// the alias in show's output and JSON form rather than the target's raw
+// identifier. A link records only an identifier, and the render used to
+// print that identifier verbatim: a destination a person is expected to type
+// back at show, path or move, printed as the one thing they could not read
+// comfortably. show now resolves it fresh on every read.
+func TestShowResolvesALinkToTheAliasNotTheBareIdentifier(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+	second := addCard(t, root, "Second")
+	targetID := cardID(t, root, second)
+	addLink(t, root, first, "relates_to", targetID)
+
+	shown := runCLI(t, root, "show", first)
+	if shown.code != 0 {
+		t.Fatalf("show %s: %d %s", first, shown.code, shown.errw)
+	}
+	if !strings.Contains(shown.out, second) {
+		t.Errorf("show did not print the link's alias %q, got %q", second, shown.out)
+	}
+	if strings.Contains(shown.out, targetID) {
+		t.Errorf("show printed the link's bare identifier %q instead of its alias: %q", targetID, shown.out)
+	}
+
+	jsonShown := runCLI(t, root, "--json", "show", first)
+	if jsonShown.code != 0 {
+		t.Fatalf("--json show %s: %d %s", first, jsonShown.code, jsonShown.errw)
+	}
+	var detail struct {
+		Links []verb.LinkView `json:"links"`
+	}
+	if err := json.Unmarshal([]byte(jsonShown.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, jsonShown.out)
+	}
+	if len(detail.Links) != 1 {
+		t.Fatalf("wanted one link, got %v", detail.Links)
+	}
+	if detail.Links[0].To != targetID {
+		t.Errorf("the machine form's to should stay the stable identifier %q, got %q", targetID, detail.Links[0].To)
+	}
+	if detail.Links[0].Ref != second {
+		t.Errorf("the machine form's ref should carry the alias %q, got %q", second, detail.Links[0].Ref)
+	}
+}
+
+// TestLegalMovesReportTheAliasNotTheBareStateIdentifier is armed by
+// asserting the ref field of a legal move rather than its state identifier.
+// The moves-this-card-may-make listing, printed after claim, move and show,
+// used to print the destination's bare identifier while move itself already
+// accepted the state's slug, so the one place the tool told a person what to
+// type next showed them something they could not comfortably type.
+func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
+	root := newBench(t)
+	first := addCard(t, root, "First")
+
+	claimed := runCLI(t, root, "--json", "claim", first)
+	if claimed.code != 0 {
+		t.Fatalf("claim %s: %d %s", first, claimed.code, claimed.errw)
+	}
+	var response struct {
+		LegalMoves []verb.LegalMove `json:"legal_moves"`
+	}
+	if err := json.Unmarshal([]byte(claimed.out), &response); err != nil {
+		t.Fatalf("decode: %v\n%s", err, claimed.out)
+	}
+	if len(response.LegalMoves) == 0 {
+		t.Fatal("wanted at least one legal move")
+	}
+	for _, move := range response.LegalMoves {
+		if move.Ref == "" {
+			t.Fatalf("legal move to %s carries no ref: %+v", move.State, move)
+		}
+		if move.Ref == move.State {
+			t.Errorf("legal move to %s: ref fell back to the bare identifier though the state carries a slug", move.State)
+		}
+		// The ref is what move actually accepts, proving it is not merely
+		// displayed but usable.
+		moved := runCLI(t, root, "move", first, move.Ref)
+		if moved.code != 0 {
+			t.Fatalf("move %s %s: %d %s", first, move.Ref, moved.code, moved.errw)
+		}
+		break
+	}
+}
+
+// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's cases: a cell
+// under its column width pads in place, exactly as the plain pad-based row
+// it replaced did, and a cell that reaches or exceeds its column width gets
+// the line to itself with the remaining fields moved to a continuation line
+// indented to where the column would have ended, rather than the
+// non-truncating pad pushing every later field out of alignment (Convention
+// counterexamples: "A wording change that outgrows the column it is
+// rendered into"). Covers a catalog placeholder, a long real slug, and a row
+// where two cells overflow in turn, each producing its own continuation
+// line at its own column's offset.
+func TestAlignedRowBreaksOnAnOverrunningCell(t *testing.T) {
+	cases := []struct {
+		name  string
+		cells []paddedCell
+		want  string
+	}{
+		{
+			name:  "fits",
+			cells: []paddedCell{{"fx", 10}},
+			want:  "  fx        rest",
+		},
+		{
+			name:  "placeholder overruns",
+			cells: []paddedCell{{"no slug (run check --migrate-slugs)", 10}},
+			want:  "  no slug (run check --migrate-slugs)\n            rest",
+		},
+		{
+			name:  "long real slug overruns",
+			cells: []paddedCell{{"aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior", 10}},
+			want:  "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
+		},
+		{
+			name: "two cells overflow in the same row",
+			cells: []paddedCell{
+				{"aconsiderablylongworkbenchname", 10},
+				{"anotherlongoverrunningcellvalue", 8},
+			},
+			want: "  aconsiderablylongworkbenchname\n            anotherlongoverrunningcellvalue\n                    rest",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := alignedRow("  ", c.cells, "rest")
+			if got != c.want {
+				t.Errorf("alignedRow(%q, %q):\n got  %q\n want %q", c.cells, "rest", got, c.want)
+			}
+		})
+	}
+}
+
+// TestPerCommandHelpBreaksAnOverrunningRefusalName asserts dinah-81's AC-3:
+// dinah help move, dinah help archive, and dinah help claim each place a
+// checks-column entry whose catalog key reaches the 52-rune column on its
+// own indented continuation line, with the refusal name starting that line
+// rather than sitting one space past an overrunning check sentence.
+func TestPerCommandHelpBreaksAnOverrunningRefusalName(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+
+	cases := []struct {
+		name string
+		key  string
+	}{
+		{"move", "check.move.7"},
+		{"archive", "check.archive.1"},
+		{"claim", "check.workbench.1"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := runCLI(t, container, "help", c.name)
+			if got.code != 0 {
+				t.Fatalf("help %s: %d %s", c.name, got.code, got.errw)
+			}
+			entry, ok := msg.BaseEntry(c.key)
+			if !ok || entry.Text == "" {
+				t.Fatalf("catalog carries no %s", c.key)
+			}
+			sentence := entry.Text
+			var refusal string
+			for _, check := range verb.Checks(c.name) {
+				if check.Key == c.key {
+					refusal = check.Refusal
+				}
+			}
+			if refusal == "" {
+				t.Fatalf("%s carries no check named %s", c.name, c.key)
+			}
+			glued := sentence + " " + refusal
+			if strings.Contains(got.out, glued) {
+				t.Errorf("%s: the refusal name still sits one space after the check sentence:\n%s", c.key, got.out)
+			}
+			lines := strings.Split(got.out, "\n")
+			found := false
+			for i, line := range lines {
+				if !strings.Contains(line, sentence) {
+					continue
+				}
+				found = true
+				if i+1 >= len(lines) || strings.TrimSpace(lines[i+1]) != refusal {
+					t.Errorf("%s: wanted a continuation line reading exactly %q, got %q", c.key, refusal, lines[min(i+1, len(lines)-1)])
+				}
+			}
+			if !found {
+				t.Fatalf("%s: help output never showed the check sentence:\n%s", c.key, got.out)
+			}
+		})
+	}
+}
+
+// TestAttachmentHistoryEventsAlignTheirActorColumn asserts dinah-81's AC-4:
+// a card history log carrying an attachment_replaced or attachment_removed
+// event, whose 19- and 18-rune event tokens both reach the 14-rune event
+// column, renders the actor field on its own continuation line at the
+// column's designed offset rather than glued one space past the event
+// token.
+func TestAttachmentHistoryEventsAlignTheirActorColumn(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "tester")
+
+	root := filepath.Join(container, "workbench")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, root, "init", "--operator", "tester"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	benchRoot := soleBenchDir(t, root)
+
+	ref := addCard(t, benchRoot, "carries an attachment")
+
+	source := filepath.Join(container, "notes.txt")
+	if err := os.WriteFile(source, []byte("the bytes"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if got := runCLI(t, benchRoot, "attach", ref, source); got.code != 0 {
+		t.Fatalf("attach: %d %s", got.code, got.errw)
+	}
+
+	replacement := filepath.Join(container, "revised.txt")
+	if err := os.WriteFile(replacement, []byte("other bytes"), 0o644); err != nil {
+		t.Fatalf("write replacement: %v", err)
+	}
+	if got := runCLI(t, benchRoot, "attach", ref+"/attachments/1", replacement, "--replace"); got.code != 0 {
+		t.Fatalf("replace: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, benchRoot, "delete", ref+"/attachments/1", "--yes"); got.code != 0 {
+		t.Fatalf("delete attachment: %d %s", got.code, got.errw)
+	}
+
+	got := runCLI(t, benchRoot, "log", ref)
+	if got.code != 0 {
+		t.Fatalf("log: %d %s", got.code, got.errw)
+	}
+
+	replacedEntry, replacedOK := msg.BaseEntry("token.attachment_replaced")
+	removedEntry, removedOK := msg.BaseEntry("token.attachment_removed")
+	if !replacedOK || !removedOK {
+		t.Fatalf("catalog carries no token for an attachment history event")
+	}
+	for _, token := range []string{replacedEntry.Text, removedEntry.Text} {
+		lines := strings.Split(got.out, "\n")
+		found := false
+		for i, line := range lines {
+			if !strings.Contains(line, token) {
+				continue
+			}
+			found = true
+			if i+1 >= len(lines) {
+				t.Fatalf("%q: wanted a continuation line carrying the actor, got none:\n%s", token, got.out)
+			}
+			next := lines[i+1]
+			if !strings.Contains(next, "tester") {
+				t.Errorf("%q: wanted the actor on the continuation line, got %q", token, next)
+			}
+			indent := len(next) - len(strings.TrimLeft(next, " "))
+			if indent != len("  ")+22+14 {
+				t.Errorf("%q: actor continuation line indented to %d, wanted %d:\n%q", token, indent, len("  ")+22+14, next)
+			}
+		}
+		if !found {
+			t.Errorf("log never showed the event token %q:\n%s", token, got.out)
+		}
+	}
+}
+
+// wantUsage asserts an invocation refuses with dinah.usage and that the
+// refusal names the exact word given, which is the shape every case in this
+// card's tests wants.
+func wantUsage(t *testing.T, got invocation, word string) {
+	t.Helper()
+	if got.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Usage {
+		t.Errorf("leading token: wanted %s, got %q", contract.Usage, got.errw)
+	}
+	if !strings.Contains(got.errw, word) {
+		t.Errorf("the refusal should name the word given, wanted %q in %q", word, got.errw)
+	}
+}
+
+// TestMistypedSingleDashRefusesOnAZeroBoundedCommand asserts dinah-69's AC-1:
+// every zero-bounded-slot command called with a trailing single-dash word
+// refuses with dinah.usage naming the word, in place of today's silent exit
+// 0, and that nothing about a successful run of the same command changes.
+func TestMistypedSingleDashRefusesOnAZeroBoundedCommand(t *testing.T) {
+	for _, name := range []string{"status", "states", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+		t.Run(name, func(t *testing.T) {
+			wantUsage(t, runCLI(t, t.TempDir(), name, "-w"), "-w")
+		})
+	}
+}
+
+// TestWorkbenchesListingSurvivesAMissingSlug is the fixture-level twin of
+// TestAlignedRowBreaksOnAnOverrunningCell: it drives the actual
+// `workbenches` render, not the helper in isolation, over a row with no
+// slug at all, whose placeholder is longer than the column it prints into,
+// and asserts the row's path is still present and legible rather than
+// shifted into the previous column.
+func TestWorkbenchesListingSurvivesAMissingSlug(t *testing.T) {
+	container := t.TempDir()
+	t.Setenv("DINAH_HOME", filepath.Join(container, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+
+	noSlug := filepath.Join(container, "noslug")
+	if err := os.MkdirAll(noSlug, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, noSlug, "init", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	noSlugRoot := soleBenchDir(t, noSlug)
+	editWorkbenchAnchor(t, filepath.Join(noSlugRoot, "workbench.md"), "slug: noslug\n", "slug:\n")
+
+	got := runCLI(t, container, "--workbench", noSlugRoot, "workbenches")
+	if got.code != 0 {
+		t.Fatalf("workbenches: %d %s", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, noSlugRoot) {
+		t.Errorf("the missing-slug row's own path is missing or shifted out of the line: %q", got.out)
+	}
+	if strings.Count(got.out, "\n") < 2 {
+		t.Errorf("wanted the overrunning placeholder to break onto a continuation line, got %q", got.out)
+	}
+}
+
+// editWorkbenchAnchor rewrites one line of a workbench anchor already on
+// disk, the way editWorkbench does for the bench-package fixtures this test
+// mirrors.
+func editWorkbenchAnchor(t *testing.T, path, from, to string) {
+	t.Helper()
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !strings.Contains(string(text), from) {
+		t.Fatalf("the workbench anchor carries no %q", from)
+	}
+	edited := strings.Replace(string(text), from, to, 1)
+	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+}
+
+// TestMistypedSingleDashRefusesBeforeTheDomainCheck asserts dinah-69's AC-2:
+// every command whose bounded slot is a card reference, a state name, or a
+// guide/help topic refuses with dinah.usage naming the word when a
+// single-dash word fills that slot, rather than today's unknown-card,
+// unknown-state, unknown-command or unknown-guide refusal.
+func TestMistypedSingleDashRefusesBeforeTheDomainCheck(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"claim", []string{"claim", "-w"}},
+		{"release", []string{"release", "-w"}},
+		{"unblock", []string{"unblock", "-w"}},
+		{"archive", []string{"archive", "-w"}},
+		{"delete", []string{"delete", "-w"}},
+		{"log", []string{"log", "-w"}},
+		{"instructions", []string{"instructions", "-w"}},
+		{"show", []string{"show", "-w"}},
+		{"ls", []string{"ls", "-w"}},
+		{"next", []string{"next", "-w"}},
+		{"guide", []string{"guide", "-w"}},
+		{"help", []string{"help", "-w"}},
+		{"move's card slot", []string{"move", "-w", "ready"}},
+		{"move's state slot", []string{"move", "fx-1", "-w"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			wantUsage(t, runCLI(t, root, c.argv...), "-w")
+		})
+	}
+}
+
+// TestMistypedSingleDashRefusesOnAPathSlotInsteadOfCreatingSomething asserts
+// dinah-69's AC-3 and is the card's flagship case: `init -w` no longer
+// creates a directory named `-w` and initialises a workbench inside it, and
+// the same refusal reaches attach's ref and file slots, extract's directory
+// slot, and path's and edit's argument slot.
+func TestMistypedSingleDashRefusesOnAPathSlotInsteadOfCreatingSomething(t *testing.T) {
+	base := t.TempDir()
+	wantUsage(t, runCLI(t, base, "init", "-w", "--operator", "tester"), "-w")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		t.Fatalf("read dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("a refused init should create nothing, found %v", entries)
+	}
+
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	for _, argv := range [][]string{
+		{"attach", "-w", "somefile"},
+		{"attach", "fx-1", "-w"},
+		{"extract", "-w"},
+		{"path", "-w"},
+		{"edit", "-w"},
+	} {
+		t.Run(strings.Join(argv, " "), func(t *testing.T) {
+			wantUsage(t, runCLI(t, root, argv...), "-w")
+		})
+	}
+	if bench.Exists(filepath.Join(root, "-w")) {
+		t.Error("a refused attach/extract should leave no -w path behind")
+	}
+
+	// "./" still reaches a real dash-led filesystem name unchanged, for the
+	// slots that resolve a filesystem path directly rather than a card
+	// reference: init's root and extract's directory.
+	dashDir := filepath.Join(t.TempDir(), "-realdir")
+	if err := os.MkdirAll(dashDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	got := runCLI(t, root, "extract", filepath.Join(dashDir, "notyetused"))
+	if got.code != 0 {
+		t.Fatalf("extract into a real dash-led directory: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestOpenTailContinuesToAcceptALeadingDashWord asserts dinah-69's AC-5: the
+// open-tail slots (add's title, block's reason, comment's text, config set's
+// value) keep taking a leading-dash word exactly as before, the bare "-"
+// still reads comment's text from stdin, a single-dash word given as an
+// explicit flag's own value is unaffected, and the top-level command name is
+// unaffected.
+func TestOpenTailContinuesToAcceptALeadingDashWord(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got := runCLI(t, root, "add", "-weirdtitle2")
+	if got.code != 0 {
+		t.Fatalf("add -weirdtitle2: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if !strings.Contains(got.out, "-weirdtitle2") {
+		t.Errorf("the title should carry the dash-led word verbatim, got %q", got.out)
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "-not-a-flag the actual reason")
+	if got.code != 0 {
+		t.Fatalf("block with a dash-led reason: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	_, homeBase := settingsHome(t)
+	if got := runCLI(t, homeBase, "config", "set", "actor", "-w"); got.code != 0 {
+		t.Fatalf("config set actor -w: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if got := runCLI(t, homeBase, "config", "get", "actor"); got.code != 0 || strings.TrimSpace(got.out) != "-w" {
+		t.Errorf("config set should have stored -w verbatim, got %d %q", got.code, got.out)
+	}
+
+	piped := &bytes.Buffer{}
+	piped.WriteString("piped comment text")
+	out, errw := &bytes.Buffer{}, &bytes.Buffer{}
+	previous, _ := os.Getwd()
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	code := run([]string{"comment", "fx-1", "-"}, piped, out, errw)
+	os.Chdir(previous)
+	if code != 0 {
+		t.Fatalf("comment fx-1 -: wanted exit 0, got %d (%s)", code, errw.String())
+	}
+
+	// A single-dash word given as an explicit flag's own value is unaffected
+	// and still reaches the domain refusal, not dinah.usage.
+	got = runCLI(t, root, "move", "fx-1", "nowhere", "--state", "-w")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.UnknownState {
+		t.Errorf("an explicit flag value: wanted %s, got %q", contract.UnknownState, got.errw)
+	}
+
+	// The top-level command name itself is unaffected.
+	got = runCLI(t, root, "-w", "ls")
+	leading = strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.UnknownVerb {
+		t.Errorf("a mistyped command name: wanted %s, got %q", contract.UnknownVerb, got.errw)
+	}
+}
+
+// TestConfigRefusesAMistypedSingleDashKey asserts dinah-69's AC-4: config get
+// and config set refuse with dinah.usage naming the exact word when the key
+// is a single-dash word, before the unknown-key check runs, and a bare
+// `config <word>` that is neither get nor set refuses naming that word
+// rather than the literal string "config".
+func TestConfigRefusesAMistypedSingleDashKey(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	wantUsage(t, runCLI(t, dir, "config", "-w"), "-w")
+	wantUsage(t, runCLI(t, dir, "config", "get", "-w"), "-w")
+	wantUsage(t, runCLI(t, dir, "config", "set", "-w", "value"), "-w")
+
+	got := runCLI(t, dir, "config", "bogus")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Usage {
+		t.Errorf("leading token: wanted %s, got %q", contract.Usage, got.errw)
+	}
+	if !strings.Contains(got.errw, "bogus") {
+		t.Errorf("the default branch should name the word given rather than the literal \"config\", got %q", got.errw)
+	}
+}
+
+// TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses answers dinah-69's
+// OQ-1: for a command with no open tail, the check walks every word in
+// rest(), not merely the command's own declared bounded count, so a word
+// beyond a one-bounded command's own arity refuses exactly as a dash word
+// inside a declared slot does. dinah-90 widens the walk past bounded to any
+// word, not only a dash-led one, so the plain word "extraword" is now the
+// first offending word scanning left to right, and it is what the refusal
+// names, ahead of the "-x" that follows it.
+func TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	wantUsage(t, runCLI(t, root, "claim", "fx-1", "extraword", "-x"), "extraword")
+}
+
+// TestPlainWordBeyondAZeroBoundedCommandRefuses asserts dinah-90's AC-1: every
+// zero-bounded, no-open-tail command called with one plain trailing word (no
+// leading dash) refuses with dinah.usage naming that exact word, in place of
+// today's silent exit 0.
+func TestPlainWordBeyondAZeroBoundedCommandRefuses(t *testing.T) {
+	for _, name := range []string{"status", "states", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+		t.Run(name, func(t *testing.T) {
+			wantUsage(t, runCLI(t, t.TempDir(), name, "somejunk"), "somejunk")
+		})
+	}
+}
+
+// TestPlainWordBeyondAOneBoundedCommandRefuses asserts dinah-90's AC-2: every
+// one-bounded, no-open-tail command called with its one legitimate argument
+// plus one plain trailing word refuses with dinah.usage naming the trailing
+// word, while the same call with only its one legitimate argument is
+// unaffected.
+func TestPlainWordBeyondAOneBoundedCommandRefuses(t *testing.T) {
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"claim", []string{"claim", "fx-1"}},
+		{"release", []string{"release", "fx-1"}},
+		{"unblock", []string{"unblock", "fx-1"}},
+		{"archive", []string{"archive", "fx-1"}},
+		{"delete", []string{"delete", "fx-1"}},
+		{"log", []string{"log", "fx-1"}},
+		{"instructions", []string{"instructions", "fx-1"}},
+		{"show", []string{"show", "fx-1"}},
+		{"ls", []string{"ls", "ready"}},
+		{"next", []string{"next", "ready"}},
+		{"guide", []string{"guide", "claim"}},
+		{"help", []string{"help", "claim"}},
+		{"extract", []string{"extract", filepath.Join(t.TempDir(), "out")}},
+		{"path", []string{"path", "fx-1"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// A fresh workbench per case, so a stateful command earlier in
+			// the table (archive, delete, claim) cannot leave the card in a
+			// shape a later case's own baseline call did not expect.
+			root := newBench(t)
+			runCLI(t, root, "add", "A card")
+			withExtra := append(append([]string{}, c.argv...), "extraword")
+			wantUsage(t, runCLI(t, root, withExtra...), "extraword")
+
+			root = newBench(t)
+			runCLI(t, root, "add", "A card")
+			got := runCLI(t, root, c.argv...)
+			leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+			if got.code != 0 && leading == contract.Usage {
+				t.Errorf("without the extra word: should not refuse with dinah.usage, got %d (%s)", got.code, got.errw)
+			}
+		})
+	}
+
+	// edit's own baseline call, without an extra word, would launch a real
+	// editor process, so only the extra-word refusal is checked here; its
+	// baseline case is exactly the shape TestMistypedSingleDashRefusesOnAPathSlotInsteadOfCreatingSomething
+	// already exercises for the dash-led form, and this card widens the same
+	// check ahead of the point where an editor would ever be launched.
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	wantUsage(t, runCLI(t, root, "edit", "fx-1", "extraword"), "extraword")
+
+	// init reads its own root argument (its bounded slot) rather than a card
+	// reference, so it is exercised on its own with a real target directory
+	// standing in for the legitimate argument.
+	base := t.TempDir()
+	sub := filepath.Join(base, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	wantUsage(t, runCLI(t, base, "init", sub, "extraword", "--operator", "tester"), "extraword")
+	got := runCLI(t, base, "init", sub, "--operator", "tester")
+	if got.code != 0 {
+		t.Errorf("init with only its own argument: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestPlainWordBeyondATwoBoundedCommandRefuses asserts dinah-90's AC-3: move
+// and attach, the two-bounded no-open-tail commands, refuse dinah.usage
+// naming a third plain trailing word, while both of their own two arguments
+// are unaffected.
+func TestPlainWordBeyondATwoBoundedCommandRefuses(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	wantUsage(t, runCLI(t, root, "move", "fx-1", "Doing", "thirdword"), "thirdword")
+	got := runCLI(t, root, "move", "fx-1", "Doing")
+	if got.code != 0 {
+		t.Errorf("move with only its own two arguments: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	somefile := filepath.Join(t.TempDir(), "somefile")
+	if err := os.WriteFile(somefile, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	wantUsage(t, runCLI(t, root, "attach", "fx-1", somefile, "thirdword"), "thirdword")
+	got = runCLI(t, root, "attach", "fx-1", somefile)
+	if got.code != 0 {
+		t.Errorf("attach with only its own two arguments: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestConfigGetRefusesAThirdWord asserts dinah-90's AC-4: config get refuses a
+// third word naming it, in place of today's silent success that drops it,
+// while config set with a several-word value is unaffected and config's own
+// existing checks are unaffected.
+func TestConfigGetRefusesAThirdWord(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	runCLI(t, dir, "config", "set", "actor", "somebody")
+	wantUsage(t, runCLI(t, dir, "config", "get", "actor", "extra"), "extra")
+
+	got := runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "somebody" {
+		t.Errorf("config get with only its key: wanted exit 0 and \"somebody\", got %d %q", got.code, got.out)
+	}
+
+	got = runCLI(t, dir, "config", "set", "actor", "a whole name")
+	if got.code != 0 {
+		t.Fatalf("config set with a quoted multi-word value: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if got := runCLI(t, dir, "config", "get", "actor"); got.code != 0 || strings.TrimSpace(got.out) != "a whole name" {
+		t.Errorf("config set should have stored the quoted value verbatim, got %d %q", got.code, got.out)
+	}
+
+	// config's own existing checks are unaffected: a bare bogus word, a
+	// dash-led first word, and a dash-led key still refuse as before.
+	got = runCLI(t, dir, "config", "bogus")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Usage || !strings.Contains(got.errw, "bogus") {
+		t.Errorf("config bogus: wanted dinah.usage naming bogus, got %q", got.errw)
+	}
+	wantUsage(t, runCLI(t, dir, "config", "-w"), "-w")
+	wantUsage(t, runCLI(t, dir, "config", "get", "-w"), "-w")
+}
+
+// TestOpenTailKeepsAcceptingAnyNumberOfPlainWords asserts dinah-100's AC-2:
+// every open-tail command keeps accepting a many-word phrase as content, so
+// long as it arrives quoted into the one argument the slot now takes; a
+// second, separate unquoted word is what dinah.multiple-words exists to
+// catch instead (TestOpenTailKeepsAcceptingExactlyOneWord below).
+func TestOpenTailKeepsAcceptingAnyNumberOfPlainWords(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "A whole title")
+	if got.code != 0 {
+		t.Fatalf("add with a quoted many-word title: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "a whole reason")
+	if got.code != 0 {
+		t.Fatalf("block with a quoted many-word reason: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "comment", "fx-1", "a whole comment")
+	if got.code != 0 {
+		t.Fatalf("comment with a quoted many-word comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+}
+
+// TestOpenTailKeepsAcceptingExactlyOneWord asserts dinah-100's own contract
+// directly: a second unquoted word past an open-tail command's fixed
+// arguments refuses with dinah.multiple-words naming the word count and the
+// slot, and rebuilds the command line with the free text quoted so the
+// caller can copy the fix.
+func TestOpenTailKeepsAcceptingExactlyOneWord(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "Fix", "the", "login", "bug")
+	wantMultipleWords := "dinah.multiple-words Dinah read 4 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add \"Fix the login bug\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("add with four loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	runCLI(t, root, "add", "A card")
+
+	got = runCLI(t, root, "block", "fx-1", "the", "door", "jammed")
+	wantMultipleWords = "dinah.multiple-words Dinah read 3 separate words for the reason, and it only accepts one. Put quotation marks around the whole thing: dinah block fx-1 \"the door jammed\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("block with three loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	got = runCLI(t, root, "comment", "fx-1", "done", "and", "dusted")
+	wantMultipleWords = "dinah.multiple-words Dinah read 3 separate words for the comment, and it only accepts one. Put quotation marks around the whole thing: dinah comment fx-1 \"done and dusted\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("comment with three loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+
+	_, dir := settingsHome(t)
+	got = runCLI(t, dir, "config", "set", "actor", "Paul", "Parks")
+	wantMultipleWords = "dinah.multiple-words Dinah read 2 separate words for the value, and it only accepts one. Put quotation marks around the whole thing: dinah config set actor \"Paul Parks\"\n"
+	if got.code != 2 || got.errw != wantMultipleWords {
+		t.Errorf("config set with two loose words:\n got  %d %q\n want 2 %q", got.code, got.errw, wantMultipleWords)
+	}
+}
+
+// TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote guards the cycle-3
+// review finding on dinah-100: which shell reads back a pasted line is
+// undocumented, and bash, cmd.exe and PowerShell disagree on how to escape
+// an embedded quotation mark (a backslash escape round-trips in bash and
+// cmd.exe but is not an escape character inside a PowerShell double-quoted
+// string, so it mangles the text there instead). Rather than hand back a
+// rebuilt example that is wrong in whichever shell the caller is using, a
+// free-text value that itself contains a `"` refuses with an instruction to
+// quote it themselves and offers no example at all. A backslash alone, or a
+// single quote alone, carries no such ambiguity and keeps the ordinary
+// rebuilt-example refusal (TestOpenTailKeepsAcceptingExactlyOneWord).
+func TestOpenTailAsksForQuotingItselfWhenTheTextHasAQuote(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "say", `"hi"`, "there")
+	want := "dinah.multiple-words Dinah read 3 separate words for the title, and it only accepts one." +
+		" That text has a quotation mark in it, so put quotation marks around the whole thing yourself." +
+		" No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.\n"
+	if got.code != 2 || got.errw != want {
+		t.Errorf("add with an embedded quote character:\n got  %d %q\n want 2 %q", got.code, got.errw, want)
+	}
+	if strings.Contains(got.errw, "dinah add") {
+		t.Errorf("a quote-in-text refusal should offer no rebuilt example, got %q", got.errw)
+	}
+
+	got = runCLI(t, root, "add", `C:\say"hi"`, "here")
+	if got.code != 2 || got.errw != "dinah.multiple-words Dinah read 2 separate words for the title, and it only accepts one."+
+		" That text has a quotation mark in it, so put quotation marks around the whole thing yourself."+
+		" No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.\n" {
+		t.Errorf("add with a backslash and an embedded quote:\n got  %d %q", got.code, got.errw)
+	}
+
+	got = runCLI(t, root, "add", "it's", "only", "a", "single", "quote")
+	wantSingleQuote := `dinah.multiple-words Dinah read 5 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "it's only a single quote"` + "\n"
+	if got.code != 2 || got.errw != wantSingleQuote {
+		t.Errorf("add with only a single (apostrophe) quote:\n got  %d %q\n want 2 %q", got.code, got.errw, wantSingleQuote)
+	}
+
+	got = runCLI(t, root, "add", `C:\path`, "here")
+	wantBackslash := `dinah.multiple-words Dinah read 2 separate words for the title, and it only accepts one. Put quotation marks around the whole thing: dinah add "C:\path here"` + "\n"
+	if got.code != 2 || got.errw != wantBackslash {
+		t.Errorf("add with a backslash and no quote:\n got  %d %q\n want 2 %q", got.code, got.errw, wantBackslash)
+	}
+}
+
+// showDetail runs `--json show` for a card and decodes the parts these tests
+// read: the title, the block reason, and the comments in order.
+func showDetail(t *testing.T, dir, ref string) verb.Detail {
+	t.Helper()
+	got := runCLI(t, dir, "--json", "show", ref)
+	if got.code != 0 {
+		t.Fatalf("--json show %s: %d %s", ref, got.code, got.errw)
+	}
+	var detail verb.Detail
+	if err := json.Unmarshal([]byte(got.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, got.out)
+	}
+	return detail
+}
+
+// TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition asserts
+// dinah-100's AC-5: a bare "--" still ends the flag scan, so comment, block
+// and add all store a quoted word beginning with -- verbatim, whether the
+// -- prefix opens, sits in the middle of, or closes the one free-text word
+// that follows the marker.
+func TestMarkerAcceptsAWordThatLooksLikeAnOptionAtEveryPosition(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got := runCLI(t, root, "comment", "fx-1", "--", "--verbose is a flag some tools take")
+	if got.code != 0 {
+		t.Fatalf("comment, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, root, "comment", "fx-1", "--", "remember to pass --verbose next time")
+	if got.code != 0 {
+		t.Fatalf("comment, word in middle: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, root, "comment", "fx-1", "--", "next time pass --verbose")
+	if got.code != 0 {
+		t.Fatalf("comment, word at end: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 3 {
+		t.Fatalf("wanted 3 comments, got %d", len(detail.Comments))
+	}
+	wantComments := []string{
+		"--verbose is a flag some tools take",
+		"remember to pass --verbose next time",
+		"next time pass --verbose",
+	}
+	for i, want := range wantComments {
+		if detail.Comments[i].Body != want {
+			t.Errorf("comment %d: wanted %q, got %q", i, want, detail.Comments[i].Body)
+		}
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "--", "--waiting on external dep")
+	if got.code != 0 {
+		t.Fatalf("block, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	blocked := showDetail(t, root, "fx-1")
+	if blocked.Card.BlockReason != "--waiting on external dep" {
+		t.Errorf("block reason: wanted %q, got %q", "--waiting on external dep", blocked.Card.BlockReason)
+	}
+	runCLI(t, root, "unblock", "fx-1")
+
+	got = runCLI(t, root, "add", "--", "--urgent fix the thing")
+	if got.code != 0 {
+		t.Fatalf("add, word at start: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-2")
+	if added.Card.Title != "--urgent fix the thing" {
+		t.Errorf("add title: wanted %q, got %q", "--urgent fix the thing", added.Card.Title)
+	}
+}
+
+// TestMarkerAcceptsADashPrefixedConfigValue asserts dinah-100's AC-5: config
+// set stores a quoted value beginning with -- verbatim once the marker
+// precedes it.
+func TestMarkerAcceptsADashPrefixedConfigValue(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	got := runCLI(t, dir, "config", "set", "actor", "--", "--urgent tester")
+	if got.code != 0 {
+		t.Fatalf("config set past the marker: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "--urgent tester" {
+		t.Errorf("config get actor: wanted %q, got %d %q", "--urgent tester", got.code, got.out)
+	}
+}
+
+// TestMarkerHandlesTheAwkwardShapes asserts dinah-92's AC-4: a bare trailing
+// marker with nothing after it is consumed rather than refused by the flag
+// scan itself (config set's value is allowed to be empty, unlike comment's
+// text, so it is the vehicle for that half of the case), and a second "--"
+// already past the first one is ordinary text rather than a second marker.
+func TestMarkerHandlesTheAwkwardShapes(t *testing.T) {
+	_, dir := settingsHome(t)
+
+	got := runCLI(t, dir, "config", "set", "actor", "--")
+	if got.code != 0 {
+		t.Fatalf("a bare trailing marker with nothing after it: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if strings.Contains(got.errw, "was not understood") {
+		t.Errorf("the bare marker should not be refused as an unrecognized flag: %q", got.errw)
+	}
+	got = runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "" {
+		t.Errorf("config get actor: wanted the empty value the marker left behind, got %d %q", got.code, got.out)
+	}
+
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got = runCLI(t, root, "comment", "fx-1", "--", "--")
+	if got.code != 0 {
+		t.Fatalf("two markers: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, root, "comment", "fx-1", "--", "please mention -- here")
+	if got.code != 0 {
+		t.Fatalf("a marker inside text already past a marker: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 2 {
+		t.Fatalf("wanted 2 comments, got %d", len(detail.Comments))
+	}
+	wantComments := []string{
+		"--",
+		"please mention -- here",
+	}
+	for i, want := range wantComments {
+		if detail.Comments[i].Body != want {
+			t.Errorf("comment %d: wanted %q, got %q", i, want, detail.Comments[i].Body)
+		}
+	}
+}
+
+// TestMarkerFreesAWordASiblingCheckWouldOtherwiseRefuse asserts dinah-92's
+// last awkward case: a word after the marker that looksLikeMistypedFlag
+// would refuse as a single-dash word lands as literal text instead, because
+// the marker frees it into free text before that check ever sees it.
+func TestMarkerFreesAWordASiblingCheckWouldOtherwiseRefuse(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	got := runCLI(t, root, "comment", "fx-1", "--", "the option is -w not what you want")
+	if got.code != 0 {
+		t.Fatalf("a single-dash word past the marker: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	want := "the option is -w not what you want"
+	if len(detail.Comments) != 1 || detail.Comments[0].Body != want {
+		t.Fatalf("wanted one comment %q, got %v", want, detail.Comments)
+	}
+
+	// The sibling checks still refuse a single-dash word in a bounded slot
+	// when no marker frees it: dinah-69's own case is unaffected.
+	wantUsage(t, runCLI(t, root, "claim", "-w"), "-w")
+}
+
+// TestBareMarkerAloneNoLongerRefusesItself asserts the open question the
+// spec settled: a bare "--" typed alone, with nothing after it, is consumed
+// as the marker rather than refused as an unrecognized flag. comment's own
+// domain still refuses the empty text that leaves behind, exactly as it
+// refuses an empty comment with no marker involved at all; what changes is
+// which refusal fires. Today's dinah.usage naming "--" itself is gone, and
+// malformed naming "text" takes its place.
+func TestBareMarkerAloneNoLongerRefusesItself(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+	got := runCLI(t, root, "comment", "fx-1", "--")
+	if got.code != 2 {
+		t.Fatalf("a bare -- alone: wanted exit 2 (empty comment text, not the marker), got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.Malformed {
+		t.Errorf("wanted the empty-text refusal (%s), got %q", contract.Malformed, got.errw)
+	}
+	if strings.Contains(got.errw, "was not understood") {
+		t.Errorf("the marker itself should not be refused as an unrecognized flag: %q", got.errw)
+	}
+}
+
+// TestKnownFlagBeforeAndAfterTheMarker asserts dinah-92's AC-5: a known
+// global flag written before the marker still parses as a flag exactly as it
+// does today, and the same flag word written after the marker is read as
+// literal text instead of being silently dropped.
+func TestKnownFlagBeforeAndAfterTheMarker(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	before := runCLI(t, root, "comment", "fx-1", "--json", "before the marker")
+	if before.code != 0 {
+		t.Fatalf("--json before the marker: wanted exit 0, got %d (%s)", before.code, before.errw)
+	}
+	var beforeReport struct {
+		Outcome string `json:"outcome"`
+	}
+	if err := json.Unmarshal([]byte(before.out), &beforeReport); err != nil {
+		t.Fatalf("--json before the marker should still parse as the flag and emit machine json: %v\n%s", err, before.out)
+	}
+	beforeDetail := showDetail(t, root, "fx-1")
+	if beforeDetail.Comments[0].Body != "before the marker" {
+		t.Errorf("comment: wanted %q, got %q", "before the marker", beforeDetail.Comments[0].Body)
+	}
+
+	after := runCLI(t, root, "comment", "fx-1", "--", "after the marker --json here")
+	if after.code != 0 {
+		t.Fatalf("--json after the marker: wanted exit 0, got %d (%s)", after.code, after.errw)
+	}
+	if strings.TrimSpace(after.out) != "" && json.Valid([]byte(after.out)) {
+		t.Errorf("--json after the marker should be literal text, not the flag, so this run should not have emitted machine json: %q", after.out)
+	}
+	detail := showDetail(t, root, "fx-1")
+	last := detail.Comments[len(detail.Comments)-1].Body
+	if last != "after the marker --json here" {
+		t.Errorf("comment: wanted %q, got %q (the flag word after the marker should be stored, not dropped)", "after the marker --json here", last)
+	}
+}
+
+// TestUsageRefusalNamesTheMarker asserts dinah-92's AC-6: the refusal for an
+// unrecognized --word and for a recognized valued flag missing its value
+// both carry the dash hint, and it names the "--" marker.
+func TestUsageRefusalNamesTheMarker(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	wantUnknown := "dinah.usage --bogus was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.\n"
+	unknown := runCLI(t, root, "comment", "fx-1", "nice", "work", "--bogus", "here")
+	if unknown.code != 2 {
+		t.Fatalf("unrecognized flag: wanted exit 2, got %d (%s)", unknown.code, unknown.errw)
+	}
+	if unknown.errw != wantUnknown {
+		t.Errorf("unrecognized flag refusal:\n got  %q\n want %q", unknown.errw, wantUnknown)
+	}
+
+	wantMissing := "dinah.usage --actor was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.\n"
+	missing := runCLI(t, root, "comment", "fx-1", "nice", "work", "--actor")
+	if missing.code != 2 {
+		t.Fatalf("valued flag missing its value: wanted exit 2, got %d (%s)", missing.code, missing.errw)
+	}
+	if missing.errw != wantMissing {
+		t.Errorf("missing-value refusal:\n got  %q\n want %q", missing.errw, wantMissing)
+	}
+
+	// A refusal not raised by parseArgs's two flag-scan sites carries no
+	// hint: extract with no target names dinah.usage but is unrelated to a
+	// dash-prefixed word.
+	unrelated := runCLI(t, root, "extract")
+	if strings.Contains(unrelated.errw, "Dinah reads a word starting with two dashes") {
+		t.Errorf("extract's own usage refusal should not carry the dash hint, got %q", unrelated.errw)
+	}
+	unrelatedConfig := runCLI(t, root, "config", "bogus")
+	if strings.Contains(unrelatedConfig.errw, "Dinah reads a word starting with two dashes") {
+		t.Errorf("config's own usage refusal should not carry the dash hint, got %q", unrelatedConfig.errw)
+	}
+}
+
+// TestTrailingDomainFlagStillApplies asserts dinah-100's AC-6: add's title
+// and block's reason keep applying their own documented flag exactly as
+// before when it trails the free text, now a single quoted word.
+func TestTrailingDomainFlagStillApplies(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "the rollout failed because of", "--state", "doing")
+	if got.code != 0 {
+		t.Fatalf("add trailing --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-1")
+	if added.Card.Title != "the rollout failed because of" {
+		t.Errorf("title: wanted %q, got %q", "the rollout failed because of", added.Card.Title)
+	}
+	if added.Card.StateTitle != "Doing" {
+		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
+	}
+
+	got = runCLI(t, root, "block", "fx-1", "the rollout failed", "--kind", "external")
+	if got.code != 0 {
+		t.Fatalf("block trailing --kind: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	blocked := showDetail(t, root, "fx-1")
+	if blocked.Card.BlockReason != "the rollout failed" {
+		t.Errorf("reason: wanted %q, got %q", "the rollout failed", blocked.Card.BlockReason)
+	}
+	if blocked.Card.BlockKind != "external" {
+		t.Errorf("kind: wanted external, got %q", blocked.Card.BlockKind)
+	}
+}
+
+// TestNonTrailingDomainFlagIsLiteral asserts dinah-100's AC-6, its leading
+// half: a command's own domain flag typed before the free text applies
+// exactly as the same flag typed after it does (TestTrailingDomainFlagStillApplies),
+// with neither position swallowing the flag into the free text or the free
+// text into the flag's value. dinah-96's own case (a flag-shaped word
+// literal inside a multi-word free-text zone) no longer arises: the zone is
+// gone now that the slot takes exactly one word, so any additional unquoted
+// word, flag-shaped or not, is what dinah.multiple-words refuses instead
+// (TestOpenTailKeepsAcceptingExactlyOneWord).
+func TestNonTrailingDomainFlagIsLiteral(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "--state", "doing", "the rollout failed")
+	if got.code != 0 {
+		t.Fatalf("add with a leading --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	added := showDetail(t, root, "fx-1")
+	if added.Card.Title != "the rollout failed" {
+		t.Errorf("title: wanted %q, got %q", "the rollout failed", added.Card.Title)
+	}
+	if added.Card.StateTitle != "Doing" {
+		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
+	}
+
+	runCLI(t, root, "add", "a card to block")
+	got = runCLI(t, root, "block", "fx-2", "--kind", "external_dep", "the door jammed")
+	if got.code != 0 {
+		t.Fatalf("block with a leading --kind: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	blocked := showDetail(t, root, "fx-2")
+	if blocked.Card.BlockReason != "the door jammed" {
+		t.Errorf("reason: wanted %q, got %q", "the door jammed", blocked.Card.BlockReason)
+	}
+	if blocked.Card.BlockKind != "external_dep" {
+		t.Errorf("kind: wanted external_dep, got %q", blocked.Card.BlockKind)
+	}
+}
+
+// TestCommentAndConfigSetDeclareNoFlagOfTheirOwn asserts dinah-100 leaves
+// nothing for a global flag name to consume once it sits inside the one
+// quoted free-text word: comment's text and config set's value store a
+// --prefixed substring verbatim, because a quoted word is never split into
+// several argv words for the flag scan to see, whatever it starts with
+// internally. Neither command declares a domain flag of its own, so this is
+// the only shape the old dinah-96 guarantee still has to hold in.
+func TestCommentAndConfigSetDeclareNoFlagOfTheirOwn(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "a card")
+
+	got := runCLI(t, root, "comment", "fx-1", "please --state deploy done")
+	if got.code != 0 {
+		t.Fatalf("comment: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	detail := showDetail(t, root, "fx-1")
+	if len(detail.Comments) != 1 || detail.Comments[0].Body != "please --state deploy done" {
+		t.Fatalf("wanted one comment %q, got %v", "please --state deploy done", detail.Comments)
+	}
+
+	_, dir := settingsHome(t)
+	got = runCLI(t, dir, "config", "set", "actor", "please --state deploy done")
+	if got.code != 0 {
+		t.Fatalf("config set: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	got = runCLI(t, dir, "config", "get", "actor")
+	if got.code != 0 || strings.TrimSpace(got.out) != "please --state deploy done" {
+		t.Errorf("config get actor: wanted %q, got %d %q", "please --state deploy done", got.code, got.out)
+	}
+}
+
+// TestFlagBeforeTheFreeTextBoundaryIsUnaffected asserts dinah-96's AC-13: a
+// flag captured before an open-tail command's free-text boundary, meaning
+// before the command name or between the command name and its bounded
+// slots, keeps applying exactly as it does today.
+func TestFlagBeforeTheFreeTextBoundaryIsUnaffected(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "a card")
+
+	bench := soleBenchDir(t, root)
+	got := runCLI(t, root, "--workbench", bench, "comment", "fx-1", "hello")
+	if got.code != 0 {
+		t.Fatalf("--workbench before the command name: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if strings.Contains(got.errw, "was not understood") {
+		t.Errorf("--workbench before the command name should apply, not refuse: %q", got.errw)
+	}
+
+	got = runCLI(t, root, "comment", "--json", "fx-1", "hello")
+	if got.code != 0 {
+		t.Fatalf("--json before the card slot: wanted exit 0, got %d (%s)", got.code, got.errw)
+	}
+	if !json.Valid([]byte(got.out)) {
+		t.Errorf("--json before the card slot should still apply as a flag, got %q", got.out)
+	}
+}
+
+// TestAValueStarvedFlagRefusesRatherThanFallingThrough asserts dinah-100's
+// own D-3 shape for this case: a domain flag that expects a value, with
+// nothing left in the free text to serve as that value, is no longer
+// spliced back in as literal text (dinah-96's AC-14/D-5 behavior). Once
+// resolveOpenTailFlags stops running for add, block and comment, the flag
+// is recognized eagerly wherever it is typed, so a value-starved --kind
+// consumes the flag and leaves the reason empty, surfacing as no-reason
+// instead.
+func TestAValueStarvedFlagRefusesRatherThanFallingThrough(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "a card to block")
+
+	got := runCLI(t, root, "block", "fx-1", "--kind")
+	if got.code != 2 {
+		t.Fatalf("block with only a value-starved --kind: wanted exit 2, got %d (%s)", got.code, got.errw)
+	}
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if leading != contract.NoReason {
+		t.Errorf("wanted %s (no reason given, not the flag name landing in the reason), got %q", contract.NoReason, got.errw)
+	}
+
+	wantUsage(t, runCLI(t, root, "move", "fx-1", "doing", "--state"), "--state")
+}
+
+// TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText asserts the
+// reverse of dinah-96's AC-18/D-7, dinah-100 (D-3): add's own domain flag is
+// read as a flag wherever it is typed relative to the one-word free text,
+// leading or trailing, so a bogus value now reaches add's own downstream
+// state check and refuses, in place of the literal text dinah-96 would have
+// accepted for the same input.
+func TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText(t *testing.T) {
+	root := newBench(t)
+
+	got := runCLI(t, root, "add", "--state", "bogus", "the rollout failed")
+	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+	if got.code == 0 || leading != contract.UnknownState {
+		t.Errorf("add with a leading bogus --state: wanted %s, got %d (%s)", contract.UnknownState, got.code, got.errw)
 	}
 }

@@ -249,6 +249,11 @@ func TestMoveHonoursItsStatements(t *testing.T) {
 	if refused.Refusal != contract.AtCapacity {
 		t.Fatalf("wanted at-capacity over a blocked occupant, got %s %s", refused.Outcome, refused.Refusal)
 	}
+	if refused.Detail != "doing" {
+		// Named by the slug the caller just typed ("doing"), not by the raw
+		// identifier behind it.
+		t.Fatalf("at-capacity refusal: wanted the slug %q, got %q", "doing", refused.Detail)
+	}
 
 	// The operator carries one through with the marker, and the act is one
 	// act marked an override.
@@ -295,6 +300,12 @@ func TestForwardMoveOutOfDoneIsTerminal(t *testing.T) {
 	response := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", State: aftercare})
 	if response.Refusal != contract.Terminal {
 		t.Fatalf("wanted terminal on a forward move out of a done state, got %s %s", response.Outcome, response.Refusal)
+	}
+	if response.Detail != "finished" {
+		// Named by the departure state's slug ("finished"), not by its raw
+		// identifier: this refusal is the one dinah-29 cycle 2's own
+		// counterexample entry was written about.
+		t.Fatalf("terminal refusal: wanted the slug %q, got %q", "finished", response.Detail)
 	}
 }
 
@@ -990,8 +1001,8 @@ func TestTheStateScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
 		ref := h.add("occupant")
 		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: aftercare})
 		response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
-		if response.Refusal != contract.Occupied || response.Detail != aftercare {
-			t.Fatalf("wanted %s naming the state, got %s %q", contract.Occupied, response.Refusal, response.Detail)
+		if response.Refusal != contract.Occupied || response.Detail != aftercareSlug {
+			t.Fatalf("wanted %s naming the state by its slug %q, got %s %q", contract.Occupied, aftercareSlug, response.Refusal, response.Detail)
 		}
 	})
 
@@ -1058,8 +1069,8 @@ func TestTheStateScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
 		if !committed {
 			t.Fatal("the move never landed in the gap, so this test proves nothing")
 		}
-		if response.Refusal != contract.Occupied || response.Detail != aftercare {
-			t.Fatalf("wanted %s naming the state, got %s %q", contract.Occupied, response.Refusal, response.Detail)
+		if response.Refusal != contract.Occupied || response.Detail != aftercareSlug {
+			t.Fatalf("wanted %s naming the state by its slug %q, got %s %q", contract.Occupied, aftercareSlug, response.Refusal, response.Detail)
 		}
 	})
 }

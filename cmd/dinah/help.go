@@ -23,6 +23,22 @@ type command struct {
 	group string
 	// run does the work and returns the process exit code.
 	run func(*session, *arguments) int
+	// bounded is how many of the command's own leading positional words are
+	// checked against the vocabulary the command knows (a card reference, a
+	// state name, a guide topic, or a path handed to the operating system).
+	// A word occupying one of these positions that looks like a mistyped
+	// flag is refused before the command's own run function ever sees it.
+	// config is not declared here; it dispatches on its own first word and
+	// runs the same check itself.
+	bounded int
+	// openTail says the words after bounded are free text the caller
+	// composed on purpose (a title, a reason, a comment, a config value),
+	// left untouched however they begin. False means the command declares no
+	// open tail, so every word past bounded is refused, not only one that
+	// looks like a mistyped flag: nothing about a bounded, no-open-tail
+	// command reads or stores a word past what it declares, so any word
+	// there, dash-led or plain, is unread and worth refusing.
+	openTail bool
 }
 
 // The four groups of the surface, in the order the help block prints them.
@@ -127,8 +143,9 @@ func (s *session) verbHelp(name string) string {
 	}
 	b.WriteString("\n" + s.r.T("help.refusals") + "\n")
 	for i, check := range checks {
-		order := pad(strconv.Itoa(i+1), 3)
-		b.WriteString("  " + order + pad(s.r.T(check.Key), 52) + check.Refusal + "\n")
+		lead := "  " + pad(strconv.Itoa(i+1), 3)
+		cells := []paddedCell{{s.r.T(check.Key), 52}}
+		b.WriteString(alignedRow(lead, cells, check.Refusal) + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	return b.String()

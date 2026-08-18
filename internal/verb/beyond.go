@@ -18,6 +18,13 @@ import (
 // A named state honours that state's capacity limit while a filing into the
 // first state never does, because work has to be able to enter the bench and
 // the intake station is where unstarted work is meant to pile up.
+//
+// Bench.Open tolerates a workbench whose live states list has been emptied
+// by every id going stranded, so check can diagnose it. Add refuses with
+// contract.AddNeedsAState instead of reading the first state off an empty
+// list, before anything about the request past its title and actor is
+// checked, so the refusal is a pure read-only bail-out with nothing to
+// clean up.
 func (l *Library) Add(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -28,6 +35,10 @@ func (l *Library) Add(req *Request) *Response {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
+	}
+	if len(l.Bench.States) == 0 {
+		anchor := filepath.Join(l.Bench.Root, bench.WorkbenchAnchor)
+		return l.refuse(req, nil, contract.AddNeedsAState, anchor)
 	}
 	destination := l.Bench.States[0]
 	if req.State != "" {
@@ -40,7 +51,7 @@ func (l *Library) Add(req *Request) *Response {
 			return l.FromError(req, err)
 		}
 		if reached {
-			return l.refuse(req, nil, contract.AtCapacity, named.ID)
+			return l.refuse(req, nil, contract.AtCapacity, named.Ref())
 		}
 		destination = named
 	}
@@ -205,13 +216,14 @@ func (l *Library) Archive(req *Request) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
 	act := &bench.StructuralAct{
-		Dir:     entity.Dir,
-		LockDir: l.lockDirFor(entity),
-		Op:      bench.OpArchive,
-		Actor:   req.Actor,
-		Now:     now,
-		StateID: stateSubject(entity),
-		Record:  func() error { return bench.AppendEvent(journal, ev) },
+		Dir:      entity.Dir,
+		LockDir:  l.lockDirFor(entity),
+		Op:       bench.OpArchive,
+		Actor:    req.Actor,
+		Now:      now,
+		StateID:  stateSubject(entity),
+		StateRef: entity.Ref,
+		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -248,13 +260,14 @@ func (l *Library) Delete(req *Request) *Response {
 	now := bench.Stamp(l.Now())
 	journal, ev := l.removalRecord(entity, req.Actor, now)
 	act := &bench.StructuralAct{
-		Dir:     entity.Dir,
-		LockDir: l.lockDirFor(entity),
-		Op:      bench.OpDelete,
-		Actor:   req.Actor,
-		Now:     now,
-		StateID: stateSubject(entity),
-		Record:  func() error { return bench.AppendEvent(journal, ev) },
+		Dir:      entity.Dir,
+		LockDir:  l.lockDirFor(entity),
+		Op:       bench.OpDelete,
+		Actor:    req.Actor,
+		Now:      now,
+		StateID:  stateSubject(entity),
+		StateRef: entity.Ref,
+		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -343,16 +356,57 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 }
 
 // Init creates a bench, optionally from a template or another bench's
-// interchange form.
-func Init(root, slug, operator, source string) error {
-	if bench.Exists(filepath.Join(root, bench.WorkbenchAnchor)) {
-		return contract.Refuse(contract.Exists, root)
+// interchange form, inside a fresh directory of the .dinah container under
+// root. It returns the directory it wrote to.
+//
+// override is --workbench or DINAH_WORKBENCH as the session resolved it, and
+// overrideSource is which of the two answered, passed through so Init can
+// refuse it by name rather than silently discard it. Every other verb reads
+// --workbench as the path to an existing workbench to open; Init has no
+// existing workbench to open, so honouring the flag here would give it a
+// second, contradictory meaning depending on which command sits next to it.
+// Init refuses instead, whatever the flag's value and whether or not a root
+// argument was also given.
+//
+// The refusal stays aimed at a bare workbench.md at root rather than at the
+// container, because benchIn resolves a recognized one before it ever looks
+// at that directory's container, so a bench written into the container
+// beside it would sit where the climbing search can never reach it. It
+// fires only when that bare file is a recognized Dinah workbench
+// (bench.AnchorRecognized): a file sharing the name but carrying none of
+// Dinah's frontmatter keys is passed over by the discovery walk exactly as
+// it is everywhere else, so a container written beside it stays reachable
+// and init proceeds rather than refusing over a file it never writes to.
+func Init(root, slug, operator, source, override, overrideSource string) (string, error) {
+	if override != "" {
+		spelling := "--workbench"
+		if overrideSource == bench.SourceEnvironment {
+			spelling = "DINAH_WORKBENCH"
+		}
+		return "", contract.RefuseWith(contract.WorkbenchNotApplicable, override, map[string]string{"source": spelling})
+	}
+	anchor := filepath.Join(root, bench.WorkbenchAnchor)
+	recognized, err := bench.AnchorRecognized(anchor)
+	if err != nil {
+		return "", contract.Refuse(contract.UnreadableBench, anchor)
+	}
+	if recognized {
+		return "", contract.Refuse(contract.Exists, root)
 	}
 	definition, err := readSource(root, source)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return bench.Instantiate(root, slug, operator, definition)
+	container := filepath.Join(root, bench.UserBaseName)
+	id, err := bench.ClaimID(container, nil)
+	if err != nil {
+		return "", err
+	}
+	written := filepath.Join(container, id)
+	if err := bench.Instantiate(written, slug, operator, definition); err != nil {
+		return "", err
+	}
+	return written, nil
 }
 
 // readSource reads the definition a new bench is instantiated from: an

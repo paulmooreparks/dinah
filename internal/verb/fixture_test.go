@@ -22,6 +22,12 @@ const (
 	review    = "a00000000003"
 	finished  = "a00000000004"
 	aftercare = "a00000000005"
+
+	// aftercareSlug is what a person types for the aftercare state, derived
+	// from its fixture title the same way Instantiate derives it at
+	// creation. A refusal naming the state names it by this slug, not by
+	// the raw identifier above.
+	aftercareSlug = "aftercare"
 )
 
 // fixtureDefinition is the interchange form of the bench every test starts
@@ -69,12 +75,15 @@ func newHarness(t *testing.T) *harness {
 	if err := os.MkdirAll(filepath.Join(home, bench.UserBaseName), 0o755); err != nil {
 		t.Fatalf("user base: %v", err)
 	}
-	source := filepath.Join(base, "definition.json")
-	if err := os.WriteFile(source, []byte(fixtureDefinition), 0o644); err != nil {
+	// The harness instantiates the bench directly rather than through Init,
+	// which writes into a .dinah container under the directory it is given;
+	// these tests want a bench at a path they name.
+	definition, err := bench.ReadDefinition([]byte(fixtureDefinition))
+	if err != nil {
 		t.Fatalf("definition: %v", err)
 	}
-	if err := Init(root, "fx", "alka", source); err != nil {
-		t.Fatalf("init: %v", err)
+	if err := bench.Instantiate(root, "fx", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
 	}
 	h := &harness{home: home, root: root, clock: time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC), t: t}
 	h.reopen()

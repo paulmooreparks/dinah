@@ -175,14 +175,14 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	}
 	forward := departure != nil && destination.Position > departure.Position
 	if forward && departure.Kind == contract.KindDone {
-		return l.refuse(req, card, contract.Terminal, departure.ID)
+		return l.refuse(req, card, contract.Terminal, stateRef(departure))
 	}
 	reached, err := l.atCapacity(destination)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	if reached && !req.Override {
-		return l.refuse(req, card, contract.AtCapacity, destination.ID)
+		return l.refuse(req, card, contract.AtCapacity, stateRef(destination))
 	}
 	// The last of the destination checks, read under the card lock this
 	// transaction already holds. A move that reached the sibling first is

@@ -233,6 +233,16 @@ workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
 
+A `workbench.md` on disk claims its directory only when its frontmatter
+carries `profile`, or carries `format` or `states` without it. The three keys
+are what a Dinah workbench always writes, and testing for them is what keeps
+the climb from stopping at somebody else's document that happens to share the
+filename. A `workbench.md` carrying none of the three is passed over in
+silence, and the search keeps climbing past it as though it were not there.
+A `workbench.md` that exists and cannot be read stops the search instead:
+the file might be the real workbench, so the walk refuses rather than
+guessing either way.
+
 A distributed workbench borrows git's model of a canonical home, pegged to a
 URL, without borrowing git's URL. Two addresses answer two different
 questions and neither is stored where the other lives. The git remote, when
@@ -336,6 +346,21 @@ the sequence of the flow, and it is the single authority for order. State
 files carry no position field; reordering the flow is reordering lines in one
 file. Trailing comments on the list entries are annotation for humans, and a
 lint warns when a comment drifts from the state's actual title.
+
+Retiring a state, whether by archiving it or by deleting it, removes its
+identifier from this ordered list in the same act, under the workbench lock
+the retiring act already holds. A workbench declaring an id whose directory does
+not exist at all still opens: the id is excluded from the flow and `dinah
+check` reports it, and `dinah check --migrate-states` removes it from the
+list. `dinah check --migrate-states` refuses instead of writing when removing
+every stranded id would leave the workbench with no states at all, and
+`dinah add` refuses the same way, naming the workbench file and the fix,
+instead of crashing, when a workbench's states list has already been
+emptied by any means. That tolerance covers only a state directory that is
+not there at all, the shape retiring a state produces; a state directory
+that is present but whose anchor cannot be read or parsed is the narrower
+case the "Corruption and recovery" section's quarantine promise below still
+answers, unimplemented today.
 
 Each `states/<id>/state.md` carries the state's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one

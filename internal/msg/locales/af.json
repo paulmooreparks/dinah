@@ -37,12 +37,17 @@
       "skeleton": true
     },
     "check.archive.1": {
-      "text": "the reference resolves to an entity",
+      "text": "the reference resolves to a card, a state, or something below a card",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.archive.2": {
       "text": "no card occupies the state being archived",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.archive.3": {
+      "text": "the workbench keeps at least one state",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -152,7 +157,7 @@
       "skeleton": true
     },
     "check.delete.1": {
-      "text": "the reference resolves to an entity",
+      "text": "the reference resolves to a card, a state, or something below a card",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -166,18 +171,23 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.delete.4": {
+      "text": "the workbench keeps at least one state",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.edit.1": {
       "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.edit.2": {
-      "text": "an editor is resolvable by the ladder",
+      "text": "an editor is resolvable",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.entity-at-both-paths": {
-      "text": "entity {detail} is present in the live collection and in the archive, and check will not choose between them",
+      "text": "{detail} is present in the workbench's live set and in its archive, and check will not choose between them",
       "context": "A check finding: an interrupted structural act left a directory at both paths, which the tool reports and refuses to resolve.",
       "skeleton": true
     },
@@ -196,8 +206,13 @@
       "context": "A check finding: a ready or blocked card carries no holder.",
       "skeleton": true
     },
+    "check.ignored-anchor": {
+      "text": "a workbench.md here carries none of profile, format, or states, so it was not recognised as a Dinah workbench and the search passed over it",
+      "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored.",
+      "skeleton": true
+    },
     "check.init.1": {
-      "text": "the directory holds no workbench already",
+      "text": "no workbench.md file sits at this exact path",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -212,7 +227,7 @@
       "skeleton": true
     },
     "check.interrupted-act": {
-      "text": "a structural act was interrupted here: {detail}",
+      "text": "a structural action was interrupted here: {detail}",
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
       "skeleton": true
     },
@@ -227,7 +242,7 @@
       "skeleton": true
     },
     "check.missing-anchor": {
-      "text": "directory {detail} carries no anchor file, so it is not an entity",
+      "text": "directory {detail} carries no anchor file, so it does not count as part of the workbench",
       "context": "A check finding: a hex directory without its anchor.",
       "skeleton": true
     },
@@ -277,12 +292,12 @@
       "skeleton": true
     },
     "check.ordinal-duplicate": {
-      "text": "entity {detail} carries a creation ordinal another entity of the same collection already carries, so a position names two of them",
+      "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers.",
       "skeleton": true
     },
     "check.ordinal-guessed": {
-      "text": "entity {detail} was placed by its directory listing, because no event in the card's journal records its creation, so its position is a guess",
+      "text": "{detail} was placed by its directory listing, because no event in the card's journal records its creation, so its position is a guess",
       "context": "A check finding the ordinal migration raises: the write order of this entity was not recoverable and the migration ordered it by the listing instead.",
       "skeleton": true
     },
@@ -292,7 +307,7 @@
       "skeleton": true
     },
     "check.ordinal-missing": {
-      "text": "entity {detail} carries no creation ordinal, so its position depends on the directory listing",
+      "text": "{detail} carries no creation ordinal, so its position depends on the directory listing",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it.",
       "skeleton": true
     },
@@ -307,7 +322,7 @@
       "skeleton": true
     },
     "check.ordinal-unwritable": {
-      "text": "entity {detail} could not be written to, so the migration stamped nothing on it and carried on",
+      "text": "{detail} could not be written to, so the migration stamped nothing on it and carried on",
       "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on.",
       "skeleton": true
     },
@@ -371,6 +386,21 @@
       "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on.",
       "skeleton": true
     },
+    "check.states-removed.one": {
+      "text": "Removed {count} stranded state from the list.",
+      "context": "The line the stranded-state migration prints for what it removed, for exactly one state. Followed by one line per removed identifier.",
+      "skeleton": true
+    },
+    "check.states-removed.other": {
+      "text": "Removed {count} stranded states from the list.",
+      "context": "The line the stranded-state migration prints for what it removed, for any other number. Followed by one line per removed identifier.",
+      "skeleton": true
+    },
+    "check.stranded-state": {
+      "text": "the workbench names a state whose directory is not there ({detail}); dinah check --migrate-states removes it from the list",
+      "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at.",
+      "skeleton": true
+    },
     "check.torn-journal": {
       "text": "the journal of card {detail} ends in a partial line",
       "context": "A check finding: a torn journal tail left by a crash.",
@@ -402,8 +432,23 @@
       "skeleton": true
     },
     "check.whoami.1": {
-      "text": "an owner is resolvable by the ladder",
+      "text": "an owner is resolvable",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-slug-assigned": {
+      "text": "Assigned the workbench slug {slug}.",
+      "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench.",
+      "skeleton": true
+    },
+    "check.workbench-slug-missing": {
+      "text": "the workbench carries no slug, so its cards are reachable only by their identifiers",
+      "context": "A check finding: a workbench written before the workbench-level slug field existed; `dinah check --migrate-slugs` derives one from the title.",
+      "skeleton": true
+    },
+    "check.workbench-slug-underivable": {
+      "text": "the workbench carries a title no slug can be derived from, so the migration gave it none",
+      "context": "A check finding the workbench-slug migration raises: no letter of the workbench's title survives the derivation, so a person retitles the workbench or writes a slug onto its anchor by hand.",
       "skeleton": true
     },
     "check.workbench.1": {
@@ -422,7 +467,7 @@
       "skeleton": true
     },
     "cmd.archive.summary": {
-      "text": "move an entity out of the live set",
+      "text": "move a card, a state, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -457,7 +502,7 @@
       "skeleton": true
     },
     "cmd.delete.summary": {
-      "text": "destroy an entity and its history",
+      "text": "destroy a card, a state, or anything below a card, along with its history",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -482,7 +527,7 @@
       "skeleton": true
     },
     "cmd.help.summary": {
-      "text": "one command's arguments, refusals and exit codes",
+      "text": "one command's arguments, what can go wrong, and its exit codes",
       "context": "The one-line summary of the help command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -497,7 +542,7 @@
       "skeleton": true
     },
     "cmd.log.summary": {
-      "text": "the recorded acts of a card, oldest first",
+      "text": "the recorded actions of a card, oldest first",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -552,12 +597,12 @@
       "skeleton": true
     },
     "cmd.version.summary": {
-      "text": "what this binary is and what it conforms to",
+      "text": "what Dinah is and what it conforms to",
       "context": "The one-line summary of the version command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.whoami.summary": {
-      "text": "the actor your acts carry, and whether it is the operator",
+      "text": "the actor your actions carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -612,7 +657,7 @@
       "skeleton": true
     },
     "help.footer": {
-      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, refusals and exit codes.",
+      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, what can go wrong, and its exit codes.",
       "context": "The last line of the help block, pointing at the per-command help.",
       "skeleton": true
     },
@@ -637,13 +682,13 @@
       "skeleton": true
     },
     "help.refusals": {
-      "text": "Refusals, in the order the checks are made:",
+      "text": "What can go wrong, in the order each is checked:",
       "context": "The heading above a command's ordered precondition list in its own help.",
       "skeleton": true
     },
     "help.tagline": {
       "text": "Dinah keeps work moving.",
-      "context": "The first line of the help block, the tool's one-sentence description.",
+      "context": "The first line of the help block, the tool's one-sentence description. The word Dinah names the product and stays in Latin script; do not respell it.",
       "skeleton": true
     },
     "help.usage": {
@@ -716,24 +761,64 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.add-needs-a-state": {
+      "text": "this workbench has no states left to file a new card into; hand-edit {detail} to add a state to the states list and create its states/\u003cid\u003e/state.md, then run `dinah check` to confirm before trying `dinah add` again",
+      "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
+      "skeleton": true
+    },
     "refusal.dinah.ambiguous-workbench": {
-      "text": "{detail} are all reachable from {base}; choose one with --workbench \u003cpath\u003e, or run from inside it",
-      "context": "The sentence printed after the refusal name dinah.ambiguous-workbench. {detail} lists each workbench found as a title and its path, and {base} is the directory that holds them all.",
+      "text": "more than one workbench is reachable from {base}",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-workbench, naming the directory the search found several workbenches under. The candidate rows print beneath it, in the same shape the workbenches listing renders, and refusal.dinah.ambiguous-workbench.next follows as the closing line naming the ways forward.",
+      "skeleton": true
+    },
+    "refusal.dinah.ambiguous-workbench.next": {
+      "text": "choose one with --workbench \u003cpath\u003e, or run from inside it",
+      "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
       "skeleton": true
     },
     "refusal.dinah.exists": {
-      "text": "{detail} already holds a workbench",
+      "text": "{detail} already carries a workbench.md; move it aside, or choose a different directory",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.interrupted": {
-      "text": "the act on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
+      "text": "the action on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.last-state": {
+      "text": "{detail} is the only state left; add another state before retiring this one",
+      "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
     "refusal.dinah.locked": {
-      "text": "another process holds this entity's lock; {detail} took it",
+      "text": "this is already locked; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.multiple-words": {
+      "text": "Dinah read {count} separate words for {label}, and it only accepts one.",
+      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). One of two fragments is spliced on: refusal.dinah.multiple-words.example when the free text carries no quotation mark, refusal.dinah.multiple-words.quote-yourself when it does.",
+      "skeleton": true
+    },
+    "refusal.dinah.multiple-words.example": {
+      "text": " Put quotation marks around the whole thing: {example}",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text carries no quotation mark, so wrapping it in double quotes reads back correctly verbatim in bash, cmd.exe and PowerShell alike. {example} is the command line rebuilt with the free text quoted.",
+      "skeleton": true
+    },
+    "refusal.dinah.multiple-words.quote-yourself": {
+      "text": " That text has a quotation mark in it, so put quotation marks around the whole thing yourself. No command line Dinah rebuilds pastes back correctly in every shell once the text itself contains one.",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text contains a literal quotation mark: which shell will read the pasted line back is undocumented and cannot be asked for, and bash, cmd.exe and PowerShell disagree on how to escape an embedded quote, so no single rebuilt example is correct in all three. The caller is asked to add the quoting themselves rather than being handed a line that is wrong somewhere.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-configured-workbench": {
+      "text": "the workbench setting names {detail}, which carries no workbench.md; run `dinah config set workbench \u003cpath\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-editor": {
+      "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
+      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench": {
@@ -746,14 +831,14 @@
       "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
       "skeleton": true
     },
-    "refusal.dinah.no-editor": {
-      "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
-      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about.",
-      "skeleton": true
-    },
     "refusal.dinah.occupied": {
       "text": "cards still occupy state {detail}",
       "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.repair-would-empty-states": {
+      "text": "{detail} names every state left in the workbench, and each one's directory is missing. Removing them would leave the workbench with no state at all, so dinah check --migrate-states refuses. Hand-edit the workbench's states list to add a state, or restore one of the missing directories, then run dinah check --migrate-states again.",
+      "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list.",
       "skeleton": true
     },
     "refusal.dinah.unconfirmed": {
@@ -762,7 +847,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-command": {
-      "text": "this binary offers no command called {detail}",
+      "text": "Dinah offers no command called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -781,9 +866,24 @@
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.unreadable-workbench": {
+      "text": "{detail} exists and could not be read; fix its permissions, or point --workbench at a directory the search does not need to open",
+      "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open.",
+      "skeleton": true
+    },
     "refusal.dinah.usage": {
-      "text": "{detail} was not understood; run dinah help for the surface",
+      "text": "{detail} was not understood; run dinah help for the list of commands",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.usage.dash-hint": {
+      "text": ". Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.",
+      "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does.",
+      "skeleton": true
+    },
+    "refusal.dinah.workbench-not-applicable": {
+      "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}). Give init the target directory as a plain argument instead.",
+      "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one.",
       "skeleton": true
     },
     "refusal.held": {
@@ -812,7 +912,7 @@
       "skeleton": true
     },
     "refusal.no-operator": {
-      "text": "this workbench designates no operator, so its reserved acts are dead",
+      "text": "this workbench designates no operator, so its reserved actions are dead",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -837,7 +937,7 @@
       "skeleton": true
     },
     "refusal.not-operator": {
-      "text": "this act is the operator's, and you are {detail}",
+      "text": "this action is the operator's, and you are {detail}",
       "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -852,7 +952,7 @@
       "skeleton": true
     },
     "refusal.unknown": {
-      "text": "{name} was reported, and this binary carries no sentence for it: {detail}",
+      "text": "{name} was reported, and Dinah carries no message for it: {detail}",
       "context": "The fallback sentence for a refusal name no catalog entry covers.",
       "skeleton": true
     },
@@ -867,7 +967,7 @@
       "skeleton": true
     },
     "refusal.unsupported-version": {
-      "text": "this binary does not implement {detail}",
+      "text": "Dinah does not implement {detail}",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -879,6 +979,11 @@
     "show.links": {
       "text": "Links:",
       "context": "The label above a card's links.",
+      "skeleton": true
+    },
+    "slug.missing": {
+      "text": "no slug (run check --migrate-slugs)",
+      "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string.",
       "skeleton": true
     },
     "states.operator-owned": {
@@ -902,8 +1007,8 @@
       "skeleton": true
     },
     "status.workbench": {
-      "text": "{title}  ({root})",
-      "context": "The first line of status: the workbench and where it was discovered.",
+      "text": "{title}  ({root})  [{source}]",
+      "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it.",
       "skeleton": true
     },
     "token.active": {
@@ -1039,6 +1144,11 @@
     "token.restored": {
       "text": "restored",
       "context": "How the canonical token restored is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.search": {
+      "text": "search",
+      "context": "How the canonical token search is rendered where a person reads it, naming the rung a workbench answer came from: the ancestor walk resolved it, in the settings listing and on the status line alike. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.unblocked": {

@@ -101,13 +101,49 @@ const (
 	// with nothing closer to choose between them. The tool refuses to
 	// guess, so it names the candidates instead.
 	AmbiguousWorkbench = LayerPrefix + "ambiguous-workbench"
+	// LastState is archiving or deleting the one state a workbench has
+	// left, which CORE-BENCH-2 forbids the workbench from ending up with
+	// none of.
+	LastState = LayerPrefix + "last-state"
+	// UnreadableBench is a workbench.md the discovery walk found and could
+	// not read. The walk stops there rather than climbing past it or
+	// reporting it as absent, because a file it could not open might be the
+	// real workbench.
+	UnreadableBench = LayerPrefix + "unreadable-workbench"
+	// NoConfiguredWorkbench is the workbench setting naming a path that no
+	// longer carries a workbench.md, consulted only once the search has
+	// found nothing local to answer with. It is a distinct name from
+	// NoWorkbench, which the override branch already carries for the same
+	// underlying condition, because the two need different sentences: one
+	// names what the caller just typed, the other names what was stored
+	// earlier and may have gone stale with nobody around to notice.
+	NoConfiguredWorkbench = LayerPrefix + "no-configured-workbench"
+	// WorkbenchNotApplicable is --workbench or DINAH_WORKBENCH given to
+	// init. Every other verb reads the flag as the path to a workbench that
+	// already exists; init has none yet at the path it is about to create,
+	// so the flag names nothing init can act on.
+	WorkbenchNotApplicable = LayerPrefix + "workbench-not-applicable"
+	// RepairWouldEmptyStates is dinah check --migrate-states declining to
+	// remove every remaining stranded state, which CORE-BENCH-2 forbids
+	// leaving the workbench definition with none of.
+	RepairWouldEmptyStates = LayerPrefix + "repair-would-empty-states"
+	// AddNeedsAState is Add declining to file a card into a workbench whose
+	// states list has no live entries left for the card to land in.
+	AddNeedsAState = LayerPrefix + "add-needs-a-state"
+	// MultipleWords is an open-tail command's free-text slot (add's title,
+	// block's reason, comment's text, config set's value) getting more than
+	// one unquoted word. The sentence names the word count and rebuilds the
+	// command line with the free text quoted, since that is the whole cost
+	// of the rule and the fix a reader needs to see.
+	MultipleWords = LayerPrefix + "multiple-words"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench,
+	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
+	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

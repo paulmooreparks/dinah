@@ -49,8 +49,14 @@ type session struct {
 	actor string
 	// benchFlag is the bench named by --workbench or DINAH_WORKBENCH.
 	benchFlag string
+	// benchFlagSource names which of the two named it, SourceFlag or
+	// SourceEnvironment, empty when neither did.
+	benchFlagSource string
 	// cwd is where bench discovery starts.
 	cwd string
+	// workbenchSource names the rung that resolved the active workbench for
+	// this invocation, set by open() once discovery has run.
+	workbenchSource string
 }
 
 func main() {
@@ -74,18 +80,23 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	}
 	home := bench.Home()
 	cfg := bench.LoadConfig(home)
+	benchFlag, benchFlagSource := bench.Resolve(
+		bench.Layer{Source: bench.SourceFlag, Value: parsed.value("workbench")},
+		bench.Layer{Source: bench.SourceEnvironment, Value: os.Getenv("DINAH_WORKBENCH")},
+	)
 	s := &session{
-		out:        out,
-		errw:       errw,
-		in:         in,
-		r:          msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
-		json:       parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
-		quiet:      parsed.has("quiet"),
-		home:       home,
-		nativeHome: bench.NativeHome(),
-		cfg:        cfg,
-		benchFlag:  bench.Ladder(parsed.value("workbench"), os.Getenv("DINAH_WORKBENCH")),
-		cwd:        cwd,
+		out:             out,
+		errw:            errw,
+		in:              in,
+		r:               msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
+		json:            parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
+		quiet:           parsed.has("quiet"),
+		home:            home,
+		nativeHome:      bench.NativeHome(),
+		cfg:             cfg,
+		benchFlag:       benchFlag,
+		benchFlagSource: benchFlagSource,
+		cwd:             cwd,
 	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
@@ -99,7 +110,52 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if !ok {
 		return s.fail(contract.UnknownVerb, name)
 	}
+	// resolveOpenTailFlags exists to decide whether a flag-shaped word
+	// sitting inside a multi-word free-text zone is prose or a flag
+	// (dinah-96). add, block, and comment have no such zone left to be mid
+	// of: dinah-100 bounds each to exactly one free-text word, so a domain
+	// flag typed anywhere is applied by parseArgs itself, correctly, with
+	// nothing here left to correct. config declares no domain flag of its
+	// own and keeps calling this function only to splice an unrecognized
+	// flag-shaped word back into its value as literal text.
+	if command.name != "add" && command.name != "block" && command.name != "comment" {
+		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
+			return s.reportError(refusal)
+		}
+	}
+	if word := unreadWordIn(command, parsed.rest()); word != "" {
+		return s.fail(contract.Usage, word)
+	}
 	return command.run(s, parsed)
+}
+
+// unreadWordIn reports the first word in a command's own arguments that the
+// command never reads, empty when none does. Within the declared bounded
+// count, a word is the command's own argument, so only its shape is checked:
+// looksLikeMistypedFlag catches a word that looks like a mistyped long flag,
+// and anything else is left for the command and its domain check to read and
+// validate. Past the bounded count, a command declaring an open tail has
+// nothing more checked, since everything from there onward is free text the
+// caller composed on purpose, dash or no dash. A command declaring no open
+// tail reads none of what comes after its bounded count, so any word there is
+// unread by construction and is returned regardless of shape, dash-led or
+// plain; this is what closes the zero-bounded case (a stray word anywhere
+// after the command name) and what closes it the same way for a command a
+// caller overshoots past its own declared arity.
+func unreadWordIn(c *command, words []string) string {
+	for i, word := range words {
+		if i < c.bounded {
+			if looksLikeMistypedFlag(word) {
+				return word
+			}
+			continue
+		}
+		if c.openTail {
+			return ""
+		}
+		return word
+	}
+	return ""
 }
 
 // write puts a block of text on stdout, adding the trailing newline a block
@@ -138,6 +194,19 @@ func (s *session) sentence(name, detail string) string {
 // split, because CORE-OUT-5 gives one name to a broken definition and to a
 // request missing what the definition demands, so the difference rides on
 // whether a path is present.
+//
+// A usage refusal raised because a word looked like an unknown or
+// value-starved flag carries dashHint, and the fragment naming the "--"
+// end-of-options marker is spliced on the same way. Only parseArgs's two
+// flag-scan refusals ever set dashHint; every other dinah.usage site is
+// unchanged.
+//
+// A multiple-words refusal (freeText, cmd/dinah/args.go) carries either
+// example, when the free text has no quotation mark and a rebuilt,
+// paste-ready command line reads back correctly in bash, cmd.exe and
+// PowerShell alike, or quoteInText, when it does and no single escaping is
+// correct in all three, so the caller is asked to quote the text themselves
+// instead. Exactly one of the two is ever set.
 func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
 	key := "refusal." + name
 	if !r.Has(key) {
@@ -148,10 +217,19 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 		pairs = append(pairs, named, extra[named])
 	}
 	text := r.T(key, pairs...)
-	if name != contract.Malformed || extra["path"] == "" {
-		return text
+	if name == contract.Malformed && extra["path"] != "" {
+		return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
 	}
-	return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
+	if name == contract.Usage && extra["dashHint"] != "" {
+		return text + r.T("refusal.dinah.usage.dash-hint")
+	}
+	if name == contract.MultipleWords {
+		if extra["quoteInText"] != "" {
+			return text + r.T("refusal.dinah.multiple-words.quote-yourself")
+		}
+		return text + r.T("refusal.dinah.multiple-words.example", "example", extra["example"])
+	}
+	return text
 }
 
 // sortedKeys returns a map's keys in order, so that one refusal renders the
@@ -178,6 +256,12 @@ type refusalReport struct {
 	// Context carries the refusal's named values as data, absent on a
 	// refusal that needs none.
 	Context map[string]string `json:"context,omitempty"`
+	// Workbenches carries the candidates a dinah.ambiguous-workbench refusal
+	// found, the same rows dinah workbenches would print for this same
+	// invocation, so a script reads them as structured fields rather than
+	// splitting a prose string. Every other refusal leaves this nil, and
+	// omitempty drops it.
+	Workbenches []bench.Candidate `json:"workbenches,omitempty"`
 }
 
 // reportError turns an error from a layer below into a report on stderr and
@@ -200,6 +284,9 @@ func reportError(errw io.Writer, r *msg.Renderer, err error) int {
 // refusal is emitted.
 func (s *session) reportError(err error) int {
 	refusal, ok := err.(*contract.Refusal)
+	if ok && refusal.Name == contract.AmbiguousWorkbench {
+		return s.reportAmbiguousWorkbench(refusal)
+	}
 	if ok && s.json {
 		s.emitJSON(refusalReport{
 			Outcome: contract.OutcomeRefused,
@@ -211,16 +298,56 @@ func (s *session) reportError(err error) int {
 	return reportError(s.errw, s.r, err)
 }
 
+// reportAmbiguousWorkbench reports dinah.ambiguous-workbench by pairing it
+// with the rows the workbenches listing would print for this same
+// invocation, since bench.Reachable shares Discover's own walk and cannot
+// name a different set of candidates. The rows are re-fetched rather than
+// carried on the refusal, so no plumbing beyond the base directory travels
+// through contract.Refusal for what is, today, the one refusal that wants
+// this.
+//
+// The text form prints an opening sentence naming the base, the candidate
+// rows beneath it in the shape dinah workbenches renders them, and a closing
+// line naming the two ways forward. The machine form drops the now-redundant
+// detail string and carries the same rows as a workbenches array instead.
+func (s *session) reportAmbiguousWorkbench(refusal *contract.Refusal) int {
+	rows, _ := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+	if s.json {
+		s.emitJSON(refusalReport{
+			Outcome:     contract.OutcomeRefused,
+			Refusal:     refusal.Name,
+			Context:     refusal.Extra,
+			Workbenches: rows,
+		})
+		return contract.ExitCode(contract.OutcomeRefused)
+	}
+	io.WriteString(s.errw, refusal.Name+" "+s.r.T("refusal."+refusal.Name, "base", refusal.Extra["base"])+"\n")
+	for _, row := range s.formatCandidateRows(rows) {
+		io.WriteString(s.errw, row+"\n")
+	}
+	io.WriteString(s.errw, s.r.T("refusal."+refusal.Name+".next")+"\n")
+	return contract.ExitCode(contract.OutcomeRefused)
+}
+
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
-	root, err := bench.Discover(s.cwd, s.benchFlag, s.home, s.nativeHome)
+	root, source, passed, err := bench.DiscoverSource(
+		s.cwd,
+		s.benchFlag,
+		s.benchFlagSource,
+		s.home,
+		s.nativeHome,
+		s.cfg.Get("workbench"),
+	)
 	if err != nil {
 		return nil, err
 	}
+	s.workbenchSource = source
 	opened, err := bench.Open(root)
 	if err != nil {
 		return nil, err
 	}
+	opened.Passed = passed
 	return verb.New(opened, s.home), nil
 }
 
