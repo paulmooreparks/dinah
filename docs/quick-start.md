@@ -603,7 +603,13 @@ rel-1  Write the release notes  [Done / active]
 [exit 0]
 ```
 
-Pass `--replace` to swap the bytes of an attachment that is already there.
+If you want to change the bytes of an attachment later, pass `--replace` and
+give `attach` the attachment's own reference rather than the card's:
+`dinah attach rel-1/attachments/1 notes.txt --replace`. If you give `attach`
+the card's reference instead, Dinah writes a second attachment and exits 0
+without telling you that `--replace` did nothing, and you are left with two
+copies of the file. The paragraph below explains how a reference like
+`rel-1/attachments/1` is built.
 
 You address anything below a card with a path reference, which is the card's
 reference followed by slash-separated segments. You write `rel-1/attachments/1`
@@ -1221,9 +1227,13 @@ an AI colleague can work the same board you do. Configure it in your MCP client
 as the command `dinah mcp`, and either run it from somewhere inside the
 workbench or point `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory, the
 same path `--workbench` takes. Dinah hands the client the rules for working this
-workbench and one tool for each command. Your AI colleague claims, moves,
-releases, and blocks under the same rules and leaves the same journal entries
-you do.
+workbench and twenty-one tools against its twenty-nine commands. Every command
+that files, moves, or reads a card is there. Seven of the eight that are
+missing only make sense at a shell: `init`, `config`, `path`, `edit`,
+`extract`, `workbenches`, and `mcp` itself. The eighth is `guide`, and the
+client reads it as a resource rather than calling it as a tool. Your AI
+colleague claims, moves, releases, and blocks under the same rules and leaves
+the same journal entries you do.
 
 Give your AI colleague an actor name of its own through `DINAH_ACTOR`, so the
 record shows who did what.
