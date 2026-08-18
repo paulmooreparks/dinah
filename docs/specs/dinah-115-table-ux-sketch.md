@@ -1,197 +1,257 @@
 # dinah-115: what a table looks like before and after
 
-Every "before" block below was printed by the binary built from `f22c06b`, the
-trunk head this spec was written from. Every "after" block was computed from the
-same values by the width rules the spec states, so the columns land where the
-implementation will put them rather than where a hand alignment put them.
+Every "before" block below came out of the binary built from `f22c06b`, the
+trunk head this spec was written from. Every "after" block came out of a harness
+that implements the spec's width rules and was fed the same values, so the
+columns land where the implementation will put them. Nothing here was aligned by
+hand.
 
-The fixture is a workbench holding three cards, one held, one blocked, one in
-each of three scripts. Nothing about it is unusual except the card titles, which
-are there because a Japanese title and a Hindi title measure differently from
-their character counts.
+The fixture is a workbench in a directory named `dinah-115-play`, holding three
+cards. One is held, one is blocked, one is ready. The three titles are English,
+Japanese, and Hindi, because a Japanese title and a Hindi title measure
+differently from their character counts and a table that gets them wrong gets
+them wrong quietly.
 
-## 1. The status listing, which is the case that was reported
+## 1. The state listing, which is the case that was reported
 
-A reader meets five columns of identifiers, slugs, names, kinds, and counts with
-nothing saying which is which.
+Five columns of identifiers, slugs, names, kinds, and counts run across the line
+with nothing saying which is which. The operator hit this and reported having to
+look carefully to work out what he was being told, despite having designed the
+tool, which is the report the card was filed on.
 
 Before:
 
 ```
-dinah-115-play  (C:\dinah-scratch\dinah-115-play\.dinah\aa1af304e624)  [search]
+dinah-115-play  (C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece)  [search]
 acting as spec-agent, operator: yes
 
-  1ad331cffbff  intake                  Intake                          intake    3
-  875c58408c3a  doing                   Doing                           work      0
-  d634a2f5e819  done                    Done                            done      0
+  9e4458bda555  intake                  Intake                          intake    3
+  2b1e63102b81  doing                   Doing                           work      0
+  a6a4a85f7144  done                    Done                            done      0
 ```
+
+Each of those rows is 90 columns long. The last glyph a reader can see starts at
+display column 82, and seven spaces follow it to the end of the line.
 
 After:
 
 ```
-dinah-115-play  (C:\dinah-scratch\dinah-115-play\.dinah\aa1af304e624)  [search]
+dinah-115-play  (C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece)  [search]
 acting as spec-agent, operator: yes
 
-  identifier    slug    state   kind    cards
-  1ad331cffbff  intake  Intake  intake  3
-  875c58408c3a  doing   Doing   work    0
-  d634a2f5e819  done    Done    done    0
+  Identifier    Slug    Name    Kind    Cards  Moved by
+  ------------  ------  ------  ------  -----  --------
+  9e4458bda555  intake  Intake  intake  3      agent
+  2b1e63102b81  doing   Doing   work    0      agent
+  a6a4a85f7144  done    Done    done    0      agent
 ```
 
-Two things changed and both come from the same cause. The headings appear, and
-the block lost thirty columns of padding, because the widths are now measured
-from the rows rather than declared at the call site. The declared widths were
-24 for the slug and 32 for the title, and no state in this workbench comes close
-to either.
+The row is now 55 columns and its last glyph starts at 47. Three things changed
+and they all follow from measuring the rows instead of declaring the columns at
+the call site: the headings appear, the padding between columns closes up, and
+the trailing run of spaces goes. That trailing run is invisible on screen. It
+shows up in a diff, in a pasted transcript, and in a defect report, which is
+where it costs somebody time.
 
-Each "before" row also ends in the padding of its last column, which the after
-form drops. That trailing run is invisible on screen and shows up in a diff, in
-a copied transcript, and in a defect report.
+Two of the changes deserve their own note.
 
-## 2. The card listing, where a declared width was already too narrow
+The third column used to be called nothing at all, and the obvious word for it
+is wrong. Every row in this table is a state, so a heading reading `State` names
+the table rather than the column. What the column holds is the state's display
+name, as against the slug beside it, so the heading is `Name`.
+
+The last column used to carry a mark that appeared on an operator-owned state
+and left a blank cell everywhere else. It now says who may move a card out of
+the state, in every row, reading `agent` or `operator`. A blank cell is
+indistinguishable from a rendering fault, and the tree already argues this way:
+`slugCell` in `render.go` prints a placeholder naming the repair rather than
+padding an empty string, and its comment says exactly that.
+
+## 2. The same listing without the column of identifiers
+
+Whether that column stays is an open question this card carries, and the spec
+recommends keeping it. Here is what dropping it would look like, so the ruling
+can be given on a picture rather than on a description.
+
+```
+  Slug    Name    Kind    Cards  Moved by
+  ------  ------  ------  -----  --------
+  intake  Intake  intake  3      agent
+  doing   Doing   work    0      agent
+  done    Done    done    0      agent
+```
+
+The block loses fourteen columns off its left edge. Every remaining column stays
+where it was relative to the others. What a reader loses is the state's internal
+identity, which `--json` still carries and which the workbench on disk still
+uses for its directory names.
+
+## 3. The card listing, where a declared width was already too narrow
 
 Before:
 
 ```
   dinah115play-1
-                ready     Wire the export path through the interchange form
+                active    Wire the export path through the interchange form
   dinah115play-2
-                ready     研究テーブルの見出し
+                blocked   研究テーブルの見出し
   dinah115play-3
                 ready     हिन्दी शीर्षक की जाँच
 ```
 
-The card reference column is declared 14 wide and these references draw 15, so
-every row breaks in two. A reader gets six lines for three cards and no column
-they can scan down.
+Three cards, six lines, and no column anybody can scan down. The card reference
+column is declared fourteen columns wide and these references draw exactly
+fourteen, which is enough to trip the renderer's overflow rule, since a field
+that reaches its column takes the rest of the line rather than sitting in it.
 
 After:
 
 ```
-  card            standing  title
+  Card            Standing  Title
+  --------------  --------  -----
   dinah115play-1  active    Wire the export path through the interchange form
   dinah115play-2  blocked   研究テーブルの見出し
   dinah115play-3  ready     हिन्दी शीर्षक की जाँच
 ```
 
-The slug a workbench gets from its directory name decides how wide a card
-reference is, so no declared number can be right for every workbench. A measured
-column is right for all of them.
+A workbench takes its slug from its directory name, and the slug decides how
+wide a card reference draws, so no number written into the source is right for
+every workbench. A measured column is right for all of them.
 
-## 3. The settings listing, and what a narrow window does to it
+## 4. The settings listing, and what a narrow window does to it
 
-Before, in a window wide enough:
-
-```
-  lang        en                      default
-  actor       spec-agent              environment
-  editor      notepad                 fallback
-  workbench   C:\dinah-scratch\dinah-115-play\.dinah\aa1af304e624
-                                      search
-```
-
-After:
-
-```
-  setting    value                                                source
-  lang       en                                                   default
-  actor      spec-agent                                           environment
-  editor     notepad                                              fallback
-  workbench  C:\dinah-scratch\dinah-115-play\.dinah\aa1af304e624  search
-```
-
-The path fits its column now, so the row that used to break no longer does.
-
-Before, at `COLUMNS=60`:
+Before, at `COLUMNS=80`:
 
 ```
   lang        en                      default
   actor       spec-agent              environment
   editor      notepad                 fallback
-  workbench   C:\dinah-scratch\dinah-115-play\.dinah\aa1af304e624
+  workbench   C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece
                                       search
 ```
 
-After, at `COLUMNS=60`:
+After, at `COLUMNS=80`:
 
 ```
-  setting    value       source
+  Setting    Value       Source
+  ---------  ----------  ------
   lang       en          default
   actor      spec-agent  environment
   editor     notepad     fallback
-  workbench  C:\dinah-scratch\dinah-115-play\.dinah\aa1af304e624
+  workbench  C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece
                          search
 ```
 
-The window is too narrow to hold the path, so the path does not get to widen the
-value column. The other three rows close up, and the path takes the rest of its
-own line in the shape the row renderer already gives it. Nothing is truncated at
-any width.
+The path draws 70 columns and cannot be laid out inside an 80-column window
+whatever the columns are, so it does not get to widen the value column. It takes
+the rest of its own line and the source beside it resumes underneath, in the
+shape the row renderer already ships. The other three rows close up.
 
-## 4. The command list, which changes almost not at all
-
-This block is the one where measurement could have gone wrong, and it is worth
-reading closely. Two of the twenty-nine commands carry a syntax line far longer
-than the rest, and a column measured naively would have widened by thirty
-columns to hold them.
-
-Before, and after, are the same layout:
+At `COLUMNS=60` this block is byte for byte the same, because the path was
+already out of the measurement and the remaining columns already fit. Narrow the
+window to 40 and the backstop starts work:
 
 ```
-WORK
+  Setting  Value    Source
+  -------  -------  ------
+  lang     en       default
+  actor    spec-agent
+                    environment
+  editor   notepad  fallback
+  workbench
+           C:\dinah-scratch\dinah-115-spec2\play\dinah-115-play\.dinah\7f882b2a4ece
+                    search
+```
+
+The value column has been narrowed from 10 to 7, which is as far as it can go
+without eating its own heading, so `spec-agent` now overflows and takes its own
+line. Nothing is truncated at any width and the path is still copyable.
+
+## 5. The command list, which does not move
+
+Measurement could have gone badly here and did not. Two of the twenty-nine
+commands carry a syntax line far longer than the rest, and a column that simply
+took the widest value it saw would have widened by 37 columns to hold them.
+
+The measured width of the syntax column is 37, the gutter is 2, and the indent
+is 2, so every summary starts at display column 41. That is where the declared
+width of 39 has always started it. The block is unchanged apart from its
+heading:
+
+```
+  Command                                What it does
+  -------------------------------------  ------------
   add <title> [--state <state>]          file a new card in the first state
   claim <card> [--expires <duration>]    take up a ready card
+  move <card> <state> [--override]       carry a card to another state
 ```
 
-The measured width of the syntax column is 37 and the gutter is 2, which starts
-every summary at display column 41, which is where the declared width of 39 has
-always started it. The two long entries still continue on a line of their own:
+Four rows do not fit an 80-column window when their fields are packed tight. Two
+of them are over on account of their syntax, and those two are the ones that
+matter, because the syntax is the field that would otherwise widen the column.
+They still continue on a line of their own:
 
 ```
   init [--from <source>] [--slug <slug>] [--operator <actor>]
                                          create a workbench here, optionally from a template
+  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]
+                                         look for structural defects in this workbench
 ```
 
-The one visible change is the heading, printed once above the first group rather
-than once per group:
+The other two are `archive` and `delete`. They are over because their summaries
+are long rather than their syntax, and since the summary is the last field of
+the row and the last field of a row is never a candidate for the drop, what gets
+dropped from their measurement is the syntax beside it, which draws 13 and 18
+columns respectively and was never going to widen a column already sitting at
+37. Nothing about those two rows moves.
+
+The global flag list is a table of its own with its own heading. Its summaries
+move one column left, from 22 to 21, because the widest flag draws 17 and the
+declared width was 20:
 
 ```
-Usage: dinah <command> [arguments]
-
-  command                                what it does
-
-WORK
-  add <title> [--state <state>]          file a new card in the first state
+  Option             What it does
+  -----------------  ------------
+  --workbench <dir>  use this workbench instead of the one discovered from here
+  --json             emit the canonical machine form
+  --quiet            suppress served instructions on claim and move
+  --lang <tag>       render in this language
+  --actor <name>     act as this owner
 ```
 
-The global flag list is a table of its own and gets its own heading, `option`
-and `what it does`. Its summaries move two columns left, from 22 to 21, because
-the widest flag draws 17 and the declared width was 20.
-
-## 5. What each remaining table looks like after
-
-These are the rest of the inventory, computed the same way.
+## 6. The rest of the inventory
 
 ```
 $ dinah next
-  state   card            title
-  Intake  dinah115play-1  Wire the export path through the interchange form
+  State   Card            Title
+  ------  --------------  -----
+  Intake  dinah115play-3  हिन्दी शीर्षक की जाँच
   Doing   nothing ready
   Done    nothing ready
 
 $ dinah log dinah115play-1
-  when                  action     actor       detail
-  2026-08-18T08:25:52Z  created    spec-agent  Wire the export path through the interchange form
-  2026-08-18T08:26:01Z  claimed    spec-agent
-  2026-08-18T08:26:01Z  commented  spec-agent
+  When                  Action     Actor       Detail
+  --------------------  ---------  ----------  ------
+  2026-08-18T09:07:27Z  created    spec-agent  Wire the export path through the interchange form
+  2026-08-18T09:08:51Z  claimed    spec-agent
+  2026-08-18T09:08:51Z  commented  spec-agent
 
-$ dinah workbenches
-  workbench       slug   path
-  beta-workbench  beta   C:\dinah-scratch\amb-home\.dinah\0271ef99ee7a
-  alpha           alpha  C:\dinah-scratch\amb-home\.dinah\a3e17a0501dd
+$ dinah guide
+  Topic             Title
+  ----------------  -----
+  getting-started   Getting started
+  verbs             The five verbs
+  workbench-layout  What a workbench looks like on disk
+
+$ dinah instructions dinah115play-3
+  State  Name   Direction
+  -----  -----  ---------
+  doing  Doing  forward
+  done   Done   forward
 
 $ dinah version --catalogs
-  language  translated
+  Language  Translated
+  --------  ----------
   en        244/244
   af        0/244
   cs        0/244
@@ -201,117 +261,157 @@ $ dinah version --catalogs
   hi        244/244
   id        0/244
 
-$ dinah guide
-  topic             title
-  getting-started   Getting started
-  verbs             The five verbs
-  workbench-layout  What a workbench looks like on disk
-
-$ dinah instructions dinah115play-3
-  state  name   direction
-  doing  Doing  forward
-  done   Done   forward
-
 $ dinah help add
-  order  what can go wrong                              refusal
+  Order  What can go wrong                              Refusal
+  -----  ---------------------------------------------  -------
   1      the request carries a title                    malformed
   2      the named state is one the workbench declares  unknown-state
   3      the named state is below its capacity limit    at-capacity
 ```
 
-A row may stop short, as the two states offering nothing do above. The field it
-stops on takes the rest of the line and widens no column.
+Look at the two states offering nothing under `dinah next`. A row is allowed to
+stop short, and the field it stops on takes the rest of the line and widens no
+column, so `nothing ready` sits in the card column without pushing the title
+column right.
 
-## 6. The same table in Hindi
+## 7. The same block in Hindi
 
-Headings are catalog entries, so a language whose words run longer widens the
-columns that hold them and nothing else. The Hindi check sentences below measure
-shorter than their English counterparts, and the refusal column moves left to
-follow them.
+Headings come out of the message catalog, so a language whose words run longer
+widens the columns holding them and touches nothing else. The Hindi check
+sentences measure shorter than their English counterparts, and the refusal
+column moves left to follow:
 
 ```
 $ dinah help add --lang hi
-  order  what can go wrong               refusal
+  Order  What can go wrong               Refusal
+  -----  ------------------------------  -------
   1      निवेदन में शीर्षक है                 malformed
   2      नामित स्थिति वर्कबेंच घोषित करती है  unknown-state
   3      नामित स्थिति अपनी सीमा से नीचे है   at-capacity
 ```
 
-The Hindi heading words are not written yet, which is the open question the card
-carries. Until they are, this table prints its headings in English while its rows
-print in Hindi, because a catalog falls back per key rather than per file.
+Two things about that block are worth saying. The Hindi heading words are not
+written yet, which is one of the questions the card carries, so the headings
+above fall back to English while the rows print in Hindi. And the block is
+aligned by the measure rather than by eye: every refusal name begins at display
+column 41, counted in the columns a terminal gives Devanagari rather than in
+characters. A font that draws a combining mark its own way will show something
+else, and that is the terminal disagreeing with the standard rather than the
+table drifting.
 
-## 7. Piped output
+## 8. The separator, and the two forms to choose between
 
-The headings print when output goes to a file or a pipe, and the widths are
-chosen against a width of 80 when nothing states one.
+A separator under the headings is required and it carries the job in every
+language. Capitalisation is what English adds on top of it. Most of the
+languages this project ships have no case at all, so the rule cannot be about
+capitals, and each catalog decides for itself how its headings read as headings.
+
+The separator's width is measured, never typed. A rule is exactly as wide as the
+column it sits under, counted in screen columns. This is the shape it must never
+take:
+
+```
+  Identifier    Slug    State   Kind    Cards
+  ---------    ----    -----   ----    -----
+  1ad331cffbff  intake  Intake  intake  3
+```
+
+Those rules are as wide as the words above them rather than as wide as their
+columns, so the third rule starts one column left of the third heading and
+nothing below them lines up. That is this card's own defect, reappearing inside
+the fix for it.
+
+Two forms are on the table. Form A puts a rule under each column:
+
+```
+  Card            Standing  Title
+  --------------  --------  -----
+  dinah115play-1  active    Wire the export path through the interchange form
+  dinah115play-2  blocked   研究テーブルの見出し
+```
+
+Form B puts one rule under the whole heading row:
+
+```
+  Card            Standing  Title
+  -------------------------------
+  dinah115play-1  active    Wire the export path through the interchange form
+  dinah115play-2  blocked   研究テーブルの見出し
+```
+
+One detail decides between them, and it is the last column. The last column of a
+row is never padded, because it takes the rest of the line, so it has no chosen
+width for a rule to trace. Form A therefore draws the last rule as wide as its
+own heading, so `Title` gets five dashes above a field drawing 49. Form B never
+asks the question. Its single rule ends where the heading row ends, and the last
+column is not a special case in it.
+
+Here is the same pair on the widest block the tool prints, where form A's
+raggedness is easier to judge:
+
+```
+  Identifier    Slug    Name    Kind    Cards  Moved by
+  ------------  ------  ------  ------  -----  --------
+  9e4458bda555  intake  Intake  intake  3      agent
+
+  Identifier    Slug    Name    Kind    Cards  Moved by
+  -----------------------------------------------------
+  9e4458bda555  intake  Intake  intake  3      agent
+```
+
+## 9. Piped output
+
+Headings and separators print when output goes to a file or a pipe, and the
+widths are chosen against a window of 80 when nothing states one.
 
 ```
 $ dinah states > states.txt
 $ cat states.txt
-  identifier    slug    state   kind    cards
-  1ad331cffbff  intake  Intake  intake  3
+  Identifier    Slug    Name    Kind    Cards  Moved by
+  ------------  ------  ------  ------  -----  --------
+  9e4458bda555  intake  Intake  intake  3      agent
 ```
 
-The alternative is to drop the headings when nobody is watching, which would
-make the bytes a person sees depend on whether they redirected. A transcript
-pasted into a defect report would then differ from what its author saw on
-screen. `--json` is the surface a program reads, and it never grew a heading.
+The alternative is to drop them when nobody appears to be watching. Then the
+bytes a person sees would depend on whether they redirected, and a transcript
+pasted into a defect report would differ from what its author saw, with nothing
+on either copy saying so. `--json` is the surface a program reads and it never
+grew a heading.
 
-## 8. The heading style, and the one rejected alternative
+## 10. The words a reader sees
 
-The heading is a plain row in the table's own columns, with nothing under it.
-
-```
-  card            standing  title
-  dinah115play-1  active    Wire the export path through the interchange form
-```
-
-A rule under the headings was considered and is not proposed:
-
-```
-  card            standing  title
-  --------------  --------  -----
-  dinah115play-1  active    Wire the export path through the interchange form
-```
-
-The rule costs a line on every table, and Dinah's tables are short. Three lines
-of dashes above a three-row listing spend a third of the block on decoration. It
-also has to decide what the last column's rule is as wide as, which is a
-question the plain form never asks.
-
-## 9. The words a reader sees
-
-Every column names its value by what a reader does with it. The one this card
-was filed over is the state identifier: twelve hexadecimal characters mean
-nothing to a reader, and the honest heading for them is `identifier` rather than
-a word that pretends they are something friendlier.
+Every column names its value by what a reader does with it, in the reader's
+words, never by the field's name in the code. Where the value is something a
+person types on the command line, the heading is the word the command line uses
+for it. Where the value is an internal identifier nobody types, the heading says
+`Identifier` and claims nothing more.
 
 | Table | Headings |
 |---|---|
-| `states`, and the same block inside `status` | identifier, slug, state, kind, cards, note |
-| the cards you hold, inside `status` | card, title |
-| the blocked cards, inside `status` | card, reason |
-| `ls` | card, standing, title |
-| `next` | state, card, title |
-| `log` | when, action, actor, detail |
-| the links of `show` | link, card |
-| the comments of `show` | when, who |
-| `config` | setting, value, source |
-| `workbenches`, and the ambiguous-workbench refusal | workbench, slug, path |
-| `version --catalogs` | language, translated |
-| `guide` | topic, title |
-| the moves of `instructions` | state, name, direction |
-| the command list of bare `dinah` | command, what it does |
-| the flag list of bare `dinah` | option, what it does |
-| `help <command>` | order, what can go wrong, refusal |
-| the slugs `check --migrate-slugs` assigned | slug, title |
+| `states`, and the same block inside `status` | Identifier, Slug, Name, Kind, Cards, Moved by |
+| the cards you hold, inside `status` | Card, Title |
+| the blocked cards, inside `status` | Card, Reason |
+| `ls` | Card, Standing, Title |
+| `next` | State, Card, Title |
+| `log` | When, Action, Actor, Detail |
+| the links of `show` | Link, Card |
+| the comments of `show` | When, Who |
+| `config` | Setting, Value, Source |
+| `workbenches`, and the ambiguous-workbench refusal | Workbench, Slug, Path |
+| `version --catalogs` | Language, Translated |
+| `guide` | Topic, Title |
+| the moves of `instructions` | State, Name, Direction |
+| the command list of bare `dinah` | Command, What it does |
+| the flag list of bare `dinah` | Option, What it does |
+| `help <command>` | Order, What can go wrong, Refusal |
+| the slugs `check --migrate-slugs` assigned | Slug, Title |
 
-Two blocks print one column each and take no heading at all: the findings of
-`check`, and the stranded states `check --migrate-states` removed. A single
-column under a sentence that already names it is a list rather than a table.
+Forty-six headings in all. Two blocks print a single column and take no heading
+and no separator: the findings of `check`, and the stranded states
+`check --migrate-states` removed. One column under a sentence that already names
+it is a list.
 
-The weakest word in the table above is `note`, which heads the column carrying
-the `operator-owned` mark in the state listing. It is a column that is usually
-empty, and the mark says what it means on its own, so the heading has little
-work to do and no obvious word to do it with.
+The word most worth a second look is `Moved by`. It heads the column that now
+reads `agent` or `operator` on every row of the state listing, and it is the one
+heading in the table above naming a question rather than a value. `Owner` and
+`Who moves it` are the alternatives.
