@@ -1,0 +1,346 @@
+# Build dinah for six platform/architecture pairs on every push to main,
+# publish a SHA-256 for each one, and attach the lot to a GitHub Release so
+# a person with the project page open can download a binary and run it.
+#
+# The version comes from the VERSION file at the repository root. A push to
+# main cuts a dev release tagged v{VERSION}.0-dev.{N}, where N is one more
+# than the highest dev tag that already exists on the remote for the same
+# major.minor. The counter is read from the tags API rather than from a
+# local commit count, because a commit count is not monotonic across a
+# rebase and two runs can compute the same number from it.
+#
+# The tag is created before anything is built. Two pushes landing close
+# together can still both compute the same N, but only the first createRef
+# call succeeds; the second fails with 422 and takes its whole run down,
+# which is the loud answer rather than one run quietly overwriting the
+# other's tag.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "VERSION"
+      - "go.mod"
+      - "cmd/**"
+      - "internal/**"
+      - ".github/workflows/release.yml"
+
+  workflow_dispatch: {}
+
+# Read-only by default, with each job asking for what it actually needs. Only
+# the two jobs that write to the repository get write access, and the job that
+# reads check runs asks for the checks scope its API call documents.
+permissions:
+  contents: read
+
+jobs:
+  # Resolve and reserve the tag once, at the top of the run, so every job
+  # below builds and publishes under the same name.
+  compute-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the tag ref
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute and reserve the dev tag
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          BASE=$(tr -d '[:space:]' < VERSION)
+          PREFIX="v${BASE}.0-dev."
+
+          # Page through the repository's tags at the API maximum of 100 per
+          # page. dinah will not need a second page for a long time, and the
+          # page guard aborts rather than looping if that ever changes.
+          MAX=0
+          PAGE=1
+          while :; do
+            RESULT=$(gh api -X GET "repos/$REPO/tags" -F per_page=100 -F page=$PAGE --jq '.[].name' || true)
+            if [ -z "$RESULT" ]; then
+              break
+            fi
+            while IFS= read -r tag; do
+              case "$tag" in
+                "${PREFIX}"*)
+                  N="${tag#$PREFIX}"
+                  case "$N" in
+                    ''|*[!0-9]*) continue ;;
+                  esac
+                  if [ "$N" -gt "$MAX" ]; then
+                    MAX="$N"
+                  fi
+                  ;;
+              esac
+            done <<< "$RESULT"
+            COUNT=$(echo "$RESULT" | wc -l)
+            if [ "$COUNT" -lt 100 ]; then
+              break
+            fi
+            PAGE=$((PAGE + 1))
+            if [ "$PAGE" -gt 20 ]; then
+              echo "::error::tag pagination ran past 2000 entries; aborting to avoid an infinite loop"
+              exit 1
+            fi
+          done
+
+          NEXT=$((MAX + 1))
+          TAG="${PREFIX}${NEXT}"
+          echo "Highest existing dev tag for v${BASE}: ${MAX}, so this run is ${NEXT}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          SHA=$(git rev-parse HEAD)
+          echo "Reserving $TAG at $SHA"
+          gh api -X POST "repos/$REPO/git/refs" \
+            -f ref="refs/tags/$TAG" \
+            -f sha="$SHA"
+
+  # Publish nothing until CI has passed on this same commit. ci.yml produces
+  # four check runs: three legs of the test matrix, named test (ubuntu-latest)
+  # and its siblings, plus the single gofmt job.
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read # documented requirement of the check-runs endpoint below
+    steps:
+      - name: Wait for CI to pass on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Waiting for ci.yml's four check runs on $SHA"
+          for attempt in $(seq 1 60); do
+            # A failing API call prints its own error and stops the run. Hiding
+            # it here would turn a 403 or a rate limit into the same five-minute
+            # timeout a commit with no CI produces, and those need different
+            # answers from whoever reads the log.
+            if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test"))) | .status + ":" + (.conclusion // "none")'); then
+              echo "::error::could not read the check runs for $SHA; the API error is above"
+              exit 1
+            fi
+            BAD=$(printf '%s\n' "$RUNS" | grep '^completed:' | grep -vc ':success$' || true)
+            if [ "$BAD" -gt 0 ]; then
+              echo "::error::a CI check on $SHA finished without success; not publishing this commit"
+              printf '%s\n' "$RUNS"
+              exit 1
+            fi
+            GOOD=$(printf '%s\n' "$RUNS" | grep -c '^completed:success$' || true)
+            if [ "$GOOD" -ge 4 ]; then
+              echo "All four CI checks passed."
+              exit 0
+            fi
+            echo "  $GOOD of 4 checks done (attempt $attempt of 60)"
+            sleep 5
+          done
+          echo "::error::timed out after five minutes waiting for ci.yml on $SHA"
+          exit 1
+
+  # Every binary is cross-compiled from one Linux runner. dinah has no cgo
+  # and no dependencies outside the standard library, so a native runner per
+  # target buys nothing.
+  build:
+    needs: [compute-version, wait-for-ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+          - goos: windows
+            goarch: arm64
+            ext: .exe
+          - goos: linux
+            goarch: amd64
+            ext: ""
+          - goos: linux
+            goarch: arm64
+            ext: ""
+          - goos: darwin
+            goarch: amd64
+            ext: ""
+          - goos: darwin
+            goarch: arm64
+            ext: ""
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build dinah
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          TAG: ${{ needs.compute-version.outputs.tag }}
+        run: |
+          go build -trimpath -ldflags="-s -w -X dinah/internal/verb.ToolRelease=${TAG}" \
+            -o dist/dinah-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} \
+            ./cmd/dinah
+
+      - name: Upload the binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  release:
+    needs: [compute-version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the release and uploads its assets
+    steps:
+      - name: Download every binary
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      # A release naming fewer binaries than the matrix builds is worse than no
+      # release, because the manifest would tell a person on a missing platform
+      # that no build exists for their machine. The steps below publish
+      # whatever landed in dist/, so this names what has to be there.
+      - name: Confirm every binary arrived
+        run: |
+          set -e
+          EXPECTED="dinah-windows-amd64.exe dinah-windows-arm64.exe dinah-linux-amd64 dinah-linux-arm64 dinah-darwin-amd64 dinah-darwin-arm64"
+          MISSING=""
+          for binary in $EXPECTED; do
+            if [ ! -f "dist/$binary" ]; then
+              MISSING="$MISSING $binary"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "::error::the build did not produce:$MISSING"
+            echo "dist/ holds:"
+            ls -1 dist
+            exit 1
+          fi
+          echo "All six binaries arrived."
+
+      - name: Check the release number reached the binary
+        env:
+          TAG: ${{ needs.compute-version.outputs.tag }}
+        run: |
+          set -e
+          # An artifact download does not preserve the executable bit.
+          chmod +x dist/dinah-linux-amd64
+          REPORTED=$(dist/dinah-linux-amd64 --json version)
+          echo "$REPORTED"
+          if ! printf '%s' "$REPORTED" | grep -qF "\"tool\": \"${TAG}\""; then
+            echo "::error::the linux/amd64 binary reports something other than ${TAG}; the ldflags injection did not reach verb.ToolRelease"
+            exit 1
+          fi
+
+      - name: Write the checksums and the channel manifest
+        env:
+          TAG: ${{ needs.compute-version.outputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          mkdir -p manifest
+          cd dist
+          sha256sum dinah-* | tee SHA256SUMS.txt
+
+          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${TAG}/"
+          {
+            echo "{"
+            echo "  \"channel\": \"dev\","
+            echo "  \"version\": \"${TAG}\","
+            echo "  \"tag\": \"${TAG}\","
+            echo "  \"publishedAt\": \"${PUBLISHED_AT}\","
+            echo "  \"downloadBase\": \"${DOWNLOAD_BASE}\","
+            echo "  \"binaries\": {"
+            first=true
+            for binary in dinah-*; do
+              hash=$(sha256sum "$binary" | cut -d' ' -f1)
+              size=$(stat -c%s "$binary")
+              if [ "$first" = true ]; then
+                first=false
+              else
+                echo ","
+              fi
+              printf '    "%s": { "sha256": "%s", "size": %s }' "$binary" "$hash" "$size"
+            done
+            echo ""
+            echo "  }"
+            echo "}"
+          } > ../manifest/dev.json
+          cd ..
+          # Reformatting through a JSON parser both pretty-prints the file and
+          # fails the run if the assembly above produced anything invalid.
+          python3 -m json.tool manifest/dev.json manifest/dev-checked.json
+          mv manifest/dev-checked.json manifest/dev.json
+          cat manifest/dev.json
+
+      - name: Create the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.compute-version.outputs.tag }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            dist/dinah-*
+            dist/SHA256SUMS.txt
+
+      - name: Publish the dev channel manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          # "channels" is a rolling release that exists to host one manifest
+          # per channel at a URL that never changes, which is what the install
+          # scripts fetch.
+          if ! gh release view channels --repo "$REPO" >/dev/null 2>&1; then
+            echo "Creating the rolling 'channels' release"
+            gh release create channels \
+              --repo "$REPO" \
+              --title "Channel manifests" \
+              --notes "A rolling release that hosts one manifest per channel. Each manifest names the current tag for its channel and lists every binary published under that tag with its SHA-256 and its size. The install scripts under scripts/ read these files."
+          fi
+          gh release upload channels manifest/dev.json --repo "$REPO" --clobber
+          echo "Updated dev.json on the 'channels' release"
+
+  # The tag is reserved before CI has ruled, which is what makes two concurrent
+  # runs collide loudly rather than overwrite each other. A run that then fails
+  # would leave a tag with no release behind it, so anyone checking that tag out
+  # would land on code that did not pass. This deletes the tag the failed run
+  # reserved, and it runs only when the reservation itself succeeded and
+  # something after it did not.
+  cleanup-tag:
+    needs: [compute-version, wait-for-ci, build, release]
+    if: always() && needs.compute-version.result == 'success' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # deletes the tag ref this run created
+    steps:
+      - name: Delete the tag this run reserved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.compute-version.outputs.tag }}
+        run: |
+          echo "This run reserved $TAG and then failed, so the tag is being deleted."
+          gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG"

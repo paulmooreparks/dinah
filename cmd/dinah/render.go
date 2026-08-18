@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
-	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -122,8 +121,11 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
 	for _, move := range moves {
-		cells := []paddedCell{{move.Ref, 14}, {move.Title, 32}}
-		s.line(alignedRow("  ", cells, s.token(move.Direction)))
+		s.row(row{
+			indent: 2,
+			cells:  []cell{{move.Ref, 14}, {move.Title, 32}},
+			tail:   s.token(move.Direction),
+		})
 	}
 }
 
@@ -141,14 +143,14 @@ func (s *session) renderStatus(status *verb.Status) {
 		s.line("")
 		s.line(s.r.T("status.holding"))
 		for _, card := range status.Holding {
-			s.line("  " + pad(card.Ref, 14) + card.Title)
+			s.row(row{indent: 2, cells: []cell{{card.Ref, 14}}, tail: card.Title})
 		}
 	}
 	if len(status.Blocked) > 0 {
 		s.line("")
 		s.line(s.r.T("status.blocked"))
 		for _, card := range status.Blocked {
-			s.line("  " + pad(card.Ref, 14) + card.BlockReason)
+			s.row(row{indent: 2, cells: []cell{{card.Ref, 14}}, tail: card.BlockReason})
 		}
 	}
 }
@@ -159,43 +161,6 @@ func (s *session) yesNo(value bool) string {
 		return s.r.T("word.yes")
 	}
 	return s.r.T("word.no")
-}
-
-// paddedCell is one column of a row that may run past its declared width: a
-// slug, a title, a catalog token, or any other text sharing a line with a
-// column that follows it.
-type paddedCell struct {
-	text  string
-	width int
-}
-
-// alignedRow lays lead, then each cell padded to its own width in turn, then
-// an unpadded tail. A workbench or state title is user-supplied and
-// unbounded, and a catalog-served placeholder is a full sentence fragment
-// rather than a short token, so any cell may reach its column's width. pad
-// never truncates, so jamming the rest of the row onto the same line would
-// shift every later column out of alignment the moment a cell reaches its
-// width (Convention counterexamples: "A wording change that outgrows the
-// column it is rendered into"). Whenever a cell's rune count reaches its
-// width, that cell gets the rest of its line to itself and every field
-// after it, guarded cells included, resumes on a continuation line indented
-// to where the cell's own column would have ended. The check repeats
-// independently for each remaining cell, so two overflowing cells in one row
-// each get their own continuation line rather than only the first.
-func alignedRow(lead string, cells []paddedCell, tail string) string {
-	var b strings.Builder
-	b.WriteString(lead)
-	indent := len([]rune(lead))
-	for _, c := range cells {
-		if len([]rune(c.text)) >= c.width {
-			b.WriteString(c.text + "\n" + strings.Repeat(" ", indent+c.width))
-		} else {
-			b.WriteString(pad(c.text, c.width))
-		}
-		indent += c.width
-	}
-	b.WriteString(tail)
-	return b.String()
 }
 
 // renderStates prints the flow in order with each station's occupancy.
@@ -209,14 +174,17 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.OperatorOwned {
 			tail = s.r.T("states.operator-owned")
 		}
-		lead := "  " + pad(state.ID, 14)
-		cells := []paddedCell{
-			{s.slugCell(state.Slug), 24},
-			{state.Title, 32},
-			{s.token(state.Kind), 10},
-			{count, 8},
-		}
-		s.line(alignedRow(lead, cells, tail))
+		s.row(row{
+			indent: 2,
+			cells: []cell{
+				{state.ID, 14},
+				{s.slugCell(state.Slug), 24},
+				{state.Title, 32},
+				{s.token(state.Kind), 10},
+				{count, 8},
+			},
+			tail: tail,
+		})
 	}
 }
 
@@ -227,9 +195,11 @@ func (s *session) renderListing(listing *verb.Listing) {
 		return
 	}
 	for _, card := range listing.Cards {
-		lead := "  " + pad(card.Ref, 14)
-		cells := []paddedCell{{s.token(card.Substate), 10}}
-		s.line(alignedRow(lead, cells, card.Title))
+		s.row(row{
+			indent: 2,
+			cells:  []cell{{card.Ref, 14}, {s.token(card.Substate), 10}},
+			tail:   card.Title,
+		})
 	}
 }
 
@@ -239,9 +209,11 @@ func (s *session) renderListing(listing *verb.Listing) {
 // to whether anybody has ever set the key.
 func (s *session) renderSettings(settings []verb.SettingView) {
 	for _, view := range settings {
-		lead := "  " + pad(view.Key, 12)
-		cells := []paddedCell{{view.Value, 24}}
-		s.line(alignedRow(lead, cells, s.token(view.Source)))
+		s.row(row{
+			indent: 2,
+			cells:  []cell{{view.Key, 12}, {view.Value, 24}},
+			tail:   s.token(view.Source),
+		})
 	}
 }
 
@@ -266,9 +238,12 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 // callers can never draw the same candidates in different columns.
 func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
 	lines := make([]string, 0, len(rows))
-	for _, row := range rows {
-		cells := []paddedCell{{row.Title, 32}, {s.slugCell(row.Slug), 16}}
-		lines = append(lines, alignedRow("  ", cells, row.Path))
+	for _, candidate := range rows {
+		lines = append(lines, s.rowLine(row{
+			indent: 2,
+			cells:  []cell{{candidate.Title, 32}, {s.slugCell(candidate.Slug), 16}},
+			tail:   candidate.Path,
+		}))
 	}
 	return lines
 }
@@ -289,11 +264,18 @@ func (s *session) slugCell(slug string) string {
 func (s *session) renderOffers(offers []verb.Offer) {
 	for _, offer := range offers {
 		if offer.Card == nil {
-			s.line(alignedRow("  ", []paddedCell{{offer.Title, 32}}, s.r.T("next.none")))
+			s.row(row{
+				indent: 2,
+				cells:  []cell{{offer.Title, 32}},
+				tail:   s.r.T("next.none"),
+			})
 			continue
 		}
-		cells := []paddedCell{{offer.Title, 32}, {offer.Card.Ref, 14}}
-		s.line(alignedRow("  ", cells, offer.Card.Title))
+		s.row(row{
+			indent: 2,
+			cells:  []cell{{offer.Title, 32}, {offer.Card.Ref, 14}},
+			tail:   offer.Card.Title,
+		})
 	}
 }
 
@@ -308,14 +290,14 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		s.line("")
 		s.line(s.r.T("show.links"))
 		for _, link := range detail.Links {
-			s.line("  " + pad(link.Kind, 14) + link.Ref)
+			s.row(row{indent: 2, cells: []cell{{link.Kind, 14}}, tail: link.Ref})
 		}
 	}
 	if len(detail.Comments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.comments"))
 		for _, comment := range detail.Comments {
-			s.line("  " + comment.TS + "  " + comment.Author)
+			s.row(row{indent: 2, cells: []cell{{comment.TS, 22}}, tail: comment.Author})
 			s.write(comment.Body)
 		}
 	}
@@ -338,9 +320,15 @@ func (s *session) renderHistory(events []bench.Event) {
 		case contract.EventCreated:
 			tail = ev.Title
 		}
-		lead := "  " + pad(ev.TS, 22)
-		cells := []paddedCell{{s.token(ev.Event), 14}, {ev.Actor, 16}}
-		s.line(alignedRow(lead, cells, tail))
+		s.row(row{
+			indent: 2,
+			cells: []cell{
+				{ev.TS, 22},
+				{s.token(ev.Event), 14},
+				{ev.Actor, 16},
+			},
+			tail: tail,
+		})
 	}
 }
 
@@ -354,8 +342,11 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedSlugs {
 		s.line(s.r.TN("check.slug-assigned", len(report.AssignedSlugs)))
 		for _, assignment := range report.AssignedSlugs {
-			cells := []paddedCell{{assignment.Slug, 24}}
-			s.line(alignedRow("  ", cells, assignment.Title))
+			s.row(row{
+				indent: 2,
+				cells:  []cell{{assignment.Slug, 24}},
+				tail:   assignment.Title,
+			})
 		}
 		if report.AssignedWorkbenchSlug != nil {
 			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
@@ -367,7 +358,7 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedStates {
 		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
 		for _, id := range report.RemovedStrandedStates {
-			s.line("  " + id)
+			s.row(row{indent: 2, tail: id})
 		}
 	}
 	return s.renderFindings(report.Findings)
@@ -381,7 +372,7 @@ func (s *session) renderFindings(findings []bench.Finding) int {
 		return 0
 	}
 	for _, finding := range findings {
-		s.line("  " + s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")")
+		s.row(row{indent: 2, tail: s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")"})
 	}
 	s.line(s.r.TN("check.count", len(findings)))
 	return contract.ExitCode(contract.OutcomeRefused)
@@ -404,6 +395,6 @@ func (s *session) renderVersion(release *verb.VersionReport) {
 	s.line(s.r.T("version.catalogs"))
 	for _, catalog := range release.Catalogs {
 		coverage := strconv.Itoa(catalog.Translated) + "/" + strconv.Itoa(catalog.Total)
-		s.line("  " + pad(catalog.Tag, 8) + coverage)
+		s.row(row{indent: 2, cells: []cell{{catalog.Tag, 8}}, tail: coverage})
 	}
 }

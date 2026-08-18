@@ -26,12 +26,38 @@ import (
 // package's tests exercise through the CLI cannot climb out of its own
 // synthetic fixture tree and reach the real workbenches sitting above it.
 // See internal/testenv's package comment for what this does and does not
-// cover.
+// cover. It also clears COLUMNS for the whole run, so a shell that exports
+// it does not reach a test that never asked to see it.
 func TestMain(m *testing.M) {
-	restore := testenv.IsolateTempDir()
+	restoreTemp := testenv.IsolateTempDir()
+	restoreColumns := isolateColumns()
 	code := m.Run()
-	restore()
+	restoreColumns()
+	restoreTemp()
 	os.Exit(code)
+}
+
+// isolateColumns clears COLUMNS for the whole test binary before any test
+// runs, restoring whatever the environment held once every test has
+// finished. windowWidth (row.go) reads COLUMNS straight from the
+// environment, so an exported COLUMNS reaches every test in this package,
+// not only the ones that set it on purpose. A handful of tests already call
+// t.Setenv("COLUMNS", ...) to control the value they need, and that call
+// keeps working exactly as before: t.Setenv overrides for the one test and
+// restores automatically when it ends, so it composes with an unset starting
+// point the same way it composes with any other. What clearing it here buys
+// is every test that never mentions COLUMNS at all, present or future,
+// which is where the hazard actually lives.
+func isolateColumns() (restore func()) {
+	prev, had := os.LookupEnv("COLUMNS")
+	os.Unsetenv("COLUMNS")
+	return func() {
+		if had {
+			os.Setenv("COLUMNS", prev)
+			return
+		}
+		os.Unsetenv("COLUMNS")
+	}
 }
 
 // invocation is one run of the head with its streams captured.
@@ -152,13 +178,23 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			continue
 		}
 		listed++
-		if !strings.Contains(string(fixture), "  "+verb.Usage(c.name)+" ") {
+		if !blockLists(string(fixture), verb.Usage(c.name)) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
 	if listed != 29 {
 		t.Errorf("wanted twenty-nine listed commands, got %d", listed)
 	}
+}
+
+// blockLists reports whether the ratified help block carries a command's
+// usage line under the block's own indent. A usage that fits its column is
+// followed by the padding before its summary, and one that reaches the column
+// takes the rest of its line and is followed by the line ending instead, so
+// asking for a trailing space alone would read a wrapped entry as a missing
+// one.
+func blockLists(block, usage string) bool {
+	return strings.Contains(block, "  "+usage+" ") || strings.Contains(block, "  "+usage+"\n")
 }
 
 // diffLines reports the first line at which two blocks differ, which is what
@@ -1160,7 +1196,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !strings.Contains(string(fixture), "  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] ") {
+	if !blockLists(string(fixture), "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]") {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
 	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]" {
@@ -3053,56 +3089,6 @@ func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
 			t.Fatalf("move %s %s: %d %s", first, move.Ref, moved.code, moved.errw)
 		}
 		break
-	}
-}
-
-// TestAlignedRowBreaksOnAnOverrunningCell asserts alignedRow's cases: a cell
-// under its column width pads in place, exactly as the plain pad-based row
-// it replaced did, and a cell that reaches or exceeds its column width gets
-// the line to itself with the remaining fields moved to a continuation line
-// indented to where the column would have ended, rather than the
-// non-truncating pad pushing every later field out of alignment (Convention
-// counterexamples: "A wording change that outgrows the column it is
-// rendered into"). Covers a catalog placeholder, a long real slug, and a row
-// where two cells overflow in turn, each producing its own continuation
-// line at its own column's offset.
-func TestAlignedRowBreaksOnAnOverrunningCell(t *testing.T) {
-	cases := []struct {
-		name  string
-		cells []paddedCell
-		want  string
-	}{
-		{
-			name:  "fits",
-			cells: []paddedCell{{"fx", 10}},
-			want:  "  fx        rest",
-		},
-		{
-			name:  "placeholder overruns",
-			cells: []paddedCell{{"no slug (run check --migrate-slugs)", 10}},
-			want:  "  no slug (run check --migrate-slugs)\n            rest",
-		},
-		{
-			name:  "long real slug overruns",
-			cells: []paddedCell{{"aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior", 10}},
-			want:  "  aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior\n            rest",
-		},
-		{
-			name: "two cells overflow in the same row",
-			cells: []paddedCell{
-				{"aconsiderablylongworkbenchname", 10},
-				{"anotherlongoverrunningcellvalue", 8},
-			},
-			want: "  aconsiderablylongworkbenchname\n            anotherlongoverrunningcellvalue\n                    rest",
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := alignedRow("  ", c.cells, "rest")
-			if got != c.want {
-				t.Errorf("alignedRow(%q, %q):\n got  %q\n want %q", c.cells, "rest", got, c.want)
-			}
-		})
 	}
 }
 

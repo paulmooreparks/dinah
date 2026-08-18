@@ -57,6 +57,10 @@ type session struct {
 	// workbenchSource names the rung that resolved the active workbench for
 	// this invocation, set by open() once discovery has run.
 	workbenchSource string
+	// width is how many columns the window gives, zero when no documented
+	// source answers and the layout is then unbounded. It is resolved once
+	// per invocation, so every row of one run is laid out against one width.
+	width int
 }
 
 func main() {
@@ -97,6 +101,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		benchFlag:       benchFlag,
 		benchFlagSource: benchFlagSource,
 		cwd:             cwd,
+		width:           windowWidth(),
 	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
