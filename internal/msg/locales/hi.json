@@ -806,7 +806,7 @@
       "context": "A heading of the help block, grouping the commands beneath it."
     },
     "help.reading": {
-      "text": "Dinah जो मार्गदर्शिकाएँ अपने भीतर रखती है उन्हें पढ़ने के लिए 'dinah guide' चलाएँ, और त्वरित आरम्भ https://github.com/paulmooreparks/dinah/blob/main/docs/quick-start.md पर पढ़ें।",
+      "text": "Dinah जो मार्गदर्शिकाएँ अपने भीतर रखती है उन्हें पढ़ने के लिए 'dinah guide' चलाएँ, और त्वरित आरंभ https://github.com/paulmooreparks/dinah/blob/main/docs/quick-start.md पर पढ़ें।",
       "context": "The line below the help block's footer, pointing a reader at the guides the binary carries and at the quick start. The URL names a location rather than reading as prose, and it stays as it is in every language."
     },
     "help.refusals": {

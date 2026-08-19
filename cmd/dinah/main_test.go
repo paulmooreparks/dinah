@@ -1233,7 +1233,7 @@ func editAnchor(t *testing.T, root, from, to string) {
 // "run this now to use dinah in this shell" as the command `in`, both of them
 // lines the installer prints. So an invocation opens a line, opens one after
 // the `$ ` a transcript marks a command line with, or stands just after a
-// backtick or a command substitution.
+// backtick, a command substitution, or an opening parenthesis.
 //
 // The tail stops at a backtick, so a sentence quoting two invocations yields
 // both and prose standing after a closing backtick is not read as arguments.

@@ -196,8 +196,8 @@ $ dinah config
 [exit 0]
 ```
 
-That session ran on Linux. On Windows the `editor` row reads `notepad`,
-which is the editor Dinah falls back to there.
+You ran that on Linux. On Windows, Dinah falls back to `notepad`, so you see
+that in the `editor` row instead.
 
 Read that third column whenever a value surprises you. You set none of `lang`,
 and Dinah fell back to its own default; you wrote `actor` into your
@@ -218,7 +218,7 @@ $ dinah config
 [exit 0]
 ```
 
-On Windows the `editor` row again reads `notepad` rather than `nano`.
+On Windows you see `notepad` here instead.
 
 Dinah knows four settings in this version, `actor`, `lang`, `editor`, and
 `workbench`, and it accepts no other name:
@@ -401,7 +401,7 @@ $ dinah ls doing
 [exit 0]
 $ dinah ls intake --ready
   Card   Standing  Title
-  -----  --------  ------------------------
+  -----  --------  -----------------------
   rel-1  ready     Write the release notes
   rel-2  ready     Draft the changelog
 [exit 0]
@@ -680,7 +680,7 @@ $ dinah path rel-1/journal
 [exit 0]
 $ dinah log rel-1
   When                  Action     Actor  Detail
-  --------------------  -------  -----  -----------------------
+  --------------------  ---------  -----  --------------------------
   2026-08-18T21:02:23Z  created    ana    Write the release notes
   2026-08-18T21:02:23Z  claimed    ana
   2026-08-18T21:02:23Z  moved      ana    Intake to Doing (override)

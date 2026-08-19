@@ -614,24 +614,70 @@ func valuesByClass(text string) map[string][]string {
 // standing reports that: the narrative-root rule accepts the result because
 // both values lie under the narrative's root, and the replay accepts it
 // because the class is what the comparison normalises away on both sides.
-func restoreDocumentValues(captured string, document map[string][]string) (string, error) {
+//
+// A restored value of a different width takes the gutter after it with it, so
+// that every column standing to the right of the cell it sits in keeps the
+// display column the capture put it in. keepTheGutter states what that
+// adjustment can and cannot do.
+//
+// replacing and restoring name the two sides in a refusal, because the two
+// callers run the restoration in opposite directions: the update mode writes
+// the document's values into the replay's output, and writeNarrativeFile
+// writes a standing sandbox file's values into the document's own block.
+func restoreDocumentValues(captured string, document map[string][]string, replacing, restoring string) (string, error) {
 	for class, occurrences := range valuesByClass(captured) {
 		if len(occurrences) > len(document[class]) {
-			return "", fmt.Errorf("the captured output holds %d values of class %s and the document held %d, so the surplus has no value to restore", len(occurrences), class, len(document[class]))
+			return "", fmt.Errorf("%s holds %d values of class %s and %s held %d, so the surplus has no value to restore", replacing, len(occurrences), class, restoring, len(document[class]))
 		}
 	}
+	segments := segmentStream(captured)
 	used := map[string]int{}
 	var built strings.Builder
-	for _, segment := range segmentStream(captured) {
+	for i, segment := range segments {
 		if segment.class == "" {
 			built.WriteString(segment.text)
 			continue
 		}
 		at := used[segment.class]
 		used[segment.class]++
-		built.WriteString(document[segment.class][at])
+		value := document[segment.class][at]
+		built.WriteString(value)
+		if i+1 < len(segments) && segments[i+1].class == "" {
+			segments[i+1].text = keepTheGutter(segments[i+1].text, displayWidth(segment.text)-displayWidth(value))
+		}
 	}
 	return built.String(), nil
+}
+
+// keepTheGutter widens or narrows by delta columns the run of spaces that opens
+// text, so that a restored value of a different width leaves the columns after
+// it on that row where the capture put them.
+//
+// The adjustment fires only on a run of two or more spaces, which is a table's
+// gutter rather than the single space between two words of a sentence, and it
+// never narrows a gutter below the width the tables draw. A document value
+// wider than the captured one by more than the gutter's slack therefore still
+// pushes the columns after it to the right on its own row. That residue is
+// disclosed rather than repaired: repairing it means redrawing every row of the
+// table, and no block in the document exercises even the widening case today,
+// since every table cell carrying a value of a normalised class stands behind a
+// skip=.
+func keepTheGutter(text string, delta int) string {
+	if delta == 0 {
+		return text
+	}
+	gutter := 0
+	for gutter < len(text) && text[gutter] == ' ' {
+		gutter++
+	}
+	if gutter < tableGutter {
+		return text
+	}
+	kept := gutter + delta
+	if kept < tableGutter {
+		kept = tableGutter
+	}
+	return strings.Repeat(" ", kept) + text[gutter:]
 }
 
 // ruleGlyphRun matches a field drawn entirely from the table separator's own
@@ -743,6 +789,35 @@ type quickCaptured struct {
 // The file's own doc comment above says what this guard covers and where it
 // stops. Read that before trusting a green run further than it goes.
 func TestTheQuickStartMatchesTheTool(t *testing.T) {
+	lines, blocks, entries := quickStartCorpus(t)
+	checkExemptionEntries(t, blocks, entries)
+	checkTranscriptPathsAreTheNarrative(t, blocks)
+	checkSeparatorRowsMatchTheirTables(t, blocks)
+
+	captured := replayQuickStart(t, blocks, replayColumns)
+	if len(captured) == 0 {
+		t.Fatal("the replay drove no block, so this test proves nothing")
+	}
+	checkNothingStacksOrWraps(t, blocks, captured, replayQuickStart(t, blocks, wideningColumns))
+
+	if *updateQuickStart {
+		rewriteQuickStart(t, lines, blocks, captured)
+		t.Fatalf("update mode rewrote %s and fails on purpose, so no run in this mode can pass; read the diff and commit it", quickStartPath)
+	}
+	compareQuickStart(t, blocks, captured)
+}
+
+// quickStartCorpus reads the document and its exemption file, parses both, and
+// runs the integrity rules that make a truncated read fail rather than shrink
+// the corpus quietly.
+//
+// Every test that walks this document enters through here, so none of them can
+// be switched off by the file it reads. A check that called the parser directly
+// would keep passing on the smaller corpus an unterminated fence leaves behind,
+// and it would do so silently, since a truncated corpus is not an empty one and
+// an empty-corpus assertion says nothing about it.
+func quickStartCorpus(t *testing.T) ([]string, []quickBlock, []quickExemption) {
+	t.Helper()
 	lines := readQuickStart(t)
 	blocks := parseQuickStart(lines)
 	if len(blocks) == 0 {
@@ -759,22 +834,9 @@ func TestTheQuickStartMatchesTheTool(t *testing.T) {
 		}
 	}
 	if !fencesAreWhole(t, lines, blocks, inner) {
-		t.Fatal("the document does not parse whole, so every count below would be taken over a smaller corpus than the file")
+		t.Fatal("the document does not parse whole, so every count taken over it would be taken over a smaller corpus than the file")
 	}
-	checkExemptionEntries(t, blocks, entries)
-	checkTranscriptPathsAreTheNarrative(t, blocks)
-
-	captured := replayQuickStart(t, blocks, replayColumns)
-	if len(captured) == 0 {
-		t.Fatal("the replay drove no block, so this test proves nothing")
-	}
-	checkNothingStacksOrWraps(t, blocks, captured, replayQuickStart(t, blocks, wideningColumns))
-
-	if *updateQuickStart {
-		rewriteQuickStart(t, lines, blocks, captured)
-		t.Fatalf("update mode rewrote %s and fails on purpose, so no run in this mode can pass; read the diff and commit it", quickStartPath)
-	}
-	compareQuickStart(t, blocks, captured)
+	return lines, blocks, entries
 }
 
 // fencesAreWhole runs the four integrity rules that make a truncated read fail
@@ -875,6 +937,71 @@ func checkTranscriptPathsAreTheNarrative(t *testing.T, blocks []quickBlock) {
 	}
 	if read == 0 {
 		t.Error("no transcript block shows an absolute path, so the narrative-root rule read nothing")
+	}
+}
+
+// checkSeparatorRowsMatchTheirTables asserts that every table separator row the
+// document draws lines up with the table it belongs to. Each of its rule runs
+// opens at the display column the header and the data rows open one of theirs
+// at, and its last run is as wide as the widest value standing over it.
+//
+// The property is readable straight off the written document, with no replay
+// and no tool, which is why it is asserted here rather than left to the
+// comparison. comparableFields folds a rule field to one token whatever its
+// length, so the replay passes a rule of any width, and checkColumnsLineUp
+// reads the head's own two streams rather than the bytes the update mode wrote,
+// so it never sees the document at all. A rule one column short is therefore
+// invisible to every other check on this file while being the first thing a
+// reader's eye lands on.
+//
+// A second finding stands beside the first and guards the other writer that
+// puts bytes on this page the comparison cannot read. restoreDocumentValues
+// substitutes a value of a different width inside a row, so a row can be pushed
+// out of its own table's columns while every rule above it stays put. A row
+// drawing as many fields as its table has columns has to open each of them at a
+// column, and a row drawing fewer, which is how a listing writes an empty last
+// cell and how "nothing ready" closes one, is passed over.
+//
+// The check reads every transcript block, the exempt ones included, since a
+// block the replay does not drive is still a table a customer reads.
+func checkSeparatorRowsMatchTheirTables(t *testing.T, blocks []quickBlock) {
+	t.Helper()
+	drawn := 0
+	for _, block := range blocks {
+		if block.kind != "console" {
+			continue
+		}
+		for _, step := range block.steps() {
+			for i, line := range step.output {
+				fields := columnarFields(line)
+				if len(fields) < 2 || !everyFieldIsARule(fields) {
+					continue
+				}
+				drawn++
+				at := step.line + 1 + i
+				rows := tableRowsAround(step.output, i)
+				widths, ok := columnWidths(rows)
+				if !ok {
+					t.Errorf("%s:%d: the separator row stands over no table, so nothing says which columns its rules are drawn to", quickStartPath, at)
+					continue
+				}
+				columns := columnOffsets(rows)
+				if wanted := separatorRow(columns[0], widths); wanted != line {
+					t.Errorf("%s:%d: the separator row does not line up with the columns of its own table\n  wanted: %s\n  got:    %s",
+						quickStartPath, at, wanted, line)
+				}
+				for _, row := range rowsAroundSeparator(step.output, i) {
+					if len(row.fields) != len(columns) || standsInTheColumns(row.fields, columns) {
+						continue
+					}
+					t.Errorf("%s:%d: the row draws as many fields as its table has columns and does not stand in them\n  columns: %v\n  row:     %s",
+						quickStartPath, step.line+1+row.at, columns, step.output[row.at])
+				}
+			}
+		}
+	}
+	if drawn == 0 {
+		t.Error("no transcript block draws a table separator row, so the alignment rule read nothing")
 	}
 }
 
@@ -1062,7 +1189,7 @@ func writeNarrativeFile(t *testing.T, cwd string, block quickBlock) {
 	}
 	body := strings.Join(block.body, "\n") + "\n"
 	if standing, err := os.ReadFile(target); err == nil {
-		restored, err := restoreDocumentValues(body, valuesByClass(string(standing)))
+		restored, err := restoreDocumentValues(body, valuesByClass(string(standing)), "the document's file block", "the file standing in the sandbox")
 		if err != nil {
 			t.Fatalf("%s:%d: %v", quickStartPath, block.fence, err)
 		}
@@ -1268,6 +1395,13 @@ func rewriteQuickStart(t *testing.T, lines []string, blocks []quickBlock, captur
 
 // regeneratedBody composes one block's new body from the replay, with the
 // document's own values restored.
+//
+// The restoration runs over the block's whole output, because it matches
+// values by order of appearance and a block's occurrences of a class run
+// across its commands. The separator redraw runs over one command's output at
+// a time, because a table belongs to the command that printed it: run over the
+// concatenation, the walk climbs out of one command's table into the one above
+// it and borrows a width from a table the reader never sees beside it.
 func regeneratedBody(block quickBlock, capture quickCapture) ([]string, error) {
 	steps := block.steps()
 	if len(steps) != len(capture.steps) {
@@ -1284,16 +1418,16 @@ func regeneratedBody(block quickBlock, capture quickCapture) ([]string, error) {
 		counts[i] = len(shown)
 		produced = append(produced, shown...)
 	}
-	restored, err := restoreDocumentValues(strings.Join(produced, "\n"), valuesByClass(strings.Join(documented, "\n")))
+	restored, err := restoreDocumentValues(strings.Join(produced, "\n"), valuesByClass(strings.Join(documented, "\n")), "the captured output", "the document")
 	if err != nil {
 		return nil, err
 	}
-	back := redrawSeparatorRows(strings.Split(restored, "\n"))
+	back := strings.Split(restored, "\n")
 	var body []string
 	read := 0
 	for i, step := range steps {
 		body = append(body, "$ "+step.command)
-		body = append(body, back[read:read+counts[i]]...)
+		body = append(body, redrawSeparatorRows(back[read:read+counts[i]])...)
 		read += counts[i]
 		if step.hasExit || capture.steps[i].code != 0 {
 			body = append(body, "[exit "+strconv.Itoa(capture.steps[i].code)+"]")
@@ -1314,10 +1448,14 @@ func regeneratedBody(block quickBlock, capture quickCapture) ([]string, error) {
 // canonicalises a rule field whatever its length, which is exactly why the
 // redraw belongs here rather than being left for a failing run to report.
 //
-// A row is a separator when every field it draws is a run of the rule glyph. Its
-// runs are then redrawn to the widest field each column carries among the rows
-// that share its indent and its field count, which is the width the head itself
-// measures at a window wide enough to hold the table.
+// A row is a separator when every field it draws is a run of the rule glyph,
+// and its runs are then redrawn from the columns the rows around it stand in
+// rather than from the rows' own widths. Reading the columns is what makes the
+// redraw agree with the restoration above: a restored value that keeps its
+// gutter leaves its row's later columns where the capture put them, and a rule
+// measured from that row's values alone would then pull the rule out from under
+// them. The last column has no column after it to be measured against, so it is
+// the one run drawn to the widest value it stands over.
 func redrawSeparatorRows(lines []string) []string {
 	redrawn := append([]string(nil), lines...)
 	for i, line := range lines {
@@ -1325,12 +1463,12 @@ func redrawSeparatorRows(lines []string) []string {
 		if len(fields) < 2 || !everyFieldIsARule(fields) {
 			continue
 		}
-		widths := make([]int, len(fields))
-		for j := i - 1; j >= 0 && widensTheColumns(lines[j], fields, widths); j-- {
+		rows := tableRowsAround(lines, i)
+		widths, ok := columnWidths(rows)
+		if !ok {
+			continue
 		}
-		for j := i + 1; j < len(lines) && widensTheColumns(lines[j], fields, widths); j++ {
-		}
-		redrawn[i] = separatorRow(fields[0].at, widths)
+		redrawn[i] = separatorRow(rows[0][0].at, widths)
 	}
 	return redrawn
 }
@@ -1346,20 +1484,136 @@ func everyFieldIsARule(fields []columnarField) bool {
 	return true
 }
 
-// widensTheColumns folds one neighbouring row into the widths a separator row
-// will draw, and reports whether the walk should carry on past it. A row of a
-// different shape, or another separator row, ends the block.
-func widensTheColumns(line string, separator []columnarField, widths []int) bool {
-	fields := columnarFields(line)
-	if len(fields) != len(separator) || fields[0].at != separator[0].at || everyFieldIsARule(fields) {
-		return false
+// tableRowsAround reads the rows of the table a separator row belongs to: the
+// run of lines above and below it that draw values into that table's own
+// columns, in the order they stand.
+//
+// The run ends at a blank line, at another separator row, and at the edge of
+// the output the caller handed over, which is one command's. A line inside the
+// run belongs to the table when every field it draws opens at one of the
+// table's column offsets and closes before the next column opens, and it is
+// passed over rather than ending the run when it does not, since a listing's
+// closing "nothing ready" line stands among the rows without being one of them.
+//
+// Both halves of that rule are corrections. Reading a row's shape from its
+// field count drops a row whose last cell is empty, and dropping the first such
+// row leaves a table's widest column measured from its header alone. Ending the
+// run at a line that does not fit rather than passing over it stops the walk
+// early on the same listings.
+func tableRowsAround(lines []string, at int) [][]columnarField {
+	run := rowsAroundSeparator(lines, at)
+	var drawn [][]columnarField
+	for _, row := range run {
+		drawn = append(drawn, row.fields)
 	}
-	for c, field := range fields {
-		if drawn := displayWidth(field.text); drawn > widths[c] {
-			widths[c] = drawn
+	columns := columnOffsets(drawn)
+	if len(columns) < 2 {
+		return nil
+	}
+	var rows [][]columnarField
+	for _, row := range run {
+		if standsInTheColumns(row.fields, columns) {
+			rows = append(rows, row.fields)
+		}
+	}
+	return rows
+}
+
+// drawnRow is one line of the run a separator row stands inside, with the line
+// it was read from so a finding can name it.
+type drawnRow struct {
+	at     int
+	fields []columnarField
+}
+
+// rowsAroundSeparator reads the run of lines a separator row stands inside,
+// above it and below it, before any of them is held against the table's
+// columns.
+func rowsAroundSeparator(lines []string, at int) []drawnRow {
+	var run []drawnRow
+	for i := at - 1; i >= 0 && standsAmongRows(lines[i]); i-- {
+		run = append([]drawnRow{{at: i, fields: columnarFields(lines[i])}}, run...)
+	}
+	for i := at + 1; i < len(lines) && standsAmongRows(lines[i]); i++ {
+		run = append(run, drawnRow{at: i, fields: columnarFields(lines[i])})
+	}
+	return run
+}
+
+// standsAmongRows reports whether a line can stand among a table's rows, which
+// a blank line and another separator row cannot.
+func standsAmongRows(line string) bool {
+	fields := columnarFields(line)
+	return len(fields) > 0 && !everyFieldIsARule(fields)
+}
+
+// columnOffsets reads a table's columns off the widest row of a run, which is
+// the row that draws every column the table carries.
+func columnOffsets(run [][]columnarField) []int {
+	var widest []columnarField
+	for _, row := range run {
+		if len(row) > len(widest) {
+			widest = row
+		}
+	}
+	offsets := make([]int, len(widest))
+	for c, field := range widest {
+		offsets[c] = field.at
+	}
+	return offsets
+}
+
+// standsInTheColumns reports whether one row draws its fields into a table's
+// columns: each field opens at a column and closes before the next one opens.
+func standsInTheColumns(row []columnarField, columns []int) bool {
+	for _, field := range row {
+		c := -1
+		for i, offset := range columns {
+			if field.at == offset {
+				c = i
+				break
+			}
+		}
+		if c < 0 {
+			return false
+		}
+		if c+1 < len(columns) && field.at+displayWidth(field.text) >= columns[c+1] {
+			return false
 		}
 	}
 	return true
+}
+
+// columnWidths reads the width of every rule run a separator row draws over a
+// table's rows, and reports whether the table reads as one at all. Every column
+// but the last is as wide as the gap to the column after it leaves it, and the
+// last is as wide as the widest value standing in it.
+func columnWidths(rows [][]columnarField) ([]int, bool) {
+	columns := columnOffsets(rows)
+	if len(columns) < 2 {
+		return nil, false
+	}
+	widths := make([]int, len(columns))
+	for c := 0; c+1 < len(columns); c++ {
+		widths[c] = columns[c+1] - columns[c] - tableGutter
+		if widths[c] < 1 {
+			return nil, false
+		}
+	}
+	last := len(columns) - 1
+	for _, row := range rows {
+		for _, field := range row {
+			if field.at == columns[last] {
+				if drawn := displayWidth(field.text); drawn > widths[last] {
+					widths[last] = drawn
+				}
+			}
+		}
+	}
+	if widths[last] < 1 {
+		return nil, false
+	}
+	return widths, true
 }
 
 // separatorRow draws one separator row: the block's indent, then a rule run per

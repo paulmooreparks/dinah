@@ -73,6 +73,14 @@ var mintedRefusal = regexp.MustCompile(regexp.QuoteMeta(contract.LayerPrefix) + 
 // of an output line inside a fenced block, because `blocked`, `held`,
 // `terminal`, and `malformed` are ordinary words that stand all through this
 // documentation meaning something else entirely.
+//
+// The two shapes are counted apart because only one of them is checked. A
+// prefixed name is held against the two sets and can fail; a declared word at
+// the head of an output line is recognised and nothing more, since a first
+// field that is not declared is indistinguishable from an ordinary English
+// word. Counting both toward one total would let a corpus carrying declared
+// words and no prefixed name pass with nothing validated at all, so the
+// corpus assertion reads the checked count alone.
 func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 	legal := map[string]bool{}
 	for _, name := range contract.Declared {
@@ -85,7 +93,8 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 	for _, name := range contract.Introduced {
 		legal[name] = true
 	}
-	read := 0
+	checked := 0
+	recognised := 0
 	for _, document := range guardedDocuments(t) {
 		inBlock := false
 		for number, line := range strings.Split(document.text, "\n") {
@@ -94,7 +103,7 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 				continue
 			}
 			for _, name := range mintedRefusal.FindAllString(line, -1) {
-				read++
+				checked++
 				if legal[name] {
 					continue
 				}
@@ -107,11 +116,12 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 			if !declared[first] {
 				continue
 			}
-			read++
+			recognised++
 		}
 	}
-	if read == 0 {
-		t.Error("no refusal name was found in any guide or in the quick start, so this test proves nothing")
+	if checked == 0 {
+		t.Errorf("no refusal name carrying the %s prefix was found in any guide or in the quick start, so this test validated nothing; %d declared word or words stood at the head of an output line, and none of those is checkable",
+			contract.LayerPrefix, recognised)
 	}
 }
 
@@ -327,9 +337,7 @@ func contractDeclares(name string) bool {
 // genuinely stale line and a catalog scan cannot, so the catalog scan is
 // confined to the blocks replay does not read.
 func TestEveryExemptBlockDeclaresTheCatalogEntriesItQuotes(t *testing.T) {
-	lines := readQuickStart(t)
-	blocks := parseQuickStart(lines)
-	entries := readQuickStartExemptions(t)
+	_, blocks, entries := quickStartCorpus(t)
 	catalog := renderingsOfTheCatalog(t)
 	declared := map[int]quickExemption{}
 	for _, entry := range entries {
@@ -435,14 +443,50 @@ func TestTheGuidesNameOnlyVariablesTheProductReads(t *testing.T) {
 // fetches, and the browsing form a reader follows.
 var publishedFile = regexp.MustCompile("https://(?:raw\\.githubusercontent\\.com/paulmooreparks/dinah|github\\.com/paulmooreparks/dinah/blob)/[^/\\s]+/([^\\s)`\"']+)")
 
-// TestTheGuidesNameOnlyPublishedFilesThatExist asserts that every URL a guide
-// or the quick start gives for a file of this repository names a path the
-// working tree carries. The check reads the path and not the network, so it
-// holds the install section's own subject without making the suite depend on
+// documentsThatPublishURLs is the corpus the published-URL check reads: the
+// guides and the quick start, and every message catalog beside them.
+//
+// The catalogs belong in this one corpus because a URL a reader follows does
+// not only stand in a document. The help block points at the quick start, that
+// pointer is a catalog entry rather than a line of any guide, and a check
+// reading the guarded corpus alone leaves the one URL this product prints as
+// the one URL nothing holds. Reading the catalogs as files rather than through
+// the renderer names the locale and the line a finding stands on, and it holds
+// every translation rather than the base alone. The corpus is widened here
+// rather than in guardedDocuments because the other checks in this file read
+// the catalog as their source of truth and would be reading it against itself.
+func documentsThatPublishURLs(t *testing.T) []guardedDocument {
+	t.Helper()
+	documents := guardedDocuments(t)
+	locales, err := filepath.Glob(filepath.Join(repositoryRoot, "internal", "msg", "locales", "*.json"))
+	if err != nil {
+		t.Fatalf("read the message catalogs: %v", err)
+	}
+	if len(locales) == 0 {
+		t.Fatal("the tree carries no message catalog, so the text this tool prints is outside this corpus")
+	}
+	for _, path := range locales {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		documents = append(documents, guardedDocument{
+			name: "internal/msg/locales/" + filepath.Base(path),
+			text: strings.ReplaceAll(string(source), "\r\n", "\n"),
+		})
+	}
+	return documents
+}
+
+// TestTheDocumentationNamesOnlyPublishedFilesThatExist asserts that every URL a
+// guide, the quick start, or a message catalog gives for a file of this
+// repository names a path the working tree carries. The check reads the path
+// and not the network, so it holds the install section's own subject, and the
+// help block's pointer to the quick start, without making the suite depend on
 // GitHub.
-func TestTheGuidesNameOnlyPublishedFilesThatExist(t *testing.T) {
+func TestTheDocumentationNamesOnlyPublishedFilesThatExist(t *testing.T) {
 	named := 0
-	for _, document := range guardedDocuments(t) {
+	for _, document := range documentsThatPublishURLs(t) {
 		for number, line := range strings.Split(document.text, "\n") {
 			for _, found := range publishedFile.FindAllStringSubmatch(line, -1) {
 				named++
@@ -455,7 +499,7 @@ func TestTheGuidesNameOnlyPublishedFilesThatExist(t *testing.T) {
 		}
 	}
 	if named == 0 {
-		t.Error("no published URL was found in any guide or in the quick start, so this test proves nothing")
+		t.Error("no published URL was found in any guide, in the quick start, or in a message catalog, so this test proves nothing")
 	}
 }
 
