@@ -737,6 +737,14 @@
       "text": "Usage: dinah \u003ccommand\u003e [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
+    "init.actor.recorded": {
+      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor <name>` to change it, or `dinah config set actor` to clear it.",
+      "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
+    },
+    "init.actor.unrecorded": {
+      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor <name>` to say who you are.",
+      "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
+    },
     "init.done": {
       "text": "Workbench created at {root}.",
       "context": "Printed after init succeeds."
@@ -1030,11 +1038,11 @@
       "context": "Spliced onto refusal.no-operator as the next step. operator is a key name and stays in Latin script."
     },
     "refusal.no-owner": {
-      "text": "no owner was resolvable",
+      "text": "Dinah does not know who you are",
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner.next": {
-      "text": "; set one with --actor, DINAH_ACTOR or config actor",
+      "text": "; run `dinah config set actor <name>` to say so",
       "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.no-reason": {

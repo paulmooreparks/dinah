@@ -26,12 +26,10 @@ render.go:55.10,56.108  the unreachable outcome, which is by construction the ou
 render.go:65.16,68.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
 render.go:98.19,100.3  a token the catalog carries no rendering for, and every token the head prints has one.
 render.go:123.21,125.3  a served instruction offering no legal move, which needs a state with nothing after it.
-render.go:171.2,171.25  the human rendering of a false answer, so a status or whoami printed by somebody who is not the operator. Reachable and unreached: worth a test.
 render.go:194.29,197.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
 render.go:274.23,277.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
 render.go:309.19,311.5  the override mark on a move in the history. Reachable and unreached: worth a test.
 render.go:312.30,313.20  the reason a block carries in the history. Reachable and unreached: worth a test.
-render.go:373.59,375.2  the human rendering of whoami, which the corpus asks for through --json alone. Reachable and unreached: worth a test.
 render.go:382.32,384.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
 render.go:418.23,420.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
 render.go:456.18,458.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.

@@ -1812,7 +1812,7 @@ const theOneTable = "cmd/dinah/table.go"
 // them, so a mention anywhere else is either a row being written outside the
 // renderer or a second way to write, and pattern 11 refuses both.
 //
-// The first five are the writers themselves, and composeRefusal is not among
+// The first eight are the writers themselves, and composeRefusal is not among
 // them: it returns lines rather than writing them, which is what lets the text
 // path and the machine path share one composition. The last three hand a
 // stream to something outside the head: the value config <key> writes, the
@@ -1824,6 +1824,7 @@ const theOneTable = "cmd/dinah/table.go"
 var streamWriters = []string{
 	"write",
 	"line",
+	"errLine",
 	"fail",
 	"reportOutcome",
 	"emitJSON",
