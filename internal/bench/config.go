@@ -363,7 +363,7 @@ func GlobalInstructions(home string) string {
 const SlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 
 // Slugify derives a conforming workbench slug from a name that need not
-// conform, which is what a bench created in a directory called "Dinah
+// conform, which is what a workbench created in a directory called "Dinah
 // development" needs. The name goes through SlugifyDashed, so letters
 // lowercase by ASCII rules, digits survive, and each run of characters outside
 // [a-z0-9] becomes one dash. The result is then repaired against the exclusion

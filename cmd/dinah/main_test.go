@@ -4492,9 +4492,21 @@ func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) 
 	if deleteSentence == renameSentence {
 		t.Error("delete and the rename render one sentence, so the per-command selection is not running")
 	}
-	for _, tag := range msg.Tags() {
-		if wanted := msg.For(tag).T("refusal." + contract.Unconfirmed); wanted == "" {
+	tags := msg.Tags()
+	if len(tags) == 0 {
+		t.Fatal("no catalogs to check, so the per-catalog claim below proves nothing")
+	}
+	for _, tag := range tags {
+		if !msg.For(tag).Has("refusal." + contract.Unconfirmed) {
 			t.Errorf("%s carries no sentence for %s", tag, contract.Unconfirmed)
+		}
+		// What delete renders in this catalog is the bare sentence, and it is
+		// the bare sentence only while no per-command key exists to displace
+		// it: refusalSentence prefers refusal.<name>.<verb> wherever the
+		// catalog carries one. Asserting the absence is what carries the
+		// unchanged claim, since a non-empty bare entry survives a rewrite.
+		if msg.For(tag).Has("refusal." + contract.Unconfirmed + ".delete") {
+			t.Errorf("%s now carries a per-command sentence for delete, so delete no longer renders the sentence it always has", tag)
 		}
 	}
 
@@ -4531,11 +4543,10 @@ func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) 
 // keeps refusing because both commands declare the argument required.
 func TestPathAndEditReachTheWorkbenchAnchor(t *testing.T) {
 	root := newBench(t)
-	anchor := filepath.Join(benchDir(t, root), "workbench.md")
-	wanted, err := filepath.Abs(anchor)
-	if err != nil {
-		t.Fatalf("abs: %v", err)
-	}
+	// The head resolves its root through its own working directory, so the
+	// expectation is built from the directory the head itself reports rather
+	// than from the raw value t.TempDir() handed this test (see resolvedDir).
+	wanted := filepath.Join(resolvedDir(t, benchDir(t, root)), "workbench.md")
 	for _, ref := range []string{"workbench", "."} {
 		got := runCLI(t, root, "path", ref)
 		if got.code != 0 {

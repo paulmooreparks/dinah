@@ -87,7 +87,8 @@ var checklistKinds = map[string]string{
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
 // a card, or anything below a card composed by path. It is what the plumbing
-// guarantee of `path` rests on, and what `edit` walks.
+// guarantee of `path` rests on, what `edit` walks, and what `show` walks for
+// the composed form below a card.
 func (b *Bench) ResolvePath(ref string) (string, error) {
 	if IsWorkbenchRef(ref) {
 		return filepath.Abs(filepath.Join(b.Root, WorkbenchAnchor))
