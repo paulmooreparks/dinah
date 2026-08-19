@@ -40,6 +40,7 @@ func init() {
 		{name: "states", group: groupRead, run: runStates},
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
+		{name: "query", group: groupRead, run: runQuery, openTail: true},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		{name: "log", group: groupRead, run: runLog, bounded: 1},
 		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
@@ -283,6 +284,31 @@ func runNext(s *session, parsed *arguments) int {
 			return s.emitJSON(offers)
 		}
 		s.renderOffers(offers)
+		return 0
+	})
+}
+
+// runQuery reports the live cards matching a query.
+//
+// The query is the command's free-text slot rather than a flag, so a caller
+// who types the terms unquoted meets dinah-100's own refusal with the quoted
+// line rebuilt for them, instead of a second refusal saying the same thing.
+func runQuery(s *session, parsed *arguments) int {
+	req := s.request("query", parsed)
+	text, refusal := s.freeText([]string{"query"}, parsed.rest(), "slot.query")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Query = text
+	return s.withBench(func(l *verb.Library) int {
+		matches, err := l.Query(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(matches)
+		}
+		s.renderMatches(matches)
 		return 0
 	})
 }

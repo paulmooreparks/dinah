@@ -1134,28 +1134,35 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:214", label: "dinah config",
+			site: "render.go:219", label: "dinah query",
+			keys: []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"},
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
+				return indentedBlock(sweptRun(t, w.healthy, tag, "query"), "")
+			},
+		},
+		{
+			site: "render.go:231", label: "dinah config",
 			keys: []string{"column.config.setting", "column.config.value", "column.config.source"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "config"), "")
 			},
 		},
 		{
-			site: "render.go:242", label: "dinah workbenches",
+			site: "render.go:259", label: "dinah workbenches",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.ambiguous, tag, "workbenches"), "")
 			},
 		},
 		{
-			site: "render.go:242", label: "the ambiguous-workbench refusal, written to stderr",
+			site: "render.go:259", label: "the ambiguous-workbench refusal, written to stderr",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRefused(t, w.ambiguous, tag, "status"), "")
 			},
 		},
 		{
-			site: "render.go:268", label: "dinah next, a state offering a card",
+			site: "render.go:285", label: "dinah next, a state offering a card",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "next"), "")
@@ -1171,7 +1178,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:268", label: "dinah next, a state offering nothing",
+			site: "render.go:285", label: "dinah next, a state offering nothing",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "next"), "")
@@ -1188,7 +1195,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:285", label: "a card's links",
+			site: "render.go:302", label: "a card's links",
 			keys: []string{"column.links.link", "column.links.card"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "show", w.card)
@@ -1196,7 +1203,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:295", label: "a card's comments",
+			site: "render.go:312", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			constantReason: "a timestamp is one format in one time zone, so every comment header draws its stamp " +
@@ -1207,42 +1214,42 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:320", label: "dinah log",
+			site: "render.go:337", label: "dinah log",
 			keys: []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "log", w.held), "")
 			},
 		},
 		{
-			site: "render.go:336", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:353", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, sweptStrippedTree(t, w, "slugs-"+tag+"-"+sweptPass), tag, "check", "--migrate-slugs"), "")
 			},
 		},
 		{
-			site: "render.go:350", label: "one removed stranded state", varies: noCell,
+			site: "render.go:367", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states"), "")
 			},
 		},
 		{
-			site: "render.go:486", label: "the states a refusal lists", varies: noCell,
+			site: "render.go:503", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRefused(t, w.healthy, tag, "ls", "nowhere"), "")
 			},
 		},
 		{
-			site: "render.go:367", label: "one finding", varies: noCell,
+			site: "render.go:384", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check"), "")
 			},
 		},
 		{
-			site: "render.go:392", label: "catalog coverage",
+			site: "render.go:409", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "version", "--catalogs")
@@ -1275,14 +1282,14 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:365", label: "the guide topics",
+			site: "commands.go:391", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "guide"), "")
 			},
 		},
 		{
-			site: "render.go:594", label: "the workbench's own fields",
+			site: "render.go:611", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "workbench"), "")

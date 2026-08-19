@@ -269,6 +269,30 @@
       "text": "पंजिका इस कार्ड को स्थिति {detail} में रखती है, पर उसका शीर्ष असहमत है",
       "context": "A check finding: frontmatter position against the journal's replay."
     },
+    "check.query.1": {
+      "text": "क्वेरी का हर पद पढ़ा जा सकता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.2": {
+      "text": "क्वेरी जिस भी क्षेत्र का नाम लेती है वह इस उपकरण के पास है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.3": {
+      "text": "नामित क्षेत्र यह संकारक स्वीकार करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.4": {
+      "text": "हर उपस्थिति और हर घटना का नाम उस क्षेत्र की शब्दावली में है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.5": {
+      "text": "क्वेरी जिस भी स्थिति का नाम लेती है वह वर्कबेंच घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.6": {
+      "text": "क्वेरी जिस भी कार्यधारा का नाम लेती है वह किसी जीवित कार्ड में दर्ज है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.release.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
@@ -481,6 +505,10 @@
       "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु का फ़ाइल पथ छापें",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block."
     },
+    "cmd.query.summary": {
+      "text": "वर्कबेंच के वे कार्ड जो किसी क्वेरी से मेल खाते हैं",
+      "context": "The one-line summary of the query command, shown beside its syntax in the help block."
+    },
     "cmd.release.summary": {
       "text": "कार्ड उसकी कतार को लौटा दें",
       "context": "The one-line summary of the release command, shown beside its syntax in the help block."
@@ -627,7 +655,7 @@
     },
     "column.ls.standing": {
       "text": "दशा",
-      "context": "Heading over whether the card is ready, active or blocked, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over whether the card is ready, active, or blocked, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.ls.title": {
       "text": "शीर्षक",
@@ -656,6 +684,22 @@
     "column.next.title": {
       "text": "शीर्षक",
       "context": "Heading over the offered card's title, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.card": {
+      "text": "कार्ड",
+      "context": "Heading over the reference a person types to name the card, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.standing": {
+      "text": "दशा",
+      "context": "Heading over whether the card is ready, active, or blocked, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.state": {
+      "text": "स्थिति",
+      "context": "Heading over the title of the state the card occupies, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.title": {
+      "text": "शीर्षक",
+      "context": "Heading over the card's title, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.slugs.slug": {
       "text": "उपनाम",
@@ -825,6 +869,10 @@
       "text": "प्रश्न पूछा नहीं जा सका: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
+    "query.empty": {
+      "text": "उस क्वेरी से कोई कार्ड मेल नहीं खाता।",
+      "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal."
+    },
     "refusal.at-capacity": {
       "text": "स्थिति {detail} अपनी सीमा पर पहुँच गई है",
       "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about."
@@ -949,6 +997,18 @@
       "text": "; कमांड की सूची के लिए `dinah help` चलाएँ, जो काम के अनुसार समूहित है",
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints."
     },
+    "refusal.dinah.unknown-field": {
+      "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। क्वेरी जिन क्षेत्रों का नाम ले सकती है वे हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names, read off the query language rather than written here, so a field name is machine vocabulary and is never translated. refusal.dinah.unknown-field.ordered and refusal.dinah.unknown-field.next are spliced on after this one."
+    },
+    "refusal.dinah.unknown-field.next": {
+      "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या जाँचता है `dinah help query` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.unknown-field.ordered": {
+      "text": " केवल {instantField} >=, <=, > और < स्वीकार करता है।",
+      "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are."
+    },
     "refusal.dinah.unknown-guide": {
       "text": "{detail} विषय पर कोई मार्गदर्शिका नहीं है; Dinah इन विषयों पर मार्गदर्शिकाएँ रखती है",
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
@@ -976,6 +1036,26 @@
     "refusal.dinah.unknown-path.next": {
       "text": "; इस वर्कबेंच में क्या है यह देखने के लिए `dinah ls` चलाएँ",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to."
+    },
+    "refusal.dinah.unknown-value": {
+      "text": "Dinah {term} में {detail} स्वीकार नहीं करता।",
+      "context": "The sentence printed after the refusal name dinah.unknown-value, which a query giving a closed-vocabulary field a value that vocabulary does not hold carries. {detail} is the offending value and {term} is the whole term it was written in. Exactly one of refusal.dinah.unknown-value.legal and refusal.dinah.unknown-value.none is spliced on after it, and exactly one of the two next steps after that."
+    },
+    "refusal.dinah.unknown-value.legal": {
+      "text": " {field} जो मान लेता है वे हैं: {legal}।",
+      "context": "Spliced onto refusal.dinah.unknown-value when the field has values to offer. {field} is the field name and {legal} is its vocabulary. Both are machine vocabulary and are never translated."
+    },
+    "refusal.dinah.unknown-value.next": {
+      "text": " उनमें से किसी एक का नाम लें।",
+      "context": "The next step of refusal.dinah.unknown-value where the field had values to offer, so refusal.dinah.unknown-value.legal has just listed them."
+    },
+    "refusal.dinah.unknown-value.next-none": {
+      "text": " वह पद हटा दें, या यह देखने के लिए कि हर क्षेत्र क्या लेता है `dinah guide query` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-value where the field had nothing to offer, so there is no value to point the reader at and the term itself has to go. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.unknown-value.none": {
+      "text": " इस वर्कबेंच में {field} के लिए कोई मान नहीं है।",
+      "context": "Spliced onto refusal.dinah.unknown-value when the field's vocabulary is read from the cards and no card carries one. {field} is machine vocabulary and is never translated."
     },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी",
@@ -1188,6 +1268,10 @@
     "show.links": {
       "text": "कड़ियाँ:",
       "context": "The label above a card's links."
+    },
+    "slot.query": {
+      "text": "क्वेरी",
+      "context": "Names query's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
     "slug.missing": {
       "text": "कोई उपनाम नहीं (check --migrate-slugs चलाएँ)",

@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty commands, and every command the binary
+	// The block lists thirty-one commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 30 {
-		t.Errorf("wanted thirty listed commands, got %d", listed)
+	if listed != 31 {
+		t.Errorf("wanted thirty-one listed commands, got %d", listed)
 	}
 }
 
@@ -5480,4 +5480,158 @@ func TestInitRecordsTheActorWhenNothingElseNamesOne(t *testing.T) {
 			t.Errorf("whoami: wanted %q, got %q", "bo, operator: no", repaired.out)
 		}
 	})
+}
+
+// TestQueryRendersATableAndSaysSoWhenNothingMatched asserts the two human
+// renderings of the query command: the table it draws through the one renderer,
+// and the single line it prints instead when nothing matched.
+//
+// The state column is what separates this rendering from the one ls draws. A
+// query spans the whole workbench, so the reader is shown which state each card
+// is in, and it carries the state's title rather than its identifier.
+func TestQueryRendersATableAndSaysSoWhenNothingMatched(t *testing.T) {
+	root := newBench(t)
+	for _, title := range []string{"first", "second"} {
+		if got := runCLI(t, root, "add", title); got.code != 0 {
+			t.Fatalf("add %s: %d %s", title, got.code, got.errw)
+		}
+	}
+	if got := runCLI(t, root, "claim", "fx-1"); got.code != 0 {
+		t.Fatalf("claim: %d %s", got.code, got.errw)
+	}
+
+	drawn := runCLI(t, root, "query")
+	if drawn.code != 0 {
+		t.Fatalf("query: %d %s", drawn.code, drawn.errw)
+	}
+	catalog := msg.For(msg.Base)
+	for _, heading := range []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"} {
+		if !strings.Contains(drawn.out, catalog.T(heading)) {
+			t.Errorf("the query table carries no %s heading:\n%s", heading, drawn.out)
+		}
+	}
+	if !strings.Contains(drawn.out, "Intake") {
+		t.Errorf("the query table names no state title:\n%s", drawn.out)
+	}
+	for _, ref := range []string{"fx-1", "fx-2"} {
+		if !strings.Contains(drawn.out, ref) {
+			t.Errorf("the query table does not list %s:\n%s", ref, drawn.out)
+		}
+	}
+
+	empty := runCLI(t, root, "query", "holder:nobody")
+	if empty.code != 0 {
+		t.Fatalf("a query matching nothing exited %d: %s", empty.code, empty.errw)
+	}
+	if strings.TrimSpace(empty.out) != catalog.T("query.empty") {
+		t.Errorf("a query matching nothing printed %q rather than the empty line alone", empty.out)
+	}
+}
+
+// TestQueryEmitsTheDocumentTheEscapeHatchReads asserts the machine form: one
+// object carrying the query as it was received, the matched cards nested under
+// cards, and a count. The nesting is what the guide's downstream reader unnests,
+// and state_title is the member it groups by, so a card view that stopped
+// carrying one would break the guide's example while every other test passed.
+func TestQueryEmitsTheDocumentTheEscapeHatchReads(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "a card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	var document struct {
+		Query string `json:"query"`
+		Cards []struct {
+			Ref        string `json:"ref"`
+			StateTitle string `json:"state_title"`
+		} `json:"cards"`
+		Count int `json:"count"`
+	}
+	emitted := runCLI(t, root, "query", "--json")
+	if emitted.code != 0 {
+		t.Fatalf("query --json: %d %s", emitted.code, emitted.errw)
+	}
+	if err := json.Unmarshal([]byte(emitted.out), &document); err != nil {
+		t.Fatalf("the emitted document does not decode: %v\n%s", err, emitted.out)
+	}
+	if len(document.Cards) != 1 || document.Count != 1 {
+		t.Fatalf("the emitted document carries %d cards and a count of %d", len(document.Cards), document.Count)
+	}
+	if document.Cards[0].StateTitle == "" {
+		t.Error("the card the document carries has no state_title, which is the member the escape hatch groups by")
+	}
+
+	// The echo is the argument as received, so a caller comparing a stored
+	// result against what it sent finds its own string rather than a trimmed
+	// one it never wrote.
+	for _, text := range []string{"", " ", " holder:\"\" "} {
+		argv := []string{"query", "--json"}
+		if text != "" {
+			argv = []string{"query", text, "--json"}
+		}
+		got := runCLI(t, root, argv...)
+		if got.code != 0 {
+			t.Fatalf("query %q: %d %s", text, got.code, got.errw)
+		}
+		if err := json.Unmarshal([]byte(got.out), &document); err != nil {
+			t.Fatalf("query %q: %v", text, err)
+		}
+		if document.Query != text {
+			t.Errorf("query %q echoed %q", text, document.Query)
+		}
+		if document.Count != 1 {
+			t.Errorf("query %q selected %d cards, and every one of these selects the one card", text, document.Count)
+		}
+	}
+
+	refused := runCLI(t, root, "query", "substate:reday", "--json")
+	if refused.code != 2 {
+		t.Errorf("a query naming a value outside a closed vocabulary exited %d, want 2", refused.code)
+	}
+}
+
+// TestQueryTakesItsTermsAsOneQuotedArgument asserts that the query reaches the
+// command through the free-text slot rather than through a flag, so a caller who
+// forgets the quotation marks meets dinah-100's own refusal with the line
+// rebuilt for them instead of a second refusal saying the same thing.
+func TestQueryTakesItsTermsAsOneQuotedArgument(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "query", "state:doing", "holder:alka")
+	if got.code != 2 {
+		t.Fatalf("an unquoted query exited %d, want 2\n%s", got.code, got.out)
+	}
+	if !strings.HasPrefix(got.errw, contract.MultipleWords+" ") {
+		t.Errorf("an unquoted query refused with %q", got.errw)
+	}
+	if !strings.Contains(got.errw, `dinah query "state:doing holder:alka"`) {
+		t.Errorf("the refusal did not rebuild the quoted line:\n%s", got.errw)
+	}
+}
+
+// TestQueryHelpIsGeneratedFromTheCheckList asserts that the per-command help
+// block is derived from the library's own ordered check list rather than
+// written out beside it, so a check added, reordered or renamed changes the help
+// text and the behaviour together.
+func TestQueryHelpIsGeneratedFromTheCheckList(t *testing.T) {
+	root := newBench(t)
+	got := runCLI(t, root, "help", "query")
+	if got.code != 0 {
+		t.Fatalf("help query: %d %s", got.code, got.errw)
+	}
+	checks := verb.Checks("query")
+	if len(checks) != 6 {
+		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes six", len(checks))
+	}
+	catalog := msg.For(msg.Base)
+	at := 0
+	for i, check := range checks {
+		row := catalog.T(check.Key)
+		found := strings.Index(got.out[at:], row)
+		if found < 0 {
+			t.Fatalf("the help block does not carry check %d, %q:\n%s", i+1, row, got.out)
+		}
+		at += found + len(row)
+		if !strings.Contains(got.out[at:], check.Refusal) {
+			t.Errorf("check %d, %q, is not followed by its refusal name %s:\n%s", i+1, row, check.Refusal, got.out)
+		}
+	}
 }

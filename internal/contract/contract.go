@@ -130,6 +130,16 @@ const (
 	// AddNeedsAState is Add declining to file a card into a workbench whose
 	// states list has no live entries left for the card to land in.
 	AddNeedsAState = LayerPrefix + "add-needs-a-state"
+	// UnknownField is a query naming a field this tool does not have, or
+	// naming one with an operator it does not take. One name covers both
+	// because to a reader `Priority>=next` and `at:` are the same mistake:
+	// each names a combination the tool has no reading for.
+	UnknownField = LayerPrefix + "unknown-field"
+	// UnknownValue is a query giving a closed-vocabulary field a value that
+	// vocabulary does not hold. It is distinct from matching nothing,
+	// because an empty result is also the honest answer to a query that is
+	// exactly right, and a reader cannot tell a typo from a fact.
+	UnknownValue = LayerPrefix + "unknown-value"
 	// MultipleWords is an open-tail command's free-text slot (add's title,
 	// block's reason, comment's text, config set's value) getting more than
 	// one unquoted word. The sentence names the word count and rebuilds the
@@ -144,6 +154,7 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
+	UnknownField, UnknownValue,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -200,6 +211,16 @@ const (
 	// append-only history in every workbench that runs the command.
 	EventWorkbenchUpdated = "workbench_updated"
 )
+
+// Events lists the fifteen journal event names in the order the constants
+// above declare them, so a caller checking a value against the closed set
+// reads one list rather than repeating it.
+var Events = []string{
+	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
+	EventUnblocked, EventExpired, EventCommented, EventAttached,
+	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
+	EventRestored, EventDeleted, EventManualCorrection,
+}
 
 // Refusal is the error a verb returns when a rule says no. It carries the one
 // refusal name CORE-OUT-2 requires and a detail the head renders for a person.

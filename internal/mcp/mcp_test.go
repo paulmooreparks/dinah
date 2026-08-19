@@ -97,7 +97,7 @@ func payload(t *testing.T, answer *response) map[string]any {
 }
 
 // TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-two tools the spec names, that each input schema is generated from
+// twenty-three tools the spec names, that each input schema is generated from
 // the same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
@@ -117,8 +117,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 22 {
-		t.Errorf("wanted twenty-two tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 23 {
+		t.Errorf("wanted twenty-three tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -140,7 +140,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "workbench"} {
+	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
@@ -351,6 +351,57 @@ func TestUnknownMethodIsATransportError(t *testing.T) {
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"nonesuch"}`)
 	if answer.Error == nil || answer.Error.Code != codeMethodNotFound {
 		t.Errorf("wanted a method-not-found error, got %+v", answer)
+	}
+}
+
+// TestTheQueryToolCarriesTheSameMatchesTheCliEmits asserts the parity the
+// query card's whole design rests on: the tool takes the same string the
+// command line takes, hands it to the one library call, and its result carries
+// an object identical to the one the cli head emits under --json for that same
+// string.
+//
+// The comparison is made against the library's own Matches marshalled to JSON
+// rather than against a shape typed out here, because the cli head emits
+// exactly that value and a copy typed here would agree with the head only until
+// somebody changed one of them.
+func TestTheQueryToolCarriesTheSameMatchesTheCliEmits(t *testing.T) {
+	library := newLibrary(t)
+	for _, text := range []string{"", " ", "substate:ready", "holder:nobody"} {
+		encoded, err := json.Marshal(text)
+		if err != nil {
+			t.Fatalf("marshal %q: %v", text, err)
+		}
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":`+string(encoded)+`}}}`)
+		carried := payload(t, answer)
+		if len(carried["affordances"].([]any)) == 0 {
+			t.Errorf("query %q carried no affordances", text)
+		}
+		// payload decodes into maps, which lose member order, so the tool's
+		// own answer is read back into the library's type and re-emitted. A
+		// member the tool dropped, added or changed still fails below.
+		reencoded, err := json.Marshal(carried["matches"])
+		if err != nil {
+			t.Fatalf("marshal the tool's answer to %q: %v", text, err)
+		}
+		toolSide := &verb.Matches{}
+		if err := json.Unmarshal(reencoded, toolSide); err != nil {
+			t.Fatalf("the tool's answer to %q does not decode as Matches: %v", text, err)
+		}
+		got, err := json.Marshal(toolSide)
+		if err != nil {
+			t.Fatalf("marshal the tool's answer to %q: %v", text, err)
+		}
+		direct, err := library.Query(&verb.Request{Verb: "query", Actor: "alka", Query: text})
+		if err != nil {
+			t.Fatalf("the library refused %q: %v", text, err)
+		}
+		want, err := json.Marshal(direct)
+		if err != nil {
+			t.Fatalf("marshal the library's own answer: %v", err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("query %q:\n tool: %s\n  cli: %s", text, got, want)
+		}
 	}
 }
 

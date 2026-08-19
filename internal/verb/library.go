@@ -80,6 +80,10 @@ type Request struct {
 	Replace bool
 	// Confirm is the deliberate flag a delete requires.
 	Confirm bool
+	// Query is the query string the query command reads, carried byte for
+	// byte as the caller wrote it, since Matches echoes what it was given
+	// rather than what the parser made of it.
+	Query string
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
 	// Finish asks check to complete or roll back the interrupted structural

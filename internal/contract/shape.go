@@ -337,6 +337,25 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-command.next"},
 	},
 	{
+		// One name answers two of query's checks: a field the tool does not
+		// have, and a field given an operator it does not take. The sentence
+		// names the token the reader typed and lists the fields that are
+		// legal in its place, so the detail alone cannot carry it and the
+		// field list rides as a value read off the vocabulary itself.
+		//
+		// The ordered-operator clause is unconditional, because the two raise
+		// sites are indistinguishable to a reader who mistyped: one of them
+		// wrote an operator and the other did not, and the clause says which
+		// field takes the four ordered ones either way.
+		Name:   UnknownField,
+		Values: []string{"fields", "instantField"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.unknown-field.ordered"},
+			{Key: "refusal.dinah.unknown-field.next"},
+		},
+		NextStep: []string{"refusal.dinah.unknown-field.next"},
+	},
+	{
 		Name:      UnknownGuide,
 		Listing:   "guides",
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-guide.next"}},
@@ -364,6 +383,29 @@ var Shapes = []Shape{
 		NextStep: []string{
 			"refusal.dinah.unknown-path.next-file",
 			"refusal.dinah.unknown-path.next",
+		},
+	},
+	{
+		// A closed vocabulary either has values to offer or it does not, and
+		// the two branches need different advice: a reader who mistyped a
+		// substate is told to name one of the values the clause just listed,
+		// and a reader who named a workstream no live card lists has nothing
+		// to be pointed at, so the term itself is what has to go.
+		//
+		// The vocabulary is a value rather than a Listing, because which set
+		// this refusal enumerates depends on the field the term named, and
+		// the head cannot resolve that without learning the query language.
+		Name:   UnknownValue,
+		Values: []string{"term", "field", "legal"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.unknown-value.legal", When: "legal"},
+			{Key: "refusal.dinah.unknown-value.none", Unless: "legal"},
+			{Key: "refusal.dinah.unknown-value.next", When: "legal"},
+			{Key: "refusal.dinah.unknown-value.next-none"},
+		},
+		NextStep: []string{
+			"refusal.dinah.unknown-value.next",
+			"refusal.dinah.unknown-value.next-none",
 		},
 	},
 	{
