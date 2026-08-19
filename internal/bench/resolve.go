@@ -179,6 +179,10 @@ func checklistMount() (Mount, bool) {
 // then a member of it, and the member's own kind decides what the pair after
 // that may name, so a reference reaches as deep as the grammar goes.
 //
+// A collection holding a kind that is addressed in its own right is refused,
+// so the workbench's cards and states are reached by the address a person
+// types for them and by nothing else. See addressedInItsOwnRight.
+//
 // A segment the grammar does not know is refused rather than dropped. The
 // resolver used to read the first collection and discard everything past the
 // entity it found, which made `<card>/comments/1/attachments/1` open the
@@ -192,7 +196,7 @@ func checklistMount() (Mount, bool) {
 // to fall.
 func descend(dir, kind string, segments []string, narrow *string) (string, error) {
 	mount, ok := MountOf(kind, segments[0])
-	if !ok {
+	if !ok || addressedInItsOwnRight(mount.Kind) {
 		return "", contract.Refuse(contract.UnknownPath, segments[0])
 	}
 	collection := filepath.Join(dir, mount.Dir)
@@ -225,6 +229,23 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 		return payloadOf(member)
 	}
 	return descend(member, mount.Kind, below, nil)
+}
+
+// addressedInItsOwnRight reports whether a kind is one a person names directly
+// rather than by its position in the collection that holds it. A card is named
+// by its reference and a state by its slug, and each of those addresses is the
+// only one either kind has.
+//
+// The containment walk mounts both under the workbench and draws a row for
+// each, and the reference it draws for that row is the direct address rather
+// than a composed one, so nothing the tool prints needs the composed form. A
+// resolver accepting it anyway gives one entity two spellings, and the two
+// then have to be kept equal everywhere: the widened form reached the card
+// collection while filling in no card, which crashed the containment walk and
+// wrote a card's own history into the workbench journal under the workbench's
+// lock.
+func addressedInItsOwnRight(kind string) bool {
+	return kind == KindCard || kind == KindState
 }
 
 // payloadOf is the file an attachment wraps, which is the one file its payload

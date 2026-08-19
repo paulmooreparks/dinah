@@ -327,7 +327,13 @@ func TestTheNoValueGroupCarriesItsOwnLabel(t *testing.T) {
 
 // TestANodeHoldingBackBothKindsJoinsTheTwoSentences asserts that a node the
 // depth cut children off and the filter removed cards from below reports both
-// in one cell, in the fixed order.
+// in one cell, in the fixed order, and that the cell sits on the row of the
+// node actually holding them back.
+//
+// The row is read rather than the whole block searched. A block search passes
+// on a tree drawing the sentence against the wrong node, which is the shape the
+// no-value-label guard was corrected for, and no fixture can be relied on to
+// keep that shape unreachable.
 func TestANodeHoldingBackBothKindsJoinsTheTwoSentences(t *testing.T) {
 	root := newBench(t)
 	for range 3 {
@@ -344,7 +350,17 @@ func TestANodeHoldingBackBothKindsJoinsTheTwoSentences(t *testing.T) {
 		"first", catalog.T("tree.hidden.depth", "count", "2"),
 		"second", catalog.T("tree.hidden.filter", "count", "1"),
 	)
-	if !strings.Contains(got.out, want) {
-		t.Errorf("the tree does not carry %q:\n%s", want, got.out)
+	carrying := ""
+	for _, line := range strings.Split(got.out, "\n") {
+		if strings.Contains(line, want) {
+			carrying = line
+			break
+		}
+	}
+	if carrying == "" {
+		t.Fatalf("the tree does not carry %q:\n%s", want, got.out)
+	}
+	if !strings.Contains(carrying, "intake") {
+		t.Errorf("the joined account sits on %q, and the node holding both back is the intake group:\n%s", carrying, got.out)
 	}
 }

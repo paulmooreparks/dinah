@@ -779,6 +779,65 @@ func TestEachCommandRefusesADepthAgainstItsOwnLadder(t *testing.T) {
 	}
 }
 
+// TestACardIsReachedByItsOwnAddressAndByNoOther asserts that a reference
+// descending from the workbench into its cards or its states is refused, and
+// that the reference the walk actually draws for each of them still opens it.
+//
+// The containment grammar mounts cards and states under the workbench, so a
+// resolver walking that grammar from the root accepts `<slug>/cards/1` unless
+// something stops it. Nothing prints that form: the walk draws a card by its
+// own reference and a state by its slug. What the form did produce was an
+// answer marked as a card with no card in it, which crashed `dinah contents`
+// on the nil and, through `dinah attach`, wrote a card's own history into the
+// workbench journal under the workbench's lock. One entity with two spellings
+// has to be kept equal everywhere it is read, and it was not.
+//
+// The attachments collection is the one the widening was for, and it stays
+// open, because `<slug>/attachments/1` is a reference the walk prints and no
+// other spelling reaches it.
+func TestACardIsReachedByItsOwnAddressAndByNoOther(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("a card the workbench mounts")
+	h.attach("workbench", "policy.txt", "the workbench's own bytes")
+	h.reopen()
+	slug := h.library.Bench.Slug
+
+	for _, spelling := range []string{
+		slug + "/cards/1",
+		"workbench/cards/1",
+		slug + "/cards/1/comments/1",
+		slug + "/states/1",
+		"workbench/states/1",
+	} {
+		built, err := h.library.Contents(&Request{Verb: "contents", Ref: spelling}, LevelEntities)
+		if err == nil {
+			t.Errorf("contents %s answered with a tree rooted at %s, and no walk draws that reference", spelling, built.Root.Kind)
+			continue
+		}
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Errorf("contents %s failed with %v, which is not a refusal", spelling, err)
+			continue
+		}
+		if refusal.Name != contract.UnknownPath {
+			t.Errorf("contents %s refuses with %s, want %s", spelling, refusal.Name, contract.UnknownPath)
+		}
+	}
+
+	drawn := contentsOf(t, h, "workbench", LevelAll)
+	for _, node := range findKind(drawn.Root, bench.KindCard) {
+		if _, err := h.library.Bench.ResolvePath(node.Ref); err != nil {
+			t.Errorf("the walk draws the card as %s and that does not resolve: %v", node.Ref, err)
+		}
+		if node.Ref != ref {
+			t.Errorf("the walk draws the card as %s, want its own reference %s", node.Ref, ref)
+		}
+	}
+	if _, err := h.library.Bench.ResolvePath(slug + "/attachments/1"); err != nil {
+		t.Errorf("the workbench's own attachment is drawn as %s/attachments/1 and does not resolve: %v", slug, err)
+	}
+}
+
 // TestEveryReferenceAContentsTreeDrawsResolves asserts that a label copied out
 // of the tree opens the thing it names, and that a node below a card carries
 // the card's own reference in front of it.
@@ -813,7 +872,7 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 			return
 		}
 		drawn++
-		if strings.Count(node.Ref, "/") > 1 {
+		if collectionsBelowTheHead(node.Ref) > 1 {
 			deep++
 		}
 		if node.Ref == "" {
@@ -837,7 +896,7 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 		t.Fatal("the walk drew nothing below the workbench, so this test proves nothing")
 	}
 	if deep == 0 {
-		t.Fatal("the walk drew no reference reaching past one collection, so this test proves nothing about a resolver that stops there")
+		t.Fatal("the walk drew no reference descending through two collections, so this test proves nothing about a resolver that stops after one")
 	}
 	card := h.card(ref)
 	for _, node := range findKind(built.Root, bench.KindComment) {
@@ -845,6 +904,23 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 			t.Errorf("the comment reference %q does not carry its card's reference in front of it", node.Ref)
 		}
 	}
+}
+
+// collectionsBelowTheHead counts the collections a reference descends through,
+// which is the depth the resolver has to recurse to in order to answer it.
+//
+// A reference is a head naming an entity a person addresses directly, then a
+// pair of segments per collection: the collection's own name and a position in
+// it. So the number of pairs is the number of collections, and counting the
+// slashes instead answers 2 for `fx-1/comments/1`, which is one collection
+// deep and is exactly the reference the fixture this counter rejects would
+// have drawn.
+func collectionsBelowTheHead(ref string) int {
+	_, rest, found := strings.Cut(ref, "/")
+	if !found || rest == "" {
+		return 0
+	}
+	return len(strings.Split(rest, "/")) / 2
 }
 
 // findKind collects every node of a tree carrying one kind.

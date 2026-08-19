@@ -492,8 +492,10 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 //
 // A closed axis draws its declared members and is not limited to them. A card
 // stands where it stands whatever the workbench file says today, so a state
-// somebody deleted from the flow, and a card carrying no substate at all, both
-// keep a group of their own. Drawing only the declared members would drop
+// somebody deleted from the flow, and a substate written into a card by hand
+// outside the three the contract names, both keep a group of their own. A card
+// carrying no substate at all is not among the cases, because LoadCard supplies
+// ready when the field is absent. Drawing only the declared members would drop
 // those cards out of the tree with no node and no account while the root above
 // them went on counting them, and a card missing from a view whose total says
 // it is there is the one failure this projection must not have.

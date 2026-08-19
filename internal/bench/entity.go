@@ -531,6 +531,13 @@ type EntityRef struct {
 // bench itself, a state, a card, or any entity below one of those. It accepts
 // the same references ResolvePath does, so a reference a walk prints names the
 // same entity to every command that takes one.
+//
+// An answer of kind card always carries the card, and an answer below a card
+// always carries the card it belongs to. Callers read Card without asking, and
+// the ones that ask read a nil as the entity belonging to no card at all: the
+// event a write records goes to the bench journal and the lock it takes is the
+// bench's. A half-filled answer therefore does not degrade, it misreports, so
+// the last guard below refuses rather than returning one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	ref = strings.TrimSpace(ref)
 	// The empty reference is this resolver's own case and IsWorkbenchRef does
@@ -561,6 +568,9 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	kind, named := KindOfAnchor(filepath.Base(path))
 	if !named {
 		return nil, contract.Refuse(contract.UnknownPath, rest)
+	}
+	if kind == KindCard && card == nil {
+		return nil, contract.Refuse(contract.UnknownCard, ref)
 	}
 	dir := filepath.Dir(path)
 	return &EntityRef{Kind: kind, Dir: dir, ID: filepath.Base(dir), Card: card}, nil
