@@ -4688,9 +4688,22 @@ func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
 		if got.code != 2 {
 			t.Fatalf("an unknown guide exited %d, wanted 2", got.code)
 		}
-		for _, topic := range guide.Topics() {
+		// The rows are held in order as well as in membership. This refusal
+		// is one of the surfaces the declared reading order governs, and a
+		// per-topic containment check passes whatever order they stand in.
+		var listed []string
+		for _, line := range strings.Split(got.errw, "\n") {
+			if trimmed, found := strings.CutPrefix(line, "  "); found {
+				listed = append(listed, trimmed)
+			}
+		}
+		for at, topic := range guide.Topics() {
 			if !strings.Contains(got.errw, "  "+topic+"\n") {
 				t.Errorf("the listing should carry %q, got %q", topic, got.errw)
+				continue
+			}
+			if at >= len(listed) || listed[at] != topic {
+				t.Errorf("the listing stands in %v and the reading order places %q at position %d", listed, topic, at)
 			}
 		}
 		if !strings.HasSuffix(got.errw, english.T("refusal.dinah.unknown-guide.next")+"\n") {

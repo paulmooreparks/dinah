@@ -305,7 +305,15 @@ func TestGuidesAreResourcesAndMatchTheCLI(t *testing.T) {
 	if len(listed.Resources) != len(topics) {
 		t.Fatalf("wanted one resource per guide, got %d for %d guides", len(listed.Resources), len(topics))
 	}
-	for _, resource := range listed.Resources {
+	for at, resource := range listed.Resources {
+		// The position is asserted as well as the membership, because one
+		// declared reading order governs every surface that offers the
+		// guides. A count and a set of bytes hold while this head answers
+		// in any arrangement, and the arrangement is the thing a reader
+		// arriving with no guide open takes its recommendation from.
+		if wanted := "dinah://guide/" + topics[at]; resource.URI != wanted {
+			t.Errorf("resource %d is %s and the reading order places %s there", at, resource.URI, wanted)
+		}
 		read := ask(t, library, `{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"`+resource.URI+`"}}`)
 		body, err := json.Marshal(read.Result)
 		if err != nil {

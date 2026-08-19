@@ -2,8 +2,8 @@
 
 Somebody has pointed you at a workbench and told you nothing else. This guide
 runs in the order a session runs, so you can read it from the top and act as
-you go. Each section leaves you where the next one begins, and a session that
-stops halfway has still done the first half correctly.
+you go. Each section leaves you where the next one begins, and if you stop
+halfway you have still done the first half correctly.
 
 ## Find out where you are
 
@@ -22,12 +22,12 @@ different one.
 Run `dinah whoami`. Dinah prints the actor it will record for you, and whether
 that actor is the operator.
 
-Four rungs can supply that name. The `--actor <name>` flag names it for one
+Four sources can supply that name. The `--actor <name>` flag names it for one
 command, the `DINAH_ACTOR` variable names it for a shell, `dinah config set
 actor <name>` writes it down until you change it, and `dinah init --operator
 <name>` wrote it when Dinah did not already know you. Run `dinah config` to
 see every setting beside the source that supplied it, so you can read which
-rung answered before you write anything.
+one answered before you write anything.
 
 Set your own name before your first act. Dinah records the actor on every act,
 the journal only ever grows, and no later command corrects a name already
@@ -51,15 +51,15 @@ printed means nobody has written anything rather than that something is wrong.
 
 ## Take a card
 
-Work here is taken rather than handed out, so you choose your own card and
-nobody assigns you one. `dinah next` shows what each state offers next,
+You take work here rather than waiting to be given it, so you choose your own
+card and nobody assigns you one. `dinah next` shows what each state offers next,
 `dinah ls <state>` lists one state in the order its cards arrived, and
 `dinah query` answers the questions those two cannot. The language `query`
 reads is written down in `dinah guide query`.
 
 Run `dinah claim <card>` to take up a card that is waiting. A claim says you
-are working that card now, which is why you claim it before you start rather
-than once you have something to show. A successful claim prints the same
+are working that card now, so you claim it before you start rather than once
+you have something to show. A successful claim prints the same
 standing prose `dinah instructions` prints, together with the moves the card
 may make, and `--quiet` suppresses all of it when you have read it already.
 

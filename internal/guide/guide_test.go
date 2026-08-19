@@ -47,6 +47,13 @@ func TestTheReadingOrderPlacesEveryEmbeddedGuide(t *testing.T) {
 // caller the reading order itself rather than any other arrangement of the
 // same names, which is what makes one list govern every surface that offers
 // the guides.
+//
+// This test holds Topics against the declared order and cannot hold the
+// declared order itself, since both sides read the same slice: reordering
+// `reading` moves the expectation with the code. What pins the approved order
+// is the replayed `dinah guide` block in docs/quick-start.md, which the quick
+// start's replay drives byte for byte, so a reordering that nobody approved
+// fails there. Read the two together.
 func TestTopicsAreOfferedInTheDeclaredReadingOrder(t *testing.T) {
 	got := Topics()
 	if len(got) != len(reading) {

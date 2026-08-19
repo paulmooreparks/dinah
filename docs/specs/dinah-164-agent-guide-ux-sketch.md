@@ -7,6 +7,12 @@ workbench. The "after" blocks come from the same tree carrying a placeholder
 lead line, built and run the same way. The prototype was reverted and nothing
 of it is proposed as an implementation.
 
+Every block below was drawn before dinah-172 merged, so none of them shows the
+`references` guide that card added. The listing that ships carries `references`
+after `verbs`, and the shipped refusal lists six topics rather than five. The
+drawings are left as they were drawn, because each one came out of a real
+render and redrawing one by hand would make it a composition.
+
 ## What `dinah guide` prints today
 
 ```
@@ -37,7 +43,8 @@ The guides stand in the order Dinah recommends reading them.
 ```
 
 The widest line of that block is 55 columns, so the table does not stack at the
-assumed window of 80.
+assumed window of 80. The block that ships adds the `references` row and its
+widest line is the lead sentence at 60 columns, which is still inside 80.
 
 ## The unknown-topic refusal
 
@@ -65,7 +72,8 @@ run `dinah guide <topic>` with one of them
 ```
 
 The refusal lists the topics through the same function, so the reading order
-reaches it without a second mechanism.
+reaches it without a second mechanism. The refusal that ships carries
+`references` after `verbs` here too, for the same reason.
 
 ## The outline of `first-session`
 
