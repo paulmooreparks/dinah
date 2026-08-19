@@ -257,6 +257,18 @@ type CommentView struct {
 // Show reads a card, or the file anything below it names.
 func (l *Library) Show(req *Request) (*Detail, string, error) {
 	head, rest, _ := strings.Cut(req.Card, "/")
+	// A state is an entity of the workbench, and the containment walk prints
+	// a reference for one, so show reads it the way path and edit do rather
+	// than refusing over a reference the tool told the reader to type.
+	if rest == "" {
+		if state := l.Bench.StateByRef(head); state != nil {
+			text, err := bench.ReadText(l.Bench.StateAnchorPath(state.ID))
+			if err != nil {
+				return nil, "", contract.Refuse(contract.UnknownPath, head)
+			}
+			return nil, text, nil
+		}
+	}
 	found, err := l.Bench.ResolveCard(head)
 	if err != nil {
 		return nil, "", err

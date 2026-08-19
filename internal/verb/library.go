@@ -84,6 +84,12 @@ type Request struct {
 	// byte as the caller wrote it, since Matches echoes what it was given
 	// rather than what the parser made of it.
 	Query string
+	// GroupBy is the axis chain a tree nests along, as the caller wrote it:
+	// one comma-separated word, empty for the default chain.
+	GroupBy string
+	// Depth is the named level a tree projection stops at, empty for the
+	// command's own default.
+	Depth string
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
 	// Finish asks check to complete or roll back the interrupted structural

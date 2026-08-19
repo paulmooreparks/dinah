@@ -18,7 +18,7 @@ import (
 // offers no way to write one.
 var valuedFlags = []string{
 	"workbench", "lang", "actor", "state", "expires", "kind",
-	"from", "description", "slug", "operator",
+	"from", "description", "slug", "operator", "group-by", "depth",
 }
 
 // markerFlags are the flags that carry no value.

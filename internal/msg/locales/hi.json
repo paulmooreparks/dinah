@@ -113,6 +113,14 @@
       "text": "कुंजी वह है जो यह उपकरण जानता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.contents.1": {
+      "text": "संदर्भ इस वर्कबेंच में किसी वस्तु को नामित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.contents.2": {
+      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.count.one": {
       "text": "{count} दोष।",
       "context": "The count line after check's findings, for exactly one finding."
@@ -349,6 +357,22 @@
       "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
       "context": "A check finding: a torn journal tail left by a crash."
     },
+    "check.tree.1": {
+      "text": "नामित प्रत्येक अक्ष वह है जिस पर यह उपकरण समूहन करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.2": {
+      "text": "कोई भी अक्ष दो बार नामित नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.3": {
+      "text": "श्रृंखला अधिकतम चार अक्ष नामित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.4": {
+      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.unblock.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -449,6 +473,10 @@
       "text": "अपनी उपयोगकर्ता सेटिंग सूचीबद्ध करें, या कोई एक पढ़ें या लिखें",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
     },
+    "cmd.contents.summary": {
+      "text": "वर्कबेंच की किसी इकाई में क्या है",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block."
+    },
     "cmd.delete.summary": {
       "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु, उसके इतिहास सहित नष्ट करें",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
@@ -524,6 +552,10 @@
     "cmd.status.summary": {
       "text": "यह वर्कबेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block."
+    },
+    "cmd.tree.summary": {
+      "text": "अक्षों की श्रृंखला पर नियोजित वर्कबेंच के कार्ड",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
     },
     "cmd.unblock.summary": {
       "text": "बाधा हटाएँ (केवल संचालक)",
@@ -729,6 +761,26 @@
       "text": "उपनाम",
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.tree.count": {
+      "text": "गणना",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.entity": {
+      "text": "इकाई",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.hidden": {
+      "text": "नहीं दिखाया गया",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.reference": {
+      "text": "संदर्भ",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.title": {
+      "text": "शीर्षक",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "column.workbench.field": {
       "text": "क्षेत्र",
       "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -748,6 +800,14 @@
     "column.workbenches.workbench": {
       "text": "वर्कबेंच",
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) में कुछ नहीं है।",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake."
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) में {count} इकाइयाँ हैं।",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
     },
     "extract.done": {
       "text": "परिभाषा {dir} में लिखी गई।",
@@ -897,6 +957,14 @@
       "text": "--workbench <path> से एक चुनें, या उसके भीतर से चलाएँ",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
+    "refusal.dinah.chain-too-long": {
+      "text": "एक समूहन श्रृंखला अधिकतम {allowed} अक्षों पर नियोजित होती है, और यह {asked} नामित करती है।",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one."
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " श्रृंखला छोटी करें, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
@@ -973,6 +1041,14 @@
       "text": "; पहले `dinah move` से उन्हें बाहर ले जाएँ, फिर दोबारा आज़माएँ",
       "context": "Spliced onto refusal.dinah.occupied as the next step."
     },
+    "refusal.dinah.repeated-axis": {
+      "text": "एक समूहन श्रृंखला प्रत्येक अक्ष को एक बार नाम देती है, और यह {detail} को दो बार नाम देती है।",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " दोहराव हटाएँ, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unconfirmed": {
       "text": "delete इतिहास मिटाता है",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
@@ -989,6 +1065,14 @@
       "text": " आदेश को --yes के साथ फिर चलाएँ।",
       "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next."
     },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah {detail} पर समूहन नहीं करता। जिन अक्षों पर एक वृक्ष नियोजित हो सकता है, वे हैं: {axes}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " इनमें से किसी एक को नाम दें, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
@@ -996,6 +1080,14 @@
     "refusal.dinah.unknown-command.next": {
       "text": "; कमांड की सूची के लिए `dinah help` चलाएँ, जो काम के अनुसार समूहित है",
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints."
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "इस आदेश के लिए Dinah में {detail} नामक कोई गहराई स्तर नहीं है। यह जिन स्तरों को लेता है, वे हैं: {levels}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " इनमें से किसी एक को नाम दें, या यह देखने के लिए आदेश पर `dinah help` चलाएँ कि वह क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unknown-field": {
       "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। क्वेरी जिन क्षेत्रों का नाम ले सकती है वे हैं: {fields}।",
@@ -1452,6 +1544,34 @@
     "token.workbench_updated": {
       "text": "वर्कबेंच बदला",
       "context": "The word a person reads for the workbench_updated journal event."
+    },
+    "tree.empty": {
+      "text": "यहाँ कोई कार्ड नहीं है।",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it."
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) में {count} कार्ड हैं।",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it."
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) में {held} कार्ड हैं, जिनमें से {matched} प्रश्न से मेल खाते हैं।",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller."
+    },
+    "tree.hidden.depth": {
+      "text": "{count} नहीं दिखाए गए",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those."
+    },
+    "tree.hidden.filter": {
+      "text": "{count} छानकर हटाए गए",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's."
+    },
+    "tree.unset": {
+      "text": "(कोई मान नहीं)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
     },
     "version.catalogs": {
       "text": "सूचियाँ:",

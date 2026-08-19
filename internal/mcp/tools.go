@@ -49,6 +49,8 @@ var tools = []tool{
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
 	{name: "query", command: "query", run: readQuery},
+	{name: "tree", command: "tree", run: readTree},
+	{name: "contents", command: "contents", run: readContents},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
 	{name: "instructions", command: "instructions", run: readInstructions},
@@ -173,6 +175,35 @@ func readQuery(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"matches": matches}, readAffordances)
+}
+
+// readTree answers the tree tool. It carries the same Tree object the cli head
+// emits under --json for the same arguments, since both heads hand the one
+// library call the one chain, the one level and the one query string.
+func readTree(l *verb.Library, r *verb.Request) any {
+	chain := verb.ParseChain(r.GroupBy)
+	level := r.Depth
+	if level == "" {
+		level = verb.LevelCards
+	}
+	tree, err := l.Tree(r, chain, level)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"tree": tree}, readAffordances)
+}
+
+// readContents answers the contents tool.
+func readContents(l *verb.Library, r *verb.Request) any {
+	level := r.Depth
+	if level == "" {
+		level = verb.LevelEntities
+	}
+	tree, err := l.Contents(r, level)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"tree": tree}, readAffordances)
 }
 
 // readShow answers the show tool.

@@ -93,6 +93,12 @@ func (b *Bench) ResolvePath(ref string) (string, error) {
 	if IsWorkbenchRef(ref) {
 		return filepath.Abs(filepath.Join(b.Root, WorkbenchAnchor))
 	}
+	// A state is an entity of the workbench and the containment walk draws
+	// one, so the reference a walk prints for it opens the state the way
+	// every other reference opens what it names.
+	if state := b.StateByRef(strings.TrimSpace(ref)); state != nil {
+		return filepath.Abs(b.StateAnchorPath(state.ID))
+	}
 	head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/")
 	found, err := b.ResolveCard(head)
 	if err != nil {
@@ -114,23 +120,43 @@ func walkBelowCard(card *Card, rest string) (string, error) {
 	segments := strings.Split(rest, "/")
 	head := segments[0]
 	tail := segments[1:]
-	switch head {
-	case CardAnchor, "card":
+	// The card's own two files are named by segment rather than by
+	// collection, so they are answered ahead of the grammar. Neither is an
+	// entity of the containment table: the anchor is the card itself and the
+	// journal is content.
+	if head == CardAnchor || head == KindCard {
 		return card.AnchorPath(), nil
-	case "journal", JournalName:
+	}
+	if head == "journal" || head == JournalName {
 		return card.JournalPath(), nil
-	case CommentsDir:
-		return entityBelow(filepath.Join(card.Dir, CommentsDir), CommentAnchor, tail, nil)
-	case AttachmentsDir:
-		return attachmentBelow(filepath.Join(card.Dir, AttachmentsDir), tail)
-	case ChecklistDir:
-		return entityBelow(filepath.Join(card.Dir, ChecklistDir), ItemAnchor, tail, nil)
+	}
+	if mount, ok := MountOf(KindCard, head); ok {
+		if mount.Kind == KindAttachment {
+			return attachmentBelow(filepath.Join(card.Dir, mount.Dir), tail)
+		}
+		return entityBelow(filepath.Join(card.Dir, mount.Dir), mount.Anchor, tail, nil)
 	}
 	kind, ok := checklistKinds[head]
 	if !ok {
 		return "", contract.Refuse(contract.UnknownPath, rest)
 	}
-	return entityBelow(filepath.Join(card.Dir, ChecklistDir), ItemAnchor, tail, &kind)
+	items, ok := checklistMount()
+	if !ok {
+		return "", contract.Refuse(contract.UnknownPath, rest)
+	}
+	return entityBelow(filepath.Join(card.Dir, items.Dir), items.Anchor, tail, &kind)
+}
+
+// checklistMount is the collection a checklist alias such as oq narrows, read
+// off the containment grammar so the aliases follow the table rather than a
+// second statement of where a checklist lives.
+func checklistMount() (Mount, bool) {
+	for _, mount := range Contains(KindCard) {
+		if mount.Kind == KindItem {
+			return mount, true
+		}
+	}
+	return Mount{}, false
 }
 
 // entityBelow resolves a collection, or one entity of it named by identifier

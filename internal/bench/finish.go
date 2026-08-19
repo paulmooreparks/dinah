@@ -118,24 +118,33 @@ func (b *Bench) entityLockDir(collection, source string) string {
 }
 
 // siblingCollections lists the live collection directories a structural act
-// can leave a sibling in: the bench's own cards, states and attachments, and
-// the collections below each live state, card and comment.
+// can leave a sibling in: every collection the workbench mounts, and every
+// collection each live entity below it mounts in turn.
+//
+// The walk reads Contains rather than naming the collections here, so a kind
+// gaining a collection is reachable by the interruption sweep without this
+// function being edited.
 func (b *Bench) siblingCollections() []string {
-	states := filepath.Join(b.Root, StatesDir)
-	collections := []string{b.CardsRoot(), states, filepath.Join(b.Root, AttachmentsDir)}
-	for _, id := range ListIDs(states) {
-		collections = append(collections, filepath.Join(states, id, AttachmentsDir))
+	var collections []string
+	for _, mount := range Contains(KindWorkbench) {
+		dir := filepath.Join(b.Root, mount.Dir)
+		collections = append(collections, dir)
+		for _, id := range ListIDs(dir) {
+			collections = append(collections, b.collectionsBelow(filepath.Join(dir, id), mount.Kind)...)
+		}
 	}
-	for _, id := range ListIDs(b.CardsRoot()) {
-		dir := filepath.Join(b.CardsRoot(), id)
-		comments := filepath.Join(dir, CommentsDir)
-		collections = append(collections,
-			comments,
-			filepath.Join(dir, AttachmentsDir),
-			filepath.Join(dir, ChecklistDir),
-		)
-		for _, commentID := range ListIDs(comments) {
-			collections = append(collections, filepath.Join(comments, commentID, AttachmentsDir))
+	return collections
+}
+
+// collectionsBelow lists the live collection directories below one entity,
+// walking the containment grammar down from the kind it names.
+func (b *Bench) collectionsBelow(dir, kind string) []string {
+	var collections []string
+	for _, mount := range Contains(kind) {
+		collection := filepath.Join(dir, mount.Dir)
+		collections = append(collections, collection)
+		for _, id := range ListIDs(collection) {
+			collections = append(collections, b.collectionsBelow(filepath.Join(collection, id), mount.Kind)...)
 		}
 	}
 	return collections

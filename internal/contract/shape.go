@@ -356,6 +356,41 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.unknown-field.next"},
 	},
 	{
+		// The axis list rides as a value read off the disposition table
+		// itself rather than written into the catalog, so an axis added to
+		// the vocabulary reaches this sentence without a translator being
+		// asked for anything.
+		Name:      UnknownAxis,
+		Values:    []string{"axes"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-axis.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-axis.next"},
+	},
+	{
+		// This sentence names the repeated axis and lists nothing, since the
+		// axis it names is already one of the legal ones and listing them
+		// would say so twice.
+		Name:      RepeatedAxis,
+		Fragments: []Fragment{{Key: "refusal.dinah.repeated-axis.next"}},
+		NextStep:  []string{"refusal.dinah.repeated-axis.next"},
+	},
+	{
+		// Two numbers and no axis name at all, because the chain that was
+		// refused may name nothing illegal.
+		Name:      ChainTooLong,
+		Values:    []string{"asked", "allowed"},
+		Fragments: []Fragment{{Key: "refusal.dinah.chain-too-long.next"}},
+		NextStep:  []string{"refusal.dinah.chain-too-long.next"},
+	},
+	{
+		// The levels ride as a value rather than as a Listing, because which
+		// ladder this refusal enumerates depends on the command that raised
+		// it and the head cannot resolve that without learning both.
+		Name:      UnknownDepth,
+		Values:    []string{"levels"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-depth.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-depth.next"},
+	},
+	{
 		Name:      UnknownGuide,
 		Listing:   "guides",
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-guide.next"}},

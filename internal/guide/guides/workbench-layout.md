@@ -32,6 +32,23 @@ tear the last line and nothing before it. An action carries the names of
 whatever it refers to as they stood at the time, so the history still reads
 years later when the states it names have been renamed or removed.
 
+You can read that same tree back through the tool rather than through a file
+browser. `dinah contents` walks down from anything you name and prints what it
+found:
+
+```
+dinah contents workbench
+dinah contents proj-1
+```
+
+Dinah prints one row per entity, with the reference you type to reach it in the
+first column. A comment of a card is `proj-1/comments/1`, counting in the order
+the comments were written, and a checklist item is `proj-1/checklist/2`. Those
+are addresses rather than paths, so you can hand any of them straight to
+`dinah show`, `dinah path`, or `dinah edit`. Dinah stops at the entities a card
+holds unless you ask for more with `--depth all`, and it tells you in the
+last column how much it held back.
+
 Hand-editing is legal. Edit the frontmatter with an editor when you need to,
 then run `dinah check`, which reports the defects the format forbids: a claim
 without the substate that implies it, a block with no reason, a card naming a

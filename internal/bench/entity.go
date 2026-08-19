@@ -510,7 +510,8 @@ func reportInterruption(err error, act *StructuralAct, benchLock *Lock) error {
 // EntityRef is a reference resolved to an entity directory and the kind of
 // thing that directory holds.
 type EntityRef struct {
-	// Kind is one of bench, state, card, comment and attachment.
+	// Kind is one of the containment grammar's kinds, as Contains names
+	// them: workbench, state, card, comment, item and attachment.
 	Kind string
 	// Dir is the entity's directory.
 	Dir string
@@ -533,10 +534,10 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	// The empty reference is this resolver's own case and IsWorkbenchRef does
 	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
 	if ref == "" || IsWorkbenchRef(ref) {
-		return &EntityRef{Kind: "workbench", Dir: b.Root}, nil
+		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil
 	}
 	if state := b.StateByRef(ref); state != nil {
-		return &EntityRef{Kind: "state", Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
+		return &EntityRef{Kind: KindState, Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	found, err := b.ResolveCard(head)
@@ -544,26 +545,17 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 		return nil, err
 	}
 	if rest == "" {
-		entity := &EntityRef{Kind: "card", Dir: found.Card.Dir, ID: found.Card.ID, Card: found.Card}
+		entity := &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Card: found.Card}
 		return entity, nil
 	}
 	path, err := walkBelowCard(found.Card, rest)
 	if err != nil {
 		return nil, err
 	}
-	dir := path
-	kind := "card"
-	switch filepath.Base(path) {
-	case CommentAnchor:
-		dir, kind = filepath.Dir(path), "comment"
-	case AttachmentAnchor:
-		dir, kind = filepath.Dir(path), "attachment"
-	case ItemAnchor:
-		dir, kind = filepath.Dir(path), "item"
-	case CardAnchor:
-		dir, kind = filepath.Dir(path), "card"
-	default:
+	kind, named := KindOfAnchor(filepath.Base(path))
+	if !named {
 		return nil, contract.Refuse(contract.UnknownPath, rest)
 	}
+	dir := filepath.Dir(path)
 	return &EntityRef{Kind: kind, Dir: dir, ID: filepath.Base(dir), Card: found.Card}, nil
 }

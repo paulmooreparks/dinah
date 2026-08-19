@@ -20,6 +20,9 @@ READ
   ls [state] [--ready]                   the cards of a state, in queue order
   next [state]                           the card a state offers next
   query [query]                          the cards of the workbench that match a query
+  tree [query] [--group-by <axes>] [--depth <level>]
+                                         the workbench's cards nested along a chain of axes
+  contents <ref> [--depth <level>]       what an entity of the workbench contains
   show <card|path>                       a card, or anything below it
   log <card>                             the recorded actions of a card, oldest first
   instructions <card|state>              the instructions served at a position

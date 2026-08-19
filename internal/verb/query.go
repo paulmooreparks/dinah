@@ -110,26 +110,7 @@ type query struct {
 // read no card, and the last reads every live card because the identifiers in
 // use are the only workstream roster a workbench holds.
 func (l *Library) Query(req *Request) (*Matches, error) {
-	parsed, err := parseQuery(req.Query)
-	if err != nil {
-		return nil, err
-	}
-	if err := l.checkVocabularies(parsed); err != nil {
-		return nil, err
-	}
-	cards, err := l.Bench.Cards()
-	if err != nil {
-		return nil, err
-	}
-	for _, card := range cards {
-		if err := l.lapseRead(card); err != nil {
-			return nil, err
-		}
-	}
-	if err := checkWorkstreams(parsed, cards); err != nil {
-		return nil, err
-	}
-	matched, err := l.selectCards(parsed, cards)
+	matched, _, err := l.selection(req.Query)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +121,41 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 	}
 	matches.Count = len(matches.Cards)
 	return matches, nil
+}
+
+// selection applies a query string to the workbench's live cards, returning
+// the cards it selected and every card it was measured against.
+//
+// It is the whole of the query language in one call: the parse, the four
+// vocabulary checks and the selection, in the order the spec's section 10
+// fixes. Both the query command and the grouped tree go through it, so one
+// string handed to either selects one set of cards, and the tree's account of
+// what the filter removed is read off the same pair rather than recomputed.
+func (l *Library) selection(text string) (matched, live []*bench.Card, err error) {
+	parsed, err := parseQuery(text)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := l.checkVocabularies(parsed); err != nil {
+		return nil, nil, err
+	}
+	cards, err := l.Bench.Cards()
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, card := range cards {
+		if err := l.lapseRead(card); err != nil {
+			return nil, nil, err
+		}
+	}
+	if err := checkWorkstreams(parsed, cards); err != nil {
+		return nil, nil, err
+	}
+	kept, err := l.selectCards(parsed, cards)
+	if err != nil {
+		return nil, nil, err
+	}
+	return kept, cards, nil
 }
 
 // parseQuery runs checks 1 to 3: every term parses, every field is one this

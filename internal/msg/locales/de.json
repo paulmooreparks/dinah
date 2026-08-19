@@ -141,6 +141,16 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.contents.1": {
+      "text": "the reference names something in this workbench",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.contents.2": {
+      "text": "the depth level is one this command declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.count.one": {
       "text": "{count} defect.",
       "context": "The count line after check's findings, for exactly one finding.",
@@ -436,6 +446,26 @@
       "context": "A check finding: a torn journal tail left by a crash.",
       "skeleton": true
     },
+    "check.tree.1": {
+      "text": "every axis named is one this tool groups on",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.tree.2": {
+      "text": "no axis is named twice",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.tree.3": {
+      "text": "the chain names at most four axes",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.tree.4": {
+      "text": "the depth level is one this command declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.unblock.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -561,6 +591,11 @@
       "context": "The one-line summary of the config command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.contents.summary": {
+      "text": "what an entity of the workbench contains",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.delete.summary": {
       "text": "destroy a card, a state, or anything below a card, along with its history",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
@@ -654,6 +689,11 @@
     "cmd.status.summary": {
       "text": "where this workbench stands, and what you hold",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.tree.summary": {
+      "text": "the workbench's cards nested along a chain of axes",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.unblock.summary": {
@@ -911,6 +951,31 @@
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
+    "column.tree.count": {
+      "text": "Count",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.entity": {
+      "text": "Entity",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.hidden": {
+      "text": "Not shown",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.reference": {
+      "text": "Reference",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.title": {
+      "text": "Title",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
     "column.workbench.field": {
       "text": "Field",
       "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -934,6 +999,16 @@
     "column.workbenches.workbench": {
       "text": "Workbench",
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) contains nothing.",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake.",
+      "skeleton": true
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) contains {count} entities.",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
       "skeleton": true
     },
     "extract.done": {
@@ -1131,6 +1206,16 @@
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
       "skeleton": true
     },
+    "refusal.dinah.chain-too-long": {
+      "text": "A group-by chain nests along at most {allowed} axes, and this one names {asked}.",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " Shorten the chain, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
     "refusal.dinah.exists": {
       "text": "{detail} already carries a workbench.md",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
@@ -1251,6 +1336,16 @@
       "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with.",
       "skeleton": true
     },
+    "refusal.dinah.repeated-axis": {
+      "text": "A group-by chain names each axis once, and this one names {detail} twice.",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " Remove the repeat, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
     "refusal.dinah.unconfirmed": {
       "text": "delete destroys history",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about.",
@@ -1271,6 +1366,16 @@
       "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah does not group on {detail}. The axes a tree may nest along are: {axes}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " Name one of those instead, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah offers no command called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
@@ -1279,6 +1384,16 @@
     "refusal.dinah.unknown-command.next": {
       "text": "; run `dinah help` for the list of commands, grouped by what they do",
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "Dinah has no depth level {detail} for this command. The levels it takes are: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " Name one of those instead, or run `dinah help` on the command to see what it checks.",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
     "refusal.dinah.unknown-field": {
@@ -1814,6 +1929,41 @@
     "token.workbench_updated": {
       "text": "workbench updated",
       "context": "The word a person reads for the workbench_updated journal event.",
+      "skeleton": true
+    },
+    "tree.empty": {
+      "text": "No cards here.",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it.",
+      "skeleton": true
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) holds {count} cards.",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it.",
+      "skeleton": true
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) holds {held} cards, of which {matched} match the query.",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller.",
+      "skeleton": true
+    },
+    "tree.hidden.depth": {
+      "text": "{count} not shown",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those.",
+      "skeleton": true
+    },
+    "tree.hidden.filter": {
+      "text": "{count} filtered out",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out.",
+      "skeleton": true
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
+      "skeleton": true
+    },
+    "tree.unset": {
+      "text": "(no value)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at.",
       "skeleton": true
     },
     "version.catalogs": {

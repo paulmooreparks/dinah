@@ -3363,3 +3363,120 @@ func checkNoCatalogKeepsAClauseItHandedOver(t *testing.T, shapes map[string]*con
 		}
 	}
 }
+
+// theOneContainmentTable is the file the containment grammar is declared in.
+const theOneContainmentTable = "internal/bench/containment.go"
+
+// anchorConstants are the identifiers naming an entity kind's anchor file.
+// The grammar is what says which kind mounts which collection, so a switch or
+// a map keyed on one of these names is a second copy of the grammar.
+var anchorConstants = map[string]bool{
+	"StateAnchor":      true,
+	"CardAnchor":       true,
+	"CommentAnchor":    true,
+	"AttachmentAnchor": true,
+	"ItemAnchor":       true,
+}
+
+// TestTheContainmentGrammarIsDeclaredOnce asserts that no anchor constant
+// appears inside a switch statement or a map literal anywhere but the table
+// that declares the grammar.
+//
+// Four places carried a kind-to-anchor literal before the table existed: the
+// walk below a card, the anchor switch at the foot of the entity resolver, the
+// collections an ordinal is assigned within, and the collections a structural
+// act can leave a sibling in. A fifth copy is what would make a declared
+// extension kind reachable in one of them and invisible to the other four, so
+// the rule is a guard rather than a comment.
+//
+// Test sources are outside the scan, since a test naming an anchor is reading
+// what the tool wrote rather than deciding what contains what.
+func TestTheContainmentGrammarIsDeclaredOnce(t *testing.T) {
+	root := filepath.Join("..", "..")
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(theOneContainmentTable))); err != nil {
+		t.Fatalf("the one containment table is not where this guard exempts it: %v", err)
+	}
+	scanned := 0
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skippedTrees[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		if filepath.ToSlash(relative) == theOneContainmentTable {
+			return nil
+		}
+		scanned++
+		for _, finding := range anchorsInDecisions(t, path) {
+			t.Errorf("%s: %s, and %s is where the containment grammar is declared", filepath.ToSlash(relative), finding, theOneContainmentTable)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if scanned == 0 {
+		t.Error("the walk read no source at all, so this guard proves nothing")
+	}
+}
+
+// anchorsInDecisions reports every anchor constant one source names inside a
+// switch statement or a map literal, with the line it stands on.
+func anchorsInDecisions(t *testing.T, path string) []string {
+	t.Helper()
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, path, nil, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	var found []string
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch typed := node.(type) {
+		case *ast.SwitchStmt:
+			found = append(found, anchorsNamed(set, typed, "a switch statement")...)
+		case *ast.TypeSwitchStmt:
+			found = append(found, anchorsNamed(set, typed, "a switch statement")...)
+		case *ast.CompositeLit:
+			if _, isMap := typed.Type.(*ast.MapType); isMap {
+				found = append(found, anchorsNamed(set, typed, "a map literal")...)
+			}
+		}
+		return true
+	})
+	sort.Strings(found)
+	return found
+}
+
+// anchorsNamed reports the anchor constants one node names, wherever they sit
+// inside it, together with the line each stands on.
+func anchorsNamed(set *token.FileSet, node ast.Node, what string) []string {
+	var found []string
+	ast.Inspect(node, func(inner ast.Node) bool {
+		name := ""
+		switch typed := inner.(type) {
+		case *ast.SelectorExpr:
+			name = typed.Sel.Name
+		case *ast.Ident:
+			name = typed.Name
+		default:
+			return true
+		}
+		if !anchorConstants[name] {
+			return true
+		}
+		found = append(found, fmt.Sprintf("line %d names %s inside %s", set.Position(inner.Pos()).Line, name, what))
+		return true
+	})
+	return found
+}

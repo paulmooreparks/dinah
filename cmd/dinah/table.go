@@ -28,6 +28,12 @@ type tableRow struct {
 	// note is free text printed under the row at no indent, which the comments
 	// of dinah show need between one row and the next.
 	note string
+	// guides describes this row's place in a tree, one entry per level below
+	// the top level the table draws, each saying whether the ancestor at that
+	// level was the last of its siblings. The last entry describes this row's
+	// own node. A row of no entries is a top-level row or an ordinary non-tree
+	// row.
+	guides []bool
 }
 
 // labelling says where a reader meets a table's column labels. It says nothing
@@ -82,6 +88,90 @@ const assumedWindow = 80
 // serving it from a catalog, so no translation can change it and no
 // translation can misalign it.
 const ruleGlyph = '-'
+
+// The four glyphs a tree's guides are drawn from, in the same spirit as
+// ruleGlyph: the table draws them and nothing outside this file does, so no
+// translation can change them and no translation can misalign them. They are
+// ASCII, and every piece composed from them is guideWidth columns wide, which
+// is what keeps every column after the first lined up whatever the depth.
+const (
+	// guideTrunk continues an ancestor's line down the page.
+	guideTrunk = '|'
+	// guideRun reaches from an ancestor's line across to its child.
+	guideRun = '-'
+	// guideElbow turns the last of a set of siblings out of its parent's
+	// line, which then stops.
+	guideElbow = '`'
+	// guideBlank is what a piece is filled with where no line is drawn.
+	guideBlank = ' '
+)
+
+// guideWidth is how many display columns one level of a tree's guides takes.
+const guideWidth = 4
+
+// guidePiece builds one level of a row's prefix: the glyph the line starts
+// with, then the fill, then the space that separates the piece from the next.
+// It is built one column at a time the way rule is, so no run of padding is
+// composed as a literal here.
+func guidePiece(lead, fill rune) string {
+	var b strings.Builder
+	b.WriteRune(lead)
+	for i := 0; i < guideWidth-2; i++ {
+		b.WriteRune(fill)
+	}
+	b.WriteRune(guideBlank)
+	return b.String()
+}
+
+// withGuides writes each row's tree prefix into its first field, so the prefix
+// is measured as part of the value and every column after it lines up whatever
+// the depth. A table whose rows carry no guides comes back unchanged.
+func withGuides(t table) table {
+	carried := false
+	for _, r := range t.rows {
+		if len(r.guides) > 0 {
+			carried = true
+			break
+		}
+	}
+	if !carried {
+		return t
+	}
+	rows := make([]tableRow, 0, len(t.rows))
+	for _, r := range t.rows {
+		fields := append([]string{}, r.fields...)
+		if len(fields) > 0 {
+			fields[0] = guidePrefix(r.guides) + fields[0]
+		}
+		rows = append(rows, tableRow{section: r.section, fields: fields, note: r.note})
+	}
+	return table{indent: t.indent, columns: t.columns, rows: rows, labels: t.labels}
+}
+
+// guidePrefix composes one row's prefix from its guides: a piece per ancestor
+// level, then the join under the row's own parent.
+//
+// An ancestor that was the last of its siblings has no line left to draw, so
+// its level is blank; every other ancestor's line carries on past this row.
+func guidePrefix(guides []bool) string {
+	var b strings.Builder
+	for i, last := range guides {
+		if i == len(guides)-1 {
+			if last {
+				b.WriteString(guidePiece(guideElbow, guideRun))
+				continue
+			}
+			b.WriteString(guidePiece(guideTrunk, guideRun))
+			continue
+		}
+		if last {
+			b.WriteString(guidePiece(guideBlank, guideBlank))
+			continue
+		}
+		b.WriteString(guidePiece(guideTrunk, guideBlank))
+	}
+	return b.String()
+}
 
 // listColumn is the one column of a block that prints a list under an indent
 // rather than a table: one field per row, beneath a sentence that already says
@@ -145,7 +235,7 @@ func (s *session) tableLines(t table) []string {
 	if len(t.rows) == 0 {
 		return nil
 	}
-	laid := s.layOut(t)
+	laid := s.layOut(withGuides(t))
 	if laid.stacks() {
 		return laid.stackLines()
 	}

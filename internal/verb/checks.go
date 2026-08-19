@@ -149,6 +149,19 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownState, Key: "check.query.5"},
 		{Refusal: contract.UnknownValue, Key: "check.query.6"},
 	},
+	// The three axis checks run in this order, so a chain of five axes one
+	// of which is a word Dinah does not group on is refused for the unknown
+	// word rather than for its length.
+	"tree": {
+		{Refusal: contract.UnknownAxis, Key: "check.tree.1"},
+		{Refusal: contract.RepeatedAxis, Key: "check.tree.2"},
+		{Refusal: contract.ChainTooLong, Key: "check.tree.3"},
+		{Refusal: contract.UnknownDepth, Key: "check.tree.4"},
+	},
+	"contents": {
+		{Refusal: contract.UnknownPath, Key: "check.contents.1"},
+		{Refusal: contract.UnknownDepth, Key: "check.contents.2"},
+	},
 	"instructions": {
 		{Refusal: contract.UnknownPath, Key: "check.instructions.1"},
 	},
