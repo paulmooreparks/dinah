@@ -39,8 +39,8 @@ You get states over substates over cards, which is the status tree.
       `-- blocked   substate  0
 ```
 
-The Count column is blank on a card, because a card is one card and the number
-would say nothing. Every group carries the number of cards at or below it,
+The Count column is blank on a card. A card is one card, and the number would say
+nothing that the row does not already say. Every group carries the number of cards at or below it,
 including the groups that carry none. Both `state` and `substate` are closed sets,
 so Dinah draws a group for every member of each and an empty group is visible
 rather than absent.
@@ -105,8 +105,8 @@ The three top-level groups count 3, 3, and 2, which is 8, and the root counts 6.
 Both numbers are right. `tw-1` and `tw-4` each belong to two workstreams and are
 drawn under both, so the sum over the children counts them twice, while the root
 counts each card once. An implementation that derived a node's count by adding up
-its children would print 8 at the root and look entirely plausible, which is why
-this case is one of the acceptance criteria.
+its children would print 8 at the root and look entirely plausible, so this case is
+one of the acceptance criteria.
 
 The `(no value)` group holds the cards in no workstream. Dinah draws that group
 whenever the axis leaves any card unset.
@@ -128,8 +128,9 @@ whenever the axis leaves any card unset.
       `-- tw-6    Retire the second map
 ```
 
-Nobody declares the set of holders in advance, so Dinah draws a group only for a
-holder that some card actually names. Compare that with block 1, where the flow
+Nobody declares the set of holders in advance. Dinah therefore draws a group only
+for a holder that some card actually names, which means a person who has never
+held a card here never appears. Compare that with block 1, where the flow
 declares every state and every state gets a group whether or not it holds a card.
 
 ## 5. `dinah tree "substate:ready"`, and what the filter hides
@@ -228,8 +229,8 @@ $ dinah contents tw-1/comments/1
 tw-1/comments/1 contains nothing.
 ```
 
-A leaf root is an ordinary answer rather than a refusal, and Dinah says so in one
-sentence instead of drawing a table of one row.
+A leaf root is an ordinary answer rather than a refusal. Dinah says so in one
+sentence.
 
 ## 9. The refusals, in English and in Hindi
 
@@ -245,8 +246,7 @@ $ dinah --lang hi tree --group-by priority
 dinah.unknown-axis priority समूहन अक्ष नहीं है; अक्ष हैं block_kind, holder, state, substate, और workstream
 ```
 
-The axis names stay in Latin script under every language, because they are what
-you type.
+The axis names stay in Latin script under every language. They are what you type.
 
 ## 10. The two lines the help block gains
 
