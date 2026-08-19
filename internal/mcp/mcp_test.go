@@ -97,7 +97,7 @@ func payload(t *testing.T, answer *response) map[string]any {
 }
 
 // TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-one tools the spec names, that each input schema is generated from
+// twenty-two tools the spec names, that each input schema is generated from
 // the same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
@@ -117,8 +117,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 21 {
-		t.Errorf("wanted twenty-one tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 22 {
+		t.Errorf("wanted twenty-two tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -140,7 +140,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card"} {
+	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "workbench"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
@@ -352,4 +352,47 @@ func TestUnknownMethodIsATransportError(t *testing.T) {
 	if answer.Error == nil || answer.Error.Code != codeMethodNotFound {
 		t.Errorf("wanted a method-not-found error, got %+v", answer)
 	}
+}
+
+// TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes asserts that the
+// workbench tool answers a read with the same three fields the terminal
+// listing prints, that a write by the operator lands, and that a write by
+// somebody else refuses under the name the terminal raises, since both heads
+// run one library and the operator check lives there rather than in either.
+func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
+	library := newLibrary(t)
+
+	read := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka"}}}`))
+	fields, ok := read["workbench"].(map[string]any)
+	if !ok {
+		t.Fatalf("the read carries no workbench member: %v", read)
+	}
+	if fields["slug"] != "fx" || fields["operator"] != "alka" || fields["title"] == "" {
+		t.Errorf("the read answered %v, wanted the fixture's own three fields", fields)
+	}
+
+	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"bob","action":"set","field":"title","value":"Renamed"}}}`))
+	if refused["outcome"] != contract.OutcomeRefused || refused["refusal"] != contract.NotOperator {
+		t.Errorf("a write by somebody other than the operator: wanted %s, got %v", contract.NotOperator, refused)
+	}
+
+	written := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka","action":"set","field":"title","value":"Renamed"}}}`))
+	if written["outcome"] != contract.OutcomeOK {
+		t.Fatalf("a write by the operator: %v", written)
+	}
+	reread := payload(t, ask(t, newLibraryAt(t, library.Bench.Root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka"}}}`))
+	if reread["workbench"].(map[string]any)["title"] != "Renamed" {
+		t.Errorf("the write did not reach the anchor: %v", reread["workbench"])
+	}
+}
+
+// newLibraryAt opens a second library over a workbench that already exists,
+// which is how a test reads back what a write through the head landed.
+func newLibraryAt(t *testing.T, root string) *verb.Library {
+	t.Helper()
+	opened, err := bench.Open(root)
+	if err != nil {
+		t.Fatalf("open %s: %v", root, err)
+	}
+	return verb.New(opened, filepath.Join(root, "home"))
 }

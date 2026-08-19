@@ -942,6 +942,65 @@ func (b *Bench) JournalPath() string {
 	return filepath.Join(b.Root, JournalName)
 }
 
+// WorkbenchFields are the fields a workbench records about itself that a
+// person wrote and may rewrite. The structural keys beside them (profile,
+// format and the states list) are not a person's to type, and dinah states and
+// dinah version already report what a reader needs of them.
+var WorkbenchFields = []string{"title", "slug", "operator"}
+
+// KnownWorkbenchField reports whether a name is one of the workbench's own
+// fields, which is what both a read of one and a write to one ask first.
+func KnownWorkbenchField(name string) bool {
+	for _, known := range WorkbenchFields {
+		if known == name {
+			return true
+		}
+	}
+	return false
+}
+
+// WorkbenchField reads one of the workbench's own fields by name, and answers
+// the empty string for a name outside the set. The caller refuses over the
+// name; this reports what is stored under it.
+func (b *Bench) WorkbenchField(name string) string {
+	switch name {
+	case "title":
+		return b.Title
+	case "slug":
+		return b.Slug
+	case "operator":
+		return b.Operator
+	}
+	return ""
+}
+
+// SetWorkbenchField writes one of the workbench's own fields in memory, ready
+// for Save. A name outside the set writes nothing, since the caller has
+// already refused over it.
+func (b *Bench) SetWorkbenchField(name, value string) {
+	switch name {
+	case "title":
+		b.Title = value
+	case "slug":
+		b.Slug = value
+	case "operator":
+		b.Operator = value
+	}
+}
+
+// IsWorkbenchRef reports whether a reference names the workbench itself. Both
+// resolvers read this rather than spelling the accepted forms out twice, so
+// neither can start accepting a spelling the other refuses.
+//
+// The empty reference is not one of them. ResolveEntity treats it as the
+// workbench because attach and archive take the workbench as a default
+// subject; ResolvePath keeps refusing it, because path and edit both declare
+// the argument required and a bare `dinah path` is somebody who forgot it.
+func IsWorkbenchRef(ref string) bool {
+	trimmed := strings.TrimSpace(ref)
+	return trimmed == "." || trimmed == "workbench"
+}
+
 // Cards reads every live card of the bench, in ascending identifier order.
 func (b *Bench) Cards() ([]*Card, error) {
 	var cards []*Card

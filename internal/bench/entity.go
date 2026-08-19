@@ -530,7 +530,9 @@ type EntityRef struct {
 // bench itself, a state, a card, or a comment or attachment below one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	ref = strings.TrimSpace(ref)
-	if ref == "" || ref == "." || ref == "workbench" {
+	// The empty reference is this resolver's own case and IsWorkbenchRef does
+	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
+	if ref == "" || IsWorkbenchRef(ref) {
 		return &EntityRef{Kind: "workbench", Dir: b.Root}, nil
 	}
 	if state := b.StateByRef(ref); state != nil {

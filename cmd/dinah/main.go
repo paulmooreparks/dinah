@@ -123,7 +123,10 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// nothing here left to correct. config declares no domain flag of its
 	// own and keeps calling this function only to splice an unrecognized
 	// flag-shaped word back into its value as literal text.
-	if command.name != "add" && command.name != "block" && command.name != "comment" {
+	// workbench joins them: dinah-100's one-word rule bounds its value too,
+	// and it declares --yes, so a flag typed after the value would otherwise
+	// take the peeling branch, which nothing shipped exercises today.
+	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}
@@ -190,17 +193,26 @@ func (s *session) errLine(text string) {
 // first whitespace-delimited token on stderr, followed by the sentence a
 // person reads, which is the contract the plumbing guarantee rests on.
 func (s *session) fail(name, detail string) int {
-	io.WriteString(s.errw, name+" "+s.sentence(name, detail)+"\n")
+	io.WriteString(s.errw, name+" "+s.sentence(name, "", detail)+"\n")
 	return contract.ExitCode(contract.OutcomeRefused)
 }
 
-// sentence renders the prose that follows a refusal name.
-func (s *session) sentence(name, detail string) string {
-	return refusalSentence(s.r, name, detail, nil)
+// sentence renders the prose that follows a refusal name, for the command that
+// raised it. A refusal raised before any command is known passes no verb.
+func (s *session) sentence(name, verb, detail string) string {
+	return refusalSentence(s.r, name, verb, detail, nil)
 }
 
 // refusalSentence renders the prose that follows a refusal name, filling the
 // named values the catalog entry references beyond the detail.
+//
+// One refusal name can be raised for two different acts, and the sentence then
+// depends on which command raised it. So the catalog is asked for
+// refusal.<name>.<verb> first and falls back to refusal.<name>, which leaves
+// every command that adds no key of its own rendering exactly what it renders
+// today, translations included. Selecting a sentence is not filling one: this
+// path passes no named values beyond the detail, so a per-command entry says
+// what one value can carry and no more.
 //
 // A malformed refusal raised over a file on disk carries the path it was
 // raised over, and the location and the repair reach the reader as two
@@ -208,6 +220,13 @@ func (s *session) sentence(name, detail string) string {
 // split, because CORE-OUT-5 gives one name to a broken definition and to a
 // request missing what the definition demands, so the difference rides on
 // whether a path is present.
+//
+// A malformed refusal raised over a slug the reference grammar would read as a
+// card carries cardRef, and the clause naming it is spliced on the same way.
+// Only `dinah init --slug` sets it, and only for the one shape that reads as a
+// reference, so the clause never claims that a slug refused for some other
+// reason is a card reference. It and the path splice are mutually exclusive,
+// since no call site sets both.
 //
 // An unsupported-version refusal raised over a declared profile revision
 // carries floor and ceiling, and the clause naming the window this build reads
@@ -227,10 +246,13 @@ func (s *session) sentence(name, detail string) string {
 // PowerShell alike, or quoteInText, when it does and no single escaping is
 // correct in all three, so the caller is asked to quote the text themselves
 // instead. Exactly one of the two is ever set.
-func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
+func refusalSentence(r *msg.Renderer, name, verb, detail string, extra map[string]string) string {
 	key := "refusal." + name
 	if !r.Has(key) {
 		return r.T("refusal.unknown", "name", name, "detail", detail)
+	}
+	if perCommand := key + "." + verb; verb != "" && r.Has(perCommand) {
+		key = perCommand
 	}
 	pairs := []string{"detail", detail}
 	for _, named := range sortedKeys(extra) {
@@ -239,6 +261,9 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 	text := r.T(key, pairs...)
 	if name == contract.Malformed && extra["path"] != "" {
 		return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
+	}
+	if name == contract.Malformed && extra["cardRef"] != "" {
+		return text + r.T("refusal.malformed.reads-as-a-card-reference", "ref", extra["cardRef"])
 	}
 	if name == contract.UnsupportedVer && extra["floor"] != "" {
 		return text + r.T("refusal.unsupported-version.window", "floor", extra["floor"], "ceiling", extra["ceiling"])
@@ -293,7 +318,7 @@ type refusalReport struct {
 // carried --json are what failed to parse.
 func reportError(errw io.Writer, r *msg.Renderer, err error) int {
 	if refusal, ok := err.(*contract.Refusal); ok {
-		sentence := refusalSentence(r, refusal.Name, refusal.Detail, refusal.Extra)
+		sentence := refusalSentence(r, refusal.Name, "", refusal.Detail, refusal.Extra)
 		io.WriteString(errw, refusal.Name+" "+sentence+"\n")
 		return contract.ExitCode(contract.OutcomeRefused)
 	}

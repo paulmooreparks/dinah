@@ -193,6 +193,12 @@ const (
 	EventRestored           = "restored"
 	EventDeleted            = "deleted"
 	EventManualCorrection   = "manual_correction"
+	// EventWorkbenchUpdated records a write to one of the workbench's own
+	// fields, on the workbench journal. It covers a title change, a slug
+	// change and an operator change alike, which is why it is not named for a
+	// rename: an operator change is no rename, and the name lands in
+	// append-only history in every workbench that runs the command.
+	EventWorkbenchUpdated = "workbench_updated"
 )
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

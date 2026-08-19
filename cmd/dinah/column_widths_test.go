@@ -147,6 +147,7 @@ func TestEventTokensNeverGlueInAnyLanguage(t *testing.T) {
 		contract.EventRestored,
 		contract.EventDeleted,
 		contract.EventManualCorrection,
+		contract.EventWorkbenchUpdated,
 	}
 	for _, event := range events {
 		key := "token." + event
@@ -265,11 +266,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			break
 		}
 	}
-	if summaries != 29 {
-		t.Errorf("read %d command entries out of the block, want 29", summaries)
+	if summaries != 30 {
+		t.Errorf("read %d command entries out of the block, want 30", summaries)
 	}
-	if continued != 2 {
-		t.Errorf("%d entries continued on a line of their own, want the two whose syntax cannot be laid out inside the window", continued)
+	if continued != 3 {
+		t.Errorf("%d entries continued on a line of their own, want the three whose syntax cannot be laid out inside the window", continued)
 	}
 	if want != 41 {
 		t.Errorf("the measured summary column is %d, and every block of this shape has started it at 41 since the width was declared", want)
@@ -279,8 +280,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 // widestFittingSyntax is the widest syntax line among the command entries that
 // can be laid out inside an eighty-column window with their fields packed
 // tight. An entry that cannot be laid out inside the window however the
-// columns are chosen does not get to widen the column, so the two long syntax
-// lines are left out of this the same way the table leaves them out.
+// columns are chosen does not get to widen the column, so the three long
+// syntax lines are left out of this the same way the table leaves them out.
 func widestFittingSyntax(t *testing.T) int {
 	t.Helper()
 	widest := displayWidth(msg.For(msg.Base).T("column.commands.command"))
