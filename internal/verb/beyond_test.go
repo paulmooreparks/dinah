@@ -2175,6 +2175,40 @@ func TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix(t *testing.T) {
 	}
 }
 
+// TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported pins the state a
+// write can reach and creation cannot. The write is accepted, the later
+// workstream stops answering to its own name, and check names the pair, so a
+// person can find both and decide which one changes. A later card that decides
+// to refuse the write instead turns this test red rather than changing the
+// behaviour quietly.
+func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
+	h := newHarness(t)
+	first := h.newWorkstream("Portfolio work")
+	second := h.newWorkstream("Console redesign")
+
+	req := &Request{Verb: "workstream", Action: "set", Actor: "alka", Workstream: "console-redesign", Field: bench.SlugField, Value: first.Slug, Confirm: true}
+	got := h.library.SetWorkstream(req)
+	h.reopen()
+	if got.Outcome != contract.OutcomeOK {
+		t.Fatalf("renaming onto a taken slug: %s %s, wanted it accepted", got.Outcome, got.Refusal)
+	}
+	if stored := h.library.Bench.Workstream(second.ID); stored.Slug != first.Slug {
+		t.Errorf("the second workstream stored the slug %q, wanted the duplicate %q it was told to take", stored.Slug, first.Slug)
+	}
+	if found := h.library.Bench.WorkstreamByRef(first.Slug); found == nil || found.ID != first.ID {
+		t.Errorf("the shared slug resolved to %v, wanted the earlier workstream %s", found, first.ID)
+	}
+	duplicates := 0
+	for _, finding := range h.check() {
+		if finding.Key == bench.FindingWorkstreamSlugDuplicate {
+			duplicates++
+		}
+	}
+	if duplicates == 0 {
+		t.Errorf("check reported no %s, so the duplicate this write minted is undetected as well as accepted", bench.FindingWorkstreamSlugDuplicate)
+	}
+}
+
 // TestWritingAWorkstreamFieldRecordsOneUpdateOnItsOwnJournal asserts the field
 // write, the one event it appends, and the confirmation a slug change needs.
 func TestWritingAWorkstreamFieldRecordsOneUpdateOnItsOwnJournal(t *testing.T) {

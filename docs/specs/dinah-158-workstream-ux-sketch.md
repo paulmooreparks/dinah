@@ -85,7 +85,7 @@ somebody has already written down names the old one.
 
 ```text
 $ dinah workstream set portfolio slug folio
-dinah.unconfirmed this command needs --yes
+dinah.unconfirmed Every reference to this workstream that you have written down elsewhere names the old slug, and changing it to folio stops those references matching. Run the command again with --yes.
 ```
 
 ## 5. `dinah join ws-2 portfolio` and `dinah leave ws-2 portfolio`
@@ -167,7 +167,7 @@ is touched and every reference already written down still resolves.
 
 ```text
 Adopted 1 workstream.
-  a workstream carries no slug, so it is reachable only by its identifier (C:\work\widgets\.dinah\3f8a1c2d4e5b\workstreams\c3d4e5f60718\workstream.md)
+  workstream c3d4e5f60718 carries no slug, so it is reachable only by its identifier (C:\work\widgets\.dinah\3f8a1c2d4e5b\workstreams\c3d4e5f60718\workstream.md)
 1 defect.
 ```
 

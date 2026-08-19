@@ -234,14 +234,22 @@ const (
 	EventWorkstreamLeft   = "workstream_left"
 )
 
-// Events lists the fifteen journal event names in the order the constants
-// above declare them, so a caller checking a value against the closed set
-// reads one list rather than repeating it.
+// Events lists the seventeen event names a card's own journal can carry, in
+// the order the constants above declare them, so a caller checking a value
+// against the closed set reads one list rather than repeating it. A query over
+// cards takes this list as the vocabulary of its event field, so an event a
+// card journal can carry and this list omits is an event nobody can ask for.
+//
+// EventWorkbenchUpdated and EventWorkstreamUpdated are the two declared names
+// this list holds out, and each is held out for the same reason: it lands on
+// the workbench's journal or on a workstream's, never on a card's, so no card
+// a query reads can ever carry it.
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
 	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
 	EventRestored, EventDeleted, EventManualCorrection,
+	EventWorkstreamJoined, EventWorkstreamLeft,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

@@ -811,6 +811,15 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 // leaves the entity unnameable, and an empty slug leaves it reachable only by
 // its identifier.
 //
+// A slug another live workstream already carries is accepted, so this command
+// can write a duplicate that NewWorkstream's own collision loop can never
+// produce. Check is the whole answer to that state: it reports
+// check.workstream-slug-duplicate naming both workstreams, and until somebody
+// renames one of them WorkstreamByRef returns the earlier of the two for a
+// reference either would answer to. Refusing here instead would mint a refusal
+// this command's ratified evaluation order does not carry, and the person
+// holding the two names is the one who knows which of them should change.
+//
 // The write reloads the anchor under the workstream's own lock and sets the
 // one field on the reloaded value, because Save rewrites the whole anchor from
 // the frontmatter it is holding and a stale copy would revert whatever landed

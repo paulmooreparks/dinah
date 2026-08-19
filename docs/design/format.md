@@ -796,7 +796,7 @@ future "should this be configurable?" argument.
 ## Workstreams
 
 A workstream is an entity: `workstreams/<12-hex>/workstream.md`, with title,
-slug, status and the creation ordinal in frontmatter and long-form notes as
+slug, status, and the creation ordinal in frontmatter and long-form notes as
 the body. Membership is card-owned, a `workstreams:` list of ids in card
 frontmatter, by the same single-writer logic as position: deleting a card
 removes its memberships with it, deleting a workstream that cards still
@@ -814,13 +814,18 @@ reference splits at its last dash; nothing rides after a workstream reference,
 so a workstream may be slugged `phase-2`. A reference resolves against the
 identifier first and the slug second, and never against the title.
 
+A slug is not enforced unique on a write. Creating a workstream resolves a
+collision by counting up, and renaming one to a slug another workstream already
+carries is accepted, so a reference either would answer to resolves to the
+earlier of the two and check reports the pair.
+
 The status is an open value by this document's own test. Dinah writes `active`
 at creation and accepts any non-empty value afterwards, and nothing in the
-tool refuses, orders, counts or routes anything on one, so people are the only
+tool refuses, orders, counts, or routes anything on one, so people are the only
 readers of it.
 
 A workstream is journal-bearing. Its own journal records `created` at birth,
-`workstream_updated` on a write to one of its fields, carrying `field`, `from`
+`workstream_updated` on a write to one of its fields, carrying `field`, `from`,
 and `to` as `workbench_updated` does, and `archived` when it is archived. A
 card's journal records the membership events, `workstream_joined` and
 `workstream_left`, each carrying the workstream's identifier in `workstream`.

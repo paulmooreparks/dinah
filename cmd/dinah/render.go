@@ -369,17 +369,18 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		if report.AssignedWorkbenchSlug != nil {
 			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
 		}
+		// The workstream slugs are the third report of the one repair, so
+		// they stay with the other two rather than reading as a separate
+		// answer further down.
+		s.line(s.r.TN("check.workstream-slug-assigned", len(report.AssignedWorkstreamSlugs)))
+		workstreams := table{indent: 2, columns: s.columns("slugs", "slug", "title")}
+		for _, assignment := range report.AssignedWorkstreamSlugs {
+			workstreams.rows = append(workstreams.rows, tableRow{fields: []string{assignment.Slug, assignment.Title}})
+		}
+		s.table(workstreams)
 	}
 	if report.StampedOrdinals != nil {
 		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
-	}
-	if report.MigratedSlugs {
-		s.line(s.r.TN("check.workstream-slug-assigned", len(report.AssignedWorkstreamSlugs)))
-		assigned := table{indent: 2, columns: s.columns("slugs", "slug", "title")}
-		for _, assignment := range report.AssignedWorkstreamSlugs {
-			assigned.rows = append(assigned.rows, tableRow{fields: []string{assignment.Slug, assignment.Title}})
-		}
-		s.table(assigned)
 	}
 	// The adopted identifiers are counted and not listed, because every
 	// workstream this repair creates carries no slug and so draws a finding

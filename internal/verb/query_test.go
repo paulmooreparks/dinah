@@ -63,9 +63,10 @@ func wantRefs(t *testing.T, text string, matches *Matches, want ...string) {
 	}
 }
 
-// setWorkstreams writes a card's workstreams list into its anchor by hand,
-// because no verb assigns membership and the field reaches a card only through
-// frontmatter somebody wrote.
+// setWorkstreams writes a card's workstreams list into its anchor by hand.
+// join assigns membership now, but it resolves the workstream first, so it
+// cannot produce the identifier naming nothing that most of these fixtures
+// need, and a hand-written list is the only way to reach that state.
 func (h *harness) setWorkstreams(ref string, names ...string) {
 	h.t.Helper()
 	path := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
@@ -221,12 +222,42 @@ func TestAClosedVocabularyRefusesATypoAndAnOpenOneDoesNot(t *testing.T) {
 	if legal := h.refuse("event:comment").Extra["legal"]; !strings.Contains(legal, contract.EventCommented) {
 		t.Errorf("the event vocabulary reported was %q", legal)
 	}
+	// The two membership events land on a card's own journal, so the
+	// vocabulary a card query is checked against has to name them or a card
+	// carries history nobody can ask for.
+	for _, event := range []string{contract.EventWorkstreamJoined, contract.EventWorkstreamLeft} {
+		if legal := h.refuse("event:comment").Extra["legal"]; !strings.Contains(legal, event) {
+			t.Errorf("the event vocabulary omits %s, which a card journal carries: %q", event, legal)
+		}
+	}
 	if refusal := h.refuse("state:nosuchstate"); refusal.Name != contract.UnknownState {
 		t.Errorf("state:nosuchstate refused %s, want %s", refusal.Name, contract.UnknownState)
 	}
 	for _, text := range []string{"holder:reday", "actor:reday", "block_kind:reday"} {
 		wantRefs(t, text, h.ask(text))
 	}
+}
+
+// TestAMembershipEventIsQueryableOnTheCardItLandsOn asserts the behaviour the
+// closed vocabulary exists for. join and leave record on the card's own
+// journal, which is the journal a query reads, so naming either event has to be
+// a question with an answer rather than a refusal. Before the two names joined
+// contract.Events every assertion here refused with dinah.unknown-value, and
+// h.ask turns a refusal into a failure, so the whole test goes red at the first
+// line that names one.
+func TestAMembershipEventIsQueryableOnTheCardItLandsOn(t *testing.T) {
+	h := newHarness(t)
+	member := h.add("a card that joins")
+	h.add("a card that never joins")
+	stream := h.newWorkstream("Portfolio work")
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: member, Workstream: stream.Ref})
+	wantRefs(t, "event:workstream_joined", h.ask("event:workstream_joined"), member)
+	wantRefs(t, "event:workstream_left", h.ask("event:workstream_left"))
+	h.mustDo(&Request{Verb: Leave, Actor: "alka", Card: member, Workstream: stream.Ref})
+	wantRefs(t, "event:workstream_left", h.ask("event:workstream_left"), member)
+	// The join is still in the journal after the departure, because a journal
+	// is append-only and the act plane asks what a card has ever carried.
+	wantRefs(t, "event:workstream_joined", h.ask("event:workstream_joined"), member)
 }
 
 // TestAnAtValueIsReadByTheQueryRatherThanByParseStamp asserts that a malformed

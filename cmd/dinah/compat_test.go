@@ -223,6 +223,67 @@ func TestTheSampleFixtureCarriesEveryJournalEventTheContractDeclares(t *testing.
 	}
 }
 
+// cardJournalTemplates are the two path templates a card's own journal takes,
+// live and archived. The query reads a card's journal and no other, so these
+// are the journals whose event names have to be nameable.
+var cardJournalTemplates = map[string]bool{
+	"cards/<id>/journal.ndjson":         true,
+	"archive/cards/<id>/journal.ndjson": true,
+}
+
+// TestEveryEventACardJournalCarriesIsOneAQueryCanName pairs the two lists that
+// have to agree: the event names a card's journal carries, and contract.Events,
+// which query hands the event field as its closed vocabulary. An event on a
+// card journal that the vocabulary omits cannot be asked for, and the refusal a
+// person meets names it as an unknown value rather than as an omission.
+//
+// The pairing runs on the sample fixture rather than on a hand-written list,
+// and it is the coverage alarm above that makes it complete. That alarm already
+// refuses a declared event the fixture carries no line of, so a new event has
+// to reach the fixture, and once it reaches the fixture this test decides
+// whether it reached the vocabulary too. The two together mean no event can
+// ship on a card journal without either joining contract.Events or turning the
+// build red.
+func TestEveryEventACardJournalCarriesIsOneAQueryCanName(t *testing.T) {
+	root := sampleFixture(t)
+	nameable := map[string]bool{}
+	for _, event := range contract.Events {
+		nameable[event] = true
+	}
+	seen := 0
+	walk := func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || entry.Name() != bench.JournalName {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if !cardJournalTemplates[pathTemplate(filepath.ToSlash(relative))] {
+			return nil
+		}
+		events := map[string]map[string]bool{}
+		readJournalMembers(t, path, events)
+		for event := range events {
+			seen++
+			if nameable[event] {
+				continue
+			}
+			t.Errorf("the sample fixture's %s carries the %s event and contract.Events does not name it, so a card carries history dinah query 'event:%s' refuses as an unknown value. Add the name to contract.Events, or say in that list's doc comment which journal other than a card's it lands on", relative, event, event)
+		}
+		return nil
+	}
+	if err := filepath.WalkDir(root, walk); err != nil {
+		t.Fatalf("walk %s: %v", root, err)
+	}
+	if seen == 0 {
+		t.Fatalf("the sample fixture carries no card journal event at all, so this test proved nothing about %s", root)
+	}
+}
+
 // declaredEvents reads the event names internal/contract declares out of the
 // source rather than out of a list kept here, so a constant added there reaches
 // this test without anybody remembering to add it.

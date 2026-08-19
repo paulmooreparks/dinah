@@ -29,11 +29,11 @@ render.go:209.29,212.3  the sentence a listing prints when the state holds no ca
 render.go:306.23,309.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
 render.go:341.19,343.5  the override mark on a move in the history. Reachable and unreached: worth a test.
 render.go:344.30,345.20  the reason a block carries in the history. Reachable and unreached: worth a test.
-render.go:428.32,430.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
-render.go:464.23,466.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
-render.go:507.18,509.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
-render.go:549.23,551.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
-render.go:577.2,577.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
-render.go:703.23,705.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
-render.go:735.22,737.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
+render.go:429.32,431.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
+render.go:465.23,467.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
+render.go:508.18,510.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
+render.go:550.23,552.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
+render.go:578.2,578.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
+render.go:704.23,706.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
+render.go:736.22,738.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
 table.go:115.30,117.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
