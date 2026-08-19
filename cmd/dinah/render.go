@@ -446,6 +446,11 @@ var refusalBlocks = map[string]func(*session) []string{
 // the function names no stream at all. Every rule it applies comes off the
 // shape, so no refusal name is tested anywhere inside it.
 //
+// One refusal name can answer two different acts, and the sentence then
+// depends on which command raised it, so a shape declaring the raising command
+// as a variant renders that command's own base entry. A command declaring none
+// renders exactly what it rendered before, translations included.
+//
 // A fragment splices onto the sentence where the refusal prints no listing,
 // which is what the tool has always done and is why each fragment carries
 // whatever leading punctuation its position needs. Where a listing is printed
@@ -462,6 +467,9 @@ func (s *session) composeRefusal(r *contract.Refusal) []string {
 		pairs = append(pairs, name, values[name])
 	}
 	key := "refusal." + shape.Name
+	if shape.Variant(values[contract.ValueCommand]) {
+		key = shape.VariantKeyOf(values[contract.ValueCommand])
+	}
 	if shape.Subject != "" && values[shape.Subject] == "" {
 		key += ".unnamed"
 	}
@@ -524,14 +532,18 @@ func (s *session) nextStepOf(shape *contract.Shape, values map[string]string) st
 }
 
 // holds reports whether a fragment's condition is satisfied: a When names a
-// value that is present and non-empty, an Unless names one that is not, and a
-// fragment carrying neither always renders.
+// value that is present and non-empty, an Unless names one that is not, a
+// WhenCommand names the command the reader typed, and a fragment carrying none
+// of the three always renders.
 func holds(fragment contract.Fragment, values map[string]string) bool {
 	if fragment.When != "" {
 		return values[fragment.When] != ""
 	}
 	if fragment.Unless != "" {
 		return values[fragment.Unless] == ""
+	}
+	if fragment.WhenCommand != "" {
+		return values[contract.ValueCommand] == fragment.WhenCommand
 	}
 	return true
 }
@@ -561,4 +573,23 @@ func sortedKeys(values map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// renderWorkbenchFields prints the workbench's own fields, one row per field.
+//
+// The field names travel untranslated, the way `config`'s keys do, because a
+// field name is machine vocabulary a caller types back. The slug row is served
+// through slugCell, so a workbench carrying none names its repair rather than
+// standing blank, and this listing says what `dinah states` and `dinah
+// workbenches` already say about a missing slug.
+func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
+	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
+	for _, name := range bench.WorkbenchFields {
+		value := fields.Field(name)
+		if name == "slug" {
+			value = s.slugCell(value)
+		}
+		t.rows = append(t.rows, tableRow{fields: []string{name, value}})
+	}
+	s.table(t)
 }

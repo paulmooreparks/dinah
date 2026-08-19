@@ -23,7 +23,8 @@ type Event struct {
 	Actor string `json:"actor"`
 	// Title is the card's own title, carried by the created event.
 	Title string `json:"title,omitempty"`
-	// From and To are the state identifiers a move left and entered.
+	// From and To are the state identifiers a move left and entered, and the
+	// values a workbench_updated event rewrote a field from and to.
 	From string `json:"from,omitempty"`
 	To   string `json:"to,omitempty"`
 	// FromTitle and ToTitle are those states' titles as of the move.
@@ -42,6 +43,9 @@ type Event struct {
 	Filename   string `json:"filename,omitempty"`
 	// Comment is the identifier of a comment the event concerns.
 	Comment string `json:"comment,omitempty"`
+	// Field is the workbench field a workbench_updated event rewrote, with
+	// From and To carrying its value on either side of the write.
+	Field string `json:"field,omitempty"`
 	// Note is the human's free prose, unparseable by design.
 	Note string `json:"note,omitempty"`
 }

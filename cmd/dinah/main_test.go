@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists twenty-nine commands, and every command the binary
+	// The block lists thirty commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 29 {
-		t.Errorf("wanted twenty-nine listed commands, got %d", listed)
+	if listed != 30 {
+		t.Errorf("wanted thirty listed commands, got %d", listed)
 	}
 }
 
@@ -966,6 +966,35 @@ func TestEveryCatalogKeyTheCodeNamesExists(t *testing.T) {
 				t.Errorf("no key for the check %s", check.Key)
 			}
 		}
+	}
+	// The per-command refusal sentences, whose keys refusalSentence composes
+	// from a refusal name and the verb that raised it, so the literal scan
+	// below cannot see them.
+	//
+	// A composed key is optional, since a command that adds none falls back to
+	// the bare key, so what is asserted is the invariant that holds whether or
+	// not one exists: a per-command sentence never stands alone. The bare key
+	// is what every other command renders, and a per-command entry written
+	// where none exists would leave all of them printing refusal.unknown.
+	refusals := map[string]bool{}
+	for _, name := range append(append([]string{}, contract.Declared...), contract.Introduced...) {
+		refusals[name] = true
+	}
+	composed := 0
+	for _, name := range verb.Commands() {
+		for refusal := range refusals {
+			key := "refusal." + refusal + "." + name
+			if !known[key] {
+				continue
+			}
+			composed++
+			if !known["refusal."+refusal] {
+				t.Errorf("the base catalog carries %s and no refusal.%s under it, so every other command raising %s renders a bare key", key, refusal, refusal)
+			}
+		}
+	}
+	if composed == 0 {
+		t.Error("the base catalog carries no per-command refusal sentence, so this loop proves nothing")
 	}
 	// Every literal key the sources name.
 	literal := regexp.MustCompile(`\.T[N]?\("([a-z][a-zA-Z0-9._-]*)"`)
@@ -4680,6 +4709,470 @@ func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestWorkbenchListsReadsAndWritesItsOwnFields asserts the command's whole
+// grammar at the terminal: the bare listing carries the three field names with
+// their stored values, the machine form of the same invocation is the object
+// and no table, `get` prints one raw value under every rendering, and `set`
+// round-trips a value while leaving everything else in the anchor alone.
+func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
+	root := newBench(t)
+	anchor := filepath.Join(benchDir(t, root), "workbench.md")
+
+	listed := runCLI(t, root, "workbench")
+	if listed.code != 0 {
+		t.Fatalf("the listing: %d %s", listed.code, listed.errw)
+	}
+	for _, fragment := range []string{"title", "slug", "operator", "fx", "alka", "workbench"} {
+		if !strings.Contains(listed.out, fragment) {
+			t.Errorf("the listing does not carry %q:\n%s", fragment, listed.out)
+		}
+	}
+
+	machine := runCLI(t, root, "--json", "workbench")
+	if machine.code != 0 {
+		t.Fatalf("the machine form: %d %s", machine.code, machine.errw)
+	}
+	var view verb.WorkbenchView
+	if err := json.Unmarshal([]byte(machine.out), &view); err != nil {
+		t.Fatalf("the machine form should be one object: %v\n%s", err, machine.out)
+	}
+	if view.Slug != "fx" || view.Operator != "alka" || view.Title == "" {
+		t.Errorf("the machine form reads %+v", view)
+	}
+	if strings.Contains(machine.out, "----") {
+		t.Errorf("the machine form drew a table:\n%s", machine.out)
+	}
+
+	// `get` prints the stored value alone, with no heading and no padding,
+	// under the default rendering, under another language, and under --json.
+	for _, argv := range [][]string{
+		{"workbench", "get", "slug"},
+		{"--lang", "hi", "workbench", "get", "slug"},
+		{"--json", "workbench", "get", "slug"},
+	} {
+		got := runCLI(t, root, argv...)
+		if got.code != 0 {
+			t.Fatalf("%v: %d %s", argv, got.code, got.errw)
+		}
+		if got.out != "fx\n" {
+			t.Errorf("%v printed %q, wanted the stored value alone", argv, got.out)
+		}
+	}
+
+	before, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	if wrote := runCLI(t, root, "workbench", "set", "title", "Dinah, the tool"); wrote.code != 0 {
+		t.Fatalf("set title: %d %s", wrote.code, wrote.errw)
+	}
+	if got := runCLI(t, root, "workbench", "get", "title"); got.out != "Dinah, the tool\n" {
+		t.Errorf("the title read back as %q", got.out)
+	}
+	after, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	for _, key := range []string{"profile:", "format:", "states:"} {
+		if !strings.Contains(string(after), key) {
+			t.Errorf("the write dropped the %s key from the anchor:\n%s", key, after)
+		}
+	}
+	if !strings.Contains(string(before), "title: Fixture") && !strings.Contains(string(before), "title:") {
+		t.Errorf("the fixture anchor carried no title to rewrite:\n%s", before)
+	}
+
+	// An unquoted multi-word value refuses, and the line it offers reads back.
+	multiple := runCLI(t, root, "workbench", "set", "title", "Dinah,", "the", "tool")
+	if multiple.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Errorf("an unquoted value: wanted the refused exit code, got %d", multiple.code)
+	}
+	if !strings.Contains(multiple.errw, contract.MultipleWords) {
+		t.Errorf("an unquoted value: wanted %s, got %q", contract.MultipleWords, multiple.errw)
+	}
+	if !strings.Contains(multiple.errw, `dinah workbench set title "Dinah, the tool"`) {
+		t.Errorf("the rebuilt command line does not read back:\n%s", multiple.errw)
+	}
+
+	// An empty value refuses on each of the three fields and writes nothing.
+	held, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	for _, field := range bench.WorkbenchFields {
+		got := runCLI(t, root, "workbench", "set", field, "")
+		if got.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("an empty %s: wanted the refused exit code, got %d", field, got.code)
+		}
+		if leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]; leading != contract.Malformed {
+			t.Errorf("an empty %s: wanted %s, got %q", field, contract.Malformed, got.errw)
+		}
+		if !strings.Contains(got.errw, field) {
+			t.Errorf("an empty %s: the refusal does not name the field: %q", field, got.errw)
+		}
+	}
+	unchanged, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	if string(unchanged) != string(held) {
+		t.Error("a refused write reached the anchor")
+	}
+}
+
+// TestWorkbenchListingNamesTheRepairForAMissingSlug asserts that a workbench
+// written before the slug field existed draws its slug row through the helper
+// the states and workbenches listings already use, so all three say the same
+// thing rather than one of them padding an empty string.
+func TestWorkbenchListingNamesTheRepairForAMissingSlug(t *testing.T) {
+	root := newBench(t)
+	editAnchor(t, root, "slug: fx\n", "")
+	listed := runCLI(t, root, "workbench")
+	if listed.code != 0 {
+		t.Fatalf("the listing: %d %s", listed.code, listed.errw)
+	}
+	placeholder := msg.For(msg.Base).T("slug.missing")
+	if !strings.Contains(listed.out, placeholder) {
+		t.Errorf("the slug row does not name the repair %q:\n%s", placeholder, listed.out)
+	}
+}
+
+// TestWorkbenchRefusesAFieldItDoesNotRecord asserts that a field name outside
+// the three refuses on the read and on the write alike, that the anchor is
+// untouched either way, and that all three paths, including `config get`,
+// render one sentence, which is what keeps them from drifting apart.
+func TestWorkbenchRefusesAFieldItDoesNotRecord(t *testing.T) {
+	root := newBench(t)
+	anchor := filepath.Join(benchDir(t, root), "workbench.md")
+	before, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	sentences := map[string]bool{}
+	for _, argv := range [][]string{
+		{"workbench", "get", "profile"},
+		{"workbench", "set", "profile", "dinah-core/1.0"},
+		{"config", "get", "profile"},
+	} {
+		got := runCLI(t, root, argv...)
+		if got.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("%v: wanted the refused exit code, got %d", argv, got.code)
+		}
+		leading, sentence, _ := strings.Cut(strings.TrimSpace(got.errw), " ")
+		if leading != contract.UnknownKey {
+			t.Errorf("%v: wanted %s, got %q", argv, contract.UnknownKey, got.errw)
+		}
+		sentences[sentence] = true
+	}
+	if len(sentences) != 1 {
+		t.Errorf("the three paths render %d different sentences, wanted one: %v", len(sentences), sentences)
+	}
+	after, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Error("a refused write reached the anchor")
+	}
+}
+
+// TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving asserts the
+// rename: the first attempt refuses under the name a script tests and says what
+// the rename costs, the confirmed attempt renames every card at once, a
+// reference carrying the old prefix still resolves, and `delete` keeps the
+// sentence it has always printed under the same refusal name.
+func TestRenamingTheSlugAsksOnceAndLeavesTheOldReferenceResolving(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "the first card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "the second card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+
+	unconfirmed := runCLI(t, root, "workbench", "set", "slug", "fx-dev")
+	if unconfirmed.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("the first attempt: wanted the refused exit code, got %d", unconfirmed.code)
+	}
+	leading, renameSentence, _ := strings.Cut(strings.TrimSpace(unconfirmed.errw), " ")
+	if leading != contract.Unconfirmed {
+		t.Errorf("the first attempt: wanted %s, got %q", contract.Unconfirmed, unconfirmed.errw)
+	}
+	if !strings.Contains(renameSentence, "fx-dev") {
+		t.Errorf("the sentence does not name the new slug: %q", renameSentence)
+	}
+	if !strings.Contains(renameSentence, "--yes") {
+		t.Errorf("the sentence does not say how to go on: %q", renameSentence)
+	}
+	if got := runCLI(t, root, "workbench", "get", "slug"); got.out != "fx\n" {
+		t.Errorf("the refused rename wrote the slug anyway: %q", got.out)
+	}
+
+	// The same refusal name under delete keeps its own sentence, in every
+	// shipped catalog, because delete adds no per-command key of its own.
+	deleted := runCLI(t, root, "delete", "fx-1")
+	_, deleteSentence, _ := strings.Cut(strings.TrimSpace(deleted.errw), " ")
+	if deleteSentence == renameSentence {
+		t.Error("delete and the rename render one sentence, so the per-command selection is not running")
+	}
+	tags := msg.Tags()
+	if len(tags) == 0 {
+		t.Fatal("no catalogs to check, so the per-catalog claim below proves nothing")
+	}
+	for _, tag := range tags {
+		if !msg.For(tag).Has("refusal." + contract.Unconfirmed) {
+			t.Errorf("%s carries no sentence for %s", tag, contract.Unconfirmed)
+		}
+		// What delete renders in this catalog is the bare sentence, and it is
+		// the bare sentence only while no per-command key exists to displace
+		// it: refusalSentence prefers refusal.<name>.<verb> wherever the
+		// catalog carries one. Asserting the absence is what carries the
+		// unchanged claim, since a non-empty bare entry survives a rewrite.
+		if msg.For(tag).Has("refusal." + contract.Unconfirmed + ".delete") {
+			t.Errorf("%s now carries a per-command sentence for delete, so delete no longer renders the sentence it always has", tag)
+		}
+	}
+
+	// The flag is read as a flag whether it is typed before the value or
+	// after it, and neither position swallows the other.
+	if got := runCLI(t, root, "workbench", "set", "slug", "fx-dev", "--yes"); got.code != 0 {
+		t.Fatalf("the flag after the value: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "workbench", "get", "slug"); got.out != "fx-dev\n" {
+		t.Errorf("the slug read back as %q", got.out)
+	}
+	if got := runCLI(t, root, "workbench", "set", "slug", "--yes", "fx-later"); got.code != 0 {
+		t.Fatalf("the flag before the value: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "workbench", "get", "slug"); got.out != "fx-later\n" {
+		t.Errorf("the slug read back as %q, so a position swallowed the flag or the value", got.out)
+	}
+
+	listed := runCLI(t, root, "ls")
+	for _, ref := range []string{"fx-later-1", "fx-later-2"} {
+		if !strings.Contains(listed.out, ref) {
+			t.Errorf("the listing does not report %s under the new prefix:\n%s", ref, listed.out)
+		}
+	}
+	stale := runCLI(t, root, "show", "fx-1")
+	if stale.code != 0 {
+		t.Errorf("a reference carrying the old prefix stopped resolving: %d %s", stale.code, stale.errw)
+	}
+}
+
+// TestPathAndEditReachTheWorkbenchAnchor asserts that the two spellings
+// ResolveEntity has always accepted now reach the anchor through ResolvePath
+// too, on one line and with nothing around it, and that the empty reference
+// keeps refusing because both commands declare the argument required.
+func TestPathAndEditReachTheWorkbenchAnchor(t *testing.T) {
+	root := newBench(t)
+	// The head resolves its root through its own working directory, so the
+	// expectation is built from the directory the head itself reports rather
+	// than from the raw value t.TempDir() handed this test (see resolvedDir).
+	wanted := filepath.Join(resolvedDir(t, benchDir(t, root)), "workbench.md")
+	for _, ref := range []string{"workbench", "."} {
+		got := runCLI(t, root, "path", ref)
+		if got.code != 0 {
+			t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
+		}
+		if got.out != wanted+"\n" {
+			t.Errorf("path %s printed %q, wanted %q on one line", ref, got.out, wanted)
+		}
+	}
+	// edit walks the same resolver, so it stops refusing the reference. The
+	// editor is pointed at a name no machine carries, which lets the run reach
+	// the launch and fail there rather than opening a window this suite would
+	// then wait on: what is asserted is that the refusal is no longer the
+	// resolver's.
+	t.Setenv("DINAH_EDITOR", "dinah-no-such-editor")
+	edited := runCLI(t, root, "edit", "workbench")
+	if strings.Contains(edited.errw, contract.UnknownCard) {
+		t.Errorf("edit still refuses the workbench reference: %s", edited.errw)
+	}
+
+	bare := runCLI(t, root, "path")
+	if bare.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Errorf("a bare path: wanted the refused exit code, got %d", bare.code)
+	}
+	if leading := strings.SplitN(strings.TrimSpace(bare.errw), " ", 2)[0]; leading != contract.UnknownCard {
+		t.Errorf("a bare path: wanted %s, got %q", contract.UnknownCard, bare.errw)
+	}
+}
+
+// TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference asserts
+// the derivation and the exclusion together: a directory name yielding a dashed
+// slug is repaired into the readable form, a name that would yield a card
+// reference is repaired instead of refused, a dashed slug typed by hand is
+// accepted, and the one shape the grammar excludes is refused with the clause
+// that names it.
+func TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference(t *testing.T) {
+	cases := []struct {
+		directory string
+		slug      string
+		wanted    string
+		refused   bool
+		clause    bool
+	}{
+		{directory: "Dinah development", wanted: "dinah-development"},
+		{directory: "Sprint 2", wanted: "sprint2"},
+		{directory: "named", slug: "my-board", wanted: "my-board"},
+		{directory: "named", slug: "release-2-candidate", wanted: "release-2-candidate"},
+		{directory: "named", slug: "sprint2", wanted: "sprint2"},
+		{directory: "named", slug: "sprint-2", refused: true, clause: true},
+		{directory: "named", slug: "My Project", refused: true},
+	}
+	for _, c := range cases {
+		name := c.directory
+		if c.slug != "" {
+			name += " --slug " + c.slug
+		}
+		t.Run(name, func(t *testing.T) {
+			base := t.TempDir()
+			t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
+			t.Setenv("DINAH_ACTOR", "alka")
+			t.Setenv("DINAH_LANG", "")
+			t.Setenv("DINAH_FORMAT", "")
+			t.Setenv("DINAH_WORKBENCH", "")
+			root := filepath.Join(base, c.directory)
+			if err := os.MkdirAll(root, 0o755); err != nil {
+				t.Fatalf("mkdir: %v", err)
+			}
+			argv := []string{"init"}
+			if c.slug != "" {
+				argv = append(argv, "--slug", c.slug)
+			}
+			got := runCLI(t, root, argv...)
+			if c.refused {
+				if got.code != contract.ExitCode(contract.OutcomeRefused) {
+					t.Fatalf("wanted the refused exit code, got %d %s", got.code, got.out)
+				}
+				if leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]; leading != contract.Malformed {
+					t.Errorf("wanted %s, got %q", contract.Malformed, got.errw)
+				}
+				clause := msg.For(msg.Base).T("refusal.malformed.reads-as-a-card-reference", "cardRef", c.slug)
+				carried := strings.Contains(got.errw, strings.TrimSpace(clause))
+				if carried != c.clause {
+					t.Errorf("the card-reference clause carried %v, wanted %v: %q", carried, c.clause, got.errw)
+				}
+				return
+			}
+			if got.code != 0 {
+				t.Fatalf("init: %d %s", got.code, got.errw)
+			}
+			if read := runCLI(t, root, "workbench", "get", "slug"); read.out != c.wanted+"\n" {
+				t.Errorf("the slug read back as %q, wanted %q", read.out, c.wanted)
+			}
+		})
+	}
+}
+
+// TestADashedWorkbenchSlugResolvesEveryReference asserts that the widened
+// grammar costs the reference vocabulary nothing: every command that takes a
+// card reference resolves one under a dashed prefix, a stale prefix still
+// resolves with its warning rather than a refusal, and a workbench whose slug
+// carries no dash at all draws no new finding.
+func TestADashedWorkbenchSlugResolvesEveryReference(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "a card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "check"); got.code != 0 {
+		t.Errorf("a dash-free slug drew a finding: %d %s", got.code, got.out)
+	}
+	if got := runCLI(t, root, "workbench", "set", "slug", "fx-dev", "--yes"); got.code != 0 {
+		t.Fatalf("the rename: %d %s", got.code, got.errw)
+	}
+	for _, argv := range [][]string{
+		{"ls"},
+		{"show", "fx-dev-1"},
+		{"path", "fx-dev-1"},
+		{"claim", "fx-dev-1"},
+		{"move", "fx-dev-1", "doing"},
+	} {
+		if got := runCLI(t, root, argv...); got.code != 0 {
+			t.Errorf("%v under a dashed slug: %d %s", argv, got.code, got.errw)
+		}
+	}
+	stale := runCLI(t, root, "move", "fx-1", "done")
+	if stale.code != 0 {
+		t.Errorf("a stale prefix refused rather than warning: %d %s", stale.code, stale.errw)
+	}
+	if !strings.Contains(stale.errw, "fx") {
+		t.Errorf("a stale prefix carried no warning: %q", stale.errw)
+	}
+	if got := runCLI(t, root, "check"); got.code != 0 {
+		t.Errorf("a dashed slug drew a finding: %d %s", got.code, got.out)
+	}
+}
+
+// TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens asserts the
+// finding this card adds. The write path refuses such a slug, so the only way
+// one reaches disk is a hand edit, and the checker is what says so: the
+// workbench keeps opening, every command keeps working, and check reports the
+// slug under its own key.
+func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing.T) {
+	root := newBench(t)
+	editAnchor(t, root, "slug: fx\n", "slug: sprint-2\n")
+	anchor := filepath.Join(benchDir(t, root), "workbench.md")
+
+	if got := runCLI(t, root, "workbench", "get", "slug"); got.code != 0 || got.out != "sprint-2\n" {
+		t.Fatalf("the workbench should still open: %d %q %s", got.code, got.out, got.errw)
+	}
+	reported := runCLI(t, root, "check")
+	if reported.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("check should report the slug: %d %s", reported.code, reported.out)
+	}
+	wanted := msg.For(msg.Base).T(bench.FindingWorkbenchSlugMalformed, "detail", "sprint-2")
+	if !strings.Contains(reported.out, wanted) {
+		t.Errorf("check does not report the finding %q:\n%s", wanted, reported.out)
+	}
+	if !strings.Contains(reported.out, anchor) {
+		t.Errorf("the finding does not name the file to edit:\n%s", reported.out)
+	}
+}
+
+// ratifiedWorkbenchHelp is the block the operator approved, drawn in section 7
+// of docs/specs/dinah-141-workbench-fields-ux-sketch.md. It is quoted here
+// rather than read from the sketch because the sketch is a design document
+// that ships once and this is the surface, and the eighty-column layout the
+// sketch was drawn at is what an unbounded run measures against.
+const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
+
+read this workbench's own fields, or write one
+
+What can go wrong, in the order each is checked:
+  Order  What can go wrong                            Refusal
+  -----  -------------------------------------------  -----------------
+  1      the field is one this workbench records      dinah.unknown-key
+  2      the value is present and well formed         malformed
+  3      on a write, the request names an owner       no-owner
+  4      that owner is the operator                   not-operator
+  5      a slug rename carries the confirmation flag  dinah.unconfirmed
+
+Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
+`
+
+// TestWorkbenchHelpIsTheBlockTheOperatorApproved asserts the per-command help
+// against the block drawn in the card's UX sketch, byte for byte, including
+// the column widths and the rule lengths. The five rows are the command's own
+// checks in the order the runtime evaluates them, and the workbench-level
+// operator check that runs ahead of all five is deliberately absent, since no
+// command outside the five the profile specifies lists one.
+func TestWorkbenchHelpIsTheBlockTheOperatorApproved(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "80")
+	got := runCLI(t, root, "help", "workbench")
+	if got.code != 0 {
+		t.Fatalf("help workbench: %d %s", got.code, got.errw)
+	}
+	if got.out != ratifiedWorkbenchHelp {
+		t.Errorf("the emitted block differs from the one the operator approved:\n%s", diffLines(ratifiedWorkbenchHelp, got.out))
+	}
+	if strings.Contains(got.out, contract.NoOperator) {
+		t.Error("the block lists the workbench-level operator check, which no beyond-contract command lists")
+	}
 }
 
 // configPath is the configuration file a user base holds, which is the file

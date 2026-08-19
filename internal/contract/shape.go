@@ -24,6 +24,17 @@ type Shape struct {
 	// clause split out of the base entry is declared first, because that is
 	// the position it held inside the sentence.
 	Fragments []Fragment
+	// Variants are the commands that raise this refusal for a different act
+	// and so carry a base entry of their own, refusal.<name>.<command>. One
+	// refusal name can answer two acts, and the sentence then depends on
+	// which command raised it, so the command word selects the entry the way
+	// an absent subject selects the unnamed sibling. A command named here
+	// carries its own next-step fragment too, switched on by WhenCommand,
+	// because a variant that borrowed the shared clause would end on advice
+	// written for another act. A shape declares Variants or a Subject and
+	// never both, since no refusal today needs the two selectors at once and
+	// the order between them would otherwise go unstated.
+	Variants []string
 	// Listing names the enumerable set this refusal prints, empty on a
 	// refusal that has none. The head resolves the name to rows.
 	Listing string
@@ -54,6 +65,12 @@ type Fragment struct {
 	// At most one of When and Unless is set, and a fragment named in
 	// NextStep needs neither, since the alternation already orders them.
 	Unless string
+	// WhenCommand is the command word that switches the fragment on, which
+	// is how a shape gives one of its Variants a next step of its own. It
+	// reads the command the reader typed rather than a named value, so it
+	// answers a question no value carries, and at most one of When, Unless
+	// and it is set.
+	WhenCommand string
 }
 
 // The three values the head supplies, which a shape names in Values like any
@@ -111,11 +128,17 @@ var Shapes = []Shape{
 		// than one: an anchor is confirmed with dinah check, a definition
 		// file is not, because the command that read it created no
 		// workbench to check, and a request argument names no file at all.
+		//
+		// A slug the reference grammar would read as a card carries cardRef
+		// and splices the clause saying so. It names no location and no
+		// file, so the alternation's tail gives it the command-spelling next
+		// step, which is the advice a reader who typed the slug needs.
 		Name:   Malformed,
-		Values: []string{"path", "file", ValueUsage},
+		Values: []string{"path", "file", "cardRef", ValueUsage},
 		Fragments: []Fragment{
 			{Key: "refusal.malformed.at", When: "path"},
 			{Key: "refusal.malformed.in-file", When: "file"},
+			{Key: "refusal.malformed.reads-as-a-card-reference", When: "cardRef"},
 			{Key: "refusal.malformed.fix", When: "path"},
 			{Key: "refusal.malformed.next-file", When: "file"},
 			{Key: "refusal.malformed.next"},
@@ -289,9 +312,20 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.repair-would-empty-states.next"},
 	},
 	{
-		Name:      Unconfirmed,
-		Fragments: []Fragment{{Key: "refusal.dinah.unconfirmed.next"}},
-		NextStep:  []string{"refusal.dinah.unconfirmed.next"},
+		// One refusal name answers two acts here. delete destroys history,
+		// and a slug rename renames every card in the workbench, so the
+		// workbench command carries its own sentence and its own next step
+		// rather than ending on advice written for delete.
+		Name:     Unconfirmed,
+		Variants: []string{"workbench"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.unconfirmed.workbench.next", WhenCommand: "workbench"},
+			{Key: "refusal.dinah.unconfirmed.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.unconfirmed.workbench.next",
+			"refusal.dinah.unconfirmed.next",
+		},
 	},
 	{
 		// This refusal carries no listing and points at dinah help, which is
@@ -388,4 +422,21 @@ func (s *Shape) NamedInNextStep(key string) bool {
 		}
 	}
 	return false
+}
+
+// Variant reports whether a command carries a base entry of its own on this
+// shape, which is what tells the composer to render refusal.<name>.<command>
+// in place of the shape's own base entry.
+func (s *Shape) Variant(command string) bool {
+	for _, named := range s.Variants {
+		if named == command {
+			return true
+		}
+	}
+	return false
+}
+
+// VariantKeyOf is the base catalog key one of a shape's variants renders.
+func (s *Shape) VariantKeyOf(command string) string {
+	return "refusal." + s.Name + "." + command
 }

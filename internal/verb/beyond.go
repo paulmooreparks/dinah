@@ -277,6 +277,129 @@ func (l *Library) Delete(req *Request) *Response {
 	return response
 }
 
+// WorkbenchView is the workbench's own fields as a read reports them: the
+// three a person wrote when the workbench was created, and nothing structural.
+type WorkbenchView struct {
+	// Title is the workbench's title.
+	Title string `json:"title"`
+	// Slug is the prefix every card reference in the workbench carries.
+	Slug string `json:"slug"`
+	// Operator is the owner reserved acts belong to.
+	Operator string `json:"operator"`
+}
+
+// Field reads one field of the view by name, and answers the empty string for
+// a name the view does not carry, which Workbench has already refused over.
+func (v *WorkbenchView) Field(name string) string {
+	switch name {
+	case "title":
+		return v.Title
+	case "slug":
+		return v.Slug
+	case "operator":
+		return v.Operator
+	}
+	return ""
+}
+
+// Workbench reports the workbench's own fields. Reading one is open to
+// anybody, so no owner is required and no operator is asked for; every other
+// read in the tool is open the same way.
+//
+// A request whose action is get names one field, and a field outside the set
+// refuses. The refusal travels as a contract.Refusal carrying no verb, so one
+// catalog sentence serves this read, the write inside the library, and
+// `dinah config get` alike, and none of the three can drift from the others.
+func (l *Library) Workbench(req *Request) (*WorkbenchView, error) {
+	if req.Action == "get" && !bench.KnownWorkbenchField(req.Field) {
+		return nil, contract.Refuse(contract.UnknownKey, req.Field)
+	}
+	view := &WorkbenchView{
+		Title:    l.Bench.Title,
+		Slug:     l.Bench.Slug,
+		Operator: l.Bench.Operator,
+	}
+	return view, nil
+}
+
+// SetWorkbench writes one of the workbench's own fields. It evaluates in the
+// order the spec's check table fixes: the workbench designates an operator,
+// the field is one this workbench records, the value is present and well
+// formed, the request names an owner, that owner is the operator, and a slug
+// rename carries the confirmation flag.
+//
+// The operator the actor is compared against is the one Open loaded, before
+// the lock is taken, which is what every sibling does. So `workbench set
+// operator <somebody-else>`, run by the operator, succeeds, and the caller
+// ceases to be the operator for the next command rather than for this one.
+//
+// No field is ever cleared, which is where this grammar departs from `config
+// set`. Open refuses a workbench whose title is empty, clearing the operator
+// leaves nobody who can set it again through this command, and clearing the
+// slug leaves every card reachable only by its identifier.
+//
+// The write reloads the anchor under the lock and sets the one field on the
+// reloaded value, because Save rewrites the whole anchor from the frontmatter
+// the Bench is holding and a stale copy would revert whatever landed after it
+// was read.
+func (l *Library) SetWorkbench(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if !bench.KnownWorkbenchField(req.Field) {
+		return l.refuse(req, nil, contract.UnknownKey, req.Field)
+	}
+	value := strings.TrimSpace(req.Value)
+	if value == "" {
+		return l.refuse(req, nil, contract.Malformed, req.Field)
+	}
+	if req.Field == "slug" && !bench.ValidSlug(value) {
+		return l.refuse(req, nil, contract.Malformed, req.Field)
+	}
+	if req.Actor == "" {
+		return l.refuse(req, nil, contract.NoOwner, "")
+	}
+	if req.Actor != l.Bench.Operator {
+		return l.refuse(req, nil, contract.NotOperator, req.Actor)
+	}
+	if req.Field == "slug" && !req.Confirm {
+		return l.refuse(req, nil, contract.Unconfirmed, value)
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
+	reloaded, err := bench.Open(l.Bench.Root)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	was := reloaded.WorkbenchField(req.Field)
+	reloaded.SetWorkbenchField(req.Field, value)
+	if err := reloaded.Save(); err != nil {
+		return l.FromError(req, err)
+	}
+	ev := bench.Event{
+		TS:    now,
+		Event: contract.EventWorkbenchUpdated,
+		Actor: req.Actor,
+		Field: req.Field,
+		From:  was,
+		To:    value,
+	}
+	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	l.Bench.SetWorkbenchField(req.Field, value)
+	response := l.ok(req, nil)
+	response.Detail = value
+	return response
+}
+
 // journalFor names the journal an event about an entity is recorded in, which
 // is the nearest enclosing journal-bearing entity: a card's own journal for
 // anything below a card, and the bench's for everything else.

@@ -137,7 +137,10 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// nothing here left to correct. config declares no domain flag of its
 	// own and keeps calling this function only to splice an unrecognized
 	// flag-shaped word back into its value as literal text.
-	if command.name != "add" && command.name != "block" && command.name != "comment" {
+	// workbench joins them: dinah-100's one-word rule bounds its value too,
+	// and it declares --yes, so a flag typed after the value would otherwise
+	// take the peeling branch, which nothing shipped exercises today.
+	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}

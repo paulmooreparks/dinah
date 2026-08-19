@@ -2890,9 +2890,18 @@ func checkOneRefusalIsOneDeclaration(t *testing.T, root string, shapes map[strin
 			t.Errorf("%s is a refusal name and no shape declares it, so nothing says what it carries", name)
 		}
 	}
-	for name := range shapes {
+	for _, name := range sortedShapeNames(shapes) {
+		shape := shapes[name]
 		if _, ok := base[refusalKeyOf(name)]; !ok {
 			t.Errorf("%s carries a shape and the base catalog carries no %s, so the shape declares a sentence nobody wrote", name, refusalKeyOf(name))
+		}
+		if len(shape.Variants) > 0 && shape.Subject != "" {
+			t.Errorf("%s declares both a subject and per-command variants, and nothing states which of the two selects the base entry", name)
+		}
+		for _, command := range shape.Variants {
+			if _, ok := base[shape.VariantKeyOf(command)]; !ok {
+				t.Errorf("%s declares the variant %s and the base catalog carries no %s, so a command selects a sentence nobody wrote", name, command, shape.VariantKeyOf(command))
+			}
 		}
 	}
 	raised, err := raisedRefusalNames(root)
@@ -2913,6 +2922,9 @@ func checkOneRefusalIsOneDeclaration(t *testing.T, root string, shapes map[strin
 		declared[refusalKeyOf(name)] = true
 		if shape.Subject != "" {
 			declared[refusalKeyOf(name)+".unnamed"] = true
+		}
+		for _, command := range shape.Variants {
+			declared[shape.VariantKeyOf(command)] = true
 		}
 		for _, fragment := range shape.Fragments {
 			declared[fragment.Key] = true
@@ -3092,11 +3104,29 @@ func checkEveryShapeSaysWhatToDoNext(t *testing.T, shapes map[string]*contract.S
 			if i < len(shape.NextStep)-1 {
 				continue
 			}
-			if fragment.When != "" || fragment.Unless != "" {
+			if fragment.When != "" || fragment.Unless != "" || fragment.WhenCommand != "" {
 				t.Errorf("%s ends its NextStep on %s, which carries a condition, so a reader whose values match none of the branches gets no next step at all", name, key)
 			}
 		}
+		for _, command := range shape.Variants {
+			if !nextStepReaches(shape, command) {
+				t.Errorf("%s declares the variant %s and names no fragment of that command in NextStep, so the variant's reader ends on the next step written for another act", name, command)
+			}
+		}
 	}
+}
+
+// nextStepReaches reports whether one of a shape's alternation members is
+// switched on by a command, which is what gives a variant a next step of its
+// own rather than the one the shape's other readers get.
+func nextStepReaches(shape *contract.Shape, command string) bool {
+	for _, key := range shape.NextStep {
+		fragment := shape.Fragment(key)
+		if fragment != nil && fragment.WhenCommand == command {
+			return true
+		}
+	}
+	return false
 }
 
 // sortedShapeNames orders the table so a failure reads the same way twice.
@@ -3134,6 +3164,9 @@ func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contra
 		entries := []shapeEntry{{key: refusalKeyOf(name)}}
 		if shape.Subject != "" {
 			entries = append(entries, shapeEntry{key: refusalKeyOf(name) + ".unnamed"})
+		}
+		for _, command := range shape.Variants {
+			entries = append(entries, shapeEntry{key: shape.VariantKeyOf(command)})
 		}
 		for _, fragment := range shape.Fragments {
 			condition := fragment.When
@@ -3287,6 +3320,16 @@ func checkNoEmptySubjectReachesASentence(t *testing.T, shapes map[string]*contra
 	}
 }
 
+// baseKeysOf is every entry a shape's sentence can start from: its own base
+// entry, its unnamed sibling, and one entry per per-command variant.
+func baseKeysOf(shape *contract.Shape) []string {
+	keys := []string{refusalKeyOf(shape.Name), refusalKeyOf(shape.Name) + ".unnamed"}
+	for _, command := range shape.Variants {
+		keys = append(keys, shape.VariantKeyOf(command))
+	}
+	return keys
+}
+
 // checkNoCatalogKeepsAClauseItHandedOver is check 7, and it is the one check
 // here that reads catalogs rather than Go sources.
 //
@@ -3309,7 +3352,7 @@ func checkNoCatalogKeepsAClauseItHandedOver(t *testing.T, shapes map[string]*con
 				if clause == "" {
 					continue
 				}
-				for _, key := range []string{refusalKeyOf(name), refusalKeyOf(name) + ".unnamed"} {
+				for _, key := range baseKeysOf(shape) {
 					text, ok := catalog.entries[key]
 					if !ok || !strings.Contains(text, clause) {
 						continue
