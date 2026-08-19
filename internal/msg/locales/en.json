@@ -269,6 +269,30 @@
       "text": "the journal puts this card in state {detail}, and its frontmatter disagrees",
       "context": "A check finding: frontmatter position against the journal's replay."
     },
+    "check.query.1": {
+      "text": "every term of the query parses",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.2": {
+      "text": "every field the query names is one this tool has",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.3": {
+      "text": "the operator is one the named field accepts",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.4": {
+      "text": "each substate and each event name is one that field's vocabulary holds",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.5": {
+      "text": "each state the query names is one the workbench declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.query.6": {
+      "text": "each workstream the query names is one a live card lists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.release.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
@@ -457,6 +481,10 @@
       "text": "print the file path of a card or of anything below it",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block."
     },
+    "cmd.query.summary": {
+      "text": "the cards of the workbench that match a query",
+      "context": "The one-line summary of the query command, shown beside its syntax in the help block."
+    },
     "cmd.release.summary": {
       "text": "give the card back to its queue",
       "context": "The one-line summary of the release command, shown beside its syntax in the help block."
@@ -629,6 +657,22 @@
       "text": "Title",
       "context": "Heading over the offered card's title, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.query.card": {
+      "text": "Card",
+      "context": "Heading over the reference a person types to name the card, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.state": {
+      "text": "State",
+      "context": "Heading over the title of the state the card occupies, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.standing": {
+      "text": "Standing",
+      "context": "Heading over whether the card is ready, active or blocked, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.query.title": {
+      "text": "Title",
+      "context": "Heading over the card's title, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "column.slugs.slug": {
       "text": "Slug",
       "context": "Heading over the handle the repair assigned, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -789,6 +833,10 @@
       "text": "the question could not be asked: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
+    "query.empty": {
+      "text": "No card matches that query.",
+      "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal."
+    },
     "refusal.at-capacity": {
       "text": "state {detail} has reached its limit",
       "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about."
@@ -849,6 +897,14 @@
       "text": "Dinah offers no command called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.unknown-field": {
+      "text": "Dinah has no field {detail}. The fields a query may name are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names. Field names and operators are machine vocabulary, spelled one way in every language, so they arrive as filled values and are never translated. refusal.dinah.unknown-field.ordered is spliced on after this one."
+    },
+    "refusal.dinah.unknown-field.ordered": {
+      "text": " Only {instantField} accepts {ordered}.",
+      "context": "Spliced onto refusal.dinah.unknown-field. {instantField} is the one field whose values rank, and {ordered} is the four operators it takes. Both are machine vocabulary and are never translated."
+    },
     "refusal.dinah.unknown-guide": {
       "text": "no guide is embedded under the topic {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
@@ -860,6 +916,18 @@
     "refusal.dinah.unknown-path": {
       "text": "nothing in this workbench answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.unknown-value": {
+      "text": "Dinah does not accept {detail} in {term}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-value, which a query giving a closed-vocabulary field a value that vocabulary does not hold carries. {detail} is the offending value and {term} is the whole term it was written in. Exactly one of refusal.dinah.unknown-value.legal and refusal.dinah.unknown-value.none is spliced on after it."
+    },
+    "refusal.dinah.unknown-value.legal": {
+      "text": " The values {field} takes are: {legal}.",
+      "context": "Spliced onto refusal.dinah.unknown-value when the field has values to offer. {field} is the field name and {legal} is its vocabulary. Both are machine vocabulary and are never translated."
+    },
+    "refusal.dinah.unknown-value.none": {
+      "text": " Nothing in this workbench carries a value for {field}.",
+      "context": "Spliced onto refusal.dinah.unknown-value when the field's vocabulary is read from the cards and no card carries one. {field} is machine vocabulary and is never translated."
     },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} exists and could not be read; fix its permissions, or point --workbench at a directory the search does not need to open",

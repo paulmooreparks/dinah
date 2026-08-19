@@ -197,6 +197,23 @@ func (s *session) renderListing(listing *verb.Listing) {
 	s.table(t)
 }
 
+// renderMatches prints the cards a query selected. A query spans the whole
+// workbench where ls lists one state at a time, so the reader needs a state
+// column that ls has no use for, and it carries the state's title rather than
+// its identifier.
+func (s *session) renderMatches(matches *verb.Matches) {
+	if len(matches.Cards) == 0 {
+		s.line(s.r.T("query.empty"))
+		return
+	}
+	t := table{indent: 2, columns: s.columns("query", "card", "state", "standing", "title")}
+	for _, card := range matches.Cards {
+		fields := []string{card.Ref, card.StateTitle, s.token(card.Substate), card.Title}
+		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+}
+
 // renderSettings prints each setting with the value in force and the rung of
 // its ladder that produced it. A setting no rung carried prints an empty
 // value beside the source that says so, because the row itself is the answer

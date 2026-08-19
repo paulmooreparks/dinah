@@ -264,6 +264,18 @@ and a second implementation conforms without either of them. The surface is
 wider than the contract on purpose: the contract is the part another tool has
 to match, and the rest is what makes this one worth using.
 
+`query` is the general read beside the positional ones. It takes one string of
+qualifier terms, `state:doing holder:alka at>=2026-08-01` and the like, over a
+closed vocabulary of ten field names, and it returns the matching live cards in
+the same arrival order every other listing uses. The language is Dinah's own
+tool surface rather than contract material, so a second implementation
+conforms without it. The CLI takes the string as its one free-text argument and
+the MCP tool takes it as a string member. The HTTP head does not exist yet, and
+when it is built the recommendation is a GET on the cards collection with the
+query riding a parameter named `q`, whose value is character for character the
+string the other two heads take; that head's own card rules on it, together
+with the status code a refusal maps to.
+
 The CLI is subcommand porcelain over the library: `--json` emits the
 frozen canonical form, default output renders through the locale
 catalogs, and exit codes carry the trichotomy distinctly, because a

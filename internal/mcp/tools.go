@@ -42,6 +42,7 @@ var tools = []tool{
 	{name: "states", command: "states", run: readStates},
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
+	{name: "query", command: "query", run: readQuery},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
 	{name: "instructions", command: "instructions", run: readInstructions},
@@ -154,6 +155,17 @@ func readNext(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"offers": offers}, []string{"claim", "show", "log"})
+}
+
+// readQuery answers the query tool. It carries the same Matches object the
+// cli head emits under --json for the same query string, since both heads hand
+// the one library call the one string.
+func readQuery(l *verb.Library, r *verb.Request) any {
+	matches, err := l.Query(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"matches": matches}, readAffordances)
 }
 
 // readShow answers the show tool.

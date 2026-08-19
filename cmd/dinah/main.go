@@ -246,6 +246,15 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 	if name == contract.Usage && extra["dashHint"] != "" {
 		return text + r.T("refusal.dinah.usage.dash-hint")
 	}
+	if name == contract.UnknownField {
+		return text + r.T("refusal.dinah.unknown-field.ordered", "instantField", verb.FieldAt, "ordered", orderedOperators)
+	}
+	if name == contract.UnknownValue {
+		if extra["legal"] == "" {
+			return text + r.T("refusal.dinah.unknown-value.none", "field", extra["field"])
+		}
+		return text + r.T("refusal.dinah.unknown-value.legal", "field", extra["field"], "legal", extra["legal"])
+	}
 	if name == contract.MultipleWords {
 		if extra["quoteInText"] != "" {
 			return text + r.T("refusal.dinah.multiple-words.quote-yourself")
@@ -254,6 +263,11 @@ func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]stri
 	}
 	return text
 }
+
+// orderedOperators are the four operators only the instant-valued field takes,
+// spelled the way a reader types them. They are machine vocabulary, so they
+// are filled into the sentence rather than written in the catalog.
+const orderedOperators = ">=, <=, > and <"
 
 // sortedKeys returns a map's keys in order, so that one refusal renders the
 // same way twice however the map was built.
