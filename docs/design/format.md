@@ -826,8 +826,7 @@ reachable by its identifier alone.
 
 The status is an open value by this document's own test. Dinah writes `active`
 at creation and accepts any non-empty value afterwards, and nothing in the
-tool refuses, orders, counts, or routes anything on one, so people are the only
-readers of it.
+tool refuses, orders, counts, or routes anything on one.
 
 A workstream is journal-bearing. Its own journal records `created` at birth,
 `workstream_updated` on a write to one of its fields, carrying `field`, `from`,

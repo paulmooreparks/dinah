@@ -725,7 +725,7 @@ autumn  Autumn release  [active]
 [exit 0]
 ```
 
-You belong a card to a workstream with `dinah join`, and you take it out again
+You add a card to a workstream with `dinah join`, and you take it out again
 with `dinah leave`. The card is what you name first, because the card's own
 file is what changes:
 

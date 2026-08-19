@@ -27,7 +27,7 @@ renaming, and a directory without its anchor is garbage rather than a
 half-built one.
 
 A card carries its own position and its own memberships. States and
-workstreams never list their members, so moving a card or belonging it to a
+workstreams never list their members, so moving a card or adding it to a
 workstream is one write to one file, and an interrupted move can never strand
 a card in two places at once.
 

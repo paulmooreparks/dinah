@@ -578,7 +578,7 @@
       "context": "The one-line summary of the instructions command, shown beside its syntax in the help block."
     },
     "cmd.join.summary": {
-      "text": "belong a card to a workstream",
+      "text": "add a card to a workstream",
       "context": "The one-line summary of the join command, shown beside its syntax in the help block."
     },
     "cmd.leave.summary": {

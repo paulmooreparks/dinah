@@ -12,7 +12,7 @@ WORK
   comment <card> <text|->                record a comment on a card
   attach <ref> <file> [--description <text>] [--replace]
                                          attach a file, or replace its bytes
-  join <card> <workstream>               belong a card to a workstream
+  join <card> <workstream>               add a card to a workstream
   leave <card> <workstream>              take a card out of a workstream
   archive <ref>                          move a card, a state, or anything below a card, out of the live set
   delete <ref> --yes                     destroy a card, a state, or anything below a card, along with its history

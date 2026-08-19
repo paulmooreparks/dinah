@@ -817,7 +817,7 @@ func runHelp(s *session, parsed *arguments) int {
 	return 0
 }
 
-// runJoin belongs a card to a workstream. The card is the subject because the
+// runJoin adds a card to a workstream. The card is the subject because the
 // card's frontmatter is the file that changes.
 func runJoin(s *session, parsed *arguments) int {
 	words := parsed.rest()
