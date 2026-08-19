@@ -650,15 +650,17 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 			Title: entity.Card.Title,
 		}
 	}
-	node := TreeNode{
+	// Every kind reaching this branch sits below a head, and the resolver
+	// composes the reference of anything below a head, so the address a
+	// person typed is read back rather than rebuilt here. Rebuilding it was
+	// what left a workbench attachment and a state attachment printing their
+	// header with nothing between the parentheses.
+	return TreeNode{
 		Kind:  entity.Kind,
 		ID:    entity.ID,
+		Ref:   entity.Ref,
 		Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
 	}
-	if entity.Card != nil {
-		node.Ref = refBelowCard(entity.Card.Ref(l.Bench.Slug), entity.Card.Dir, entity.Dir)
-	}
-	return node
 }
 
 // fillContained gives one node of the containment tree its children and its
@@ -826,14 +828,4 @@ func firstLine(body string) string {
 		}
 	}
 	return ""
-}
-
-// refBelowCard rebuilds the reference of an entity the caller named directly,
-// as the card's own reference followed by the path below it.
-func refBelowCard(cardRef, cardDir, dir string) string {
-	below, err := filepath.Rel(cardDir, dir)
-	if err != nil {
-		return cardRef
-	}
-	return cardRef + "/" + filepath.ToSlash(below)
 }

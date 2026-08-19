@@ -196,8 +196,20 @@ func checklistMount() (Mount, bool) {
 // to fall.
 func descend(dir, kind string, segments []string, narrow *string) (string, error) {
 	mount, ok := MountOf(kind, segments[0])
-	if !ok || addressedInItsOwnRight(mount.Kind) {
+	if !ok {
 		return "", contract.Refuse(contract.UnknownPath, segments[0])
+	}
+	if addressedInItsOwnRight(mount.Kind) {
+		// The segment names a collection this workbench plainly has, so a
+		// refusal quoting the segment alone tells a reader that something
+		// they can see does not exist. What is refused is the addressing
+		// rather than the word, so the whole path below the head is quoted
+		// and the next step says how the thing is named instead.
+		return "", contract.RefuseWith(
+			contract.UnknownPath,
+			strings.Join(segments, "/"),
+			map[string]string{"addressed": mount.Kind},
+		)
 	}
 	collection := filepath.Join(dir, mount.Dir)
 	tail := segments[1:]

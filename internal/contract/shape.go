@@ -406,17 +406,22 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-key.next"},
 	},
 	{
-		// Two of the fifteen raise sites name a path on the filesystem and
-		// thirteen name something inside the workbench, so the next step
-		// splits on the value that separates the families.
+		// Two of the raise sites name a path on the filesystem and the rest
+		// name something inside the workbench, so the next step splits on the
+		// value that separates the families. A third family is a reader
+		// reaching a card or a state through whatever holds it, where the
+		// segment is a collection that plainly exists and the advice is to
+		// name the thing by its own reference instead.
 		Name:   UnknownPath,
-		Values: []string{"file"},
+		Values: []string{"file", "addressed"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-path.next-file", When: "file"},
+			{Key: "refusal.dinah.unknown-path.next-addressed", When: "addressed"},
 			{Key: "refusal.dinah.unknown-path.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unknown-path.next-file",
+			"refusal.dinah.unknown-path.next-addressed",
 			"refusal.dinah.unknown-path.next",
 		},
 	},

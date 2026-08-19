@@ -576,6 +576,14 @@ const layoutGuide = "workbench-layout"
 // every path the tool writes is drawn: the guide leaves out .gitignore and the
 // lock files on purpose, and a check demanding completeness would force them
 // into a document that is better without them.
+//
+// It also puts a constraint on the guide that the guide itself does not say:
+// every fenced block in it is read as a directory tree, so an author who
+// fences a command there is told that the workbench carries no such path. An
+// author meeting that message is not looking at a broken workbench, they are
+// looking at a fence this check cannot tell from a tree. The check verifying
+// the shape it depends on, rather than depending on it silently, is dinah-144
+// work rather than a change to the guide.
 func TestTheLayoutGuideDrawsPathsTheToolWrites(t *testing.T) {
 	text, err := guide.Text(layoutGuide)
 	if err != nil {

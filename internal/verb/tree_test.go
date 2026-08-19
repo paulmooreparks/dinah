@@ -906,6 +906,70 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 	}
 }
 
+// TestAWalkRootedAtAReferenceDrawsThatReferenceBack covers the class the
+// cycle-2 blocker and the empty containment header both belong to: a resolver
+// widened at one root that fills only the fields its older callers read. The
+// guard above holds the references a walk from the workbench root composes,
+// and this one holds the other direction. It roots a walk at each of those
+// references and requires the root node to carry the same address back, so a
+// field the resolver stops filling under any head reddens here rather than
+// reaching a reader as a pair of empty parentheses.
+//
+// The workbench root is passed over because its own spelling is dinah-151
+// OQ-9, which is unanswered, and no reading of that question changes what any
+// other node carries.
+func TestAWalkRootedAtAReferenceDrawsThatReferenceBack(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("a card with things below it")
+	h.comment(ref, "a note")
+	h.attach(ref, "notes.txt", "some bytes")
+	h.attach(ref+"/comments/1", "evidence.txt", "the comment's own bytes")
+	h.attach("workbench", "policy.txt", "the workbench's own bytes")
+	h.attach(h.library.Bench.States[0].Ref(), "station.txt", "a state's own bytes")
+	writeItem(t, h.card(ref).Dir, "AC-1", 1)
+	h.reopen()
+
+	drawn := map[string]int{}
+	walkTree(contentsOf(t, h, "workbench", LevelAll).Root, func(node TreeNode) {
+		if node.Kind == bench.KindWorkbench {
+			return
+		}
+		drawn[node.Kind]++
+		rooted, err := h.library.Contents(&Request{Verb: "contents", Ref: node.Ref}, LevelRoot)
+		if err != nil {
+			t.Errorf("a walk rooted at the %s %s: %v", node.Kind, node.Ref, err)
+			return
+		}
+		if rooted.Root.Ref != node.Ref {
+			t.Errorf("a walk rooted at %s draws its root's reference as %q", node.Ref, rooted.Root.Ref)
+		}
+		if rooted.Root.Kind != node.Kind {
+			t.Errorf("a walk rooted at %s draws a %s rather than a %s", node.Ref, rooted.Root.Kind, node.Kind)
+		}
+	})
+	// The kinds are named rather than counted, because the defect this guard
+	// exists for reached one kind under two heads and no other, so a corpus
+	// that happens to miss a head proves nothing about it.
+	for _, kind := range []string{bench.KindState, bench.KindCard, bench.KindComment, bench.KindItem, bench.KindAttachment} {
+		if drawn[kind] == 0 {
+			t.Fatalf("the walk drew no %s, so this test proves nothing about that kind", kind)
+		}
+	}
+	// The two heads the fix is about: an attachment reached below the
+	// workbench and one reached below a state, neither of which belongs to a
+	// card and both of which the older composer left with no reference.
+	for _, below := range []string{"workbench/attachments/1", h.library.Bench.States[0].Ref() + "/attachments/1"} {
+		entity, err := h.library.Bench.ResolveEntity(below)
+		if err != nil {
+			t.Errorf("%s does not resolve: %v", below, err)
+			continue
+		}
+		if entity.Ref == "" {
+			t.Errorf("%s resolves to an answer carrying no reference", below)
+		}
+	}
+}
+
 // collectionsBelowTheHead counts the collections a reference descends through,
 // which is the depth the resolver has to recurse to in order to answer it.
 //
@@ -915,6 +979,13 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 // slashes instead answers 2 for `fx-1/comments/1`, which is one collection
 // deep and is exactly the reference the fixture this counter rejects would
 // have drawn.
+//
+// The measure floors on two shapes the walk never draws: a bare collection
+// such as `fx-1/comments` answers 0 while descending one, and a payload such
+// as `fx-1/attachments/1/payload` answers 1 against three segments. Both
+// under-count, so the guard reading this fires more readily rather than less,
+// which is the direction a safety catch may err in and the direction the slash
+// count did not.
 func collectionsBelowTheHead(ref string) int {
 	_, rest, found := strings.Cut(ref, "/")
 	if !found || rest == "" {

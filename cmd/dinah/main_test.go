@@ -5147,13 +5147,29 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 }
 
 // ratifiedWorkbenchHelp is the block the operator approved, drawn in section 7
-// of docs/specs/dinah-141-workbench-fields-ux-sketch.md. It is quoted here
-// rather than read from the sketch because the sketch is a design document
-// that ships once and this is the surface, and the eighty-column layout the
-// sketch was drawn at is what an unbounded run measures against.
+// of docs/specs/dinah-141-workbench-fields-ux-sketch.md and grown by the
+// sketch dinah-172 carries, which he approved and which adds the arguments
+// section to every per-command page. It is quoted here rather than read from
+// either sketch because a sketch is a design document that ships once and this
+// is the surface, and the eighty-column layout both were drawn at is what an
+// unbounded run measures against.
+//
+// The field row carries this workbench's own three fields, which the block
+// reads from bench.WorkbenchFields rather than from the workbench under test,
+// so it says the same thing wherever the command is run.
 const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
 
 read this workbench's own fields, or write one
+
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  [get|set]        read one field or write one; every field with its value when
+                   you name none
+  [field]          which field you are reading or writing (one of: title, slug,
+                   operator)
+  [value]          what to store in it, on a set
+  [--yes]          confirm the act, which Dinah does not carry out without it
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                            Refusal
@@ -5645,6 +5661,598 @@ func TestQueryHelpIsGeneratedFromTheCheckList(t *testing.T) {
 		at += found + len(row)
 		if !strings.Contains(got.out[at:], check.Refusal) {
 			t.Errorf("check %d, %q, is not followed by its refusal name %s:\n%s", i+1, row, check.Refusal, got.out)
+		}
+	}
+}
+
+// TestTheArgumentsTableSpellsEveryArgumentTheSyntaxLineWay asserts the half of
+// the one-spelling claim that a reader can see: the left column of the
+// rendered arguments table is verb.Tokens in order, so the table and the
+// syntax line above it cannot spell one argument two ways.
+//
+// It reads the drawn page rather than the token list twice. The sweep of every
+// command is what makes it a claim about the tool rather than about attach.
+func TestTheArgumentsTableSpellsEveryArgumentTheSyntaxLineWay(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "80")
+	swept := 0
+	for _, name := range verb.Commands() {
+		tokens := verb.Tokens(name)
+		if len(tokens) == 0 {
+			continue
+		}
+		got := runCLI(t, root, "help", name)
+		if got.code != 0 {
+			t.Fatalf("help %s: %d %s", name, got.code, got.errw)
+		}
+		drawn := argumentColumn(t, name, got.out)
+		if len(drawn) != len(tokens) {
+			t.Errorf("help %s draws %d argument rows and the command declares %d: %v against %v", name, len(drawn), len(tokens), drawn, tokens)
+			continue
+		}
+		for i, token := range tokens {
+			if drawn[i] != token {
+				t.Errorf("help %s row %d spells the argument %q and the syntax line spells it %q", name, i+1, drawn[i], token)
+			}
+		}
+		swept++
+	}
+	if swept == 0 {
+		t.Fatal("no command drew an arguments table, so this test proves nothing")
+	}
+}
+
+// argumentColumn reads the left column of a page's arguments table, one entry
+// per row. It measures the column off the rule under the heading rather than
+// splitting on whitespace, since a valued flag's token carries a space, and it
+// skips the continuation lines a wrapped meaning draws.
+func argumentColumn(t *testing.T, command, page string) []string {
+	t.Helper()
+	heading := msg.For(msg.Base).T("help.arguments")
+	lines := strings.Split(page, "\n")
+	at := -1
+	for i, line := range lines {
+		if line == heading {
+			at = i + 1
+			break
+		}
+	}
+	if at < 0 || at+2 >= len(lines) {
+		t.Fatalf("help %s draws no arguments section", command)
+	}
+	rule := strings.Fields(lines[at+1])
+	if len(rule) != 2 {
+		t.Fatalf("help %s draws %d rules under its arguments table, want two", command, len(rule))
+	}
+	width := len(rule[0])
+	var drawn []string
+	for _, line := range lines[at+2:] {
+		if strings.TrimSpace(line) == "" {
+			break
+		}
+		if len(line) <= sweptIndent+width || strings.TrimSpace(line[:sweptIndent+width]) == "" {
+			continue
+		}
+		drawn = append(drawn, strings.TrimSpace(line[:sweptIndent+width]))
+	}
+	return drawn
+}
+
+// TestEveryPageSaysWhatEachArgumentIs asserts the content this card writes,
+// page by page, against the pages the binary draws. Each case names a page and
+// the phrases that page has to carry, so a sentence dropped from the catalog
+// or a row dropped from the table fails here rather than in front of a reader.
+func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "80")
+	cases := []struct {
+		command string
+		carries []string
+	}{
+		{command: "check", carries: []string{
+			"[--finish]", "complete or roll back a structural act that was interrupted",
+			"[--migrate-ordinals]", "stamp a creation ordinal on every entity that carries none",
+			"[--migrate-slugs]", "derive a slug for every state of this workbench that carries none",
+			"[--migrate-states]", "remove stranded identifiers from this workbench's own list of states",
+			"Dinah exits 2 when it finds a defect",
+		}},
+		{command: "attach", carries: []string{
+			"attach <ref> <file> [--description <text>] [--replace]",
+			"[--description <text>]", "a line describing the attachment, stored beside it",
+			"what the file hangs off: this workbench, a state, a card, or a comment or an attachment below a card",
+			"with --replace, the attachment whose bytes you are replacing",
+			"For more, run `dinah guide references`.",
+		}},
+		{command: "init", carries: []string{
+			"init [dir] [--from <source>]",
+			"[dir]", "the directory you are in when you name none",
+			"a directory holding a workbench, or a single file written by `dinah export` or `dinah extract`",
+		}},
+		{command: "claim", carries: []string{
+			"[--expires <duration>]", "written as a number and a unit: 30m, 2h, 7d",
+		}},
+		{command: "block", carries: []string{
+			"[--kind <kind>]", "Dinah stores whatever you write and checks it against no set",
+		}},
+		{command: "query", carries: []string{"For more, run `dinah guide query`."}},
+		{command: "path", carries: []string{
+			"path <ref>", "this workbench written as `workbench` or `.`",
+			"For more, run `dinah guide references`.",
+		}},
+		{command: "edit", carries: []string{
+			"edit <ref>", "this workbench written as `workbench` or `.`",
+			"For more, run `dinah guide references`.",
+		}},
+		{command: "show", carries: []string{
+			"show <ref>", "show does not take this workbench",
+			"For more, run `dinah guide references`.",
+		}},
+		{command: "instructions", carries: []string{
+			"instructions <card|state>",
+			"instructions takes neither this workbench nor anything below a card",
+			"For more, run `dinah guide references`.",
+		}},
+		{command: "archive", carries: []string{
+			"a state, a card, or something below a card such as wb-1/comments/1; not this workbench",
+			"For more, run `dinah guide references`.",
+		}},
+		{command: "delete", carries: []string{
+			"--yes", "confirm the act, which Dinah does not carry out without it",
+			"For more, run `dinah guide references`.",
+		}},
+	}
+	for _, c := range cases {
+		got := runCLI(t, root, "help", c.command)
+		if got.code != 0 {
+			t.Fatalf("help %s: %d %s", c.command, got.code, got.errw)
+		}
+		flat := strings.Join(strings.Fields(got.out), " ")
+		for _, phrase := range c.carries {
+			if strings.Contains(flat, strings.Join(strings.Fields(phrase), " ")) {
+				continue
+			}
+			t.Errorf("help %s does not carry %q:\n%s", c.command, phrase, got.out)
+		}
+	}
+
+	// claim takes a card rather than a reference, so its page points at no
+	// guide at all.
+	claim := runCLI(t, root, "help", "claim")
+	if strings.Contains(claim.out, "dinah guide references") {
+		t.Errorf("help claim points at the references guide:\n%s", claim.out)
+	}
+}
+
+// TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside asserts
+// dinah-172 AC-3: a vocabulary living in the reader's own workbench is printed
+// where one opens and left out where none does, and the page answers either
+// way.
+//
+// The outside case is established by pointing DINAH_HOME and the working
+// directory at directories carrying no workbench, rather than by relying on
+// where the test happens to run. This repository carries a discoverable
+// workbench of its own and discovery walks the ancestor chain, so a test that
+// says nothing about the environment exercises the inside case twice.
+//
+// Two separate refusals to answer hold the outside case, and this test cannot
+// tell them apart. vocabularyValues declines to resolve a states vocabulary
+// when no workbench opens, and refusalListings["states"] returns nothing when
+// the session carries no library. Removing either one alone leaves the outside
+// half of this test green, so a reader must not take a pass here as proof that
+// the guard in vocabularyValues is doing the work.
+func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.T) {
+	t.Setenv("COLUMNS", "80")
+	inside := runCLI(t, newBench(t), "help", "ls")
+	if inside.code != 0 {
+		t.Fatalf("help ls inside a workbench: %d %s", inside.code, inside.errw)
+	}
+	flat := strings.Join(strings.Fields(inside.out), " ")
+	if !strings.Contains(flat, "(one of: intake, doing, done)") {
+		t.Errorf("the state row does not name the workbench's own states:\n%s", inside.out)
+	}
+	if !strings.Contains(flat, "also written --state <state>") {
+		t.Errorf("the state row does not say the argument is also written --state:\n%s", inside.out)
+	}
+
+	tree := emptyTree(t)
+	if got := runCLI(t, tree, "ls"); got.code == 0 {
+		t.Fatalf("the tree should carry no workbench, and ls answered: %s", got.out)
+	}
+	outside := runCLI(t, tree, "help", "ls")
+	if outside.code != 0 {
+		t.Fatalf("help ls outside a workbench: %d %s", outside.code, outside.errw)
+	}
+	if strings.Contains(outside.out, "one of:") {
+		t.Errorf("the page names a set it cannot read from here:\n%s", outside.out)
+	}
+	bare := strings.Join(strings.Fields(outside.out), " ")
+	if !strings.Contains(bare, "also written --state <state>") {
+		t.Errorf("the page dropped the rest of the row along with the set:\n%s", outside.out)
+	}
+
+	// The page answers where a stated workbench is not there either. All six
+	// ways s.open can fail reach the arguments section as an error return and
+	// are swallowed in the one place, so these two exercise the swallow; the
+	// other four need a fixture apiece and are driven against the commands
+	// that raise them elsewhere in this suite.
+	named := runCLI(t, tree, "help", "ls", "--workbench", filepath.Join(tree, "nowhere"))
+	if named.code != 0 {
+		t.Fatalf("help ls with a workbench flag naming nothing: %d %s", named.code, named.errw)
+	}
+	if strings.Contains(named.out, "one of:") {
+		t.Errorf("the page names a set the stated workbench cannot answer for:\n%s", named.out)
+	}
+}
+
+// TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable asserts
+// dinah-172 AC-13: the sets args.go derives equal the sets it used to carry by
+// hand, named literally here so the derivation is checked against something
+// rather than against itself, and the two flags the derivation was written for
+// still behave.
+func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
+	wantValued := []string{
+		"actor", "depth", "description", "expires", "from", "group-by",
+		"kind", "lang", "operator", "slug", "state", "workbench",
+	}
+	wantMarkers := []string{
+		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",
+		"migrate-states", "override", "quiet", "ready", "replace", "yes",
+	}
+	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
+		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
+	}
+	if got := strings.Join(markerFlags, " "); got != strings.Join(wantMarkers, " ") {
+		t.Errorf("the derived marker flags are %q and the parser accepted %q", got, strings.Join(wantMarkers, " "))
+	}
+	for _, flag := range globalFlags {
+		if flag.marker == (flag.value != "") {
+			t.Errorf("--%s declares marker=%v and the value placeholder %q, which disagree", flag.name, flag.marker, flag.value)
+		}
+	}
+
+	root := newBench(t)
+	file := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(file, []byte("x\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "attach", "fx-1", file, "--description", "x"); got.code != 0 {
+		t.Errorf("attach with a description: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "ls", "--nonsense"); got.code == 0 {
+		t.Errorf("an unknown flag was accepted: %s", got.out)
+	}
+}
+
+// TestTheReferencesGuideSaysWhichCommandTakesWhat asserts dinah-172 AC-8: the
+// new guide teaches every form of a reference, says what each command taking
+// one accepts, and is listed among the topics. dinah-151 adds the eighth row,
+// for contents, which the sentence over the table counts.
+func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
+	root := newBench(t)
+	listing := runCLI(t, root, "guide")
+	if listing.code != 0 {
+		t.Fatalf("guide: %d %s", listing.code, listing.errw)
+	}
+	if !strings.Contains(listing.out, "references") {
+		t.Errorf("the topic listing does not carry the references guide:\n%s", listing.out)
+	}
+	got := runCLI(t, root, "guide", "references")
+	if got.code != 0 {
+		t.Fatalf("guide references: %d %s", got.code, got.errw)
+	}
+	for _, form := range []string{
+		"dinah path workbench", "dinah path .", "dinah show wb-1", "dinah attach doing",
+		"wb-1/card", "wb-1/journal", "wb-1/comments", "wb-1/comments/1",
+		"wb-1/checklist", "wb-1/checklist/1", "wb-1/attachments", "wb-1/attachments/1",
+		"wb-1/oq", "wb-1/ac", "wb-1/d",
+		"in the order the entities were created",
+		"nothing answers to the reference rather than telling you the collection is empty",
+	} {
+		if !strings.Contains(got.out, form) {
+			t.Errorf("the references guide does not teach %q", form)
+		}
+	}
+	// The table, row by row, in the shape the guide draws it. Every cell was
+	// provoked against a build rather than read off the resolvers.
+	for _, row := range []string{
+		"| path         | yes            | no      | yes    | yes          |",
+		"| edit         | yes            | no      | yes    | yes          |",
+		"| show         | no             | no      | yes    | yes          |",
+		"| instructions | no             | yes     | yes    | no           |",
+		"| attach       | yes            | yes     | yes    | yes          |",
+		"| archive      | no             | yes     | yes    | yes          |",
+		"| delete       | no             | yes     | yes    | yes          |",
+		"| contents     | yes            | yes     | yes    | yes          |",
+	} {
+		if !strings.Contains(got.out, row) {
+			t.Errorf("the references guide does not carry the row %q", row)
+		}
+	}
+	assertTheGuideCountsItsOwnTable(t, got.out)
+}
+
+// assertTheGuideCountsItsOwnTable holds the sentence introducing the table in
+// the references guide to the table underneath it. The sentence says how many
+// commands take a reference and how many different sets of things they accept
+// between them, and both numbers are read off the drawn rows rather than
+// written down, so a row that gains or loses a cell reddens the sentence that
+// describes it.
+//
+// The guard exists because the shipped sentence claimed that no two commands
+// take the same set while the table showed two identical pairs, which a reader
+// catches in seconds and no test did.
+func assertTheGuideCountsItsOwnTable(t *testing.T, guide string) {
+	t.Helper()
+	commands := 0
+	sets := map[string]bool{}
+	for _, line := range strings.Split(guide, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "| ") {
+			continue
+		}
+		cells := strings.Split(strings.Trim(line, "|"), "|")
+		if len(cells) != 5 {
+			continue
+		}
+		name := strings.TrimSpace(cells[0])
+		if name == "Command" || strings.Trim(name, "-") == "" {
+			continue
+		}
+		var accepts []string
+		for _, cell := range cells[1:] {
+			accepts = append(accepts, strings.TrimSpace(cell))
+		}
+		commands++
+		sets[strings.Join(accepts, ",")] = true
+	}
+	if commands == 0 {
+		t.Fatal("the references guide draws no command row, so this assertion proves nothing")
+	}
+	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	if commands >= len(words) || len(sets) >= len(words) {
+		t.Fatalf("the table draws %d commands over %d sets, past what this assertion spells", commands, len(sets))
+	}
+	// The sentence is read with its line breaks folded away and its case
+	// dropped, since the guide is hard-wrapped and the sentence opens one of
+	// its paragraphs, so neither the wrap point nor the capital says anything
+	// about whether the claim is true.
+	flat := strings.ToLower(strings.Join(strings.Fields(guide), " "))
+	takes := words[commands] + " commands take a reference"
+	if !strings.Contains(flat, takes) {
+		t.Errorf("the table draws %d command rows and the guide does not say %q", commands, takes)
+	}
+	accepts := "they accept " + words[len(sets)] + " different sets of things"
+	if !strings.Contains(flat, accepts) {
+		t.Errorf("the table draws %d distinct sets and the guide does not say %q", len(sets), accepts)
+	}
+}
+
+// TestExpiresTakesTheDaySuffixAndRefusesTheWeek asserts the behaviour the
+// claim page now states: the duration is Go's syntax with a day suffix Go does
+// not have, so 7d is accepted and 1w is refused as malformed.
+func TestExpiresTakesTheDaySuffixAndRefusesTheWeek(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "claim", "fx-1", "--expires", "7d"); got.code != 0 {
+		t.Errorf("--expires 7d: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "release", "fx-1"); got.code != 0 {
+		t.Fatalf("release: %d %s", got.code, got.errw)
+	}
+	got := runCLI(t, root, "claim", "fx-1", "--expires", "1w")
+	if got.code == 0 {
+		t.Fatalf("--expires 1w was accepted: %s", got.out)
+	}
+	if !strings.HasPrefix(got.errw, contract.Malformed+" ") {
+		t.Errorf("--expires 1w refuses with %q, want malformed", got.errw)
+	}
+}
+
+// TestTheTwoTranslatedCatalogsAreReportedComplete asserts dinah-172 AC-14:
+// every key this card adds reached both real catalogs and the six skeletons,
+// so `dinah version --catalogs` still reports two catalogs at N/N and the rest
+// at 0/N.
+func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
+	total := len(msg.Keys())
+	if total == 0 {
+		t.Fatal("the base catalog carries no keys")
+	}
+	complete := 0
+	for _, tag := range msg.Tags() {
+		translated, present, count := msg.Coverage(tag)
+		if count != total {
+			t.Errorf("%s is measured against %d keys and the base catalog carries %d", tag, count, total)
+		}
+		if present != total {
+			t.Errorf("%s carries %d of the base catalog's %d keys", tag, present, total)
+		}
+		if translated == total {
+			complete++
+			continue
+		}
+		if translated != 0 {
+			t.Errorf("%s is a skeleton and reports %d keys translated", tag, translated)
+		}
+	}
+	if complete != 2 {
+		t.Errorf("%d catalogs report every key translated, want the two that are really translated", complete)
+	}
+}
+
+// placeholderGroup matches one angle-bracketed group of a catalog string.
+var placeholderGroup = regexp.MustCompile(`<([^<>]*)>`)
+
+// placeholderWord matches the shape a replaceable word takes: letters, digits,
+// hyphens and spaces, carrying at least one letter. A group outside that shape
+// is not a placeholder at all, which is how the comparison operators in the
+// query refusal (`>=, <=, > and <`) are passed over rather than read as words a
+// reader replaces. A hand-spelled placeholder such as `<no slug>` is inside the
+// shape and is checked.
+var placeholderWord = regexp.MustCompile(`^[A-Za-z0-9 -]*[A-Za-z][A-Za-z0-9 -]*$`)
+
+// placeholdersOutsideTheParameterTable are the replaceable words a catalog
+// string may carry that no command declares and no global flag names. Each is
+// listed with the string that carries it, so the list is read as a set of
+// findings rather than as a way around the rule.
+var placeholdersOutsideTheParameterTable = map[string]string{
+	// The path of a state's own file, in the repair for a workbench whose
+	// states list names a state it carries no directory for. The identifier
+	// belongs to the workbench's own storage rather than to any argument.
+	"id": "refusal.dinah.add-needs-a-state.next",
+}
+
+// TestEveryPlaceholderNamesSomethingDeclared asserts dinah-172 AC-18: a word a
+// reader replaces is marked one way across every surface, so every
+// angle-bracketed placeholder in every catalog string names an argument some
+// command declares, the value placeholder of a global flag, or one of the few
+// words named above.
+//
+// A hand-spelled placeholder fails here, which is what stopped three refusals
+// from offering `--workbench <path>` where the flag's own value is spelled
+// `<dir>`.
+func TestEveryPlaceholderNamesSomethingDeclared(t *testing.T) {
+	declared := map[string]bool{}
+	for _, name := range verb.Commands() {
+		for _, param := range verb.Params(name) {
+			declared[param.Name] = true
+			if param.Value != "" {
+				declared[param.Value] = true
+			}
+		}
+	}
+	for _, flag := range globalFlags {
+		declared[flag.name] = true
+		if flag.value != "" {
+			declared[flag.value] = true
+		}
+	}
+	checked, skipped := 0, 0
+	for _, key := range msg.Keys() {
+		entry, ok := msg.BaseEntry(key)
+		if !ok {
+			t.Fatalf("%s: the base catalog reports it and does not carry it", key)
+		}
+		for _, group := range placeholderGroup.FindAllStringSubmatch(entry.Text, -1) {
+			word := group[1]
+			if !placeholderWord.MatchString(word) {
+				skipped++
+				continue
+			}
+			checked++
+			if declared[word] {
+				continue
+			}
+			if _, named := placeholdersOutsideTheParameterTable[word]; named {
+				continue
+			}
+			t.Errorf("%s spells the placeholder <%s>, which no command declares, no global flag names, and no entry of placeholdersOutsideTheParameterTable covers: %q", key, word, entry.Text)
+		}
+	}
+	if checked == 0 {
+		t.Error("no catalog string carries a placeholder, so this test proves nothing")
+	}
+	if skipped == 0 {
+		t.Error("no group was passed over as something other than a placeholder, so the case the comparison operators fall into is not exercised")
+	}
+	for word, key := range placeholdersOutsideTheParameterTable {
+		entry, ok := msg.BaseEntry(key)
+		if !ok || !strings.Contains(entry.Text, "<"+word+">") {
+			t.Errorf("placeholdersOutsideTheParameterTable names <%s> as carried by %s and that string does not carry it, so the entry is stale", word, key)
+		}
+	}
+}
+
+// ratifiedGlobalFlagTable and ratifiedMoveRefusalTable are two tables the wrap
+// this card adds must leave alone, held here as bytes. The arguments table is
+// the only table that asks for its last column to be broken, and these are
+// what shows that the opt-in is really an opt-in: one table with a summary
+// column and one with a refusal column, both drawn at the window the arguments
+// table wraps at.
+const ratifiedGlobalFlagTable = `  Option             What it does
+  -----------------  -----------------------------------------------------------
+  --workbench <dir>  use this workbench instead of the one discovered from here
+  --json             emit the canonical machine form
+  --quiet            suppress served instructions on claim and move
+  --lang <tag>       render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
+  --actor <name>     act as this owner`
+
+const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
+  -----  --------------------------------------------------  -------------------
+  1      the workbench declares a major number the tool implements
+                                                            unsupported-version
+  2      the workbench designates an operator                no-operator
+  3      the card exists                                     unknown-card
+  4      the destination is a state the workbench declares   unknown-state
+  5      an override marker, if carried, is the operator's   not-operator
+  6      the departure is legal for whoever asks             not-operator
+  7      the card's substate is not ` + "`blocked`" + `                blocked
+  8      the card is unheld or held by whoever asks          held
+  9      the move is not a forward move out of a ` + "`done`" + ` state
+                                                            terminal
+  10     the destination is below its capacity limit         at-capacity`
+
+// TestTheArgumentsTableWrapsAndNoOtherTableMoved asserts dinah-172 AC-17: at an
+// eighty-column window the arguments table breaks its last column between
+// words and indents each continuation under the column, so no line of a
+// per-command page reaches past eighty columns, and the two tables held above
+// still draw exactly as they did.
+func TestTheArgumentsTableWrapsAndNoOtherTableMoved(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "80")
+	pages := 0
+	for _, name := range verb.Commands() {
+		got := runCLI(t, root, "help", name)
+		if got.code != 0 {
+			t.Fatalf("help %s: %d %s", name, got.code, got.errw)
+		}
+		pages++
+		for _, line := range strings.Split(got.out, "\n") {
+			if displayWidth(line) <= 80 {
+				continue
+			}
+			t.Errorf("help %s draws a line %d columns wide:\n%q", name, displayWidth(line), line)
+		}
+	}
+	if pages == 0 {
+		t.Fatal("no page was drawn, so this test proves nothing")
+	}
+
+	// A wrapped continuation begins under the column its own row's last field
+	// begins at, rather than at the left margin.
+	attach := runCLI(t, root, "help", "attach")
+	if !strings.Contains(attach.out, "\n                          card, or a comment or an attachment below a card; with\n") {
+		t.Errorf("the wrapped meaning does not indent under its column:\n%s", attach.out)
+	}
+
+	block := runCLI(t, root)
+	if !strings.Contains(block.out, ratifiedGlobalFlagTable) {
+		t.Errorf("the global flag table moved:\n%s", block.out)
+	}
+	move := runCLI(t, root, "help", "move")
+	if !strings.Contains(move.out, ratifiedMoveRefusalTable) {
+		t.Errorf("the refusal table of move moved:\n%s", move.out)
+	}
+}
+
+// TestEveryVocabularySourceHasAListingThatAnswersIt asserts what the argument
+// table's own help page rests on: every source a declared vocabulary names is
+// one refusalListings can resolve, so the branch in vocabularyValues that
+// gives up on an unresolvable source is unreachable rather than merely
+// unreached. That branch is named in testdata/uncovered.txt for this reason,
+// and this test is what makes the reason true.
+func TestEveryVocabularySourceHasAListingThatAnswersIt(t *testing.T) {
+	sources := verb.VocabularySources()
+	if len(sources) == 0 {
+		t.Fatal("no vocabulary names a source, so this test proves nothing")
+	}
+	for _, source := range sources {
+		if _, ok := refusalListings[source]; !ok {
+			t.Errorf("a vocabulary names the source %q and refusalListings carries no listing for it", source)
 		}
 	}
 }

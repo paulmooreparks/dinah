@@ -508,3 +508,67 @@ func TestTheTreeToolsCarryTheLibraryObject(t *testing.T) {
 		}
 	}
 }
+
+// TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum asserts dinah-172
+// AC-12: every property of every generated input schema carries a non-empty
+// description, including the two schemaFor adds beyond any parameter table,
+// and no property carries an enum.
+//
+// A description is additive and constrains no caller. An enum changes what a
+// strict client will send, which is a change to a published machine interface,
+// so its absence is asserted here rather than left to be noticed.
+func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
+	library := newLibrary(t)
+	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
+	encoded, err := json.Marshal(answer.Result)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var listed struct {
+		Tools []struct {
+			Name        string         `json:"name"`
+			InputSchema map[string]any `json:"inputSchema"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(encoded, &listed); err != nil {
+		t.Fatalf("tools/list: %v", err)
+	}
+	if len(listed.Tools) == 0 {
+		t.Fatal("the surface carries no tool, so this test proves nothing")
+	}
+	described, beyond := 0, 0
+	for _, tool := range listed.Tools {
+		properties, ok := tool.InputSchema["properties"].(map[string]any)
+		if !ok {
+			t.Fatalf("%s carries no input schema properties", tool.Name)
+		}
+		for name, raw := range properties {
+			property, ok := raw.(map[string]any)
+			if !ok {
+				t.Errorf("%s: the property %s is not an object", tool.Name, name)
+				continue
+			}
+			description, _ := property["description"].(string)
+			if strings.TrimSpace(description) == "" {
+				t.Errorf("%s: the property %s carries no description", tool.Name, name)
+				continue
+			}
+			if strings.HasPrefix(description, "{") {
+				t.Errorf("%s: the property %s describes itself with the bare catalog key %s", tool.Name, name, description)
+			}
+			described++
+			if name == "actor" || name == "basis" {
+				beyond++
+			}
+			if _, carried := property["enum"]; carried {
+				t.Errorf("%s: the property %s carries an enum, which changes what a strict client sends", tool.Name, name)
+			}
+		}
+	}
+	if described == 0 {
+		t.Fatal("no property was read, so this test proves nothing")
+	}
+	if beyond != 2*len(listed.Tools) {
+		t.Errorf("read %d actor and basis properties across %d tools, want one of each per tool", beyond, len(listed.Tools))
+	}
+}

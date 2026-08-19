@@ -200,3 +200,75 @@ func TestWindowWidthReadsColumns(t *testing.T) {
 		t.Errorf("COLUMNS absent with no terminal to ask: windowWidth() = %d, want 0", got)
 	}
 }
+
+// TestFormatRowBreaksAWrappedTailBetweenWords asserts the opt-in this card
+// adds to the renderer: a row asking for it breaks its tail on a space
+// boundary at the window, indents every line after the first under the column
+// the tail began at, and a row that does not ask keeps its tail whole.
+func TestFormatRowBreaksAWrappedTailBetweenWords(t *testing.T) {
+	build := func(wrap bool) row {
+		return row{
+			indent:   2,
+			cells:    []cell{{text: "<ref>", width: 8}},
+			tail:     "one two three four five six seven",
+			wrapTail: wrap,
+		}
+	}
+	whole := formatRow(build(false), 24)
+	if strings.Contains(whole, "\n") {
+		t.Errorf("a row that asked for nothing broke its tail:\n%q", whole)
+	}
+	broken := formatRow(build(true), 24)
+	want := "  <ref>   one two three\n          four five six\n          seven"
+	if broken != want {
+		t.Errorf("the wrapped tail reads\n%q\nand should read\n%q", broken, want)
+	}
+	for _, line := range strings.Split(broken, "\n") {
+		if displayWidth(line) > 24 {
+			t.Errorf("a wrapped line is %d columns wide:\n%q", displayWidth(line), line)
+		}
+	}
+}
+
+// TestAWrappedTailBreaksNoWordAndSurvivesAnUnknownWindow asserts the two edges
+// of the wrap. A word wider than the room left is written whole and overruns,
+// which is the rule the rest of the renderer follows and what keeps a
+// reference inside a summary copyable, and a row laid out for an unknown
+// window is not wrapped at all, since nothing states where to break.
+func TestAWrappedTailBreaksNoWordAndSurvivesAnUnknownWindow(t *testing.T) {
+	long := "short " + strings.Repeat("x", 40)
+	built := row{indent: 2, cells: []cell{{text: "a", width: 4}}, tail: long, wrapTail: true}
+	broken := formatRow(built, 24)
+	if !strings.Contains(broken, strings.Repeat("x", 40)) {
+		t.Errorf("the long word was broken:\n%q", broken)
+	}
+	unbounded := formatRow(row{indent: 2, tail: long, wrapTail: true}, 0)
+	if strings.Contains(unbounded, "\n") {
+		t.Errorf("an unknown window wrapped anyway:\n%q", unbounded)
+	}
+	noRoom := formatRow(row{indent: 30, tail: "one two three", wrapTail: true}, 24)
+	if strings.Contains(noRoom, "\n") {
+		t.Errorf("a tail with no room at all was broken:\n%q", noRoom)
+	}
+}
+
+// TestAWrappedTailIsMeasuredForTheColumnBeforeIt asserts why the wrap needed
+// the measure to change with it. A tail that breaks at the window imposes no
+// width on its row, so counting it whole would drop the field before it out of
+// the measurement and collapse a column a reader can see is wider than its
+// heading.
+func TestAWrappedTailIsMeasuredForTheColumnBeforeIt(t *testing.T) {
+	rows := []tableRow{
+		{fields: []string{"[--description <text>]", strings.Repeat("word ", 20)}},
+		{fields: []string{"<ref>", "short"}},
+	}
+	columns := []tableColumn{{heading: "As you write it"}, {heading: "What it is"}}
+	wrapped := measure(table{indent: 2, columns: columns, rows: rows, wrapTail: true}, 80)
+	if wrapped.widths[0] != displayWidth("[--description <text>]") {
+		t.Errorf("the wrapping table measured its first column at %d, want %d", wrapped.widths[0], displayWidth("[--description <text>]"))
+	}
+	plain := measure(table{indent: 2, columns: columns, rows: rows}, 80)
+	if plain.widths[0] != displayWidth("As you write it") {
+		t.Errorf("a table that does not wrap measured its first column at %d, want its heading's %d", plain.widths[0], displayWidth("As you write it"))
+	}
+}

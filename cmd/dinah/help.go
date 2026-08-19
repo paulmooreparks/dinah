@@ -59,12 +59,19 @@ var globalFlags = []struct {
 	name string
 	// usage is the flag with its value placeholder.
 	usage string
+	// value is the placeholder a valued flag shows, empty on a marker. It is
+	// declared rather than recovered from the usage string, since looking for
+	// an angle bracket there would read a summary carrying one as a value.
+	value string
+	// marker says the flag carries no value, which is what the argument
+	// parser reads when it derives the flags it accepts.
+	marker bool
 }{
-	{name: "workbench", usage: "--workbench <dir>"},
-	{name: "json", usage: "--json"},
-	{name: "quiet", usage: "--quiet"},
-	{name: "lang", usage: "--lang <tag>"},
-	{name: "actor", usage: "--actor <name>"},
+	{name: "workbench", usage: "--workbench <dir>", value: "dir"},
+	{name: "json", usage: "--json", marker: true},
+	{name: "quiet", usage: "--quiet", marker: true},
+	{name: "lang", usage: "--lang <tag>", value: "tag"},
+	{name: "actor", usage: "--actor <name>", value: "name"},
 }
 
 // lookup finds a command by name.
@@ -129,20 +136,99 @@ func (s *session) verbHelp(name string) string {
 	var b strings.Builder
 	b.WriteString(verb.Usage(name) + "\n\n")
 	b.WriteString(s.r.T("cmd."+name+".summary") + "\n")
-	checks := verb.Checks(name)
-	if len(checks) == 0 {
-		b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
-		return b.String()
+	if key := "cmd." + name + ".note"; s.r.Has(key) {
+		b.WriteString("\n" + s.r.T(key) + "\n")
 	}
-	b.WriteString("\n" + s.r.T("help.refusals") + "\n")
-	preconditions := table{indent: 2, columns: s.columns("help", "order", "check", "refusal")}
-	for i, check := range checks {
-		fields := []string{strconv.Itoa(i + 1), s.r.T(check.Key), check.Refusal}
-		preconditions.rows = append(preconditions.rows, tableRow{fields: fields})
-	}
-	for _, line := range s.tableLines(preconditions) {
+	for _, line := range s.argumentLines(name) {
 		b.WriteString(line + "\n")
+	}
+	if checks := verb.Checks(name); len(checks) > 0 {
+		b.WriteString("\n" + s.r.T("help.refusals") + "\n")
+		preconditions := table{indent: 2, columns: s.columns("help", "order", "check", "refusal")}
+		for i, check := range checks {
+			fields := []string{strconv.Itoa(i + 1), s.r.T(check.Key), check.Refusal}
+			preconditions.rows = append(preconditions.rows, tableRow{fields: fields})
+		}
+		for _, line := range s.tableLines(preconditions) {
+			b.WriteString(line + "\n")
+		}
+	}
+	for _, topic := range verb.Guides(name) {
+		b.WriteString("\n" + s.r.T("help.guide", "topic", topic) + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	return b.String()
 }
+
+// argumentLines are the section of a command's help that says what a reader
+// may write: a heading, then one row per argument, spelled on the left exactly
+// as the syntax line above spells it and explained on the right.
+//
+// A command declaring no argument gets no section at all, so the pages of
+// status, states, whoami, workbenches, export and mcp are unchanged.
+//
+// The table is the one table in the tool that breaks its last column at the
+// window, because an argument's meaning together with the values it accepts
+// runs wider than any other cell the tool prints.
+func (s *session) argumentLines(name string) []string {
+	declared := verb.Params(name)
+	if len(declared) == 0 {
+		return nil
+	}
+	arguments := table{
+		indent:   2,
+		columns:  s.columns("arguments", "argument", "what"),
+		wrapTail: true,
+	}
+	for _, param := range declared {
+		row := tableRow{fields: []string{param.Token(), s.argumentMeaning(name, param)}}
+		arguments.rows = append(arguments.rows, row)
+	}
+	lines := []string{"", s.r.T("help.arguments")}
+	return append(lines, s.tableLines(arguments)...)
+}
+
+// argumentMeaning is what one argument's row says: the sentence written for it,
+// with the values it accepts appended where it names a closed set that
+// resolves.
+//
+// A set living in the reader's own workbench resolves only where a workbench
+// opens from where the command was run. Every way that can fail is swallowed
+// here and the sentence stands alone, because `dinah help ls` has to answer
+// anywhere, and a help page that refuses because somebody's configured default
+// moved is worse than the gap it would have closed.
+func (s *session) argumentMeaning(command string, param verb.Param) string {
+	summary := s.r.T(param.SummaryKey(command))
+	values := s.vocabularyValues(command, param)
+	if len(values) == 0 {
+		return summary
+	}
+	return s.r.T("help.vocabulary", "summary", summary, "values", strings.Join(values, ", "))
+}
+
+// vocabularyValues resolves the closed set an argument accepts, or nothing
+// where the argument declares no set or the set cannot be read from here.
+func (s *session) vocabularyValues(command string, param verb.Param) []string {
+	set, ok := verb.VocabularyFor(command, param.Name)
+	if !ok {
+		return nil
+	}
+	if set.Source == "" {
+		return set.Values
+	}
+	resolve, ok := refusalListings[set.Source]
+	if !ok {
+		return nil
+	}
+	if set.Source == statesVocabulary && s.library == nil {
+		if _, err := s.open(); err != nil {
+			return nil
+		}
+	}
+	return resolve(s)
+}
+
+// statesVocabulary is the one vocabulary source that lives in the reader's own
+// workbench rather than in the binary, so it is the one that needs a workbench
+// opened before it can answer.
+const statesVocabulary = "states"

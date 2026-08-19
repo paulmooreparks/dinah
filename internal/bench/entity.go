@@ -518,10 +518,13 @@ type EntityRef struct {
 	// ID is the entity's identifier, empty for the bench itself.
 	ID string
 	// Ref is what a person typed, or could type, to reach this entity: a
-	// state's slug (falling back to its identifier), empty for a kind that
-	// carries no human-readable form of its own. A refusal raised over this
-	// entity names it by Ref rather than by the bare ID, so a person who
-	// typed a slug is never told about a raw identifier they never saw.
+	// state's slug (falling back to its identifier), and for anything below a
+	// head, that head's own reference followed by the path down to it. It is
+	// empty only for the workbench itself, whose own spelling is a question
+	// this resolver does not settle. A refusal raised over this entity names
+	// it by Ref rather than by the bare ID, so a person who typed a slug is
+	// never told about a raw identifier they never saw, and a command drawing
+	// a header from an answer has an address to print in it.
 	Ref string
 	// Card is the card the entity belongs to, when one does.
 	Card *Card
@@ -569,9 +572,79 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	if !named {
 		return nil, contract.Refuse(contract.UnknownPath, rest)
 	}
+	// No reference reaches this guard today, because descend refuses a
+	// collection whose kind is addressed in its own right before anything
+	// half-filled is built, so deleting it reddens no test. It stays because
+	// the invariant belongs on this function rather than in the caller that
+	// happens to enforce it, and a reader meeting it here is told what every
+	// caller of ResolveEntity may assume.
 	if kind == KindCard && card == nil {
 		return nil, contract.Refuse(contract.UnknownCard, ref)
 	}
 	dir := filepath.Dir(path)
-	return &EntityRef{Kind: kind, Dir: dir, ID: filepath.Base(dir), Card: card}, nil
+	headKind, headRef, headDir := KindWorkbench, b.Slug, b.Root
+	if card != nil {
+		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
+	} else if !IsWorkbenchRef(head) && head != b.Slug {
+		if state := b.StateByRef(head); state != nil {
+			headKind, headRef = KindState, state.Ref()
+			headDir = filepath.Join(b.Root, StatesDir, state.ID)
+		}
+	}
+	return &EntityRef{
+		Kind: kind,
+		Dir:  dir,
+		ID:   filepath.Base(dir),
+		Ref:  b.refBelowHead(headKind, headRef, headDir, dir),
+		Card: card,
+	}, nil
+}
+
+// refBelowHead composes the reference of an entity sitting below a head: the
+// head's own reference, then one collection name and one position for each
+// level down to the entity. The head is whichever of the workbench, a state,
+// or a card the reference was resolved through.
+//
+// A position is the entity's place in its collection's creation order, which
+// is what a containment walk draws and what a person types, rather than the
+// identifier its directory is named for. Composing it here is what gives one
+// entity one spelling however the caller reached it, whether by an identifier,
+// by a narrowed checklist alias, or by the position itself.
+//
+// An entity this composer cannot name comes back with no reference at all,
+// because a reference naming the head instead would send a reader somewhere
+// they did not ask for, and an absent answer is one a caller can see.
+func (b *Bench) refBelowHead(headKind, headRef, headDir, dir string) string {
+	below, err := filepath.Rel(headDir, dir)
+	if err != nil {
+		return ""
+	}
+	// The path below a head alternates a collection's directory with one
+	// member's identifier, so every level is two segments and an odd count is
+	// a path this composer was never meant to be given.
+	segments := strings.Split(filepath.ToSlash(below), "/")
+	if len(segments)%2 != 0 {
+		return ""
+	}
+	ref, kind, at := headRef, headKind, headDir
+	for i := 0; i < len(segments); i += 2 {
+		mount, ok := MountOf(kind, segments[i])
+		if !ok {
+			return ""
+		}
+		collection := filepath.Join(at, mount.Dir)
+		position := 0
+		for n, id := range SortByOrdinal(collection, mount.Anchor, ListIDs(collection)) {
+			if id == segments[i+1] {
+				position = n + 1
+				break
+			}
+		}
+		if position == 0 {
+			return ""
+		}
+		ref = ref + "/" + mount.Dir + "/" + strconv.Itoa(position)
+		kind, at = mount.Kind, filepath.Join(collection, segments[i+1])
+	}
+	return ref
 }

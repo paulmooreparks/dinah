@@ -1594,3 +1594,22 @@ func sweptCommentsOn(r *sweptRecord, ref string) []sweptCommentRecord {
 	}
 	return kept
 }
+
+// sweptArgumentsCommand is the command dinah help <command> is asked about for
+// the arguments block. attach is the choice because every one of its arguments
+// declares a vocabulary of nothing, so the expected meaning is the catalog
+// sentence alone and the expectation reads no workbench.
+const sweptArgumentsCommand = "attach"
+
+// expectArguments is the arguments table of dinah help <command>, which walks
+// the command's own parameter list: the token on the left and the sentence the
+// parameter names on the right, both from the one place each is declared.
+func expectArguments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, param := range verb.Params(sweptArgumentsCommand) {
+		meaning := msg.For(tag).T(param.SummaryKey(sweptArgumentsCommand))
+		rows = append(rows, sweptTexts(param.Token(), meaning))
+	}
+	return sweptExpectation{rows: rows, source: "verb.Params(" + sweptArgumentsCommand + ")"}
+}
