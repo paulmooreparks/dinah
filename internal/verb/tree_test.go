@@ -588,6 +588,95 @@ func TestOnlyTheTwoClosedAxesEnumerateTheirMembers(t *testing.T) {
 	}
 }
 
+// standAt writes a card's position straight into its anchor, which is how a
+// test builds a card standing at a value the workbench does not declare. No
+// verb produces one, and the file the tool reads is a file a person edits.
+func standAt(t *testing.T, h *harness, ref, state, substate string) {
+	t.Helper()
+	card := h.card(ref)
+	card.State, card.Substate = state, substate
+	if err := card.Save(); err != nil {
+		t.Fatalf("save %s: %v", ref, err)
+	}
+	h.reopen()
+}
+
+// TestNoCardFallsOutOfAClosedAxisTree asserts that a closed axis draws a group
+// for every value some card carries as well as for every value the workbench
+// declares, and draws the undeclared values after the declared ones.
+//
+// A tree drawing only the declared members loses the cards carrying anything
+// else, and loses them silently: no group, no account, and a root above them
+// still counting them. Both closed axes can be reached without corrupt data,
+// so the fixture builds one card on each. A state deleted from the flow leaves
+// the cards standing in it naming a state nothing declares, and a substate
+// written by hand outside the three is a value the reader of the anchor passes
+// through. The assertion is that the leaves add up to the root rather than
+// that a group appeared, since a tree can grow a group and still drop a card.
+func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
+	h := newHarness(t)
+	const (
+		deletedState  = "a00000000009"
+		handSubstate  = "paused"
+		cardsFiled    = 3
+		declaredState = intake
+	)
+	declared := h.add("a card standing where the workbench says it may")
+	undeclaredState := h.add("a card standing in a state the flow no longer declares")
+	standAt(t, h, undeclaredState, deletedState, contract.SubstateReady)
+	undeclaredSubstate := h.add("a card carrying a substate the tool never writes")
+	standAt(t, h, undeclaredSubstate, declaredState, handSubstate)
+
+	for _, c := range []struct {
+		axis     string
+		value    string
+		declared int
+	}{
+		{axis: FieldState, value: deletedState, declared: 5},
+		{axis: FieldSubstate, value: handSubstate, declared: 3},
+	} {
+		built := treeOf(t, h, "", []string{c.axis}, LevelCards)
+		if built.Root.Count != cardsFiled {
+			t.Fatalf("the %s tree counts %d cards at its root and the workbench holds %d", c.axis, built.Root.Count, cardsFiled)
+		}
+		drawn := map[string]bool{}
+		total := 0
+		for _, group := range built.Root.Children {
+			total += group.Count
+			for _, card := range group.Children {
+				drawn[card.Ref] = true
+			}
+		}
+		if total != cardsFiled {
+			t.Errorf("the %s groups count %d cards between them and the root counts %d, so the tree lost one", c.axis, total, cardsFiled)
+		}
+		for _, ref := range []string{declared, undeclaredState, undeclaredSubstate} {
+			if !drawn[ref] {
+				t.Errorf("%s is drawn nowhere in the %s tree, and the root counts it", ref, c.axis)
+			}
+		}
+		at := groupPosition(built.Root, c.value)
+		if at < 0 {
+			t.Errorf("the %s tree draws no group at %q", c.axis, c.value)
+			continue
+		}
+		if at < c.declared {
+			t.Errorf("the %s tree draws the undeclared group %q at position %d, ahead of the %d values the workbench declares", c.axis, c.value, at, c.declared)
+		}
+	}
+}
+
+// groupPosition is where a tree draws one group value, or -1 when it draws no
+// group at that value.
+func groupPosition(root TreeNode, value string) int {
+	for at, child := range root.Children {
+		if child.Kind == NodeGroup && child.Value == value {
+			return at
+		}
+	}
+	return -1
+}
+
 // TestABadChainIsRefusedByItsOwnName asserts that three names cover the four
 // bad chains, and that only the one naming an unknown word lists the axes.
 // One name over all four would print a sentence calling a legal axis not an
@@ -693,21 +782,40 @@ func TestEachCommandRefusesADepthAgainstItsOwnLadder(t *testing.T) {
 // TestEveryReferenceAContentsTreeDrawsResolves asserts that a label copied out
 // of the tree opens the thing it names, and that a node below a card carries
 // the card's own reference in front of it.
+//
+// The assertion is on identity rather than on existence. A resolver that reads
+// one collection and discards the rest of a reference returns a real file for
+// `<card>/comments/1/attachments/1`, the comment's own anchor, so asking
+// whether some file came back is answered by the defect as readily as by the
+// fix. Every entity of the grammar keeps its anchor in a directory named for
+// its identifier, so the directory the resolution lands in is the node itself.
+//
+// The fixture builds every two-level case the grammar has: an attachment under
+// a comment, and one under each of the two kinds the workbench mounts
+// directly. A fixture reaching only one level down cannot fail against a
+// resolver that stops after one level.
 func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("a card with things below it")
 	h.comment(ref, "a note")
 	h.attach(ref, "notes.txt", "some bytes")
+	h.attach(ref+"/comments/1", "evidence.txt", "the comment's own bytes")
+	h.attach("workbench", "policy.txt", "the workbench's own bytes")
+	h.attach(h.library.Bench.States[0].Ref(), "station.txt", "a state's own bytes")
 	writeItem(t, h.card(ref).Dir, "AC-1", 1)
 	h.reopen()
 
 	built := contentsOf(t, h, "workbench", LevelAll)
 	drawn := 0
+	deep := 0
 	walkTree(built.Root, func(node TreeNode) {
 		if node.Kind == bench.KindWorkbench {
 			return
 		}
 		drawn++
+		if strings.Count(node.Ref, "/") > 1 {
+			deep++
+		}
 		if node.Ref == "" {
 			t.Errorf("the %s node carries no reference", node.Kind)
 			return
@@ -719,10 +827,17 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 		}
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("%s resolves to %s and nothing is there: %v", node.Ref, path, err)
+			return
+		}
+		if reached := filepath.Base(filepath.Dir(path)); reached != node.ID {
+			t.Errorf("%s names the %s %s and opens %s instead", node.Ref, node.Kind, node.ID, reached)
 		}
 	})
 	if drawn == 0 {
 		t.Fatal("the walk drew nothing below the workbench, so this test proves nothing")
+	}
+	if deep == 0 {
+		t.Fatal("the walk drew no reference reaching past one collection, so this test proves nothing about a resolver that stops there")
 	}
 	card := h.card(ref)
 	for _, node := range findKind(built.Root, bench.KindComment) {

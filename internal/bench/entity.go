@@ -528,7 +528,9 @@ type EntityRef struct {
 }
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
-// bench itself, a state, a card, or a comment or attachment below one.
+// bench itself, a state, a card, or any entity below one of those. It accepts
+// the same references ResolvePath does, so a reference a walk prints names the
+// same entity to every command that takes one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	ref = strings.TrimSpace(ref)
 	// The empty reference is this resolver's own case and IsWorkbenchRef does
@@ -536,19 +538,18 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	if ref == "" || IsWorkbenchRef(ref) {
 		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil
 	}
-	if state := b.StateByRef(ref); state != nil {
-		return &EntityRef{Kind: KindState, Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
-	}
 	head, rest, _ := strings.Cut(ref, "/")
-	found, err := b.ResolveCard(head)
-	if err != nil {
-		return nil, err
-	}
 	if rest == "" {
-		entity := &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Card: found.Card}
-		return entity, nil
+		if state := b.StateByRef(ref); state != nil {
+			return &EntityRef{Kind: KindState, Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
+		}
+		found, err := b.ResolveCard(head)
+		if err != nil {
+			return nil, err
+		}
+		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Card: found.Card}, nil
 	}
-	path, err := walkBelowCard(found.Card, rest)
+	path, card, err := b.resolveBelow(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -557,5 +558,5 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 		return nil, contract.Refuse(contract.UnknownPath, rest)
 	}
 	dir := filepath.Dir(path)
-	return &EntityRef{Kind: kind, Dir: dir, ID: filepath.Base(dir), Card: found.Card}, nil
+	return &EntityRef{Kind: kind, Dir: dir, ID: filepath.Base(dir), Card: card}, nil
 }

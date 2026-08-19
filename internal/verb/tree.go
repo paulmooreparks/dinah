@@ -476,36 +476,56 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 	return by
 }
 
-// axisValueOrder is the order the groups of one axis are drawn in, with the
-// no-value group last.
+// axisValueOrder is the order the groups of one axis are drawn in: the values
+// a closed axis declares, in the order it declares them, then any further
+// value some card carries, sorted by its bytes ascending, then the no-value
+// group last.
+//
+// A closed axis draws its declared members and is not limited to them. A card
+// stands where it stands whatever the workbench file says today, so a state
+// somebody deleted from the flow, and a card carrying no substate at all, both
+// keep a group of their own. Drawing only the declared members would drop
+// those cards out of the tree with no node and no account while the root above
+// them went on counting them, and a card missing from a view whose total says
+// it is there is the one failure this projection must not have.
 func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card) []string {
-	if closedAxis(axis) {
-		return l.declaredValues(axis)
-	}
 	seen := map[string]bool{}
-	var open []string
+	var order []string
+	if closedAxis(axis) {
+		for _, value := range l.declaredValues(axis) {
+			if value == "" || seen[value] {
+				continue
+			}
+			seen[value] = true
+			order = append(order, value)
+		}
+	}
+	var carried []string
 	for _, by := range []map[string][]*bench.Card{keptBy, cutBy} {
 		for value := range by {
 			if value == "" || seen[value] {
 				continue
 			}
 			seen[value] = true
-			open = append(open, value)
+			carried = append(carried, value)
 		}
 	}
-	sort.Strings(open)
+	sort.Strings(carried)
+	order = append(order, carried...)
 	if len(keptBy[""]) > 0 || len(cutBy[""]) > 0 {
-		open = append(open, "")
+		order = append(order, "")
 	}
-	return open
+	return order
 }
 
 // declaredValues enumerates a closed axis completely, in the order the
 // workbench declares it: state follows the flow order of workbench.md, and
 // substate follows ready, active, blocked.
 //
-// The no-value group comes last here too, and it is drawn only where a card
-// carries no value at all, which on a healthy workbench is never.
+// It is what the workbench says, rather than the whole of what the tree draws.
+// A value no longer declared, and the absent value a card carrying nothing on
+// the axis holds, are both drawn after these by axisValueOrder, which is where
+// the order of the groups is settled.
 func (l *Library) declaredValues(axis string) []string {
 	if axis == FieldSubstate {
 		return []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}

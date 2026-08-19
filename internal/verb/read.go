@@ -269,10 +269,10 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			return nil, text, nil
 		}
 	}
-	found, err := l.Bench.ResolveCard(head)
-	if err != nil {
-		return nil, "", err
-	}
+	// A composed reference is whatever the resolver reaches, which is why the
+	// resolution comes before the card is loaded: the head may name the
+	// workbench or a state rather than a card, and every one of those forms is
+	// a reference the containment walk prints.
 	if rest != "" {
 		path, err := l.Bench.ResolvePath(req.Card)
 		if err != nil {
@@ -283,6 +283,10 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 			return nil, "", contract.Refuse(contract.UnknownPath, rest)
 		}
 		return nil, text, nil
+	}
+	found, err := l.Bench.ResolveCard(head)
+	if err != nil {
+		return nil, "", err
 	}
 	card := found.Card
 	if err := l.lapseRead(card); err != nil {
