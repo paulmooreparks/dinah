@@ -131,6 +131,7 @@ func runCLIWithInput(t *testing.T, dir string, in io.Reader, argv ...string) inv
 	code := run(argv, in, out, errw)
 	checkColumnsLineUp(t, "stdout", out.String())
 	checkColumnsLineUp(t, "stderr", errw.String())
+	checkRefusalShape(t, code, errw.String())
 	return invocation{code: code, out: out.String(), errw: errw.String()}
 }
 
@@ -2715,8 +2716,16 @@ func TestBareShowStillRefusesWhereThereIsNoChoice(t *testing.T) {
 	if got.code != 2 {
 		t.Fatalf("exit code: wanted 2, got %d (%s)", got.code, got.errw)
 	}
-	if got.errw != contract.UnknownCard+" this workbench carries no card \n" {
-		t.Errorf("the refusal should be the one a single workbench has always raised, got %q", got.errw)
+	// The sentence gained its next step with dinah-102, which gave one to each
+	// of the twenty-one refusals that offered none. The empty {detail} ahead
+	// of it is what a bare show has always rendered, since nobody named a card
+	// for the sentence to be about; the shape table declares no subject for
+	// unknown-card, so that fill is unchanged here and is filed rather than
+	// repaired.
+	want := contract.UnknownCard + " this workbench carries no card " +
+		msg.For(msg.Base).T("refusal.unknown-card.next") + "\n"
+	if got.errw != want {
+		t.Errorf("the refusal should be the one a single workbench has always raised, with its next step:\n got  %q\n want %q", got.errw, want)
 	}
 	machine := runCLI(t, sole, "--json", "show")
 	if !strings.Contains(machine.out, `"refusal": "`+contract.UnknownCard+`"`) {
@@ -4286,6 +4295,422 @@ func TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText(t *testing.T) 
 	}
 }
 
+// refusalResidue matches an unfilled named slot, which is what internal/msg
+// leaves behind when nothing supplied a value the entry asked for.
+var refusalResidue = regexp.MustCompile(`\{[A-Za-z][A-Za-z0-9_-]*\}`)
+
+// refusalDoubleSpace matches a run of two or more spaces, which is what an
+// empty fill leaves in the middle of a sentence.
+var refusalDoubleSpace = regexp.MustCompile(`  +`)
+
+// checkRefusalShape reads the error stream of every invocation the package
+// makes and holds it to the shape a refusal has: the name, then a sentence, on
+// a first line with no hole in it, over rows and a next-step line that carry
+// no unfilled slot.
+//
+// It is the output-side half of the one-way rule and it is the load-bearing
+// half. A source scan cannot see a helper that writes through its own stream
+// parameter, and it cannot see composed text ridden into a translated message
+// as a substitution value, which is the route the composer takes by
+// construction. Reading the bytes holds whatever route drew them.
+//
+// It stands down on a zero exit, where an error stream carries a warning
+// beside a successful act rather than a refusal.
+//
+// Two bounds are worth stating. The double-space rule is a proxy rather than
+// the property itself, since a card title, a path or a state name a caller
+// typed could carry a run of its own; it holds because the corpus supplies
+// every input the package's tests use, and it is a rule about this corpus
+// rather than about the tool. And the check sees only the refusals some test
+// provokes: TestTheRemainingRefusalsLeadStderr names four that no test here
+// can, and those four reach the source-side guard alone.
+func checkRefusalShape(t *testing.T, code int, text string) {
+	t.Helper()
+	if code == 0 || strings.TrimSpace(text) == "" {
+		return
+	}
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	for _, finding := range refusalShapeFindings(lines) {
+		t.Errorf("the error stream: %s\n%s", finding, strings.Join(lines, "\n"))
+	}
+}
+
+// refusalShapeFindings reports every way a block fails the shape, so that the
+// arming test can hand it a broken block and read what it says rather than
+// having to provoke one through the tool.
+func refusalShapeFindings(lines []string) []string {
+	if len(lines) == 0 {
+		return nil
+	}
+	var found []string
+	name, sentence, _ := strings.Cut(lines[0], " ")
+	if !contract.NameIsLegal(name) && name != contract.OutcomeStale && name != contract.OutcomeUnreachable {
+		found = append(found, "leads with "+strconv.Quote(name)+", which is neither a refusal name nor an outcome token")
+	}
+	if strings.TrimSpace(sentence) == "" {
+		found = append(found, "carries the name and no sentence after it")
+	}
+	if strings.TrimSpace(sentence) == "{refusal."+name+"}" {
+		found = append(found, "carries the unrendered catalog key rather than the sentence")
+	}
+	if refusalDoubleSpace.MatchString(lines[0]) {
+		found = append(found, "carries a run of two or more spaces on its first line, which is what an empty fill leaves behind")
+	}
+	for _, line := range lines {
+		if slot := refusalResidue.FindString(line); slot != "" {
+			found = append(found, "carries the unfilled slot "+slot)
+			break
+		}
+	}
+	return found
+}
+
+// TestCheckRefusalShapeReportsABrokenBlock arms the check above. A check that
+// passes proves nothing on its own, because it also passes when what it guards
+// is absent, so this hands it a block with an empty fill and a block with an
+// unfilled slot and requires it to report each.
+func TestCheckRefusalShapeReportsABrokenBlock(t *testing.T) {
+	cases := []struct {
+		name  string
+		lines []string
+		want  string
+	}{
+		{
+			name:  "an empty fill",
+			lines: []string{contract.NotHolder + " you do not hold this card;  does"},
+			want:  "run of two or more spaces",
+		},
+		{
+			name:  "an unfilled slot",
+			lines: []string{contract.Malformed + " title is missing; write the command as `dinah {usage}`"},
+			want:  "unfilled slot {usage}",
+		},
+		{
+			name:  "a leading token that is no refusal",
+			lines: []string{"whoops something went wrong"},
+			want:  "neither a refusal name nor an outcome token",
+		},
+		{
+			name:  "the name with no sentence",
+			lines: []string{contract.Terminal},
+			want:  "no sentence after it",
+		},
+		{
+			name:  "the unrendered catalog key",
+			lines: []string{contract.Terminal + " {refusal.terminal}"},
+			want:  "unrendered catalog key",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			found := refusalShapeFindings(tt.lines)
+			if len(found) == 0 {
+				t.Fatalf("the check passed a block it should have reported: %q", tt.lines)
+			}
+			joined := strings.Join(found, "; ")
+			if !strings.Contains(joined, tt.want) {
+				t.Errorf("the report should name %q, got %q", tt.want, joined)
+			}
+		})
+	}
+	clean := []string{
+		contract.NotHolder + " you do not hold this card; alka does; run `dinah whoami` to see who Dinah takes you to be, or ask alka to release it",
+		"  intake",
+		"run `dinah ls` with one of them",
+	}
+	if found := refusalShapeFindings(clean); len(found) != 0 {
+		t.Errorf("the check reported a well-formed block: %v", found)
+	}
+}
+
+// TestARefusalReachesItsReaderInTheirOwnLanguage asserts the two findings that
+// leaked English into a translated sentence: a flag-parse refusal raised
+// before a session exists, and the free-text slot name spliced in as a Go
+// literal.
+//
+// The Hindi is compared against hi.json's own entries rather than against the
+// absence of English, because the shipped catalog keeps the product name, the
+// command spellings and the flag spellings in Latin script on purpose.
+func TestARefusalReachesItsReaderInTheirOwnLanguage(t *testing.T) {
+	root := newBench(t)
+	hindi := msg.For("hi")
+	english := msg.For(msg.Base)
+
+	got := runCLI(t, root, "--lang", "hi", "add", "--nosuchflag", "Thing")
+	if got.code != 2 {
+		t.Fatalf("a mistyped flag exited %d, wanted 2", got.code)
+	}
+	want := contract.Usage + " " +
+		hindi.T("refusal.dinah.usage", "detail", "--nosuchflag") +
+		hindi.T("refusal.dinah.usage.next") +
+		hindi.T("refusal.dinah.usage.dash-hint") + "\n"
+	if got.errw != want {
+		t.Errorf("the parse refusal should render from the Hindi catalog, in three pieces:\n got  %q\n want %q", got.errw, want)
+	}
+	inEnglish := runCLI(t, root, "add", "--nosuchflag", "Thing")
+	if inEnglish.errw == got.errw {
+		t.Errorf("the Hindi and English renderings of the same refusal are the same bytes: %q", got.errw)
+	}
+	// A catalog that gained the fragment and kept the clause in its base entry
+	// would satisfy every comparison above character for character, and print
+	// the clause twice.
+	if n := strings.Count(got.errw, hindi.T("refusal.dinah.usage.next")); n != 1 {
+		t.Errorf("the next step should appear once, got %d times in %q", n, got.errw)
+	}
+	if n := strings.Count(got.errw, "dinah help"); n != 1 {
+		t.Errorf("`dinah help` should appear once, got %d times in %q", n, got.errw)
+	}
+
+	words := runCLI(t, root, "--lang", "hi", "add", "Test", "card", "here")
+	if words.code != 2 {
+		t.Fatalf("a multi-word title exited %d, wanted 2", words.code)
+	}
+	label := hindi.T("slot.title")
+	if label == english.T("slot.title") {
+		t.Fatalf("the fixture is not testing anything: hi and en render slot.title the same way")
+	}
+	if !strings.Contains(words.errw, hindi.T("refusal.dinah.multiple-words", "count", "3", "label", label)) {
+		t.Errorf("the free-text slot name should come from the Hindi catalog, got %q", words.errw)
+	}
+	if strings.Contains(words.errw, english.T("slot.title")) {
+		t.Errorf("the English slot name leaked into the Hindi sentence: %q", words.errw)
+	}
+}
+
+// TestARefusalWithAnAbsentSubjectSaysSomethingElse asserts that a refusal
+// whose subject is missing renders the sentence written for that case rather
+// than the sentence with a hole in it, and that each branch gets the next step
+// written for its own reader.
+func TestARefusalWithAnAbsentSubjectSaysSomethingElse(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Something"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	english := msg.For(msg.Base)
+
+	unheld := runCLI(t, root, "release", "fx-1")
+	if unheld.code != 2 {
+		t.Fatalf("releasing a card nobody holds exited %d, wanted 2", unheld.code)
+	}
+	wantUnheld := contract.NotHolder + " " +
+		english.T("refusal.not-holder.unnamed") +
+		english.T("refusal.not-holder.next-unheld", "card", "fx-1") + "\n"
+	if unheld.errw != wantUnheld {
+		t.Errorf("a card nobody holds:\n got  %q\n want %q", unheld.errw, wantUnheld)
+	}
+
+	t.Setenv("DINAH_ACTOR", "alka")
+	if got := runCLI(t, root, "claim", "fx-1"); got.code != 0 {
+		t.Fatalf("claim: %d %s", got.code, got.errw)
+	}
+	t.Setenv("DINAH_ACTOR", "somebody-else")
+	held := runCLI(t, root, "release", "fx-1")
+	if held.code != 2 {
+		t.Fatalf("releasing somebody else's card exited %d, wanted 2", held.code)
+	}
+	wantHeld := contract.NotHolder + " " +
+		english.T("refusal.not-holder", "detail", "alka") +
+		english.T("refusal.not-holder.next", "detail", "alka") + "\n"
+	if held.errw != wantHeld {
+		t.Errorf("a card somebody else holds:\n got  %q\n want %q", held.errw, wantHeld)
+	}
+	if strings.Contains(held.errw, english.T("refusal.not-holder.next-unheld", "card", "fx-1")) {
+		t.Errorf("the unheld branch's advice reached a reader whose card somebody holds: %q", held.errw)
+	}
+	if strings.Contains(unheld.errw, english.T("refusal.not-holder.next", "detail", "alka")) {
+		t.Errorf("the held branch's advice reached a reader whose card nobody holds: %q", unheld.errw)
+	}
+}
+
+// TestANamedValueSurvivesTheVerbLayer asserts that a refusal raised below a
+// verb over a file on disk still names that file by the time it reaches a
+// reader, on the rendering and on the machine surface alike. The named values
+// used to be dropped on the way up, because verb.Response had nowhere to put
+// them.
+func TestANamedValueSurvivesTheVerbLayer(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Something"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	missing := filepath.Join(root, "nosuchfile.txt")
+
+	got := runCLI(t, root, "attach", "fx-1", missing)
+	if got.code != 2 {
+		t.Fatalf("attaching a file that is not there exited %d, wanted 2", got.code)
+	}
+	if !strings.Contains(got.errw, contract.UnknownPath) {
+		t.Fatalf("wanted %s, got %q", contract.UnknownPath, got.errw)
+	}
+	if !strings.Contains(got.errw, msg.For(msg.Base).T("refusal.dinah.unknown-path.next-file", "file", missing)) {
+		t.Errorf("the reader who named a path should be sent to check that path, got %q", got.errw)
+	}
+	machine := runCLI(t, root, "--json", "attach", "fx-1", missing)
+	if !strings.Contains(machine.out, `"context"`) || !strings.Contains(machine.out, `"file"`) {
+		t.Errorf("the machine form should carry the named value the sentence used, got %q", machine.out)
+	}
+}
+
+// TestMalformedAnswersEachOfItsThreeReaders asserts the three branches one
+// refusal name covers: a workbench anchor the reader edits and confirms with
+// dinah check, a definition file the reader edits with no workbench to confirm
+// against, and a request argument nobody edits at all.
+func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
+	english := msg.For(msg.Base)
+
+	t.Run("a workbench anchor", func(t *testing.T) {
+		root := newBench(t)
+		editAnchor(t, root, "profile: "+bench.ProfileVersion+"\n", "")
+		got := runCLI(t, root, "whoami")
+		if got.code != 2 {
+			t.Fatalf("a broken anchor exited %d, wanted 2", got.code)
+		}
+		for _, want := range []string{", in ", english.T("refusal.malformed.fix")} {
+			if !strings.Contains(got.errw, want) {
+				t.Errorf("the anchor-side refusal should carry %q, got %q", want, got.errw)
+			}
+		}
+		if strings.Contains(got.errw, english.T("refusal.malformed.next-file", "file", "x")) {
+			t.Errorf("the anchor-side refusal took the definition-file repair: %q", got.errw)
+		}
+		if strings.Contains(got.errw, "write the command as") {
+			t.Errorf("the anchor-side refusal carries two next steps: %q", got.errw)
+		}
+	})
+
+	t.Run("a definition file", func(t *testing.T) {
+		root := newBench(t)
+		template := filepath.Join(root, "template.json")
+		if err := os.WriteFile(template, []byte(`{"profile":"dinah/1.0","title":"a template","states":[]}`), 0o644); err != nil {
+			t.Fatalf("write the template: %v", err)
+		}
+		elsewhere := filepath.Join(t.TempDir(), "target")
+		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		got := runCLI(t, elsewhere, "init", "--from", template)
+		if got.code != 2 {
+			t.Fatalf("init from a broken template exited %d, wanted 2", got.code)
+		}
+		want := english.T("refusal.malformed.in-file", "file", template) +
+			english.T("refusal.malformed.next-file", "file", template)
+		if !strings.Contains(got.errw, want) {
+			t.Errorf("the definition-file refusal should name the file and its repair:\n got  %q\n want it to carry %q", got.errw, want)
+		}
+		if strings.Contains(got.errw, "dinah check") {
+			t.Errorf("the definition-file repair points at a workbench init never made: %q", got.errw)
+		}
+	})
+
+	t.Run("a request argument", func(t *testing.T) {
+		root := newBench(t)
+		if got := runCLI(t, root, "add", "Something"); got.code != 0 {
+			t.Fatalf("add: %d %s", got.code, got.errw)
+		}
+		for _, tt := range []struct {
+			argv    []string
+			command string
+		}{
+			{argv: []string{"add"}, command: "add"},
+			{argv: []string{"comment", "fx-1"}, command: "comment"},
+		} {
+			got := runCLI(t, root, tt.argv...)
+			want := english.T("refusal.malformed.next", "usage", verb.Usage(tt.command))
+			if !strings.Contains(got.errw, want) {
+				t.Errorf("%v should be told how the command is spelled:\n got  %q\n want it to carry %q", tt.argv, got.errw, want)
+			}
+			if strings.Contains(got.errw, ", in ") {
+				t.Errorf("%v named a file it has none of: %q", tt.argv, got.errw)
+			}
+		}
+	})
+}
+
+// TestAMembershipRefusalPrintsWhatTheToolAccepts asserts that the three
+// refusals testing membership against a set the tool can enumerate print that
+// set, and that the two whose set is unbounded print none.
+func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "Something"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	english := msg.For(msg.Base)
+
+	t.Run("the states a workbench declares", func(t *testing.T) {
+		got := runCLI(t, root, "ls", "nowhere")
+		if got.code != 2 {
+			t.Fatalf("listing an unknown state exited %d, wanted 2", got.code)
+		}
+		for _, want := range []string{"  intake", "  doing", "  done"} {
+			if !strings.Contains(got.errw, want+"\n") {
+				t.Errorf("the listing should carry %q, got %q", want, got.errw)
+			}
+		}
+		if !strings.HasSuffix(got.errw, english.T("refusal.unknown-state.next", "command", "ls")+"\n") {
+			t.Errorf("the next step should name the command the reader typed, got %q", got.errw)
+		}
+		moved := runCLI(t, root, "move", "fx-1", "nowhere")
+		if !strings.HasSuffix(moved.errw, english.T("refusal.unknown-state.next", "command", "move")+"\n") {
+			t.Errorf("the next step should name move from a move, got %q", moved.errw)
+		}
+	})
+
+	t.Run("the settings this tool knows", func(t *testing.T) {
+		get := runCLI(t, root, "config", "get", "nosuch")
+		set := runCLI(t, root, "config", "set", "nosuch", "value")
+		if get.errw != set.errw {
+			t.Errorf("the same refusal reads differently under get and set:\n get %q\n set %q", get.errw, set.errw)
+		}
+		for _, key := range bench.ConfigKeys {
+			if !strings.Contains(get.errw, "  "+key+"\n") {
+				t.Errorf("the listing should carry %q, got %q", key, get.errw)
+			}
+		}
+		if !strings.HasSuffix(get.errw, english.T("refusal.dinah.unknown-key.next")+"\n") {
+			t.Errorf("the next step should follow the rows on its own line, got %q", get.errw)
+		}
+	})
+
+	t.Run("the guides Dinah carries", func(t *testing.T) {
+		got := runCLI(t, root, "guide", "nosuch")
+		if got.code != 2 {
+			t.Fatalf("an unknown guide exited %d, wanted 2", got.code)
+		}
+		for _, topic := range guide.Topics() {
+			if !strings.Contains(got.errw, "  "+topic+"\n") {
+				t.Errorf("the listing should carry %q, got %q", topic, got.errw)
+			}
+		}
+		if !strings.HasSuffix(got.errw, english.T("refusal.dinah.unknown-guide.next")+"\n") {
+			t.Errorf("the next step should follow the rows on its own line, got %q", got.errw)
+		}
+	})
+
+	t.Run("the sets nobody prints", func(t *testing.T) {
+		// A card set and a workbench path are both unbounded, so printing
+		// either is noise rather than help. A mistyped command name prints
+		// none either, which is the operator's ruling on this card: thirty
+		// bare names beside the grouped listing dinah help already prints is
+		// the same judgement.
+		for _, tt := range []struct {
+			argv []string
+			next string
+		}{
+			{argv: []string{"show", "fx-99"}, next: "refusal.unknown-card.next"},
+			{argv: []string{"show", "fx-1/nosuch"}, next: "refusal.dinah.unknown-path.next"},
+			{argv: []string{"frobnicate"}, next: "refusal.dinah.unknown-command.next"},
+		} {
+			got := runCLI(t, root, tt.argv...)
+			lines := strings.Split(strings.TrimRight(got.errw, "\n"), "\n")
+			if len(lines) != 1 {
+				t.Errorf("%v should refuse in one line and print no listing, got %q", tt.argv, got.errw)
+			}
+			if !strings.HasSuffix(got.errw, english.T(tt.next)+"\n") {
+				t.Errorf("%v should still say what to do next, got %q", tt.argv, got.errw)
+			}
+		}
+	})
+}
+
 // TestWorkbenchListsReadsAndWritesItsOwnFields asserts the command's whole
 // grammar at the terminal: the bare listing carries the three field names with
 // their stored values, the machine form of the same invocation is the object
@@ -4626,7 +5051,7 @@ func TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference(t *tes
 				if leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]; leading != contract.Malformed {
 					t.Errorf("wanted %s, got %q", contract.Malformed, got.errw)
 				}
-				clause := msg.For(msg.Base).T("refusal.malformed.reads-as-a-card-reference", "ref", c.slug)
+				clause := msg.For(msg.Base).T("refusal.malformed.reads-as-a-card-reference", "cardRef", c.slug)
 				carried := strings.Contains(got.errw, strings.TrimSpace(clause))
 				if carried != c.clause {
 					t.Errorf("the card-reference clause carried %v, wanted %v: %q", carried, c.clause, got.errw)

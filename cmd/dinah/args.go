@@ -89,6 +89,12 @@ type arguments struct {
 // A single dash is a word rather than a flag, since it is how a command reads
 // its argument from a pipe.
 //
+// A refusal comes back with whatever the scan had taken apart so far rather
+// than with a nil pointer, so the caller resolves the language from the flags
+// the reader actually wrote ahead of the offending word. No second reading of
+// argv exists anywhere to disagree with this one about whether a given word is
+// a flag at all.
+//
 // A bare "--" is the POSIX end-of-options marker. The first one seen is
 // consumed rather than added to positional, and every word after it,
 // including a second literal "--", is taken as positional text without being
@@ -117,7 +123,7 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 		}
 		name, inline, joined := strings.Cut(strings.TrimPrefix(word, "--"), "=")
 		if !known[name] {
-			return nil, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
+			return parsed, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
 		}
 		session := sessionFlagNames[name]
 		if !valued[name] {
@@ -146,7 +152,7 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 			// free-text boundary, which is not known until the command is
 			// looked up.
 			if session {
-				return nil, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
+				return parsed, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
 			}
 			parsed.domainCaptures = append(parsed.domainCaptures, domainCapture{
 				name: name, tokens: []string{word}, posAt: len(parsed.positional), complete: false,
@@ -222,17 +228,21 @@ func at(words []string, index int) string {
 // Rather than hand back a command line that is wrong in whichever shell the
 // reader is using, freeText refuses with dinah.multiple-words.quote-yourself
 // and asks the caller to add the quoting themselves, naming the quotation
-// mark as the reason a ready-made line cannot be offered. lead is the
+// mark as the reason a ready-made line cannot be offered.
+//
+// label is the catalog key naming the slot, which freeText renders here rather
+// than at the call site, so the name reaches the reader in the language the
+// rest of the sentence is in. lead is the
 // command line up to and including the bounded arguments, in the order a
 // caller types them, used only to build the example in the no-quote case.
-func freeText(lead []string, words []string, label string) (string, *contract.Refusal) {
+func (s *session) freeText(lead []string, words []string, label string) (string, *contract.Refusal) {
 	if len(words) <= 1 {
 		return at(words, 0), nil
 	}
 	joined := strings.Join(words, " ")
 	extra := map[string]string{
 		"count": strconv.Itoa(len(words)),
-		"label": label,
+		"label": s.r.T(label),
 	}
 	if strings.Contains(joined, "\"") {
 		extra["quoteInText"] = "1"
