@@ -73,6 +73,13 @@ type sweptBlock struct {
 	// section row belongs to the block, so the harvest crosses it and keeps it,
 	// and both readers take it as a record boundary.
 	sections []string
+	// wrapsTail says the block asks the renderer to break its last column
+	// between words at the window, so a line leading at that column's own
+	// display position continues the row above rather than opening a new one.
+	// One entry declares it, and reading its output without knowing that
+	// would report an aligned continuation as a first field in the wrong
+	// place.
+	wrapsTail bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
 	// nothing beyond the six below.
@@ -920,7 +927,17 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 	closeRow := func() {
 		rows, row, next = append(rows, row), nil, 0
 	}
+	tail := len(columns) - 1
 	for i, line := range lines {
+		// A block that asks the renderer to break its last column between
+		// words draws continuation lines leading at that column's own
+		// position. Reading one without knowing that would report an
+		// aligned continuation as a first field in the wrong place.
+		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == columns[tail] {
+			previous := rows[len(rows)-1]
+			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
+			continue
+		}
 		if sweptLead(line) != columns[next] {
 			return fail("field %d begins at display column %d and its heading begins at %d:\n%q",
 				next, sweptLead(line), columns[next], line)
@@ -1135,8 +1152,8 @@ const (
 // covers is the condition len(block.keys) < 2 rather than a list of names: an
 // entry declaring one column is exempt because it has no second label for a
 // value to sit under, and every other entry carries an expectation. Read
-// against the tree this comment sits in, the inventory holds twenty-four
-// entries at twenty-two call sites.
+// against the tree this comment sits in, the inventory holds twenty-five
+// entries at twenty-three call sites.
 func sweptBlocks() []sweptBlock {
 	return []sweptBlock{
 		{
@@ -1311,7 +1328,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:101", label: "the command list of bare dinah",
+			site: "help.go:108", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
 			noHeadingRow: true,
 			opensAt:      "help.usage", sections: sweptHelpSections(), expect: expectCommands,
@@ -1320,7 +1337,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:109", label: "the global flag list",
+			site: "help.go:116", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			opensAt: "help.flags", expect: expectFlags,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1328,11 +1345,19 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:143", label: "dinah help <command>",
+			site: "help.go:152", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "help", sweptHelpCommand)
+			},
+		},
+		{
+			site: "help.go:188", label: "what you may write, on dinah help <command>",
+			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
+			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "help", sweptArgumentsCommand)
 			},
 		},
 		{
