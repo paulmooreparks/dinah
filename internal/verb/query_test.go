@@ -505,3 +505,40 @@ func TestTheStateFieldsCompareOnTheResolvedIdentifier(t *testing.T) {
 	wantRefs(t, "left:"+intake, h.ask("left:"+intake), card)
 	wantRefs(t, "entered:"+aftercareSlug, h.ask("entered:"+aftercareSlug), card)
 }
+
+// TestAQueryCarryingTwoMistakesIsRefusedForTheEarlier asserts the one thing
+// about the check list that is normative rather than presentational: the order.
+// A second implementation's output is comparable only if two tools shown the
+// same wrong query name the same mistake, so each pair below carries two
+// mistakes at once and the earlier check has to win.
+func TestAQueryCarryingTwoMistakesIsRefusedForTheEarlier(t *testing.T) {
+	h := newHarness(t)
+	card := h.add("a card")
+	h.setWorkstreams(card, "a")
+	for _, pair := range []struct {
+		text string
+		want string
+	}{
+		{"doing Priority>=next", contract.Malformed},
+		{"Priority>=next substate:reday", contract.UnknownField},
+		{"at:2026-08-01 substate:reday", contract.UnknownField},
+		{"substate:reday state:nosuchstate", contract.UnknownValue},
+		{"state:nosuchstate workstream:d", contract.UnknownState},
+	} {
+		if refusal := h.refuse(pair.text); refusal.Name != pair.want {
+			t.Errorf("query %q refused %s, want the earlier %s", pair.text, refusal.Name, pair.want)
+		}
+	}
+	// The catalog key of each row carries its own order, so a row moved in the
+	// list without its key moving with it prints a sentence for the wrong
+	// position in the help block.
+	checks := Checks("query")
+	if len(checks) != 6 {
+		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes six", len(checks))
+	}
+	for i, check := range checks {
+		if want := CheckKey("query", i+1); check.Key != want {
+			t.Errorf("check %d carries the key %s, want %s", i+1, check.Key, want)
+		}
+	}
+}

@@ -26,12 +26,15 @@ say so inside one term with a comma.
 A comma inside one value reads as `or`, so that query returns a card in either
 substate. If you want a value that has a comma in it, put the value in
 quotation marks and Dinah compares it whole. Quotation marks also let a value
-carry a space.
+carry a space, so a term naming an owner whose name has one is written like
+this:
 
-    dinah query "holder:\"Anne Marie\""
+    holder:"Anne Marie"
 
-Inside quotation marks a backslash escapes the character after it, and the only
-two characters it may come before are the quotation mark and another backslash.
+Your shell has quoting rules of its own, and they run before Dinah sees
+anything, so quote the query in whatever way leaves those inner quotation marks
+intact. Inside them a backslash escapes the character after it, and the only two
+characters it may come before are the quotation mark and another backslash.
 
 An empty value asks for absence, and you write it as two quotation marks with
 nothing between them. `holder:""` returns the cards nobody is holding.
