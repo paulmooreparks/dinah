@@ -1218,35 +1218,48 @@ func editAnchor(t *testing.T, root, from, to string) {
 	}
 }
 
-// guideInvocation matches a dinah command line inside a guide's fenced block.
-var guideInvocation = regexp.MustCompile(`(?m)^dinah ([a-z_]+)((?: [^\n]*)?)$`)
+// guideInvocation matches a dinah command line wherever it stands.
+//
+// The pattern reaches inside a line rather than anchoring at the start of one,
+// because the corpus now carries the quick start, whose command lines open
+// `$ ` and whose prose quotes an invocation between backticks. Two blocks also
+// reach a dinah invocation from inside another command, where the reader is
+// shown an editor opened on the path dinah prints, and that is the only place
+// the documentation teaches that reference grammar.
+//
+// What may stand in front of an invocation is written out rather than left
+// open, and the narrowing is measured. A pattern reading the word anywhere
+// takes "you installed dinah to /home/ana/.local/bin" as the command `to` and
+// "run this now to use dinah in this shell" as the command `in`, both of them
+// lines the installer prints. So an invocation opens a line, opens one after
+// the `$ ` a transcript marks a command line with, or stands just after a
+// backtick, a command substitution, or an opening parenthesis.
+//
+// The tail stops at a backtick, so a sentence quoting two invocations yields
+// both and prose standing after a closing backtick is not read as arguments.
+var guideInvocation = regexp.MustCompile("(?m)(?:^\\$ |^|`|\\$\\(|\\()dinah ([a-z_]+)([^\n`]*)")
 
 // guideFlag matches a long flag inside such a line.
 var guideFlag = regexp.MustCompile(`--([a-z-]+)`)
 
-// TestTheGuidesTeachOnlyDeclaredFlags asserts the reference rule against the
-// shipped guides: every command a guide teaches exists, and every flag it
-// spells is one that command declares or one of the global flags.
+// TestTheGuidesTeachOnlyDeclaredFlags asserts the reference rule against every
+// document that teaches the tool: every command it teaches exists, and every
+// long flag it spells is one that command declares or one of the global flags.
 //
-// This is the guard the cycle-one review's third finding wanted. The guide
-// taught `dinah init --slug proj` while the generated help named only
-// `--from`, and nothing in the suite could see the disagreement, because the
-// help fixture counts commands rather than flags.
+// The corpus is the shipped guides and docs/quick-start.md. The quick start is
+// where the drift this rule exists for actually landed, and it sat outside
+// this test's reach until it was named here.
 func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 	global := map[string]bool{}
 	for _, flag := range globalFlags {
 		global[flag.name] = true
 	}
 	checked := 0
-	for _, topic := range guide.Topics() {
-		text, err := guide.Text(topic)
-		if err != nil {
-			t.Fatalf("guide %s: %v", topic, err)
-		}
-		for _, invocation := range guideInvocation.FindAllStringSubmatch(text, -1) {
+	for _, document := range guardedDocuments(t) {
+		for _, invocation := range guideInvocation.FindAllStringSubmatch(document.text, -1) {
 			name, rest := invocation[1], invocation[2]
 			if _, ok := lookup(name); !ok {
-				t.Errorf("%s: the guide teaches the command %q, which the binary does not offer", topic, name)
+				t.Errorf("%s: the document teaches the command %q, which the binary does not offer", document.name, name)
 				continue
 			}
 			declared := map[string]bool{}
@@ -1260,12 +1273,12 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 				if declared[flag[1]] || global[flag[1]] {
 					continue
 				}
-				t.Errorf("%s: the guide teaches `dinah %s --%s`, which %s does not declare", topic, name, flag[1], name)
+				t.Errorf("%s: the document teaches `dinah %s --%s`, which %s does not declare", document.name, name, flag[1], name)
 			}
 		}
 	}
 	if checked == 0 {
-		t.Error("no flagged invocation was found in any guide, so this test proves nothing")
+		t.Error("no flagged invocation was found in any guide or in the quick start, so this test proves nothing")
 	}
 }
 

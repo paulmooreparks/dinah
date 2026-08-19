@@ -21,7 +21,7 @@ an index.
 Dinah is one binary with no installer to click through and nothing else to set
 up. On Linux or macOS, run this:
 
-```
+```console skip=the first word is curl, which the in-process head cannot run
 $ curl -fsSL https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.sh | sh
 Installed dinah-linux-amd64 as /home/ana/.local/bin/dinah
 
@@ -88,9 +88,9 @@ The leading `$` marks a command line. Do not type it.
 
 ## What Dinah tells you about itself
 
-```
+```console
 $ dinah version
-dinah v0.1.0-dev.4
+dinah 0.1.0
 conforms to dinah-core/0.4
 storage format 1
 [exit 0]
@@ -105,7 +105,7 @@ answers about it. The third line names the format Dinah writes on disk.
 `dinah help` lists all twenty-nine commands, in the four groups Dinah sorts them
 into. Dinah does not accept `--help`:
 
-```
+```console
 $ dinah --help
 dinah.usage --help was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.
 [exit 2]
@@ -121,7 +121,7 @@ A workbench is a directory of plain-text files. You may create a workbench in
 the same directory as the rest of your work, if you'd like, and put it under
 version control alongside the project it belongs to.
 
-```
+```console
 $ mkdir release-notes
 $ cd release-notes
 $ dinah init --slug rel --operator ana
@@ -165,7 +165,7 @@ in your own configuration file. You change the recorded name with
 `dinah config set actor`, and you use the same command to act as somebody other
 than the operator:
 
-```
+```console
 $ dinah config set actor ana
 [exit 0]
 $ dinah config get actor
@@ -185,7 +185,7 @@ follow you to every workbench you work.
 If you do not give `config` an argument, Dinah lists every setting it knows, the
 value each one currently resolves to, and where that value came from:
 
-```
+```console skip=the editor fallback differs per platform and per runner image
 $ dinah config
   Setting    Value                                        Source
   ---------  -------------------------------------------  --------
@@ -196,6 +196,9 @@ $ dinah config
 [exit 0]
 ```
 
+You ran that on Linux. On Windows, Dinah falls back to `notepad`, so you see
+that in the `editor` row instead.
+
 Read that third column whenever a value surprises you. You set none of `lang`,
 and Dinah fell back to its own default; you wrote `actor` into your
 configuration file a moment ago; Dinah found `editor` on the machine rather than
@@ -204,7 +207,7 @@ but the workbench this run resolved, marked `search` because the climb found it.
 Dinah labels an environment variable the same way. A value you cannot account
 for tells you where it came from:
 
-```
+```console skip=the editor fallback differs per platform and per runner image
 $ dinah config
   Setting    Value                                        Source
   ---------  -------------------------------------------  -----------
@@ -215,12 +218,19 @@ $ dinah config
 [exit 0]
 ```
 
+On Windows you see `notepad` here instead.
+
 Dinah knows four settings in this version, `actor`, `lang`, `editor`, and
 `workbench`, and it accepts no other name:
 
-```
+```console
 $ dinah config set colour green
-dinah.unknown-key this tool knows no setting called colour
+dinah.unknown-key Dinah knows no setting or field called colour; it knows these
+  lang
+  actor
+  editor
+  workbench
+name one of them instead, or run `dinah config` to see what each one holds
 [exit 2]
 ```
 
@@ -230,7 +240,7 @@ where you put it.
 
 ## Look at the flow
 
-```
+```console
 $ dinah states
   Slug    Name    Kind    Cards  Owner
   ------  ------  ------  -----  -----
@@ -262,7 +272,7 @@ with `dinah check --migrate-slugs`.
 Run `status` when you sit down. Dinah prints you that same list, tells you which
 workbench it resolved and how, and adds the cards you hold yourself.
 
-```
+```console
 $ dinah status
 release-notes  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
@@ -283,7 +293,7 @@ block at the top, the part between the `---` lines. Dinah's own messages call
 that block the frontmatter. The block below is the file itself rather than a
 transcript:
 
-```
+```file path=<workbench>/workbench.md
 ---
 format: 1
 profile: dinah-core/0.4
@@ -301,7 +311,7 @@ Every card on this workbench ends with a line in the changelog.
 Then open the `state.md` of one state and do the same. If you set a `wip_limit`,
 Dinah caps that state at that many cards:
 
-```
+```file path=<workbench>/states/<state:doing>/state.md
 ---
 wip_limit: 1
 title: Doing
@@ -316,7 +326,7 @@ Dinah never copies that prose anywhere. It serves the text out of the file you
 wrote it in. When you edit the file, every reader sees the change at once. Check
 your work whenever you have been editing by hand:
 
-```
+```console
 $ dinah check
 No structural defects found.
 [exit 0]
@@ -335,7 +345,7 @@ acting as ana, operator: yes
 You can see the limit in the count column, where `doing` now reads `0/1`. To
 read the instructions a state serves without touching a card, ask for them:
 
-```
+```console
 $ dinah instructions doing
 
 Instructions, this workbench:
@@ -352,7 +362,7 @@ instructions for wherever that card is standing.
 
 ## File some cards
 
-```
+```console
 $ dinah add "Write the release notes"
 rel-1  Write the release notes  [Intake / ready]
 [exit 0]
@@ -376,7 +386,7 @@ order, oldest arrival first, and when two cards arrived inside the same second
 it falls back to the order you filed them in. You get that same order however
 fast you type.
 
-```
+```console
 $ dinah ls
   Card   Standing  Title
   -----  --------  ------------------------
@@ -421,7 +431,7 @@ second tool reading the same workbench answers you the same way.
 
 Nobody hands you work here. You claim a card yourself:
 
-```
+```console
 $ dinah claim rel-1
 rel-1  Write the release notes  [Intake / active]
   held by ana
@@ -443,9 +453,9 @@ either. Pass `--quiet` when you have read them already.
 
 Dinah will not let anybody else take a card you hold:
 
-```
+```console
 $ dinah claim rel-1 --actor bo
-held ana holds this card
+held ana holds this card; wait for ana to release it
 [exit 2]
 ```
 
@@ -453,16 +463,16 @@ held ana holds this card
 card you hold, you still hold it afterwards. You capped `Doing` at one card
 above, and `rel-3` already stands there, so Dinah refuses the move below:
 
-```
+```console
 $ dinah move rel-1 doing
-at-capacity state doing has reached its limit
+at-capacity state doing has reached its limit; move a card out of doing first, or raise that state's wip_limit
 [exit 2]
 ```
 
 Only the operator can override that limit, and Dinah records the override on the
 move:
 
-```
+```console
 $ dinah move rel-1 doing --override
 rel-1  Write the release notes  [Doing / active]
   held by ana
@@ -484,7 +494,7 @@ Moves this card may make:
 
 Say what you did while you are there:
 
-```
+```console
 $ dinah comment rel-1 "Drafted entries for the four merged branches."
 rel-1  Write the release notes  [Doing / active]
   held by ana
@@ -502,7 +512,7 @@ When something stops the work, say so on the card. Dinah frees the card and
 records why you blocked it. Everybody reading the board can then see the
 obstacle:
 
-```
+```console
 $ dinah block rel-2 "Waiting on the signing certificate" --kind external
 rel-2  Draft the changelog  [Intake / blocked]
   blocked: Waiting on the signing certificate
@@ -514,7 +524,7 @@ stop real work vary too much for a fixed list. You choose the `--kind` yourself,
 as a short label you can group blocks by later. You see your blocked cards in
 `status`:
 
-```
+```console
 $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
@@ -540,9 +550,9 @@ Blocked, waiting on the operator:
 Only the operator can lift a block. When you block a card, you hand the obstacle
 to whoever answers for the workbench:
 
-```
+```console
 $ dinah unblock rel-2 --actor bo
-not-operator this action is the operator's, and you are bo
+not-operator this action is the operator's, and you are bo; ask the operator to run it, or run `dinah whoami` to see who Dinah takes you to be
 [exit 2]
 $ dinah unblock rel-2
 rel-2  Draft the changelog  [Intake / ready]
@@ -553,7 +563,7 @@ Release a card as soon as you stop working it, and the queue will stay honest
 about what is available. You can also give a claim its own expiry. If your claim
 lapses, Dinah returns the card to the queue and records the lapse:
 
-```
+```console
 $ dinah release rel-1
 rel-1  Write the release notes  [Doing / ready]
 [exit 0]
@@ -585,9 +595,15 @@ offers you only backward moves above.
 Dinah stores a card as a directory, and its comments and attachments as
 directories inside that one. When you give `attach` a file, Dinah copies the
 bytes in under the file's own name. Create `notes.txt` in the current directory
-first, with whatever content you like:
+first. The block below is that file rather than a transcript:
 
+```file path=notes.txt
+Ask the signing team for the certificate.
 ```
+
+Then attach it to the card:
+
+```console
 $ dinah attach rel-1 notes.txt
 rel-1  Write the release notes  [Done / active]
   held by ana
@@ -618,7 +634,7 @@ creation ordinal. You see that ordinal in the frontmatter below, and it is what
 keeps `rel-1/comments/1` pointing at the comment you wrote first as others
 arrive.
 
-```
+```console
 $ dinah show rel-1/attachments/1
 ---
 filename: notes.txt
@@ -655,7 +671,7 @@ the section on defects below runs it.
 Dinah keeps the full record of a card in its journal, and `log` shows you that
 journal oldest first:
 
-```
+```console
 $ dinah path rel-1
 /home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md
 [exit 0]
@@ -687,7 +703,7 @@ still reads as it did.
 listings and keeps its files. `delete` destroys the same things and their
 history. Dinah says nothing to you when either one succeeds.
 
-```
+```console
 $ dinah archive rel-3
 [exit 0]
 $ dinah ls done
@@ -715,7 +731,7 @@ Run `check` to find them. The workbench answering below is not the one you have
 been working in. It was damaged on purpose for this example, and its cards name
 a state that no longer exists:
 
-```
+```console skip=the transcript answers from a workbench damaged on purpose, which the narrative never builds
 $ dinah check
   a card names state 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
   the journal puts this card in state fcd0d92e167a, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
@@ -741,7 +757,7 @@ before slugs existed carries no slug, a comment or an attachment written before
 ordinals existed carries no ordinal, and a state that was moved or removed
 without an edit to `workbench.md` leaves its identifier stranded in the list:
 
-```
+```console skip=the transcript answers from a legacy workbench, which the narrative never builds
 $ dinah check
   aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
   fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
@@ -809,7 +825,7 @@ under `--json`, it writes the name of the rule to standard output in the
 `refusal` field, and that is the portable way for your script to find out which
 rule said no. Here is standard output alone:
 
-```
+```console stream=out
 $ dinah claim rel-9 --json
 {
   "outcome": "refused",
@@ -830,9 +846,9 @@ Dinah writes the sentence a person reads to standard error, whether or not you
 passed `--json`. If you do not pass the flag, that one line is all you get, and
 Dinah puts the name of the rule at the front of it:
 
-```
+```console stream=err
 $ dinah claim rel-9
-unknown-card this workbench carries no card rel-9
+unknown-card this workbench carries no card rel-9; run `dinah ls` to see the cards this workbench carries
 [exit 2]
 ```
 
@@ -840,7 +856,7 @@ Dinah writes the sentence after the name for a person to read, and it may
 translate that sentence. It never translates the name. In bash or zsh, you cut
 that first word out:
 
-```
+```console skip=the line carries a pipe and a redirection, which the in-process head cannot honour
 $ dinah claim rel-9 2>&1 >/dev/null | cut -d" " -f1
 unknown-card
 ```
@@ -876,7 +892,7 @@ Dinah writes the machine spellings in JSON, such as `ready` and `unknown-card`,
 and never translates them. You get the same bytes from the same command under
 any language setting.
 
-```
+```console
 $ dinah ls intake --json
 {
   "state": "003b09ee6e31",
@@ -923,7 +939,7 @@ locale, and English if none of them answers. Dinah puts the locale below your
 configuration file because the locale describes the machine rather than the
 person reading the screen.
 
-```
+```console
 $ dinah --lang hi status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [खोज]
 ana के रूप में, संचालक: हाँ
@@ -945,23 +961,23 @@ You wrote the titles, and Dinah leaves them as you wrote them. It leaves the
 slugs derived from them alone as well. To see which languages your build
 carries, ask:
 
-```
+```console
 $ dinah version --catalogs
-dinah v0.1.0-dev.4
+dinah 0.1.0
 conforms to dinah-core/0.4
 storage format 1
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        291/291
-  af        0/291
-  cs        0/291
-  de        0/291
-  es        0/291
-  fil       0/291
-  hi        291/291
-  id        0/291
+  en        403/403
+  af        0/403
+  cs        0/403
+  de        0/403
+  es        0/403
+  fil       0/403
+  hi        403/403
+  id        0/403
 [exit 0]
 ```
 
@@ -981,7 +997,7 @@ Set `DINAH_EDITOR` the way your shell sets any variable, as the scripting
 section above shows. The run below points it at `cat`, and you see the file
 printed instead of a window opening:
 
-```
+```console env=DINAH_EDITOR=cat
 $ dinah edit rel-1
 ---
 title: Write the release notes
@@ -998,7 +1014,7 @@ claim_expires: 2026-08-19T05:02:23Z
 Dinah runs that value as a program name, so give it the name of an editor rather
 than a command line with flags in it:
 
-```
+```console
 $ dinah config set editor nano
 [exit 0]
 $ dinah config get editor
@@ -1016,7 +1032,7 @@ anywhere inside one. To see what that walk reaches from where you are standing
 now, run `workbenches`. Dinah answers you with rows rather than an error, and it
 tells you plainly when it reached none:
 
-```
+```console
 $ dinah workbenches
   Workbench    Slug  Path
   -----------  ----  -------------------------------------------
@@ -1034,7 +1050,7 @@ beside you. From outside, name the workbench you want with `--workbench`, or set
 `.dinah/<identifier>` directory holding `workbench.md`, rather than at the
 project directory above it:
 
-```
+```console
 $ dinah --workbench release-notes/.dinah/d0e41d414bb5 status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [flag]
 acting as ana, operator: yes
@@ -1057,7 +1073,7 @@ and names both the directory the climb started from and the home directory it
 fell back to. You are standing in ana's home now, and it holds no workbench of
 its own yet:
 
-```
+```console
 $ dinah status
 dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, or pass --workbench <path> to point at one that exists
 [exit 2]
@@ -1070,7 +1086,7 @@ between them for you. The two below are ana's own, made in her home directory
 and titled by hand afterwards. You will see the same thing only if you have made
 more than one workbench there yourself:
 
-```
+```console skip=the workbench listing is ordered by an identifier the tool mints at random
 $ dinah init --slug alp --operator ana
 Workbench created at /home/ana/.dinah/cd20d36303bc.
 [exit 0]
@@ -1100,7 +1116,7 @@ cannot find. Here you asked Dinah to show you something and it cannot tell which
 workbench you meant, so it shows you the choices instead of refusing, and it
 exits 0:
 
-```
+```console skip=the workbench listing is ordered by an identifier the tool mints at random
 $ dinah show
   Workbench     Slug  Path
   ------------  ----  -----------------------------
@@ -1118,7 +1134,7 @@ touching your own.
 `export` prints the whole workbench definition in the shared exchange format,
 and another program built to the same rules can read what it prints:
 
-```
+```console
 $ cd release-notes
 $ dinah export
 {
@@ -1155,7 +1171,7 @@ $ dinah export
 again. It carries the flow and the instructions, and none of the cards. You
 start a new workbench from a template with `init --from`:
 
-```
+```console
 $ dinah extract ../release-template
 Definition written to ../release-template.
 [exit 0]
@@ -1189,7 +1205,7 @@ one does and serves the same standing text. That last `cd` puts you back in the
 workbench this guide started in, and the commands below expect you to run them
 there.
 
-```
+```console
 $ cd ../release-notes
 ```
 
@@ -1198,11 +1214,12 @@ $ cd ../release-notes
 Dinah carries its own guides, and you can read them with no network and no
 repository checkout:
 
-```
+```console
 $ dinah guide
   Topic             Title
   ----------------  -----------------------------------
   getting-started   Getting started
+  query             Asking questions of a workbench
   verbs             The five verbs
   workbench-layout  What a workbench looks like on disk
 [exit 0]
@@ -1235,23 +1252,22 @@ record shows who did what.
 no, in the order Dinah makes the checks. Read that order when you are working
 out which of two possible errors you are looking at.
 
-```
+```console
 $ dinah help claim
 claim <card> [--expires <duration>]
 
 take up a ready card
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                              Refusal
-  -----  ---------------------------------------------  -------------------
-  1      the workbench declares a major number the tool implements
-                                                        unsupported-version
-  2      the workbench designates an operator           no-operator
-  3      the card exists                                unknown-card
-  4      the request names an owner                     no-owner
-  5      the owner named as holder is the owner asking  not-requester
-  6      the card's substate is not `blocked`           blocked
-  7      the card's substate is not `active`            held
+  Order  What can go wrong                                          Refusal
+  -----  ---------------------------------------------------------  -------------------
+  1      the workbench declares a major number the tool implements  unsupported-version
+  2      the workbench designates an operator                       no-operator
+  3      the card exists                                            unknown-card
+  4      the request names an owner                                 no-owner
+  5      the owner named as holder is the owner asking              not-requester
+  6      the card's substate is not `blocked`                       blocked
+  7      the card's substate is not `active`                        held
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

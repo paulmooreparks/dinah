@@ -61,3 +61,4 @@ Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_A
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 
 Run 'dinah help <command>' for one command's arguments, what can go wrong, and its exit codes.
+Run 'dinah guide' for the guides Dinah carries, and read the quick start at https://github.com/paulmooreparks/dinah/blob/main/docs/quick-start.md

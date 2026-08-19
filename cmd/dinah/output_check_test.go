@@ -485,6 +485,26 @@ func TestEveryTableSiteIsRegistered(t *testing.T) {
 			t.Errorf("sweptBlocks names %s and the source draws no table there, so the entry is stale and may be covering the wrong block", site)
 		}
 	}
+	assertEveryCoveredEntryExpects(t)
+}
+
+// assertEveryCoveredEntryExpects holds every entry declaring two or more
+// columns to carrying an expectation, so a table site a later card adds cannot
+// reach the trunk with nothing asserting which value sits under which label.
+//
+// The condition is len(block.keys) < 2 rather than a list of names. An entry
+// declaring one column prints a list under a sentence that already names it
+// and has no second label for a value to sit under, and the covered set
+// follows the inventory wherever a later card takes it.
+func assertEveryCoveredEntryExpects(t *testing.T) {
+	t.Helper()
+	for _, block := range sweptBlocks() {
+		if len(block.keys) < 2 || block.expect != nil {
+			continue
+		}
+		t.Errorf("%s (%s) declares %d columns and carries no expectation, so nothing asserts that its values sit under their own labels",
+			block.site, block.label, len(block.keys))
+	}
 }
 
 // reachedTableSites are the sites the corpus actually drew a table through,

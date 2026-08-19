@@ -33,13 +33,9 @@ whatever it refers to as they stood at the time, so the history still reads
 years later when the states it names have been renamed or removed.
 
 You can read that same tree back through the tool rather than through a file
-browser. `dinah contents` walks down from anything you name and prints what it
-found:
-
-```
-dinah contents workbench
-dinah contents proj-1
-```
+browser. `dinah contents` walks down from anything you name. It prints what it
+found, so `dinah contents workbench` draws the whole workbench and
+`dinah contents proj-1` draws one card.
 
 Dinah prints one row per entity, with the reference you type to reach it in the
 first column, so a comment of a card is `proj-1/comments/1`, counting in the
