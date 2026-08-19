@@ -4697,6 +4697,12 @@ func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
 				listed = append(listed, trimmed)
 			}
 		}
+		// The count is asserted before the positions are, because indexing a
+		// longer list than the reading order holds finds every topic in its
+		// place and says nothing about the row that was added beside them.
+		if len(listed) != len(guide.Topics()) {
+			t.Errorf("the refusal indents %d rows and the reading order holds %d topics: %v", len(listed), len(guide.Topics()), listed)
+		}
 		for at, topic := range guide.Topics() {
 			if !strings.Contains(got.errw, "  "+topic+"\n") {
 				t.Errorf("the listing should carry %q, got %q", topic, got.errw)

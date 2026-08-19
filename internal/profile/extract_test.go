@@ -358,8 +358,9 @@ func TestBoundaryTableCatchesADefect(t *testing.T) {
 // TestHouseStyle asserts the typographic rules the profile's style section
 // states, which a reviewer should never have to check by eye.
 //
-// The banned set below is copied in TestTheDocumentationCarriesNoBannedTypography
-// in cmd/dinah, which holds the guides and the quick start to the same rules. A
+// The banned set below is copied in the bannedTypography variable in
+// cmd/dinah/guide_guard_test.go, where the check over the guides and the quick
+// start reads it, so both corpora answer to one set of rules stated twice. A
 // test in one package cannot read a test in another, and exporting the set from
 // a shipped package would put style vocabulary in the binary, so a character
 // added here is added there by hand.

@@ -52,8 +52,8 @@ printed means nobody has written anything rather than that something is wrong.
 ## Take a card
 
 You take work here rather than waiting to be given it, so you choose your own
-card and nobody assigns you one. `dinah next` shows what each state offers next,
-`dinah ls <state>` lists one state in the order its cards arrived, and
+card and nobody assigns you one. `dinah next` shows what each state offers
+next, `dinah ls <state>` lists one state in the order its cards arrived, and
 `dinah query` answers the questions those two cannot. The language `query`
 reads is written down in `dinah guide query`.
 

@@ -83,7 +83,7 @@ sections, each answering a question the reader has at that moment.
 | Heading | What the reader can do after reading it |
 |---|---|
 | Find out where you are | Run `dinah status` and read the workbench path, the actor, the flow, and what you already hold. |
-| Find out whose name you are acting under | Run `dinah whoami` and `dinah config`, see which rung supplied the actor, and set your own before you write anything. |
+| Find out whose name you are acting under | Run `dinah whoami` and `dinah config`, see which source supplied the actor, and set your own before you write anything. |
 | Read what this workbench asks of you | Run `dinah states` and `dinah instructions`, and know that standing prose arrives at two levels. |
 | Take a card | Run `dinah next`, `dinah ls`, or `dinah query`, then `dinah claim`, and read the instructions the claim serves back. |
 | Read the card before you work it | Run `dinah show` and `dinah log`, and know which references answer today. |
