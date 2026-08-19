@@ -133,7 +133,7 @@ func runBlock(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Block, parsed)
 	req.Card = at(words, 0)
-	reason, refusal := freeText([]string{"block", req.Card}, words[min(1, len(words)):], "the reason")
+	reason, refusal := s.freeText([]string{"block", req.Card}, words[min(1, len(words)):], "slot.reason")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
@@ -155,7 +155,7 @@ func runUnblock(s *session, parsed *arguments) int {
 // runAdd files a new card.
 func runAdd(s *session, parsed *arguments) int {
 	req := s.request("add", parsed)
-	title, refusal := freeText([]string{"add"}, parsed.rest(), "the title")
+	title, refusal := s.freeText([]string{"add"}, parsed.rest(), "slot.title")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
@@ -171,7 +171,7 @@ func runComment(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("comment", parsed)
 	req.Card = at(words, 0)
-	text, refusal := freeText([]string{"comment", req.Card}, words[min(1, len(words)):], "the comment")
+	text, refusal := s.freeText([]string{"comment", req.Card}, words[min(1, len(words)):], "slot.comment")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
@@ -586,7 +586,7 @@ func runConfig(s *session, parsed *arguments) int {
 		if looksLikeMistypedFlag(key) {
 			return s.fail(contract.Usage, key)
 		}
-		value, refusal := freeText([]string{"config", "set", key}, words[min(2, len(words)):], "the value")
+		value, refusal := s.freeText([]string{"config", "set", key}, words[min(2, len(words)):], "slot.value")
 		if refusal != nil {
 			return s.reportError(refusal)
 		}
@@ -683,7 +683,7 @@ func runWorkbench(s *session, parsed *arguments) int {
 		if looksLikeMistypedFlag(field) {
 			return s.fail(contract.Usage, field)
 		}
-		value, refusal := freeText([]string{"workbench", "set", field}, words[min(2, len(words)):], "the value")
+		value, refusal := s.freeText([]string{"workbench", "set", field}, words[min(2, len(words)):], "slot.value")
 		if refusal != nil {
 			return s.reportError(refusal)
 		}
