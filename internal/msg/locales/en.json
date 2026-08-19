@@ -773,6 +773,10 @@
       "text": "use this workbench instead of the one discovered from here",
       "context": "The one-line summary of the global flag --workbench."
     },
+    "guide.reading": {
+      "text": "The guides stand in the order Dinah recommends reading them.",
+      "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language."
+    },
     "help.environment": {
       "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."

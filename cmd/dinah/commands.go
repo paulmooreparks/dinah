@@ -384,6 +384,8 @@ func runInstructions(s *session, parsed *arguments) int {
 func runGuide(s *session, parsed *arguments) int {
 	topic := at(parsed.rest(), 0)
 	if topic == "" {
+		s.line(s.r.T("guide.reading"))
+		s.line("")
 		topics := table{indent: 2, columns: s.columns("guide", "topic", "title")}
 		for _, known := range guide.Topics() {
 			topics.rows = append(topics.rows, tableRow{fields: []string{known, guide.Title(known)}})
