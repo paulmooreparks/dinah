@@ -179,8 +179,9 @@ What can go wrong, in the order each is checked:
   1      every term of the query parses                    malformed
   2      every field named is one this tool knows          dinah.unknown-field
   3      every operator is one the named field accepts     dinah.unknown-field
-  4      each value on a closed field is one it holds      dinah.unknown-value
+  4      each substate and event value is a legal one      dinah.unknown-value
   5      each state named is one the workbench declares    unknown-state
+  6      each workstream named is one a live card lists    dinah.unknown-value
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
