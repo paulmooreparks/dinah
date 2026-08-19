@@ -31,4 +31,4 @@ render.go:269.23,272.3  a card carrying a body, printed under its own line by sh
 render.go:304.19,306.5  the override mark on a move in the history. Reachable and unreached: worth a test.
 render.go:307.30,308.20  the reason a block carries in the history. Reachable and unreached: worth a test.
 render.go:377.32,379.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
-table.go:91.30,93.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
+table.go:115.30,117.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
