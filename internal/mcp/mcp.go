@@ -266,6 +266,12 @@ func assignValue(req *verb.Request, name, value string) {
 		req.State = value
 	case "query":
 		req.Query = value
+	case "action":
+		req.Action = value
+	case "field":
+		req.Field = value
+	case "value":
+		req.Value = value
 	case "title":
 		req.Title = value
 	case "text":

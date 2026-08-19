@@ -3,7 +3,9 @@ package bench
 import "path/filepath"
 
 // checkWorkbenchSlug applies the slug invariant to the workbench's own
-// identity: it carries one. Unlike checkStateSlugs, this carries no major
+// identity. The workbench carries a slug, and the slug it carries conforms to
+// the grammar, so that the checker speaks about a hand-edited anchor as well
+// as about one written before the field existed. Unlike checkStateSlugs, this carries no major
 // gate: no CORE-BENCH statement makes a workbench slug mandatory at any
 // major the way CORE-STATE-10 does for a state, and nothing in Open refuses
 // a workbench for lacking one at any major, so there is no threshold past
@@ -11,10 +13,14 @@ import "path/filepath"
 // into a refusal. The finding is informational on every conforming major
 // this binary opens, and stays that way.
 func (b *Bench) checkWorkbenchSlug() []Finding {
-	if b.Slug != "" {
-		return nil
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	if b.Slug == "" {
+		return []Finding{{Path: anchor, Key: FindingWorkbenchSlugMissing}}
 	}
-	return []Finding{{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingWorkbenchSlugMissing}}
+	if !ValidSlug(b.Slug) {
+		return []Finding{{Path: anchor, Key: FindingWorkbenchSlugMalformed, Detail: b.Slug}}
+	}
+	return nil
 }
 
 // WorkbenchSlugAssignment is what the workbench-slug migration reports when

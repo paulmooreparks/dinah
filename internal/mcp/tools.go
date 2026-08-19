@@ -27,6 +27,12 @@ type tool struct {
 // tools is the whole MCP surface. A command that exists only because a shell
 // and a filesystem exist gets no tool, which leaves out path, edit, init,
 // extract, config and mcp itself, and guide is a resource rather than a tool.
+//
+// workbench falls inside that rule rather than outside it, even though config
+// does not. A workbench's own fields are workbench state that travels with the
+// repository, where a user setting is a machine artifact, and the operator
+// check guards the write here exactly as it does at a terminal, because the
+// library holds it.
 var tools = []tool{
 	{name: "claim", command: verb.Claim, run: doVerb},
 	{name: "move", command: verb.Move, run: doVerb},
@@ -47,6 +53,7 @@ var tools = []tool{
 	{name: "log", command: "log", run: readLog},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
+	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},
@@ -205,6 +212,21 @@ func readWhoami(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"identity": identity}, readAffordances)
+}
+
+// doWorkbench answers the workbench tool, which reads the workbench's own
+// fields or writes one of them, exactly as the command does. A call naming the
+// set action takes the write, and every other call is the read, so an agent
+// reads the same three fields the terminal listing prints.
+func doWorkbench(l *verb.Library, r *verb.Request) any {
+	if r.Action == "set" {
+		return l.SetWorkbench(r)
+	}
+	fields, err := l.Workbench(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"workbench": fields}, readAffordances)
 }
 
 // readVersion answers the version tool, always with catalog coverage, since a

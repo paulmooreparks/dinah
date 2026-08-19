@@ -40,7 +40,7 @@ func (s *session) emit(response *verb.Response) int {
 func (s *session) reportOutcome(response *verb.Response) {
 	switch response.Outcome {
 	case contract.OutcomeRefused:
-		io.WriteString(s.errw, response.Refusal+" "+s.sentence(response.Refusal, response.Detail)+"\n")
+		io.WriteString(s.errw, response.Refusal+" "+s.sentence(response.Refusal, response.Verb, response.Detail)+"\n")
 	case contract.OutcomeStale:
 		revision := ""
 		if response.Card != nil {
@@ -400,6 +400,25 @@ func (s *session) renderVersion(release *verb.VersionReport) {
 	for _, catalog := range release.Catalogs {
 		coverage := strconv.Itoa(catalog.Translated) + "/" + strconv.Itoa(catalog.Total)
 		t.rows = append(t.rows, tableRow{fields: []string{catalog.Tag, coverage}})
+	}
+	s.table(t)
+}
+
+// renderWorkbenchFields prints the workbench's own fields, one row per field.
+//
+// The field names travel untranslated, the way `config`'s keys do, because a
+// field name is machine vocabulary a caller types back. The slug row is served
+// through slugCell, so a workbench carrying none names its repair rather than
+// standing blank, and this listing says what `dinah states` and `dinah
+// workbenches` already say about a missing slug.
+func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
+	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
+	for _, name := range bench.WorkbenchFields {
+		value := fields.Field(name)
+		if name == "slug" {
+			value = s.slugCell(value)
+		}
+		t.rows = append(t.rows, tableRow{fields: []string{name, value}})
 	}
 	s.table(t)
 }

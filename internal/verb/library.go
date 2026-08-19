@@ -49,6 +49,13 @@ type Request struct {
 	Ref string
 	// State is the destination a move names, or the state a read narrows to.
 	State string
+	// Action is the word a command dispatching on its own first word was
+	// given: get, set, or empty for the bare invocation.
+	Action string
+	// Field is the workbench field a read or a write names.
+	Field string
+	// Value is what a write puts in that field.
+	Value string
 	// Holder is the owner a claim names as holder, which the pull discipline
 	// requires to be the owner asking.
 	Holder string

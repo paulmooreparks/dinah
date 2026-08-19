@@ -16,9 +16,8 @@
 # simply unreached: each is a human rendering the suite has never printed, and
 # each is worth a test rather than a permanent line here.
 
-commands.go:394.2,395.10  runGuide printing one guide's text, which is reached only by naming a topic; the corpus asks for the topic listing and never for a guide.
+commands.go:398.2,399.10  runGuide printing one guide's text, which is reached only by naming a topic; the corpus asks for the topic listing and never for a guide.
 help.go:125.32,127.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
-render.go:27.28,29.3  the warning line of a response, which no verb the corpus drives sets.
 render.go:44.29,46.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
 render.go:46.27,48.4  the same, on the branch where the stale response carries a card.
 render.go:49.3,49.102  the same, writing the stale sentence.

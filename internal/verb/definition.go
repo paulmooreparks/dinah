@@ -114,6 +114,16 @@ var params = map[string][]Param{
 		{Name: "key"},
 		{Name: "value"},
 	},
+	// The bare invocation lists all three fields, so neither the action nor
+	// the field is required; get and set still need one, which the command
+	// refuses over rather than the syntax line. The confirmation flag is
+	// unrequired because a title change and an operator change take none.
+	"workbench": {
+		{Name: "action", Display: "get|set"},
+		{Name: "field"},
+		{Name: "value"},
+		{Name: "yes", Flag: true, Marker: true},
+	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true},
 		{Name: "migrate-ordinals", Flag: true, Marker: true},

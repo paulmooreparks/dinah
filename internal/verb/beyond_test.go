@@ -1876,3 +1876,218 @@ func TestTheQueryGuideCarriesTheEscapeHatchTheSpecFixed(t *testing.T) {
 		t.Error("the query guide's escape hatch does not unnest the cards member")
 	}
 }
+
+// TestWorkbenchReadsTheThreeFieldsAndRefusesAnyOther asserts that the read
+// answers with the workbench's own three fields, that it is open to a caller
+// naming no actor at all, and that a get naming a field outside the set
+// refuses with the name config already raises for the same mistake.
+func TestWorkbenchReadsTheThreeFieldsAndRefusesAnyOther(t *testing.T) {
+	h := newHarness(t)
+	view, err := h.library.Workbench(&Request{Verb: "workbench"})
+	if err != nil {
+		t.Fatalf("the read refused a caller naming no actor: %v", err)
+	}
+	if view.Title != "Fixture" || view.Slug != "fx" || view.Operator != "alka" {
+		t.Errorf("the read answered %+v, wanted the fixture's own three fields", view)
+	}
+	for name, wanted := range map[string]string{"title": "Fixture", "slug": "fx", "operator": "alka"} {
+		if got := view.Field(name); got != wanted {
+			t.Errorf("the %s field read back as %q, wanted %q", name, got, wanted)
+		}
+	}
+	if got := view.Field("profile"); got != "" {
+		t.Errorf("a name outside the set read back as %q, wanted nothing", got)
+	}
+	_, err = h.library.Workbench(&Request{Verb: "workbench", Action: "get", Field: "profile"})
+	refusal := &contract.Refusal{}
+	if !errors.As(err, &refusal) || refusal.Name != contract.UnknownKey {
+		t.Fatalf("a get of an unknown field: wanted %s, got %v", contract.UnknownKey, err)
+	}
+	if refusal.Detail != "profile" {
+		t.Errorf("the refusal names %q, wanted the field the caller typed", refusal.Detail)
+	}
+}
+
+// TestSetWorkbenchEvaluatesItsChecksInOrder asserts the ladder the spec fixes.
+// Each case satisfies every rung above the one it is aimed at, so a rung that
+// stopped running would show up as the rung below it answering in its place,
+// and each case leaves the anchor byte-identical.
+func TestSetWorkbenchEvaluatesItsChecksInOrder(t *testing.T) {
+	cases := []struct {
+		name    string
+		request *Request
+		wanted  string
+		detail  string
+	}{
+		{
+			name:    "an unknown field, before anything about the value",
+			request: &Request{Verb: "workbench", Actor: "alka", Field: "profile", Value: ""},
+			wanted:  contract.UnknownKey,
+			detail:  "profile",
+		},
+		{
+			name:    "an empty value, before the owner is asked for",
+			request: &Request{Verb: "workbench", Field: "title", Value: "   "},
+			wanted:  contract.Malformed,
+			detail:  "title",
+		},
+		{
+			name:    "a slug outside the grammar, on the same rung",
+			request: &Request{Verb: "workbench", Actor: "alka", Field: "slug", Value: "sprint-2", Confirm: true},
+			wanted:  contract.Malformed,
+			detail:  "slug",
+		},
+		{
+			name:    "no owner, before the operator is compared",
+			request: &Request{Verb: "workbench", Field: "title", Value: "Renamed"},
+			wanted:  contract.NoOwner,
+		},
+		{
+			name:    "an owner who is not the operator",
+			request: &Request{Verb: "workbench", Actor: "bob", Field: "title", Value: "Renamed"},
+			wanted:  contract.NotOperator,
+			detail:  "bob",
+		},
+		{
+			name:    "a rename carrying no confirmation, last of the six",
+			request: &Request{Verb: "workbench", Actor: "alka", Field: "slug", Value: "fx-dev"},
+			wanted:  contract.Unconfirmed,
+			detail:  "fx-dev",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHarness(t)
+			before := h.anchorBytes()
+			response := h.library.SetWorkbench(c.request)
+			if response.Outcome != contract.OutcomeRefused || response.Refusal != c.wanted {
+				t.Fatalf("wanted %s, got %s %s", c.wanted, response.Outcome, response.Refusal)
+			}
+			if response.Detail != c.detail {
+				t.Errorf("the refusal names %q, wanted %q", response.Detail, c.detail)
+			}
+			if after := h.anchorBytes(); after != before {
+				t.Error("the refusal wrote to the anchor")
+			}
+		})
+	}
+
+	t.Run("a workbench designating no operator, ahead of all five", func(t *testing.T) {
+		h := newHarness(t)
+		h.library.Bench.Operator = ""
+		response := h.library.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Field: "profile", Value: ""})
+		if response.Refusal != contract.NoOperator {
+			t.Errorf("wanted %s ahead of the unknown field, got %s", contract.NoOperator, response.Refusal)
+		}
+	})
+
+	t.Run("a title and an operator need no confirmation", func(t *testing.T) {
+		h := newHarness(t)
+		for _, field := range []string{"title", "operator"} {
+			response := h.library.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Field: field, Value: "alka"})
+			if response.Outcome != contract.OutcomeOK {
+				t.Errorf("set %s without the flag: %s %s", field, response.Outcome, response.Refusal)
+			}
+			h.reopen()
+		}
+	})
+}
+
+// TestSetWorkbenchWritesUnderOneLockAndJournalsWhatChanged asserts the write
+// itself: each of the three fields round-trips, the keys the tool does not set
+// survive, one workbench_updated event lands per write carrying what it
+// rewrote, and a second library driven into the middle of the transaction sees
+// an anchor and a journal that have not moved yet and cannot take the lock.
+func TestSetWorkbenchWritesUnderOneLockAndJournalsWhatChanged(t *testing.T) {
+	h := newHarness(t)
+	writes := []struct {
+		field string
+		value string
+		was   string
+	}{
+		{field: "title", value: "The renamed fixture", was: "Fixture"},
+		{field: "operator", value: "alka", was: "alka"},
+		{field: "slug", value: "fx-dev", was: "fx"},
+	}
+	for _, w := range writes {
+		req := &Request{Verb: "workbench", Actor: "alka", Field: w.field, Value: w.value, Confirm: true}
+		if response := h.library.SetWorkbench(req); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("set %s: %s %s", w.field, response.Outcome, response.Refusal)
+		}
+		h.reopen()
+		if got := h.library.Bench.WorkbenchField(w.field); got != w.value {
+			t.Errorf("%s read back as %q, wanted %q", w.field, got, w.value)
+		}
+	}
+	// The structural keys and the standing text the command never names.
+	if h.library.Bench.Profile == "" || h.library.Bench.Format == 0 || len(h.library.Bench.States) != 5 {
+		t.Errorf("a write disturbed the structural keys: profile %q, format %d, %d states",
+			h.library.Bench.Profile, h.library.Bench.Format, len(h.library.Bench.States))
+	}
+	if !strings.Contains(h.library.Bench.Standing, "The standing text of this workbench.") {
+		t.Errorf("a write disturbed the standing text: %q", h.library.Bench.Standing)
+	}
+
+	var journalled []bench.Event
+	for _, ev := range h.benchEvents() {
+		if ev.Event == contract.EventWorkbenchUpdated {
+			journalled = append(journalled, ev)
+		}
+	}
+	if len(journalled) != len(writes) {
+		t.Fatalf("wanted one %s event per write, got %d", contract.EventWorkbenchUpdated, len(journalled))
+	}
+	for i, ev := range journalled {
+		if ev.TS == "" || ev.Actor != "alka" {
+			t.Errorf("event %d carries ts %q and actor %q", i, ev.TS, ev.Actor)
+		}
+		if ev.Field != writes[i].field || ev.From != writes[i].was || ev.To != writes[i].value {
+			t.Errorf("event %d reads field %q from %q to %q, wanted %q, %q and %q",
+				i, ev.Field, ev.From, ev.To, writes[i].field, writes[i].was, writes[i].value)
+		}
+	}
+
+	// The whole write sits inside one acquisition of the workbench root, so a
+	// second view reaching the middle of it finds nothing written yet and
+	// cannot take the lock for itself.
+	h.reopen()
+	other := h.second()
+	var midAnchor string
+	var midEvents int
+	var blocked *Response
+	h.library.Interleave = func() {
+		midAnchor = h.anchorBytes()
+		midEvents = len(h.benchEvents())
+		blocked = other.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Field: "title", Value: "A third name"})
+	}
+	before := h.anchorBytes()
+	beforeEvents := len(h.benchEvents())
+	response := h.library.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Field: "title", Value: "Renamed again"})
+	h.library.Interleave = nil
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("the write the hook ran inside: %s %s", response.Outcome, response.Refusal)
+	}
+	if midAnchor == "" || blocked == nil {
+		t.Fatal("the interleave hook never ran, so this test proves nothing")
+	}
+	if midAnchor != before {
+		t.Error("the anchor had already moved when the hook fired, so the write is not inside the lock")
+	}
+	if midEvents != beforeEvents {
+		t.Error("the journal had already grown when the hook fired, so the event is not inside the lock")
+	}
+	if blocked.Refusal != contract.Locked {
+		t.Errorf("the interleaved write: wanted %s, got %s %s", contract.Locked, blocked.Outcome, blocked.Refusal)
+	}
+}
+
+// anchorBytes reads the workbench anchor as it stands, which is what a test
+// asserting that a refusal wrote nothing compares.
+func (h *harness) anchorBytes() string {
+	h.t.Helper()
+	text, err := bench.ReadText(filepath.Join(h.root, bench.WorkbenchAnchor))
+	if err != nil {
+		h.t.Fatalf("read the anchor: %v", err)
+	}
+	return text
+}

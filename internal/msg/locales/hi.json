@@ -377,6 +377,10 @@
       "text": "वर्कबेंच-उपनाम {slug} निर्धारित किया।",
       "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench."
     },
+    "check.workbench-slug-malformed": {
+      "text": "वर्कबेंच पर उपनाम {detail} है, और वर्कबेंच उपनाम में अक्षर के बाद अक्षर, अंक, और एकल आंतरिक डैश होते हैं, तथा उसके अंतिम खंड में कम से कम एक अक्षर होता है",
+      "context": "A check finding: the workbench's stored slug does not match the workbench slug grammar, so nobody can rely on typing it. Open validates the stored slug at no major, so the workbench still opens while this is reported."
+    },
     "check.workbench-slug-missing": {
       "text": "वर्कबेंच पर कोई उपनाम नहीं, इसलिए उसके कार्ड केवल अपने पहचानकों से पहुँच में हैं",
       "context": "A check finding: a workbench written before the workbench-level slug field existed; `dinah check --migrate-slugs` derives one from the title."
@@ -392,6 +396,26 @@
     "check.workbench.2": {
       "text": "the workbench designates an operator",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
+    },
+    "check.workbench-field.1": {
+      "text": "क्षेत्र वह है जो यह वर्कबेंच रखता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.2": {
+      "text": "मान उपस्थित है और सही रूप में है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.3": {
+      "text": "लिखते समय, निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.4": {
+      "text": "वह स्वामी संचालक है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.5": {
+      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "cmd.add.summary": {
       "text": "पहली स्थिति में नया कार्ड दर्ज करें",
@@ -430,7 +454,7 @@
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
     },
     "cmd.edit.summary": {
-      "text": "उस पथ को अपने संपादक में खोलें",
+      "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु को अपने संपादक में खोलें",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block."
     },
     "cmd.export.summary": {
@@ -478,7 +502,7 @@
       "context": "The one-line summary of the next command, shown beside its syntax in the help block."
     },
     "cmd.path.summary": {
-      "text": "कार्ड या उसके नीचे की किसी चीज़ का फ़ाइल पथ छापें",
+      "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु का फ़ाइल पथ छापें",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block."
     },
     "cmd.query.summary": {
@@ -512,6 +536,10 @@
     "cmd.whoami.summary": {
       "text": "आपकी क्रियाओं पर दर्ज कर्ता, और क्या वह संचालक है",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block."
+    },
+    "cmd.workbench.summary": {
+      "text": "इस वर्कबेंच के अपने क्षेत्र पढ़ें, या कोई एक लिखें",
+      "context": "The one-line summary of the workbench command, shown beside its syntax in the help block."
     },
     "cmd.workbenches.summary": {
       "text": "यहाँ से पहुँच योग्य वर्कबेंच",
@@ -700,6 +728,14 @@
     "column.states.slug": {
       "text": "उपनाम",
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workbench.field": {
+      "text": "क्षेत्र",
+      "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workbench.value": {
+      "text": "मान",
+      "context": "Heading over the value stored under it, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.workbenches.path": {
       "text": "पथ",
@@ -893,6 +929,10 @@
       "text": "delete इतिहास मिटाता है, इसलिए --yes चाहिए",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.dinah.unconfirmed.workbench": {
+      "text": "जब आप उपनाम बदलकर {detail} करते हैं तो Dinah इस वर्कबेंच के हर कार्ड का नाम बदल देता है, इसलिए आपने अन्यत्र जो भी कार्ड संदर्भ लिखे हैं वे मेल खाना बंद कर देंगे। आदेश को --yes के साथ फिर चलाएँ।",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workbench command raised it. {detail} carries the new slug the rename would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead."
+    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
@@ -910,7 +950,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-key": {
-      "text": "यह उपकरण {detail} नाम की कोई सेटिंग नहीं जानता",
+      "text": "Dinah {detail} नाम की कोई सेटिंग या क्षेत्र नहीं जानता",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-path": {
@@ -984,6 +1024,10 @@
     "refusal.malformed.fix": {
       "text": "; फ़ाइल को स्वयं संपादित करके जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
+    },
+    "refusal.malformed.reads-as-a-card-reference": {
+      "text": "; Dinah {ref} को कार्ड संदर्भ के रूप में पढ़ता है, इसलिए वर्कबेंच उपनाम डैश और संख्या पर समाप्त नहीं हो सकता",
+      "context": "Spliced onto the malformed sentence when `dinah init --slug` is handed a slug the reference grammar would read as a card. {ref} carries that slug. It opens with a semicolon, the way refusal.malformed.at and refusal.malformed.fix do."
     },
     "refusal.no-operator": {
       "text": "यह वर्कबेंच कोई संचालक नियत नहीं करती, इसलिए उसकी आरक्षित क्रियाएँ मृत हैं",
@@ -1204,6 +1248,10 @@
     "token.work": {
       "text": "काम",
       "context": "How the canonical token work is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.workbench_updated": {
+      "text": "वर्कबेंच बदला",
+      "context": "The word a person reads for the workbench_updated journal event."
     },
     "version.catalogs": {
       "text": "सूचियाँ:",

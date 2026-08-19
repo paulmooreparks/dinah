@@ -44,6 +44,12 @@ const (
 	// workbench-level slug field existed, on the same report-only terms
 	// FindingSlugMissing already reports a state's absence.
 	FindingWorkbenchSlugMissing = "check.workbench-slug-missing"
+	// FindingWorkbenchSlugMalformed names a stored workbench slug that does
+	// not conform to the grammar. Open validates the stored slug at no major,
+	// so a slug written by hand reaches the checker rather than being
+	// pre-empted by a refusal, and the workbench still opens while it is
+	// reported.
+	FindingWorkbenchSlugMalformed = "check.workbench-slug-malformed"
 	// The last six are raised by a migration rather than by the checker,
 	// because each names something only the run that did the work can know:
 	// which entity it placed by guesswork, which card a lock kept it out of,
