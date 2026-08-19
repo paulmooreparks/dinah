@@ -34,11 +34,16 @@ Dinah creates the workstream, derives its slug from the title, and prints what
 it made.
 
 ```text
-portfolio  Portfolio work  [active]
+portfolio-work  Portfolio work  [active]
 ```
 
 The line reads the way `dinah add` reads for a card. The title takes every
 remaining word, so you may quote it and you need not.
+
+The slug derives from the whole title, dashes and all, so the workstream you
+just made answers to `portfolio-work`. Give it a shorter handle with
+`dinah workstream set portfolio-work slug portfolio --yes`, which is how the
+fixture above came to be called `portfolio`.
 
 ## 3. `dinah workstream get portfolio`
 
