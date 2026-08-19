@@ -285,6 +285,11 @@ func TestEveryKeyOfTheTreeShipsInEveryLocale(t *testing.T) {
 // TestTheNoValueGroupCarriesItsOwnLabel asserts that the group holding the
 // cards carrying no value on the axis is labelled rather than left blank,
 // since a blank cell reads as a rendering fault.
+//
+// The label has to be on the right row as well as somewhere in the output. A
+// tree drawing it against the wrong group, or drawing it in the sentence above
+// the table, satisfies a search of the whole block, so the assertion reads the
+// row the label is on and the row below it.
 func TestTheNoValueGroupCarriesItsOwnLabel(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "a card somebody holds")
@@ -296,8 +301,27 @@ func TestTheNoValueGroupCarriesItsOwnLabel(t *testing.T) {
 		t.Fatalf("tree: exit %d\n%s", got.code, got.errw)
 	}
 	label := msg.For(msg.Base).T("tree.unset")
-	if !strings.Contains(got.out, label) {
-		t.Errorf("the tree draws no %q group:\n%s", label, got.out)
+	lines := strings.Split(got.out, "\n")
+	at := -1
+	for i, line := range lines {
+		if strings.Contains(line, label) {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		t.Fatalf("the tree draws no %q group:\n%s", label, got.out)
+	}
+	if !strings.Contains(lines[at], verb.FieldHolder) {
+		t.Errorf("the %q row carries no axis, so it is not a group row:\n%s", label, got.out)
+	}
+	if at+1 >= len(lines) || !strings.Contains(lines[at+1], "fx-2") {
+		t.Errorf("the card nobody holds is not drawn under the %q group:\n%s", label, got.out)
+	}
+	for _, line := range lines[:at] {
+		if strings.Contains(line, "fx-2") {
+			t.Errorf("the card nobody holds is drawn above the %q group as well:\n%s", label, got.out)
+		}
 	}
 }
 

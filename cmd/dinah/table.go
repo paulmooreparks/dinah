@@ -126,6 +126,11 @@ func guidePiece(lead, fill rune) string {
 // withGuides writes each row's tree prefix into its first field, so the prefix
 // is measured as part of the value and every column after it lines up whatever
 // the depth. A table whose rows carry no guides comes back unchanged.
+//
+// The rows it returns carry no guides of their own. The prefix has been folded
+// into the field by then, so a second pass would draw it twice, and clearing
+// the member is what says the folding has happened. Every later pass over a
+// laid table reads the field.
 func withGuides(t table) table {
 	carried := false
 	for _, r := range t.rows {
@@ -397,7 +402,12 @@ func withoutEmptyColumns(t table) table {
 				fields = append(fields, r.fields[c])
 			}
 		}
-		narrowed.rows = append(narrowed.rows, tableRow{section: r.section, fields: fields, note: r.note})
+		narrowed.rows = append(narrowed.rows, tableRow{
+			section: r.section,
+			fields:  fields,
+			note:    r.note,
+			guides:  r.guides,
+		})
 	}
 	return withoutTrailingEmptyFields(narrowed)
 }
@@ -413,7 +423,12 @@ func withoutTrailingEmptyFields(t table) table {
 		for end > 0 && r.fields[end-1] == "" {
 			end--
 		}
-		rows = append(rows, tableRow{section: r.section, fields: r.fields[:end], note: r.note})
+		rows = append(rows, tableRow{
+			section: r.section,
+			fields:  r.fields[:end],
+			note:    r.note,
+			guides:  r.guides,
+		})
 	}
 	return table{indent: t.indent, columns: t.columns, rows: rows}
 }

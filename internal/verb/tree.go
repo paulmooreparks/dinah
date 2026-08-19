@@ -379,7 +379,12 @@ func withheld(live, kept []*bench.Card) []*bench.Card {
 // The filter reports cumulatively at every node at or above a removed card,
 // because a subject the filter removed may have no emitted node anywhere near
 // it and a group with no survivors would otherwise read as an idle station.
-func (l *Library) fillGrouped(node *TreeNode, kept, cut []*bench.Card, chain []string, axisAt, rank, limit int) {
+func (l *Library) fillGrouped(
+	node *TreeNode,
+	kept, cut []*bench.Card,
+	chain []string,
+	axisAt, rank, limit int,
+) {
 	hidden := &Hidden{Filtered: len(cut)}
 	children := l.groupedChildren(kept, cut, chain, axisAt, rank, limit)
 	if rank < limit {
@@ -400,7 +405,11 @@ func (l *Library) fillGrouped(node *TreeNode, kept, cut []*bench.Card, chain []s
 // groupedChildren builds the nodes one level below a node of the grouped tree.
 // It builds them whatever the depth allows, because a node at the boundary has
 // to count what it is holding back before it drops it.
-func (l *Library) groupedChildren(kept, cut []*bench.Card, chain []string, axisAt, rank, limit int) []TreeNode {
+func (l *Library) groupedChildren(
+	kept, cut []*bench.Card,
+	chain []string,
+	axisAt, rank, limit int,
+) []TreeNode {
 	if axisAt == len(chain) {
 		nodes := make([]TreeNode, 0, len(kept))
 		for _, card := range kept {
@@ -632,9 +641,18 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		}
 		return node
 	case bench.KindCard:
-		return TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Card.Ref(l.Bench.Slug), Title: entity.Card.Title}
+		return TreeNode{
+			Kind:  entity.Kind,
+			ID:    entity.ID,
+			Ref:   entity.Card.Ref(l.Bench.Slug),
+			Title: entity.Card.Title,
+		}
 	}
-	node := TreeNode{Kind: entity.Kind, ID: entity.ID, Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind))}
+	node := TreeNode{
+		Kind:  entity.Kind,
+		ID:    entity.ID,
+		Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
+	}
 	if entity.Card != nil {
 		node.Ref = refBelowCard(entity.Card.Ref(l.Bench.Slug), entity.Card.Dir, entity.Dir)
 	}
@@ -708,7 +726,12 @@ func (l *Library) membersOf(collection string, mount bench.Mount) []string {
 
 // containedNode is one entity as a node of the containment tree, with the
 // reference a person types to reach it.
-func (l *Library) containedNode(collection, id string, position int, mount bench.Mount, parentRef string) TreeNode {
+func (l *Library) containedNode(
+	collection, id string,
+	position int,
+	mount bench.Mount,
+	parentRef string,
+) TreeNode {
 	dir := filepath.Join(collection, id)
 	node := TreeNode{
 		Kind:  mount.Kind,

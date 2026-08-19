@@ -126,9 +126,28 @@ func (b columnarBlock) findings() []string {
 	return found
 }
 
-// guided reports whether this block draws a tree. One guided line is enough,
-// because a tree's heading row and separator carry no guides and its stacked
-// form carries them only on the line holding the reference.
+// guided reports whether this block draws a tree, which is what takes the
+// column-alignment comparison off it. One guided line is enough, because a
+// tree's heading row and separator carry no guides and its stacked form
+// carries them only on the line holding the reference.
+//
+// A tree draws an empty cell in the middle of a row wherever a node has
+// nothing to say under a column: a group row carries no title, and a card row
+// under `dinah tree` carries no count. The visible fields of one row are
+// therefore a subset of the block's columns rather than all of them, so the
+// third visible field of one row is a title where the third of another is a
+// count, and every comparison this check can make between two rows of a tree
+// compares two different columns. What a tree gets instead is the
+// trailing-space check alone, and that is a limitation of this check rather
+// than a licence. Reading a ragged block takes the block's declared column
+// list, which is what the rendered-output sweep holds a tree against, empty
+// cell by empty cell.
+//
+// The exemption reads the drawn characters rather than naming the block, so a
+// block that is not a tree and happens to draw a guided line loses its column
+// comparison too. Keying it on the registered block would need a block
+// identity this check does not have, since it folds blocks out of whatever a
+// command printed.
 func (b columnarBlock) guided() bool {
 	for _, line := range b.lines {
 		if _, _, guided := guidedLead(line); guided {
@@ -137,19 +156,6 @@ func (b columnarBlock) guided() bool {
 	}
 	return false
 }
-
-// The reading a tree gets instead is the trailing-space check alone, and that
-// is a limitation of this check rather than a licence.
-//
-// A tree draws an empty cell in the middle of a row wherever a node has
-// nothing to say under a column: a group row carries no title, and a card row
-// under `dinah tree` carries no count. The visible fields of one row are
-// therefore a subset of the block's columns rather than all of them, so the
-// third visible field of one row is a title where the third of another is a
-// count, and every comparison this check can make between two rows of a tree
-// compares two different columns. Reading a ragged block takes the block's
-// declared column list, which is what the rendered-output sweep holds a tree
-// against, empty cell by empty cell.
 
 // foldColumnarBlocks reads a stream into the columnar blocks it carries. A run
 // of lines belongs to one block while every line shares the indent and the

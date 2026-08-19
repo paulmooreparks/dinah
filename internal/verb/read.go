@@ -254,7 +254,12 @@ type CommentView struct {
 	Body string `json:"body"`
 }
 
-// Show reads a card, or the file anything below it names.
+// Show reads a card, or the file any other reference names.
+//
+// A card comes back as a Detail with an empty text. Every other reference
+// comes back the other way round, as a nil Detail beside the text of the file
+// it named, since nothing but a card has a view to build. A caller reads the
+// pair rather than assuming the Detail.
 func (l *Library) Show(req *Request) (*Detail, string, error) {
 	head, rest, _ := strings.Cut(req.Card, "/")
 	// A state is an entity of the workbench, and the containment walk prints

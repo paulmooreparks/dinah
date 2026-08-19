@@ -34,4 +34,4 @@ render.go:529.23,531.4  the states listing asked for before a workbench is open,
 render.go:572.18,574.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
 render.go:614.23,616.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
 render.go:642.2,642.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
-table.go:205.30,207.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
+table.go:210.30,212.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

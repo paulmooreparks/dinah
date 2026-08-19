@@ -51,19 +51,18 @@ dinah next
 dinah ls
 ```
 
-If you want the whole workbench at once rather than one state at a time, ask
-for the tree:
+You can also see the whole workbench at once, rather than one state at a time:
 
 ```
 dinah tree
 ```
 
-Dinah nests every card under the state it sits in and then under whether it is
-ready, active, or blocked, and it counts each group for you. You can nest along
-something else with `--group-by`, and `dinah tree --group-by holder` then shows
-you who is sitting on what. You can also narrow the tree with the same query
-`dinah query` takes, so `dinah tree "substate:blocked"` draws only the blocked
-cards and tells you, group by group, how many it left out.
+Dinah nests every card under the state it sits in, and then under whether it is
+ready, active, or blocked, and it counts each group for you. Or nest along
+something else. `dinah tree --group-by holder` shows you who is sitting on
+what. The tree takes the same query `dinah query` does, so
+`dinah tree "substate:blocked"` draws only the blocked cards and tells you,
+group by group, how many it left out.
 
 Take one up, do the work, and carry it on:
 

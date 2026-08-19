@@ -541,7 +541,12 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	head, rest, _ := strings.Cut(ref, "/")
 	if rest == "" {
 		if state := b.StateByRef(ref); state != nil {
-			return &EntityRef{Kind: KindState, Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
+			return &EntityRef{
+				Kind: KindState,
+				Dir:  filepath.Join(b.Root, StatesDir, state.ID),
+				ID:   state.ID,
+				Ref:  state.Ref(),
+			}, nil
 		}
 		found, err := b.ResolveCard(head)
 		if err != nil {
