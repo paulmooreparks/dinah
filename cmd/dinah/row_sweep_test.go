@@ -1361,9 +1361,9 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:391", label: "the guide topics",
+			site: "commands.go:393", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
-			expect: expectGuides,
+			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "guide")
 			},
