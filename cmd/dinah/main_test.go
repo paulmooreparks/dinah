@@ -4654,3 +4654,45 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 		t.Errorf("the finding does not name the file to edit:\n%s", reported.out)
 	}
 }
+
+// ratifiedWorkbenchHelp is the block the operator approved, drawn in section 7
+// of docs/specs/dinah-141-workbench-fields-ux-sketch.md. It is quoted here
+// rather than read from the sketch because the sketch is a design document
+// that ships once and this is the surface, and the eighty-column layout the
+// sketch was drawn at is what an unbounded run measures against.
+const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
+
+read this workbench's own fields, or write one
+
+What can go wrong, in the order each is checked:
+  Order  What can go wrong                            Refusal
+  -----  -------------------------------------------  -----------------
+  1      the field is one this workbench records      dinah.unknown-key
+  2      the value is present and well formed         malformed
+  3      on a write, the request names an owner       no-owner
+  4      that owner is the operator                   not-operator
+  5      a slug rename carries the confirmation flag  dinah.unconfirmed
+
+Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
+`
+
+// TestWorkbenchHelpIsTheBlockTheOperatorApproved asserts the per-command help
+// against the block drawn in the card's UX sketch, byte for byte, including
+// the column widths and the rule lengths. The five rows are the command's own
+// checks in the order the runtime evaluates them, and the workbench-level
+// operator check that runs ahead of all five is deliberately absent, since no
+// command outside the five the profile specifies lists one.
+func TestWorkbenchHelpIsTheBlockTheOperatorApproved(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "80")
+	got := runCLI(t, root, "help", "workbench")
+	if got.code != 0 {
+		t.Fatalf("help workbench: %d %s", got.code, got.errw)
+	}
+	if got.out != ratifiedWorkbenchHelp {
+		t.Errorf("the emitted block differs from the one the operator approved:\n%s", diffLines(ratifiedWorkbenchHelp, got.out))
+	}
+	if strings.Contains(got.out, contract.NoOperator) {
+		t.Error("the block lists the workbench-level operator check, which no beyond-contract command lists")
+	}
+}
