@@ -1109,10 +1109,17 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:361", label: "the guide topics",
+			site: "commands.go:365", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "guide"), "")
+			},
+		},
+		{
+			site: "render.go:406", label: "the workbench's own fields",
+			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
+				return indentedBlock(sweptRun(t, w.healthy, tag, "workbench"), "")
 			},
 		},
 	}

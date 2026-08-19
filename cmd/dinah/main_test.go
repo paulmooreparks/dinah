@@ -184,7 +184,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists twenty-nine commands, and every command the binary
+	// The block lists thirty commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -200,8 +200,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 29 {
-		t.Errorf("wanted twenty-nine listed commands, got %d", listed)
+	if listed != 30 {
+		t.Errorf("wanted thirty listed commands, got %d", listed)
 	}
 }
 
@@ -925,6 +925,35 @@ func TestEveryCatalogKeyTheCodeNamesExists(t *testing.T) {
 				t.Errorf("no key for the check %s", check.Key)
 			}
 		}
+	}
+	// The per-command refusal sentences, whose keys refusalSentence composes
+	// from a refusal name and the verb that raised it, so the literal scan
+	// below cannot see them.
+	//
+	// A composed key is optional, since a command that adds none falls back to
+	// the bare key, so what is asserted is the invariant that holds whether or
+	// not one exists: a per-command sentence never stands alone. The bare key
+	// is what every other command renders, and a per-command entry written
+	// where none exists would leave all of them printing refusal.unknown.
+	refusals := map[string]bool{}
+	for _, name := range append(append([]string{}, contract.Declared...), contract.Introduced...) {
+		refusals[name] = true
+	}
+	composed := 0
+	for _, name := range verb.Commands() {
+		for refusal := range refusals {
+			key := "refusal." + refusal + "." + name
+			if !known[key] {
+				continue
+			}
+			composed++
+			if !known["refusal."+refusal] {
+				t.Errorf("the base catalog carries %s and no refusal.%s under it, so every other command raising %s renders a bare key", key, refusal, refusal)
+			}
+		}
+	}
+	if composed == 0 {
+		t.Error("the base catalog carries no per-command refusal sentence, so this loop proves nothing")
 	}
 	// Every literal key the sources name.
 	literal := regexp.MustCompile(`\.T[N]?\("([a-z][a-zA-Z0-9._-]*)"`)

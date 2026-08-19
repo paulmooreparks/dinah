@@ -97,7 +97,7 @@ func payload(t *testing.T, answer *response) map[string]any {
 }
 
 // TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-one tools the spec names, that each input schema is generated from
+// twenty-two tools the spec names, that each input schema is generated from
 // the same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
@@ -117,8 +117,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 21 {
-		t.Errorf("wanted twenty-one tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 22 {
+		t.Errorf("wanted twenty-two tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -140,7 +140,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card"} {
+	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "workbench"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}

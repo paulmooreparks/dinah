@@ -436,9 +436,39 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.workbench-field.1": {
+      "text": "the field is one this workbench records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.2": {
+      "text": "the value is present and well formed",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.3": {
+      "text": "on a write, the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.4": {
+      "text": "that owner is the operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.5": {
+      "text": "a slug rename carries the confirmation flag",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.workbench-slug-assigned": {
       "text": "Assigned the workbench slug {slug}.",
       "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench.",
+      "skeleton": true
+    },
+    "check.workbench-slug-malformed": {
+      "text": "the workbench carries the slug {detail}, and a workbench slug is a letter followed by letters, digits, and single interior dashes, with at least one letter in its last segment",
+      "context": "A check finding: the workbench's stored slug does not match the workbench slug grammar, so nobody can rely on typing it. Open validates the stored slug at no major, so the workbench still opens while this is reported.",
       "skeleton": true
     },
     "check.workbench-slug-missing": {
@@ -507,7 +537,7 @@
       "skeleton": true
     },
     "cmd.edit.summary": {
-      "text": "open that path in your editor",
+      "text": "open this workbench, a card, or anything below a card in your editor",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -567,7 +597,7 @@
       "skeleton": true
     },
     "cmd.path.summary": {
-      "text": "print the file path of a card or of anything below it",
+      "text": "print the file path of this workbench, of a card, or of anything below a card",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -604,6 +634,11 @@
     "cmd.whoami.summary": {
       "text": "the actor your actions carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.workbench.summary": {
+      "text": "read this workbench's own fields, or write one",
+      "context": "The one-line summary of the workbench command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.workbenches.summary": {
@@ -819,6 +854,16 @@
     "column.states.slug": {
       "text": "Slug",
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbench.field": {
+      "text": "Field",
+      "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbench.value": {
+      "text": "Value",
+      "context": "Heading over the value stored under it, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.workbenches.path": {
@@ -1071,6 +1116,11 @@
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.unconfirmed.workbench": {
+      "text": "Dinah renames every card in this workbench when you change the slug to {detail}, so every card reference you have written down elsewhere stops matching. Run the command again with --yes.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workbench command raised it. {detail} carries the new slug the rename would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah offers no command called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
@@ -1082,7 +1132,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-key": {
-      "text": "this tool knows no setting called {detail}",
+      "text": "Dinah knows no setting or field called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -1134,6 +1184,11 @@
     "refusal.malformed.fix": {
       "text": "; hand-edit the file and add it, then run `dinah check` to confirm",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
+      "skeleton": true
+    },
+    "refusal.malformed.reads-as-a-card-reference": {
+      "text": "; Dinah reads {ref} as a card reference, so a workbench slug may not end in a dash and a number",
+      "context": "Spliced onto the malformed sentence when `dinah init --slug` is handed a slug the reference grammar would read as a card. {ref} carries that slug. It opens with a semicolon, the way refusal.malformed.at and refusal.malformed.fix do.",
       "skeleton": true
     },
     "refusal.no-operator": {
@@ -1409,6 +1464,11 @@
     "token.work": {
       "text": "work",
       "context": "How the canonical token work is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.workbench_updated": {
+      "text": "workbench updated",
+      "context": "The word a person reads for the workbench_updated journal event.",
       "skeleton": true
     },
     "version.catalogs": {

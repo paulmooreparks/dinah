@@ -341,47 +341,81 @@ func GlobalInstructions(home string) string {
 	return text
 }
 
-// SlugPattern is the shape a workbench slug has to take, as the reference
-// grammar fixes it: an ASCII letter followed by ASCII letters and digits.
-// The slug is the half of a card reference a person types, so it stays inside
-// the character set every filesystem and every shell agrees about.
-const SlugPattern = "^[a-z][a-z0-9]*$"
+// SlugPattern is the shape a workbench slug has to take: an ASCII letter, then
+// runs of ASCII letters and digits separated by single dashes, with no dash
+// leading, trailing or doubling.
+//
+// The pattern alone describes one string ValidSlug refuses, and the exclusion
+// is stated here in words because this constant is the only statement of the
+// grammar anywhere in the code. A workbench slug may not end in a dash
+// followed by a segment of digits alone. A card reference splits at its last
+// dash, so `sprint-2` is read as card 2 of the prefix `sprint`, and a slug of
+// that shape names a card rather than the workbench that carries it.
+const SlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 
-// Slugify derives a conforming slug from a name that need not conform, which
-// is what a bench created in a directory called "My Project" needs. Letters
-// lowercase by ASCII rules, digits survive, everything else is dropped, and a
-// leading run of digits goes with it, since the grammar wants a letter first.
+// Slugify derives a conforming workbench slug from a name that need not
+// conform, which is what a bench created in a directory called "Dinah
+// development" needs. The name goes through SlugifyDashed, so letters
+// lowercase by ASCII rules, digits survive, and each run of characters outside
+// [a-z0-9] becomes one dash. The result is then repaired against the exclusion
+// SlugPattern states: while the final dash-separated segment is digits alone,
+// the dash in front of it is removed, so "Sprint 2" yields sprint2 rather than
+// a slug the reference grammar would read as card 2.
 //
 // A name yielding nothing usable returns the empty string, and the caller
 // refuses rather than inventing a name of its own.
 func Slugify(name string) string {
-	lowered := asciiLower(name)
-	var kept []byte
-	for i := 0; i < len(lowered); i++ {
-		c := lowered[i]
-		letter := c >= 'a' && c <= 'z'
-		digit := c >= '0' && c <= '9'
-		if letter || (digit && len(kept) > 0) {
-			kept = append(kept, c)
+	slug := SlugifyDashed(name)
+	for {
+		cut := strings.LastIndex(slug, "-")
+		if cut < 0 || !allDigits(slug[cut+1:]) {
+			return slug
+		}
+		slug = slug[:cut] + slug[cut+1:]
+	}
+}
+
+// ValidSlug reports whether a slug already conforms to the workbench slug
+// grammar: the state slug grammar, and a final segment carrying at least one
+// letter. The exclusion sits beside the round trip rather than inside the
+// pattern because ValidStateSlug is itself a round trip rather than a match.
+func ValidSlug(slug string) bool {
+	return ValidStateSlug(slug) && !allDigits(finalSegment(slug))
+}
+
+// finalSegment is what a card reference would read as a card number: whatever
+// follows the slug's last dash, or the whole slug when it carries none.
+func finalSegment(slug string) string {
+	if cut := strings.LastIndex(slug, "-"); cut >= 0 {
+		return slug[cut+1:]
+	}
+	return slug
+}
+
+// allDigits reports whether text is one or more ASCII digits and nothing else.
+// The empty string is not, since a slug of no final segment is refused by the
+// round trip rather than by the exclusion.
+func allDigits(text string) bool {
+	if text == "" {
+		return false
+	}
+	for i := 0; i < len(text); i++ {
+		if text[i] < '0' || text[i] > '9' {
+			return false
 		}
 	}
-	return string(kept)
+	return true
 }
 
-// ValidSlug reports whether a slug already conforms to SlugPattern.
-func ValidSlug(slug string) bool {
-	return slug != "" && Slugify(slug) == slug
-}
-
-// StateSlugPattern is the shape a state slug has to take. It is the workbench
-// slug's grammar with interior dashes admitted: an ASCII letter opens it, each
-// dash separates two runs of ASCII letters and digits, and no dash leads,
-// trails or doubles.
+// StateSlugPattern is the shape a state slug has to take: an ASCII letter
+// opens it, each dash separates two runs of ASCII letters and digits, and no
+// dash leads, trails or doubles.
 //
-// A workbench slug carries no dash because a card reference glues it directly
-// to a number, where a dash would blur the boundary between the two. A state
-// slug carries no number after it, so that boundary does not exist, and the
-// reference grammar spells a state's path form with dashes.
+// It is the workbench slug's pattern without that grammar's one exclusion. A
+// card reference splits at its last dash and takes what follows as the card's
+// number, so a workbench slug ending in a dash and digits alone would read as
+// a card reference. Nothing rides after a state slug, so a state may end in
+// `-2` and the two grammars stay two names rather than becoming one.
 const StateSlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 
 // SlugifyDashed derives a conforming state slug from a name that need not
@@ -390,10 +424,8 @@ const StateSlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 // trailing. A leading run of digits goes with any dash behind it, since the
 // grammar wants a letter first.
 //
-// This is not Slugify with dashes added. Slugify drops everything outside
-// [a-z0-9] rather than collapsing it, which is right for the dash-free
-// workbench grammar and wrong here, so the two share the ASCII lowering and
-// the leading-digit rule and nothing else.
+// Slugify is this function plus one repair, so a workbench slug and a state
+// slug derive alike until the exclusion the workbench grammar carries applies.
 //
 // A name yielding nothing usable returns the empty string, and the caller
 // refuses rather than inventing a name of its own, exactly as Slugify's own

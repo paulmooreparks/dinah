@@ -651,11 +651,15 @@ A state carries a `slug` in its anchor, beside its title and its kind. The
 identifier is exact and nobody remembers one, and a title carrying a space
 has to be quoted at whatever shell meets it, so the slug is the spelling a
 person types on a command line and the spelling a path or a URL takes. Its
-grammar is the workbench slug's with interior dashes admitted, so
+grammar is the workbench slug's without that grammar's one exclusion, so
 `agent-code-review` is a slug and `Agent Code Review`, `-review`, and
-`agent--code` are not. A workbench slug is glued straight to a card number,
-where a dash would blur the boundary between the two, and nothing rides after
-a state slug, so the restriction that makes sense there makes none here.
+`agent--code` are not. The workbench slug admits interior dashes too, and a
+card reference splits at its last dash, which is what keeps the boundary
+between the prefix and the number sharp however many dashes the prefix
+carries. What a workbench slug may not do is end in a dash and a segment of
+digits alone, since Dinah would read the slug itself as a card reference.
+Nothing rides after a state slug, so a state may end in `-2` and the exclusion
+that makes sense on a workbench makes none here.
 
 A reference to a state resolves against the identifier, then the slug, then
 the title, each of the last two compared by ASCII case rules. Uniqueness is
