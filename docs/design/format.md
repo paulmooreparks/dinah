@@ -795,13 +795,37 @@ future "should this be configurable?" argument.
 
 ## Workstreams
 
-A workstream is an entity: `workstreams/<12-hex>/workstream.md`, with title
-and status in frontmatter and long-form notes as the body. Membership is
-card-owned, a `workstreams:` list of ids in card frontmatter, by the same
-single-writer logic as position: deleting a card removes its memberships
-with it, deleting a workstream that cards still reference is refused, and
-check catches danglers. Archiving a workstream moves its directory to
-`archive/workstreams/<id>/` like any other entity.
+A workstream is an entity: `workstreams/<12-hex>/workstream.md`, with title,
+slug, status and the creation ordinal in frontmatter and long-form notes as
+the body. Membership is card-owned, a `workstreams:` list of ids in card
+frontmatter, by the same single-writer logic as position: deleting a card
+removes its memberships with it, deleting a workstream that cards still
+reference is refused, and check catches danglers. The cards that refusal
+counts are the live half of the collection, the half check itself walks, so a
+workstream only archived cards list is deleted and each of those cards keeps a
+membership that resolves to nothing. Archiving a workstream moves its
+directory to `archive/workstreams/<id>/` like any other entity, and it is
+allowed while cards still belong to it, because archiving a finished effort is
+the ordinary case and an archived workstream still resolves.
+
+The slug follows the state slug's grammar rather than the workbench slug's. A
+workbench slug excludes a final segment of digits alone, because a card
+reference splits at its last dash; nothing rides after a workstream reference,
+so a workstream may be slugged `phase-2`. A reference resolves against the
+identifier first and the slug second, and never against the title.
+
+The status is an open value by this document's own test. Dinah writes `active`
+at creation and accepts any non-empty value afterwards, and nothing in the
+tool refuses, orders, counts or routes anything on one, so people are the only
+readers of it.
+
+A workstream is journal-bearing. Its own journal records `created` at birth,
+`workstream_updated` on a write to one of its fields, carrying `field`, `from`
+and `to` as `workbench_updated` does, and `archived` when it is archived. A
+card's journal records the membership events, `workstream_joined` and
+`workstream_left`, each carrying the workstream's identifier in `workstream`.
+A deletion is recorded on the workbench's journal, because the act destroys
+the journal inside the directory it removes.
 
 The real use case is within-workbench grouping of concurrent efforts
 (several concepts flowing through one concept workbench at once), which is

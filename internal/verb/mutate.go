@@ -67,6 +67,11 @@ func (l *Library) Do(req *Request) *Response {
 
 // evaluate applies one verb's own precondition list and, where every check is
 // satisfied, its effect.
+//
+// It dispatches more than the contract's five. join and leave write the card's
+// membership list, which is a write to the card like any other, so they run
+// inside the same transaction Do opens rather than opening a second one of
+// their own.
 func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 	switch req.Verb {
 	case Claim:
@@ -79,6 +84,10 @@ func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 		return l.block(req, card)
 	case Unblock:
 		return l.unblock(req, card)
+	case Join:
+		return l.join(req, card)
+	case Leave:
+		return l.leave(req, card)
 	}
 	return l.refuse(req, card, contract.UnknownVerb, req.Verb)
 }
@@ -319,6 +328,78 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 		TS:    bench.Stamp(l.Now()),
 		Event: contract.EventUnblocked,
 		Actor: req.Actor,
+	}
+	response, err := l.commit(req, card, ev)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	return response
+}
+
+// join adds a workstream to a card's membership list. Its list is the card
+// exists, the request names an owner, and the workstream resolves. Nobody is
+// asked who holds the card, because membership is not a claim and the pull
+// discipline is about claims; Comment already writes to a card somebody else
+// holds on the same terms.
+//
+// Joining a workstream the card already belongs to succeeds and writes
+// nothing, because membership is a set. The reference is still resolved
+// first, so a typo is caught by dinah.unknown-workstream rather than passing
+// as a silent success.
+func (l *Library) join(req *Request, card *bench.Card) *Response {
+	if req.Actor == "" {
+		return l.refuse(req, card, contract.NoOwner, "")
+	}
+	workstream := l.Bench.WorkstreamByRef(req.Workstream)
+	if workstream == nil {
+		return l.refuse(req, card, contract.UnknownWorkstream, req.Workstream)
+	}
+	for _, joined := range card.Workstreams {
+		if joined == workstream.ID {
+			return l.ok(req, card)
+		}
+	}
+	card.Workstreams = append(card.Workstreams, workstream.ID)
+	ev := bench.Event{
+		TS:         bench.Stamp(l.Now()),
+		Event:      contract.EventWorkstreamJoined,
+		Actor:      req.Actor,
+		Workstream: workstream.ID,
+	}
+	response, err := l.commit(req, card, ev)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	return response
+}
+
+// leave removes exactly the workstream named from a card's membership list and
+// leaves every other entry where it was. Its list is join's, and leaving a
+// workstream the card never joined succeeds and writes nothing.
+func (l *Library) leave(req *Request, card *bench.Card) *Response {
+	if req.Actor == "" {
+		return l.refuse(req, card, contract.NoOwner, "")
+	}
+	workstream := l.Bench.WorkstreamByRef(req.Workstream)
+	if workstream == nil {
+		return l.refuse(req, card, contract.UnknownWorkstream, req.Workstream)
+	}
+	kept := make([]string, 0, len(card.Workstreams))
+	for _, joined := range card.Workstreams {
+		if joined == workstream.ID {
+			continue
+		}
+		kept = append(kept, joined)
+	}
+	if len(kept) == len(card.Workstreams) {
+		return l.ok(req, card)
+	}
+	card.Workstreams = kept
+	ev := bench.Event{
+		TS:         bench.Stamp(l.Now()),
+		Event:      contract.EventWorkstreamLeft,
+		Actor:      req.Actor,
+		Workstream: workstream.ID,
 	}
 	response, err := l.commit(req, card, ev)
 	if err != nil {

@@ -71,6 +71,14 @@ var params = map[string][]Param{
 		{Name: "kind", Flag: true, Value: "kind"},
 	},
 	Unblock: {{Name: "card", Required: true}},
+	Join: {
+		{Name: "card", Required: true},
+		{Name: "workstream", Required: true},
+	},
+	Leave: {
+		{Name: "card", Required: true},
+		{Name: "workstream", Required: true},
+	},
 	"comment": {
 		{Name: "card", Required: true},
 		{Name: "text", Display: "text|-", Required: true, Rest: true},
@@ -123,11 +131,24 @@ var params = map[string][]Param{
 		{Name: "value"},
 		{Name: "yes", Flag: true, Marker: true},
 	},
+	// The bare invocation lists every live workstream, so neither the action
+	// nor the workstream is required; new, get and set still need one, which
+	// the command refuses over rather than the syntax line. The workstream
+	// slot carries a reference on get and set and the title on new, which is
+	// what its two-word display says.
+	"workstream": {
+		{Name: "action", Display: "new|get|set"},
+		{Name: "workstream", Display: "workstream|title"},
+		{Name: "field"},
+		{Name: "value"},
+		{Name: "yes", Flag: true, Marker: true},
+	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true},
 		{Name: "migrate-ordinals", Flag: true, Marker: true},
 		{Name: "migrate-slugs", Flag: true, Marker: true},
 		{Name: "migrate-states", Flag: true, Marker: true},
+		{Name: "migrate-workstreams", Flag: true, Marker: true},
 	},
 	"whoami":      {},
 	"workbenches": {},

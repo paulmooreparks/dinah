@@ -36,3 +36,10 @@ archive done
 workbench set title "Sample workbench, renamed"
 workbench set title "Sample workbench"
 workbench set operator sam
+workstream new "Portfolio work"
+workstream new "Console redesign"
+workstream set portfolio-work status paused
+join sample-2 portfolio-work
+join sample-3 portfolio-work
+leave sample-3 portfolio-work
+archive workstream/console-redesign

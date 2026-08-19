@@ -108,11 +108,8 @@ func (b *Bench) BackfillStateSlugs() ([]SlugAssignment, []Finding) {
 			findings = append(findings, Finding{Path: path, Key: FindingSlugUnderivable, Detail: state.ID})
 			continue
 		}
-		candidate := derived
-		for suffix := 2; taken[candidate]; suffix++ {
-			candidate = derived + "-" + strconv.Itoa(suffix)
-		}
-		if err := stampStateSlug(path, candidate); err != nil {
+		candidate := FreeSlug(derived, taken)
+		if err := stampSlug(path, candidate); err != nil {
 			findings = append(findings, Finding{Path: path, Key: FindingSlugUnwritable, Detail: state.ID})
 			continue
 		}
@@ -123,13 +120,31 @@ func (b *Bench) BackfillStateSlugs() ([]SlugAssignment, []Finding) {
 	return assigned, findings
 }
 
-// stampStateSlug writes a slug onto a state anchor that carries none,
-// preserving every other key of the header and the state's own instructions.
+// FreeSlug is the first slug of a derivation's own family that nobody has
+// taken: the derived slug itself, or that slug with the lowest counting
+// suffix from two upward that is free.
 //
-// The slug goes directly after the title, where the writer that creates a
-// state anchor puts it, so a migrated anchor and a newly written one read the
-// same way rather than differing by which code path wrote them.
-func stampStateSlug(path, slug string) error {
+// The suffix is what the state slug grammar's trailing dash and digits exist
+// to admit. Under the workbench grammar the resolver's own output would be
+// illegal, since ValidSlug refuses a final segment of digits alone, so a
+// grammar excluding the suffix would leave a collision with no way to resolve
+// it at all.
+func FreeSlug(derived string, taken map[string]bool) string {
+	candidate := derived
+	for suffix := 2; taken[candidate]; suffix++ {
+		candidate = derived + "-" + strconv.Itoa(suffix)
+	}
+	return candidate
+}
+
+// stampSlug writes a slug onto an anchor that carries none, preserving every
+// other key of the header and the entity's own body. It serves a state and a
+// workstream alike, since both carry the field under the same name.
+//
+// The slug goes directly after the title, where the writer that creates an
+// anchor puts it, so a migrated anchor and a newly written one read the same
+// way rather than differing by which code path wrote them.
+func stampSlug(path, slug string) error {
 	text, err := ReadText(path)
 	if err != nil {
 		return err

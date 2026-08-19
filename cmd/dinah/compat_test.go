@@ -61,6 +61,10 @@ var wantedTemplates = []string{
 	"cards/<id>/archive/attachments/<id>/payload/<file>",
 	"archive/cards/<id>/card.md",
 	"archive/cards/<id>/journal.ndjson",
+	"workstreams/<id>/workstream.md",
+	"workstreams/<id>/journal.ndjson",
+	"archive/workstreams/<id>/workstream.md",
+	"archive/workstreams/<id>/journal.ndjson",
 }
 
 // wantedKeys is the union of top-level frontmatter keys the sequence writes,
@@ -71,12 +75,14 @@ var wantedKeys = map[string][]string{
 	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "states"},
 	"states/<id>/state.md":                              {"title", "slug", "kind", "operator_owned", "wip_limit"},
 	"archive/states/<id>/state.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since"},
+	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
 	"archive/cards/<id>/card.md":                        {"title", "number", "state", "substate"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
 	"cards/<id>/attachments/<id>/attachment.md":         {"filename", "description", "provenance", "ordinal"},
 	"cards/<id>/archive/attachments/<id>/attachment.md": {"filename", "description", "provenance", "ordinal"},
+	"workstreams/<id>/workstream.md":                    {"title", "slug", "status", "ordinal"},
+	"archive/workstreams/<id>/workstream.md":            {"title", "slug", "status", "ordinal"},
 }
 
 // wantedEvents is the union of member names the sequence writes, per journal
@@ -97,6 +103,9 @@ var wantedEvents = map[string][]string{
 	contract.EventArchived:           {"ts", "event", "actor", "note"},
 	contract.EventDeleted:            {"ts", "event", "actor", "title", "note"},
 	contract.EventWorkbenchUpdated:   {"ts", "event", "actor", "field", "from", "to"},
+	contract.EventWorkstreamUpdated:  {"ts", "event", "actor", "field", "from", "to"},
+	contract.EventWorkstreamJoined:   {"ts", "event", "actor", "workstream"},
+	contract.EventWorkstreamLeft:     {"ts", "event", "actor", "workstream"},
 }
 
 // unwrittenEvents are the event names internal/contract declares that this

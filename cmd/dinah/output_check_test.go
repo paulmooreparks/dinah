@@ -168,18 +168,15 @@ func columnarFields(line string) []columnarField {
 	runes := []rune(line)
 	var fields []columnarField
 	at := 0
-	column := 0
 	for at < len(runes) && runes[at] == ' ' {
 		at++
-		column++
 	}
 	for at < len(runes) {
-		start := column
+		start := columnAt(runes, at)
 		var text strings.Builder
 		for at < len(runes) {
 			if runes[at] != ' ' {
 				text.WriteRune(runes[at])
-				column += displayWidth(string(runes[at]))
 				at++
 				continue
 			}
@@ -191,16 +188,28 @@ func columnarFields(line string) []columnarField {
 				break
 			}
 			text.WriteRune(' ')
-			column++
 			at++
 		}
 		fields = append(fields, columnarField{at: start, text: text.String()})
 		for at < len(runes) && runes[at] == ' ' {
 			at++
-			column++
 		}
 	}
 	return fields
+}
+
+// columnAt is the display column a rune index begins in, measured over the
+// whole prefix in one call rather than by adding one rune's width at a time.
+//
+// The running sum this replaces reports a column no terminal puts the field
+// in, because a width is a property of a grapheme cluster rather than of a
+// rune: a joined emoji sequence draws one glyph nine columns wide out of five
+// runes measuring thirteen. It agreed with the renderer for as long as every
+// field ahead of another was Latin, Han or Devanagari, where the two measures
+// coincide, so a card title in any column but the last is what this measure
+// has to get right.
+func columnAt(runes []rune, index int) int {
+	return displayWidth(string(runes[:index]))
 }
 
 // TestTheOutputCheckReportsAMisalignedBlock arms the check above. A check that

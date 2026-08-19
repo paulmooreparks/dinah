@@ -136,6 +136,17 @@ const (
 	// command line with the free text quoted, since that is the whole cost
 	// of the rule and the fix a reader needs to see.
 	MultipleWords = LayerPrefix + "multiple-words"
+	// UnknownWorkstream is a reference naming no workstream of this
+	// workbench, in either half of the collection. It is separate from
+	// unknown-state because a workstream is not a station of the flow, and
+	// a reader told about a state they never named would go looking in the
+	// wrong listing.
+	UnknownWorkstream = LayerPrefix + "unknown-workstream"
+	// Referenced is deleting a workstream that live cards still belong to.
+	// It is separate from Occupied, whose sentence says cards still occupy
+	// a state, because a card belongs to a workstream and stands in a
+	// state, and one sentence cannot honestly say both.
+	Referenced = LayerPrefix + "referenced"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -144,6 +155,7 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
+	UnknownWorkstream, Referenced,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -199,6 +211,17 @@ const (
 	// rename: an operator change is no rename, and the name lands in
 	// append-only history in every workbench that runs the command.
 	EventWorkbenchUpdated = "workbench_updated"
+	// EventWorkstreamUpdated records a write to one of a workstream's own
+	// fields, on that workstream's journal. It covers a title change, a slug
+	// change and a status change alike, and it carries Field, From and To
+	// exactly as EventWorkbenchUpdated does.
+	EventWorkstreamUpdated = "workstream_updated"
+	// EventWorkstreamJoined and EventWorkstreamLeft record a card entering
+	// and leaving a workstream, on the card's own journal, because membership
+	// is card-owned and the card is the file that changed. Each carries the
+	// workstream's identifier in Workstream.
+	EventWorkstreamJoined = "workstream_joined"
+	EventWorkstreamLeft   = "workstream_left"
 )
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

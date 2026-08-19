@@ -1,0 +1,5 @@
+{"ts":"2026-08-19T03:18:00Z","event":"created","actor":"sam","title":"third card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-08-19T03:18:00Z","event":"claimed","actor":"sam","expires":"2026-08-19T11:18:00Z"}
+{"ts":"2026-08-19T03:18:01Z","event":"moved","actor":"sam","from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing"}
+{"ts":"2026-08-19T03:18:01Z","event":"workstream_joined","actor":"sam","workstream":"29d9fcea6e33"}
+{"ts":"2026-08-19T03:18:01Z","event":"workstream_left","actor":"sam","workstream":"29d9fcea6e33"}

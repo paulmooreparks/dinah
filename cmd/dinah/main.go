@@ -140,7 +140,9 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// workbench joins them: dinah-100's one-word rule bounds its value too,
 	// and it declares --yes, so a flag typed after the value would otherwise
 	// take the peeling branch, which nothing shipped exercises today.
-	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" {
+	// workstream sits with workbench for the same two reasons: dinah-100's
+	// one-word rule bounds its title and its value, and it declares --yes.
+	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}

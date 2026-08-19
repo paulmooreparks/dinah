@@ -317,13 +317,15 @@ var Shapes = []Shape{
 		// workbench command carries its own sentence and its own next step
 		// rather than ending on advice written for delete.
 		Name:     Unconfirmed,
-		Variants: []string{"workbench"},
+		Variants: []string{"workbench", "workstream"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unconfirmed.workbench.next", WhenCommand: "workbench"},
+			{Key: "refusal.dinah.unconfirmed.workstream.next", WhenCommand: "workstream"},
 			{Key: "refusal.dinah.unconfirmed.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unconfirmed.workbench.next",
+			"refusal.dinah.unconfirmed.workstream.next",
 			"refusal.dinah.unconfirmed.next",
 		},
 	},
@@ -381,6 +383,23 @@ var Shapes = []Shape{
 			{Key: "refusal.dinah.usage.dash-hint", When: "dashHint"},
 		},
 		NextStep: []string{"refusal.dinah.usage.next"},
+	},
+	{
+		// A workstream a live card still belongs to is not deleted, and the
+		// next step names the two ways past it: take the cards out, or
+		// archive the workstream, which is allowed while cards belong to it.
+		Name:      Referenced,
+		Fragments: []Fragment{{Key: "refusal.dinah.referenced.next"}},
+		NextStep:  []string{"refusal.dinah.referenced.next"},
+	},
+	{
+		// The next step names the listing rather than printing it, the way
+		// unknown-command names dinah help: a workbench can carry many
+		// workstreams, and a reader who mistyped one needs the command that
+		// shows them rather than the whole set under a refusal.
+		Name:      UnknownWorkstream,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-workstream.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-workstream.next"},
 	},
 	{
 		Name:      WorkbenchNotApplicable,

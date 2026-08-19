@@ -25,6 +25,7 @@ var valuedFlags = []string{
 var markerFlags = []string{
 	"json", "quiet", "ready", "override", "replace", "yes", "catalogs",
 	"finish", "migrate-ordinals", "migrate-slugs", "migrate-states",
+	"migrate-workstreams",
 }
 
 // sessionFlagNames are the five flags read directly off the parsed

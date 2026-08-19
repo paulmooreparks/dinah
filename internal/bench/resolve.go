@@ -86,12 +86,24 @@ var checklistKinds = map[string]string{
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
-// a card, or anything below a card composed by path. It is what the plumbing
-// guarantee of `path` rests on, what `edit` walks, and what `show` walks for
-// the composed form below a card.
+// a workstream, a card, or anything below a card composed by path. It is what
+// the plumbing guarantee of `path` rests on, what `edit` walks, and what
+// `show` walks for the composed form below a card.
+//
+// A workstream resolves to its directory rather than to its anchor, because
+// its notes, its journal and its attachments all sit inside it and the
+// reference names the entity rather than one file of it. A collection below a
+// card already resolves to a directory the same way.
 func (b *Bench) ResolvePath(ref string) (string, error) {
 	if IsWorkbenchRef(ref) {
 		return filepath.Abs(filepath.Join(b.Root, WorkbenchAnchor))
+	}
+	if rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix); named {
+		workstream := b.WorkstreamByRef(rest)
+		if workstream == nil {
+			return "", contract.Refuse(contract.UnknownWorkstream, rest)
+		}
+		return filepath.Abs(workstream.Dir)
 	}
 	head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/")
 	found, err := b.ResolveCard(head)

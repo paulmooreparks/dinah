@@ -40,6 +40,23 @@ const (
 	FindingSlugDuplicate      = "check.slug-duplicate"
 	FindingStrandedState      = "check.stranded-state"
 	FindingIgnoredAnchor      = "check.ignored-anchor"
+	// FindingDanglingWorkstream names a card listing a workstream identifier
+	// that resolves in neither half of the workstreams collection, on the
+	// same terms FindingDanglingLink already reports a link's to.
+	FindingDanglingWorkstream = "check.dangling-workstream"
+	// The three workstream slug findings mirror the state's own three. None
+	// of them turns on the profile revision the workbench declares, because
+	// the profile says nothing about a workstream at all.
+	FindingWorkstreamSlugMissing   = "check.workstream-slug-missing"
+	FindingWorkstreamSlugMalformed = "check.workstream-slug-malformed"
+	FindingWorkstreamSlugDuplicate = "check.workstream-slug-duplicate"
+	// The last two are raised by the slug migration rather than by the
+	// checker, on the terms FindingSlugUnderivable and FindingSlugUnwritable
+	// are raised for a state. They are separate names because the sentence
+	// names the entity, and a workstream reported as a state would send a
+	// reader to the wrong listing.
+	FindingWorkstreamSlugUnderivable = "check.workstream-slug-underivable"
+	FindingWorkstreamSlugUnwritable  = "check.workstream-slug-unwritable"
 	// FindingWorkbenchSlugMissing names a workbench written before the
 	// workbench-level slug field existed, on the same report-only terms
 	// FindingSlugMissing already reports a state's absence.
@@ -110,6 +127,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		findings = append(findings, b.checkCard(card)...)
 	}
+	findings = append(findings, b.checkWorkstreams()...)
 	findings = append(findings, b.checkStateSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, id := range b.StrandedStates {
@@ -156,6 +174,12 @@ func (b *Bench) checkCard(card *Card) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingLink, Detail: link.To})
+	}
+	for _, id := range card.Workstreams {
+		if b.HasWorkstream(id) {
+			continue
+		}
+		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingWorkstream, Detail: id})
 	}
 	findings = append(findings, checkOrdinals(card.Dir)...)
 	events, torn, err := ReadJournal(card.JournalPath())

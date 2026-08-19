@@ -33,6 +33,8 @@ func init() {
 		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
 		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true},
 		{name: "attach", group: groupWork, run: runAttach, bounded: 2},
+		{name: "join", group: groupWork, run: runJoin, bounded: 2},
+		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
 
@@ -60,6 +62,10 @@ func init() {
 		// it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkbench).
 		{name: "workbench", group: groupBench, run: runWorkbench, openTail: true},
+		// workstream dispatches on its own first word the way workbench does,
+		// so it declares an open tail here and runs its own arity and
+		// mistyped-flag checks (see runWorkstream).
+		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true},
 		{name: "workbenches", group: groupBench, run: runWorkbenches},
 		{name: "version", group: groupBench, run: runVersion},
 
@@ -86,6 +92,8 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateOrdinals: parsed.has("migrate-ordinals"),
 		MigrateSlugs:    parsed.has("migrate-slugs"),
 		MigrateStates:   parsed.has("migrate-states"),
+
+		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 	}
 	return req
 }
@@ -780,5 +788,149 @@ func runHelp(s *session, parsed *arguments) int {
 		return s.fail(contract.UnknownVerb, name)
 	}
 	s.write(s.verbHelp(name))
+	return 0
+}
+
+// runJoin belongs a card to a workstream. The card is the subject because the
+// card's frontmatter is the file that changes.
+func runJoin(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.Join, parsed)
+	req.Card = at(words, 0)
+	req.Workstream = at(words, 1)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Do(req))
+	})
+}
+
+// runLeave takes a card out of a workstream.
+func runLeave(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.Leave, parsed)
+	req.Card = at(words, 0)
+	req.Workstream = at(words, 1)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Do(req))
+	})
+}
+
+// runWorkstream lists the workbench's workstreams, creates one, or reads or
+// writes one's fields.
+//
+// The grammar is `workbench`'s with a `new` action added and a reference in
+// front of the field, because this command names one of many entities where
+// that one names the workbench it is already serving. The bare invocation
+// lists, `get` prints one workstream or one stored value alone so a script can
+// read it, and `set` writes one field.
+//
+// Like runWorkbench, this dispatches on its own first word rather than reading
+// fixed positions, so it runs its own arity and mistyped-flag checks: once on
+// the first word before the switch, once on the reference and the field inside
+// the branches that read them, and once on get's fourth word, which get never
+// reads.
+func runWorkstream(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	switch first {
+	case "":
+		return s.withBench(func(l *verb.Library) int {
+			listing, err := l.Workstreams()
+			if err != nil {
+				return s.reportError(err)
+			}
+			if s.json {
+				return s.emitJSON(listing)
+			}
+			s.renderWorkstreams(listing)
+			return 0
+		})
+	case "new":
+		title, refusal := s.freeText([]string{"workstream", "new"}, words[min(1, len(words)):], "slot.title")
+		if refusal != nil {
+			return s.reportError(refusal)
+		}
+		return s.withBench(func(l *verb.Library) int {
+			req := s.request("workstream", parsed)
+			req.Action, req.Workstream = first, title
+			return s.emitWorkstream(l.NewWorkstream(req))
+		})
+	case "get":
+		return s.runWorkstreamGet(parsed, words)
+	case "set":
+		return s.runWorkstreamSet(parsed, words)
+	}
+	return s.fail(contract.Usage, first)
+}
+
+// runWorkstreamGet reads one workstream, or one field of it alone.
+func (s *session) runWorkstreamGet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	if extra := at(words, 3); extra != "" {
+		return s.fail(contract.Usage, extra)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("workstream", parsed)
+		req.Action, req.Workstream, req.Field = "get", reference, field
+		detail, err := l.Workstream(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if field != "" {
+			s.line(detail.Workstream.Field(field))
+			return 0
+		}
+		if s.json {
+			return s.emitJSON(detail)
+		}
+		s.renderWorkstreamDetail(detail)
+		return 0
+	})
+}
+
+// runWorkstreamSet writes one field of one workstream.
+func (s *session) runWorkstreamSet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	lead := []string{"workstream", "set", reference, field}
+	value, refusal := s.freeText(lead, words[min(3, len(words)):], "slot.value")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("workstream", parsed)
+		req.Action, req.Workstream, req.Field, req.Value = "set", reference, field, value
+		return s.emitWorkstream(l.SetWorkstream(req))
+	})
+}
+
+// emitWorkstream reports a workstream act: the machine form under --json, the
+// one line a person reads otherwise, and on any non-zero outcome the refusal's
+// own composition, which is what emit already does for a card act.
+func (s *session) emitWorkstream(response *verb.Response) int {
+	if response.Outcome != contract.OutcomeOK {
+		s.reportOutcome(response)
+		if s.json {
+			s.emitJSON(response)
+		}
+		return contract.ExitCode(response.Outcome)
+	}
+	if s.json {
+		return s.emitJSON(response)
+	}
+	s.renderWorkstreamLine(response.Workstream)
 	return 0
 }

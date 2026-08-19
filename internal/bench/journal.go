@@ -46,6 +46,10 @@ type Event struct {
 	// Field is the workbench field a workbench_updated event rewrote, with
 	// From and To carrying its value on either side of the write.
 	Field string `json:"field,omitempty"`
+	// Workstream is the identifier of the workstream a membership event
+	// concerns, carried by workstream_joined and workstream_left on the
+	// card's own journal.
+	Workstream string `json:"workstream,omitempty"`
 	// Note is the human's free prose, unparseable by design.
 	Note string `json:"note,omitempty"`
 }

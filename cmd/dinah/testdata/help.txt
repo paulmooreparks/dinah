@@ -11,6 +11,8 @@ WORK
   unblock <card>                         lift a block (operator only)
   comment <card> <text|->                record a comment on a card
   attach <ref> <file> [--replace]        attach a file, or replace its bytes
+  join <card> <workstream>               belong a card to a workstream
+  leave <card> <workstream>              take a card out of a workstream
   archive <ref>                          move a card, a state, or anything below a card, out of the live set
   delete <ref> --yes                     destroy a card, a state, or anything below a card, along with its history
 
@@ -32,11 +34,13 @@ WORKBENCH
   path <card|path>                       print the file path of this workbench, of a card, or of anything below a card
   edit <card|path>                       open this workbench, a card, or anything below a card in your editor
   config [get|set] [key] [value]         list your user settings, or read or write one
-  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]
+  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]
                                          look for structural defects in this workbench
   whoami                                 the actor your actions carry, and whether it is the operator
   workbench [get|set] [field] [value] [--yes]
                                          read this workbench's own fields, or write one
+  workstream [new|get|set] [workstream|title] [field] [value] [--yes]
+                                         read this workbench's workstreams, create one, or write one's fields
   workbenches                            the workbenches reachable from here
   version [--catalogs]                   what Dinah is and what it conforms to
 
