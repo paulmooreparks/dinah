@@ -5849,6 +5849,19 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 	if !strings.Contains(bare, "also written --state <state>") {
 		t.Errorf("the page dropped the rest of the row along with the set:\n%s", outside.out)
 	}
+
+	// The page answers where a stated workbench is not there either. All six
+	// ways s.open can fail reach the arguments section as an error return and
+	// are swallowed in the one place, so these two exercise the swallow; the
+	// other four need a fixture apiece and are driven against the commands
+	// that raise them elsewhere in this suite.
+	named := runCLI(t, tree, "help", "ls", "--workbench", filepath.Join(tree, "nowhere"))
+	if named.code != 0 {
+		t.Fatalf("help ls with a workbench flag naming nothing: %d %s", named.code, named.errw)
+	}
+	if strings.Contains(named.out, "one of:") {
+		t.Errorf("the page names a set the stated workbench cannot answer for:\n%s", named.out)
+	}
 }
 
 // TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable asserts
