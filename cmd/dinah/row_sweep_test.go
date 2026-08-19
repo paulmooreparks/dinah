@@ -1274,7 +1274,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:142", label: "dinah help <command>",
+			site: "help.go:143", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "help", "add")
