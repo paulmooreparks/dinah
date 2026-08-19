@@ -149,8 +149,16 @@ The answer is that they ask for the set and compute the rest themselves:
 
 ```
 $ dinah query --json > cards.json
-$ duckdb -c "select state_title, count(*) from read_json_auto('cards.json') group by 1"
+$ duckdb -c "select card.state_title, count(*) from (select unnest(cards) as card from read_json_auto('cards.json')) group by 1 order by 1"
+Doing  2
+Done   1
 ```
+
+`--json` emits one object rather than a stream of cards, and the cards sit under
+`cards`, so the second line unnests that member before it has rows to group. The
+DuckDB line above was run against a document written by hand in the output shape
+the spec's section 7 fixes, because `dinah query` does not exist yet; the
+`dinah query` line above it is a sketch.
 
 `dinah query` with no query and `--json` emits every live card in the canonical
 form. Anything the grammar cannot express, and that includes every aggregate,
@@ -166,12 +174,13 @@ query [<query>] [--json]
 the cards of this workbench that match a query
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                                Refusal
-  -----  -----------------------------------------------  ---------------------
-  1      every term of the query parses                   dinah.malformed-query
-  2      every field named is one this tool knows         dinah.unknown-field
-  3      every operator is one the named field accepts    dinah.unknown-field
-  4      each state named is one the workbench declares   unknown-state
+  Order  What can go wrong                                 Refusal
+  -----  ------------------------------------------------  ---------------------
+  1      every term of the query parses                    malformed
+  2      every field named is one this tool knows          dinah.unknown-field
+  3      every operator is one the named field accepts     dinah.unknown-field
+  4      each value on a closed field is one it holds      dinah.unknown-value
+  5      each state named is one the workbench declares    unknown-state
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
@@ -183,5 +192,8 @@ spec puts it to the operator. A grammar can ship as Dinah's own tool surface, th
 way `ls`, `status`, and `log` already do, or it can enter the shared contract so
 that a second tool has to parse it identically. This spec recommends the first.
 The core profile specifies no read verb at all beyond history and instruction
-serving, and its boundary table already rules out ranked priority and
-measurement over history, which are the two things people most want to query on.
+serving, and its boundary table puts measurement over a workbench's history
+outside the contract. Five of the ten fields read a card's recorded history, so
+admitting the grammar whole reopens that boundary row. Ranked priority is out of
+the first cut on its own account and stays out whichever way the operator rules,
+so it is not an argument for either answer.
