@@ -238,12 +238,27 @@ var cardJournalTemplates = map[string]bool{
 // person meets names it as an unknown value rather than as an omission.
 //
 // The pairing runs on the sample fixture rather than on a hand-written list,
-// and it is the coverage alarm above that makes it complete. That alarm already
-// refuses a declared event the fixture carries no line of, so a new event has
-// to reach the fixture, and once it reaches the fixture this test decides
-// whether it reached the vocabulary too. The two together mean no event can
-// ship on a card journal without either joining contract.Events or turning the
-// build red.
+// and the coverage alarm above carries the other half. That alarm refuses a
+// declared event the fixture carries no line of, so a new event has to reach
+// the fixture, and once it reaches the fixture this test decides whether it
+// reached the vocabulary too. What the two together catch is an event added to
+// the tool and never exercised by the population sequence.
+//
+// The pair does not close every route, and the routes it leaves open are worth
+// naming so the next reader does not read a closure that is not there. An
+// event listed in unwrittenEvents is exempt from the alarm, which is a human
+// step carrying a written reason rather than a silent gap. An event that lands
+// on a card journal and on another journal as well can satisfy the alarm from
+// the other one, because readShape records members per event name and not per
+// path template, so a capture on a workstream or workbench journal is enough
+// and this test, which walks cardJournalTemplates alone, never sees it;
+// workstream_updated is the live illustration of an event the alarm accepts
+// from a journal this test does not walk. A name in contract.Events that
+// nothing writes to a card journal is caught in neither direction, because no
+// test asserts the containment that way, and EventRestored and
+// EventManualCorrection already sit in that position. The pairing therefore
+// holds for every event whose card-journal path the population sequence
+// exercises, and it does not reach every event the tool can declare.
 func TestEveryEventACardJournalCarriesIsOneAQueryCanName(t *testing.T) {
 	root := sampleFixture(t)
 	nameable := map[string]bool{}

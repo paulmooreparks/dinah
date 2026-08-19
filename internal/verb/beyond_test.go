@@ -2176,11 +2176,17 @@ func TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix(t *testing.T) {
 }
 
 // TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported pins the state a
-// write can reach and creation cannot. The write is accepted, the later
-// workstream stops answering to its own name, and check names the pair, so a
-// person can find both and decide which one changes. A later card that decides
-// to refuse the write instead turns this test red rather than changing the
-// behaviour quietly.
+// write can reach and creation cannot. The write is accepted, the shared slug
+// still resolves to the earlier workstream, and check raises exactly one
+// duplicate finding carrying one of the two identifiers.
+//
+// The identity of that identifier is asserted as membership of the pair rather
+// than as a fixed workstream, because checkWorkstreams walks ListIDs, which is
+// directory order over random identifiers, so either workstream can be the one
+// named. The count is the load-bearing assertion here: a later card that makes
+// check report both workstreams turns this test red at the count, one that
+// decides to refuse the write turns it red at the first assertion, and one
+// that changes which workstream a reference reaches turns it red at the third.
 func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
 	h := newHarness(t)
 	first := h.newWorkstream("Portfolio work")
@@ -2198,14 +2204,17 @@ func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
 	if found := h.library.Bench.WorkstreamByRef(first.Slug); found == nil || found.ID != first.ID {
 		t.Errorf("the shared slug resolved to %v, wanted the earlier workstream %s", found, first.ID)
 	}
-	duplicates := 0
+	var duplicates []string
 	for _, finding := range h.check() {
 		if finding.Key == bench.FindingWorkstreamSlugDuplicate {
-			duplicates++
+			duplicates = append(duplicates, finding.Detail)
 		}
 	}
-	if duplicates == 0 {
-		t.Errorf("check reported no %s, so the duplicate this write minted is undetected as well as accepted", bench.FindingWorkstreamSlugDuplicate)
+	if len(duplicates) != 1 {
+		t.Fatalf("check raised %d %s findings %v, wanted exactly one over the pair, so the duplicate this write minted is either undetected or reported twice", len(duplicates), bench.FindingWorkstreamSlugDuplicate, duplicates)
+	}
+	if duplicates[0] != first.ID && duplicates[0] != second.ID {
+		t.Errorf("the duplicate finding names %s, which is neither workstream of the pair %s and %s", duplicates[0], first.ID, second.ID)
 	}
 }
 

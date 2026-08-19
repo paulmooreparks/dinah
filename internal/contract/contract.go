@@ -234,11 +234,13 @@ const (
 	EventWorkstreamLeft   = "workstream_left"
 )
 
-// Events lists the seventeen event names a card's own journal can carry, in
-// the order the constants above declare them, so a caller checking a value
-// against the closed set reads one list rather than repeating it. A query over
-// cards takes this list as the vocabulary of its event field, so an event a
-// card journal can carry and this list omits is an event nobody can ask for.
+// Events lists the seventeen event names a query over cards accepts in its
+// event field, in the order the constants above declare them, so a caller
+// checking a value against the closed set reads one list rather than repeating
+// it. Every event a card's own journal can carry has to be here, since an
+// event a card carries and this list omits is an event nobody can ask for. The
+// containment does not hold the other way. EventRestored is listed and no
+// command writes it, so a query naming it is accepted and selects nothing.
 //
 // EventWorkbenchUpdated and EventWorkstreamUpdated are the two declared names
 // this list holds out, and each is held out for the same reason: it lands on
