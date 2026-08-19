@@ -1186,6 +1186,11 @@
       "context": "A heading of the help block, grouping the commands beneath it.",
       "skeleton": true
     },
+    "help.reading": {
+      "text": "Run 'dinah guide' for the guides Dinah carries, and read the quick start at https://github.com/paulmooreparks/dinah/blob/main/docs/quick-start.md",
+      "context": "The line below the help block's footer, pointing a reader at the guides the binary carries and at the quick start. The URL names a location rather than reading as prose, and it stays as it is in every language.",
+      "skeleton": true
+    },
     "help.refusals": {
       "text": "What can go wrong, in the order each is checked:",
       "context": "The heading above a command's ordered precondition list in its own help.",

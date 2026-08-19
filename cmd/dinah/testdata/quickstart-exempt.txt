@@ -1,0 +1,41 @@
+# Blocks of docs/quick-start.md the replay does not drive, and the catalog
+# entries each of them quotes.
+#
+# TestTheQuickStartMatchesTheTool and
+# TestEveryExemptBlockDeclaresTheCatalogEntriesItQuotes read this file. An
+# exempt block is a block nothing runs, so every entry here is a finding rather
+# than a line of configuration: it says a transcript a reader trusts is held by
+# no replay. Five assertions keep the pressure on. An entry naming a block the
+# replay does drive fails, so a stale entry is pruned rather than left to
+# accumulate. An entry carrying no reason fails. An exempt block with no entry
+# fails. An entry carrying neither quotes= nor quotes=none fails. And a
+# quotes=none entry that does not say because what fails.
+#
+# An entry is the line its fence opens at, then key=value directives whose
+# values may carry spaces: reason=, quotes=, and because=. quotes= names the
+# catalog keys whose stored text renders into the block, comma separated, and
+# the declaration is maximal, so a key the discovery rule finds and the entry
+# leaves out fails.
+#
+# An entry opening `inner` names a marker-shaped line that is a block's content
+# rather than a fence, which the day somebody documents this document's own
+# console grammar inside it will need: a four-backtick outer fence wrapping a
+# three-backtick example is well formed, and the line scan behind the fence
+# arithmetic has no state with which to see that. The document carries no
+# nested fence today, so no such entry stands here.
+
+24 reason=the first word is curl, which the in-process head cannot run quotes=none because=every line of this output is written by scripts/install.sh rather than by Dinah
+
+188 reason=the editor fallback differs per platform and per runner image quotes=column.config.setting,column.config.source,column.config.value,column.workbench.value,column.workstream.value,token.config,token.default,token.fallback,token.search
+
+210 reason=the editor fallback differs per platform and per runner image quotes=column.config.setting,column.config.source,column.config.value,column.workbench.value,column.workstream.value,token.default,token.environment,token.fallback,token.search
+
+826 reason=the transcript answers from a workbench damaged on purpose, which the narrative never builds quotes=check.count.other,check.position-diverges,check.unknown-state
+
+852 reason=the transcript answers from a legacy workbench, which the narrative never builds quotes=check.clean,check.count.one,check.count.other,check.ordinal-missing,check.ordinal-stamped.other,check.slug-assigned.other,check.slug-missing,check.states-removed.one,check.stranded-state,column.guide.title,column.holding.title,column.ls.title,column.next.title,column.query.title,column.slugs.slug,column.slugs.title,column.states.slug,column.workbenches.slug,column.workstream.title,column.workstreams.slug,token.done,token.intake
+
+951 reason=the line carries a pipe and a redirection, which the in-process head cannot honour quotes=none because=the one line of output is a bare refusal name, which the refusal-name check already holds
+
+1181 reason=the workbench listing is ordered by an identifier the tool mints at random quotes=column.slugs.slug,column.states.slug,column.workbenches.path,column.workbenches.slug,column.workbenches.workbench,column.workstreams.slug,init.done,refusal.dinah.ambiguous-workbench,refusal.dinah.ambiguous-workbench.next,token.created
+
+1211 reason=the workbench listing is ordered by an identifier the tool mints at random quotes=column.slugs.slug,column.states.slug,column.workbenches.path,column.workbenches.slug,column.workbenches.workbench,column.workstreams.slug
