@@ -48,21 +48,30 @@ func (c *Config) Keys() []string {
 
 // Set writes one setting, preserving every key the tool does not recognise.
 //
-// The workbench key gets one special case: a non-empty value is resolved to
-// an absolute path before it is stored. A relative path means one thing at
-// write time, when the current directory supplies it, and a different thing
-// at read time, when a later invocation stands wherever the person or agent
-// happens to be that day; resolving now is what makes the stored value mean
-// the same directory both times. An empty value skips the resolution and
-// clears the setting, exactly as every other key does, and the check has to
-// run before filepath.Abs is called rather than be inferred from its result,
-// since filepath.Abs("") resolves to the current directory instead of to
-// nothing.
+// An empty value removes the key from the file rather than storing an empty
+// one. The two read alike to every resolver, since a ladder skips a blank
+// rung, so a person told to clear a setting gets a file that no longer carries
+// the key at all, and `config` reports it as unset because nothing carries it
+// any more. The file itself stays, holding whatever else was in it, and so
+// does the directory around it. The removal has to be decided before
+// filepath.Abs runs rather than inferred from its result, since
+// filepath.Abs("") resolves to the current directory instead of to nothing.
+//
+// The workbench key gets one special case: a value the caller does keep is
+// resolved to an absolute path before it is stored. A relative path means one
+// thing at write time, when the current directory supplies it, and a different
+// thing at read time, when a later invocation stands wherever the person or
+// agent happens to be that day; resolving now is what makes the stored value
+// mean the same directory both times.
 func (c *Config) Set(key, value string) error {
 	if !KnownConfigKey(key) {
 		return contract.Refuse(contract.UnknownKey, key)
 	}
-	if key == "workbench" && strings.TrimSpace(value) != "" {
+	if strings.TrimSpace(value) == "" {
+		c.fm.Delete(key)
+		return WriteText(c.Path, c.fm.Render(c.body))
+	}
+	if key == "workbench" {
 		abs, err := filepath.Abs(value)
 		if err != nil {
 			return err

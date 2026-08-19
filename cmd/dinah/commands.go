@@ -399,6 +399,23 @@ func runInit(s *session, parsed *arguments) int {
 		return s.reportError(err)
 	}
 	s.line(s.r.T("init.done", "root", written))
+	// Read before the write, because recordActor fills the field it tests.
+	recorded := s.actor == ""
+	if err := recordActor(s, operator); err != nil {
+		// The workbench exists by now, and init's exit code answers for
+		// the workbench, so a configuration Dinah could not write is
+		// reported rather than turned into a refusal of something that
+		// did happen. The report is one sentence carrying the cause and
+		// the command that recovers, and it leads with neither an
+		// outcome name nor a refusal name, because a caller reading the
+		// leading token of stderr would otherwise read a failure off a
+		// run that returned 0.
+		s.errLine(s.r.T("init.actor.unrecorded", "path", s.cfg.Path, "reason", err.Error()))
+		return 0
+	}
+	if recorded {
+		s.line(s.r.T("init.actor.recorded", "actor", operator, "path", s.cfg.Path))
+	}
 	return 0
 }
 
@@ -416,6 +433,27 @@ func malformedSlug(slug string) error {
 		return contract.RefuseWith(contract.Malformed, "slug", map[string]string{"cardRef": slug})
 	}
 	return contract.Refuse(contract.Malformed, "slug")
+}
+
+// recordActor records the operator as the actor in the person's own
+// configuration, so that somebody who has just named themselves the operator
+// of a new workbench can act in it without typing a second command.
+//
+// Dinah writes only when the actor ladder resolved nothing at any rung, which
+// on this path means the person supplied the operator with --operator and the
+// machine knows them by no other name. An actor already carried by the flag,
+// by DINAH_ACTOR, or by the configuration is left exactly as it was, and the
+// workbench's own operator is never consulted, because the operator of a
+// workbench and the owner of an act stay separate.
+func recordActor(s *session, operator string) error {
+	if s.actor != "" {
+		return nil
+	}
+	if err := s.cfg.Set("actor", operator); err != nil {
+		return err
+	}
+	s.actor = operator
+	return nil
 }
 
 // runExport writes the bench's interchange form to stdout, which composes

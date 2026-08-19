@@ -180,6 +180,15 @@ func (s *session) line(text string) {
 	io.WriteString(s.out, text+"\n")
 }
 
+// errLine puts one already-rendered line on stderr, for a report that is not a
+// refusal and so carries no name in front of it. A caller reading the leading
+// token of stderr for a refusal name sees the first word of a sentence here,
+// which is what a report of something that did not stop the command looks
+// like.
+func (s *session) errLine(text string) {
+	io.WriteString(s.errw, text+"\n")
+}
+
 // fail reports a refusal and returns its exit code. The refusal name is the
 // first whitespace-delimited token on stderr, followed by the sentence a
 // person reads, which is the contract the plumbing guarantee rests on.

@@ -126,6 +126,7 @@ $ mkdir release-notes
 $ cd release-notes
 $ dinah init --slug rel --operator ana
 Workbench created at /home/ana/release-notes/.dinah/d0e41d414bb5.
+Dinah recorded you as actor ana in /home/ana/.dinah/config.md, and will record that name on everything you do. Run `dinah config set actor <name>` to change it, or `dinah config set actor` to clear it.
 [exit 0]
 ```
 
@@ -157,22 +158,12 @@ outside a workbench comes back to it.
 
 ## Say who you are
 
-Naming ana as the operator settled who answers for this workbench. It did not
-settle who you are. The operator is a seat the workbench records, while the
-owner of an action is whoever typed it. Dinah still has to be told which owner
-your own commands carry. It assigns an owner to every action it takes, though it
-will not invent one for you.
-
-```
-$ dinah whoami
-no-owner no owner was resolvable; set one with --actor, DINAH_ACTOR or config actor
-[exit 2]
-```
-
-The error message names the places where Dinah looked, in the order it looked
-in them. It takes the `--actor` flag first, then the `DINAH_ACTOR` environment
-variable, then your own configuration file. Set the `actor` configuration value
-once and you are done with the question:
+Dinah recorded you as the actor when it created the workbench above, because
+nothing on your machine had named an owner yet. Dinah looks for that name on
+the `--actor` flag first, then in the `DINAH_ACTOR` environment variable, then
+in your own configuration file. You change the recorded name with
+`dinah config set actor`, and you use the same command to act as somebody other
+than the operator:
 
 ```
 $ dinah config set actor ana
