@@ -483,7 +483,7 @@ func TestTheGuidesNameOnlyArtifactsTheReleaseBuilds(t *testing.T) {
 		for number, line := range strings.Split(document.text, "\n") {
 			for _, artifact := range releaseArtifact.FindAllString(line, -1) {
 				named++
-				if strings.Contains(published, artifact) {
+				if workflowPublishes(published, artifact) {
 					continue
 				}
 				t.Errorf("%s:%d: the document names the release artifact %s, which .github/workflows/release.yml neither builds nor publishes", document.name, number+1, artifact)
@@ -631,4 +631,16 @@ func exercisedWorkbench(t *testing.T) string {
 		t.Fatalf("the workbench's own journal was not written, so the tree's %s is unreachable: %v", bench.JournalName, err)
 	}
 	return root
+}
+
+// workflowPublishes reports whether the release workflow names an artifact,
+// bounded so that one name is not read as another it happens to open.
+//
+// A plain substring test would accept `dinah-windows-amd64` on the strength of
+// the workflow's `dinah-windows-amd64.exe`, and a Windows binary published
+// without its extension is exactly the rename a reader would meet as a
+// download that is not there.
+func workflowPublishes(workflow, artifact string) bool {
+	bounded := regexp.MustCompile(`(^|[^A-Za-z0-9._-])` + regexp.QuoteMeta(artifact) + `([^A-Za-z0-9._-]|$)`)
+	return bounded.MatchString(workflow)
 }
