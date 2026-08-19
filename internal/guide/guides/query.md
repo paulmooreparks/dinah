@@ -80,8 +80,8 @@ is not in Done. On a journal field the negation applies inside the one act, so
 
 ## What a mistake looks like
 
-Dinah reads the whole query before it reads a card, and it tells you which word
-was wrong rather than returning nothing. `substate:reday` is an error message
+Dinah checks every term of the query before it filters a single card, and it
+tells you which word was wrong rather than returning nothing. `substate:reday` is an error message
 naming `reday` and listing the three values that field takes. `Priority>=next`
 is an error message saying there is no such field and listing the ten there
 are. A query that is spelled correctly and matches nothing says so plainly, so
