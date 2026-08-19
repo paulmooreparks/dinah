@@ -5763,11 +5763,11 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 		}},
 		{command: "query", carries: []string{"For more, run `dinah guide query`."}},
 		{command: "path", carries: []string{
-			"path <ref>", "this workbench written as workbench or as a dot",
+			"path <ref>", "this workbench written as `workbench` or `.`",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "edit", carries: []string{
-			"edit <ref>", "this workbench written as workbench or as a dot",
+			"edit <ref>", "this workbench written as `workbench` or `.`",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "show", carries: []string{
@@ -5820,6 +5820,13 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 // where the test happens to run. This repository carries a discoverable
 // workbench of its own and discovery walks the ancestor chain, so a test that
 // says nothing about the environment exercises the inside case twice.
+//
+// Two separate refusals to answer hold the outside case, and this test cannot
+// tell them apart. vocabularyValues declines to resolve a states vocabulary
+// when no workbench opens, and refusalListings["states"] returns nothing when
+// the session carries no library. Removing either one alone leaves the outside
+// half of this test green, so a reader must not take a pass here as proof that
+// the guard in vocabularyValues is doing the work.
 func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.T) {
 	t.Setenv("COLUMNS", "80")
 	inside := runCLI(t, newBench(t), "help", "ls")
@@ -5948,6 +5955,63 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 		if !strings.Contains(got.out, row) {
 			t.Errorf("the references guide does not carry the row %q", row)
 		}
+	}
+	assertTheGuideCountsItsOwnTable(t, got.out)
+}
+
+// assertTheGuideCountsItsOwnTable holds the sentence introducing the table in
+// the references guide to the table underneath it. The sentence says how many
+// commands take a reference and how many different sets of things they accept
+// between them, and both numbers are read off the drawn rows rather than
+// written down, so a row that gains or loses a cell reddens the sentence that
+// describes it.
+//
+// The guard exists because the shipped sentence claimed that no two commands
+// take the same set while the table showed two identical pairs, which a reader
+// catches in seconds and no test did.
+func assertTheGuideCountsItsOwnTable(t *testing.T, guide string) {
+	t.Helper()
+	commands := 0
+	sets := map[string]bool{}
+	for _, line := range strings.Split(guide, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "| ") {
+			continue
+		}
+		cells := strings.Split(strings.Trim(line, "|"), "|")
+		if len(cells) != 5 {
+			continue
+		}
+		name := strings.TrimSpace(cells[0])
+		if name == "Command" || strings.Trim(name, "-") == "" {
+			continue
+		}
+		var accepts []string
+		for _, cell := range cells[1:] {
+			accepts = append(accepts, strings.TrimSpace(cell))
+		}
+		commands++
+		sets[strings.Join(accepts, ",")] = true
+	}
+	if commands == 0 {
+		t.Fatal("the references guide draws no command row, so this assertion proves nothing")
+	}
+	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	if commands >= len(words) || len(sets) >= len(words) {
+		t.Fatalf("the table draws %d commands over %d sets, past what this assertion spells", commands, len(sets))
+	}
+	// The sentence is read with its line breaks folded away and its case
+	// dropped, since the guide is hard-wrapped and the sentence opens one of
+	// its paragraphs, so neither the wrap point nor the capital says anything
+	// about whether the claim is true.
+	flat := strings.ToLower(strings.Join(strings.Fields(guide), " "))
+	takes := words[commands] + " commands take a reference"
+	if !strings.Contains(flat, takes) {
+		t.Errorf("the table draws %d command rows and the guide does not say %q", commands, takes)
+	}
+	accepts := "they accept " + words[len(sets)] + " different sets of things"
+	if !strings.Contains(flat, accepts) {
+		t.Errorf("the table draws %d distinct sets and the guide does not say %q", len(sets), accepts)
 	}
 }
 

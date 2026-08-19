@@ -9,20 +9,23 @@ import (
 	"dinah/internal/msg"
 )
 
-// TestTheSyntaxLineIsComposedOfTheSameTokensTheTableReads asserts that one
-// function composes an argument's spelling for every surface: the syntax line
-// is the command's own name followed by its tokens and nothing else, so a
-// later edit that decorates an argument inside Usage again fails here.
+// TestTheSyntaxLineIsComposedOfTheSameTokensTheTableReads asserts that the
+// syntax line is the command's own name followed by its tokens and nothing
+// else. An edit that makes Usage spell any argument differently from Token
+// fails here, whatever route through Usage produced the spelling.
+//
+// The test does not catch a later edit that decorates an argument inside
+// Usage again. Usage decorated inline before this card and composed the same
+// bytes Token composes now, so restoring that body leaves this equality true
+// and this test green. What holds Token itself to its own rule is the
+// ratified help block, which pins every command's syntax line byte for byte,
+// and the arguments-table assertion in cmd/dinah, which reads the drawn
+// column and reddens when the cell is spelled any other way.
 //
 // The equality holds for a command with no arguments too, which is what the
 // obvious spelling of it gets wrong: TrimPrefix(Usage(name), name+" ") returns
 // the bare command word for export, mcp, states, status, whoami and
 // workbenches, while the joined tokens return the empty string.
-//
-// This half of the claim is a shape assertion rather than a check on what a
-// token says. What holds Token itself to its own rule is the ratified help
-// block, which pins every command's syntax line byte for byte, and the
-// arguments-table assertion below, which reads the drawn column.
 func TestTheSyntaxLineIsComposedOfTheSameTokensTheTableReads(t *testing.T) {
 	bare := 0
 	for _, name := range Commands() {

@@ -1606,7 +1606,7 @@
       "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
     },
     "param.edit.card.summary": {
-      "text": "this workbench written as workbench or as a dot, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
     },
     "param.extract.dir.summary": {
@@ -1662,7 +1662,7 @@
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
     },
     "param.path.card.summary": {
-      "text": "this workbench written as workbench or as a dot, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
     },
     "param.query.query.summary": {

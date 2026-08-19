@@ -180,7 +180,8 @@ func (s *session) argumentLines(name string) []string {
 		wrapTail: true,
 	}
 	for _, param := range declared {
-		arguments.rows = append(arguments.rows, tableRow{fields: []string{param.Token(), s.argumentMeaning(name, param)}})
+		row := tableRow{fields: []string{param.Token(), s.argumentMeaning(name, param)}}
+		arguments.rows = append(arguments.rows, row)
 	}
 	lines := []string{"", s.r.T("help.arguments")}
 	return append(lines, s.tableLines(arguments)...)

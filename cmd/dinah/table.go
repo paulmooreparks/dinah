@@ -237,7 +237,10 @@ func measure(t table, window int) laidTable {
 		// narrowed table. withoutEmptyColumns and withoutTrailingEmptyFields
 		// each rebuild a table literal out of indent, columns and rows, so
 		// filled.labels is the zero value on every path through them and would
-		// silently put a labelInTheStack table's heading row back.
+		// silently put a labelInTheStack table's heading row back. wrapTail is
+		// read off the declared table for the same reason: those two helpers
+		// rebuild without it, so filled.wrapTail is false on every path and
+		// would silently retire a wrapping table's opt-in.
 		labels:   t.labels,
 		window:   window,
 		columns:  filled.columns,
@@ -635,6 +638,13 @@ func (laid laidTable) ruleWidth(column, start int) int {
 
 // rowLine lays one row out: every field but the last padded to its column and
 // the gutter after it, and the last field taking whatever is left of the line.
+//
+// A wrapping table stamps wrapTail onto its heading row and its rule row as
+// well as onto its body, and both survive it. breakTail breaks a tail between
+// words, so a rule row, whose tail is one unbroken run of glyphs, comes back
+// the length it went in however narrow the window. A column label wide enough
+// to reach the edge would wrap where a body cell wraps, which is the layout
+// this table asked for rather than a fault in it.
 func (laid laidTable) rowLine(r tableRow) string {
 	built := row{indent: laid.indent, wrapTail: laid.wrapTail}
 	for c, field := range r.fields {

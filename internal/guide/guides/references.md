@@ -52,8 +52,8 @@ If the collection you name holds nothing, Dinah tells you that nothing answers t
 
 ## Which command takes what
 
-Seven commands take a reference, and no two of them take quite the same set of
-things. This table says what each one accepts:
+Seven commands take a reference, and between them they accept five different
+sets of things. This table says what each one accepts:
 
 | Command      | This workbench | A state | A card | Below a card |
 |--------------|----------------|---------|--------|--------------|
