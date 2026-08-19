@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 	"dinah/internal/msg"
 )
 
@@ -56,8 +57,22 @@ type sweptBlock struct {
 	// constantReason is why this block's fields take values no command
 	// varies. It is empty on every block whose columns vary.
 	constantReason string
-	// render runs the command that draws this block and returns its lines.
-	render func(t *testing.T, w *sweptWorkbenches, tag string) []string
+	// render runs the command that draws this block and returns everything it
+	// wrote. The block's own lines are cut out of that by sweptHarvestOf, which
+	// takes the block's boundaries from opensAt and sections rather than from
+	// the first separator the output draws.
+	render func(t *testing.T, w *sweptWorkbenches, tag string) string
+	// expect builds this block's expected rows in one language, from the
+	// fixture's own record and from the catalog. Every entry declaring two or
+	// more columns carries one, which TestEveryTableSiteIsRegistered asserts.
+	expect func(t *testing.T, r *sweptRecord, tag string) sweptExpectation
+	// opensAt is the catalog key of the line this block is drawn under. It is
+	// empty on a block that starts at the top of its own output.
+	opensAt string
+	// sections are the catalog keys of the section rows this block draws. A
+	// section row belongs to the block, so the harvest crosses it and keeps it,
+	// and both readers take it as a record boundary.
+	sections []string
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
 	// nothing beyond the six below.
@@ -80,10 +95,11 @@ type sweptBlock struct {
 	noHeadingRow bool
 }
 
-// sweptWindows are the three windows every block below is drawn at: the one
-// nobody stated, the eighty columns the table reads that as, and a window
-// narrow enough to put the backstop and the clamp to work. A rule counted
-// against the wrong edge is what the last of the three catches.
+// sweptWindows are the windows every block below is drawn at, one per pass
+// listed beneath: the one nobody stated, the eighty columns the table reads
+// that as, and the narrow windows that put the backstop and the clamp to work.
+// A rule counted against the wrong edge is what the narrowest of them catches.
+// Read against the tree this comment sits in, the variable declares four.
 var sweptWindows = []struct {
 	// columns is what COLUMNS is set to, empty for the window nobody stated.
 	columns string
@@ -115,10 +131,13 @@ var sweptWindows = []struct {
 // next, which is the table's own constant read from the output side.
 const sweptGutter = 2
 
-// sweptWorkbenches are the four trees the sweep renders from. Thirteen sites
-// draw from a workbench holding a few cards and nothing unusual. The other
-// seven draw only in a state a healthy workbench never reaches, so each of
-// those gets a tree built for it.
+// sweptWorkbenches are the trees the sweep renders from. One holds the healthy
+// corpus, which is a workbench carrying a few cards and nothing unusual, and
+// every site that draws from an ordinary workbench draws from it. Each of the
+// remaining sites draws only in a state a healthy workbench never reaches, so
+// each of those gets a tree built for that one state. Read against the tree
+// this comment sits in, eighteen of the twenty-two call sites draw from the
+// healthy corpus and the other four from a tree built for one state each.
 type sweptWorkbenches struct {
 	// healthy holds three cards under three scripts, one held, one blocked,
 	// one carrying a link and a comment, with an operator-owned state and a
@@ -135,6 +154,9 @@ type sweptWorkbenches struct {
 	card string
 	// held is the reference of the card claimed in the healthy tree.
 	held string
+	// record is what the fixture put in, which every expectation is built from
+	// alongside the catalog.
+	record *sweptRecord
 }
 
 // TestEveryRowStartsItsColumnsAtOneDisplayColumn renders every block of the
@@ -186,6 +208,7 @@ func TestEveryRowStartsItsColumnsAtOneDisplayColumn(t *testing.T) {
 		sweptPass = strconv.Itoa(pass)
 		assertEveryBlockLinesUp(t, benches, drawn.full, drawn.stacked)
 	}
+	assertEveryTripleWasCompared(t)
 }
 
 // sweptWindow is the width the pass now running measures against, which every
@@ -213,9 +236,10 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 	for _, block := range sweptBlocks() {
 		rendered := 0
 		for _, tag := range msg.Tags() {
-			lines := block.render(t, benches, tag)
+			lines := sweptHarvestOf(t, block, benches, tag)
 			if len(lines) == 0 {
-				t.Errorf("%s (%s), locale %s: the fixture reached no row of this block, so nothing about it is asserted", block.site, block.label, tag)
+				t.Errorf("%s (%s), locale %s, pass %s: the harvest came back empty, so the block drew nothing under the line %q it opens at and nothing about it is asserted",
+					block.site, block.label, tag, sweptPass, block.opensAt)
 				continue
 			}
 			rendered++
@@ -224,17 +248,21 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 				assertNoHeadingIsDrawn(t, block, tag, lines)
 				continue
 			}
-			if block.noHeadingRow && carriesTheHeadingRow(block, tag, lines[0]) {
-				t.Errorf("%s (%s), locale %s: the block declares that it draws no heading row and drew one:\n%q", block.site, block.label, tag, lines[0])
+			opening := sweptFirstRecordLine(block, tag, lines)
+			if block.noHeadingRow && carriesTheHeadingRow(block, tag, opening) {
+				t.Errorf("%s (%s), locale %s: the block declares that it draws no heading row and drew one:\n%q", block.site, block.label, tag, opening)
 				continue
 			}
-			if drawsTheStackedForm(block, tag, lines[0]) {
+			if drawsTheStackedForm(block, tag, opening) {
 				assertStackedBlock(t, block, tag, lines)
+				assertStackedRecordsPair(t, block, benches, tag, lines)
 				stacks++
 				continue
 			}
-			columns, rowLines := sweptRowLines(t, block, tag, full, lines)
+			recordLines := sweptRecordLines(block, tag, lines)
+			columns, rowLines := sweptRowLines(t, block, tag, full, recordLines)
 			if columns == nil {
+				sweptStandDown(block, tag, full)
 				continue
 			}
 			rows := readSweptRows(t, block, tag, rowLines, columns)
@@ -243,11 +271,12 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 				continue
 			}
 			if !block.noHeadingRow {
-				assertSeparatorRow(t, block, tag, lines[1], columns, rows)
+				assertSeparatorRow(t, block, tag, recordLines[1], columns, rows)
 			}
 			assertEveryColumnIsTight(t, block, tag, columns, rows)
 			assertACellVaries(t, block, tag, rows)
 			assertNoRowThatFitsIsContinued(t, block, tag, rowLines, columns, rows)
+			assertTableRecordsPair(t, block, benches, tag, lines, rows)
 			if block.shape != nil {
 				block.shape(t, tag, rows)
 			}
@@ -256,6 +285,9 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 			t.Errorf("%s (%s) rendered in no locale at all", block.site, block.label)
 		}
 	}
+	if full {
+		assertThePairingCheckCanFail(t)
+	}
 	if !stacked {
 		return
 	}
@@ -263,6 +295,7 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 		t.Errorf("no block of the inventory stacked at a window of %d, so this pass asserts nothing about the stacked form", sweptWindow)
 	}
 	assertTheStackedCheckCanFail(t)
+	assertTheStackedPairingCheckCanFail(t)
 }
 
 // assertTheStackedCheckCanFail arms the stacked assertions on a block of the
@@ -500,8 +533,13 @@ func assertStackedBlock(t *testing.T, block sweptBlock, tag string, lines []stri
 		}
 	}
 	values := sweptIndent + widest + sweptGutter
+	sections := sweptSections(block, tag)
 	held, blank, records := -1, false, 0
 	for _, line := range lines {
+		if sweptIsSection(line, sections) {
+			held, blank = -1, true
+			continue
+		}
 		if strings.TrimSpace(line) == "" {
 			if records == 0 {
 				fail("a blank line stands above the first record:\n%q", line)
@@ -1089,83 +1127,96 @@ const (
 	noCell = -1
 )
 
-// sweptBlocks are the twenty-one entries of the spec's inventory, at the
-// nineteen call sites they render through.
+// / sweptBlocks is the inventory the sweep renders: every registered table site,
+// with the columns each block declares and the fixture that provokes it.
+//
+// The set is the whole of it rather than a sample. Entries and call sites are
+// many to one, and the rule that decides which entries the pairing assertion
+// covers is the condition len(block.keys) < 2 rather than a list of names: an
+// entry declaring one column is exempt because it has no second label for a
+// value to sit under, and every other entry carries an expectation. Read
+// against the tree this comment sits in, the inventory holds twenty-four
+// entries at twenty-two call sites.
 func sweptBlocks() []sweptBlock {
-	rendered := func(tag, key string) string { return msg.For(tag).T(key) }
 	return []sweptBlock{
 		{
 			site: "render.go:133", label: "the legal moves under a served instruction",
 			keys: []string{"column.moves.state", "column.moves.name", "column.moves.direction"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "instructions", w.card)
-				return indentedBlock(out, rendered(tag, "instructions.moves"))
+			opensAt: "instructions.moves", expect: expectMoves,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "instructions", w.card)
 			},
 		},
 		{
 			site: "render.go:153", label: "the cards you hold",
 			keys: []string{"column.holding.card", "column.holding.title"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "status")
-				return indentedBlock(out, rendered(tag, "status.holding"))
+			opensAt: "status.holding", expect: expectHolding,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "status")
 			},
 		},
 		{
 			site: "render.go:162", label: "the cards that are blocked",
 			keys: []string{"column.blocked.card", "column.blocked.reason"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "status")
-				return indentedBlock(out, rendered(tag, "status.blocked"))
+			opensAt: "status.blocked", expect: expectBlocked,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "status")
 			},
 		},
 		{
 			site: "render.go:189", label: "dinah states",
 			keys:   []string{"column.states.slug", "column.states.name", "column.states.kind", "column.states.cards", "column.states.owner"},
-			varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "states"), "")
+			varies: lastCell, expect: expectStates,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "states")
 			},
 		},
 		{
 			site: "render.go:202", label: "dinah ls",
 			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.title"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "ls"), "")
+			expect: expectListing,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "ls")
 			},
 		},
 		{
 			site: "render.go:219", label: "dinah query",
-			keys: []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"},
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "query"), "")
+			keys:   []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"},
+			expect: expectMatches,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "query")
 			},
 		},
 		{
 			site: "render.go:231", label: "dinah config",
 			keys: []string{"column.config.setting", "column.config.value", "column.config.source"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "config"), "")
+			expect: expectSettings,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "config")
 			},
 		},
 		{
 			site: "render.go:259", label: "dinah workbenches",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.ambiguous, tag, "workbenches"), "")
+			expect: expectWorkbenches,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.ambiguous, tag, "workbenches")
 			},
 		},
 		{
 			site: "render.go:259", label: "the ambiguous-workbench refusal, written to stderr",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRefused(t, w.ambiguous, tag, "status"), "")
+			expect: expectWorkbenches,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRefused(t, w.ambiguous, tag, "status")
 			},
 		},
 		{
 			site: "render.go:285", label: "dinah next, a state offering a card",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "next"), "")
+			expect: expectOffers,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "next")
 			},
 			shape: func(t *testing.T, tag string, rows [][]string) {
 				t.Helper()
@@ -1180,8 +1231,9 @@ func sweptBlocks() []sweptBlock {
 		{
 			site: "render.go:285", label: "dinah next, a state offering nothing",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "next"), "")
+			expect: expectOffers,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "next")
 			},
 			shape: func(t *testing.T, tag string, rows [][]string) {
 				t.Helper()
@@ -1197,102 +1249,106 @@ func sweptBlocks() []sweptBlock {
 		{
 			site: "render.go:302", label: "a card's links",
 			keys: []string{"column.links.link", "column.links.card"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "show", w.card)
-				return indentedBlock(out, rendered(tag, "show.links"))
+			opensAt: "show.links", expect: expectLinks,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "show", w.card)
 			},
 		},
 		{
 			site: "render.go:312", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
+			opensAt:       "show.comments", expect: expectComments,
 			constantReason: "a timestamp is one format in one time zone, so every comment header draws its stamp " +
 				"at the same width; the author in the last column is what this block's assertion rests on",
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "show", w.card)
-				return indentedLinesAfter(out, rendered(tag, "show.comments"))
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "show", w.card)
 			},
 		},
 		{
 			site: "render.go:337", label: "dinah log",
-			keys: []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "log", w.held), "")
+			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
+			varies: lastCell, expect: expectHistory,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "log", w.held)
 			},
 		},
 		{
 			site: "render.go:353", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, sweptStrippedTree(t, w, "slugs-"+tag+"-"+sweptPass), tag, "check", "--migrate-slugs"), "")
+			expect: expectAssignedSlugs,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, sweptStrippedTree(t, w, "slugs-"+tag+"-"+sweptPass), tag, "check", "--migrate-slugs")
 			},
 		},
 		{
 			site: "render.go:367", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states"), "")
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states")
 			},
 		},
 		{
 			site: "render.go:503", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRefused(t, w.healthy, tag, "ls", "nowhere"), "")
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
 			site: "render.go:384", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check"), "")
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
 			site: "render.go:409", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "version", "--catalogs")
-				return indentedBlock(out, rendered(tag, "version.catalogs"))
+			opensAt: "version.catalogs", expect: expectCatalogs,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "version", "--catalogs")
 			},
 		},
 		{
 			site: "help.go:101", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
 			noHeadingRow: true,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag)
-				return indentedBlock(out, rendered(tag, "help.group.work"))
+			opensAt:      "help.usage", sections: sweptHelpSections(), expect: expectCommands,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag)
 			},
 		},
 		{
 			site: "help.go:109", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag)
-				return indentedBlock(out, rendered(tag, "help.flags"))
+			opensAt: "help.flags", expect: expectFlags,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag)
 			},
 		},
 		{
 			site: "help.go:142", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				out := sweptRun(t, w.healthy, tag, "help", "add")
-				return indentedBlock(out, rendered(tag, "help.refusals"))
+			opensAt: "help.refusals", expect: expectRefusals,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "help", sweptHelpCommand)
 			},
 		},
 		{
 			site: "commands.go:391", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "guide"), "")
+			expect: expectGuides,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "guide")
 			},
 		},
 		{
 			site: "render.go:611", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
-			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
-				return indentedBlock(sweptRun(t, w.healthy, tag, "workbench"), "")
+			expect: expectWorkbenchFields,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "workbench")
 			},
 		},
 	}
@@ -1342,8 +1398,22 @@ const (
 // measures short.
 const reviewTitle = "検討"
 
-// buildSweptWorkbenches builds the four trees the sweep renders from, under
+// waitingTitle is the fifth state's own title, and sweptStrippedTitle is the
+// title the tree a slug migration repairs carries its one added state under.
+// Each is named rather than written at the call site, so the fixture's record
+// and the command that made the state read the same constant.
+const (
+	waitingTitle       = "Waiting"
+	sweptStrippedTitle = "Review under an operator"
+)
+
+// / buildSweptWorkbenches builds the four trees the sweep renders from, under
 // one user base so that one language pass reaches all of them.
+//
+// It also keeps the record every expectation is built from. Each fact is
+// recorded from the same variable the CLI call received, inside the helper
+// that makes the call, so the record and the command cannot disagree without
+// one call site being edited to disagree with itself.
 func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	t.Helper()
 	base := t.TempDir()
@@ -1360,6 +1430,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 		ambiguous: filepath.Join(base, "ambiguous"),
 		card:      "fx-1",
 		held:      "fx-1",
+		record:    &sweptRecord{actor: "alka"},
 	}
 	for _, dir := range []string{benches.healthy, benches.ambiguous} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -1368,33 +1439,226 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	}
 
 	sweptInit(t, benches.healthy)
+	benches.record.states = sweptInitStates()
+	benches.record.workbench = sweptWorkbenchRecord{title: filepath.Base(benches.healthy), slug: "fx", operator: "alka"}
 	sweptAddState(t, benches.healthy, reviewState, reviewTitle, "work", "operator_owned: true\n")
-	sweptAddState(t, benches.healthy, waitingState, "Waiting", "work", "")
+	benches.record.states = sweptStatePrepended(benches.record, sweptStateRecord{id: reviewState, title: reviewTitle, kind: "work", operatorOwned: true})
+	sweptAddState(t, benches.healthy, waitingState, waitingTitle, "work", "")
+	benches.record.states = sweptStatePrepended(benches.record, sweptStateRecord{id: waitingState, title: waitingTitle, kind: "work"})
 	for i := 0; i < 12; i++ {
-		sweptDo(t, benches.healthy, "add", sweptTitles[i%len(sweptTitles)])
+		sweptAdd(t, benches, sweptTitles[i%len(sweptTitles)])
 	}
-	sweptDo(t, benches.healthy, "claim", "fx-1")
-	sweptDo(t, benches.healthy, "claim", "fx-11")
-	sweptDo(t, benches.healthy, "claim", "fx-2", "--actor", "bo")
-	sweptDo(t, benches.healthy, "block", "fx-2", "waiting on a decision", "--actor", "bo")
-	sweptDo(t, benches.healthy, "claim", "fx-10", "--actor", "bo")
-	sweptDo(t, benches.healthy, "block", "fx-10", "waiting on a decision", "--actor", "bo")
-	sweptDo(t, benches.healthy, "claim", "fx-4")
-	sweptDo(t, benches.healthy, "move", "fx-4", "doing")
-	sweptDo(t, benches.healthy, "release", "fx-4")
-	sweptDo(t, benches.healthy, "claim", "fx-12")
-	sweptDo(t, benches.healthy, "move", "fx-12", "doing")
-	sweptDo(t, benches.healthy, "move", "fx-12", "done")
-	sweptDo(t, benches.healthy, "release", "fx-12")
-	sweptDo(t, benches.healthy, "comment", "fx-1", "the first note")
-	sweptDo(t, benches.healthy, "comment", "fx-1", "the second note", "--actor", "bo")
-	sweptWriteLinks(t, benches.healthy, "fx-1")
+	sweptClaim(t, benches, "fx-1", "")
+	sweptClaim(t, benches, "fx-11", "")
+	sweptClaim(t, benches, "fx-2", "bo")
+	sweptBlockCard(t, benches, "fx-2", "waiting on a decision", "bo")
+	sweptClaim(t, benches, "fx-10", "bo")
+	sweptBlockCard(t, benches, "fx-10", "waiting on the operator to rule", "bo")
+	sweptClaim(t, benches, "fx-4", "")
+	sweptMove(t, benches, "fx-4", "doing")
+	sweptRelease(t, benches, "fx-4", "")
+	sweptClaim(t, benches, "fx-12", "")
+	sweptMove(t, benches, "fx-12", "doing")
+	sweptMove(t, benches, "fx-12", "done")
+	sweptRelease(t, benches, "fx-12", "")
+	sweptComment(t, benches, "fx-1", "the first note", "")
+	sweptComment(t, benches, "fx-1", "the second note", "bo")
+	sweptWriteLinks(t, benches, "fx-1")
+	sweptSetEditor(t, benches, "notepad")
+	benches.record.settings = sweptSettings(t, benches)
+	benches.record.stripped = sweptStrippedStates()
 
 	rooms := populateBase(t, filepath.Join(benches.ambiguous, bench.UserBaseName), "one", "twoandthree")
 	sweptRetitle(t, rooms[0], wideTitle)
 	sweptRetitle(t, rooms[1], matraTitle)
+	benches.record.benches = []sweptBenchRecord{
+		{title: wideTitle, slug: "one", pathIs: sweptPathIs(t, benches.ambiguous, filepath.Base(rooms[0]))},
+		{title: matraTitle, slug: "twoandthree", pathIs: sweptPathIs(t, benches.ambiguous, filepath.Base(rooms[1]))},
+	}
 
 	return benches
+}
+
+// sweptInitStates are the states dinah init creates, which every tree the
+// fixture builds carries. The identifiers are minted at instantiation and the
+// fixture never sees them, so a state init made is reached by the slug it
+// derives from its own title, which is what every listing draws.
+func sweptInitStates() []sweptStateRecord {
+	return []sweptStateRecord{
+		{title: "Intake", slug: "intake", kind: contract.KindIntake},
+		{title: "Doing", slug: "doing", kind: contract.KindWork},
+		{title: "Done", slug: "done", kind: contract.KindDone},
+	}
+}
+
+// sweptStrippedStates are the states the tree a slug migration repairs holds,
+// which is what init creates with the one state sweptStrippedTree writes on
+// top of them.
+func sweptStrippedStates() []sweptStateRecord {
+	return append([]sweptStateRecord{{id: reviewState, title: sweptStrippedTitle, kind: "work"}}, sweptInitStates()...)
+}
+
+// sweptStatePrepended returns the record's states with one more in front of
+// them, which is where sweptAddState puts a state it writes by hand.
+func sweptStatePrepended(r *sweptRecord, state sweptStateRecord) []sweptStateRecord {
+	return append([]sweptStateRecord{state}, r.states...)
+}
+
+// sweptStateAt returns the position of a state in the record, by the reference
+// a person types to reach it.
+func sweptStateAt(r *sweptRecord, ref string) int {
+	for at, state := range r.states {
+		if state.ref() == ref {
+			return at
+		}
+	}
+	return -1
+}
+
+// sweptCardAt returns the position of a card in the record, by its reference.
+func sweptCardAt(r *sweptRecord, ref string) int {
+	for at, card := range r.cards {
+		if card.ref == ref {
+			return at
+		}
+	}
+	return -1
+}
+
+// sweptActor returns the owner an act runs as, which is the fixture's own
+// owner unless the act names another.
+func sweptActor(r *sweptRecord, actor string) string {
+	if actor == "" {
+		return r.actor
+	}
+	return actor
+}
+
+// sweptWithActor appends the actor flag to an argument list where the act
+// names an owner other than the fixture's own.
+func sweptWithActor(argv []string, actor string) []string {
+	if actor == "" {
+		return argv
+	}
+	return append(argv, "--actor", actor)
+}
+
+// sweptAdd files a card and records the title it was filed under, the state it
+// lands in, and the reference the tool numbers it with.
+func sweptAdd(t *testing.T, w *sweptWorkbenches, title string) {
+	t.Helper()
+	sweptDo(t, w.healthy, "add", title)
+	r := w.record
+	r.cards = append(r.cards, sweptCardRecord{
+		ref:      "fx-" + strconv.Itoa(len(r.cards)+1),
+		title:    title,
+		standing: contract.SubstateReady,
+	})
+}
+
+// sweptClaim takes up a card and records the claim, which leaves the card
+// active and held by the owner that claimed it.
+func sweptClaim(t *testing.T, w *sweptWorkbenches, ref, actor string) {
+	t.Helper()
+	sweptDo(t, w.healthy, sweptWithActor([]string{"claim", ref}, actor)...)
+	r := w.record
+	owner := sweptActor(r, actor)
+	r.claims = append(r.claims, sweptActRecord{card: ref, actor: owner, to: -1})
+	card := &r.cards[sweptCardAt(r, ref)]
+	card.standing, card.holder = contract.SubstateActive, owner
+}
+
+// sweptBlockCard raises an obstacle and records the reason it passed, which
+// leaves the card blocked and gives it back to its queue.
+func sweptBlockCard(t *testing.T, w *sweptWorkbenches, ref, reason, actor string) {
+	t.Helper()
+	sweptDo(t, w.healthy, sweptWithActor([]string{"block", ref, reason}, actor)...)
+	r := w.record
+	owner := sweptActor(r, actor)
+	r.blocks = append(r.blocks, sweptActRecord{card: ref, actor: owner, reason: reason, to: -1})
+	card := &r.cards[sweptCardAt(r, ref)]
+	card.standing, card.holder, card.reason = contract.SubstateBlocked, "", reason
+}
+
+// sweptMove carries a card to another state and records where it went, by the
+// same reference the command was handed.
+func sweptMove(t *testing.T, w *sweptWorkbenches, ref, state string) {
+	t.Helper()
+	sweptDo(t, w.healthy, "move", ref, state)
+	r := w.record
+	at := sweptStateAt(r, state)
+	card := &r.cards[sweptCardAt(r, ref)]
+	r.moves = append(r.moves, sweptActRecord{card: ref, actor: r.actor, from: card.state, to: at})
+	card.state = at
+}
+
+// sweptRelease gives a card back to its queue and records the release, which
+// leaves it ready and held by nobody.
+func sweptRelease(t *testing.T, w *sweptWorkbenches, ref, actor string) {
+	t.Helper()
+	sweptDo(t, w.healthy, sweptWithActor([]string{"release", ref}, actor)...)
+	r := w.record
+	r.releases = append(r.releases, sweptActRecord{card: ref, actor: sweptActor(r, actor), to: -1})
+	card := &r.cards[sweptCardAt(r, ref)]
+	card.standing, card.holder = contract.SubstateReady, ""
+}
+
+// sweptComment records a comment on a card, as the owner that wrote it.
+func sweptComment(t *testing.T, w *sweptWorkbenches, ref, body, actor string) {
+	t.Helper()
+	sweptDo(t, w.healthy, sweptWithActor([]string{"comment", ref, body}, actor)...)
+	r := w.record
+	r.comments = append(r.comments, sweptCommentRecord{card: ref, actor: sweptActor(r, actor), body: body})
+}
+
+// sweptSetEditor writes the editor setting, which is what leaves the editor
+// row of dinah config answering at a rung the fixture chose.
+//
+// The rung matters more than the value. Every other rung of that ladder is
+// outside the fixture's reach, since VISUAL and EDITOR belong to whoever runs
+// the suite and the last rung is the platform's own fallback, so a row left
+// unset draws one thing on a developer's machine and another on a runner. A
+// column an expectation cannot predict is either opaque or filled by a fixture
+// row, and here a fixture row costs one command.
+func sweptSetEditor(t *testing.T, w *sweptWorkbenches, editor string) {
+	t.Helper()
+	sweptDo(t, w.healthy, "config", "set", "editor", editor)
+	w.record.editor = editor
+}
+
+// sweptSettings are the rows dinah config draws, with the rung the fixture
+// caused each key to answer at.
+//
+// The workbench row draws the workbench directory itself, which a card's own
+// file sits directly beneath, so it is carried as a matcher rather than as a
+// string: a record holding that value as a string would hand an expectation
+// the store in one join.
+func sweptSettings(t *testing.T, w *sweptWorkbenches) []sweptSettingRecord {
+	t.Helper()
+	return []sweptSettingRecord{
+		{key: "lang", source: bench.SourceFlag, fromTag: true},
+		{key: "actor", source: bench.SourceEnvironment, value: w.record.actor},
+		{key: "editor", source: bench.SourceConfig, value: w.record.editor},
+		{key: "workbench", source: bench.SourceSearch, pathIs: sweptPathIs(t, w.healthy, filepath.Base(soleBenchDir(t, w.healthy)))},
+	}
+}
+
+// sweptPathIs builds the matcher a drawn path column is compared through.
+//
+// The resolution runs here, once, and reproduces the sequence the head runs:
+// resolvedDir changes directory into the container and reads the working
+// directory back, which is what the head does before it joins the user base
+// and the workbench identifier onto it. Joining onto the raw fixture string
+// instead would assert how a platform spells paths rather than what the head
+// does, which is rule 7 of the Go style standard.
+//
+// What leaves this function is a closure, so the path is reachable only by
+// asking whether a drawn field equals it. An expectation cannot join .dinah
+// onto a closure, open a card's own file, and lift a title out of the store.
+func sweptPathIs(t *testing.T, container, id string) func(field string) bool {
+	t.Helper()
+	resolved := filepath.Join(resolvedDir(t, container), bench.UserBaseName, id)
+	return func(field string) bool { return field == resolved }
 }
 
 // sweptStrippedTree builds a workbench whose states carry no slug, which is
@@ -1409,7 +1673,7 @@ func sweptStrippedTree(t *testing.T, w *sweptWorkbenches, name string) string {
 		t.Fatalf("mkdir: %v", err)
 	}
 	sweptInit(t, dir)
-	sweptAddState(t, dir, reviewState, "Review under an operator", "work", "")
+	sweptAddState(t, dir, reviewState, sweptStrippedTitle, "work", "")
 	sweptStripSlugs(t, dir)
 	return dir
 }
@@ -1501,19 +1765,29 @@ func sweptStripSlugs(t *testing.T, dir string) {
 }
 
 // sweptWriteLinks writes a links sequence into a card's frontmatter, since no
-// command creates a link and the reader reads one.
-func sweptWriteLinks(t *testing.T, dir, ref string) {
+// command creates a link and the reader reads one. The links it plants are
+// recorded from the same values it writes.
+func sweptWriteLinks(t *testing.T, w *sweptWorkbenches, ref string) {
 	t.Helper()
-	located := runCLI(t, dir, "path", ref)
+	planted := []sweptLinkRecord{
+		{card: ref, kind: "blocks", to: "fx-2"},
+		{card: ref, kind: "relates-to", to: "fx-10"},
+	}
+	located := runCLI(t, w.healthy, "path", ref)
 	if located.code != 0 {
 		t.Fatalf("path %s: %d %s", ref, located.code, located.errw)
 	}
 	path := strings.TrimSpace(located.out)
 	sweptRewrite(t, path, func(source string) string {
-		links := "links:\n  - kind: blocks\n    to: fx-2\n  - kind: relates-to\n    to: fx-3\n"
+		var links strings.Builder
+		links.WriteString("links:\n")
+		for _, link := range planted {
+			links.WriteString("  - kind: " + link.kind + "\n    to: " + link.to + "\n")
+		}
 		cut := strings.Index(source[4:], "\n---\n")
-		return source[:cut+4] + "\n" + links + source[cut+5:]
+		return source[:cut+4] + "\n" + links.String() + source[cut+5:]
 	})
+	w.record.links = append(w.record.links, planted...)
 }
 
 // sweptRetitle rewrites a workbench's own title, so two workbenches under one
