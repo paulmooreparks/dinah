@@ -97,7 +97,11 @@ ws-2  Name the depth levels  [Doing / active]
 ```
 
 The trailing field lists the workstreams the card now belongs to, and it is
-absent on a card that belongs to none. Joining a workstream the card already
+absent on a card that belongs to none. One renderer draws every card line the
+tool prints, so the field appears after `claim`, `move`, `release`, `block`,
+`unblock`, and `add` as well as after the three commands drawn here. Whether it
+belongs on all of them or only on these three is one of the things this sketch
+asks you to rule on. Joining a workstream the card already
 belongs to succeeds and changes nothing, and so does leaving one it never
 belonged to.
 
@@ -135,7 +139,7 @@ C:\work\widgets\.dinah\3f8a1c2d4e5b\workstreams\0f1e2d3c4b5a
 
 Archiving a workstream is allowed while cards still belong to it, because a
 finished effort is the ordinary thing to archive. Deleting one is refused while
-any card still lists it.
+a live card still lists it.
 
 ```text
 $ dinah delete workstream/portfolio --yes
