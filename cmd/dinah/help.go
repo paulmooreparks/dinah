@@ -83,7 +83,7 @@ func (s *session) helpBlock() string {
 	var b strings.Builder
 	b.WriteString(s.r.T("help.tagline") + "\n\n")
 	b.WriteString(s.r.T("help.usage") + "\n")
-	list := table{indent: 2, columns: s.columns("commands", "command", "what")}
+	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack}
 	for _, group := range groups {
 		opening := true
 		for _, c := range commands {

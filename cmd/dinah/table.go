@@ -30,6 +30,27 @@ type tableRow struct {
 	note string
 }
 
+// labelling says where a reader meets a table's column labels. It says nothing
+// about whether the columns carry labels at all, since every value below keeps
+// the headings on the columns and only moves where they are drawn.
+type labelling int
+
+const (
+	// labelAbove draws the labels in a heading row over the columns, with a
+	// rule under them, and draws them again in front of each field of the
+	// stacked form. It is the zero value, so a table that says nothing about
+	// its labels draws as it always has.
+	labelAbove labelling = iota
+	// labelInTheStack draws no heading row and no rule over the columns, and
+	// labels each field of the stacked form the way labelAbove does. A reader
+	// who can tell the columns apart at a glance needs no row of labels over
+	// them, and the same reader meeting one field to a line does need a label
+	// in front of each. The columns keep their headings under this value, so
+	// the measure keeps its floors, the stacked form keeps its labels, and the
+	// only line that goes is the row of labels over the columns.
+	labelInTheStack
+)
+
 // table is a whole set of rows before layout. It owns what no row can decide
 // for itself, which is how wide each column is, since that answer depends on
 // every row in the set.
@@ -37,6 +58,9 @@ type table struct {
 	indent  int
 	columns []tableColumn
 	rows    []tableRow
+	// labels says where a reader meets this table's column labels. It defaults
+	// to labelAbove, so a table that says nothing draws as it always has.
+	labels labelling
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -110,7 +134,9 @@ func (s *session) table(t table) {
 // A table of no rows returns no lines at all, so the call site's own sentence
 // about an empty listing is the whole answer. A table of one column returns
 // its rows and neither a heading nor a separator, since one column under a
-// sentence that already names it is a list.
+// sentence that already names it is a list. A table declaring labelInTheStack
+// returns its rows without that pair too, keeping its columns' headings for
+// the measure and for the stacked form.
 //
 // A table the window cannot hold returns a stack instead, one block per
 // record, which stacks explains.
@@ -128,7 +154,7 @@ func (s *session) tableLines(t table) []string {
 		if r.section != "" {
 			lines = append(lines, "", r.section)
 		}
-		if i == 0 && len(laid.columns) > 1 {
+		if i == 0 && len(laid.columns) > 1 && laid.labels == labelAbove {
 			lines = append(lines, laid.headingLines()...)
 		}
 		lines = append(lines, splitLines(laid.rowLine(r))...)
@@ -144,6 +170,8 @@ func (s *session) tableLines(t table) []string {
 type laidTable struct {
 	// indent is the display column every row starts at.
 	indent int
+	// labels is carried from the table, so line assembly need not ask twice.
+	labels labelling
 	// window is the width the table was measured against, which is
 	// assumedWindow when no documented source stated one.
 	window int
@@ -194,7 +222,14 @@ func (s *session) layOut(t table) laidTable {
 func measure(t table, window int) laidTable {
 	filled := withoutEmptyColumns(t)
 	laid := laidTable{
-		indent:  filled.indent,
+		indent: filled.indent,
+		// The labels are read off the table the caller declared rather than off
+		// filled, which is the one field here that does not come from the
+		// narrowed table. withoutEmptyColumns and withoutTrailingEmptyFields
+		// each rebuild a table literal out of indent, columns and rows, so
+		// filled.labels is the zero value on every path through them and would
+		// silently put a labelInTheStack table's heading row back.
+		labels:  t.labels,
 		window:  window,
 		columns: filled.columns,
 		rows:    filled.rows,
