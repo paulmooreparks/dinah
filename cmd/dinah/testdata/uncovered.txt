@@ -16,8 +16,8 @@
 # simply unreached: each is a human rendering the suite has never printed, and
 # each is worth a test rather than a permanent line here.
 
-commands.go:406.2,407.10  runGuide printing one guide's text, which is reached only by naming a topic; the corpus asks for the topic listing and never for a guide.
-help.go:126.32,128.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
+help.go:133.32,135.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
+help.go:224.9,226.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
 render.go:49.29,51.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
 render.go:51.27,53.4  the same, on the branch where the stale response carries a card.
 render.go:54.3,54.102  the same, writing the stale sentence.
@@ -33,4 +33,4 @@ render.go:550.23,552.3  a composition splicing no fragment at all, which needs a
 render.go:578.2,578.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
 render.go:704.23,706.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
 render.go:736.22,738.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
-table.go:115.30,117.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
+table.go:121.30,123.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

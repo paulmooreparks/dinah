@@ -906,7 +906,7 @@
       "context": "The one-line summary of the global flag --json."
     },
     "flag.lang.summary": {
-      "text": "इसी भाषा में दिखाएँ",
+      "text": "इसी भाषा में दिखाएँ; उपलब्ध tags के लिए `dinah version --catalogs` चलाएँ",
       "context": "The one-line summary of the global flag --lang."
     },
     "flag.quiet.summary": {
@@ -918,7 +918,7 @@
       "context": "The one-line summary of the global flag --workbench."
     },
     "help.environment": {
-      "text": "पर्यावरण: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "पर्यावरण: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -1042,7 +1042,7 @@
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-workbench, naming the directory the search found several workbenches under. The candidate rows print beneath it, in the same shape the workbenches listing renders, and refusal.dinah.ambiguous-workbench.next follows as the closing line naming the ways forward."
     },
     "refusal.dinah.ambiguous-workbench.next": {
-      "text": "--workbench \u003cpath\u003e से एक चुनें, या उसके भीतर से चलाएँ",
+      "text": "--workbench <dir> से एक चुनें, या उसके भीतर से चलाएँ",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
     "refusal.dinah.exists": {
@@ -1086,7 +1086,7 @@
       "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried."
     },
     "refusal.dinah.no-configured-workbench.next": {
-      "text": "; `dinah config set workbench \u003cpath\u003e` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
+      "text": "; `dinah config set workbench <dir>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.no-workbench": {
@@ -1102,7 +1102,7 @@
       "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench \u003cpath\u003e दें",
+      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.no-editor": {
@@ -1680,6 +1680,230 @@
     "workstreams.empty": {
       "text": "इस वर्कबेंच में कोई वर्कस्ट्रीम नहीं है",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
+    },
+    "help.arguments": {
+      "text": "आप क्या लिख सकते हैं:",
+      "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is."
+    },
+    "help.guide": {
+      "text": "और जानने के लिए `dinah guide {topic}` चलाएँ।",
+      "context": "The closing line of a command's help page, pointing at the guide that explains that command's argument language. {topic} is the guide's topic name, which is machine vocabulary and is never translated."
+    },
+    "help.vocabulary": {
+      "text": "{summary} (इनमें से एक: {values})",
+      "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated."
+    },
+    "column.arguments.argument": {
+      "text": "आप इसे ऐसे लिखें",
+      "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "column.arguments.what": {
+      "text": "यह क्या है",
+      "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "cmd.check.note": {
+      "text": "दोष मिलने पर Dinah 2 के साथ बाहर निकलता है, इसलिए कोई स्क्रिप्ट केवल निकास कोड पढ़कर काम चला सकती है।",
+      "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals."
+    },
+    "schema.basis.description": {
+      "text": "हर बदलने वाले अनुरोध के लिए Dinah स्वयं basis निकालता है, और इसे लिखने का कोई तरीका उपलब्ध नहीं है, इसलिए इस property को वैसे ही छोड़ दें।",
+      "context": "The description of the basis property, which every generated machine schema carries and no command declares."
+    },
+    "param.card.summary": {
+      "text": "जिस कार्ड पर आप काम कर रहे हैं, उसके संदर्भ के रूप में लिखा गया, जैसे wb-1",
+      "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
+    },
+    "param.ref.summary": {
+      "text": "एक स्थिति, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
+      "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
+    },
+    "param.yes.summary": {
+      "text": "इस काम की पुष्टि करें, जिसके बिना Dinah इसे नहीं करता",
+      "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something."
+    },
+    "param.add.title.summary": {
+      "text": "कार्ड का शीर्षक, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
+      "context": "The meaning of the title argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.add.state.summary": {
+      "text": "कार्ड किस स्थिति में दर्ज करना है; कुछ न लिखने पर पहली स्थिति",
+      "context": "The meaning of the state argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.attach.ref.summary": {
+      "text": "फ़ाइल किससे जुड़ेगी: यह वर्कबेंच, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई टिप्पणी या संलग्नक; --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
+      "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.attach.file.summary": {
+      "text": "इस मशीन पर उस फ़ाइल का पथ जिसे आप जोड़ रहे हैं",
+      "context": "The meaning of the file argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.attach.description.summary": {
+      "text": "संलग्नक का वर्णन करने वाली एक पंक्ति, उसी के साथ रखी जाती है",
+      "context": "The meaning of the description argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.attach.replace.summary": {
+      "text": "नया संलग्नक जोड़ने के बजाय मौजूदा संलग्नक के बाइट बदलें",
+      "context": "The meaning of the replace argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.block.card.summary": {
+      "text": "जिस कार्ड को आप रोक रहे हैं",
+      "context": "The meaning of the card argument of `dinah block`, printed in that command's arguments table."
+    },
+    "param.block.reason.summary": {
+      "text": "यह क्यों रुका है, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
+      "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table."
+    },
+    "param.block.kind.summary": {
+      "text": "यह किस तरह की बाधा है, आपका अपना शब्द; Dinah जो आप लिखते हैं वही रखता है और किसी सूची से नहीं मिलाता",
+      "context": "The meaning of the kind argument of `dinah block`, printed in that command's arguments table."
+    },
+    "param.check.finish.summary": {
+      "text": "अधूरे रह गए संरचनात्मक काम को पूरा करें या वापस लौटाएँ",
+      "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-ordinals.summary": {
+      "text": "हर उस वस्तु पर रचना-क्रमांक अंकित करें जिस पर कोई नहीं है",
+      "context": "The meaning of the migrate-ordinals argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-slugs.summary": {
+      "text": "इस वर्कबेंच की हर उस स्थिति के लिए slug निकालें जिस पर कोई नहीं है",
+      "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-states.summary": {
+      "text": "इस वर्कबेंच की अपनी स्थिति-सूची से छूटे हुए पहचानकर्ता हटाएँ",
+      "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-workstreams.summary": {
+      "text": "\u0939\u0930 \u0909\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u094b \u0905\u092a\u0928\u093e\u090f\u0901 \u091c\u093f\u0938\u0947 \u0915\u094b\u0908 \u0915\u093e\u0930\u094d\u0921 \u0928\u093e\u092e \u0926\u0947\u0924\u093e \u0939\u0948 \u0914\u0930 \u092f\u0939 \u0935\u0930\u094d\u0915\u092c\u0947\u0902\u091a \u0928\u0939\u0940\u0902 \u0930\u0916\u0924\u093e",
+      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.claim.card.summary": {
+      "text": "जिस कार्ड को आप ले रहे हैं",
+      "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table."
+    },
+    "param.claim.expires.summary": {
+      "text": "आपका दावा कब तक टिकेगा, संख्या और इकाई के रूप में लिखा गया: 30m, 2h, 7d",
+      "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table."
+    },
+    "param.comment.text.summary": {
+      "text": "टिप्पणी, एक ही शब्द में या उद्धरण चिह्नों के भीतर; अकेला - इसे पाइप से पढ़ता है",
+      "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table."
+    },
+    "param.config.action.summary": {
+      "text": "एक सेटिंग पढ़ें या लिखें; कुछ न लिखने पर हर सेटिंग अपने मान के साथ",
+      "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.config.key.summary": {
+      "text": "आप कौन-सी सेटिंग पढ़ या लिख रहे हैं",
+      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.config.value.summary": {
+      "text": "set पर, उसमें क्या रखना है",
+      "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.edit.card.summary": {
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
+    },
+    "param.extract.dir.summary": {
+      "text": "इस वर्कबेंच की परिभाषा कहाँ लिखनी है",
+      "context": "The meaning of the dir argument of `dinah extract`, printed in that command's arguments table."
+    },
+    "param.guide.topic.summary": {
+      "text": "कौन-सी मार्गदर्शिका पढ़नी है; कुछ न लिखने पर सभी विषय",
+      "context": "The meaning of the topic argument of `dinah guide`, printed in that command's arguments table."
+    },
+    "param.help.command.summary": {
+      "text": "जिस command का पृष्ठ आप चाहते हैं",
+      "context": "The meaning of the command argument of `dinah help`, printed in that command's arguments table."
+    },
+    "param.init.dir.summary": {
+      "text": "वर्कबेंच कहाँ बनाना है; कुछ न लिखने पर वही निर्देशिका जिसमें आप हैं",
+      "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.init.from.summary": {
+      "text": "वर्कबेंच रखने वाली एक निर्देशिका, या `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल",
+      "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.init.slug.summary": {
+      "text": "वह उपसर्ग जो हर कार्ड संदर्भ पर रहता है; कुछ न लिखने पर निर्देशिका के नाम से निकाला जाता है",
+      "context": "The meaning of the slug argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.init.operator.summary": {
+      "text": "इस वर्कबेंच का स्वामी कौन है; कुछ न लिखने पर आपका अपना actor",
+      "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.instructions.card.summary": {
+      "text": "एक कार्ड या एक स्थिति; instructions न यह वर्कबेंच लेता है और न कार्ड के नीचे की कोई चीज़",
+      "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table."
+    },
+    "param.ls.state.summary": {
+      "text": "कौन-सी स्थिति दिखानी है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
+      "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table."
+    },
+    "param.ls.ready.summary": {
+      "text": "केवल वही कार्ड दिखाएँ जो लिए जाने को तैयार हैं",
+      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table."
+    },
+    "param.move.state.summary": {
+      "text": "कार्ड को किस स्थिति में ले जाना है, इसे --state <state> भी लिखा जाता है",
+      "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table."
+    },
+    "param.move.override.summary": {
+      "text": "कार्ड को तब भी ले जाएँ जब प्रवाह ऐसा कोई कदम नहीं देता",
+      "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table."
+    },
+    "param.next.state.summary": {
+      "text": "किस स्थिति से कार्ड देना है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
+      "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
+    },
+    "param.path.card.summary": {
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
+    },
+    "param.query.query.summary": {
+      "text": "प्रश्न, एक ही शब्द में या उद्धरण चिह्नों के भीतर; कुछ न लिखने पर हर जीवित कार्ड",
+      "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table."
+    },
+    "param.show.card.summary": {
+      "text": "एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
+      "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
+    },
+    "param.version.catalogs.summary": {
+      "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",
+      "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table."
+    },
+    "param.workbench.action.summary": {
+      "text": "एक फ़ील्ड पढ़ें या लिखें; कुछ न लिखने पर हर फ़ील्ड अपने मान के साथ",
+      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workbench.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
+      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workbench.value.summary": {
+      "text": "set पर, उसमें क्या रखना है",
+      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workstream.action.summary": {
+      "text": "\u090f\u0915 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u092c\u0928\u093e\u090f\u0901, \u090f\u0915 \u092a\u0922\u093c\u0947\u0902, \u092f\u093e \u0915\u093f\u0938\u0940 \u090f\u0915 \u0915\u093e \u092b\u093c\u0940\u0932\u094d\u0921 \u0932\u093f\u0916\u0947\u0902; \u0915\u0941\u091b \u0928 \u0932\u093f\u0916\u0928\u0947 \u092a\u0930 \u0939\u0930 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e",
+      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.field.summary": {
+      "text": "\u0906\u092a \u0915\u094c\u0928-\u0938\u093e \u092b\u093c\u0940\u0932\u094d\u0921 \u092a\u0922\u093c \u092f\u093e \u0932\u093f\u0916 \u0930\u0939\u0947 \u0939\u0948\u0902",
+      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.summary": {
+      "text": "\u091c\u093f\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u093e \u0928\u093e\u092e \u0906\u092a \u0932\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902, \u0909\u0938\u0915\u0947 slug \u092f\u093e \u0909\u0938\u0915\u0940 \u092a\u0939\u091a\u093e\u0928 \u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902",
+      "context": "The meaning of the workstream argument, shared by the commands that name one."
+    },
+    "param.workstream.value.summary": {
+      "text": "set \u092a\u0930, \u0909\u0938\u092e\u0947\u0902 \u0915\u094d\u092f\u093e \u0930\u0916\u0928\u093e \u0939\u0948",
+      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.workstream.summary": {
+      "text": "\u091c\u093f\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u094b \u0906\u092a \u092a\u0922\u093c \u092f\u093e \u0932\u093f\u0916 \u0930\u0939\u0947 \u0939\u0948\u0902, \u092f\u093e \u091c\u093f\u0938\u0947 \u092c\u0928\u093e \u0930\u0939\u0947 \u0939\u0948\u0902 \u0909\u0938\u0915\u093e \u0936\u0940\u0930\u094d\u0937\u0915",
+      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
     }
   }
 }

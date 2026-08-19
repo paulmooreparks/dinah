@@ -10,7 +10,8 @@ WORK
   block <card> <reason> [--kind <kind>]  raise an obstacle and free the card
   unblock <card>                         lift a block (operator only)
   comment <card> <text|->                record a comment on a card
-  attach <ref> <file> [--replace]        attach a file, or replace its bytes
+  attach <ref> <file> [--description <text>] [--replace]
+                                         attach a file, or replace its bytes
   join <card> <workstream>               belong a card to a workstream
   leave <card> <workstream>              take a card out of a workstream
   archive <ref>                          move a card, a state, or anything below a card, out of the live set
@@ -22,18 +23,18 @@ READ
   ls [state] [--ready]                   the cards of a state, in queue order
   next [state]                           the card a state offers next
   query [query]                          the cards of the workbench that match a query
-  show <card|path>                       a card, or anything below it
+  show <ref>                             a card, or anything below it
   log <card>                             the recorded actions of a card, oldest first
   instructions <card|state>              the instructions served at a position
   guide [topic]                          the embedded guides, or one of them
 
 WORKBENCH
-  init [--from <source>] [--slug <slug>] [--operator <actor>]
+  init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]
                                          create a workbench here, optionally from a template
   export                                 write this workbench's interchange form to stdout
   extract <dir>                          copy this workbench's definition out as a template
-  path <card|path>                       print the file path of this workbench, of a card, or of anything below a card
-  edit <card|path>                       open this workbench, a card, or anything below a card in your editor
+  path <ref>                             print the file path of this workbench, of a card, or of anything below a card
+  edit <ref>                             open this workbench, a card, or anything below a card in your editor
   config [get|set] [key] [value]         list your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]
                                          look for structural defects in this workbench
@@ -50,14 +51,14 @@ SERVE
 
 Global flags:
   Option             What it does
-  -----------------  ----------------------------------------------------------
+  -----------------  -----------------------------------------------------------
   --workbench <dir>  use this workbench instead of the one discovered from here
   --json             emit the canonical machine form
   --quiet            suppress served instructions on claim and move
-  --lang <tag>       render in this language
+  --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
   --actor <name>     act as this owner
 
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 

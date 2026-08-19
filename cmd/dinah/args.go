@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 
@@ -8,24 +9,60 @@ import (
 	"dinah/internal/verb"
 )
 
-// valuedFlags are the flags that take a value. Every other flag the tool
-// accepts is a marker, so an unknown flag is refused rather than swallowing
-// the argument behind it.
+// valuedFlags are the flags that take a value, and markerFlags are the ones
+// that carry no value. Every flag the tool accepts is in one list or the
+// other, so an unknown flag is refused rather than swallowing the argument
+// behind it.
 //
-// There is no --basis here on purpose. The library carries a basis on every
+// Both are derived from the parameter table and the global flags rather than
+// written out here, so a flag a command declares is a flag the parser accepts
+// and a flag no command declares reaches no reader. Writing them out twice is
+// what let --description work on attach while appearing on no help page.
+//
+// There is no --basis in either list. The library carries a basis on every
 // mutating request and computes one automatically, but an explicit basis is
 // the remote arbiter's, and the spec defers the flag to that era, so this head
 // offers no way to write one.
-var valuedFlags = []string{
-	"workbench", "lang", "actor", "state", "expires", "kind",
-	"from", "description", "slug", "operator",
+var valuedFlags, markerFlags = declaredFlags()
+
+// declaredFlags reads every command's parameter list and the global flags, and
+// returns the valued names and the marker names, each sorted so the two lists
+// are stable whatever order the parameter map is walked in.
+func declaredFlags() (valued, markers []string) {
+	valuedSeen := map[string]bool{}
+	markerSeen := map[string]bool{}
+	for _, name := range verb.Commands() {
+		for _, param := range verb.Params(name) {
+			// A positional whose own row says it is also written --name takes
+			// a value under that spelling, which is how ls, next and move
+			// accept --state beside the bare word.
+			if param.AlsoFlag || (param.Flag && !param.Marker) {
+				valuedSeen[param.Name] = true
+				continue
+			}
+			if param.Flag {
+				markerSeen[param.Name] = true
+			}
+		}
+	}
+	for _, flag := range globalFlags {
+		if flag.marker {
+			markerSeen[flag.name] = true
+			continue
+		}
+		valuedSeen[flag.name] = true
+	}
+	return sortedNames(valuedSeen), sortedNames(markerSeen)
 }
 
-// markerFlags are the flags that carry no value.
-var markerFlags = []string{
-	"json", "quiet", "ready", "override", "replace", "yes", "catalogs",
-	"finish", "migrate-ordinals", "migrate-slugs", "migrate-states",
-	"migrate-workstreams",
+// sortedNames returns a set's members in order.
+func sortedNames(set map[string]bool) []string {
+	names := make([]string, 0, len(set))
+	for name := range set {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // sessionFlagNames are the five flags read directly off the parsed

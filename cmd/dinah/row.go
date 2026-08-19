@@ -34,6 +34,12 @@ type row struct {
 	cells []cell
 	// tail takes whatever is left of the line and is padded to nothing.
 	tail string
+	// wrapTail asks for the tail to be broken between words so that no line
+	// reaches past the window, with each line after the first indented under
+	// the column the tail began at. A row that says nothing has its tail
+	// written whole, which is what every row drew before the arguments table
+	// of a command's help asked for the other behaviour.
+	wrapTail bool
 }
 
 // minTailColumns is how much of a line a continuation always keeps for its own
@@ -81,23 +87,66 @@ func pad(text string, width int) string {
 //
 // Nothing here truncates and nothing breaks a word. A field longer than the
 // window is written whole and the terminal wraps it where it likes, which
-// keeps a path copyable.
+// keeps a path copyable. A row asking for wrapTail is the one exception, and
+// it breaks its tail between words rather than inside one, so the rule holds
+// there too.
 func formatRow(r row, window int) string {
 	var b strings.Builder
 	b.WriteString(strings.Repeat(" ", r.indent))
 	column := r.indent
+	begins := r.indent
 	for _, c := range r.cells {
 		if displayWidth(c.text) < c.width {
 			b.WriteString(pad(c.text, c.width))
 			column += c.width
+			begins += c.width
 			continue
 		}
 		b.WriteString(c.text)
 		b.WriteString("\n")
 		column += c.width
-		b.WriteString(strings.Repeat(" ", continuation(column, r.indent, window)))
+		begins = continuation(column, r.indent, window)
+		b.WriteString(strings.Repeat(" ", begins))
+	}
+	if r.wrapTail && window > 0 {
+		b.WriteString(breakTail(r.tail, begins, window))
+		return b.String()
 	}
 	b.WriteString(r.tail)
+	return b.String()
+}
+
+// breakTail breaks a tail between words so that no line of it reaches past the
+// window, and indents every line after the first to the column the tail began
+// at.
+//
+// A word wider than the room left is written whole and overruns, which is the
+// rule the rest of the renderer follows and what keeps a reference inside a
+// summary copyable. A tail with no room at all is written whole for the same
+// reason, since breaking it a character at a time would help nobody.
+func breakTail(text string, begins, window int) string {
+	room := window - begins
+	if room < 1 {
+		return text
+	}
+	var b strings.Builder
+	drawn := 0
+	for _, word := range strings.Fields(text) {
+		width := displayWidth(word)
+		switch {
+		case drawn == 0:
+			b.WriteString(word)
+			drawn = width
+		case drawn+1+width <= room:
+			b.WriteString(" " + word)
+			drawn += 1 + width
+		default:
+			b.WriteString("\n")
+			b.WriteString(strings.Repeat(" ", begins))
+			b.WriteString(word)
+			drawn = width
+		}
+	}
 	return b.String()
 }
 
