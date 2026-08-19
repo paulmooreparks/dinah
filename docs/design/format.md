@@ -817,11 +817,12 @@ identifier first and the slug second, and never against the title.
 A slug is not enforced unique on a write. Creating a workstream resolves a
 collision by counting up, and renaming one to a slug another workstream already
 carries is accepted, so a reference that either would answer to resolves to the
-earlier of the two. Check raises one finding over the pair and prints one of
-the two identifiers, never both, and which of them it prints is not fixed. The
-sentence it prints says another workstream of this workbench carries the same
-slug, so the finding reports the collision without deciding which workstream
-should give up the name.
+earlier of the two. Check raises one finding over the pair, never two, and it
+names the later of the two by creation order, which is the workstream a
+reference no longer reaches. The sentence it prints says another workstream of
+this workbench carries the same slug, so a person is told which workstream
+stopped answering to the name, and that one is what a repair renames or leaves
+reachable by its identifier alone.
 
 The status is an open value by this document's own test. Dinah writes `active`
 at creation and accepts any non-empty value afterwards, and nothing in the

@@ -388,6 +388,16 @@ func (b *Bench) DanglingWorkstreams() ([]string, error) {
 // carrying no anchor is reported, every workstream carries a slug, each one
 // conforms to the grammar, and no two workstreams share one.
 //
+// The walk is ordered by creation ordinal, the same order workstreamsIn reads
+// the collection in, and that is what decides which workstream a duplicate slug
+// is reported against. ListIDs alone returns directory-name order over
+// identifiers NewID mints at random, which would report whichever of a
+// colliding pair happened to sort later by identifier. Ordered by creation, the
+// earlier workstream fills seen first, so the finding names the later one,
+// which is the workstream whose slug is now shadowed and the one WorkstreamByRef
+// no longer reaches. checkStateSlugs reports a duplicate the same way, since it
+// walks a flow that is already in order.
+//
 // A directory whose name is not a 12-hex identifier is invisible to this walk,
 // because ListIDs drops it, which is how the cards collection already treats
 // one. A directory carrying no anchor is reported and skipped rather than
@@ -398,8 +408,9 @@ func (b *Bench) DanglingWorkstreams() ([]string, error) {
 func (b *Bench) checkWorkstreams() []Finding {
 	var findings []Finding
 	seen := map[string]bool{}
-	for _, id := range ListIDs(b.WorkstreamsRoot()) {
-		dir := filepath.Join(b.WorkstreamsRoot(), id)
+	root := b.WorkstreamsRoot()
+	for _, id := range SortByOrdinal(root, WorkstreamAnchor, ListIDs(root)) {
+		dir := filepath.Join(root, id)
 		if !Exists(filepath.Join(dir, WorkstreamAnchor)) {
 			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
 			continue

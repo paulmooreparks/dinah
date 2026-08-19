@@ -791,6 +791,7 @@ type quickCaptured struct {
 func TestTheQuickStartMatchesTheTool(t *testing.T) {
 	lines, blocks, entries := quickStartCorpus(t)
 	checkExemptionEntries(t, blocks, entries)
+	checkEveryTranscriptDeclaresItsFence(t, blocks)
 	checkTranscriptPathsAreTheNarrative(t, blocks)
 	checkSeparatorRowsMatchTheirTables(t, blocks)
 
@@ -898,6 +899,27 @@ func fencesAreWhole(t *testing.T, lines []string, blocks []quickBlock, inner map
 		whole = false
 	}
 	return whole
+}
+
+// checkEveryTranscriptDeclaresItsFence asserts that a block whose first line
+// opens `$ ` is fenced as console, because that is the only kind the replay
+// drives and the only kind the exemption rules read.
+//
+// Without this rule a transcript on a bare fence is invisible to the whole
+// guard rather than driven or exempt, and nothing says so: it is not replayed,
+// no exemption entry is demanded of it, and the catalog sentences it quotes are
+// never held. A section written that way passes on the day it lands and goes on
+// passing while the tool moves out from under it, which is the drift this
+// document's guard exists to catch.
+func checkEveryTranscriptDeclaresItsFence(t *testing.T, blocks []quickBlock) {
+	t.Helper()
+	for _, block := range blocks {
+		if block.kind == "console" || !block.commandBlock() {
+			continue
+		}
+		t.Errorf("%s:%d: the block opens with %q and is fenced as %q, so the replay does not drive it and no exemption entry is demanded of it; fence it as console",
+			quickStartPath, block.fence, block.body[0], block.kind)
+	}
 }
 
 // checkTranscriptPathsAreTheNarrative requires every absolute path on an

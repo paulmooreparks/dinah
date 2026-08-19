@@ -2178,19 +2178,27 @@ func TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix(t *testing.T) {
 // TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported pins the state a
 // write can reach and creation cannot. The write is accepted, the shared slug
 // still resolves to the earlier workstream, and check raises exactly one
-// duplicate finding carrying one of the two identifiers.
+// duplicate finding, naming the workstream whose slug is now shadowed.
 //
-// The identity of that identifier is asserted as membership of the pair rather
-// than as a fixed workstream, because checkWorkstreams walks ListIDs, which is
-// directory order over random identifiers, so either workstream can be the one
-// named. The count is the load-bearing assertion here: a later card that makes
-// check report both workstreams turns this test red at the count, one that
-// decides to refuse the write turns it red at the first assertion, and one
-// that changes which workstream a reference reaches turns it red at the third.
+// Four assertions carry four different regressions. A later card that decides
+// to refuse the write turns the test red at the outcome. One that changes which
+// workstream a reference reaches turns it red at the resolution. One that makes
+// check report both workstreams turns it red at the count. And one that puts
+// checkWorkstreams back on an unordered walk turns it red at the identity,
+// since the finding would then name whichever of the pair sorted later by a
+// random identifier.
+//
+// The workbench holds a third workstream carrying its own slug, and the count
+// is what that one is here for. On a workbench holding the colliding pair
+// alone, a check that raised a duplicate over a workstream sharing its slug
+// with nobody has no such workstream to raise it over, so the count agrees with
+// a checker that cannot tell a collision from an ordinary slug. The bystander
+// is the wrong answer that assertion had none of.
 func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
 	h := newHarness(t)
 	first := h.newWorkstream("Portfolio work")
 	second := h.newWorkstream("Console redesign")
+	bystander := h.newWorkstream("Documentation sweep")
 
 	req := &Request{Verb: "workstream", Action: "set", Actor: "alka", Workstream: "console-redesign", Field: bench.SlugField, Value: first.Slug, Confirm: true}
 	got := h.library.SetWorkstream(req)
@@ -2213,8 +2221,8 @@ func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
 	if len(duplicates) != 1 {
 		t.Fatalf("check raised %d %s findings %v, wanted exactly one over the pair, so the duplicate this write minted is either undetected or reported twice", len(duplicates), bench.FindingWorkstreamSlugDuplicate, duplicates)
 	}
-	if duplicates[0] != first.ID && duplicates[0] != second.ID {
-		t.Errorf("the duplicate finding names %s, which is neither workstream of the pair %s and %s", duplicates[0], first.ID, second.ID)
+	if duplicates[0] != second.ID {
+		t.Errorf("the duplicate finding names %s, wanted the shadowed workstream %s; the earlier workstream is %s and the bystander is %s", duplicates[0], second.ID, first.ID, bystander.ID)
 	}
 }
 

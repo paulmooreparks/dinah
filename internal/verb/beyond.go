@@ -814,17 +814,19 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 // A slug another live workstream already carries is accepted, so this command
 // can write a duplicate that NewWorkstream's own collision loop can never
 // produce. Check is the whole answer to that state. It raises exactly one
-// check.workstream-slug-duplicate finding over the pair and prints one of the
-// two identifiers, never both, and which of the two it prints is not fixed,
-// because checkWorkstreams walks the directory listing while WorkstreamByRef
-// returns the earlier by creation order for a reference that either would
-// answer to. So a person meets one identifier together with the finding's own
-// sentence saying another workstream of this workbench carries the same slug,
-// and the finding reports the collision without deciding which of the two
-// should give up the name. Refusing the write here instead would amend the
-// evaluation order the operator ratified, inside a change he does not see, so
-// whether this command grows that refusal is his call rather than this
-// command's.
+// check.workstream-slug-duplicate finding over the pair, never two, and it
+// names the later of the two by creation order, because checkWorkstreams and
+// WorkstreamByRef walk the collection in the same order: the earlier workstream
+// fills the seen set first and is the one a shared reference reaches, so the
+// identifier printed is always the workstream whose slug has been shadowed. A
+// person therefore meets the name that has stopped answering, together with the
+// finding's own sentence saying another workstream of this workbench carries
+// the same slug, and the repair is to rename that one or leave it reachable by
+// its identifier alone.
+//
+// Refusing the write here instead would amend the evaluation order the operator
+// ratified, inside a change he does not see, so whether this command grows that
+// refusal is his call rather than this command's.
 //
 // The write reloads the anchor under the workstream's own lock and sets the
 // one field on the reloaded value, because Save rewrites the whole anchor from
