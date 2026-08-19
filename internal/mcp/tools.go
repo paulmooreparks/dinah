@@ -89,17 +89,29 @@ func toolList() []map[string]any {
 
 // schemaFor generates one tool's input schema from the parameter list the cli
 // head composes its syntax line from, so the two heads cannot drift.
+//
+// Every property carries the same sentence the cli head prints beside the
+// argument, so an agent reading the schema and a person reading the help page
+// are told the same thing. The two properties beyond the parameter list are
+// resolved by name, because neither is a parameter: actor takes the sentence
+// the global flag row already prints, and basis takes one written for it.
+//
+// No property carries an enum. A description is additive and constrains no
+// caller, where an enum changes what a strict client will send, which is a
+// change to a published machine interface.
 func schemaFor(command string) map[string]any {
+	catalog := msg.For(msg.Base)
 	properties := map[string]any{}
 	var required []string
 	for _, param := range verb.Params(command) {
-		properties[param.Name] = map[string]any{"type": param.Type()}
+		description := catalog.T(param.SummaryKey(command))
+		properties[param.Name] = map[string]any{"type": param.Type(), "description": description}
 		if param.Required {
 			required = append(required, param.Name)
 		}
 	}
-	properties["actor"] = map[string]any{"type": "string"}
-	properties["basis"] = map[string]any{"type": "string"}
+	properties["actor"] = map[string]any{"type": "string", "description": catalog.T("flag.actor.summary")}
+	properties["basis"] = map[string]any{"type": "string", "description": catalog.T("schema.basis.description")}
 	sort.Strings(required)
 	schema := map[string]any{
 		"type":       "object",

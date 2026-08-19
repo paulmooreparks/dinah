@@ -541,6 +541,11 @@
       "context": "The one-line summary of the block command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.check.note": {
+      "text": "Dinah exits 2 when it finds a defect, so a script may read the exit code alone.",
+      "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals.",
+      "skeleton": true
+    },
     "cmd.check.summary": {
       "text": "look for structural defects in this workbench",
       "context": "The one-line summary of the check command, shown beside its syntax in the help block.",
@@ -679,6 +684,16 @@
     "cmd.workbenches.summary": {
       "text": "the workbenches reachable from here",
       "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "column.arguments.argument": {
+      "text": "As you write it",
+      "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
+    "column.arguments.what": {
+      "text": "What it is",
+      "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
       "skeleton": true
     },
     "column.blocked.card": {
@@ -952,7 +967,7 @@
       "skeleton": true
     },
     "flag.lang.summary": {
-      "text": "render in this language",
+      "text": "render in this language; run `dinah version --catalogs` for the tags",
       "context": "The one-line summary of the global flag --lang.",
       "skeleton": true
     },
@@ -966,8 +981,13 @@
       "context": "The one-line summary of the global flag --workbench.",
       "skeleton": true
     },
+    "help.arguments": {
+      "text": "What you may write:",
+      "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is.",
+      "skeleton": true
+    },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
       "skeleton": true
     },
@@ -1006,6 +1026,11 @@
       "context": "A heading of the help block, grouping the commands beneath it.",
       "skeleton": true
     },
+    "help.guide": {
+      "text": "For more, run `dinah guide {topic}`.",
+      "context": "The closing line of a command's help page, pointing at the guide that explains that command's argument language. {topic} is the guide's topic name, which is machine vocabulary and is never translated.",
+      "skeleton": true
+    },
     "help.refusals": {
       "text": "What can go wrong, in the order each is checked:",
       "context": "The heading above a command's ordered precondition list in its own help.",
@@ -1019,6 +1044,11 @@
     "help.usage": {
       "text": "Usage: dinah \u003ccommand\u003e [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are.",
+      "skeleton": true
+    },
+    "help.vocabulary": {
+      "text": "{summary} (one of: {values})",
+      "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated.",
       "skeleton": true
     },
     "init.actor.recorded": {
@@ -1086,6 +1116,221 @@
       "context": "The sentence after the unreachable outcome name.",
       "skeleton": true
     },
+    "param.add.state.summary": {
+      "text": "which state to file the card in; the first state when you name none",
+      "context": "The meaning of the state argument of `dinah add`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.add.title.summary": {
+      "text": "the card's title, in one shell word or in quotation marks",
+      "context": "The meaning of the title argument of `dinah add`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.attach.description.summary": {
+      "text": "a line describing the attachment, stored beside it",
+      "context": "The meaning of the description argument of `dinah attach`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.attach.file.summary": {
+      "text": "a path on this machine to the file you are attaching",
+      "context": "The meaning of the file argument of `dinah attach`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.attach.ref.summary": {
+      "text": "what the file hangs off: this workbench, a state, a card, or a comment or an attachment below a card; with --replace, the attachment whose bytes you are replacing",
+      "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.attach.replace.summary": {
+      "text": "replace an existing attachment's bytes instead of adding one",
+      "context": "The meaning of the replace argument of `dinah attach`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.block.card.summary": {
+      "text": "the card you are blocking",
+      "context": "The meaning of the card argument of `dinah block`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.block.kind.summary": {
+      "text": "your own word for what sort of obstacle this is; Dinah stores whatever you write and checks it against no set",
+      "context": "The meaning of the kind argument of `dinah block`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.block.reason.summary": {
+      "text": "why it is blocked, in one shell word or in quotation marks",
+      "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.card.summary": {
+      "text": "the card you are acting on, written as its reference, such as wb-1",
+      "context": "The meaning of the card argument, shared by every command that takes a card and nothing else.",
+      "skeleton": true
+    },
+    "param.check.finish.summary": {
+      "text": "complete or roll back a structural act that was interrupted",
+      "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.check.migrate-ordinals.summary": {
+      "text": "stamp a creation ordinal on every entity that carries none",
+      "context": "The meaning of the migrate-ordinals argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.check.migrate-slugs.summary": {
+      "text": "derive a slug for every state of this workbench that carries none",
+      "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.check.migrate-states.summary": {
+      "text": "remove stranded identifiers from this workbench's own list of states",
+      "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.claim.card.summary": {
+      "text": "the card you are taking up",
+      "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.claim.expires.summary": {
+      "text": "how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d",
+      "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.comment.text.summary": {
+      "text": "the comment, in one shell word or in quotation marks; a single - reads it from a pipe",
+      "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.config.action.summary": {
+      "text": "read one setting or write one; every setting with its value when you name none",
+      "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.config.key.summary": {
+      "text": "which setting you are reading or writing",
+      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.config.value.summary": {
+      "text": "what to store under it, on a set",
+      "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.edit.card.summary": {
+      "text": "this workbench written as workbench or as a dot, a card, or something below a card such as wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.extract.dir.summary": {
+      "text": "where to write this workbench's definition",
+      "context": "The meaning of the dir argument of `dinah extract`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.guide.topic.summary": {
+      "text": "which guide to read; the topics when you name none",
+      "context": "The meaning of the topic argument of `dinah guide`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.help.command.summary": {
+      "text": "the command whose page you want",
+      "context": "The meaning of the command argument of `dinah help`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.init.dir.summary": {
+      "text": "where to create the workbench; the directory you are in when you name none",
+      "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.init.from.summary": {
+      "text": "a directory holding a workbench, or a single file written by `dinah export` or `dinah extract`",
+      "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.init.operator.summary": {
+      "text": "who owns this workbench; your own actor when you name none",
+      "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.init.slug.summary": {
+      "text": "the prefix every card reference carries; derived from the directory's name when you name none",
+      "context": "The meaning of the slug argument of `dinah init`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.instructions.card.summary": {
+      "text": "a card or a state; instructions takes neither this workbench nor anything below a card",
+      "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.ls.ready.summary": {
+      "text": "list only the cards that are ready to be claimed",
+      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.ls.state.summary": {
+      "text": "which state to list, also written --state \u003cstate\u003e; every state when you name none",
+      "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.move.override.summary": {
+      "text": "carry the card even where the flow offers no such move",
+      "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.move.state.summary": {
+      "text": "which state to carry the card to, also written --state \u003cstate\u003e",
+      "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.next.state.summary": {
+      "text": "which state to offer a card from, also written --state \u003cstate\u003e; every state when you name none",
+      "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.path.card.summary": {
+      "text": "this workbench written as workbench or as a dot, a card, or something below a card such as wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.query.query.summary": {
+      "text": "the query, in one shell word or in quotation marks; every live card when you write none",
+      "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.ref.summary": {
+      "text": "a state, a card, or something below a card such as wb-1/comments/1; not this workbench",
+      "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
+      "skeleton": true
+    },
+    "param.show.card.summary": {
+      "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
+      "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.version.catalogs.summary": {
+      "text": "report every shipped language and how much of each is translated",
+      "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workbench.action.summary": {
+      "text": "read one field or write one; every field with its value when you name none",
+      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workbench.field.summary": {
+      "text": "which field you are reading or writing",
+      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workbench.value.summary": {
+      "text": "what to store in it, on a set",
+      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.yes.summary": {
+      "text": "confirm the act, which Dinah does not carry out without it",
+      "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something.",
+      "skeleton": true
+    },
     "query.empty": {
       "text": "No card matches that query.",
       "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal.",
@@ -1127,7 +1372,7 @@
       "skeleton": true
     },
     "refusal.dinah.ambiguous-workbench.next": {
-      "text": "choose one with --workbench \u003cpath\u003e, or run from inside it",
+      "text": "choose one with --workbench \u003cdir\u003e, or run from inside it",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
       "skeleton": true
     },
@@ -1197,7 +1442,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-configured-workbench.next": {
-      "text": "; run `dinah config set workbench \u003cpath\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "text": "; run `dinah config set workbench \u003cdir\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -1222,7 +1467,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; run `dinah init` here to create one, or pass --workbench \u003cpath\u003e to point at one that exists",
+      "text": "; run `dinah init` here to create one, or pass --workbench \u003cdir\u003e to point at one that exists",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -1574,6 +1819,11 @@
     "refusal.unsupported-version.window": {
       "text": "; this build reads {floor} through {ceiling}",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them.",
+      "skeleton": true
+    },
+    "schema.basis.description": {
+      "text": "Dinah computes a basis for every request that changes something, and nothing here offers a way to write one, so leave this property alone.",
+      "context": "The description of the basis property, which every generated machine schema carries and no command declares.",
       "skeleton": true
     },
     "show.comments": {

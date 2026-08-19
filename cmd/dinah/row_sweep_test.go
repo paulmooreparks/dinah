@@ -56,6 +56,10 @@ type sweptBlock struct {
 	// constantReason is why this block's fields take values no command
 	// varies. It is empty on every block whose columns vary.
 	constantReason string
+	// wrapsTail says the block asks the renderer to break its last column
+	// between words at the window, so a line leading at that column's own
+	// display position continues the row above rather than opening a new one.
+	wrapsTail bool
 	// render runs the command that draws this block and returns its lines.
 	render func(t *testing.T, w *sweptWorkbenches, tag string) []string
 	// shape is an extra assertion about the rows this entry exists for, on a
@@ -882,7 +886,17 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 	closeRow := func() {
 		rows, row, next = append(rows, row), nil, 0
 	}
+	tail := len(columns) - 1
 	for i, line := range lines {
+		// A block that asks the renderer to break its last column between
+		// words draws continuation lines leading at that column's own
+		// position. Reading one without knowing that would report an aligned
+		// continuation as a first field in the wrong place.
+		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == columns[tail] {
+			previous := rows[len(rows)-1]
+			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
+			continue
+		}
 		if sweptLead(line) != columns[next] {
 			return fail("field %d begins at display column %d and its heading begins at %d:\n%q",
 				next, sweptLead(line), columns[next], line)
@@ -1089,8 +1103,8 @@ const (
 	noCell = -1
 )
 
-// sweptBlocks are the twenty-one entries of the spec's inventory, at the
-// nineteen call sites they render through.
+// sweptBlocks are the twenty-two entries of the spec's inventory, at the
+// twenty call sites they render through.
 func sweptBlocks() []sweptBlock {
 	rendered := func(tag, key string) string { return msg.For(tag).T(key) }
 	return []sweptBlock{
@@ -1257,7 +1271,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:101", label: "the command list of bare dinah",
+			site: "help.go:108", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
 			noHeadingRow: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
@@ -1266,7 +1280,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:109", label: "the global flag list",
+			site: "help.go:116", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag)
@@ -1274,11 +1288,20 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:142", label: "dinah help <command>",
+			site: "help.go:151", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "help", "add")
 				return indentedBlock(out, rendered(tag, "help.refusals"))
+			},
+		},
+		{
+			site: "help.go:186", label: "what you may write, on dinah help <command>",
+			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
+			wrapsTail: true,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
+				out := sweptRun(t, w.healthy, tag, "help", "attach")
+				return indentedBlock(out, rendered(tag, "help.arguments"))
 			},
 		},
 		{
