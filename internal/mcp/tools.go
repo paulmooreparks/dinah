@@ -27,6 +27,12 @@ type tool struct {
 // tools is the whole MCP surface. A command that exists only because a shell
 // and a filesystem exist gets no tool, which leaves out path, edit, init,
 // extract, config and mcp itself, and guide is a resource rather than a tool.
+//
+// workbench falls inside that rule rather than outside it, even though config
+// does not. A workbench's own fields are workbench state that travels with the
+// repository, where a user setting is a machine artifact, and the operator
+// check guards the write here exactly as it does at a terminal, because the
+// library holds it.
 var tools = []tool{
 	{name: "claim", command: verb.Claim, run: doVerb},
 	{name: "move", command: verb.Move, run: doVerb},
@@ -42,10 +48,12 @@ var tools = []tool{
 	{name: "states", command: "states", run: readStates},
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
+	{name: "query", command: "query", run: readQuery},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
+	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},
@@ -156,6 +164,17 @@ func readNext(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"offers": offers}, []string{"claim", "show", "log"})
 }
 
+// readQuery answers the query tool. It carries the same Matches object the
+// cli head emits under --json for the same query string, since both heads hand
+// the one library call the one string.
+func readQuery(l *verb.Library, r *verb.Request) any {
+	matches, err := l.Query(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"matches": matches}, readAffordances)
+}
+
 // readShow answers the show tool.
 func readShow(l *verb.Library, r *verb.Request) any {
 	detail, text, err := l.Show(r)
@@ -193,6 +212,21 @@ func readWhoami(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"identity": identity}, readAffordances)
+}
+
+// doWorkbench answers the workbench tool, which reads the workbench's own
+// fields or writes one of them, exactly as the command does. A call naming the
+// set action takes the write, and every other call is the read, so an agent
+// reads the same three fields the terminal listing prints.
+func doWorkbench(l *verb.Library, r *verb.Request) any {
+	if r.Action == "set" {
+		return l.SetWorkbench(r)
+	}
+	fields, err := l.Workbench(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"workbench": fields}, readAffordances)
 }
 
 // readVersion answers the version tool, always with catalog coverage, since a

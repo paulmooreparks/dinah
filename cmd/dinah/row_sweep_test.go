@@ -70,6 +70,14 @@ type sweptBlock struct {
 	// as the start of the next record rather than as a missing separator, and
 	// everything else about the block is asserted as it is anywhere else.
 	blanksAreLost bool
+	// noHeadingRow says the call site declares labelInTheStack, so the columnar
+	// form of this block draws neither a heading row nor a rule. The block
+	// still declares its keys: its columns keep their headings, the measure
+	// still floors each column at its own heading, and the stacked form still
+	// labels every field with one. Every row-shape assertion runs against such
+	// a block, with the column positions read from the rows instead of from a
+	// heading row.
+	noHeadingRow bool
 }
 
 // sweptWindows are the three windows every block below is drawn at: the one
@@ -195,7 +203,10 @@ var sweptPass = "0"
 // A block the window is too narrow for draws as a stack rather than as a
 // table, and the stacked form has assertions of its own. That happens on every
 // block of the narrow pass and on the workbench listing wherever a fixture's
-// path is long enough, which at eighty columns it is.
+// path is long enough, which at eighty columns it is. drawsTheStackedForm is
+// what tells the two apart, and a block declaring noHeadingRow is held to that
+// declaration first, since no reading of the output can catch a block drawing
+// a heading row it said it would never draw.
 func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stacked bool) {
 	t.Helper()
 	stacks := 0
@@ -213,28 +224,30 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 				assertNoHeadingIsDrawn(t, block, tag, lines)
 				continue
 			}
-			if !carriesTheHeadingRow(block, tag, lines[0]) {
+			if block.noHeadingRow && carriesTheHeadingRow(block, tag, lines[0]) {
+				t.Errorf("%s (%s), locale %s: the block declares that it draws no heading row and drew one:\n%q", block.site, block.label, tag, lines[0])
+				continue
+			}
+			if drawsTheStackedForm(block, tag, lines[0]) {
 				assertStackedBlock(t, block, tag, lines)
 				stacks++
 				continue
 			}
-			columns := assertHeadingRow(t, block, tag, lines)
+			columns, rowLines := sweptRowLines(t, block, tag, full, lines)
 			if columns == nil {
 				continue
 			}
-			if !full {
-				assertNoRuleRunsPastTheEdge(t, block, tag, lines[1], columns)
-				continue
-			}
-			rows := readSweptRows(t, block, tag, lines[2:], columns)
+			rows := readSweptRows(t, block, tag, rowLines, columns)
 			if len(rows) < 2 {
 				t.Errorf("%s (%s), locale %s: the block rendered %d row, and one row cannot disagree with itself", block.site, block.label, tag, len(rows))
 				continue
 			}
-			assertSeparatorRow(t, block, tag, lines[1], columns, rows)
+			if !block.noHeadingRow {
+				assertSeparatorRow(t, block, tag, lines[1], columns, rows)
+			}
 			assertEveryColumnIsTight(t, block, tag, columns, rows)
 			assertACellVaries(t, block, tag, rows)
-			assertNoRowThatFitsIsContinued(t, block, tag, lines, columns, rows)
+			assertNoRowThatFitsIsContinued(t, block, tag, rowLines, columns, rows)
 			if block.shape != nil {
 				block.shape(t, tag, rows)
 			}
@@ -283,7 +296,7 @@ func assertTheStackedCheckCanFail(t *testing.T) {
 				{fields: []string{"demo-2", "", "a second card of some length"}},
 			},
 		})
-		if carriesTheHeadingRow(block, tag, lines[0]) {
+		if !drawsTheStackedForm(block, tag, lines[0]) {
 			t.Errorf("locale %s: the control block held its shape at a window of %d, so it arms nothing:\n%q", tag, sweptWindow, lines[0])
 			continue
 		}
@@ -291,11 +304,154 @@ func assertTheStackedCheckCanFail(t *testing.T) {
 	}
 }
 
+// drawsTheStackedForm reports whether a block drew the stacked form rather
+// than a table, which decides which set of assertions the block is read by.
+//
+// It asks what the stacked form draws instead of what a table draws. Reading
+// the absence of a heading row as a stack was safe only while every table drew
+// one, and a call site declaring labelInTheStack draws a table with no heading
+// row, which that reading calls a stack in every locale at every window.
+//
+// A stacked line opens with one of the block's own labels and carries a value
+// behind it, and a table's row opens with a value. The heading row opens with
+// a label too, so it is ruled out first, being the one line that carries every
+// label of the block in column order.
+func drawsTheStackedForm(block sweptBlock, tag string, line string) bool {
+	if carriesTheHeadingRow(block, tag, line) {
+		return false
+	}
+	return stackedLabel(line, sweptLabels(block, tag)) >= 0
+}
+
+// sweptLabels renders the block's headings in one language, in column order.
+func sweptLabels(block sweptBlock, tag string) []string {
+	labels := make([]string, 0, len(block.keys))
+	for _, key := range block.keys {
+		labels = append(labels, msg.For(tag).T(key))
+	}
+	return labels
+}
+
+// sweptRowLines asserts whatever this pass asks of the lines a block draws
+// above its rows, and returns the display column each column begins at
+// together with the lines that carry rows. It returns nil columns when the
+// block has nothing further to assert on this pass, either because a failure
+// has already been reported or because the narrow pass asks nothing more of
+// it.
+//
+// The two forms differ in one line pair, and resolving that here is what keeps
+// a count of skipped lines out of every assertion below. A block drawing a
+// heading row takes its column positions out of that row and its rows out of
+// the lines under the rule. A block declaring noHeadingRow draws no such pair,
+// so its positions are read from its own rows and every line it drew is a row
+// line.
+//
+// The narrow pass leaves a noHeadingRow block after assertNoHeadingIsDrawn and
+// asserts nothing further about it. Both of the things that pass asks are
+// about a line the block never prints, since assertNoRuleRunsPastTheEdge reads
+// a rule and the derivation reads a row that fits on one line, which the row
+// renderer's own clamp is free to deny it there.
+func sweptRowLines(t *testing.T, block sweptBlock, tag string, full bool, lines []string) ([]int, []string) {
+	t.Helper()
+	if block.noHeadingRow {
+		assertNoHeadingIsDrawn(t, block, tag, lines)
+		if !full {
+			return nil, nil
+		}
+		return deriveHeadinglessColumns(t, block, tag, lines), lines
+	}
+	columns := assertHeadingRow(t, block, tag, lines)
+	if columns == nil {
+		return nil, nil
+	}
+	if !full {
+		assertNoRuleRunsPastTheEdge(t, block, tag, lines[1], columns)
+		return nil, nil
+	}
+	return columns, lines[2:]
+}
+
+// deriveHeadinglessColumns reads the display column each column of a
+// noHeadingRow block begins at out of the block's own rows, which is what the
+// headed path reads out of its heading line.
+//
+// Every column but the last is padded to a fixed width by the one row
+// renderer, so a run of at least the gutter's width of blank display columns
+// behind a field marks where the next column begins. A line that begins
+// somewhere other than the column under consideration is a continuation and is
+// skipped before the scan.
+//
+// The rightmost candidate wins rather than the first or the leftmost. A field
+// whose own value carries two adjacent spaces offers a false boundary to the
+// left of the true one, since sweptNextFieldColumn stops at the first gap of
+// the gutter's width, and the maximum discards that candidate where a
+// first-wins rule adopts it. A genuine disagreement between rows is not
+// settled by the maximum and is not asked to be: readSweptRows reads every row
+// against the positions returned here and fails on any row whose fields begin
+// somewhere else.
+//
+// Column 0 is taken at sweptIndent rather than asserted, for the same reason.
+// A row indented anywhere else fails in readSweptRows.
+//
+// A column no row places calls t.Errorf naming the block, the locale and the
+// column, then returns nil for the caller to read as a failure already
+// reported, exactly as assertHeadingRow does. The loop runs until it holds one
+// position per declared key, so a short slice never reaches the row checks. A
+// block whose first column is empty on every row offers no boundary anywhere,
+// since every line's lead sits where the second column begins, and it fails by
+// that message rather than passing quietly.
+func deriveHeadinglessColumns(t *testing.T, block sweptBlock, tag string, lines []string) []int {
+	t.Helper()
+	columns := []int{sweptIndent}
+	for len(columns) < len(block.keys) {
+		from := columns[len(columns)-1]
+		at := -1
+		for _, line := range lines {
+			if sweptLead(line) != from {
+				continue
+			}
+			if next := sweptNextFieldColumn(line, from); next > at {
+				at = next
+			}
+		}
+		if at < 0 {
+			t.Errorf("%s (%s), locale %s: no row of this block shows where column %d begins, so nothing about its columns is asserted",
+				block.site, block.label, tag, len(columns))
+			return nil
+		}
+		columns = append(columns, at)
+	}
+	return columns
+}
+
+// sweptNextFieldColumn reports the display column the field after the one
+// beginning at from starts in, or minus one when the line offers no boundary.
+// The boundary is the first non-space that a run of at least the gutter's
+// width of blank display columns stands in front of, which is what the row
+// renderer leaves behind when it pads a field to its column. A line that stops
+// short with no such gap after its last field offers no boundary.
+func sweptNextFieldColumn(line string, from int) int {
+	width := displayWidth(line)
+	blank := 0
+	for column := from; column < width; column++ {
+		if sweptSpaceAt(line, column) {
+			blank++
+			continue
+		}
+		if blank >= sweptGutter {
+			return column
+		}
+		blank = 0
+	}
+	return -1
+}
+
 // carriesTheHeadingRow reports whether a line is the heading row a block
-// declares, which is what tells a table apart from the stack a window too
-// narrow for it draws instead. It reads the same catalog entries in the same
-// order assertHeadingRow does and reports rather than failing, since either
-// answer is a shape this sweep asserts against.
+// declares, which is what rules the heading row out of the stacked reading in
+// drawsTheStackedForm and what holds a noHeadingRow block to its declaration.
+// It reads the same catalog entries in the same order assertHeadingRow does
+// and reports rather than failing, since either answer is a shape this sweep
+// asserts against.
 func carriesTheHeadingRow(block sweptBlock, tag, line string) bool {
 	cursor := 0
 	for _, key := range block.keys {
@@ -460,14 +616,16 @@ func assertHeadingRow(t *testing.T, block sweptBlock, tag string, lines []string
 	return columns
 }
 
-// assertNoHeadingIsDrawn asserts that a block of one column prints neither a
-// heading row nor a separator row, since one column under a sentence that
-// already names it is a list rather than a table.
+// assertNoHeadingIsDrawn asserts that a block promising no heading row draws
+// no separator row anywhere in it. Two kinds of block promise that. One column
+// under a sentence that already names it is a list rather than a table, and a
+// call site declaring labelInTheStack keeps its columns and draws the row of
+// labels over them nowhere.
 func assertNoHeadingIsDrawn(t *testing.T, block sweptBlock, tag string, lines []string) {
 	t.Helper()
 	for _, line := range lines {
 		if strings.Trim(strings.TrimSpace(line), "-") == "" && strings.Contains(line, "-") {
-			t.Errorf("%s (%s), locale %s: a block of one column drew a separator row:\n%q", block.site, block.label, tag, line)
+			t.Errorf("%s (%s), locale %s: a headingless block drew a separator row:\n%q", block.site, block.label, tag, line)
 		}
 	}
 }
@@ -668,7 +826,7 @@ func assertNoLineEndsInASpace(t *testing.T, block sweptBlock, tag string, lines 
 // check entirely, so a column narrower than the rows it holds is a shape this
 // assertion does not speak to at all. The narrow-window post-condition in
 // TestTheBackstopHoldsWhateverTheWidthsWere is what covers it.
-func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, lines []string, columns []int, rows [][]string) {
+func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, rowLines []string, columns []int, rows [][]string) {
 	t.Helper()
 	for _, row := range rows {
 		packed := sweptIndent
@@ -690,9 +848,9 @@ func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, 
 			}
 		}
 	}
-	if len(lines) != len(rows)+2 {
-		t.Errorf("%s (%s), locale %s: every row of this block fits the window and the block drew %d lines under its heading for %d rows",
-			block.site, block.label, tag, len(lines)-2, len(rows))
+	if len(rowLines) != len(rows) {
+		t.Errorf("%s (%s), locale %s: every row of this block fits the window and the block drew %d row lines for %d rows",
+			block.site, block.label, tag, len(rowLines), len(rows))
 	}
 }
 
@@ -937,7 +1095,7 @@ func sweptBlocks() []sweptBlock {
 	rendered := func(tag, key string) string { return msg.For(tag).T(key) }
 	return []sweptBlock{
 		{
-			site: "render.go:128", label: "the legal moves under a served instruction",
+			site: "render.go:133", label: "the legal moves under a served instruction",
 			keys: []string{"column.moves.state", "column.moves.name", "column.moves.direction"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "instructions", w.card)
@@ -945,7 +1103,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:148", label: "the cards you hold",
+			site: "render.go:153", label: "the cards you hold",
 			keys: []string{"column.holding.card", "column.holding.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "status")
@@ -953,7 +1111,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:157", label: "the cards that are blocked",
+			site: "render.go:162", label: "the cards that are blocked",
 			keys: []string{"column.blocked.card", "column.blocked.reason"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "status")
@@ -961,7 +1119,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:184", label: "dinah states",
+			site: "render.go:189", label: "dinah states",
 			keys:   []string{"column.states.slug", "column.states.name", "column.states.kind", "column.states.cards", "column.states.owner"},
 			varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
@@ -969,35 +1127,42 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:197", label: "dinah ls",
+			site: "render.go:202", label: "dinah ls",
 			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "ls"), "")
 			},
 		},
 		{
-			site: "render.go:209", label: "dinah config",
+			site: "render.go:219", label: "dinah query",
+			keys: []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"},
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
+				return indentedBlock(sweptRun(t, w.healthy, tag, "query"), "")
+			},
+		},
+		{
+			site: "render.go:231", label: "dinah config",
 			keys: []string{"column.config.setting", "column.config.value", "column.config.source"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "config"), "")
 			},
 		},
 		{
-			site: "render.go:237", label: "dinah workbenches",
+			site: "render.go:259", label: "dinah workbenches",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.ambiguous, tag, "workbenches"), "")
 			},
 		},
 		{
-			site: "render.go:237", label: "the ambiguous-workbench refusal, written to stderr",
+			site: "render.go:259", label: "the ambiguous-workbench refusal, written to stderr",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRefused(t, w.ambiguous, tag, "status"), "")
 			},
 		},
 		{
-			site: "render.go:263", label: "dinah next, a state offering a card",
+			site: "render.go:285", label: "dinah next, a state offering a card",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "next"), "")
@@ -1013,7 +1178,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:263", label: "dinah next, a state offering nothing",
+			site: "render.go:285", label: "dinah next, a state offering nothing",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "next"), "")
@@ -1030,7 +1195,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:280", label: "a card's links",
+			site: "render.go:302", label: "a card's links",
 			keys: []string{"column.links.link", "column.links.card"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "show", w.card)
@@ -1038,7 +1203,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:290", label: "a card's comments",
+			site: "render.go:312", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			constantReason: "a timestamp is one format in one time zone, so every comment header draws its stamp " +
@@ -1049,35 +1214,42 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:315", label: "dinah log",
+			site: "render.go:337", label: "dinah log",
 			keys: []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "log", w.held), "")
 			},
 		},
 		{
-			site: "render.go:331", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:353", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, sweptStrippedTree(t, w, "slugs-"+tag+"-"+sweptPass), tag, "check", "--migrate-slugs"), "")
 			},
 		},
 		{
-			site: "render.go:345", label: "one removed stranded state", varies: noCell,
+			site: "render.go:367", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states"), "")
 			},
 		},
 		{
-			site: "render.go:362", label: "one finding", varies: noCell,
+			site: "render.go:503", label: "the states a refusal lists", varies: noCell,
+			constantReason: "this block declares one column and no heading, so it has no column to misplace",
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
+				return indentedBlock(sweptRefused(t, w.healthy, tag, "ls", "nowhere"), "")
+			},
+		},
+		{
+			site: "render.go:384", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check"), "")
 			},
 		},
 		{
-			site: "render.go:387", label: "catalog coverage",
+			site: "render.go:409", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag, "version", "--catalogs")
@@ -1087,6 +1259,7 @@ func sweptBlocks() []sweptBlock {
 		{
 			site: "help.go:101", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
+			noHeadingRow: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				out := sweptRun(t, w.healthy, tag)
 				return indentedBlock(out, rendered(tag, "help.group.work"))
@@ -1109,10 +1282,17 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:361", label: "the guide topics",
+			site: "commands.go:391", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
 				return indentedBlock(sweptRun(t, w.healthy, tag, "guide"), "")
+			},
+		},
+		{
+			site: "render.go:611", label: "the workbench's own fields",
+			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) []string {
+				return indentedBlock(sweptRun(t, w.healthy, tag, "workbench"), "")
 			},
 		},
 	}

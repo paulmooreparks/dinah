@@ -10,7 +10,6 @@ package main
 import (
 	"io"
 	"os"
-	"sort"
 	"strings"
 
 	"dinah/internal/bench"
@@ -61,6 +60,14 @@ type session struct {
 	// source answers and the layout is then unbounded. It is resolved once
 	// per invocation, so every row of one run is laid out against one width.
 	width int
+	// command is the command word this invocation named, empty until one is
+	// looked up. It is what a next-step sentence names when the refusal it
+	// belongs to is raised from several commands, and what verb.Usage
+	// composes the syntax line from.
+	command string
+	// library is the bench this invocation opened, nil until one is. The
+	// composer reads the states off it for the listing unknown-state prints.
+	library *verb.Library
 }
 
 func main() {
@@ -74,10 +81,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	for _, flag := range valuedFlags {
 		valued[flag] = true
 	}
-	parsed, err := parseArgs(argv, valued)
-	if err != nil {
-		return reportError(errw, msg.For(msg.Base), err)
-	}
+	parsed, parseErr := parseArgs(argv, valued)
 	cwd, wdErr := os.Getwd()
 	if wdErr != nil {
 		cwd = "."
@@ -103,6 +107,15 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		cwd:             cwd,
 		width:           windowWidth(),
 	}
+	if parseErr != nil {
+		// The parse failed, so the language ladder reads what parseArgs
+		// managed to take apart before it stopped: a --lang written ahead
+		// of the offending word is honoured, and one written after it is
+		// not, because the scan never reached it. The report is text alone,
+		// since the flags that would have carried --json are what failed.
+		s.json = false
+		return s.reportError(parseErr)
+	}
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
 	}
@@ -115,6 +128,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if !ok {
 		return s.fail(contract.UnknownVerb, name)
 	}
+	s.command = command.name
 	// resolveOpenTailFlags exists to decide whether a flag-shaped word
 	// sitting inside a multi-word free-text zone is prose or a flag
 	// (dinah-96). add, block, and comment have no such zone left to be mid
@@ -123,7 +137,10 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// nothing here left to correct. config declares no domain flag of its
 	// own and keeps calling this function only to splice an unrecognized
 	// flag-shaped word back into its value as literal text.
-	if command.name != "add" && command.name != "block" && command.name != "comment" {
+	// workbench joins them: dinah-100's one-word rule bounds its value too,
+	// and it declares --yes, so a flag typed after the value would otherwise
+	// take the peeling branch, which nothing shipped exercises today.
+	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}
@@ -188,82 +205,11 @@ func (s *session) errLine(text string) {
 
 // fail reports a refusal and returns its exit code. The refusal name is the
 // first whitespace-delimited token on stderr, followed by the sentence a
-// person reads, which is the contract the plumbing guarantee rests on.
+// person reads, which is the contract the plumbing guarantee rests on. It
+// builds the refusal rather than composing a sentence, so the twelve sites
+// that reach it get the same composition every other refusal gets.
 func (s *session) fail(name, detail string) int {
-	io.WriteString(s.errw, name+" "+s.sentence(name, detail)+"\n")
-	return contract.ExitCode(contract.OutcomeRefused)
-}
-
-// sentence renders the prose that follows a refusal name.
-func (s *session) sentence(name, detail string) string {
-	return refusalSentence(s.r, name, detail, nil)
-}
-
-// refusalSentence renders the prose that follows a refusal name, filling the
-// named values the catalog entry references beyond the detail.
-//
-// A malformed refusal raised over a file on disk carries the path it was
-// raised over, and the location and the repair reach the reader as two
-// fragments spliced on here rather than as a second template. The name cannot
-// split, because CORE-OUT-5 gives one name to a broken definition and to a
-// request missing what the definition demands, so the difference rides on
-// whether a path is present.
-//
-// An unsupported-version refusal raised over a declared profile revision
-// carries floor and ceiling, and the clause naming the window this build reads
-// is spliced on the same way. The same refusal name also refuses a storage
-// format newer than this build knows, and that one carries no window and
-// renders without the clause.
-//
-// A usage refusal raised because a word looked like an unknown or
-// value-starved flag carries dashHint, and the fragment naming the "--"
-// end-of-options marker is spliced on the same way. Only parseArgs's two
-// flag-scan refusals ever set dashHint; every other dinah.usage site is
-// unchanged.
-//
-// A multiple-words refusal (freeText, cmd/dinah/args.go) carries either
-// example, when the free text has no quotation mark and a rebuilt,
-// paste-ready command line reads back correctly in bash, cmd.exe and
-// PowerShell alike, or quoteInText, when it does and no single escaping is
-// correct in all three, so the caller is asked to quote the text themselves
-// instead. Exactly one of the two is ever set.
-func refusalSentence(r *msg.Renderer, name, detail string, extra map[string]string) string {
-	key := "refusal." + name
-	if !r.Has(key) {
-		return r.T("refusal.unknown", "name", name, "detail", detail)
-	}
-	pairs := []string{"detail", detail}
-	for _, named := range sortedKeys(extra) {
-		pairs = append(pairs, named, extra[named])
-	}
-	text := r.T(key, pairs...)
-	if name == contract.Malformed && extra["path"] != "" {
-		return text + r.T("refusal.malformed.at", "path", extra["path"]) + r.T("refusal.malformed.fix")
-	}
-	if name == contract.UnsupportedVer && extra["floor"] != "" {
-		return text + r.T("refusal.unsupported-version.window", "floor", extra["floor"], "ceiling", extra["ceiling"])
-	}
-	if name == contract.Usage && extra["dashHint"] != "" {
-		return text + r.T("refusal.dinah.usage.dash-hint")
-	}
-	if name == contract.MultipleWords {
-		if extra["quoteInText"] != "" {
-			return text + r.T("refusal.dinah.multiple-words.quote-yourself")
-		}
-		return text + r.T("refusal.dinah.multiple-words.example", "example", extra["example"])
-	}
-	return text
-}
-
-// sortedKeys returns a map's keys in order, so that one refusal renders the
-// same way twice however the map was built.
-func sortedKeys(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
+	return s.reportError(contract.Refuse(name, detail))
 }
 
 // refusalReport is the machine form of a refusal raised before any verb ran.
@@ -287,68 +233,38 @@ type refusalReport struct {
 	Workbenches []bench.Candidate `json:"workbenches,omitempty"`
 }
 
-// reportError turns an error from a layer below into a report on stderr and
-// an exit code, without a session, for the failures that happen before one
-// can be built. It writes text alone, because the flags that would have
-// carried --json are what failed to parse.
-func reportError(errw io.Writer, r *msg.Renderer, err error) int {
-	if refusal, ok := err.(*contract.Refusal); ok {
-		sentence := refusalSentence(r, refusal.Name, refusal.Detail, refusal.Extra)
-		io.WriteString(errw, refusal.Name+" "+sentence+"\n")
-		return contract.ExitCode(contract.OutcomeRefused)
-	}
-	io.WriteString(errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
-	return contract.ExitCode(contract.OutcomeUnreachable)
-}
-
-// reportError is the same report from inside a session, which is where every
-// discovery-time failure is raised. The machine form reaches stdout first
-// under --json, and the sentence follows it on stderr, exactly as a verb's own
-// refusal is emitted.
+// reportError reports an error from a layer below as a refusal on stderr and
+// an exit code. The machine form reaches stdout first under --json, and the
+// composed lines follow it on stderr, exactly as a verb's own refusal is
+// emitted.
+//
+// dinah.ambiguous-workbench is the one refusal whose machine form carries
+// more than its named values: the candidates the walk found reach a script as
+// structured rows rather than as a prose string it would have to split. The
+// text form needs no branch here at all, because the shape declares the same
+// candidates as its listing and the composer draws them.
 func (s *session) reportError(err error) int {
 	refusal, ok := err.(*contract.Refusal)
-	if ok && refusal.Name == contract.AmbiguousWorkbench {
-		return s.reportAmbiguousWorkbench(refusal)
+	if !ok {
+		io.WriteString(s.errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
+		return contract.ExitCode(contract.OutcomeUnreachable)
 	}
-	if ok && s.json {
-		s.emitJSON(refusalReport{
+	if s.json {
+		report := refusalReport{
 			Outcome: contract.OutcomeRefused,
 			Refusal: refusal.Name,
 			Detail:  refusal.Detail,
 			Context: refusal.Extra,
-		})
+		}
+		if refusal.Name == contract.AmbiguousWorkbench {
+			report.Detail = ""
+			report.Workbenches, _ = bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+		}
+		s.emitJSON(report)
 	}
-	return reportError(s.errw, s.r, err)
-}
-
-// reportAmbiguousWorkbench reports dinah.ambiguous-workbench by pairing it
-// with the rows the workbenches listing would print for this same
-// invocation, since bench.Reachable shares Discover's own walk and cannot
-// name a different set of candidates. The rows are re-fetched rather than
-// carried on the refusal, so no plumbing beyond the base directory travels
-// through contract.Refusal for what is, today, the one refusal that wants
-// this.
-//
-// The text form prints an opening sentence naming the base, the candidate
-// rows beneath it in the shape dinah workbenches renders them, and a closing
-// line naming the two ways forward. The machine form drops the now-redundant
-// detail string and carries the same rows as a workbenches array instead.
-func (s *session) reportAmbiguousWorkbench(refusal *contract.Refusal) int {
-	rows, _ := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
-	if s.json {
-		s.emitJSON(refusalReport{
-			Outcome:     contract.OutcomeRefused,
-			Refusal:     refusal.Name,
-			Context:     refusal.Extra,
-			Workbenches: rows,
-		})
-		return contract.ExitCode(contract.OutcomeRefused)
+	for _, line := range s.composeRefusal(refusal) {
+		io.WriteString(s.errw, line+"\n")
 	}
-	io.WriteString(s.errw, refusal.Name+" "+s.r.T("refusal."+refusal.Name, "base", refusal.Extra["base"])+"\n")
-	for _, row := range s.formatCandidateRows(rows) {
-		io.WriteString(s.errw, row+"\n")
-	}
-	io.WriteString(s.errw, s.r.T("refusal."+refusal.Name+".next")+"\n")
 	return contract.ExitCode(contract.OutcomeRefused)
 }
 
@@ -371,7 +287,9 @@ func (s *session) open() (*verb.Library, error) {
 		return nil, err
 	}
 	opened.Passed = passed
-	return verb.New(opened, s.home), nil
+	library := verb.New(opened, s.home)
+	s.library = library
+	return library, nil
 }
 
 // withBench opens the bench and hands it to a command, reporting the failure

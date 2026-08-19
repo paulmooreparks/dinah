@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"sort"
 	"strconv"
+	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/guide"
 	"dinah/internal/verb"
 )
 
@@ -40,7 +43,9 @@ func (s *session) emit(response *verb.Response) int {
 func (s *session) reportOutcome(response *verb.Response) {
 	switch response.Outcome {
 	case contract.OutcomeRefused:
-		io.WriteString(s.errw, response.Refusal+" "+s.sentence(response.Refusal, response.Detail)+"\n")
+		for _, line := range s.composeRefusal(contract.RefuseWith(response.Refusal, response.Detail, s.outcomeValues(response))) {
+			io.WriteString(s.errw, line+"\n")
+		}
 	case contract.OutcomeStale:
 		revision := ""
 		if response.Card != nil {
@@ -193,6 +198,23 @@ func (s *session) renderListing(listing *verb.Listing) {
 	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "title")}
 	for _, card := range listing.Cards {
 		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.Substate), card.Title}})
+	}
+	s.table(t)
+}
+
+// renderMatches prints the cards a query selected. A query spans the whole
+// workbench where ls lists one state at a time, so the reader needs a state
+// column that ls has no use for, and it carries the state's title rather than
+// its identifier.
+func (s *session) renderMatches(matches *verb.Matches) {
+	if len(matches.Cards) == 0 {
+		s.line(s.r.T("query.empty"))
+		return
+	}
+	t := table{indent: 2, columns: s.columns("query", "card", "state", "standing", "title")}
+	for _, card := range matches.Cards {
+		fields := []string{card.Ref, card.StateTitle, s.token(card.Substate), card.Title}
+		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
 }
@@ -383,6 +405,208 @@ func (s *session) renderVersion(release *verb.VersionReport) {
 	for _, catalog := range release.Catalogs {
 		coverage := strconv.Itoa(catalog.Translated) + "/" + strconv.Itoa(catalog.Total)
 		t.rows = append(t.rows, tableRow{fields: []string{catalog.Tag, coverage}})
+	}
+	s.table(t)
+}
+
+// outcomeValues is what a verb's response carries for the composer: the named
+// values the raise site attached, and the card reference the head knows and
+// the raise site could not name without being edited.
+func (s *session) outcomeValues(response *verb.Response) map[string]string {
+	values := make(map[string]string, len(response.Context)+1)
+	for name, carried := range response.Context {
+		values[name] = carried
+	}
+	if response.Card != nil && response.Card.Ref != "" {
+		values[contract.ValueCard] = response.Card.Ref
+	}
+	return values
+}
+
+// refusalListings resolves a shape's Listing name to the members that listing
+// prints, one per row. The enumerable sets live in three different places, so
+// this map is what keeps the composer from knowing about any of them.
+//
+// A refusal raised before the workbench opens carries no states, which costs
+// nothing in practice because unknown-state is only ever raised once one is
+// open.
+var refusalListings = map[string]func(*session) []string{
+	"states": func(s *session) []string {
+		if s.library == nil {
+			return nil
+		}
+		rows := make([]string, 0, len(s.library.Bench.States))
+		for _, state := range s.library.Bench.States {
+			rows = append(rows, state.Ref())
+		}
+		return rows
+	},
+	"guides":   func(s *session) []string { return guide.Topics() },
+	"settings": func(s *session) []string { return bench.ConfigKeys },
+}
+
+// refusalBlocks are the listings that arrive already laid out, because their
+// rows carry columns rather than bare names and one place already draws them.
+var refusalBlocks = map[string]func(*session) []string{
+	"workbenches": func(s *session) []string {
+		rows, _ := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
+		return s.formatCandidateRows(rows)
+	},
+}
+
+// composeRefusal renders a refusal for a person: the name and the sentence,
+// the enumerated set where the refusal declares one, and the declared
+// fragments in the order the shape states them.
+//
+// It returns lines rather than writing them, so the machine path and the text
+// path share one composition, a test reads the result without a buffer, and
+// the function names no stream at all. Every rule it applies comes off the
+// shape, so no refusal name is tested anywhere inside it.
+//
+// One refusal name can answer two different acts, and the sentence then
+// depends on which command raised it, so a shape declaring the raising command
+// as a variant renders that command's own base entry. A command declaring none
+// renders exactly what it rendered before, translations included.
+//
+// A fragment splices onto the sentence where the refusal prints no listing,
+// which is what the tool has always done and is why each fragment carries
+// whatever leading punctuation its position needs. Where a listing is printed
+// the fragments form a line of their own beneath the rows, because a sentence
+// cannot continue across a table.
+func (s *session) composeRefusal(r *contract.Refusal) []string {
+	shape := contract.ShapeOf(r.Name)
+	if shape == nil {
+		return []string{r.Name + " " + s.r.T("refusal.unknown", "name", r.Name, "detail", r.Detail)}
+	}
+	values := s.refusalValues(r)
+	pairs := make([]string, 0, 2*len(values))
+	for _, name := range sortedKeys(values) {
+		pairs = append(pairs, name, values[name])
+	}
+	key := "refusal." + shape.Name
+	if shape.Variant(values[contract.ValueCommand]) {
+		key = shape.VariantKeyOf(values[contract.ValueCommand])
+	}
+	if shape.Subject != "" && values[shape.Subject] == "" {
+		key += ".unnamed"
+	}
+	lines := []string{r.Name + " " + s.r.T(key, pairs...)}
+
+	var rows []string
+	if block, ok := refusalBlocks[shape.Listing]; ok {
+		rows = block(s)
+	} else if members, ok := refusalListings[shape.Listing]; ok {
+		t := table{indent: 2, columns: listColumn()}
+		for _, member := range members(s) {
+			t.rows = append(t.rows, tableRow{fields: []string{member}})
+		}
+		rows = s.tableLines(t)
+	}
+	lines = append(lines, rows...)
+
+	next := s.nextStepOf(shape, values)
+	var spliced []string
+	for _, fragment := range shape.Fragments {
+		if shape.NamedInNextStep(fragment.Key) {
+			if fragment.Key == next {
+				spliced = append(spliced, s.r.T(fragment.Key, pairs...))
+			}
+			continue
+		}
+		if holds(fragment, values) {
+			spliced = append(spliced, s.r.T(fragment.Key, pairs...))
+		}
+	}
+	if len(spliced) == 0 {
+		return lines
+	}
+	joined := strings.Join(spliced, "")
+	if len(rows) == 0 {
+		lines[0] += joined
+		return lines
+	}
+	return append(lines, joined)
+}
+
+// nextStepOf reads the alternation and returns the key of the one fragment
+// that renders: the first whose condition holds, and never more than one. The
+// last member carries no condition, so a shape the guard has passed always
+// answers with a key.
+//
+// The winner renders at the position its fragment holds in the declared list
+// rather than after every other fragment, because a clause split out of a base
+// entry sat where the sentence put it. dinah.usage is where that is visible:
+// its next step was written ahead of the dash hint, so it is declared ahead of
+// it and it renders ahead of it.
+func (s *session) nextStepOf(shape *contract.Shape, values map[string]string) string {
+	for _, named := range shape.NextStep {
+		fragment := shape.Fragment(named)
+		if fragment != nil && holds(*fragment, values) {
+			return named
+		}
+	}
+	return ""
+}
+
+// holds reports whether a fragment's condition is satisfied: a When names a
+// value that is present and non-empty, an Unless names one that is not, a
+// WhenCommand names the command the reader typed, and a fragment carrying none
+// of the three always renders.
+func holds(fragment contract.Fragment, values map[string]string) bool {
+	if fragment.When != "" {
+		return values[fragment.When] != ""
+	}
+	if fragment.Unless != "" {
+		return values[fragment.Unless] == ""
+	}
+	if fragment.WhenCommand != "" {
+		return values[contract.ValueCommand] == fragment.WhenCommand
+	}
+	return true
+}
+
+// refusalValues collects everything a refusal's sentence may name: the detail,
+// the two values only this invocation knows, and the named values the raise
+// site carried. The raise site wins a collision, since a value it attached is
+// about the refusal rather than about the invocation.
+func (s *session) refusalValues(r *contract.Refusal) map[string]string {
+	values := map[string]string{"detail": r.Detail}
+	if s.command != "" {
+		values[contract.ValueCommand] = s.command
+		values[contract.ValueUsage] = verb.Usage(s.command)
+	}
+	for name, carried := range r.Extra {
+		values[name] = carried
+	}
+	return values
+}
+
+// sortedKeys returns a map's keys in order, so that one refusal renders the
+// same way twice however the map was built.
+func sortedKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// renderWorkbenchFields prints the workbench's own fields, one row per field.
+//
+// The field names travel untranslated, the way `config`'s keys do, because a
+// field name is machine vocabulary a caller types back. The slug row is served
+// through slugCell, so a workbench carrying none names its repair rather than
+// standing blank, and this listing says what `dinah states` and `dinah
+// workbenches` already say about a missing slug.
+func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
+	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
+	for _, name := range bench.WorkbenchFields {
+		value := fields.Field(name)
+		if name == "slug" {
+			value = s.slugCell(value)
+		}
+		t.rows = append(t.rows, tableRow{fields: []string{name, value}})
 	}
 	s.table(t)
 }

@@ -25,6 +25,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"dinah/internal/contract"
+	"dinah/internal/msg"
 	"dinah/internal/textwidth"
 )
 
@@ -1810,8 +1812,9 @@ const theOneTable = "cmd/dinah/table.go"
 // them, so a mention anywhere else is either a row being written outside the
 // renderer or a second way to write, and pattern 11 refuses both.
 //
-// The first seven are the writers themselves. reportError hands the stream to
-// the package-level reporter of the same name, and the last three hand a
+// The first eight are the writers themselves, and composeRefusal is not among
+// them: it returns lines rather than writing them, which is what lets the text
+// path and the machine path share one composition. The last three hand a
 // stream to something outside the head: the value config <key> writes, the
 // child process an editor runs in, and the MCP server that serves on stdio.
 //
@@ -1824,7 +1827,6 @@ var streamWriters = []string{
 	"errLine",
 	"fail",
 	"reportOutcome",
-	"reportAmbiguousWorkbench",
 	"emitJSON",
 	"emit",
 	"reportError",
@@ -2693,6 +2695,671 @@ func TestGuardCatchesAColumnarCatalogEntry(t *testing.T) {
 	for _, key := range columnarCatalogKeys {
 		if matched[key] != 0 {
 			t.Errorf("the exemption for %s matched %d entries in a catalog that carries none", key, matched[key])
+		}
+	}
+}
+
+// refusalCatalogDir is where the shipped catalogs live, read as data by the
+// one check of the refusal guard that reads catalogs rather than Go sources.
+const refusalCatalogDir = "internal/msg/locales"
+
+// refusalPlaceholder matches a named slot inside a catalog entry, which is the
+// only kind of placeholder internal/msg fills.
+var refusalPlaceholder = regexp.MustCompile(`\{([A-Za-z][A-Za-z0-9_-]*)\}`)
+
+// refusalRaisers are the call names that raise a refusal. A first argument
+// naming a contract constant at one of them is a raise site, whatever package
+// it sits in.
+var refusalRaisers = map[string]bool{
+	"Refuse": true, "RefuseWith": true, "refuse": true, "refuseWith": true, "fail": true,
+}
+
+// theComposer is the one function that renders a refusal for a person. It
+// names no stream, which is what lets the text path and the machine path share
+// one composition.
+const theComposer = "composeRefusal"
+
+// refusalCatalog is one shipped locale read as data.
+type refusalCatalog struct {
+	tag     string
+	entries map[string]string
+}
+
+// readRefusalCatalogs reads every shipped locale, so a check can hold one
+// locale's entries against another's rather than against the renderer, which
+// agrees with whatever entries it was handed.
+func readRefusalCatalogs(root string) ([]refusalCatalog, error) {
+	dir := filepath.Join(root, filepath.FromSlash(refusalCatalogDir))
+	found, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var catalogs []refusalCatalog
+	for _, entry := range found {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		var read struct {
+			Tag     string `json:"tag"`
+			Entries map[string]struct {
+				Text string `json:"text"`
+			} `json:"entries"`
+		}
+		if err := json.Unmarshal(data, &read); err != nil {
+			return nil, fmt.Errorf("%s: %w", entry.Name(), err)
+		}
+		catalog := refusalCatalog{tag: read.Tag, entries: map[string]string{}}
+		for key, value := range read.Entries {
+			catalog.entries[key] = value.Text
+		}
+		catalogs = append(catalogs, catalog)
+	}
+	sort.Slice(catalogs, func(i, j int) bool { return catalogs[i].tag < catalogs[j].tag })
+	return catalogs, nil
+}
+
+// contractConstants reads the refusal-name constants out of internal/contract,
+// so a raise site naming contract.Malformed is resolved to the name it carries
+// rather than to the identifier that spells it.
+func contractConstants(root string) (map[string]string, error) {
+	fileSet := token.NewFileSet()
+	parsed, err := parser.ParseDir(fileSet, filepath.Join(root, "internal", "contract"), func(info fs.FileInfo) bool {
+		return !strings.HasSuffix(info.Name(), "_test.go")
+	}, 0)
+	if err != nil {
+		return nil, err
+	}
+	values := map[string]string{}
+	for _, pkg := range parsed {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				general, ok := decl.(*ast.GenDecl)
+				if !ok || general.Tok != token.CONST {
+					continue
+				}
+				for _, spec := range general.Specs {
+					value, ok := spec.(*ast.ValueSpec)
+					if !ok || len(value.Names) != len(value.Values) {
+						continue
+					}
+					for i, name := range value.Names {
+						if text, ok := foldContractName(value.Values[i], values); ok {
+							values[name.Name] = text
+						}
+					}
+				}
+			}
+		}
+	}
+	return values, nil
+}
+
+// foldContractName evaluates a constant expression that is a string literal or
+// a concatenation reaching one, which is the shape every refusal name in
+// internal/contract takes: a literal, or LayerPrefix plus a literal.
+func foldContractName(expr ast.Expr, known map[string]string) (string, bool) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		if e.Kind != token.STRING {
+			return "", false
+		}
+		text, err := strconv.Unquote(e.Value)
+		return text, err == nil
+	case *ast.Ident:
+		text, ok := known[e.Name]
+		return text, ok
+	case *ast.BinaryExpr:
+		if e.Op != token.ADD {
+			return "", false
+		}
+		left, ok := foldContractName(e.X, known)
+		if !ok {
+			return "", false
+		}
+		right, ok := foldContractName(e.Y, known)
+		if !ok {
+			return "", false
+		}
+		return left + right, true
+	case *ast.ParenExpr:
+		return foldContractName(e.X, known)
+	}
+	return "", false
+}
+
+// TestEveryRefusalIsComposedTheOneWay holds the shape table, the catalogs and
+// the raise sites against each other, so that a refusal cannot be raised with
+// no declaration, declared with no sentence, or given a sentence nobody can
+// reach.
+//
+// It reads sources and catalogs rather than running the binary, so it sees
+// what no rendering can show it: a shape whose next step could fail to render,
+// a placeholder nobody fills, and a catalog that kept a clause it handed to a
+// fragment. What it cannot see is recorded in the card's spec and in the
+// limits the header comment of cmd/dinah/output_check_test.go already records.
+// The output-side half of the one-way rule is checkRefusalShape in that
+// package, which reads rendered bytes.
+func TestEveryRefusalIsComposedTheOneWay(t *testing.T) {
+	root := filepath.Join("..", "..")
+	catalogs, err := readRefusalCatalogs(root)
+	if err != nil {
+		t.Fatalf("read the catalogs: %v", err)
+	}
+	if len(catalogs) == 0 {
+		t.Fatal("no catalog was read, so this guard proves nothing")
+	}
+	var base map[string]string
+	for _, catalog := range catalogs {
+		if catalog.tag == msg.Base {
+			base = catalog.entries
+		}
+	}
+	if base == nil {
+		t.Fatalf("the base catalog %s does not ship, so nothing below can be read", msg.Base)
+	}
+
+	shapes := map[string]*contract.Shape{}
+	for i := range contract.Shapes {
+		shape := &contract.Shapes[i]
+		if _, twice := shapes[shape.Name]; twice {
+			t.Errorf("%s carries two shapes, and a refusal has one", shape.Name)
+		}
+		shapes[shape.Name] = shape
+	}
+
+	checkOneRefusalIsOneDeclaration(t, root, shapes, base)
+	checkOnePlaceBuildsARefusal(t, root)
+	checkEveryShapeSaysWhatToDoNext(t, shapes)
+	checkNoPlaceholderIsStrayOrOrphaned(t, shapes, base)
+	checkNoEnglishLiteralReachesAPlaceholder(t, root)
+	checkNoEmptySubjectReachesASentence(t, shapes, base)
+	checkNoCatalogKeepsAClauseItHandedOver(t, shapes, catalogs)
+}
+
+// checkOneRefusalIsOneDeclaration is check 1: the name, the sentence and the
+// shape close over each other, so adding any one of the three without the
+// others fails.
+func checkOneRefusalIsOneDeclaration(t *testing.T, root string, shapes map[string]*contract.Shape, base map[string]string) {
+	t.Helper()
+	for _, name := range append(append([]string{}, contract.Declared...), contract.Introduced...) {
+		if shapes[name] == nil {
+			t.Errorf("%s is a refusal name and no shape declares it, so nothing says what it carries", name)
+		}
+	}
+	for _, name := range sortedShapeNames(shapes) {
+		shape := shapes[name]
+		if _, ok := base[refusalKeyOf(name)]; !ok {
+			t.Errorf("%s carries a shape and the base catalog carries no %s, so the shape declares a sentence nobody wrote", name, refusalKeyOf(name))
+		}
+		if len(shape.Variants) > 0 && shape.Subject != "" {
+			t.Errorf("%s declares both a subject and per-command variants, and nothing states which of the two selects the base entry", name)
+		}
+		for _, command := range shape.Variants {
+			if _, ok := base[shape.VariantKeyOf(command)]; !ok {
+				t.Errorf("%s declares the variant %s and the base catalog carries no %s, so a command selects a sentence nobody wrote", name, command, shape.VariantKeyOf(command))
+			}
+		}
+	}
+	raised, err := raisedRefusalNames(root)
+	if err != nil {
+		t.Fatalf("walk the raise sites: %v", err)
+	}
+	if len(raised) == 0 {
+		t.Error("the walk found no raise site, so this check proves nothing")
+	}
+	for name := range raised {
+		if shapes[name] == nil {
+			t.Errorf("%s is raised and no shape declares it", name)
+		}
+	}
+
+	declared := map[string]bool{"refusal.unknown": true}
+	for name, shape := range shapes {
+		declared[refusalKeyOf(name)] = true
+		if shape.Subject != "" {
+			declared[refusalKeyOf(name)+".unnamed"] = true
+		}
+		for _, command := range shape.Variants {
+			declared[shape.VariantKeyOf(command)] = true
+		}
+		for _, fragment := range shape.Fragments {
+			declared[fragment.Key] = true
+		}
+	}
+	for key := range base {
+		if !strings.HasPrefix(key, "refusal.") || declared[key] {
+			continue
+		}
+		t.Errorf("the base catalog carries %s and no shape names it as a base entry, a fragment or an unnamed sibling, so a sentence has drifted from its refusal", key)
+	}
+}
+
+// refusalKeyOf is the base catalog key of a refusal name.
+func refusalKeyOf(name string) string { return "refusal." + name }
+
+// raisedRefusalNames reports every refusal name a raise site in the tree names
+// through a contract constant.
+//
+// A name built by concatenation or held in a variable at the raise site is
+// invisible to it, which is foldStringConcat's own documented gap and applies
+// here unchanged.
+func raisedRefusalNames(root string) (map[string]bool, error) {
+	constants, err := contractConstants(root)
+	if err != nil {
+		return nil, err
+	}
+	legal := map[string]bool{}
+	for _, name := range append(append([]string{}, contract.Declared...), contract.Introduced...) {
+		legal[name] = true
+	}
+	raised := map[string]bool{}
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skippedTrees[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		file, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok || len(call.Args) == 0 {
+				return true
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || !refusalRaisers[selector.Sel.Name] {
+				return true
+			}
+			for _, arg := range call.Args {
+				named, ok := arg.(*ast.SelectorExpr)
+				if !ok {
+					continue
+				}
+				if value, known := constants[named.Sel.Name]; known && legal[value] {
+					raised[value] = true
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	return raised, err
+}
+
+// checkOnePlaceBuildsARefusal is check 2: internal/contract builds every
+// refusal, and the composer names no stream.
+func checkOnePlaceBuildsARefusal(t *testing.T, root string) {
+	t.Helper()
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skippedTrees[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		name := filepath.ToSlash(relative)
+		fileSet := token.NewFileSet()
+		file, parseErr := parser.ParseFile(fileSet, path, nil, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+		insideContract := strings.HasPrefix(name, "internal/contract/")
+		ast.Inspect(file, func(node ast.Node) bool {
+			composite, ok := node.(*ast.CompositeLit)
+			if !ok || insideContract {
+				return true
+			}
+			if refusalLiteralType(composite.Type) {
+				t.Errorf("%s:%d builds a contract.Refusal literal, and contract.Refuse and contract.RefuseWith are where a refusal is built", name, fileSet.Position(composite.Pos()).Line)
+			}
+			return true
+		})
+		for _, decl := range file.Decls {
+			function, ok := decl.(*ast.FuncDecl)
+			if !ok || function.Name.Name != theComposer {
+				continue
+			}
+			ast.Inspect(function, func(node ast.Node) bool {
+				selector, ok := node.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+				if selector.Sel.Name != "out" && selector.Sel.Name != "errw" {
+					return true
+				}
+				t.Errorf("%s:%d names a stream inside %s, and the composer returns lines so that the text path and the machine path share one composition", name, fileSet.Position(selector.Pos()).Line, theComposer)
+				return true
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+}
+
+// refusalLiteralType reports whether a composite literal's type is
+// contract.Refusal, written either through the package qualifier or as a
+// pointer to it.
+func refusalLiteralType(expr ast.Expr) bool {
+	switch e := expr.(type) {
+	case *ast.SelectorExpr:
+		pkg, ok := e.X.(*ast.Ident)
+		return ok && pkg.Name == "contract" && e.Sel.Name == "Refusal"
+	case *ast.StarExpr:
+		return refusalLiteralType(e.X)
+	}
+	return false
+}
+
+// checkEveryShapeSaysWhatToDoNext is check 3: a shape carries a next step or a
+// stated reason and never both, and an alternation that could render none or
+// two fails here rather than in front of a reader.
+func checkEveryShapeSaysWhatToDoNext(t *testing.T, shapes map[string]*contract.Shape) {
+	t.Helper()
+	for _, name := range sortedShapeNames(shapes) {
+		shape := shapes[name]
+		hasNext := len(shape.NextStep) > 0
+		hasReason := shape.NoNext != ""
+		if hasNext && hasReason {
+			t.Errorf("%s sets both NextStep and NoNext, and a refusal either says what to do next or states why it cannot", name)
+		}
+		if !hasNext && !hasReason {
+			t.Errorf("%s sets neither NextStep nor NoNext, so nothing says whether this refusal offers a next step", name)
+		}
+		seen := map[string]bool{}
+		for i, key := range shape.NextStep {
+			if seen[key] {
+				t.Errorf("%s names %s twice in NextStep, and an alternation renders one member", name, key)
+			}
+			seen[key] = true
+			fragment := shape.Fragment(key)
+			if fragment == nil {
+				t.Errorf("%s names %s in NextStep and declares no such fragment", name, key)
+				continue
+			}
+			if i < len(shape.NextStep)-1 {
+				continue
+			}
+			if fragment.When != "" || fragment.Unless != "" || fragment.WhenCommand != "" {
+				t.Errorf("%s ends its NextStep on %s, which carries a condition, so a reader whose values match none of the branches gets no next step at all", name, key)
+			}
+		}
+		for _, command := range shape.Variants {
+			if !nextStepReaches(shape, command) {
+				t.Errorf("%s declares the variant %s and names no fragment of that command in NextStep, so the variant's reader ends on the next step written for another act", name, command)
+			}
+		}
+	}
+}
+
+// nextStepReaches reports whether one of a shape's alternation members is
+// switched on by a command, which is what gives a variant a next step of its
+// own rather than the one the shape's other readers get.
+func nextStepReaches(shape *contract.Shape, command string) bool {
+	for _, key := range shape.NextStep {
+		fragment := shape.Fragment(key)
+		if fragment != nil && fragment.WhenCommand == command {
+			return true
+		}
+	}
+	return false
+}
+
+// sortedShapeNames orders the table so a failure reads the same way twice.
+func sortedShapeNames(shapes map[string]*contract.Shape) []string {
+	names := make([]string, 0, len(shapes))
+	for name := range shapes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// shapeEntry is one entry a shape declares: its base sentence, its unnamed
+// sibling, or one of its fragments, with the condition value that fragment
+// switches on.
+type shapeEntry struct {
+	key       string
+	condition string
+}
+
+// checkNoPlaceholderIsStrayOrOrphaned is check 4, read over every entry a
+// shape declares rather than over its base entry alone, because two of the
+// splits move a base entry's only placeholder into its fragment.
+func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contract.Shape, base map[string]string) {
+	t.Helper()
+	for _, name := range sortedShapeNames(shapes) {
+		shape := shapes[name]
+		declared := map[string]bool{"detail": true}
+		if shape.Subject != "" {
+			declared[shape.Subject] = true
+		}
+		for _, value := range shape.Values {
+			declared[value] = true
+		}
+		entries := []shapeEntry{{key: refusalKeyOf(name)}}
+		if shape.Subject != "" {
+			entries = append(entries, shapeEntry{key: refusalKeyOf(name) + ".unnamed"})
+		}
+		for _, command := range shape.Variants {
+			entries = append(entries, shapeEntry{key: shape.VariantKeyOf(command)})
+		}
+		for _, fragment := range shape.Fragments {
+			condition := fragment.When
+			if condition == "" {
+				condition = fragment.Unless
+			}
+			entries = append(entries, shapeEntry{key: fragment.Key, condition: condition})
+		}
+		used := map[string]bool{}
+		for _, entry := range entries {
+			text, ok := base[entry.key]
+			if !ok {
+				continue
+			}
+			for _, match := range refusalPlaceholder.FindAllStringSubmatch(text, -1) {
+				slot := match[1]
+				used[slot] = true
+				if declared[slot] || slot == entry.condition {
+					continue
+				}
+				t.Errorf("%s carries the slot {%s} and %s declares neither it nor a fragment condition of that name, so nothing fills it", entry.key, slot, name)
+			}
+		}
+		for _, value := range shape.Values {
+			if !used[value] {
+				t.Errorf("%s declares the value %s and no entry of its own carries {%s}, so the name outlived the entry that used it", name, value, value)
+			}
+		}
+	}
+}
+
+// checkNoEnglishLiteralReachesAPlaceholder is check 5. A value a reader sees
+// is a catalog key rather than a phrase, and a phrase is what a string literal
+// carrying a space is.
+//
+// It is scoped to the named-value map and to freeText's label on purpose.
+// Widening it to the detail field would fire on the sites internal/bench
+// already has, which dinah-146 carries rather than this card.
+func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
+	t.Helper()
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skippedTrees[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		relative, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		name := filepath.ToSlash(relative)
+		fileSet := token.NewFileSet()
+		file, parseErr := parser.ParseFile(fileSet, path, nil, 0)
+		if parseErr != nil {
+			return parseErr
+		}
+		report := func(pos token.Pos, where, text string) {
+			t.Errorf("%s:%d passes the phrase %q as %s, and a value a reader sees reaches them through a catalog key rather than as an English literal", name, fileSet.Position(pos).Line, text, where)
+		}
+		ast.Inspect(file, func(node ast.Node) bool {
+			switch e := node.(type) {
+			case *ast.CompositeLit:
+				if !stringMapType(e.Type) {
+					return true
+				}
+				for _, element := range e.Elts {
+					pair, ok := element.(*ast.KeyValueExpr)
+					if !ok {
+						continue
+					}
+					if text, ok := phraseLiteral(pair.Value); ok {
+						report(pair.Value.Pos(), "a named value", text)
+					}
+				}
+			case *ast.AssignStmt:
+				for i, target := range e.Lhs {
+					index, ok := target.(*ast.IndexExpr)
+					if !ok || i >= len(e.Rhs) {
+						continue
+					}
+					if named, ok := index.X.(*ast.Ident); !ok || named.Name != "extra" {
+						continue
+					}
+					if text, ok := phraseLiteral(e.Rhs[i]); ok {
+						report(e.Rhs[i].Pos(), "a named value", text)
+					}
+				}
+			case *ast.CallExpr:
+				selector, ok := e.Fun.(*ast.SelectorExpr)
+				if !ok || selector.Sel.Name != "freeText" || len(e.Args) != 3 {
+					return true
+				}
+				if text, ok := phraseLiteral(e.Args[2]); ok {
+					report(e.Args[2].Pos(), "a freeText label", text)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+}
+
+// stringMapType reports whether a composite literal is a map[string]string,
+// which is the shape of every named-value map a raise site builds.
+func stringMapType(expr ast.Expr) bool {
+	mapped, ok := expr.(*ast.MapType)
+	if !ok {
+		return false
+	}
+	key, keyOK := mapped.Key.(*ast.Ident)
+	value, valueOK := mapped.Value.(*ast.Ident)
+	return keyOK && valueOK && key.Name == "string" && value.Name == "string"
+}
+
+// phraseLiteral reports a string literal carrying a space, which is a phrase a
+// person reads rather than a token or a key.
+func phraseLiteral(expr ast.Expr) (string, bool) {
+	literal, ok := expr.(*ast.BasicLit)
+	if !ok || literal.Kind != token.STRING {
+		return "", false
+	}
+	text, err := strconv.Unquote(literal.Value)
+	if err != nil || !strings.Contains(text, " ") {
+		return "", false
+	}
+	return text, true
+}
+
+// checkNoEmptySubjectReachesASentence is check 6: a shape declaring a subject
+// carries the sentence written for the case where that subject is absent.
+func checkNoEmptySubjectReachesASentence(t *testing.T, shapes map[string]*contract.Shape, base map[string]string) {
+	t.Helper()
+	for _, name := range sortedShapeNames(shapes) {
+		shape := shapes[name]
+		if shape.Subject == "" {
+			continue
+		}
+		if _, ok := base[refusalKeyOf(name)+".unnamed"]; !ok {
+			t.Errorf("%s declares the subject %s and the base catalog carries no %s, so a card nobody holds would render a sentence with a hole in it", name, shape.Subject, refusalKeyOf(name)+".unnamed")
+		}
+	}
+}
+
+// baseKeysOf is every entry a shape's sentence can start from: its own base
+// entry, its unnamed sibling, and one entry per per-command variant.
+func baseKeysOf(shape *contract.Shape) []string {
+	keys := []string{refusalKeyOf(shape.Name), refusalKeyOf(shape.Name) + ".unnamed"}
+	for _, command := range shape.Variants {
+		keys = append(keys, shape.VariantKeyOf(command))
+	}
+	return keys
+}
+
+// checkNoCatalogKeepsAClauseItHandedOver is check 7, and it is the one check
+// here that reads catalogs rather than Go sources.
+//
+// It belongs beside the source checks rather than beside the rendering ones
+// because a rendering assembled out of the entries agrees with them whether a
+// clause appears once or twice. The comparison trims leading punctuation and
+// whitespace from the fragment, since a fragment splices onto the sentence and
+// carries the semicolon or comma that joins it.
+//
+// It reads every fragment of every shape rather than the fourteen the split
+// touched, so a later card that moves a clause out of a base entry is held to
+// the same rule without editing a list here.
+func checkNoCatalogKeepsAClauseItHandedOver(t *testing.T, shapes map[string]*contract.Shape, catalogs []refusalCatalog) {
+	t.Helper()
+	for _, name := range sortedShapeNames(shapes) {
+		shape := shapes[name]
+		for _, fragment := range shape.Fragments {
+			for _, catalog := range catalogs {
+				clause := strings.TrimLeft(catalog.entries[fragment.Key], " ;,.")
+				if clause == "" {
+					continue
+				}
+				for _, key := range baseKeysOf(shape) {
+					text, ok := catalog.entries[key]
+					if !ok || !strings.Contains(text, clause) {
+						continue
+					}
+					t.Errorf("%s: %s still carries the clause %s was given, so the reader sees it twice; the clause moves rather than being copied", catalog.tag, key, fragment.Key)
+				}
+			}
 		}
 	}
 }

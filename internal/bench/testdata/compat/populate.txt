@@ -33,3 +33,6 @@ move sample-7 doing --override
 add "eighth card"
 delete sample-8 --yes
 archive done
+workbench set title "Sample workbench, renamed"
+workbench set title "Sample workbench"
+workbench set operator sam

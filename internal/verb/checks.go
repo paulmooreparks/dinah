@@ -141,11 +141,37 @@ var beyondChecks = map[string][]Check{
 	"next": {
 		{Refusal: contract.UnknownState, Key: "check.next.1"},
 	},
+	"query": {
+		{Refusal: contract.Malformed, Key: "check.query.1"},
+		{Refusal: contract.UnknownField, Key: "check.query.2"},
+		{Refusal: contract.UnknownField, Key: "check.query.3"},
+		{Refusal: contract.UnknownValue, Key: "check.query.4"},
+		{Refusal: contract.UnknownState, Key: "check.query.5"},
+		{Refusal: contract.UnknownValue, Key: "check.query.6"},
+	},
 	"instructions": {
 		{Refusal: contract.UnknownPath, Key: "check.instructions.1"},
 	},
 	"whoami": {
 		{Refusal: contract.NoOwner, Key: "check.whoami.1"},
+	},
+	// The keys carry the workbench-field prefix rather than check.workbench.N,
+	// which check.workbench.1 and check.workbench.2 above already hold for the
+	// two workbench-wide preconditions of section 6.1. One consequence is
+	// worth naming: CheckKey composes check.<command>.<order>, so this is the
+	// one list whose keys that helper cannot compose.
+	//
+	// The workbench-level operator check runs ahead of all five at runtime and
+	// is not listed, because Checks prefixes WorkbenchChecks onto the five
+	// contract verbs alone and every beyond-contract command lists only its
+	// own. Listing it here would name one of the workbench-level pair while
+	// leaving out the other, in the one command that does it.
+	"workbench": {
+		{Refusal: contract.UnknownKey, Key: "check.workbench-field.1"},
+		{Refusal: contract.Malformed, Key: "check.workbench-field.2"},
+		{Refusal: contract.NoOwner, Key: "check.workbench-field.3"},
+		{Refusal: contract.NotOperator, Key: "check.workbench-field.4"},
+		{Refusal: contract.Unconfirmed, Key: "check.workbench-field.5"},
 	},
 }
 

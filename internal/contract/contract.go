@@ -130,6 +130,16 @@ const (
 	// AddNeedsAState is Add declining to file a card into a workbench whose
 	// states list has no live entries left for the card to land in.
 	AddNeedsAState = LayerPrefix + "add-needs-a-state"
+	// UnknownField is a query naming a field this tool does not have, or
+	// naming one with an operator it does not take. One name covers both
+	// because to a reader `Priority>=next` and `at:` are the same mistake:
+	// each names a combination the tool has no reading for.
+	UnknownField = LayerPrefix + "unknown-field"
+	// UnknownValue is a query giving a closed-vocabulary field a value that
+	// vocabulary does not hold. It is distinct from matching nothing,
+	// because an empty result is also the honest answer to a query that is
+	// exactly right, and a reader cannot tell a typo from a fact.
+	UnknownValue = LayerPrefix + "unknown-value"
 	// MultipleWords is an open-tail command's free-text slot (add's title,
 	// block's reason, comment's text, config set's value) getting more than
 	// one unquoted word. The sentence names the word count and rebuilds the
@@ -144,6 +154,7 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
+	UnknownField, UnknownValue,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -193,7 +204,23 @@ const (
 	EventRestored           = "restored"
 	EventDeleted            = "deleted"
 	EventManualCorrection   = "manual_correction"
+	// EventWorkbenchUpdated records a write to one of the workbench's own
+	// fields, on the workbench journal. It covers a title change, a slug
+	// change and an operator change alike, which is why it is not named for a
+	// rename: an operator change is no rename, and the name lands in
+	// append-only history in every workbench that runs the command.
+	EventWorkbenchUpdated = "workbench_updated"
 )
+
+// Events lists the fifteen journal event names in the order the constants
+// above declare them, so a caller checking a value against the closed set
+// reads one list rather than repeating it.
+var Events = []string{
+	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
+	EventUnblocked, EventExpired, EventCommented, EventAttached,
+	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
+	EventRestored, EventDeleted, EventManualCorrection,
+}
 
 // Refusal is the error a verb returns when a rule says no. It carries the one
 // refusal name CORE-OUT-2 requires and a detail the head renders for a person.
@@ -257,4 +284,27 @@ type Unreachable struct {
 // Error renders the unreachability for a Go caller.
 func (u *Unreachable) Error() string {
 	return "unreachable: " + u.Detail
+}
+
+// With returns a copy of a refusal carrying one more named value, so a caller
+// holding something the raise site below it could not know attaches it on the
+// way out without that site being edited.
+//
+// Anything that is not a refusal comes back unchanged, and so does a refusal
+// handed an empty value, which is what lets a caller wrap unconditionally: a
+// dinah init that named no source attaches nothing, and the rule that no
+// placeholder is ever filled with an empty string holds with no test at the
+// call site. The copy is built here because contract is the one package that
+// builds a refusal at all.
+func With(err error, name, value string) error {
+	refusal, ok := err.(*Refusal)
+	if !ok || value == "" {
+		return err
+	}
+	extra := make(map[string]string, len(refusal.Extra)+1)
+	for key, carried := range refusal.Extra {
+		extra[key] = carried
+	}
+	extra[name] = value
+	return RefuseWith(refusal.Name, refusal.Detail, extra)
 }

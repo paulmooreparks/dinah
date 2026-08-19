@@ -40,6 +40,7 @@ func init() {
 		{name: "states", group: groupRead, run: runStates},
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
+		{name: "query", group: groupRead, run: runQuery, openTail: true},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		{name: "log", group: groupRead, run: runLog, bounded: 1},
 		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
@@ -56,6 +57,10 @@ func init() {
 		{name: "config", group: groupBench, run: runConfig, openTail: true},
 		{name: "check", group: groupBench, run: runCheck},
 		{name: "whoami", group: groupBench, run: runWhoami},
+		// workbench dispatches on its own first word the way config does, so
+		// it declares an open tail here and runs its own arity and
+		// mistyped-flag checks (see runWorkbench).
+		{name: "workbench", group: groupBench, run: runWorkbench, openTail: true},
 		{name: "workbenches", group: groupBench, run: runWorkbenches},
 		{name: "version", group: groupBench, run: runVersion},
 
@@ -129,7 +134,7 @@ func runBlock(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Block, parsed)
 	req.Card = at(words, 0)
-	reason, refusal := freeText([]string{"block", req.Card}, words[min(1, len(words)):], "the reason")
+	reason, refusal := s.freeText([]string{"block", req.Card}, words[min(1, len(words)):], "slot.reason")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
@@ -151,7 +156,7 @@ func runUnblock(s *session, parsed *arguments) int {
 // runAdd files a new card.
 func runAdd(s *session, parsed *arguments) int {
 	req := s.request("add", parsed)
-	title, refusal := freeText([]string{"add"}, parsed.rest(), "the title")
+	title, refusal := s.freeText([]string{"add"}, parsed.rest(), "slot.title")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
@@ -167,7 +172,7 @@ func runComment(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("comment", parsed)
 	req.Card = at(words, 0)
-	text, refusal := freeText([]string{"comment", req.Card}, words[min(1, len(words)):], "the comment")
+	text, refusal := s.freeText([]string{"comment", req.Card}, words[min(1, len(words)):], "slot.comment")
 	if refusal != nil {
 		return s.reportError(refusal)
 	}
@@ -283,6 +288,31 @@ func runNext(s *session, parsed *arguments) int {
 	})
 }
 
+// runQuery reports the live cards matching a query.
+//
+// The query is the command's free-text slot rather than a flag, so a caller
+// who types the terms unquoted meets dinah-100's own refusal with the quoted
+// line rebuilt for them, instead of a second refusal saying the same thing.
+func runQuery(s *session, parsed *arguments) int {
+	req := s.request("query", parsed)
+	text, refusal := s.freeText([]string{"query"}, parsed.rest(), "slot.query")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Query = text
+	return s.withBench(func(l *verb.Library) int {
+		matches, err := l.Query(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(matches)
+		}
+		s.renderMatches(matches)
+		return 0
+	})
+}
+
 // runShow reads a card, or anything below it.
 //
 // A bare invocation where several workbenches are reachable lists them instead
@@ -388,7 +418,7 @@ func runInit(s *session, parsed *arguments) int {
 		slug = bench.Slugify(filepath.Base(root))
 	}
 	if !bench.ValidSlug(slug) {
-		return s.fail(contract.Malformed, "slug")
+		return s.reportError(malformedSlug(slug))
 	}
 	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource)
 	if err != nil {
@@ -413,6 +443,22 @@ func runInit(s *session, parsed *arguments) int {
 		s.line(s.r.T("init.actor.recorded", "actor", operator, "path", s.cfg.Path))
 	}
 	return 0
+}
+
+// malformedSlug refuses a slug that does not conform, carrying the clause that
+// names the card reference on only the one shape that reads as one.
+//
+// The distinction is what keeps the spliced clause honest. ValidSlug is
+// ValidStateSlug and a final segment carrying a letter, so a slug the state
+// grammar accepts and this one refuses is exactly a slug ending in a dash and
+// digits alone. A slug refused for any other reason gets the bare sentence,
+// since the clause would otherwise tell a reader that "My Project" is a card
+// reference.
+func malformedSlug(slug string) error {
+	if bench.ValidStateSlug(slug) {
+		return contract.RefuseWith(contract.Malformed, "slug", map[string]string{"cardRef": slug})
+	}
+	return contract.Refuse(contract.Malformed, "slug")
 }
 
 // recordActor records the operator as the actor in the person's own
@@ -566,7 +612,7 @@ func runConfig(s *session, parsed *arguments) int {
 		if looksLikeMistypedFlag(key) {
 			return s.fail(contract.Usage, key)
 		}
-		value, refusal := freeText([]string{"config", "set", key}, words[min(2, len(words)):], "the value")
+		value, refusal := s.freeText([]string{"config", "set", key}, words[min(2, len(words)):], "slot.value")
 		if refusal != nil {
 			return s.reportError(refusal)
 		}
@@ -612,6 +658,82 @@ func runWhoami(s *session, parsed *arguments) int {
 		s.renderIdentity(identity)
 		return 0
 	})
+}
+
+// runWorkbench lists the workbench's own fields, or reads or writes one of
+// them.
+//
+// The grammar is `config`'s, copied word for word, over a different file. The
+// bare invocation lists, `get` prints one stored value alone so a script can
+// read it, and `set` writes one field. The two commands stay apart because
+// they write different files for different owners: `config` writes the user's
+// own settings, which follow a person from workbench to workbench, and this
+// writes the anchor, which travels with the repository to everybody who
+// clones it.
+//
+// Like runConfig, this dispatches on its own first word rather than reading
+// fixed positions, so it runs its own arity and mistyped-flag checks: once on
+// the first word before the switch, once on the field name inside get and set,
+// and once on get's third word, which get never reads.
+func runWorkbench(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	switch first {
+	case "":
+		return s.withBench(func(l *verb.Library) int {
+			return s.emitWorkbenchFields(l, s.request("workbench", parsed))
+		})
+	case "get":
+		field := at(words, 1)
+		if looksLikeMistypedFlag(field) {
+			return s.fail(contract.Usage, field)
+		}
+		if extra := at(words, 2); extra != "" {
+			return s.fail(contract.Usage, extra)
+		}
+		return s.withBench(func(l *verb.Library) int {
+			req := s.request("workbench", parsed)
+			req.Action, req.Field = first, field
+			fields, err := l.Workbench(req)
+			if err != nil {
+				return s.reportError(err)
+			}
+			s.line(fields.Field(field))
+			return 0
+		})
+	case "set":
+		field := at(words, 1)
+		if looksLikeMistypedFlag(field) {
+			return s.fail(contract.Usage, field)
+		}
+		value, refusal := s.freeText([]string{"workbench", "set", field}, words[min(2, len(words)):], "slot.value")
+		if refusal != nil {
+			return s.reportError(refusal)
+		}
+		return s.withBench(func(l *verb.Library) int {
+			req := s.request("workbench", parsed)
+			req.Action, req.Field, req.Value = first, field, value
+			return s.emit(l.SetWorkbench(req))
+		})
+	}
+	return s.fail(contract.Usage, first)
+}
+
+// emitWorkbenchFields answers the bare invocation in whichever form it asked
+// for, which is how `whoami` and `config` with no argument both branch.
+func (s *session) emitWorkbenchFields(l *verb.Library, req *verb.Request) int {
+	fields, err := l.Workbench(req)
+	if err != nil {
+		return s.reportError(err)
+	}
+	if s.json {
+		return s.emitJSON(fields)
+	}
+	s.renderWorkbenchFields(fields)
+	return 0
 }
 
 // runWorkbenches lists the workbenches reachable from here.

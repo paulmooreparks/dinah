@@ -49,6 +49,13 @@ type Request struct {
 	Ref string
 	// State is the destination a move names, or the state a read narrows to.
 	State string
+	// Action is the word a command dispatching on its own first word was
+	// given: get, set, or empty for the bare invocation.
+	Action string
+	// Field is the workbench field a read or a write names.
+	Field string
+	// Value is what a write puts in that field.
+	Value string
 	// Holder is the owner a claim names as holder, which the pull discipline
 	// requires to be the owner asking.
 	Holder string
@@ -73,6 +80,10 @@ type Request struct {
 	Replace bool
 	// Confirm is the deliberate flag a delete requires.
 	Confirm bool
+	// Query is the query string the query command reads, carried byte for
+	// byte as the caller wrote it, since Matches echoes what it was given
+	// rather than what the parser made of it.
+	Query string
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
 	// Finish asks check to complete or roll back the interrupted structural
@@ -183,6 +194,11 @@ type Response struct {
 	Warning string `json:"warning,omitempty"`
 	// WarningDetail is the token the warning is about.
 	WarningDetail string `json:"warning_detail,omitempty"`
+	// Context carries the refusal's named values as data, absent on a
+	// response that needs none. It is what refusalReport already calls
+	// context, so a caller parsing --json reads one shape whichever layer
+	// said no.
+	Context map[string]string `json:"context,omitempty"`
 }
 
 // view renders a card for a response.
@@ -268,8 +284,17 @@ func (l *Library) affordances(card *bench.Card) []string {
 	return []string{"show", "log"}
 }
 
-// refuse builds a refused response.
+// refuse builds a refused response. It keeps its signature and delegates to
+// refuseWith with no named values, so none of its call sites is edited and no
+// precondition sequence in this package carries a diff line.
 func (l *Library) refuse(req *Request, card *bench.Card, name, detail string) *Response {
+	return l.refuseWith(req, card, name, detail, nil)
+}
+
+// refuseWith builds a refused response carrying the refusal's named values,
+// for a raise site holding something the sentence needs and the detail alone
+// cannot say.
+func (l *Library) refuseWith(req *Request, card *bench.Card, name, detail string, extra map[string]string) *Response {
 	response := &Response{
 		Outcome:     contract.OutcomeRefused,
 		Verb:        req.Verb,
@@ -277,6 +302,7 @@ func (l *Library) refuse(req *Request, card *bench.Card, name, detail string) *R
 		Detail:      detail,
 		Affordances: l.affordances(card),
 		Basis:       req.Basis,
+		Context:     extra,
 	}
 	if card != nil {
 		response.Card = l.view(card)
@@ -304,7 +330,7 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 func (l *Library) FromError(req *Request, err error) *Response {
 	switch typed := err.(type) {
 	case *contract.Refusal:
-		return l.refuse(req, nil, typed.Name, typed.Detail)
+		return l.refuseWith(req, nil, typed.Name, typed.Detail, typed.Extra)
 	case *contract.Stale:
 		response := &Response{
 			Outcome:     contract.OutcomeStale,

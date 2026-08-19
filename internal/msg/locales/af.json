@@ -336,6 +336,36 @@
       "context": "A check finding: frontmatter position against the journal's replay.",
       "skeleton": true
     },
+    "check.query.1": {
+      "text": "every term of the query parses",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.query.2": {
+      "text": "every field the query names is one this tool has",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.query.3": {
+      "text": "the operator is one the named field accepts",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.query.4": {
+      "text": "each substate and each event name is one that field's vocabulary holds",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.query.5": {
+      "text": "each state the query names is one the workbench declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.query.6": {
+      "text": "each workstream the query names is one a live card lists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.release.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
@@ -436,9 +466,39 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.workbench-field.1": {
+      "text": "the field is one this workbench records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.2": {
+      "text": "the value is present and well formed",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.3": {
+      "text": "on a write, the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.4": {
+      "text": "that owner is the operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workbench-field.5": {
+      "text": "a slug rename carries the confirmation flag",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.workbench-slug-assigned": {
       "text": "Assigned the workbench slug {slug}.",
       "context": "The line the workbench-slug migration prints for what it derived, once, since a run repairs at most one workbench.",
+      "skeleton": true
+    },
+    "check.workbench-slug-malformed": {
+      "text": "the workbench carries the slug {detail}, and a workbench slug is a letter followed by letters, digits, and single interior dashes, with at least one letter in its last segment",
+      "context": "A check finding: the workbench's stored slug does not match the workbench slug grammar, so nobody can rely on typing it. Open validates the stored slug at no major, so the workbench still opens while this is reported.",
       "skeleton": true
     },
     "check.workbench-slug-missing": {
@@ -507,7 +567,7 @@
       "skeleton": true
     },
     "cmd.edit.summary": {
-      "text": "open that path in your editor",
+      "text": "open this workbench, a card, or anything below a card in your editor",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -567,8 +627,13 @@
       "skeleton": true
     },
     "cmd.path.summary": {
-      "text": "print the file path of a card or of anything below it",
+      "text": "print the file path of this workbench, of a card, or of anything below a card",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.query.summary": {
+      "text": "the cards of the workbench that match a query",
+      "context": "The one-line summary of the query command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.release.summary": {
@@ -604,6 +669,11 @@
     "cmd.whoami.summary": {
       "text": "the actor your actions carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.workbench.summary": {
+      "text": "read this workbench's own fields, or write one",
+      "context": "The one-line summary of the workbench command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.workbenches.summary": {
@@ -748,7 +818,7 @@
     },
     "column.ls.standing": {
       "text": "Standing",
-      "context": "Heading over whether the card is ready, active or blocked, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over whether the card is ready, active, or blocked, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.ls.title": {
@@ -786,6 +856,26 @@
       "context": "Heading over the offered card's title, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
+    "column.query.card": {
+      "text": "Card",
+      "context": "Heading over the reference a person types to name the card, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.query.standing": {
+      "text": "Standing",
+      "context": "Heading over whether the card is ready, active, or blocked, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.query.state": {
+      "text": "State",
+      "context": "Heading over the title of the state the card occupies, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.query.title": {
+      "text": "Title",
+      "context": "Heading over the card's title, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
     "column.slugs.slug": {
       "text": "Slug",
       "context": "Heading over the handle the repair assigned, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -819,6 +909,16 @@
     "column.states.slug": {
       "text": "Slug",
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbench.field": {
+      "text": "Field",
+      "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workbench.value": {
+      "text": "Value",
+      "context": "Heading over the value stored under it, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.workbenches.path": {
@@ -986,9 +1086,19 @@
       "context": "The sentence after the unreachable outcome name.",
       "skeleton": true
     },
+    "query.empty": {
+      "text": "No card matches that query.",
+      "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal.",
+      "skeleton": true
+    },
     "refusal.at-capacity": {
       "text": "state {detail} has reached its limit",
       "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.at-capacity.next": {
+      "text": "; move a card out of {detail} first, or raise that state's wip_limit",
+      "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the state that has reached its limit.",
       "skeleton": true
     },
     "refusal.blocked": {
@@ -996,9 +1106,19 @@
       "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.blocked.next": {
+      "text": "; ask the operator to lift it with `dinah unblock {card}`",
+      "context": "Spliced onto refusal.blocked as the next step. {card} is the card reference the reader named.",
+      "skeleton": true
+    },
     "refusal.dinah.add-needs-a-state": {
-      "text": "this workbench has no states left to file a new card into; hand-edit {detail} to add a state to the states list and create its states/\u003cid\u003e/state.md, then run `dinah check` to confirm before trying `dinah add` again",
+      "text": "this workbench has no states left to file a new card into",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
+      "skeleton": true
+    },
+    "refusal.dinah.add-needs-a-state.next": {
+      "text": "; hand-edit {detail} to add a state to the states list and create its states/\u003cid\u003e/state.md, then run `dinah check` to confirm before trying `dinah add` again",
+      "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
       "skeleton": true
     },
     "refusal.dinah.ambiguous-workbench": {
@@ -1012,23 +1132,48 @@
       "skeleton": true
     },
     "refusal.dinah.exists": {
-      "text": "{detail} already carries a workbench.md; move it aside, or choose a different directory",
+      "text": "{detail} already carries a workbench.md",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.exists.next": {
+      "text": "; move it aside, or choose a different directory",
+      "context": "Spliced onto refusal.dinah.exists as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
     "refusal.dinah.interrupted": {
-      "text": "the action on {detail} was interrupted after it was recorded, and `dinah check --finish` completes it",
+      "text": "the action on {detail} was interrupted after it was recorded",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.interrupted.next": {
+      "text": ", and `dinah check --finish` completes it",
+      "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
     "refusal.dinah.last-state": {
-      "text": "{detail} is the only state left; add another state before retiring this one",
+      "text": "{detail} is the only state left",
       "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.last-state.next": {
+      "text": "; add another state before retiring this one",
+      "context": "Spliced onto refusal.dinah.last-state as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
     "refusal.dinah.locked": {
       "text": "this is already locked; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.locked.next": {
+      "text": "; wait for it to finish and try again, or run `dinah check --finish` if it never does",
+      "context": "Spliced onto refusal.dinah.locked as the next step, and onto refusal.dinah.locked.unnamed, since the advice is the same whether the lock names somebody or nobody.",
+      "skeleton": true
+    },
+    "refusal.dinah.locked.unnamed": {
+      "text": "this is already locked",
+      "context": "The sentence printed after the refusal name dinah.locked when the lock record names nobody, in place of refusal.dinah.locked.",
       "skeleton": true
     },
     "refusal.dinah.multiple-words": {
@@ -1047,23 +1192,43 @@
       "skeleton": true
     },
     "refusal.dinah.no-configured-workbench": {
-      "text": "the workbench setting names {detail}, which carries no workbench.md; run `dinah config set workbench \u003cpath\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "text": "the workbench setting names {detail}, which carries no workbench.md",
       "context": "The sentence printed after the refusal name dinah.no-configured-workbench. {detail} is the configured path the discovery walk found nothing local to answer with and then tried.",
       "skeleton": true
     },
+    "refusal.dinah.no-configured-workbench.next": {
+      "text": "; run `dinah config set workbench \u003cpath\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
     "refusal.dinah.no-editor": {
-      "text": "no editor was resolvable; set DINAH_EDITOR, or install one of {detail}",
+      "text": "no editor was resolvable",
       "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.no-editor.next": {
+      "text": "; set DINAH_EDITOR, or install one of {detail}",
+      "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of.",
+      "skeleton": true
+    },
     "refusal.dinah.no-workbench": {
-      "text": "{detail} was named by --workbench, and it carries no workbench.md; point --workbench at a directory that does, or drop --workbench to search upward from here",
+      "text": "{detail} was named by --workbench, and it carries no workbench.md",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found": {
-      "text": "no workbench was found walking up from {detail}, or in the user base at {home}; run `dinah init` here to create one, or pass --workbench \u003cpath\u003e to point at one that exists",
+      "text": "no workbench was found walking up from {detail}, or in the user base at {home}",
       "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-workbench-found.next": {
+      "text": "; run `dinah init` here to create one, or pass --workbench \u003cpath\u003e to point at one that exists",
+      "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-workbench.next": {
+      "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
     "refusal.dinah.occupied": {
@@ -1071,14 +1236,39 @@
       "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.occupied.next": {
+      "text": "; move them out with `dinah move` first, then try again",
+      "context": "Spliced onto refusal.dinah.occupied as the next step.",
+      "skeleton": true
+    },
     "refusal.dinah.repair-would-empty-states": {
-      "text": "{detail} names every state left in the workbench, and each one's directory is missing. Removing them would leave the workbench with no state at all, so dinah check --migrate-states refuses. Hand-edit the workbench's states list to add a state, or restore one of the missing directories, then run dinah check --migrate-states again.",
+      "text": "{detail} names every state left in the workbench, and each one's directory is missing. Removing them would leave the workbench with no state at all, so dinah check --migrate-states refuses.",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list.",
       "skeleton": true
     },
+    "refusal.dinah.repair-would-empty-states.next": {
+      "text": " Hand-edit the workbench's states list to add a state, or restore one of the missing directories, then run dinah check --migrate-states again.",
+      "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with.",
+      "skeleton": true
+    },
     "refusal.dinah.unconfirmed": {
-      "text": "delete destroys history, so it needs --yes",
+      "text": "delete destroys history",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.next": {
+      "text": ", so it needs --yes",
+      "context": "Spliced onto refusal.dinah.unconfirmed as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.workbench": {
+      "text": "Dinah renames every card in this workbench when you change the slug to {detail}, so every card reference you have written down elsewhere stops matching.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workbench command raised it. {detail} carries the new slug the rename would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.workbench.next": {
+      "text": " Run the command again with --yes.",
+      "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next.",
       "skeleton": true
     },
     "refusal.dinah.unknown-command": {
@@ -1086,14 +1276,44 @@
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-command.next": {
+      "text": "; run `dinah help` for the list of commands, grouped by what they do",
+      "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-field": {
+      "text": "Dinah has no field {detail}. The fields a query may name are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names, read off the query language rather than written here, so a field name is machine vocabulary and is never translated. refusal.dinah.unknown-field.ordered and refusal.dinah.unknown-field.next are spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-field.next": {
+      "text": " Name one of those instead, or run `dinah help query` to see what the command checks.",
+      "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-field.ordered": {
+      "text": " Only {instantField} accepts \u003e=, \u003c=, \u003e and \u003c.",
+      "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-guide": {
-      "text": "no guide is embedded under the topic {detail}",
+      "text": "no guide is embedded under the topic {detail}; Dinah carries guides on these",
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-guide.next": {
+      "text": "run `dinah guide \u003ctopic\u003e` with one of them",
+      "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-key": {
-      "text": "this tool knows no setting called {detail}",
+      "text": "Dinah knows no setting or field called {detail}; it knows these",
       "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-key.next": {
+      "text": "name one of them instead, or run `dinah config` to see what each one holds",
+      "context": "Printed under the settings refusal.dinah.unknown-key lists, on its own line and with no leading punctuation. It names no subcommand, because this refusal answers config get and config set alike.",
       "skeleton": true
     },
     "refusal.dinah.unknown-path": {
@@ -1101,13 +1321,53 @@
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-path.next": {
+      "text": "; run `dinah ls` to see what this workbench carries",
+      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-path.next-file": {
+      "text": "; check that {file} exists and that you can read it from where you are",
+      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal carries a file: a path on the filesystem the reader named.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-value": {
+      "text": "Dinah does not accept {detail} in {term}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-value, which a query giving a closed-vocabulary field a value that vocabulary does not hold carries. {detail} is the offending value and {term} is the whole term it was written in. Exactly one of refusal.dinah.unknown-value.legal and refusal.dinah.unknown-value.none is spliced on after it, and exactly one of the two next steps after that.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-value.legal": {
+      "text": " The values {field} takes are: {legal}.",
+      "context": "Spliced onto refusal.dinah.unknown-value when the field has values to offer. {field} is the field name and {legal} is its vocabulary. Both are machine vocabulary and are never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-value.next": {
+      "text": " Name one of those instead.",
+      "context": "The next step of refusal.dinah.unknown-value where the field had values to offer, so refusal.dinah.unknown-value.legal has just listed them.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-value.next-none": {
+      "text": " Drop that term, or run `dinah guide query` to see what each field takes.",
+      "context": "The next step of refusal.dinah.unknown-value where the field had nothing to offer, so there is no value to point the reader at and the term itself has to go. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-value.none": {
+      "text": " Nothing in this workbench carries a value for {field}.",
+      "context": "Spliced onto refusal.dinah.unknown-value when the field's vocabulary is read from the cards and no card carries one. {field} is machine vocabulary and is never translated.",
+      "skeleton": true
+    },
     "refusal.dinah.unreadable-workbench": {
-      "text": "{detail} exists and could not be read; fix its permissions, or point --workbench at a directory the search does not need to open",
+      "text": "{detail} exists and could not be read",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open.",
       "skeleton": true
     },
+    "refusal.dinah.unreadable-workbench.next": {
+      "text": "; fix its permissions, or point --workbench at a directory the search does not need to open",
+      "context": "Spliced onto refusal.dinah.unreadable-workbench as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
     "refusal.dinah.usage": {
-      "text": "{detail} was not understood; run dinah help for the list of commands",
+      "text": "{detail} was not understood",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
@@ -1116,9 +1376,19 @@
       "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does.",
       "skeleton": true
     },
+    "refusal.dinah.usage.next": {
+      "text": "; run dinah help for the list of commands",
+      "context": "Spliced onto refusal.dinah.usage as the next step, carrying the clause that base entry used to end with. It is spliced ahead of refusal.dinah.usage.dash-hint, which is the position it held inside the sentence.",
+      "skeleton": true
+    },
     "refusal.dinah.workbench-not-applicable": {
-      "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}). Give init the target directory as a plain argument instead.",
+      "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}).",
       "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one.",
+      "skeleton": true
+    },
+    "refusal.dinah.workbench-not-applicable.next": {
+      "text": " Give init the target directory as a plain argument instead.",
+      "context": "Spliced onto refusal.dinah.workbench-not-applicable as the next step, carrying the sentence that base entry used to end with.",
       "skeleton": true
     },
     "refusal.held": {
@@ -1126,9 +1396,19 @@
       "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.held.next": {
+      "text": "; wait for {detail} to release it",
+      "context": "Spliced onto refusal.held as the next step. {detail} is the owner holding the card. It names no command, because held answers claim, move and block alike.",
+      "skeleton": true
+    },
     "refusal.layer-collision": {
       "text": "layer {detail} is declared under a name this profile defines",
       "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.layer-collision.next": {
+      "text": "; rename the layer, then run `dinah check` to confirm",
+      "context": "Spliced onto refusal.layer-collision as the next step. Written for a refusal nothing raises today.",
       "skeleton": true
     },
     "refusal.malformed": {
@@ -1146,14 +1426,44 @@
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
       "skeleton": true
     },
+    "refusal.malformed.in-file": {
+      "text": ", in {file}",
+      "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
+      "skeleton": true
+    },
+    "refusal.malformed.next": {
+      "text": "; write the command as `dinah {usage}` and try again",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed.",
+      "skeleton": true
+    },
+    "refusal.malformed.next-file": {
+      "text": "; hand-edit {file} to correct it, then run the command again",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal carries a file. It names no dinah check, because the command that read the file created no workbench to check.",
+      "skeleton": true
+    },
+    "refusal.malformed.reads-as-a-card-reference": {
+      "text": "; Dinah reads {cardRef} as a card reference, so a workbench slug may not end in a dash and a number",
+      "context": "Spliced onto the malformed sentence when `dinah init --slug` is handed a slug the reference grammar would read as a card. {cardRef} carries that slug. It opens with a semicolon, the way refusal.malformed.at and refusal.malformed.fix do.",
+      "skeleton": true
+    },
     "refusal.no-operator": {
       "text": "this workbench designates no operator, so its reserved actions are dead",
       "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.no-operator.next": {
+      "text": "; add an operator line to the workbench's workbench.md, then run `dinah check` to confirm",
+      "context": "Spliced onto refusal.no-operator as the next step. operator is a key name and stays in Latin script.",
+      "skeleton": true
+    },
     "refusal.no-owner": {
-      "text": "Dinah does not know who you are; run `dinah config set actor \u003cname\u003e` to say so",
+      "text": "Dinah does not know who you are",
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.no-owner.next": {
+      "text": "; run `dinah config set actor \u003cname\u003e` to say so",
+      "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
     "refusal.no-reason": {
@@ -1161,9 +1471,19 @@
       "context": "The sentence printed after the refusal name no-reason. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.no-reason.next": {
+      "text": "; run `dinah block {card} \"the question the operator has to answer\"`",
+      "context": "Spliced onto refusal.no-reason as the next step. {card} is the card reference the reader named. Written for block, the one verb that raises this refusal.",
+      "skeleton": true
+    },
     "refusal.not-blocked": {
       "text": "this card is not blocked, so there is nothing to lift",
       "context": "The sentence printed after the refusal name not-blocked. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.not-blocked.next": {
+      "text": "; run `dinah show {card}` to see where it stands",
+      "context": "Spliced onto refusal.not-blocked as the next step. {card} is the card reference the reader named.",
       "skeleton": true
     },
     "refusal.not-holder": {
@@ -1171,9 +1491,29 @@
       "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.not-holder.next": {
+      "text": "; run `dinah whoami` to see who Dinah takes you to be, or ask {detail} to release it",
+      "context": "Spliced onto refusal.not-holder as the next step when somebody else holds the card. {detail} is that owner.",
+      "skeleton": true
+    },
+    "refusal.not-holder.next-unheld": {
+      "text": "; claim it first with `dinah claim {card}`",
+      "context": "Spliced onto refusal.not-holder.unnamed as the next step when nobody holds the card. {card} is the card reference the reader named.",
+      "skeleton": true
+    },
+    "refusal.not-holder.unnamed": {
+      "text": "nobody holds this card, so there is nothing to release",
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal.",
+      "skeleton": true
+    },
     "refusal.not-operator": {
       "text": "this action is the operator's, and you are {detail}",
       "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.not-operator.next": {
+      "text": "; ask the operator to run it, or run `dinah whoami` to see who Dinah takes you to be",
+      "context": "Spliced onto refusal.not-operator as the next step.",
       "skeleton": true
     },
     "refusal.not-requester": {
@@ -1181,9 +1521,19 @@
       "context": "The sentence printed after the refusal name not-requester. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.not-requester.next": {
+      "text": "; name yourself as the holder, or claim it as {detail}",
+      "context": "Spliced onto refusal.not-requester as the next step. {detail} is the holder the claim named. Written for claim, the one verb that raises this refusal.",
+      "skeleton": true
+    },
     "refusal.terminal": {
       "text": "state {detail} is a done state, and nothing moves forward out of one",
       "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.terminal.next": {
+      "text": "; name an earlier state instead",
+      "context": "Spliced onto refusal.terminal as the next step.",
       "skeleton": true
     },
     "refusal.unknown": {
@@ -1196,14 +1546,29 @@
       "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about.",
       "skeleton": true
     },
+    "refusal.unknown-card.next": {
+      "text": "; run `dinah ls` to see the cards this workbench carries",
+      "context": "Spliced onto refusal.unknown-card as the next step.",
+      "skeleton": true
+    },
     "refusal.unknown-state": {
-      "text": "this workbench declares no state {detail}",
+      "text": "this workbench declares no state {detail}; it declares these",
       "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.unknown-state.next": {
+      "text": "run `dinah {command}` with one of them",
+      "context": "Printed under the states refusal.unknown-state lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next.",
       "skeleton": true
     },
     "refusal.unsupported-version": {
       "text": "Dinah does not implement {detail}",
       "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.unsupported-version.next": {
+      "text": "; install a newer Dinah, or open this workbench with a build that reads it",
+      "context": "Spliced onto refusal.unsupported-version as the next step, after the window clause.",
       "skeleton": true
     },
     "refusal.unsupported-version.window": {
@@ -1219,6 +1584,31 @@
     "show.links": {
       "text": "Links:",
       "context": "The label above a card's links.",
+      "skeleton": true
+    },
+    "slot.comment": {
+      "text": "the comment",
+      "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "skeleton": true
+    },
+    "slot.query": {
+      "text": "the query",
+      "context": "Names query's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "skeleton": true
+    },
+    "slot.reason": {
+      "text": "the reason",
+      "context": "Names block's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "skeleton": true
+    },
+    "slot.title": {
+      "text": "the title",
+      "context": "Names add's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "skeleton": true
+    },
+    "slot.value": {
+      "text": "the value",
+      "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}.",
       "skeleton": true
     },
     "slug.missing": {
@@ -1419,6 +1809,11 @@
     "token.work": {
       "text": "work",
       "context": "How the canonical token work is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.workbench_updated": {
+      "text": "workbench updated",
+      "context": "The word a person reads for the workbench_updated journal event.",
       "skeleton": true
     },
     "version.catalogs": {

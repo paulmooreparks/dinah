@@ -16,19 +16,22 @@
 # simply unreached: each is a human rendering the suite has never printed, and
 # each is worth a test rather than a permanent line here.
 
-commands.go:368.2,369.10  runGuide printing one guide's text, which is reached only by naming a topic; the corpus asks for the topic listing and never for a guide.
+commands.go:398.2,399.10  runGuide printing one guide's text, which is reached only by naming a topic; the corpus asks for the topic listing and never for a guide.
 help.go:125.32,127.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
-render.go:27.28,29.3  the warning line of a response, which no verb the corpus drives sets.
-render.go:44.29,46.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
-render.go:46.27,48.4  the same, on the branch where the stale response carries a card.
-render.go:49.3,49.102  the same, writing the stale sentence.
-render.go:50.10,51.108  the unreachable outcome, which is by construction the outcome no invocation produces.
-render.go:60.16,63.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
-render.go:93.19,95.3  a token the catalog carries no rendering for, and every token the head prints has one.
-render.go:118.21,120.3  a served instruction offering no legal move, which needs a state with nothing after it.
-render.go:189.29,192.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
-render.go:269.23,272.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
-render.go:304.19,306.5  the override mark on a move in the history. Reachable and unreached: worth a test.
-render.go:307.30,308.20  the reason a block carries in the history. Reachable and unreached: worth a test.
-render.go:377.32,379.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
-table.go:91.30,93.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
+render.go:49.29,51.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
+render.go:51.27,53.4  the same, on the branch where the stale response carries a card.
+render.go:54.3,54.102  the same, writing the stale sentence.
+render.go:55.10,56.108  the unreachable outcome, which is by construction the outcome no invocation produces.
+render.go:65.16,68.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
+render.go:98.19,100.3  a token the catalog carries no rendering for, and every token the head prints has one.
+render.go:123.21,125.3  a served instruction offering no legal move, which needs a state with nothing after it.
+render.go:194.29,197.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
+render.go:291.23,294.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
+render.go:326.19,328.5  the override mark on a move in the history. Reachable and unreached: worth a test.
+render.go:329.30,330.20  the reason a block carries in the history. Reachable and unreached: worth a test.
+render.go:399.32,401.3  version reporting no catalog at all, which cannot happen while a catalog is embedded.
+render.go:435.23,437.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
+render.go:478.18,480.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
+render.go:520.23,522.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
+render.go:548.2,548.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
+table.go:115.30,117.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

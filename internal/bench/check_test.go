@@ -840,8 +840,12 @@ func TestSlugsAreDerivedToTheGrammar(t *testing.T) {
 		wanted string
 	}{
 		{name: "proj", wanted: "proj"},
-		{name: "My Project", wanted: "myproject"},
+		{name: "My Project", wanted: "my-project"},
+		{name: "Dinah development", wanted: "dinah-development"},
 		{name: "dinah-3", wanted: "dinah3"},
+		{name: "Sprint 2", wanted: "sprint2"},
+		{name: "Sprint 2 3", wanted: "sprint23"},
+		{name: "release-2-candidate", wanted: "release-2-candidate"},
 		{name: "2026-notes", wanted: "notes"},
 		{name: "PROJ", wanted: "proj"},
 		{name: "...", wanted: ""},
@@ -861,6 +865,22 @@ func TestSlugsAreDerivedToTheGrammar(t *testing.T) {
 	}
 	if ValidSlug("My Project") {
 		t.Error("a slug outside the grammar should not be valid")
+	}
+	// The exclusion, from both sides. A slug the state grammar admits and this
+	// one refuses is exactly one ending in a dash and digits alone, so the
+	// second list is what stops the check from refusing every dashed slug.
+	for _, refused := range []string{"sprint-2", "release-2-candidate-7", "a-0"} {
+		if ValidSlug(refused) {
+			t.Errorf("%q ends in a dash and digits alone and should not be a workbench slug", refused)
+		}
+		if !ValidStateSlug(refused) {
+			t.Errorf("%q should still be a state slug, which is what makes the exclusion the workbench grammar's own", refused)
+		}
+	}
+	for _, admitted := range []string{"sprint2", "release-2-candidate", "dinah-dev", "a-2b"} {
+		if !ValidSlug(admitted) {
+			t.Errorf("%q conforms and should be a workbench slug", admitted)
+		}
 	}
 }
 

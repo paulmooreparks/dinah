@@ -96,6 +96,7 @@ var wantedEvents = map[string][]string{
 	contract.EventAttachmentRemoved:  {"ts", "event", "actor", "attachment", "filename", "note"},
 	contract.EventArchived:           {"ts", "event", "actor", "note"},
 	contract.EventDeleted:            {"ts", "event", "actor", "title", "note"},
+	contract.EventWorkbenchUpdated:   {"ts", "event", "actor", "field", "from", "to"},
 }
 
 // unwrittenEvents are the event names internal/contract declares that this

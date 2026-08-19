@@ -92,6 +92,7 @@ var params = map[string][]Param{
 		{Name: "ready", Flag: true, Marker: true},
 	},
 	"next":         {{Name: "state"}},
+	"query":        {{Name: "query", Rest: true}},
 	"show":         {{Name: "card", Display: "card|path", Required: true}},
 	"log":          {{Name: "card", Required: true}},
 	"instructions": {{Name: "card", Display: "card|state", Required: true}},
@@ -112,6 +113,16 @@ var params = map[string][]Param{
 		{Name: "action", Display: "get|set"},
 		{Name: "key"},
 		{Name: "value"},
+	},
+	// The bare invocation lists all three fields, so neither the action nor
+	// the field is required; get and set still need one, which the command
+	// refuses over rather than the syntax line. The confirmation flag is
+	// unrequired because a title change and an operator change take none.
+	"workbench": {
+		{Name: "action", Display: "get|set"},
+		{Name: "field"},
+		{Name: "value"},
+		{Name: "yes", Flag: true, Marker: true},
 	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true},
