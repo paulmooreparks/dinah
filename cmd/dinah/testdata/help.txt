@@ -3,8 +3,6 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  Command                                What it does
-  -------------------------------------  ---------------------------------------
   add <title> [--state <state>]          file a new card in the first state
   claim <card> [--expires <duration>]    take up a ready card
   move <card> <state> [--override]       carry a card to another state
