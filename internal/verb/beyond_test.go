@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1792,4 +1793,86 @@ func TestTheFinishClearsOnlyTheLockItsOwnActLeft(t *testing.T) {
 			t.Error("the refused finish moved the card anyway")
 		}
 	})
+}
+
+// guideCommand finds every `dinah <word>` a guide's prose names, which is what
+// a reader will type after reading it.
+var guideCommand = regexp.MustCompile(`\bdinah ([a-z][a-z-]*)`)
+
+// TestEveryCommandTheGuidesNameIsOneTheToolHas holds the embedded guides
+// against the command definitions rather than against a reader's memory. A
+// guide that teaches a command the tool dropped, or spells one wrongly, fails
+// the build here instead of misleading somebody at a terminal.
+//
+// It is one half of what dinah-144 asks for. The other half, checking that a
+// guide's example produces the output the guide shows, is that card's work and
+// this test does not attempt it.
+func TestEveryCommandTheGuidesNameIsOneTheToolHas(t *testing.T) {
+	known := map[string]bool{}
+	for _, name := range Commands() {
+		known[name] = true
+	}
+	checked := 0
+	for _, topic := range guide.Topics() {
+		text, err := guide.Text(topic)
+		if err != nil {
+			t.Fatalf("guide %s: %v", topic, err)
+		}
+		for _, found := range guideCommand.FindAllStringSubmatch(text, -1) {
+			checked++
+			if !known[found[1]] {
+				t.Errorf("the %s guide tells a reader to run `dinah %s`, and no command is declared under that name", topic, found[1])
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no guide named a command, so this test read the wrong thing and asserts nothing")
+	}
+}
+
+// TestTheQueryGuideTeachesTheFieldsTheLanguageHas asserts that the query
+// guide's field list is the language's own, in both directions: every field the
+// parser admits is taught, and the guide's list is exactly ten items long, so a
+// field added to the vocabulary and left out of the guide fails the build.
+func TestTheQueryGuideTeachesTheFieldsTheLanguageHas(t *testing.T) {
+	text, err := guide.Text("query")
+	if err != nil {
+		t.Fatalf("the query guide: %v", err)
+	}
+	for _, field := range QueryFields {
+		if !strings.Contains(text, "- `"+field+"` is ") {
+			t.Errorf("the query guide does not teach the field %s", field)
+		}
+	}
+	taught := strings.Count(text, "- `")
+	if taught != len(QueryFields) {
+		t.Errorf("the query guide lists %d fields and the language has %d", taught, len(QueryFields))
+	}
+}
+
+// specSection6EscapeHatch is the two-line escape hatch of the dinah-135 spec's
+// section 6, transcribed once so that the guide is held against one string
+// rather than against a second typing of the same SQL. The unnest is the part
+// that matters: a reader who writes the query as though the cards were the
+// document's top level binds against a column that is not there.
+const specSection6EscapeHatch = "dinah query --json > cards.json\n" +
+	`duckdb -c "select card.state_title, count(*) from (select unnest(cards) as card from read_json_auto('cards.json')) group by 1 order by 1"`
+
+// TestTheQueryGuideCarriesTheEscapeHatchTheSpecFixed asserts that the guide
+// hands a reader the escape hatch the spec settled on, character for
+// character, since a downstream reader that binds against the wrong shape fails
+// with a column error rather than with an empty result.
+func TestTheQueryGuideCarriesTheEscapeHatchTheSpecFixed(t *testing.T) {
+	text, err := guide.Text("query")
+	if err != nil {
+		t.Fatalf("the query guide: %v", err)
+	}
+	flat := strings.Join(strings.Fields(strings.ReplaceAll(text, "\n", " ")), " ")
+	want := strings.Join(strings.Fields(strings.ReplaceAll(specSection6EscapeHatch, "\n", " ")), " ")
+	if !strings.Contains(flat, want) {
+		t.Errorf("the query guide does not carry the escape hatch the spec fixed:\n%s", specSection6EscapeHatch)
+	}
+	if !strings.Contains(text, "unnest(cards)") {
+		t.Error("the query guide's escape hatch does not unnest the cards member")
+	}
 }
