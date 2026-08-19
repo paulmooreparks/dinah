@@ -132,7 +132,7 @@ Nobody declares the set of holders in advance, so Dinah draws a group only for a
 holder that some card actually names. Compare that with block 1, where the flow
 declares every state and every state gets a group whether or not it holds a card.
 
-## 5. `dinah tree --query substate:ready`, and what the filter hides
+## 5. `dinah tree "substate:ready"`, and what the filter hides
 
 ```text
   Node              What      Count  Not shown
@@ -252,10 +252,14 @@ you type.
 
 ```text
   guide [topic]                          the embedded guides, or one of them
-  tree [--group-by <axes>] [--depth <level>] [--query <query>]
+  tree [query] [--group-by <axes>] [--depth <level>]
                                          the workbench as a tree, grouped
   contents <ref> [--depth <level>]       what an entity contains, all the way down
 ```
+
+The query is `tree`'s free-text slot, which is character-for-character the string
+`dinah query` takes, so you write one filter and it means the same thing in both
+commands.
 
 ## 11. A window too narrow for the tree, which this card does not fix
 
