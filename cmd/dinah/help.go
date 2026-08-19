@@ -119,6 +119,7 @@ func (s *session) helpBlock() string {
 	b.WriteString("\n" + s.r.T("help.environment") + "\n")
 	b.WriteString("\n" + s.r.T("help.exitcodes") + "\n")
 	b.WriteString("\n" + s.r.T("help.footer") + "\n")
+	b.WriteString(s.r.T("help.reading") + "\n")
 	return b.String()
 }
 
