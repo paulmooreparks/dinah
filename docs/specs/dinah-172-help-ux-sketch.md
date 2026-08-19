@@ -1,17 +1,14 @@
-# dinah-172: what the help pages say after this card
+# UX sketch: what the help pages say after this card
 
-Every transcript below is the intended output. The "today" blocks were produced by
-building commit 7719580 and running the binary against a scratch workbench; the
-"after" blocks are what this card asks for. Machine vocabulary (command names, flag
-names, refusal names, and the words inside angle brackets) is unchanged.
+Every block below is drawn at an eighty-column window, which is what Dinah measures against when nothing states a width, so a piped run and an eighty-column terminal both print exactly these bytes. Blocks headed **Today** came out of a binary built at commit `7719580` and run against a scratch workbench. Blocks headed **After** are what this card asks for, laid out through the renderer rather than by hand.
 
-## The new section on a per-command page
+Machine vocabulary is unchanged throughout. Command names, flag names, refusal names, and the words inside angle brackets all stay as they are.
 
-Each page grows one section, headed `What you may write:`, between the summary and
-the refusal table. It is a two-column table drawn by the renderer the rest of the
-help already uses. The left cell is the argument as the syntax line spells it. The
-right cell is the argument's summary, with its vocabulary appended in parentheses
-when the argument has a closed one.
+Two rules govern every drawn table.
+
+The left cell spells the argument exactly as the syntax line above it spells it, brackets and all, because one function composes both. An optional positional keeps its square brackets, so `ls` reads `[state]` and `move` reads `<state>`, and you can see which one is required without reading a word. The left column is headed `As you write it` rather than `Argument`, because a cell reading `<ref>` is a spelling rather than a name.
+
+The right cell wraps at the window and its continuation lines indent under the column. Dinah does not wrap a table's last column today; it writes the cell whole and lets your terminal fold it at column zero. This card teaches the renderer to break the last column on word boundaries, as an opt-in the arguments table asks for and no other table does, so every table Dinah prints today prints identically after this card.
 
 ## check
 
@@ -35,23 +32,25 @@ look for structural defects in this workbench
 Dinah exits 2 when it finds a defect, so a script may read the exit code alone.
 
 What you may write:
-  Argument            What it is
-  ------------------  -------------------------------------------------------------
-  --finish            complete or roll back a structural act that was interrupted
-  --migrate-ordinals  stamp a creation ordinal on every entity that carries none
-  --migrate-slugs     derive a slug for every state of the workbench that carries none
-  --migrate-states    remove stranded identifiers from the workbench's list of states
+  As you write it       What it is
+  --------------------  --------------------------------------------------------
+  [--finish]            complete or roll back a structural act that was
+                        interrupted
+  [--migrate-ordinals]  stamp a creation ordinal on every entity that carries
+                        none
+  [--migrate-slugs]     derive a slug for every state of this workbench that
+                        carries none
+  [--migrate-states]    remove stranded identifiers from this workbench's own
+                        list of states
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
 
-The sentence under the summary comes from `cmd.check.note`, an optional per-command
-key any command may carry. Only `check` carries one after this card.
-
 ## attach
 
-Today the page shows two of the three flags the command accepts, and the reference
-it asks for is the card even when you are replacing an attachment:
+`attach` accepts more than the pages, and the previous drawing of this sketch, said it does. It resolves through `ResolveEntity` and carries no refusal after it, so this workbench and a state are both legal subjects, and so is the empty reference, which Dinah reads as this workbench.
+
+Today:
 
 ```
 attach <ref> <file> [--replace]
@@ -67,72 +66,23 @@ attach <ref> <file> [--description <text>] [--replace]
 attach a file, or replace its bytes
 
 What you may write:
-  Argument              What it is
-  --------------------  -----------------------------------------------------------
-  ref                   the card the file hangs off, or, with --replace, the
-                        attachment whose bytes you are replacing
-  file                  a path on this machine to the file you are attaching
-  --description <text>  a line describing the attachment, stored beside it
-  --replace             replace an existing attachment's bytes instead of adding one
-
-What can go wrong, in the order each is checked:
-  Order  What can go wrong                        Refusal
-  -----  ---------------------------------------  ------------------
-  1      the reference and the file both resolve  dinah.unknown-path
-  2      the request names an owner               no-owner
+  As you write it         What it is
+  ----------------------  ------------------------------------------------------
+  <ref>                   what the file hangs off: this workbench, a state, a
+                          card, or a comment or an attachment below a card; with
+                          --replace, the attachment whose bytes you are
+                          replacing
+  <file>                  a path on this machine to the file you are attaching
+  [--description <text>]  a line describing the attachment, stored beside it
+  [--replace]             replace an existing attachment's bytes instead of
+                          adding one
 
 For more, run `dinah guide references`.
-
-Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
-
-## show, path, and edit
-
-The three take a reference, print the same display name, and accept three different
-vocabularies. Today nothing on any page says so. After this card each page says
-what its own command takes:
-
-```
-show <card|path>
-
-a card, or anything below it
-
-What you may write:
-  Argument   What it is
-  ---------  --------------------------------------------------------------
-  card|path  a card, or something below a card; not the workbench itself
-```
-
-```
-path <card|path>
-
-print the file path of this workbench, of a card, or of anything below a card
-
-What you may write:
-  Argument   What it is
-  ---------  --------------------------------------------------------------
-  card|path  this workbench, a card, or something below a card
-```
-
-```
-edit <card|path>
-
-open this workbench, a card, or anything below a card in your editor
-
-What you may write:
-  Argument   What it is
-  ---------  --------------------------------------------------------------
-  card|path  this workbench, a card, or something below a card
-```
-
-Every one of the three ends with a pointer line reading: For more, run
-`dinah guide references`.
 
 ## ls
 
-`ls` takes a state as a positional word and also accepts it as `--state`, which no
-page says today. The vocabulary is the workbench's own states, so Dinah prints it
-only when a workbench resolves from where you are:
+The vocabulary is your own workbench's states, so Dinah prints it only when a workbench resolves from where you stand:
 
 ```
 ls [state] [--ready]
@@ -140,25 +90,16 @@ ls [state] [--ready]
 the cards of a state, in queue order
 
 What you may write:
-  Argument  What it is
-  --------  ----------------------------------------------------------------
-  state     which state to list, also written --state <state>; every state
-            when you name none (one of: intake, doing, done)
-  --ready   list only the cards that are ready to be claimed
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  [state]          which state to list, also written --state <state>; every
+                   state when you name none (one of: intake, doing, done)
+  [--ready]        list only the cards that are ready to be claimed
 ```
 
-Run the same command outside a workbench and the parenthesis is absent, because
-Dinah has no states to name:
-
-```
-  state     which state to list, also written --state <state>; every state
-            when you name none
-```
+If no workbench resolves from where you stand, Dinah drops the parenthesis and prints the rest of the row, so `dinah help ls` answers anywhere.
 
 ## init
-
-Today `init` takes a positional directory the syntax line does not carry, and
-`--from` names one shape while accepting two. After:
 
 ```
 init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]
@@ -166,166 +107,190 @@ init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]
 create a workbench here, optionally from a template
 
 What you may write:
-  Argument            What it is
-  ------------------  ------------------------------------------------------------
-  dir                 where to create the workbench; the current directory when you
-                      name none
-  --from <source>     a directory holding a workbench, or a single file written by
-                      `dinah export` or `dinah extract`
-  --slug <slug>       the prefix every card reference carries; derived from the
-                      directory's name when you name none
-  --operator <actor>  who owns this workbench; your own actor when you name none
+  As you write it       What it is
+  --------------------  --------------------------------------------------------
+  [dir]                 where to create the workbench; the directory you are in
+                        when you name none
+  [--from <source>]     a directory holding a workbench, or a single file
+                        written by `dinah export` or `dinah extract`
+  [--slug <slug>]       the prefix every card reference carries; derived from
+                        the directory's name when you name none
+  [--operator <actor>]  who owns this workbench; your own actor when you name
+                        none
 ```
 
 ## claim
 
-`--expires` takes Go's duration syntax with a day suffix Go itself does not have,
-so `7d` is accepted and `1w` is refused. Today the format appears in one example in
-a guide no page points at:
-
 ```
-claim <card> [--expires <duration>]
-
-take up a ready card
-
 What you may write:
-  Argument             What it is
-  -------------------  --------------------------------------------------------
-  card                 the card you are taking up
-  --expires <duration>  how long your claim holds before it goes stale, as a
-                        number and a unit: 30m, 2h, 7d
-
-For more, run `dinah guide references`.
+  As you write it         What it is
+  ----------------------  ------------------------------------------------------
+  <card>                  the card you are taking up
+  [--expires <duration>]  how long your claim holds before it goes stale,
+                          written as a number and a unit: 30m, 2h, 7d
 ```
+
+`claim` takes a card rather than a reference, so its page carries no pointer to the references guide.
 
 ## block
 
-`--kind` reads like the checked vocabulary `<state>` on the line above it and is
-free text:
-
 ```
-block <card> <reason> [--kind <kind>]
-
-raise an obstacle and free the card
-
 What you may write:
-  Argument       What it is
-  -------------  ---------------------------------------------------------------
-  card           the card you are blocking
-  reason         why, in your own words, in one shell word or in quotation marks
-  --kind <kind>  your own word for what sort of obstacle this is; Dinah stores
-                 whatever you write and checks it against nothing
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  <card>           the card you are blocking
+  <reason>         why it is blocked, in one shell word or in quotation marks
+  [--kind <kind>]  your own word for what sort of obstacle this is; Dinah stores
+                   whatever you write and checks it against no set
 ```
 
 ## query
 
-The page names three vocabulary checks and no field, operator, or value. The guide
-that carries all of them gains a pointer:
-
 ```
-query [query]
-
-the cards of the workbench that match a query
-
 What you may write:
-  Argument  What it is
-  --------  ------------------------------------------------------------------
-  query     the query, in one shell word or in quotation marks; every live card
-            when you write none
-
-What can go wrong, in the order each is checked:
-  ... unchanged ...
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  [query]          the query, in one shell word or in quotation marks; every
+                   live card when you write none
 
 For more, run `dinah guide query`.
 ```
 
-## The top-level block
+## show, path, edit, and instructions
 
-Four lines of the block change. Everything else, including the order of the
-commands and the four group headings, stays as it is.
+Four commands take a reference, under four spellings, and today no page says that the four vocabularies differ. Each of these pages ends with a pointer to `dinah guide references`.
+
+```
+show <card|path>
+
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  <card|path>      a card, or something below a card; show does not take this
+                   workbench
+```
+
+```
+path <card|path>
+
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------
+  <card|path>      this workbench, a card, or something below a card
+```
+
+`edit` draws the same row as `path`, because the two share one resolver.
+
+```
+instructions <card|state>
+
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  <card|state>     a card or a state; instructions takes neither this workbench
+                   nor anything below a card
+```
+
+## guide and config
+
+Two arguments carry a set that is fixed rather than read from your workbench:
+
+```
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  [topic]          which guide to read; the topics when you name none (one of:
+                   getting-started, query, references, verbs, workbench-layout)
+```
+
+```
+What you may write:
+  As you write it  What it is
+  ---------------  -------------------------------------------------------------
+  [get|set]        read one setting or write one; every setting with its value
+                   when you name none
+  [key]            which setting (one of: lang, actor, editor, workbench)
+  [value]          what to store under it, on a set
+```
+
+The `[get|set]` cell carries no appended set, because its own spelling already names both values.
+
+## The top-level block, four lines
+
+Everything else stays, including the command order and the four group headings.
 
 ```
   init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]
-                                         create a workbench here, optionally from a template
-```
-
-```
   attach <ref> <file> [--description <text>] [--replace]
-                                         attach a file, or replace its bytes
+  --lang <tag>   render in this language; run `dinah version --catalogs` for the tags
+
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG,
+             DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR
 ```
 
-```
-  --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
-```
-
-```
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR
-```
-
-`VISUAL` and `EDITOR` are two rungs of the ladder `internal/bench/config.go` walks
-to find your editor, so a reader whose editor opens the wrong program can learn
-from the help which variable is involved.
+Dinah walks `DINAH_EDITOR`, then `VISUAL`, then `EDITOR` to find your editor, so the line as it stands today is false rather than merely short.
 
 ## dinah guide references
 
-A new guide carries the grammar the audit read out of the two resolvers. Its first
-screen:
+A new guide carries the grammar that today lives only in the resolvers. Its first screen:
 
 ```
-# References: how you name a thing to Dinah
-
-Several of Dinah's commands take a reference rather than a card. A reference names
-the workbench, a state, a card, or something that hangs off a card, and you write
+You name a thing to Dinah by writing a reference. A reference names this
+workbench, a state, a card, or something that hangs off a card, and you write
 it as a path with slashes between its parts.
 
-## The workbench
-
-You may write the workbench two ways, and both mean the same thing:
+This workbench, two spellings that mean the same thing:
 
     dinah path workbench
     dinah path .
 
-## A card
-
-You name a card by its reference, which is the workbench's slug, a hyphen, and the
-card's number:
+A card, by its reference:
 
     dinah show wb-1
 
-## Something below a card
+A state, by its slug, its name, or its identifier:
 
-Add a slash and the part you want:
+    dinah attach doing notes.md
 
-    dinah path wb-1/card          the card's own file, which is what wb-1 alone gives you
+Something below a card:
+
+    dinah path wb-1/card          the card's own file, which wb-1 alone gives you
     dinah path wb-1/journal       everything that has happened to the card
+    dinah path wb-1/comments      every comment on the card
     dinah path wb-1/comments/1    one comment
+    dinah path wb-1/checklist     every checklist item
     dinah path wb-1/checklist/1   one checklist item
+    dinah path wb-1/attachments   every attachment
     dinah path wb-1/attachments/1 one attachment
 
-Three shorter spellings select one kind of checklist item rather than the whole
-list:
+You may write three shorter spellings that select one kind of checklist item:
 
     dinah path wb-1/oq            the open questions
     dinah path wb-1/ac            the acceptance criteria
     dinah path wb-1/d             the decisions
 
-You may write an entity's own identifier in place of its number. The number counts
-in the order the entities were created, which is not always the order a listing
-prints them in.
+You may write an entity's own identifier in place of its number. The number
+counts in the order the entities were created, which is not always the order a
+listing prints them in.
 
-## Which commands take which
-
-Dinah has two reference vocabularies, and the table says which command reads which.
-
-| Command | Workbench | State | Card | Below a card |
-|---|---|---|---|---|
-| `path` | yes | no | yes | yes |
-| `edit` | yes | no | yes | yes |
-| `show` | no | no | yes | yes |
-| `attach` | no | no | yes | yes |
-| `archive` | no | yes | yes | yes |
-| `delete` | no | yes | yes | yes |
+If the collection you name is empty, Dinah tells you that nothing answers to
+the reference rather than telling you the collection is empty.
 ```
 
-The guide is one embedded Markdown file like the four that already ship, so it is
-served in English under every language setting, as the existing guides are.
+That last paragraph is one self-contained line of prose and no more, so the card that fixes the refusal deletes a line rather than editing a page.
+
+And the table that settles which command takes what:
+
+```
+| Command      | Workbench | State | Card | Below a card |
+|--------------|-----------|-------|------|--------------|
+| path         | yes       | no    | yes  | yes          |
+| edit         | yes       | no    | yes  | yes          |
+| show         | no        | no    | yes  | yes          |
+| instructions | no        | yes   | yes  | no           |
+| attach       | yes       | yes   | yes  | yes          |
+| archive      | no        | yes   | yes  | yes          |
+| delete       | no        | yes   | yes  | yes          |
+```
+
+Every row of that table was provoked against the build at `7719580` rather than read off a resolver, because the previous drawing of it was read off a resolver and was wrong.
