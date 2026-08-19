@@ -269,8 +269,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	if summaries != 31 {
 		t.Errorf("read %d command entries out of the block, want 31", summaries)
 	}
-	if continued != 3 {
-		t.Errorf("%d entries continued on a line of their own, want the three whose syntax cannot be laid out inside the window", continued)
+	if continued != 4 {
+		t.Errorf("%d entries continued on a line of their own, want the four whose syntax cannot be laid out inside the window", continued)
 	}
 	if want != 41 {
 		t.Errorf("the measured summary column is %d, and every block of this shape has started it at 41 since the width was declared", want)
@@ -280,7 +280,7 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 // widestFittingSyntax is the widest syntax line among the command entries that
 // can be laid out inside an eighty-column window with their fields packed
 // tight. An entry that cannot be laid out inside the window however the
-// columns are chosen does not get to widen the column, so the three long
+// columns are chosen does not get to widen the column, so the four long
 // syntax lines are left out of this the same way the table leaves them out.
 func widestFittingSyntax(t *testing.T) int {
 	t.Helper()

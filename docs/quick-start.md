@@ -970,14 +970,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        373/373
-  af        0/373
-  cs        0/373
-  de        0/373
-  es        0/373
-  fil       0/373
-  hi        373/373
-  id        0/373
+  en        423/423
+  af        0/423
+  cs        0/423
+  de        0/423
+  es        0/423
+  fil       0/423
+  hi        423/423
+  id        0/423
 [exit 0]
 ```
 
@@ -1075,7 +1075,7 @@ its own yet:
 
 ```console
 $ dinah status
-dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, or pass --workbench <path> to point at one that exists
+dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists
 [exit 2]
 ```
 
@@ -1105,7 +1105,7 @@ dinah.ambiguous-workbench more than one workbench is reachable from /home/ana/.d
   ------------  ----  -----------------------------
   Household     bet   /home/ana/.dinah/2ae23a55a39c
   Reading list  alp   /home/ana/.dinah/cd20d36303bc
-choose one with --workbench <path>, or run from inside it
+choose one with --workbench <dir>, or run from inside it
 [exit 2]
 ```
 
@@ -1220,6 +1220,7 @@ $ dinah guide
   ----------------  -----------------------------------
   getting-started   Getting started
   query             Asking questions of a workbench
+  references        References
   verbs             The five verbs
   workbench-layout  What a workbench looks like on disk
 [exit 0]
@@ -1257,6 +1258,12 @@ $ dinah help claim
 claim <card> [--expires <duration>]
 
 take up a ready card
+
+What you may write:
+  As you write it         What it is
+  ----------------------  -------------------------------------------------------------------------------------------
+  <card>                  the card you are taking up
+  [--expires <duration>]  how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d
 
 What can go wrong, in the order each is checked:
   Order  What can go wrong                                          Refusal

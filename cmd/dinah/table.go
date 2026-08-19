@@ -61,6 +61,12 @@ type table struct {
 	// labels says where a reader meets this table's column labels. It defaults
 	// to labelAbove, so a table that says nothing draws as it always has.
 	labels labelling
+	// wrapTail asks for the last column to be broken between words at the
+	// window rather than written whole. It is an opt-in one table takes
+	// rather than a change to how every table draws: a table measures against
+	// assumedWindow whenever no width is stated, so wrapping by default would
+	// rewrite the piped output of every listing the tool prints.
+	wrapTail bool
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -185,6 +191,9 @@ type laidTable struct {
 	// last is read by the separator alone, since the last field of a row is
 	// never padded.
 	widths []int
+	// wrapTail is carried from the table, so the measure and the row assembly
+	// both read one answer.
+	wrapTail bool
 }
 
 // layOut removes the columns no row fills, chooses every column's width, and
@@ -228,11 +237,15 @@ func measure(t table, window int) laidTable {
 		// narrowed table. withoutEmptyColumns and withoutTrailingEmptyFields
 		// each rebuild a table literal out of indent, columns and rows, so
 		// filled.labels is the zero value on every path through them and would
-		// silently put a labelInTheStack table's heading row back.
-		labels:  t.labels,
-		window:  window,
-		columns: filled.columns,
-		rows:    filled.rows,
+		// silently put a labelInTheStack table's heading row back. wrapTail is
+		// read off the declared table for the same reason: those two helpers
+		// rebuild without it, so filled.wrapTail is false on every path and
+		// would silently retire a wrapping table's opt-in.
+		labels:   t.labels,
+		window:   window,
+		columns:  filled.columns,
+		rows:     filled.rows,
+		wrapTail: t.wrapTail,
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
@@ -344,7 +357,7 @@ func chooseWidths(laid laidTable) []int {
 		widths[c] = displayWidth(column.heading)
 	}
 	for _, r := range laid.rows {
-		dropped := fieldsOverWindow(r.fields, laid.indent, laid.window)
+		dropped := fieldsOverWindow(r.fields, laid.indent, laid.window, laid.wrapTail)
 		for c, field := range r.fields {
 			if c == len(r.fields)-1 && c != last {
 				continue
@@ -374,8 +387,15 @@ func chooseWidths(laid laidTable) []int {
 // A row's last field is never a candidate. It widens no column, so dropping it
 // removes nothing from the measurement, and all it can do is stop the loop
 // early and leave a genuinely over-wide field in place.
-func fieldsOverWindow(fields []string, indent, window int) []bool {
+//
+// A table that wraps its tail is measured with the last field counted at
+// minTailColumns rather than at its own width, because a tail that breaks at
+// the window imposes no width on the row: counting it whole would drop the
+// field before it out of the measurement and collapse a column a reader can
+// see is wider than its heading.
+func fieldsOverWindow(fields []string, indent, window int, wrapsTail bool) []bool {
 	dropped := make([]bool, len(fields))
+	last := len(fields) - 1
 	for {
 		total := indent
 		counted := 0
@@ -386,7 +406,7 @@ func fieldsOverWindow(fields []string, indent, window int) []bool {
 			if counted > 0 {
 				total += tableGutter
 			}
-			total += displayWidth(field)
+			total += countedWidth(field, i == last, wrapsTail)
 			counted++
 		}
 		if total <= window || counted <= 1 {
@@ -406,6 +426,18 @@ func fieldsOverWindow(fields []string, indent, window int) []bool {
 		}
 		dropped[at] = true
 	}
+}
+
+// countedWidth is how wide a field counts toward the measurement that decides
+// which fields are too wide for the window. A field counts at its own width,
+// except the last field of a table that wraps its tail, which counts at the
+// room a continuation always keeps for itself.
+func countedWidth(field string, isLast, wrapsTail bool) int {
+	drawn := displayWidth(field)
+	if isLast && wrapsTail && drawn > minTailColumns {
+		return minTailColumns
+	}
+	return drawn
 }
 
 // narrowToWindow is the backstop a narrow window needs. While the indent plus
@@ -606,8 +638,15 @@ func (laid laidTable) ruleWidth(column, start int) int {
 
 // rowLine lays one row out: every field but the last padded to its column and
 // the gutter after it, and the last field taking whatever is left of the line.
+//
+// A wrapping table stamps wrapTail onto its heading row and its rule row as
+// well as onto its body, and both survive it. breakTail breaks a tail between
+// words, so a rule row, whose tail is one unbroken run of glyphs, comes back
+// the length it went in however narrow the window. A column label wide enough
+// to reach the edge would wrap where a body cell wraps, which is the layout
+// this table asked for rather than a fault in it.
 func (laid laidTable) rowLine(r tableRow) string {
-	built := row{indent: laid.indent}
+	built := row{indent: laid.indent, wrapTail: laid.wrapTail}
 	for c, field := range r.fields {
 		if c == len(r.fields)-1 {
 			built.tail = field
