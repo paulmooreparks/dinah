@@ -266,8 +266,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			break
 		}
 	}
-	if summaries != 33 {
-		t.Errorf("read %d command entries out of the block, want 33", summaries)
+	if summaries != 34 {
+		t.Errorf("read %d command entries out of the block, want 34", summaries)
 	}
 	if continued != 4 {
 		t.Errorf("%d entries continued on a line of their own, want the four whose syntax cannot be laid out inside the window", continued)

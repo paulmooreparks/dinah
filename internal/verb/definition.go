@@ -100,6 +100,7 @@ var params = map[string][]Param{
 		{Name: "ready", Flag: true, Marker: true},
 	},
 	"next":         {{Name: "state"}},
+	"query":        {{Name: "query", Rest: true}},
 	"show":         {{Name: "card", Display: "card|path", Required: true}},
 	"log":          {{Name: "card", Required: true}},
 	"instructions": {{Name: "card", Display: "card|state", Required: true}},

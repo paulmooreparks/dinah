@@ -143,6 +143,14 @@ var beyondChecks = map[string][]Check{
 	"next": {
 		{Refusal: contract.UnknownState, Key: "check.next.1"},
 	},
+	"query": {
+		{Refusal: contract.Malformed, Key: "check.query.1"},
+		{Refusal: contract.UnknownField, Key: "check.query.2"},
+		{Refusal: contract.UnknownField, Key: "check.query.3"},
+		{Refusal: contract.UnknownValue, Key: "check.query.4"},
+		{Refusal: contract.UnknownState, Key: "check.query.5"},
+		{Refusal: contract.UnknownValue, Key: "check.query.6"},
+	},
 	"instructions": {
 		{Refusal: contract.UnknownPath, Key: "check.instructions.1"},
 	},
