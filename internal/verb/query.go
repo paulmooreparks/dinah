@@ -353,9 +353,7 @@ func checkField(t term) error {
 			return nil
 		}
 	}
-	return contract.RefuseWith(contract.UnknownField, t.field, map[string]string{
-		"fields": strings.Join(QueryFields, ", "),
-	})
+	return unknownField(t.field)
 }
 
 // checkOperator runs check 3: the operator is one the named field accepts. at
@@ -366,8 +364,22 @@ func checkOperator(t term) error {
 	if ordered == (t.field == FieldAt) {
 		return nil
 	}
-	return contract.RefuseWith(contract.UnknownField, t.field+t.op, map[string]string{
-		"fields": strings.Join(QueryFields, ", "),
+	return unknownField(t.field + t.op)
+}
+
+// unknownField raises the refusal both check 2 and check 3 answer with, since
+// one name covers a field this tool does not have and a field given an
+// operator it does not take.
+//
+// The field list is read off QueryFields rather than written into the catalog,
+// so a field added to the language reaches the refusal without a translator
+// being asked for anything. instantField names the one field whose values
+// rank, which is what the ordered-operator clause is about; the four operators
+// themselves are written in the catalog beside the sentence that frames them.
+func unknownField(token string) error {
+	return contract.RefuseWith(contract.UnknownField, token, map[string]string{
+		"fields":       strings.Join(QueryFields, ", "),
+		"instantField": FieldAt,
 	})
 }
 
