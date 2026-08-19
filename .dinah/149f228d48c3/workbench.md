@@ -25,6 +25,7 @@ states:
   - 6c5b9d6f4414   # Merge
   - b69abf918c42   # Acceptance
   - aa6cd1c6ae5f   # Done
+slug: dinah
 ---
 This bench holds the definition of the hosted board on which Dinah itself is
 being built, extracted by hand into the on-disk format this repository
