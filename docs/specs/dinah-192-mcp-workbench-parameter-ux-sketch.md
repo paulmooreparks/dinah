@@ -8,13 +8,25 @@ handshake wording, and the help page below are what a renderer produced rather t
 drawing guessed at. The throwaway build was thrown away; it is not part of this branch.
 
 Every command below was run in PowerShell on Windows, and the paths are Windows paths for
-that reason. Nothing here was run against the operator's own workbenches. The scratch tree
-sits at `C:\dinah-scratch\dinah-192-spec`, outside his profile, and `DINAH_HOME` pointed
-inside it for every run.
+that reason. Nothing here was run against the operator's own workbenches, and no block
+below names a directory of his. The scratch tree sits at `C:\dinah-scratch\dinah-192-spec2`,
+outside his profile, and `DINAH_HOME`, `TMP`, and `TEMP` all pointed inside it for every
+run.
 
-The scratch tree holds one `.dinah` container with two workbenches in it, titled `Portfolio`
-and `Reference CLI`, created by running `dinah init` twice in a directory this card made.
-Neither holds any card, which is why the listings below are short.
+The scratch tree holds four workbenches, every one of them created by running `dinah init`
+in a directory this card made. Two of them lie under the root the server below is started
+with, at `benchroot\plans` and `benchroot\plans-archive`. The third lies outside that root
+at `outside\out-of-reach`, and its `workbench.md` was then overwritten with a line that does
+not parse, which is what section 6 uses to show that a refused call never opened it. The
+fourth lies outside the root at `outside\good` and is left intact. None of the four holds
+any card, which is why the listings below are short.
+
+The two workbenches under the root are named so that the order the walk meets them differs
+from the order their paths sort in. A directory listing gives `plans` before
+`plans-archive`, and a byte-wise sort of the two workbench paths gives `plans-archive`
+first, because the hyphen sorts ahead of the path separator. Section 3's listing is
+therefore evidence about the ordering rule rather than about one arrangement that happened
+to agree with it.
 
 The blocks in this document are not read by any guard. `guardedDocuments` in
 `cmd/dinah/guide_guard_test.go` reads the embedded guides and the quick start, and a
@@ -31,7 +43,7 @@ Today. The handshake names one workbench and offers no way to reach another.
 ```
 
 ```text
-You are working the workbench Portfolio.
+You are working the workbench plans.
 
 The working agreement, which binds you rather than the tool:
 1. Claim a card before producing work on it.
@@ -80,7 +92,7 @@ properties `schemaFor` injects beyond the command's own parameters.
 
 ## 2. The third injected property
 
-Proposed. Every tool that opens a workbench gains a `workbench` property beside `actor` and
+Proposed. Every tool but `workbenches` gains a `workbench` property beside `actor` and
 `basis`. The property is optional, so a client that never sends it keeps getting the
 workbench the server started with.
 
@@ -106,7 +118,7 @@ workbench the server started with.
         "type": "string"
       },
       "workbench": {
-        "description": "which workbench this call acts on, named as it is listed by the workbenches tool; the workbench this server started with when you name none",
+        "description": "which workbench this call acts on, named by the path the workbenches tool lists; the workbench this server started with when you name none",
         "type": "string"
       }
     },
@@ -135,7 +147,7 @@ Proposed. A tool taking no parameters of its own shows the same three.
         "type": "string"
       },
       "workbench": {
-        "description": "which workbench this call acts on, named as it is listed by the workbenches tool; the workbench this server started with when you name none",
+        "description": "which workbench this call acts on, named by the path the workbenches tool lists; the workbench this server started with when you name none",
         "type": "string"
       }
     },
@@ -145,11 +157,16 @@ Proposed. A tool taking no parameters of its own shows the same three.
 }
 ```
 
+The rule behind that injection is uniformity with one exception rather than a principle with
+one instance. `version` acts on no workbench and gets the property anyway, because
+`schemaFor` injects it everywhere and one injection site is cheaper to hold true than a list
+of tools that need it. `workbenches` is the one tool held out, and it is held out because a
+caller answering the question of what the property may say cannot already know the answer.
+
 ## 3. The discovery tool
 
 Proposed. The surface grows to twenty-seven tools. The new one is `workbenches`, and it is
-the only tool that carries no `workbench` property, because it answers the question of what
-that property may say rather than acting on a workbench.
+the only tool that carries no `workbench` property.
 
 ```json
 {
@@ -172,7 +189,7 @@ that property may say rather than acting on a workbench.
 ```
 
 Proposed. Calling it answers with the same three fields the terminal listing prints, wrapped
-the way every other read is wrapped.
+the way every other read is wrapped, and ordered by path.
 
 ```json
 {
@@ -184,28 +201,32 @@ the way every other read is wrapped.
   ],
   "workbenches": [
     {
-      "title": "Portfolio",
-      "slug": "pf",
-      "path": "C:\\dinah-scratch\\dinah-192-spec\\demo2\\.dinah\\a67b21d1d195"
+      "title": "plans-archive",
+      "slug": "pa",
+      "path": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans-archive\\.dinah\\793d2e263ee6"
     },
     {
-      "title": "Reference CLI",
-      "slug": "rc",
-      "path": "C:\\dinah-scratch\\dinah-192-spec\\demo2\\.dinah\\cb755fdc14f7"
+      "title": "plans",
+      "slug": "pl",
+      "path": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans\\.dinah\\5164831b5ee4"
     }
   ]
 }
 ```
 
-Today. Those are the rows `dinah workbenches --json` already returns for the same directory,
-so the two heads answer the same question with one shape.
+`plans-archive` comes back first although the walk met `plans` first, which is the ordering
+rule doing visible work. An implementation that emitted rows in walk order would answer with
+these two the other way round.
+
+Today. The terminal listing answers a different question with the same row shape. It climbs
+from where it is run rather than descending from a root, so run inside `plans` it finds that
+one workbench and does not find `plans-archive` at all.
 
 ```text
 $ dinah workbenches
-  Workbench      Slug  Path
-  -------------  ----  ---------------------------------------------------------
-  Portfolio      pf    C:\dinah-scratch\dinah-192-spec\demo2\.dinah\a67b21d1d195
-  Reference CLI  rc    C:\dinah-scratch\dinah-192-spec\demo2\.dinah\cb755fdc14f7
+  Workbench  Slug  Path
+  ---------  ----  -------------------------------------------------------------
+  plans      pl    C:\dinah-scratch\dinah-192-spec2\benchroot\plans\.dinah\5164831b5ee4
 ```
 
 ## 4. The handshake
@@ -214,9 +235,9 @@ Proposed. A server that discovered a workbench at startup keeps today's opening 
 for word and gains a paragraph naming its reach.
 
 ```text
-You are working the workbench Portfolio.
+You are working the workbench plans.
 
-This server also reaches the other workbenches under C:\dinah-scratch\dinah-192-spec\demo2. Every tool takes an optional workbench property, and a call that names none acts on Portfolio. Call the workbenches tool to see what you may name.
+This server also reaches the other workbenches under C:\dinah-scratch\dinah-192-spec2\benchroot. Every tool takes an optional workbench property, and a call that names none acts on plans. Call the workbenches tool to see what you may name.
 
 The working agreement, which binds you rather than the tool:
 1. Claim a card before producing work on it.
@@ -230,10 +251,12 @@ The operator of this workbench is paul. Read the embedded guides through resourc
 ```
 
 Proposed. A server started with a root but standing in no workbench of its own drops the
-opening line and the operator line, since neither has a subject any more.
+opening line and the operator line, since neither has a subject any more. The block below
+came from a server launched inside `outside\good`, which is a workbench that lies outside
+the root, so this is also what startup case 3 of the spec produces.
 
 ```text
-This server serves the workbenches under C:\dinah-scratch\dinah-192-spec\demo2, and it started in none of them. Every tool takes a workbench property, and a call that names none is refused with dinah.no-workbench-found. Call the workbenches tool to see what you may name.
+This server serves the workbenches under C:\dinah-scratch\dinah-192-spec2\benchroot, and it started in none of them. Every tool takes a workbench property, and a call that names none is refused with dinah.no-workbench-found. Call the workbenches tool to see what you may name.
 
 The working agreement, which binds you rather than the tool:
 1. Claim a card before producing work on it.
@@ -255,7 +278,7 @@ and the same check list every other page is generated from.
 $ dinah help mcp
 mcp [--root <dir>]
 
-serve this workbench over MCP on stdio
+serve workbenches over MCP on stdio
 
 What you may write:
   As you write it  What it is
@@ -273,9 +296,13 @@ What can go wrong, in the order each is checked:
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
 
-The summary line above still reads `serve this workbench over MCP on stdio`, which the spec
-replaces with `serve workbenches over MCP on stdio`. The block was captured before that
-catalog edit, and it is left as it came out rather than corrected by hand.
+Row 2 of the refusal table prints on two lines, and that is the renderer obeying its own
+rule rather than a fault. `chooseWidths` in `cmd/dinah/table.go` leaves a field the window
+cannot hold out of the measurement, so the middle column measures at 36 columns, which is
+row 1's exact width, and the row renderer gives the oversized field the rest of its line and
+starts `dinah.outside-root` at column 47 beneath it. The spec keeps the check sentence at
+its full length rather than cutting it to fit, because the same sentence is longer again in
+seven of the eight locales and shortening the English would buy nothing for the other seven.
 
 Proposed. The ratified help block gains the flag on its `mcp` line and the variable on its
 environment line, and nothing else on the page moves.
@@ -298,8 +325,9 @@ Environment: DINAH_WORKBENCH, DINAH_MCP_ROOT, DINAH_HOME, DINAH_FORMAT=json, DIN
 
 ## 6. Naming a workbench, and being refused one
 
-Both answers below carry a `states` member listing every state of the workbench, and that
-member is cut here for length. Everything else in the two blocks is verbatim.
+The three answers below carry a `states` member listing every state of the workbench, and
+that member is cut from the first two for length. Everything else in the three blocks is
+verbatim.
 
 Proposed. A call omitting the property acts on the workbench the server started with.
 
@@ -312,12 +340,13 @@ Proposed. A call omitting the property acts on the workbench the server started 
     "next_card"
   ],
   "status": {
-    "workbench": "Portfolio",
-    "root": "C:\\dinah-scratch\\dinah-192-spec\\demo2\\.dinah\\a67b21d1d195",
-    "actor": "paul",
-    "is_operator": true,
+    "workbench": "plans",
+    "root": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans\\.dinah\\5164831b5ee4",
+    "is_operator": false,
     "operator": "paul",
-    "profile": "dinah-core/0.4"
+    "profile": "dinah-core/0.4",
+    "holding": [],
+    "blocked": []
   }
 }
 ```
@@ -333,48 +362,64 @@ Proposed. A call naming the other workbench under the root acts on that one inst
     "next_card"
   ],
   "status": {
-    "workbench": "Reference CLI",
-    "root": "C:\\dinah-scratch\\dinah-192-spec\\demo2\\.dinah\\cb755fdc14f7",
-    "actor": "paul",
-    "is_operator": true,
+    "workbench": "plans-archive",
+    "root": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans-archive\\.dinah\\793d2e263ee6",
+    "is_operator": false,
     "operator": "paul",
-    "profile": "dinah-core/0.4"
+    "profile": "dinah-core/0.4",
+    "holding": [],
+    "blocked": []
   }
 }
 ```
 
 Proposed. A call naming a workbench outside the root is refused, and the refusal names the
-root it was measured against. This block came from a real call that named the operator's own
-repository, and the refusal is what stopped it from being opened.
+root it was measured against.
 
 ```json
 {
   "outcome": "refused",
   "verb": "status",
   "refusal": "dinah.outside-root",
-  "detail": "C:\\Users\\paul\\source\\repos\\dinah\\.dinah",
+  "detail": "C:\\dinah-scratch\\dinah-192-spec2\\outside\\out-of-reach\\.dinah\\7fad035688b1",
   "affordances": [
     "status",
     "states",
-    "ls",
-    "next"
+    "list_cards",
+    "next_card"
   ],
   "context": {
-    "root": "C:\\dinah-scratch\\dinah-192-spec\\demo2"
+    "root": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot"
   }
 }
 ```
 
-The `affordances` member of that refusal carries the library's own verb names rather than
-the tool names. That is how `FromError` already answers on this head, and this card changes
-nothing about it.
+That refusal names a scratch workbench this card created, and it is the one whose
+`workbench.md` was overwritten with a line that does not parse. The next block is what the
+same binary answers when the same directory is opened, so the two together are the evidence
+that the bound ran ahead of the open rather than behind it. A head that checked the bound
+after opening would have answered `malformed` instead.
+
+```text
+$ dinah --workbench C:\dinah-scratch\dinah-192-spec2\outside\out-of-reach\.dinah\7fad035688b1 status
+malformed title is missing, empty, or will not parse, in C:\dinah-scratch\dinah-192-spec2\outside\out-of-reach\.dinah\7fad035688b1\workbench.md; hand-edit the file and add it, then run `dinah check` to confirm
+```
+
+The `affordances` member of the refusal carries the head's own read affordances rather than
+the library's verb names, because no library was opened to ask.
+
+An MCP refusal carries the name, the detail, and the named values, and it carries no
+sentence. The English a refusal name owns is rendered by the cli head in `composeRefusal`
+and reaches a person at a terminal, so nothing in the block above is translated or
+translatable, and a client that wants a sentence looks the name up itself.
 
 ## 7. The catalog copy the two new refusals need
 
 The sentences below are proposed text rather than captured output, because a refusal name
 minted by this card has no catalog entry to print yet. Both are drafted from one
 understanding of what the reader needs, so each names the path, names the root, and gives a
-next step.
+next step. Both are read at a terminal by whoever launched the server, which is the only
+place either one renders.
 
 | Key | English text |
 |---|---|
@@ -382,6 +427,14 @@ next step.
 | `refusal.dinah.unknown-root.next` | `; point --root or DINAH_MCP_ROOT at a directory that exists` |
 | `refusal.dinah.outside-root` | `{detail} lies outside {root}, which is the whole of what this server may serve` |
 | `refusal.dinah.outside-root.next` | `; run the workbenches tool to see what it may serve, or restart it with a root that holds this one` |
+
+The two check sentences the generated help page prints are proposed text as well, and they
+are drawn in section 5 rather than here because the page is where a reader meets them.
+
+| Key | English text |
+|---|---|
+| `check.mcp.1` | `--root names a directory that exists` |
+| `check.mcp.2` | `the workbench --workbench or DINAH_WORKBENCH names lies under the root` |
 
 ## 8. What the operator is being asked to accept
 
@@ -394,12 +447,18 @@ spec leaves one question open beside this: whether the property should also acce
 workbench's slug, which is shorter for an agent to carry and ambiguous when two workbenches
 under one root share it.
 
-The discovery tool is named `workbenches` and returns title, slug, and path. Section 3 shows
-it. It never names a workbench outside the root and never opens one to describe it, so no
-card, no operator name, and no state list travels in that answer.
+The discovery tool is named `workbenches` and returns title, slug, and path, ordered by
+path. Section 3 shows it, and shows the ordering changing the answer. It never names a
+workbench outside the root and never opens one to describe it, so no card, no operator name,
+and no state list travels in that answer.
 
 The startup surface is `--root <dir>` on `dinah mcp` plus `DINAH_MCP_ROOT`, with the flag
-winning. Section 5 shows the page and the two lines of the ratified block that move.
+winning. Section 5 shows the page and the two lines of the ratified block that move, and it
+shows the second refusal row printing on two lines.
 
 The handshake gains a paragraph and loses its opening line when there is no default
 workbench. Section 4 shows both forms.
+
+The English of the two new refusals and the two new help-page checks is section 7's four
+plus two rows. Approving them fixes the sentences the eight locale files are translated
+from.
