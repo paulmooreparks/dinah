@@ -88,7 +88,15 @@ type sweptBlock struct {
 	// rather than under the column it belongs to or under the column after
 	// it, and reading its output without knowing that would report the
 	// fixed-indent continuation as a field that has drifted, or as the
-	// field after the capped column arriving early.
+	// field after the capped column arriving early. A capsColumn block that
+	// also declares wrapsTail wraps its field after the capped column too,
+	// through the ordinary wrapsTail continuation below; the capped
+	// column's own continuation lines and the field after it wrapping are
+	// two independent axes, so a row can carry both, and the production
+	// renderer draws the capped column's lines before the wrapped field's,
+	// which reading them in the order they arrive reconstructs correctly
+	// without this reader needing to know which axis a given line belongs
+	// to before it sees the line's own lead.
 	capsColumn bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
@@ -1504,16 +1512,16 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:112", label: "the command list of bare dinah",
+			site: "help.go:115", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
-			noHeadingRow: true, capsColumn: true,
+			noHeadingRow: true, capsColumn: true, wrapsTail: true,
 			opensAt: "help.usage", sections: sweptHelpSections(), expect: expectCommands,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag)
 			},
 		},
 		{
-			site: "help.go:120", label: "the global flag list",
+			site: "help.go:123", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			opensAt: "help.flags", expect: expectFlags,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1521,7 +1529,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:160", label: "dinah help <command>",
+			site: "help.go:163", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1529,7 +1537,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:196", label: "what you may write, on dinah help <command>",
+			site: "help.go:199", label: "what you may write, on dinah help <command>",
 			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
 			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
