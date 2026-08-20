@@ -15,6 +15,7 @@ const (
 	WorkbenchAnchor  = "workbench.md"
 	StateAnchor      = "state.md"
 	CardAnchor       = "card.md"
+	WorkstreamAnchor = "workstream.md"
 	CommentAnchor    = "comment.md"
 	AttachmentAnchor = "attachment.md"
 	ItemAnchor       = "item.md"

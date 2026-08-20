@@ -16,6 +16,16 @@
       "context": "The one line printed about a card after an act.",
       "skeleton": true
     },
+    "card.line.workstreams": {
+      "text": "{ref}  {title}  [{state} / {substate}]  {workstreams}",
+      "context": "The one line printed about a card that belongs to at least one workstream, after an act. It is card.line with the memberships on the end, and the caller chooses between the two by whether the card lists any. {workstreams} holds the workstreams already joined by card.line.workstreams.separator.",
+      "skeleton": true
+    },
+    "card.line.workstreams.separator": {
+      "text": ", ",
+      "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it.",
+      "skeleton": true
+    },
     "check.active-without-claim": {
       "text": "card {detail} reads active and carries no holder",
       "context": "A check finding: the converse of the claim implication.",
@@ -156,6 +166,11 @@
       "context": "A check finding: a links entry whose to resolves to no card.",
       "skeleton": true
     },
+    "check.dangling-workstream": {
+      "text": "a card belongs to workstream {detail}, which resolves in neither half of the collection",
+      "context": "A check finding: a card's workstreams list names an identifier no workstream answers to; `dinah check --migrate-workstreams` adopts it.",
+      "skeleton": true
+    },
     "check.delete.1": {
       "text": "the reference resolves to a card, a state, or something below a card",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -229,6 +244,36 @@
     "check.interrupted-act": {
       "text": "a structural action was interrupted here: {detail}",
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
+      "skeleton": true
+    },
+    "check.join.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.join.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.join.3": {
+      "text": "the workstream exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.leave.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.leave.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.leave.3": {
+      "text": "the workstream exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.log.1": {
@@ -362,7 +407,7 @@
       "skeleton": true
     },
     "check.query.6": {
-      "text": "each workstream the query names is one a live card lists",
+      "text": "each named workstream is one the workbench carries or a live card lists",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -521,6 +566,81 @@
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
       "skeleton": true
     },
+    "check.workstream-adopted.one": {
+      "text": "Adopted {count} workstream.",
+      "context": "The line the adoption repair prints for what it created, for exactly one workstream. Followed by one line per adopted identifier.",
+      "skeleton": true
+    },
+    "check.workstream-adopted.other": {
+      "text": "Adopted {count} workstreams.",
+      "context": "The line the adoption repair prints for what it created, for any other number. Followed by one line per adopted identifier.",
+      "skeleton": true
+    },
+    "check.workstream-field.1": {
+      "text": "the workstream exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.2": {
+      "text": "the field is one this workstream records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.3": {
+      "text": "the title or value is present and well formed",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.4": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.5": {
+      "text": "a write to a field is made by the operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.6": {
+      "text": "a slug change carries the confirmation flag",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-slug-assigned.one": {
+      "text": "Assigned {count} workstream slug.",
+      "context": "The line the slug migration prints for the workstreams it repaired, for exactly one workstream.",
+      "skeleton": true
+    },
+    "check.workstream-slug-assigned.other": {
+      "text": "Assigned {count} workstream slugs.",
+      "context": "The line the slug migration prints for the workstreams it repaired, for any other number.",
+      "skeleton": true
+    },
+    "check.workstream-slug-duplicate": {
+      "text": "workstream {detail} carries a slug another workstream of this workbench also carries, so a reference to it names both",
+      "context": "A check finding: two workstreams share a slug, which leaves a reference with two answers; a person picks which one changes.",
+      "skeleton": true
+    },
+    "check.workstream-slug-malformed": {
+      "text": "workstream {detail} carries a slug that is not a letter followed by letters, digits, and single interior dashes",
+      "context": "A check finding: a workstream's stored slug does not match the slug grammar, so nobody can rely on typing it.",
+      "skeleton": true
+    },
+    "check.workstream-slug-missing": {
+      "text": "workstream {detail} carries no slug, so it is reachable only by its identifier",
+      "context": "A check finding: a workstream carrying no slug, which is what an adopted workstream and a hand-written one both start as; `dinah check --migrate-slugs` derives one from the title.",
+      "skeleton": true
+    },
+    "check.workstream-slug-underivable": {
+      "text": "workstream {detail} carries a title no slug can be derived from, so the migration gave it none",
+      "context": "A check finding the slug migration raises: no letter of the workstream's title survives the derivation, or it carries no title at all, so a person names it and runs the migration again.",
+      "skeleton": true
+    },
+    "check.workstream-slug-unwritable": {
+      "text": "workstream {detail} could not be written to, so the migration gave it no slug and carried on",
+      "context": "A check finding the slug migration raises: the workstream's anchor could not be read or written, the walk stepped over it and carried on.",
+      "skeleton": true
+    },
     "cmd.add.summary": {
       "text": "file a new card in the first state",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block.",
@@ -606,6 +726,16 @@
       "context": "The one-line summary of the instructions command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.join.summary": {
+      "text": "add a card to a workstream",
+      "context": "The one-line summary of the join command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.leave.summary": {
+      "text": "take a card out of a workstream",
+      "context": "The one-line summary of the leave command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.log.summary": {
       "text": "the recorded actions of a card, oldest first",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
@@ -684,6 +814,11 @@
     "cmd.workbenches.summary": {
       "text": "the workbenches reachable from here",
       "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.workstream.summary": {
+      "text": "read this workbench's workstreams, create one, or write one's fields",
+      "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "column.arguments.argument": {
@@ -951,6 +1086,51 @@
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
+    "column.workstream.card": {
+      "text": "Card",
+      "context": "Heading over the card's reference, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.field": {
+      "text": "Field",
+      "context": "Heading over the field's name, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.state": {
+      "text": "State",
+      "context": "Heading over the state the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.title": {
+      "text": "Title",
+      "context": "Heading over the card's title, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.value": {
+      "text": "Value",
+      "context": "Heading over the value stored under it, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.cards": {
+      "text": "Cards",
+      "context": "Heading over how many live cards belong to the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.name": {
+      "text": "Name",
+      "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.slug": {
+      "text": "Slug",
+      "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.status": {
+      "text": "Status",
+      "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
     "extract.done": {
       "text": "Definition written to {dir}.",
       "context": "Printed after extract succeeds.",
@@ -1196,6 +1376,11 @@
       "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.check.migrate-workstreams.summary": {
+      "text": "adopt every workstream a card names that this workbench does not carry",
+      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.claim.card.summary": {
       "text": "the card you are taking up",
       "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table.",
@@ -1334,6 +1519,31 @@
     "param.workbench.value.summary": {
       "text": "what to store in it, on a set",
       "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.action.summary": {
+      "text": "create a workstream, read one, or write one of its fields; every workstream when you name none",
+      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.field.summary": {
+      "text": "which field you are reading or writing",
+      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.summary": {
+      "text": "the workstream you are naming, written as its slug or its identifier",
+      "context": "The meaning of the workstream argument, shared by the commands that name one.",
+      "skeleton": true
+    },
+    "param.workstream.value.summary": {
+      "text": "what to store in it, on a set",
+      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.workstream.summary": {
+      "text": "the workstream you are reading or writing, or the title of the one you are creating",
+      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.yes.summary": {
@@ -1496,6 +1706,16 @@
       "context": "Spliced onto refusal.dinah.occupied as the next step.",
       "skeleton": true
     },
+    "refusal.dinah.referenced": {
+      "text": "cards still belong to workstream {detail}",
+      "context": "The sentence printed after the refusal name dinah.referenced. {detail} carries the workstream the caller named.",
+      "skeleton": true
+    },
+    "refusal.dinah.referenced.next": {
+      "text": "; take them out with `dinah leave` first, or archive the workstream instead",
+      "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal.",
+      "skeleton": true
+    },
     "refusal.dinah.repair-would-empty-states": {
       "text": "{detail} names every state left in the workbench, and each one's directory is missing. Removing them would leave the workbench with no state at all, so dinah check --migrate-states refuses.",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list.",
@@ -1524,6 +1744,16 @@
     "refusal.dinah.unconfirmed.workbench.next": {
       "text": " Run the command again with --yes.",
       "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.workstream": {
+      "text": "Every reference to this workstream that you have written down elsewhere names the old slug, and changing it to {detail} stops those references matching.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workstream command raised it. {detail} carries the new slug the change would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.workstream.next": {
+      "text": " Run the command again with --yes.",
+      "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next.",
       "skeleton": true
     },
     "refusal.dinah.unknown-command": {
@@ -1609,6 +1839,16 @@
     "refusal.dinah.unknown-value.none": {
       "text": " Nothing in this workbench carries a value for {field}.",
       "context": "Spliced onto refusal.dinah.unknown-value when the field's vocabulary is read from the cards and no card carries one. {field} is machine vocabulary and is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-workstream": {
+      "text": "this workbench carries no workstream {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-workstream. {detail} carries the reference the caller typed.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-workstream.next": {
+      "text": "; run `dinah workstream` to see the workstreams this workbench carries",
+      "context": "Spliced onto refusal.dinah.unknown-workstream as the next step.",
       "skeleton": true
     },
     "refusal.dinah.unreadable-workbench": {
@@ -2076,6 +2316,21 @@
       "context": "The word a person reads for the workbench_updated journal event.",
       "skeleton": true
     },
+    "token.workstream_joined": {
+      "text": "joined",
+      "context": "The word a person reads for the workstream_joined journal event, which records a card entering a workstream.",
+      "skeleton": true
+    },
+    "token.workstream_left": {
+      "text": "left",
+      "context": "The word a person reads for the workstream_left journal event, which records a card leaving a workstream.",
+      "skeleton": true
+    },
+    "token.workstream_updated": {
+      "text": "workstream updated",
+      "context": "The word a person reads for the workstream_updated journal event.",
+      "skeleton": true
+    },
     "version.catalogs": {
       "text": "Catalogs:",
       "context": "The label above the shipped locales and their coverage.",
@@ -2119,6 +2374,16 @@
     "workbenches.empty": {
       "text": "no workbench is reachable from here",
       "context": "Printed by the workbenches command when the search reaches none.",
+      "skeleton": true
+    },
+    "workstream.line": {
+      "text": "{ref}  {title}  [{status}]",
+      "context": "The one line printed about a workstream after it is created or one of its fields is written. {ref} is what a person types to reach it, {status} is the value stored under status.",
+      "skeleton": true
+    },
+    "workstreams.empty": {
+      "text": "this workbench carries no workstream",
+      "context": "Printed by the workstream command when the workbench carries none, in place of an empty table.",
       "skeleton": true
     }
   }

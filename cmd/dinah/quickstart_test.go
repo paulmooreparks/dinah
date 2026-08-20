@@ -154,10 +154,19 @@ func (b quickBlock) directive(key string) (string, bool) {
 	return "", false
 }
 
-// commandBlock reports whether a block's first line opens `$ `, which is what
-// makes it a transcript rather than a listing.
+// commandBlock reports whether any line of a block's body opens `$ `, which is
+// what makes it a transcript rather than a listing. The replay that drives a
+// console-fenced block selects on the fence rather than on a block's first
+// line, so this predicate matches that selection: a transcript whose commands
+// begin on the second line or later, behind a blank line or a leading comment,
+// still counts.
 func (b quickBlock) commandBlock() bool {
-	return len(b.body) > 0 && strings.HasPrefix(b.body[0], "$ ")
+	for _, line := range b.body {
+		if strings.HasPrefix(line, "$ ") {
+			return true
+		}
+	}
+	return false
 }
 
 // quickStep is one command of a transcript block with the output and the exit
@@ -498,7 +507,7 @@ var normalisationTable = []normalisationClass{
 		group:   2,
 	},
 	{
-		// Minted per workbench, state, card, comment, and attachment.
+		// Minted per workbench, state, card, comment, attachment, and workstream.
 		name:    "identifier",
 		token:   "<id>",
 		pattern: regexp.MustCompile(`\b[0-9a-f]{12}\b`),
@@ -791,6 +800,7 @@ type quickCaptured struct {
 func TestTheQuickStartMatchesTheTool(t *testing.T) {
 	lines, blocks, entries := quickStartCorpus(t)
 	checkExemptionEntries(t, blocks, entries)
+	checkEveryTranscriptDeclaresItsFence(t, blocks)
 	checkTranscriptPathsAreTheNarrative(t, blocks)
 	checkSeparatorRowsMatchTheirTables(t, blocks)
 
@@ -898,6 +908,45 @@ func fencesAreWhole(t *testing.T, lines []string, blocks []quickBlock, inner map
 		whole = false
 	}
 	return whole
+}
+
+// checkEveryTranscriptDeclaresItsFence asserts that a block carrying a `$ `
+// command line anywhere in its body is fenced as console, because that is the
+// only kind the replay drives and the only kind the exemption rules read.
+//
+// Without this rule a transcript on a bare fence is invisible to the whole
+// guard rather than driven or exempt, and nothing says so: it is not replayed,
+// no exemption entry is demanded of it, and the catalog sentences it quotes are
+// never held. A section written that way passes on the day it lands and goes on
+// passing while the tool moves out from under it, which is the drift this
+// document's guard exists to catch. The rule reads the whole body rather than
+// the first line alone, because the replay itself selects on the fence and not
+// on where in the block the first command falls: a leading blank line or a
+// comment above the first command would otherwise still slip past.
+func checkEveryTranscriptDeclaresItsFence(t *testing.T, blocks []quickBlock) {
+	t.Helper()
+	passed := 0
+	for _, block := range blocks {
+		if block.kind == "console" {
+			passed++
+			continue
+		}
+		if !block.commandBlock() {
+			continue
+		}
+		at, line := block.bodyAt, block.body[0]
+		for i, l := range block.body {
+			if strings.HasPrefix(l, "$ ") {
+				at, line = block.bodyAt+i, l
+				break
+			}
+		}
+		t.Errorf("%s:%d: the block carries the command line %q and is fenced as %q, so the replay does not drive it and no exemption entry is demanded of it; fence it as console",
+			quickStartPath, at, line, block.kind)
+	}
+	if passed == 0 {
+		t.Error("no block is fenced as console, so the fence-declaration rule read nothing")
+	}
 }
 
 // checkTranscriptPathsAreTheNarrative requires every absolute path on an

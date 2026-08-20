@@ -107,8 +107,8 @@ type query struct {
 // The refusals run in the order the spec's section 10 fixes, and the order is
 // normative: a query carrying two mistakes is refused for the earlier one, so
 // that a second implementation's output is comparable. The first four checks
-// read no card, and the last reads every live card because the identifiers in
-// use are the only workstream roster a workbench holds.
+// read no card, and the last reads every live card because a card's own list
+// is half of what a workstream term may name.
 func (l *Library) Query(req *Request) (*Matches, error) {
 	parsed, err := parseQuery(req.Query)
 	if err != nil {
@@ -126,7 +126,7 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 			return nil, err
 		}
 	}
-	if err := checkWorkstreams(parsed, cards); err != nil {
+	if err := l.checkWorkstreams(parsed, cards); err != nil {
 		return nil, err
 	}
 	matched, err := l.selectCards(parsed, cards)
@@ -435,51 +435,91 @@ func stateValued(field string) bool {
 }
 
 // checkWorkstreams runs check 6, the last of the six, because it is the only
-// check whose roster is the cards rather than the workbench definition.
+// check that reads the cards as well as the workbench, and it normalises the
+// values it admits on its way through.
 //
-// The roster is every identifier at least one live card lists, read from every
-// live card rather than from the cards the query's other terms leave, so
-// `state:done workstream:a` refuses a workstream nothing lists rather than
-// refusing one that only a card in another state lists. The archive is out of
-// reach, so an identifier only an archived card carries is not in the roster.
-func checkWorkstreams(q *query, cards []*bench.Card) error {
-	var named []term
-	for _, t := range q.cardTerms {
-		if t.field == FieldWorkstream && !t.empty {
-			named = append(named, t)
+// The roster half of the cards is every identifier at least one live card
+// lists, read from every live card rather than from the cards the query's
+// other terms leave, so `state:done workstream:a` refuses a workstream nothing
+// lists rather than refusing one that only a card in another state lists. The
+// archive is out of reach, so an identifier only an archived card carries is
+// not in the roster.
+//
+// The normalisation is what lets the rest of the query stay as it was. A value
+// the roster admitted is rewritten to the identifier a card's list would carry
+// for it, once, here, so by the time any card is read a term holds identifiers
+// alone and cardValues keeps returning card.Workstreams raw. Doing it per term
+// rather than per card also resolves each slug once for the whole query rather
+// than once for every card the comparison walks, and it is what keeps
+// `workstream!=X` the exact complement of `workstream:X` when X has two
+// spellings.
+func (l *Library) checkWorkstreams(q *query, cards []*bench.Card) error {
+	var roster []string
+	loaded := false
+	for i := range q.cardTerms {
+		t := &q.cardTerms[i]
+		if t.field != FieldWorkstream || t.empty {
+			continue
 		}
-	}
-	if len(named) == 0 {
-		return nil
-	}
-	roster := workstreamRoster(cards)
-	for _, t := range named {
-		for _, value := range t.values {
+		if !loaded {
+			roster, loaded = l.workstreamRoster(cards), true
+		}
+		for j, value := range t.values {
 			if !contains(roster, value) {
-				return unknownValue(t, value, roster)
+				return unknownValue(*t, value, roster)
 			}
+			t.values[j] = l.workstreamIdentifier(value)
 		}
 	}
 	return nil
 }
 
-// workstreamRoster is every workstream identifier the live cards list, sorted
-// and without repeats, which is the whole of what a workbench declares until
-// dinah-158 makes the collection itself readable.
-func workstreamRoster(cards []*bench.Card) []string {
+// workstreamRoster is every name a workstream term may carry, sorted and
+// without repeats: the slug and the identifier of each live workstream, and
+// every identifier the live cards list.
+//
+// The cards are still read, rather than the collection alone, because a card
+// written before the collection was readable can list an identifier no
+// workstream answers to. Keeping those in the roster is what leaves somebody
+// able to find the cards carrying one and adopt it with `dinah check
+// --migrate-workstreams`.
+//
+// An archived workstream contributes nothing of its own. Its identifier
+// reaches the roster only through a live card that still lists it, which is
+// the same reach every other archived thing has here.
+func (l *Library) workstreamRoster(cards []*bench.Card) []string {
 	seen := map[string]bool{}
 	var roster []string
+	add := func(name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		roster = append(roster, name)
+	}
+	for _, workstream := range l.Bench.Workstreams() {
+		add(workstream.ID)
+		add(workstream.Slug)
+	}
 	for _, card := range cards {
 		for _, name := range card.Workstreams {
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			roster = append(roster, name)
+			add(name)
 		}
 	}
 	sort.Strings(roster)
 	return roster
+}
+
+// workstreamIdentifier is what a card's own list carries for a value the
+// roster has already admitted: the workstream's identifier where the value
+// names a workstream, and the value unchanged where it names an identifier no
+// workstream resolves to, which is a dangling membership and is stored exactly
+// as it reads.
+func (l *Library) workstreamIdentifier(value string) string {
+	if workstream := l.Bench.WorkstreamByRef(value); workstream != nil {
+		return workstream.ID
+	}
+	return value
 }
 
 // unknownValue composes check 4's and check 6's shared refusal, which names

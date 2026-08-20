@@ -260,14 +260,16 @@ func (l *Library) Delete(req *Request) *Response {
 	now := bench.Stamp(l.Now())
 	journal, ev := l.removalRecord(entity, req.Actor, now)
 	act := &bench.StructuralAct{
-		Dir:      entity.Dir,
-		LockDir:  l.lockDirFor(entity),
-		Op:       bench.OpDelete,
-		Actor:    req.Actor,
-		Now:      now,
-		StateID:  stateSubject(entity),
-		StateRef: entity.Ref,
-		Record:   func() error { return bench.AppendEvent(journal, ev) },
+		Dir:           entity.Dir,
+		LockDir:       l.lockDirFor(entity),
+		Op:            bench.OpDelete,
+		Actor:         req.Actor,
+		Now:           now,
+		StateID:       stateSubject(entity),
+		StateRef:      entity.Ref,
+		WorkstreamID:  workstreamSubject(entity),
+		WorkstreamRef: entity.Ref,
+		Record:        func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -402,10 +404,14 @@ func (l *Library) SetWorkbench(req *Request) *Response {
 
 // journalFor names the journal an event about an entity is recorded in, which
 // is the nearest enclosing journal-bearing entity: a card's own journal for
-// anything below a card, and the bench's for everything else.
+// anything below a card, a workstream's own for the workstream, and the
+// bench's for everything else.
 func (l *Library) journalFor(entity *bench.EntityRef) string {
 	if entity.Card != nil {
 		return entity.Card.JournalPath()
+	}
+	if entity.Kind == "workstream" {
+		return filepath.Join(entity.Dir, bench.JournalName)
 	}
 	return l.Bench.JournalPath()
 }
@@ -416,6 +422,9 @@ func (l *Library) journalFor(entity *bench.EntityRef) string {
 func (l *Library) lockDirFor(entity *bench.EntityRef) string {
 	if entity.Card != nil {
 		return entity.Card.Dir
+	}
+	if entity.Kind == "workstream" {
+		return entity.Dir
 	}
 	return l.Bench.Root
 }
@@ -443,6 +452,17 @@ func stateSubject(entity *bench.EntityRef) string {
 	return entity.ID
 }
 
+// workstreamSubject names the workstream a deletion is removing, and is empty
+// for an act on any other kind. It is what arms the membership scan the act
+// runs once its own sibling exists. Archiving passes it nothing, because a
+// workstream cards still belong to is the ordinary thing to archive.
+func workstreamSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "workstream" {
+		return ""
+	}
+	return entity.ID
+}
+
 // removalRecord composes the event a deletion is recorded by and names the
 // journal it goes to, which has to be one that survives the entity.
 //
@@ -460,7 +480,10 @@ func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (str
 		return l.journalFor(entity), ev
 	}
 	ev.Title = l.titleOfEntity(entity)
-	if entity.Kind == "card" {
+	// Deleting a card or a workstream destroys the journal inside it, so the
+	// record goes to the bench's, carrying the identifier and the title as
+	// of the event.
+	if entity.Kind == "card" || entity.Kind == "workstream" {
 		return l.Bench.JournalPath(), ev
 	}
 	return l.journalFor(entity), ev
@@ -471,6 +494,12 @@ func (l *Library) removalRecord(entity *bench.EntityRef, actor, now string) (str
 func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 	if entity.Kind == "card" && entity.Card != nil {
 		return entity.Card.Title
+	}
+	if entity.Kind == "workstream" {
+		if workstream := l.Bench.Workstream(entity.ID); workstream != nil {
+			return workstream.Title
+		}
+		return ""
 	}
 	if state := l.Bench.State(entity.ID); state != nil {
 		return state.Title
@@ -583,4 +612,289 @@ func stateMember(id, title, kind string) map[string]json.RawMessage {
 		"title": json.RawMessage(`"` + title + `"`),
 		"kind":  json.RawMessage(`"` + kind + `"`),
 	}
+}
+
+// WorkstreamView is a workstream as a response carries it.
+type WorkstreamView struct {
+	// ID is the workstream's 12-hex identifier.
+	ID string `json:"id"`
+	// Ref is what a person types to reach it: its slug where it carries one,
+	// its identifier otherwise.
+	Ref string `json:"ref,omitempty"`
+	// Slug is the short handle, absent on a workstream carrying none.
+	Slug string `json:"slug,omitempty"`
+	// Title is what a person calls it, absent on one the adoption repair
+	// created and nobody has named.
+	Title string `json:"title,omitempty"`
+	// Status is the open value a person reads, which Dinah never acts on.
+	Status string `json:"status,omitempty"`
+	// Cards is how many live cards belong to it, derived by walking them.
+	Cards int `json:"cards"`
+}
+
+// Field reads one field of the view by name, and answers the empty string for
+// a name the view does not carry, which Workstream has already refused over.
+func (v *WorkstreamView) Field(name string) string {
+	switch name {
+	case "title":
+		return v.Title
+	case "slug":
+		return v.Slug
+	case "status":
+		return v.Status
+	}
+	return ""
+}
+
+// WorkstreamListing is every live workstream of the workbench.
+type WorkstreamListing struct {
+	// Workstreams are the workstreams in creation order.
+	Workstreams []WorkstreamView `json:"workstreams"`
+}
+
+// WorkstreamDetail is one workstream as a read reports it: the entity, its
+// notes, the live cards belonging to it and the directory it lives in. It is
+// the shape Show already uses for a card.
+type WorkstreamDetail struct {
+	// Workstream is the workstream itself.
+	Workstream WorkstreamView `json:"workstream"`
+	// Body is the workstream's long-form notes.
+	Body string `json:"body"`
+	// Cards are the live cards belonging to it, in queue order.
+	Cards []CardView `json:"cards,omitempty"`
+	// Path is the directory the workstream lives in.
+	Path string `json:"path"`
+}
+
+// workstreamView renders a workstream for a response, with the member count
+// read off a map the caller derived once for the whole listing.
+func workstreamView(workstream *bench.Workstream, counts map[string]int) WorkstreamView {
+	view := WorkstreamView{
+		ID:     workstream.ID,
+		Ref:    workstream.Ref(),
+		Slug:   workstream.Slug,
+		Title:  workstream.Title,
+		Status: workstream.Status,
+		Cards:  counts[workstream.ID],
+	}
+	return view
+}
+
+// Workstreams reports every live workstream of the workbench with the number
+// of live cards belonging to each. Reading is open to anybody, so no owner is
+// required and no operator is asked for, the way every other read is.
+func (l *Library) Workstreams() (*WorkstreamListing, error) {
+	counts, err := l.Bench.WorkstreamCounts()
+	if err != nil {
+		return nil, err
+	}
+	listing := &WorkstreamListing{Workstreams: []WorkstreamView{}}
+	for _, workstream := range l.Bench.Workstreams() {
+		listing.Workstreams = append(listing.Workstreams, workstreamView(workstream, counts))
+	}
+	return listing, nil
+}
+
+// Workstream reports one workstream, its notes, its path and the live cards
+// belonging to it.
+//
+// A request whose action is get may name one field, and a field outside the
+// set refuses. The workstream resolves before the field is read, because a
+// reader who mistyped the reference is told about the reference rather than
+// about a field of a workstream that does not exist.
+func (l *Library) Workstream(req *Request) (*WorkstreamDetail, error) {
+	workstream := l.Bench.WorkstreamByRef(req.Workstream)
+	if workstream == nil {
+		return nil, contract.Refuse(contract.UnknownWorkstream, req.Workstream)
+	}
+	if req.Field != "" && !bench.KnownWorkstreamField(req.Field) {
+		return nil, contract.Refuse(contract.UnknownKey, req.Field)
+	}
+	counts, err := l.Bench.WorkstreamCounts()
+	if err != nil {
+		return nil, err
+	}
+	members, err := l.membersOf(workstream.ID)
+	if err != nil {
+		return nil, err
+	}
+	detail := &WorkstreamDetail{
+		Workstream: workstreamView(workstream, counts),
+		Body:       workstream.Notes,
+		Cards:      members,
+		Path:       workstream.Dir,
+	}
+	return detail, nil
+}
+
+// membersOf reads the live cards belonging to a workstream, in the order
+// CORE-QUEUE-3 fixes, which is the order every other listing of cards takes.
+func (l *Library) membersOf(id string) ([]CardView, error) {
+	cards, err := l.Bench.Cards()
+	if err != nil {
+		return nil, err
+	}
+	var kept []*bench.Card
+	for _, card := range cards {
+		for _, joined := range card.Workstreams {
+			if joined == id {
+				kept = append(kept, card)
+				break
+			}
+		}
+	}
+	sortByArrival(kept)
+	var views []CardView
+	for _, card := range kept {
+		views = append(views, *l.view(card))
+	}
+	return views, nil
+}
+
+// NewWorkstream creates a workstream from a title and opens its journal with
+// the created event.
+//
+// The title is required and nothing else is, which is Add's own list: filing a
+// grouping is filing work, so it asks for an owner rather than for the
+// operator. The workbench's own lock covers the write, because the identifier,
+// the creation ordinal and the slug collision scan are all read against the
+// collection as a whole.
+func (l *Library) NewWorkstream(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	title := strings.TrimSpace(req.Workstream)
+	if title == "" {
+		return l.refuse(req, nil, contract.Malformed, "title")
+	}
+	if req.Actor == "" {
+		return l.refuse(req, nil, contract.NoOwner, "")
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
+	workstream, err := l.Bench.NewWorkstream(title)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	ev := bench.Event{
+		TS:    now,
+		Event: contract.EventCreated,
+		Actor: req.Actor,
+		Title: title,
+	}
+	if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, nil)
+	view := workstreamView(workstream, nil)
+	response.Workstream = &view
+	response.Detail = workstream.ID
+	return response
+}
+
+// SetWorkstream writes one of a workstream's own fields. It evaluates in the
+// order SetWorkbench fixes, with the reference resolved first because this
+// command names an entity where that one names the workbench it is already
+// serving: the workbench designates an operator, the workstream resolves, the
+// field is one this entity records, the value is present and well formed, the
+// request names an owner, that owner is the operator, and a slug change
+// carries the confirmation flag.
+//
+// No field is ever cleared, for SetWorkbench's own reason: an empty title
+// leaves the entity unnameable, and an empty slug leaves it reachable only by
+// its identifier.
+//
+// A slug another live workstream already carries is accepted, so this command
+// can write a duplicate that NewWorkstream's own collision loop can never
+// produce. Check is the whole answer to that state. It raises exactly one
+// check.workstream-slug-duplicate finding over the pair, never two, and it
+// names the later of the two by creation order, because checkWorkstreams and
+// WorkstreamByRef walk the collection in the same order: the earlier workstream
+// fills the seen set first and is the one a shared reference reaches, so the
+// identifier printed is always the workstream whose slug has been shadowed. A
+// person therefore meets the name that has stopped answering, together with the
+// finding's own sentence saying another workstream of this workbench carries
+// the same slug, and the repair is to rename that one or leave it reachable by
+// its identifier alone.
+//
+// Refusing the write here instead would amend the evaluation order the operator
+// ratified, inside a change he does not see, so whether this command grows that
+// refusal is his call rather than this command's.
+//
+// The write reloads the anchor under the workstream's own lock and sets the
+// one field on the reloaded value, because Save rewrites the whole anchor from
+// the frontmatter it is holding and a stale copy would revert whatever landed
+// after it was read.
+func (l *Library) SetWorkstream(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	workstream := l.Bench.WorkstreamByRef(req.Workstream)
+	if workstream == nil {
+		return l.refuse(req, nil, contract.UnknownWorkstream, req.Workstream)
+	}
+	if !bench.KnownWorkstreamField(req.Field) {
+		return l.refuse(req, nil, contract.UnknownKey, req.Field)
+	}
+	value := strings.TrimSpace(req.Value)
+	if value == "" {
+		return l.refuse(req, nil, contract.Malformed, req.Field)
+	}
+	if req.Field == bench.SlugField && !bench.ValidStateSlug(value) {
+		return l.refuse(req, nil, contract.Malformed, req.Field)
+	}
+	if req.Actor == "" {
+		return l.refuse(req, nil, contract.NoOwner, "")
+	}
+	if req.Actor != l.Bench.Operator {
+		return l.refuse(req, nil, contract.NotOperator, req.Actor)
+	}
+	if req.Field == bench.SlugField && !req.Confirm {
+		return l.refuse(req, nil, contract.Unconfirmed, value)
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(workstream.Dir, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
+	reloaded, err := bench.LoadWorkstream(filepath.Dir(workstream.Dir), workstream.ID)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	was := reloaded.Field(req.Field)
+	reloaded.SetField(req.Field, value)
+	if err := reloaded.Save(); err != nil {
+		return l.FromError(req, err)
+	}
+	ev := bench.Event{
+		TS:    now,
+		Event: contract.EventWorkstreamUpdated,
+		Actor: req.Actor,
+		Field: req.Field,
+		From:  was,
+		To:    value,
+	}
+	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	counts, err := l.Bench.WorkstreamCounts()
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, nil)
+	view := workstreamView(reloaded, counts)
+	response.Workstream = &view
+	response.Detail = value
+	return response
 }

@@ -28,6 +28,8 @@ const (
 	Release = "release"
 	Block   = "block"
 	Unblock = "unblock"
+	Join    = "join"
+	Leave   = "leave"
 )
 
 // ContractVerbs are the five verbs the profile specifies, in the order
@@ -155,6 +157,16 @@ var beyondChecks = map[string][]Check{
 	"whoami": {
 		{Refusal: contract.NoOwner, Key: "check.whoami.1"},
 	},
+	Join: {
+		{Refusal: contract.UnknownCard, Key: "check.join.1"},
+		{Refusal: contract.NoOwner, Key: "check.join.2"},
+		{Refusal: contract.UnknownWorkstream, Key: "check.join.3"},
+	},
+	Leave: {
+		{Refusal: contract.UnknownCard, Key: "check.leave.1"},
+		{Refusal: contract.NoOwner, Key: "check.leave.2"},
+		{Refusal: contract.UnknownWorkstream, Key: "check.leave.3"},
+	},
 	// The keys carry the workbench-field prefix rather than check.workbench.N,
 	// which check.workbench.1 and check.workbench.2 above already hold for the
 	// two workbench-wide preconditions of section 6.1. One consequence is
@@ -166,6 +178,19 @@ var beyondChecks = map[string][]Check{
 	// contract verbs alone and every beyond-contract command lists only its
 	// own. Listing it here would name one of the workbench-level pair while
 	// leaving out the other, in the one command that does it.
+	// The keys carry the workstream-field prefix for the reason the workbench
+	// list gives: CheckKey composes check.<command>.<order>, and this list
+	// covers two acts rather than one, since `new` files a workstream and
+	// `set` writes a field of one. Row 1 belongs to get and set, row 3 to all
+	// three, and rows 5 and 6 to set alone.
+	"workstream": {
+		{Refusal: contract.UnknownWorkstream, Key: "check.workstream-field.1"},
+		{Refusal: contract.UnknownKey, Key: "check.workstream-field.2"},
+		{Refusal: contract.Malformed, Key: "check.workstream-field.3"},
+		{Refusal: contract.NoOwner, Key: "check.workstream-field.4"},
+		{Refusal: contract.NotOperator, Key: "check.workstream-field.5"},
+		{Refusal: contract.Unconfirmed, Key: "check.workstream-field.6"},
+	},
 	"workbench": {
 		{Refusal: contract.UnknownKey, Key: "check.workbench-field.1"},
 		{Refusal: contract.Malformed, Key: "check.workbench-field.2"},

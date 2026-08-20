@@ -13,6 +13,14 @@
       "text": "{ref}  {title}  [{state} / {substate}]",
       "context": "The one line printed about a card after an act."
     },
+    "card.line.workstreams": {
+      "text": "{ref}  {title}  [{state} / {substate}]  {workstreams}",
+      "context": "The one line printed about a card that belongs to at least one workstream, after an act. It is card.line with the memberships on the end, and the caller chooses between the two by whether the card lists any. {workstreams} holds the workstreams already joined by card.line.workstreams.separator."
+    },
+    "card.line.workstreams.separator": {
+      "text": ", ",
+      "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it."
+    },
     "check.active-without-claim": {
       "text": "कार्ड {detail} active है पर कोई धारक नहीं",
       "context": "A check finding: the converse of the claim implication."
@@ -125,6 +133,10 @@
       "text": "एक कड़ी कार्ड {detail} बताती है, जो किसी भी आधे में नहीं मिलता",
       "context": "A check finding: a links entry whose to resolves to no card."
     },
+    "check.dangling-workstream": {
+      "text": "एक कार्ड वर्कस्ट्रीम {detail} से जुड़ा है, जो संग्रह के किसी भी आधे में नहीं मिलती",
+      "context": "A check finding: a card's workstreams list names an identifier no workstream answers to; `dinah check --migrate-workstreams` adopts it."
+    },
     "check.delete.1": {
       "text": "संदर्भ किसी कार्ड, किसी स्थिति, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -184,6 +196,30 @@
     "check.interrupted-act": {
       "text": "यहाँ एक संरचनात्मक क्रिया बाधित हुई: {detail}",
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take."
+    },
+    "check.join.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.join.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.join.3": {
+      "text": "वर्कस्ट्रीम मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.leave.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.leave.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.leave.3": {
+      "text": "वर्कस्ट्रीम मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.log.1": {
       "text": "कार्ड मौजूद है",
@@ -290,7 +326,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.query.6": {
-      "text": "क्वेरी जिस भी कार्यधारा का नाम लेती है वह किसी जीवित कार्ड में दर्ज है",
+      "text": "क्वेरी जिस भी वर्कस्ट्रीम का नाम लेती है वह इस वर्कबेंच में है या किसी जीवित कार्ड में दर्ज है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.release.1": {
@@ -417,6 +453,66 @@
       "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.workstream-adopted.one": {
+      "text": "{count} वर्कस्ट्रीम अपनाई।",
+      "context": "The line the adoption repair prints for what it created, for exactly one workstream. Followed by one line per adopted identifier."
+    },
+    "check.workstream-adopted.other": {
+      "text": "{count} वर्कस्ट्रीम अपनाईं।",
+      "context": "The line the adoption repair prints for what it created, for any other number. Followed by one line per adopted identifier."
+    },
+    "check.workstream-field.1": {
+      "text": "वर्कस्ट्रीम मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workstream-field.2": {
+      "text": "क्षेत्र वह है जो यह वर्कस्ट्रीम रखती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workstream-field.3": {
+      "text": "शीर्षक या मान उपस्थित है और सही रूप में है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workstream-field.4": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workstream-field.5": {
+      "text": "क्षेत्र में लिखने वाला संचालक है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workstream-field.6": {
+      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workstream-slug-assigned.one": {
+      "text": "{count} वर्कस्ट्रीम-उपनाम निर्धारित किया।",
+      "context": "The line the slug migration prints for the workstreams it repaired, for exactly one workstream."
+    },
+    "check.workstream-slug-assigned.other": {
+      "text": "{count} वर्कस्ट्रीम-उपनाम निर्धारित किए।",
+      "context": "The line the slug migration prints for the workstreams it repaired, for any other number."
+    },
+    "check.workstream-slug-duplicate": {
+      "text": "वर्कस्ट्रीम {detail} पर ऐसा उपनाम है जो इस वर्कबेंच की किसी और वर्कस्ट्रीम पर भी है, इसलिए उसका संदर्भ दोनों को नामित करता है",
+      "context": "A check finding: two workstreams share a slug, which leaves a reference with two answers; a person picks which one changes."
+    },
+    "check.workstream-slug-malformed": {
+      "text": "वर्कस्ट्रीम {detail} पर ऐसा उपनाम है जिसमें अक्षर के बाद अक्षर, अंक, और एकल आंतरिक डैश का रूप नहीं है",
+      "context": "A check finding: a workstream's stored slug does not match the slug grammar, so nobody can rely on typing it."
+    },
+    "check.workstream-slug-missing": {
+      "text": "वर्कस्ट्रीम {detail} पर कोई उपनाम नहीं, इसलिए वह केवल अपने पहचानक से पहुँच में है",
+      "context": "A check finding: a workstream carrying no slug, which is what an adopted workstream and a hand-written one both start as; `dinah check --migrate-slugs` derives one from the title."
+    },
+    "check.workstream-slug-underivable": {
+      "text": "वर्कस्ट्रीम {detail} का शीर्षक ऐसा है जिससे कोई उपनाम नहीं निकाला जा सकता, इसलिए प्रवासन ने उसे कोई नहीं दिया",
+      "context": "A check finding the slug migration raises: no letter of the workstream's title survives the derivation, or it carries no title at all, so a person names it and runs the migration again."
+    },
+    "check.workstream-slug-unwritable": {
+      "text": "वर्कस्ट्रीम {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
+      "context": "A check finding the slug migration raises: the workstream's anchor could not be read or written, the walk stepped over it and carried on."
+    },
     "cmd.add.summary": {
       "text": "पहली स्थिति में नया कार्ड दर्ज करें",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block."
@@ -480,6 +576,14 @@
     "cmd.instructions.summary": {
       "text": "किसी स्थान पर परोसे गए निर्देश",
       "context": "The one-line summary of the instructions command, shown beside its syntax in the help block."
+    },
+    "cmd.join.summary": {
+      "text": "किसी कार्ड को किसी वर्कस्ट्रीम से जोड़ें",
+      "context": "The one-line summary of the join command, shown beside its syntax in the help block."
+    },
+    "cmd.leave.summary": {
+      "text": "किसी कार्ड को किसी वर्कस्ट्रीम से बाहर करें",
+      "context": "The one-line summary of the leave command, shown beside its syntax in the help block."
     },
     "cmd.log.summary": {
       "text": "कार्ड की दर्ज क्रियाएँ, सबसे पुरानी पहले",
@@ -545,6 +649,10 @@
       "text": "यहाँ से पहुँच योग्य वर्कबेंच",
       "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block."
     },
+    "cmd.workstream.summary": {
+      "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, नई बनाएँ, या किसी एक के क्षेत्र लिखें",
+      "context": "The one-line summary of the workstream command, shown beside its syntax in the help block."
+    },
     "column.blocked.card": {
       "text": "कार्ड",
       "context": "Heading over the reference a person types to name the card, in the block of blocked cards, inside `dinah status`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -607,15 +715,15 @@
     },
     "column.help.check": {
       "text": "क्या गलत हो सकता है",
-      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.help.order": {
       "text": "क्रम",
-      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.help.refusal": {
       "text": "अस्वीकृति",
-      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.holding.card": {
       "text": "कार्ड",
@@ -749,6 +857,42 @@
       "text": "वर्कबेंच",
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.workstream.card": {
+      "text": "कार्ड",
+      "context": "Heading over the card's reference, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstream.field": {
+      "text": "क्षेत्र",
+      "context": "Heading over the field's name, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstream.state": {
+      "text": "स्थिति",
+      "context": "Heading over the state the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstream.title": {
+      "text": "शीर्षक",
+      "context": "Heading over the card's title, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstream.value": {
+      "text": "मान",
+      "context": "Heading over the value stored under it, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstreams.cards": {
+      "text": "कार्ड",
+      "context": "Heading over how many live cards belong to the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstreams.name": {
+      "text": "नाम",
+      "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstreams.slug": {
+      "text": "उपनाम",
+      "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.workstreams.status": {
+      "text": "स्थिति",
+      "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "extract.done": {
       "text": "परिभाषा {dir} में लिखी गई।",
       "context": "Printed after extract succeeds."
@@ -790,7 +934,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help <command>' चलाएँ।",
+      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.read": {
@@ -822,15 +966,15 @@
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
-      "text": "प्रयोग: dinah <command> [arguments]",
+      "text": "प्रयोग: dinah \u003ccommand\u003e [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.actor.recorded": {
-      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, और अब आप जो भी करेंगे, Dinah उस पर यही नाम दर्ज करेगी। इसे बदलने के लिए `dinah config set actor <name>` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
+      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, और अब आप जो भी करेंगे, Dinah उस पर यही नाम दर्ज करेगी। इसे बदलने के लिए `dinah config set actor \u003cname\u003e` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
       "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.actor.unrecorded": {
-      "text": "Dinah ने वर्कबेंच बना दिया, लेकिन {path} में आपको actor के रूप में दर्ज नहीं कर सकी ({reason})। आप कौन हैं यह बताने के लिए `dinah config set actor <name>` चलाएँ।",
+      "text": "Dinah ने वर्कबेंच बना दिया, लेकिन {path} में आपको actor के रूप में दर्ज नहीं कर सकी ({reason})। आप कौन हैं यह बताने के लिए `dinah config set actor \u003cname\u003e` चलाएँ।",
       "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.done": {
@@ -981,6 +1125,14 @@
       "text": "; पहले `dinah move` से उन्हें बाहर ले जाएँ, फिर दोबारा आज़माएँ",
       "context": "Spliced onto refusal.dinah.occupied as the next step."
     },
+    "refusal.dinah.referenced": {
+      "text": "कार्ड अभी भी वर्कस्ट्रीम {detail} से जुड़े हैं",
+      "context": "The sentence printed after the refusal name dinah.referenced. {detail} carries the workstream the caller named."
+    },
+    "refusal.dinah.referenced.next": {
+      "text": "; पहले `dinah leave` से उन्हें बाहर करें, या वर्कस्ट्रीम को हटाने के बजाय पुरालेख में भेजें",
+      "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal."
+    },
     "refusal.dinah.unconfirmed": {
       "text": "delete इतिहास मिटाता है",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
@@ -996,6 +1148,14 @@
     "refusal.dinah.unconfirmed.workbench.next": {
       "text": " आदेश को --yes के साथ फिर चलाएँ।",
       "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next."
+    },
+    "refusal.dinah.unconfirmed.workstream": {
+      "text": "आपने अन्यत्र इस वर्कस्ट्रीम के जो भी संदर्भ लिखे हैं वे पुराना उपनाम बताते हैं, और उसे {detail} करने पर वे संदर्भ मेल खाना बंद कर देंगे।",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workstream command raised it. {detail} carries the new slug the change would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead."
+    },
+    "refusal.dinah.unconfirmed.workstream.next": {
+      "text": " आदेश को --yes के साथ फिर चलाएँ।",
+      "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next."
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
@@ -1014,7 +1174,7 @@
       "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unknown-field.ordered": {
-      "text": " केवल {instantField} >=, <=, > और < स्वीकार करता है।",
+      "text": " केवल {instantField} \u003e=, \u003c=, \u003e और \u003c स्वीकार करता है।",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are."
     },
     "refusal.dinah.unknown-guide": {
@@ -1022,7 +1182,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-guide.next": {
-      "text": "इनमें से किसी एक के साथ `dinah guide <topic>` चलाएँ",
+      "text": "इनमें से किसी एक के साथ `dinah guide \u003ctopic\u003e` चलाएँ",
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation."
     },
     "refusal.dinah.unknown-key": {
@@ -1065,6 +1225,14 @@
       "text": " इस वर्कबेंच में {field} के लिए कोई मान नहीं है।",
       "context": "Spliced onto refusal.dinah.unknown-value when the field's vocabulary is read from the cards and no card carries one. {field} is machine vocabulary and is never translated."
     },
+    "refusal.dinah.unknown-workstream": {
+      "text": "इस वर्कबेंच में {detail} नाम की कोई वर्कस्ट्रीम नहीं है",
+      "context": "The sentence printed after the refusal name dinah.unknown-workstream. {detail} carries the reference the caller typed."
+    },
+    "refusal.dinah.unknown-workstream.next": {
+      "text": "; इस वर्कबेंच की वर्कस्ट्रीम देखने के लिए `dinah workstream` चलाएँ",
+      "context": "Spliced onto refusal.dinah.unknown-workstream as the next step."
+    },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."
@@ -1106,7 +1274,7 @@
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
     },
     "refusal.dinah.add-needs-a-state.next": {
-      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/\u003cid\u003e/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
       "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit."
     },
     "refusal.dinah.multiple-words": {
@@ -1178,7 +1346,7 @@
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner.next": {
-      "text": "; यह बताने के लिए `dinah config set actor <name>` चलाएँ",
+      "text": "; यह बताने के लिए `dinah config set actor \u003cname\u003e` चलाएँ",
       "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.no-reason": {
@@ -1461,6 +1629,18 @@
       "text": "वर्कबेंच बदला",
       "context": "The word a person reads for the workbench_updated journal event."
     },
+    "token.workstream_joined": {
+      "text": "जुड़ा",
+      "context": "The word a person reads for the workstream_joined journal event, which records a card entering a workstream."
+    },
+    "token.workstream_left": {
+      "text": "निकला",
+      "context": "The word a person reads for the workstream_left journal event, which records a card leaving a workstream."
+    },
+    "token.workstream_updated": {
+      "text": "वर्कस्ट्रीम बदली",
+      "context": "The word a person reads for the workstream_updated journal event."
+    },
     "version.catalogs": {
       "text": "सूचियाँ:",
       "context": "The label above the shipped locales and their coverage."
@@ -1496,6 +1676,14 @@
     "workbenches.empty": {
       "text": "यहाँ से कोई वर्कबेंच पहुँच योग्य नहीं है",
       "context": "Printed by the workbenches command when the search reaches none."
+    },
+    "workstream.line": {
+      "text": "{ref}  {title}  [{status}]",
+      "context": "The one line printed about a workstream after it is created or one of its fields is written. {ref} is what a person types to reach it, {status} is the value stored under status."
+    },
+    "workstreams.empty": {
+      "text": "इस वर्कबेंच में कोई वर्कस्ट्रीम नहीं है",
+      "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
     },
     "help.arguments": {
       "text": "आप क्या लिख सकते हैं:",
@@ -1588,6 +1776,10 @@
     "param.check.migrate-states.summary": {
       "text": "इस वर्कबेंच की अपनी स्थिति-सूची से छूटे हुए पहचानकर्ता हटाएँ",
       "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-workstreams.summary": {
+      "text": "\u0939\u0930 \u0909\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u094b \u0905\u092a\u0928\u093e\u090f\u0901 \u091c\u093f\u0938\u0947 \u0915\u094b\u0908 \u0915\u093e\u0930\u094d\u0921 \u0928\u093e\u092e \u0926\u0947\u0924\u093e \u0939\u0948 \u0914\u0930 \u092f\u0939 \u0935\u0930\u094d\u0915\u092c\u0947\u0902\u091a \u0928\u0939\u0940\u0902 \u0930\u0916\u0924\u093e",
+      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
     },
     "param.claim.card.summary": {
       "text": "जिस कार्ड को आप ले रहे हैं",
@@ -1696,6 +1888,26 @@
     "param.workbench.value.summary": {
       "text": "set पर, उसमें क्या रखना है",
       "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workstream.action.summary": {
+      "text": "\u090f\u0915 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u092c\u0928\u093e\u090f\u0901, \u090f\u0915 \u092a\u0922\u093c\u0947\u0902, \u092f\u093e \u0915\u093f\u0938\u0940 \u090f\u0915 \u0915\u093e \u092b\u093c\u0940\u0932\u094d\u0921 \u0932\u093f\u0916\u0947\u0902; \u0915\u0941\u091b \u0928 \u0932\u093f\u0916\u0928\u0947 \u092a\u0930 \u0939\u0930 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e",
+      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.field.summary": {
+      "text": "\u0906\u092a \u0915\u094c\u0928-\u0938\u093e \u092b\u093c\u0940\u0932\u094d\u0921 \u092a\u0922\u093c \u092f\u093e \u0932\u093f\u0916 \u0930\u0939\u0947 \u0939\u0948\u0902",
+      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.summary": {
+      "text": "\u091c\u093f\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u093e \u0928\u093e\u092e \u0906\u092a \u0932\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902, \u0909\u0938\u0915\u0947 slug \u092f\u093e \u0909\u0938\u0915\u0940 \u092a\u0939\u091a\u093e\u0928 \u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902",
+      "context": "The meaning of the workstream argument, shared by the commands that name one."
+    },
+    "param.workstream.value.summary": {
+      "text": "set \u092a\u0930, \u0909\u0938\u092e\u0947\u0902 \u0915\u094d\u092f\u093e \u0930\u0916\u0928\u093e \u0939\u0948",
+      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.workstream.summary": {
+      "text": "\u091c\u093f\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u094b \u0906\u092a \u092a\u0922\u093c \u092f\u093e \u0932\u093f\u0916 \u0930\u0939\u0947 \u0939\u0948\u0902, \u092f\u093e \u091c\u093f\u0938\u0947 \u092c\u0928\u093e \u0930\u0939\u0947 \u0939\u0948\u0902 \u0909\u0938\u0915\u093e \u0936\u0940\u0930\u094d\u0937\u0915",
+      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
     }
   }
 }

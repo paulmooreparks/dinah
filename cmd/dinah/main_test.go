@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-one commands, and every command the binary
+	// The block lists thirty-four commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 31 {
-		t.Errorf("wanted thirty-one listed commands, got %d", listed)
+	if listed != 34 {
+		t.Errorf("wanted thirty-four listed commands, got %d", listed)
 	}
 }
 
@@ -1287,8 +1287,10 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 // the ratified help block's check line names them, the generated help for the
 // command names them from the same definition, and the argument parser accepts
 // them. One completes an interrupted structural act, one stamps the creation
-// ordinals a workbench written before the field carries none of, and one
-// derives the slugs of states written before that field existed.
+// ordinals a workbench written before the field carries none of, one derives
+// the slugs of states and workstreams written before that field existed, one
+// removes the stranded identifiers from the states list, and one creates a
+// workstream at every membership the live cards carry that names none.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
 // The MCP head's schema is generated from the same parameter list and is
@@ -1298,10 +1300,11 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	if !blockLists(string(fixture), "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]") {
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
-	if got := verb.Usage("check"); got != "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]" {
+	if got := verb.Usage("check"); got != line {
 		t.Errorf("the one definition composes %q", got)
 	}
 
@@ -1310,7 +1313,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-states"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-states", "--migrate-workstreams"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -5530,6 +5533,382 @@ func TestInitRecordsTheActorWhenNothingElseNamesOne(t *testing.T) {
 	})
 }
 
+// workstreamBench builds a workbench carrying one workstream and returns the
+// container it sits in, which is what the workstream cases below start from.
+func workstreamBench(t *testing.T) string {
+	t.Helper()
+	root := newBench(t)
+	if got := runCLI(t, root, "workstream", "new", "Portfolio work"); got.code != 0 {
+		t.Fatalf("workstream new: %d %s", got.code, got.errw)
+	}
+	return root
+}
+
+// TestAWorkstreamIsCreatedListedAndReadFromATerminal asserts the four shapes
+// the command draws: the sentence a workbench carrying none prints, the line
+// creation prints, the listing, and one field printed alone with no heading
+// and no padding.
+func TestAWorkstreamIsCreatedListedAndReadFromATerminal(t *testing.T) {
+	root := newBench(t)
+	empty := runCLI(t, root, "workstream")
+	if empty.code != 0 || empty.out != msg.For(msg.Base).T("workstreams.empty")+"\n" {
+		t.Errorf("a workbench carrying no workstream printed %d %q", empty.code, empty.out)
+	}
+
+	created := runCLI(t, root, "workstream", "new", "Portfolio work")
+	if created.code != 0 {
+		t.Fatalf("workstream new: %d %s", created.code, created.errw)
+	}
+	if created.out != "portfolio-work  Portfolio work  [active]\n" {
+		t.Errorf("creation printed %q", created.out)
+	}
+
+	listing := runCLI(t, root, "workstream")
+	for _, want := range []string{"portfolio-work", "Portfolio work", "active", "0"} {
+		if !strings.Contains(listing.out, want) {
+			t.Errorf("the listing does not carry %q:\n%s", want, listing.out)
+		}
+	}
+
+	field := runCLI(t, root, "workstream", "get", "portfolio-work", "status")
+	if field.code != 0 || field.out != "active\n" {
+		t.Errorf("one field alone printed %d %q, wanted the value and nothing else", field.code, field.out)
+	}
+
+	unknown := runCLI(t, root, "workstream", "get", "nosuch")
+	if unknown.code != 2 || !strings.HasPrefix(unknown.errw, contract.UnknownWorkstream+" ") {
+		t.Errorf("an unknown workstream: %d %q", unknown.code, unknown.errw)
+	}
+	if !strings.Contains(unknown.errw, "nosuch") {
+		t.Errorf("the refusal does not name what the caller typed: %q", unknown.errw)
+	}
+}
+
+// TestAWorkstreamSlugChangeNeedsTheConfirmationFlag asserts that the rename
+// every reference already written down depends on is refused without --yes,
+// writes nothing when it is refused, and moves the reference when it is given.
+func TestAWorkstreamSlugChangeNeedsTheConfirmationFlag(t *testing.T) {
+	root := workstreamBench(t)
+	refused := runCLI(t, root, "workstream", "set", "portfolio-work", "slug", "folio")
+	if refused.code != 2 || !strings.HasPrefix(refused.errw, contract.Unconfirmed+" ") {
+		t.Fatalf("a slug change without the flag: %d %q", refused.code, refused.errw)
+	}
+	if got := runCLI(t, root, "workstream", "get", "portfolio-work", "slug"); got.out != "portfolio-work\n" {
+		t.Errorf("the refused change wrote something: %q", got.out)
+	}
+	if got := runCLI(t, root, "workstream", "set", "portfolio-work", "slug", "folio", "--yes"); got.code != 0 {
+		t.Fatalf("a slug change with the flag: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "workstream", "get", "portfolio-work"); got.code != 2 || !strings.HasPrefix(got.errw, contract.UnknownWorkstream+" ") {
+		t.Errorf("the old slug still resolves: %d %q", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "workstream", "get", "folio", "slug"); got.out != "folio\n" {
+		t.Errorf("the new slug does not resolve: %q", got.out)
+	}
+}
+
+// TestTheCardLineCarriesTheWorkstreamsACardBelongsTo asserts the trailing
+// field: a card belonging to none draws the plain line, a card belonging to
+// one or more draws the sibling key with the memberships on the end, the two
+// forms differ by that field alone, and both carry real text in Hindi as well
+// as in English.
+//
+// A membership naming no workstream prints the identifier the card stores,
+// since that is the value a reader has to go and repair.
+func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
+	root := workstreamBench(t)
+	if got := runCLI(t, root, "add", "a card to belong"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	plain := runCLI(t, root, "show", "fx-1")
+	if strings.Contains(plain.out, "portfolio-work") {
+		t.Errorf("a card belonging to no workstream drew a trailing field: %q", plain.out)
+	}
+	joined := runCLI(t, root, "join", "fx-1", "portfolio-work")
+	if joined.code != 0 {
+		t.Fatalf("join: %d %s", joined.code, joined.errw)
+	}
+	if joined.out != strings.TrimSuffix(plain.out, "\n")+"  portfolio-work\n" {
+		t.Errorf("the two forms differ by more than the trailing field:\n%q\n%q", plain.out, joined.out)
+	}
+	for _, command := range [][]string{{"show", "fx-1"}, {"claim", "fx-1"}, {"release", "fx-1"}} {
+		got := runCLI(t, root, command...)
+		if got.code != 0 {
+			t.Fatalf("%v: %d %s", command, got.code, got.errw)
+		}
+		if !strings.Contains(got.out, "portfolio-work") {
+			t.Errorf("%v drew no trailing field, and one renderer draws every card line: %q", command, got.out)
+		}
+	}
+	hindi := runCLI(t, root, "show", "fx-1", "--lang", "hi")
+	if !strings.Contains(hindi.out, "portfolio-work") {
+		t.Errorf("the Hindi card line drew no trailing field: %q", hindi.out)
+	}
+
+	anchor := filepath.Join(soleBenchDir(t, root), bench.CardsDir)
+	ids := bench.ListIDs(anchor)
+	if len(ids) != 1 {
+		t.Fatalf("wanted one card, got %v", ids)
+	}
+	path := filepath.Join(anchor, ids[0], bench.CardAnchor)
+	text, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the card: %v", err)
+	}
+	replaced := strings.Replace(text, "workstreams:\n", "workstreams:\n  - f00000000009\n", 1)
+	if replaced == text {
+		t.Fatalf("the fixture card carries no membership list to add to:\n%s", text)
+	}
+	if err := os.WriteFile(path, []byte(replaced), 0o644); err != nil {
+		t.Fatalf("write the card: %v", err)
+	}
+	dangling := runCLI(t, root, "show", "fx-1")
+	if !strings.Contains(dangling.out, "f00000000009") {
+		t.Errorf("a membership naming no workstream did not print the identifier the card carries: %q", dangling.out)
+	}
+}
+
+// TestAWorkstreamAndAStateMayShareAName asserts the one asymmetry in the
+// reference grammar. A workstream names its kind wherever the generic entity
+// commands take a reference, so a state of the same name shadows neither it
+// nor itself.
+func TestAWorkstreamAndAStateMayShareAName(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "workstream", "new", "review"); got.code != 0 {
+		t.Fatalf("workstream new: %d %s", got.code, got.errw)
+	}
+	states := filepath.Join(soleBenchDir(t, root), bench.StatesDir)
+	renamed := false
+	for _, id := range bench.ListIDs(states) {
+		path := filepath.Join(states, id, bench.StateAnchor)
+		text, err := bench.ReadText(path)
+		if err != nil {
+			t.Fatalf("read a state: %v", err)
+		}
+		if !strings.Contains(text, "title: Doing") {
+			continue
+		}
+		if err := os.WriteFile(path, []byte(strings.Replace(text, "slug: doing", "slug: review", 1)), 0o644); err != nil {
+			t.Fatalf("write a state: %v", err)
+		}
+		renamed = true
+	}
+	if !renamed {
+		t.Fatal("the fixture flow carries no state to rename")
+	}
+	if got := runCLI(t, root, "workstream", "get", "review", "title"); got.out != "review\n" {
+		t.Errorf("the bare reference inside the workstream command read %q", got.out)
+	}
+	if got := runCLI(t, root, "archive", "workstream/review"); got.code != 0 {
+		t.Fatalf("archiving the workstream: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "states"); !strings.Contains(got.out, "review") {
+		t.Errorf("archiving the workstream took the state with it:\n%s", got.out)
+	}
+	if got := runCLI(t, root, "archive", "review"); got.code != 0 {
+		t.Fatalf("archiving the state: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "states"); strings.Contains(got.out, "review") {
+		t.Errorf("the state survived its own archiving:\n%s", got.out)
+	}
+}
+
+// TestCheckReportsAndAdoptsAMembershipNamingNothing asserts the finding a
+// workbench written before this card draws, the repair that answers it, and
+// the promise the repair keeps: no card anchor is touched.
+func TestCheckReportsAndAdoptsAMembershipNamingNothing(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "a card that belongs to something"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	cards := filepath.Join(soleBenchDir(t, root), bench.CardsDir)
+	ids := bench.ListIDs(cards)
+	path := filepath.Join(cards, ids[0], bench.CardAnchor)
+	text, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the card: %v", err)
+	}
+	planted := strings.Replace(text, "substate: ready", "substate: ready\nworkstreams:\n  - f00000000009\nunknown_key: kept", 1)
+	if err := os.WriteFile(path, []byte(planted), 0o644); err != nil {
+		t.Fatalf("write the card: %v", err)
+	}
+
+	reported := runCLI(t, root, "check")
+	if reported.code != 2 {
+		t.Fatalf("check on a workbench carrying a dangling membership: %d", reported.code)
+	}
+	if !strings.Contains(reported.out, "f00000000009") || !strings.Contains(reported.out, path) {
+		t.Errorf("the finding names neither the identifier nor the card's anchor:\n%s", reported.out)
+	}
+	machine := runCLI(t, root, "--json", "check")
+	var report verb.CheckReport
+	if err := json.Unmarshal([]byte(machine.out), &report); err != nil {
+		t.Fatalf("decode the machine form: %v\n%s", err, machine.out)
+	}
+	found := false
+	for _, finding := range report.Findings {
+		if finding.Key == bench.FindingDanglingWorkstream && finding.Detail == "f00000000009" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the machine form carries no dangling-workstream finding: %+v", report.Findings)
+	}
+
+	adopted := runCLI(t, root, "check", "--migrate-workstreams")
+	if !strings.Contains(adopted.out, msg.For(msg.Base).TN("check.workstream-adopted", 1)) {
+		t.Errorf("the repair reported %q", adopted.out)
+	}
+	after, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read the card again: %v", err)
+	}
+	if after != planted {
+		t.Errorf("the repair rewrote the card anchor:\n%q\n%q", planted, after)
+	}
+	if got := runCLI(t, root, "workstream", "get", "f00000000009", "status"); got.out != "active\n" {
+		t.Errorf("the adopted workstream reads %q, wanted an active status", got.out)
+	}
+	repaired := runCLI(t, root, "check")
+	if strings.Contains(repaired.out, bench.FindingDanglingWorkstream) || strings.Contains(repaired.out, "resolves in neither half") {
+		t.Errorf("the membership is still reported as dangling after the repair:\n%s", repaired.out)
+	}
+	if !strings.Contains(repaired.out, "carries no slug") {
+		t.Errorf("the adopted workstream is not reported as unnamed:\n%s", repaired.out)
+	}
+}
+
+// TestEveryMachineSurfaceCarriesAWorkstream asserts the two shapes the machine
+// surface gained: a card carries the memberships its frontmatter stores, and
+// the workstream command answers in the shape show already uses for a card.
+func TestEveryMachineSurfaceCarriesAWorkstream(t *testing.T) {
+	root := workstreamBench(t)
+	if got := runCLI(t, root, "add", "a card to belong"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "join", "fx-1", "portfolio-work"); got.code != 0 {
+		t.Fatalf("join: %d %s", got.code, got.errw)
+	}
+
+	shown := runCLI(t, root, "--json", "show", "fx-1")
+	var detail verb.Detail
+	if err := json.Unmarshal([]byte(shown.out), &detail); err != nil {
+		t.Fatalf("decode show: %v\n%s", err, shown.out)
+	}
+	if len(detail.Card.Workstreams) != 1 || !bench.IsID(detail.Card.Workstreams[0]) {
+		t.Errorf("the card carries %v, wanted the one identifier its frontmatter stores", detail.Card.Workstreams)
+	}
+	id := detail.Card.Workstreams[0]
+
+	listed := runCLI(t, root, "--json", "ls")
+	var listing verb.Listing
+	if err := json.Unmarshal([]byte(listed.out), &listing); err != nil {
+		t.Fatalf("decode ls: %v\n%s", err, listed.out)
+	}
+	if len(listing.Cards) != 1 || len(listing.Cards[0].Workstreams) != 1 {
+		t.Errorf("the listing carries %+v, wanted the card with its membership", listing.Cards)
+	}
+
+	workstreams := runCLI(t, root, "--json", "workstream")
+	var all verb.WorkstreamListing
+	if err := json.Unmarshal([]byte(workstreams.out), &all); err != nil {
+		t.Fatalf("decode the workstream listing: %v\n%s", err, workstreams.out)
+	}
+	if len(all.Workstreams) != 1 {
+		t.Fatalf("the machine listing carries %+v", all.Workstreams)
+	}
+	entry := all.Workstreams[0]
+	if entry.ID != id || entry.Ref != "portfolio-work" || entry.Slug != "portfolio-work" || entry.Title != "Portfolio work" || entry.Status != "active" || entry.Cards != 1 {
+		t.Errorf("the machine listing reads %+v", entry)
+	}
+
+	one := runCLI(t, root, "--json", "workstream", "get", "portfolio-work")
+	var got verb.WorkstreamDetail
+	if err := json.Unmarshal([]byte(one.out), &got); err != nil {
+		t.Fatalf("decode the workstream: %v\n%s", err, one.out)
+	}
+	if got.Workstream.ID != id || got.Path == "" {
+		t.Errorf("the machine form reads %+v", got)
+	}
+	if len(got.Cards) != 1 || got.Cards[0].Ref != "fx-1" {
+		t.Errorf("the machine form carries %+v, wanted the one member card", got.Cards)
+	}
+}
+
+// TestAHandWrittenWorkstreamDirectoryIsSkippedRatherThanRefused asserts what
+// the tool does with a directory it did not write. A name that is not an
+// identifier is invisible, a directory carrying no anchor is reported and
+// stepped over, and neither takes the listing away.
+func TestAHandWrittenWorkstreamDirectoryIsSkippedRatherThanRefused(t *testing.T) {
+	root := workstreamBench(t)
+	workstreams := filepath.Join(soleBenchDir(t, root), bench.WorkstreamsDir)
+	if err := os.MkdirAll(filepath.Join(workstreams, "notahex"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	anchor := filepath.Join(workstreams, "notahex", bench.WorkstreamAnchor)
+	if err := os.WriteFile(anchor, []byte("---\ntitle: Bogus\n---\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(workstreams, "f00000000001"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	listing := runCLI(t, root, "workstream")
+	if listing.code != 0 {
+		t.Fatalf("the listing refused over a directory it did not write: %d %s", listing.code, listing.errw)
+	}
+	if strings.Contains(listing.out, "notahex") || strings.Contains(listing.out, "f00000000001") {
+		t.Errorf("the listing drew a directory carrying no readable workstream:\n%s", listing.out)
+	}
+	if !strings.Contains(listing.out, "portfolio-work") {
+		t.Errorf("the listing lost the workstream Dinah wrote:\n%s", listing.out)
+	}
+
+	reported := runCLI(t, root, "check")
+	if reported.code != 2 {
+		t.Fatalf("check on a workbench carrying a directory with no anchor: %d", reported.code)
+	}
+	if !strings.Contains(reported.out, "f00000000001") {
+		t.Errorf("check does not name the directory carrying no anchor:\n%s", reported.out)
+	}
+	if strings.Contains(reported.out, "notahex") {
+		t.Errorf("check named a directory whose name is not an identifier:\n%s", reported.out)
+	}
+}
+
+// TestAWorkstreamsNotesAndItsEmptyMembershipBothDraw asserts the two branches
+// of the read that a workbench of one workstream and no cards reaches: the
+// notes print under the fields, and a workstream nobody has joined draws no
+// member table at all.
+func TestAWorkstreamsNotesAndItsEmptyMembershipBothDraw(t *testing.T) {
+	root := workstreamBench(t)
+	bare := runCLI(t, root, "workstream", "get", "portfolio-work")
+	if bare.code != 0 {
+		t.Fatalf("workstream get: %d %s", bare.code, bare.errw)
+	}
+	if strings.Contains(bare.out, msg.For(msg.Base).T("column.workstream.card")+"  ") {
+		t.Errorf("a workstream nobody has joined drew a member table:\n%s", bare.out)
+	}
+
+	workstreams := filepath.Join(soleBenchDir(t, root), bench.WorkstreamsDir)
+	ids := bench.ListIDs(workstreams)
+	if len(ids) != 1 {
+		t.Fatalf("wanted one workstream, got %v", ids)
+	}
+	path := filepath.Join(workstreams, ids[0], bench.WorkstreamAnchor)
+	text, err := bench.ReadText(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(text+"The long-form notes.\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	noted := runCLI(t, root, "workstream", "get", "portfolio-work")
+	if !strings.Contains(noted.out, "The long-form notes.") {
+		t.Errorf("the notes did not print:\n%s", noted.out)
+	}
+}
+
 // TestQueryRendersATableAndSaysSoWhenNothingMatched asserts the two human
 // renderings of the query command: the table it draws through the one renderer,
 // and the single line it prints instead when nothing matched.
@@ -5915,7 +6294,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",
-		"migrate-states", "override", "quiet", "ready", "replace", "yes",
+		"migrate-states", "migrate-workstreams", "override", "quiet", "ready",
+		"replace", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

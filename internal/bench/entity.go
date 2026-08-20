@@ -231,6 +231,42 @@ func RestoreTarget(dir string) string {
 	return filepath.Join(parent, filepath.Base(collection), filepath.Base(dir))
 }
 
+// WorkstreamRefPrefix is the word a generic entity reference names a
+// workstream's kind with, and the slash that separates it from the reference
+// itself.
+//
+// A workstream is the one kind that names itself in that grammar. A bare
+// reference is tried against the states before anything else, so a bare
+// workstream reference would be shadowed by a state of the same name,
+// silently, and only in the workbenches unlucky enough to have picked one.
+// Naming the kind costs one word and lets a workstream and a state share a
+// name.
+const WorkstreamRefPrefix = "workstream/"
+
+// resolveWorkstreamRef resolves a reference that names the workstream kind.
+// The second return value reports whether the reference named that kind at all,
+// which is what tells ResolveEntity to stop rather than fall through to the
+// states and the cards: a caller who wrote workstream/ meant a workstream, so
+// a name no workstream answers to is refused here rather than reported as an
+// unknown card.
+func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
+	rest, named := strings.CutPrefix(ref, WorkstreamRefPrefix)
+	if !named {
+		return nil, false, nil
+	}
+	workstream := b.WorkstreamByRef(rest)
+	if workstream == nil {
+		return nil, true, contract.Refuse(contract.UnknownWorkstream, rest)
+	}
+	entity := &EntityRef{
+		Kind: "workstream",
+		Dir:  workstream.Dir,
+		ID:   workstream.ID,
+		Ref:  workstream.Ref(),
+	}
+	return entity, true, nil
+}
+
 // MoveEntity carries an entity's whole directory to another path, history and
 // all. A rename the filesystem refuses is reported as a refusal and never
 // retried as a copy followed by a delete, which would trade one short
@@ -336,6 +372,16 @@ type StructuralAct struct {
 	// a person who typed a slug is never told about an identifier they
 	// never saw. Empty exactly when StateID is.
 	StateRef string
+	// WorkstreamID is the identifier of the workstream being deleted, empty
+	// for an act on any other kind and for an archiving. A non-empty one
+	// arms the membership scan, which archiving does not run: archiving a
+	// finished effort while its cards sit in Done is the ordinary case, and
+	// an archived workstream still resolves, so no card is left dangling.
+	WorkstreamID string
+	// WorkstreamRef is what a person typed, or could type, to reach that
+	// same workstream, on the terms StateRef states. Empty exactly when
+	// WorkstreamID is.
+	WorkstreamRef string
 	// Record appends the act's event, and is called at the fourth step. It
 	// is the point of record: a failure before it unwinds everything, and a
 	// failure after it leaves the sibling standing.
@@ -402,6 +448,11 @@ func (b *Bench) Run(act *StructuralAct) error {
 	}
 	if target := act.Target(); target != "" && Exists(target) {
 		return unwind(contract.Refuse(contract.Exists, target), sibling, benchLock)
+	}
+	if act.WorkstreamID != "" {
+		if err := b.WorkstreamReferenced(act.WorkstreamID, act.WorkstreamRef); err != nil {
+			return unwind(err, sibling, benchLock)
+		}
 	}
 	if act.StateID != "" {
 		if err := b.StateOccupied(act.StateID, act.StateRef); err != nil {
@@ -510,7 +561,8 @@ func reportInterruption(err error, act *StructuralAct, benchLock *Lock) error {
 // EntityRef is a reference resolved to an entity directory and the kind of
 // thing that directory holds.
 type EntityRef struct {
-	// Kind is one of bench, state, card, comment and attachment.
+	// Kind is one of workbench, state, workstream, card, comment,
+	// attachment and item.
 	Kind string
 	// Dir is the entity's directory.
 	Dir string
@@ -527,13 +579,17 @@ type EntityRef struct {
 }
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
-// bench itself, a state, a card, or a comment or attachment below one.
+// bench itself, a state, a workstream, a card, or a comment or attachment
+// below one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	ref = strings.TrimSpace(ref)
 	// The empty reference is this resolver's own case and IsWorkbenchRef does
 	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
 	if ref == "" || IsWorkbenchRef(ref) {
 		return &EntityRef{Kind: "workbench", Dir: b.Root}, nil
+	}
+	if entity, named, err := b.resolveWorkstreamRef(ref); named {
+		return entity, err
 	}
 	if state := b.StateByRef(ref); state != nil {
 		return &EntityRef{Kind: "state", Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil

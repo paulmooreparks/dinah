@@ -146,6 +146,17 @@ const (
 	// command line with the free text quoted, since that is the whole cost
 	// of the rule and the fix a reader needs to see.
 	MultipleWords = LayerPrefix + "multiple-words"
+	// UnknownWorkstream is a reference naming no workstream of this
+	// workbench, in either half of the collection. It is separate from
+	// unknown-state because a workstream is not a station of the flow, and
+	// a reader told about a state they never named would go looking in the
+	// wrong listing.
+	UnknownWorkstream = LayerPrefix + "unknown-workstream"
+	// Referenced is deleting a workstream that live cards still belong to.
+	// It is separate from Occupied, whose sentence says cards still occupy
+	// a state, because a card belongs to a workstream and stands in a
+	// state, and one sentence cannot honestly say both.
+	Referenced = LayerPrefix + "referenced"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -154,7 +165,7 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
-	UnknownField, UnknownValue,
+	UnknownWorkstream, Referenced, UnknownField, UnknownValue,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -210,16 +221,37 @@ const (
 	// rename: an operator change is no rename, and the name lands in
 	// append-only history in every workbench that runs the command.
 	EventWorkbenchUpdated = "workbench_updated"
+	// EventWorkstreamUpdated records a write to one of a workstream's own
+	// fields, on that workstream's journal. It covers a title change, a slug
+	// change and a status change alike, and it carries Field, From and To
+	// exactly as EventWorkbenchUpdated does.
+	EventWorkstreamUpdated = "workstream_updated"
+	// EventWorkstreamJoined and EventWorkstreamLeft record a card entering
+	// and leaving a workstream, on the card's own journal, because membership
+	// is card-owned and the card is the file that changed. Each carries the
+	// workstream's identifier in Workstream.
+	EventWorkstreamJoined = "workstream_joined"
+	EventWorkstreamLeft   = "workstream_left"
 )
 
-// Events lists the fifteen journal event names in the order the constants
-// above declare them, so a caller checking a value against the closed set
-// reads one list rather than repeating it.
+// Events lists the seventeen event names a query over cards accepts in its
+// event field, in the order the constants above declare them, so a caller
+// checking a value against the closed set reads one list rather than repeating
+// it. Every event a card's own journal can carry has to be here, since an
+// event a card carries and this list omits is an event nobody can ask for. The
+// containment does not hold the other way. EventRestored is listed and no
+// command writes it, so a query naming it is accepted and selects nothing.
+//
+// EventWorkbenchUpdated and EventWorkstreamUpdated are the two declared names
+// this list holds out, and each is held out for the same reason: it lands on
+// the workbench's journal or on a workstream's, never on a card's, so no card
+// a query reads can ever carry it.
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
 	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
 	EventRestored, EventDeleted, EventManualCorrection,
+	EventWorkstreamJoined, EventWorkstreamLeft,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

@@ -39,6 +39,8 @@ var tools = []tool{
 	{name: "release", command: verb.Release, run: doVerb},
 	{name: "block", command: verb.Block, run: doVerb},
 	{name: "unblock", command: verb.Unblock, run: doVerb},
+	{name: "join_workstream", command: verb.Join, run: doVerb},
+	{name: "leave_workstream", command: verb.Leave, run: doVerb},
 	{name: "add_card", command: "add", run: func(l *verb.Library, r *verb.Request) any { return l.Add(r) }},
 	{name: "comment", command: "comment", run: func(l *verb.Library, r *verb.Request) any { return l.Comment(r) }},
 	{name: "attach", command: "attach", run: func(l *verb.Library, r *verb.Request) any { return l.Attach(r) }},
@@ -54,6 +56,7 @@ var tools = []tool{
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
 	{name: "workbench", command: "workbench", run: doWorkbench},
+	{name: "workstream", command: "workstream", run: doWorkstream},
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},
@@ -239,6 +242,30 @@ func doWorkbench(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"workbench": fields}, readAffordances)
+}
+
+// doWorkstream answers the workstream tool, which lists the workbench's
+// workstreams, reads one, creates one or writes a field of one, exactly as the
+// command does. The action selects, so an agent reaches the same four acts a
+// person reaches from a terminal.
+func doWorkstream(l *verb.Library, r *verb.Request) any {
+	switch r.Action {
+	case "new":
+		return l.NewWorkstream(r)
+	case "set":
+		return l.SetWorkstream(r)
+	case "get":
+		detail, err := l.Workstream(r)
+		if err != nil {
+			return l.FromError(r, err)
+		}
+		return wrap(map[string]any{"detail": detail}, readAffordances)
+	}
+	listing, err := l.Workstreams()
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"listing": listing}, readAffordances)
 }
 
 // readVersion answers the version tool, always with catalog coverage, since a

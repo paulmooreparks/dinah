@@ -757,6 +757,12 @@ func exercisedWorkbench(t *testing.T) string {
 		{"add", "A card to archive"},
 		{"archive", "fx-2"},
 		{"workbench", "set", "title", "Layout"},
+		// A workstream is created, written to and joined, because the guide's
+		// tree draws the collection, one workstream's anchor and its journal,
+		// and none of the three exists in a workbench that never held one.
+		{"workstream", "new", "Layout work"},
+		{"workstream", "set", "layout-work", "status", "finished"},
+		{"join", "fx-1", "layout-work"},
 	}
 	for _, argv := range steps {
 		if got := runCLI(t, container, argv...); got.code != 0 {

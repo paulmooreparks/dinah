@@ -360,16 +360,55 @@ func drawsTheStackedForm(block sweptBlock, tag string, line string) bool {
 	if carriesTheHeadingRow(block, tag, line) {
 		return false
 	}
-	return stackedLabel(line, sweptLabels(block, tag)) >= 0
+	return stackedLabel(line, sweptLabels(block.keys, tag)) >= 0
 }
 
 // sweptLabels renders the block's headings in one language, in column order.
-func sweptLabels(block sweptBlock, tag string) []string {
-	labels := make([]string, 0, len(block.keys))
-	for _, key := range block.keys {
+func sweptLabels(keys []string, tag string) []string {
+	labels := make([]string, 0, len(keys))
+	for _, key := range keys {
 		labels = append(labels, msg.For(tag).T(key))
 	}
 	return labels
+}
+
+// sweptTableOf cuts one of the two tables dinah workstream get draws out of its
+// output, keeping the runs whose first line opens with a label the named
+// columns carry.
+//
+// Every other output drawing two tables opens each one with a sentence of its
+// own, and an entry reaches its half by naming that sentence through opensAt.
+// The workstream detail draws its fields and its member cards under no sentence
+// at all, separated by a blank line, and a blank line is also what separates one
+// record from the next once the window is narrow enough to stack them, so
+// position cannot tell the two tables apart. A label can, in both forms: the
+// table form carries every label in its heading row, and the stacked form
+// carries one at the head of every record.
+func sweptTableOf(out, tag string, keys []string) string {
+	labels := sweptLabels(keys, tag)
+	var kept, run []string
+	mine := false
+	flush := func() {
+		if mine && len(run) > 0 {
+			if len(kept) > 0 {
+				kept = append(kept, "")
+			}
+			kept = append(kept, run...)
+		}
+		run, mine = nil, false
+	}
+	for _, line := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+		if strings.TrimSpace(line) == "" {
+			flush()
+			continue
+		}
+		if len(run) == 0 {
+			mine = stackedLabel(line, labels) >= 0
+		}
+		run = append(run, line)
+	}
+	flush()
+	return strings.Join(kept, "\n")
 }
 
 // sweptRowLines asserts whatever this pass asks of the lines a block draws
@@ -1019,41 +1058,99 @@ func sweptLead(line string) int {
 // after the word would read the padding behind a Hindi field as text and
 // report a block that lines up as one that does not.
 func sweptSpaceAt(line string, at int) bool {
-	column := 0
-	for _, r := range line {
-		drawn := displayWidth(string(r))
-		if drawn == 0 {
+	runes, columns := sweptColumnsOf(line)
+	for i, r := range runes {
+		if columns[i+1] == columns[i] {
 			continue
 		}
-		if column == at {
+		if columns[i] == at {
 			return r == ' '
 		}
-		column += drawn
-		if column > at {
+		if columns[i] > at {
 			return false
 		}
 	}
 	return false
 }
 
+// sweptColumnsOf reports the runes of a line and the display column each one
+// begins in, the last entry being the width of the whole line.
+//
+// Each column is measured over the whole prefix in one call rather than by
+// adding one rune's width to a running total, because a width is a property of
+// a grapheme cluster rather than of a rune. A joined emoji sequence is where
+// the two answers part: five runes measuring thirteen columns one at a time
+// draw one glyph nine columns wide, so a running sum walks past the column the
+// renderer put the next field in. A running sum agrees with the renderer for
+// as long as every field ahead of another is Latin, Han or Devanagari, which
+// is why it held until a card title reached a column that is not the last
+// one.
+func sweptColumnsOf(line string) ([]rune, []int) {
+	runes := []rune(line)
+	columns := make([]int, len(runes)+1)
+	for i := range runes {
+		columns[i] = displayWidth(string(runes[:i]))
+	}
+	columns[len(runes)] = displayWidth(line)
+	return runes, columns
+}
+
 // sweptField returns the text between two display columns, trimmed of the
 // padding that carried it to the next one. An end of minus one takes the rest
 // of the line.
 func sweptField(line string, from, to int) string {
+	runes, columns := sweptColumnsOf(line)
 	var b strings.Builder
-	column := 0
 	inside := false
-	for _, r := range line {
-		drawn := displayWidth(string(r))
-		if drawn > 0 {
-			inside = column >= from && (to < 0 || column < to)
+	for i, r := range runes {
+		if columns[i+1] > columns[i] {
+			inside = columns[i] >= from && (to < 0 || columns[i] < to)
 		}
 		if inside {
 			b.WriteRune(r)
 		}
-		column += drawn
 	}
 	return strings.TrimRight(b.String(), " ")
+}
+
+// TestTheSweepReadsAClusterTheWayTheRendererMeasuresIt arms the measure the
+// two readers above rest on. Both walk a line looking for the display column a
+// field begins in, and both used to reach it by adding one rune's width at a
+// time, which reports a column no terminal puts the field in wherever a
+// grapheme cluster spans several runes.
+//
+// The title is the joined emoji sequence rather than the Devanagari one,
+// because Devanagari is a cluster the two measures agree on: its nonspacing
+// marks draw no column each and add none to a running sum either. The joined
+// sequence is the one that separates them, at nine columns whole and thirteen
+// added up.
+//
+// The line below is what the renderer draws for a card whose title is that
+// sequence and whose state follows it: the title measures nine display
+// columns, is padded to fourteen, and the state begins at twenty-four. A
+// per-rune sum puts the state at twenty-eight and reads four columns of
+// padding as part of it.
+func TestTheSweepReadsAClusterTheWayTheRendererMeasuresIt(t *testing.T) {
+	line := "  fx-3  " + pad(joinedTitle, 14) + "  Waiting"
+	if got := displayWidth(joinedTitle); got != 9 {
+		t.Fatalf("the fixture title measures %d display columns, so this test no longer arms what it says it does", got)
+	}
+	if got := sweptField(line, 24, -1); got != "Waiting" {
+		t.Errorf("sweptField from column 24 read %q, want %q", got, "Waiting")
+	}
+	if !sweptSpaceAt(line, 23) {
+		t.Error("display column 23 is the second column of the gutter and sweptSpaceAt did not find a space there")
+	}
+	if sweptSpaceAt(line, 24) {
+		t.Error("display column 24 is where the state begins and sweptSpaceAt found a space there")
+	}
+	fields := columnarFields(line)
+	if len(fields) != 3 {
+		t.Fatalf("columnarFields split the line into %d fields, want 3: %q", len(fields), line)
+	}
+	if fields[2].at != 24 {
+		t.Errorf("columnarFields put the third field at display column %d, want 24", fields[2].at)
+	}
 }
 
 // assertACellVaries asserts that the column a block declares as its varying
@@ -1157,7 +1254,7 @@ const (
 func sweptBlocks() []sweptBlock {
 	return []sweptBlock{
 		{
-			site: "render.go:133", label: "the legal moves under a served instruction",
+			site: "render.go:148", label: "the legal moves under a served instruction",
 			keys: []string{"column.moves.state", "column.moves.name", "column.moves.direction"}, varies: lastCell,
 			opensAt: "instructions.moves", expect: expectMoves,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1165,7 +1262,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:153", label: "the cards you hold",
+			site: "render.go:168", label: "the cards you hold",
 			keys: []string{"column.holding.card", "column.holding.title"}, varies: lastCell,
 			opensAt: "status.holding", expect: expectHolding,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1173,7 +1270,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:162", label: "the cards that are blocked",
+			site: "render.go:177", label: "the cards that are blocked",
 			keys: []string{"column.blocked.card", "column.blocked.reason"}, varies: lastCell,
 			opensAt: "status.blocked", expect: expectBlocked,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1181,7 +1278,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:189", label: "dinah states",
+			site: "render.go:204", label: "dinah states",
 			keys:   []string{"column.states.slug", "column.states.name", "column.states.kind", "column.states.cards", "column.states.owner"},
 			varies: lastCell, expect: expectStates,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1189,7 +1286,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:202", label: "dinah ls",
+			site: "render.go:217", label: "dinah ls",
 			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.title"}, varies: lastCell,
 			expect: expectListing,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1197,7 +1294,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:219", label: "dinah query",
+			site: "render.go:234", label: "dinah query",
 			keys:   []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"},
 			expect: expectMatches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1205,7 +1302,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:231", label: "dinah config",
+			site: "render.go:246", label: "dinah config",
 			keys: []string{"column.config.setting", "column.config.value", "column.config.source"}, varies: lastCell,
 			expect: expectSettings,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1213,7 +1310,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:259", label: "dinah workbenches",
+			site: "render.go:274", label: "dinah workbenches",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			expect: expectWorkbenches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1221,7 +1318,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:259", label: "the ambiguous-workbench refusal, written to stderr",
+			site: "render.go:274", label: "the ambiguous-workbench refusal, written to stderr",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			expect: expectWorkbenches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1229,7 +1326,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:285", label: "dinah next, a state offering a card",
+			site: "render.go:300", label: "dinah next, a state offering a card",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			expect: expectOffers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1246,7 +1343,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:285", label: "dinah next, a state offering nothing",
+			site: "render.go:300", label: "dinah next, a state offering nothing",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			expect: expectOffers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1264,7 +1361,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:302", label: "a card's links",
+			site: "render.go:317", label: "a card's links",
 			keys: []string{"column.links.link", "column.links.card"}, varies: lastCell,
 			opensAt: "show.links", expect: expectLinks,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1272,7 +1369,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:312", label: "a card's comments",
+			site: "render.go:327", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
@@ -1283,7 +1380,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:337", label: "dinah log",
+			site: "render.go:352", label: "dinah log",
 			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
 			varies: lastCell, expect: expectHistory,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1291,7 +1388,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:353", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:368", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			expect: expectAssignedSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1299,28 +1396,28 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:367", label: "one removed stranded state", varies: noCell,
+			site: "render.go:397", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states")
 			},
 		},
 		{
-			site: "render.go:503", label: "the states a refusal lists", varies: noCell,
+			site: "render.go:533", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
-			site: "render.go:384", label: "one finding", varies: noCell,
+			site: "render.go:414", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
-			site: "render.go:409", label: "catalog coverage",
+			site: "render.go:439", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1345,7 +1442,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:152", label: "dinah help <command>",
+			site: "help.go:156", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1353,7 +1450,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:188", label: "what you may write, on dinah help <command>",
+			site: "help.go:192", label: "what you may write, on dinah help <command>",
 			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
 			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1361,7 +1458,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:393", label: "the guide topics",
+			site: "commands.go:401", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1369,11 +1466,54 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:611", label: "the workbench's own fields",
+			site: "render.go:641", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			expect: expectWorkbenchFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "workbench")
+			},
+		},
+		{
+			site: "render.go:380", label: "the workstream slugs check --migrate-slugs assigned",
+			keys:   []string{"column.slugs.slug", "column.slugs.title"},
+			varies: lastCell, expect: expectAssignedWorkstreamSlugs,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				out := sweptRun(t, sweptStrippedTree(t, w, "wslugs-"+tag+"-"+sweptPass), tag, "check", "--migrate-slugs")
+				// opensAt renders its key through T, and this block's own
+				// heading carries a count, which only comes out of TN. The
+				// tail from that heading is what an opener would have left.
+				heading := msg.For(tag).TN("check.workstream-slug-assigned", 2)
+				at := strings.Index(out, heading)
+				if at < 0 {
+					t.Fatalf("check --migrate-slugs drew no workstream slug report in %s, so the entry has nothing to harvest", tag)
+				}
+				return out[at:]
+			},
+		},
+		{
+			site: "render.go:663", label: "dinah workstream",
+			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
+			varies: lastCell, expect: expectWorkstreams,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "workstream")
+			},
+		},
+		{
+			site: "render.go:684", label: "one workstream's own fields",
+			keys:   []string{"column.workstream.field", "column.workstream.value"},
+			varies: lastCell, expect: expectWorkstreamFields,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				out := sweptRun(t, w.healthy, tag, "workstream", "get", sweptWorkstream)
+				return sweptTableOf(out, tag, []string{"column.workstream.field", "column.workstream.value"})
+			},
+		},
+		{
+			site: "render.go:697", label: "the cards belonging to one workstream",
+			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.state"},
+			varies: lastCell, expect: expectWorkstreamMembers,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				out := sweptRun(t, w.healthy, tag, "workstream", "get", sweptWorkstream)
+				return sweptTableOf(out, tag, []string{"column.workstream.card", "column.workstream.title", "column.workstream.state"})
 			},
 		},
 	}
@@ -1422,6 +1562,22 @@ const (
 // title column of dinah states and of dinah next carries text a rune count
 // measures short.
 const reviewTitle = "検討"
+
+// The workstreams the two trees carry. sweptWorkstream is the slug
+// sweptWorkstreamTitle derives, and it is the workstream the member blocks
+// read. sweptFinishedTitle is the second workstream of the healthy tree, which
+// exists so that the status column of the listing draws two widths rather than
+// one. sweptStrippedWorkstreamTitle is the second workstream of the tree a slug
+// migration repairs, and its longer title is what makes the slug column of that
+// repair's third report draw two widths.
+const (
+	sweptWorkstreamTitle         = "Portfolio work"
+	sweptWorkstream              = "portfolio-work"
+	sweptFinishedTitle           = "Console redesign"
+	sweptFinishedSlug            = "console-redesign"
+	sweptFinishedStatus          = "finished"
+	sweptStrippedWorkstreamTitle = "Console redesign for the console"
+)
 
 // waitingTitle is the fifth state's own title, and sweptStrippedTitle is the
 // title the tree a slug migration repairs carries its one added state under.
@@ -1492,6 +1648,20 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	sweptSetEditor(t, benches, "notepad")
 	benches.record.settings = sweptSettings(t, benches)
 	benches.record.stripped = sweptStrippedStates()
+	sweptDo(t, benches.healthy, "workstream", "new", sweptWorkstreamTitle)
+	sweptDo(t, benches.healthy, "workstream", "new", sweptFinishedTitle)
+	sweptDo(t, benches.healthy, "workstream", "set", sweptFinishedSlug, "status", sweptFinishedStatus)
+	sweptDo(t, benches.healthy, "join", "fx-1", sweptWorkstream)
+	sweptDo(t, benches.healthy, "join", "fx-2", sweptWorkstream)
+	sweptDo(t, benches.healthy, "join", "fx-3", sweptWorkstream)
+	for _, ref := range []string{"fx-1", "fx-2", "fx-3"} {
+		benches.record.joins = append(benches.record.joins, sweptActRecord{card: ref, actor: benches.record.actor, to: -1})
+	}
+	benches.record.workstreams = []sweptWorkstreamRecord{
+		{title: sweptWorkstreamTitle, slug: sweptWorkstream, status: bench.StatusActive, cards: []string{"fx-1", "fx-2", "fx-3"}},
+		{title: sweptFinishedTitle, slug: sweptFinishedSlug, status: sweptFinishedStatus},
+	}
+	benches.record.strippedWorkstreams = sweptStrippedWorkstreams()
 
 	rooms := populateBase(t, filepath.Join(benches.ambiguous, bench.UserBaseName), "one", "twoandthree")
 	sweptRetitle(t, rooms[0], wideTitle)
@@ -1521,6 +1691,16 @@ func sweptInitStates() []sweptStateRecord {
 // top of them.
 func sweptStrippedStates() []sweptStateRecord {
 	return append([]sweptStateRecord{{id: reviewState, title: sweptStrippedTitle, kind: "work"}}, sweptInitStates()...)
+}
+
+// sweptStrippedWorkstreams are the workstreams the tree a slug migration
+// repairs holds. Neither carries a slug when the report is drawn, which is what
+// that repair derives one for, so the record holds the titles alone.
+func sweptStrippedWorkstreams() []sweptWorkstreamRecord {
+	return []sweptWorkstreamRecord{
+		{title: sweptWorkstreamTitle},
+		{title: sweptStrippedWorkstreamTitle},
+	}
 }
 
 // sweptStatePrepended returns the record's states with one more in front of
@@ -1699,7 +1879,10 @@ func sweptStrippedTree(t *testing.T, w *sweptWorkbenches, name string) string {
 	}
 	sweptInit(t, dir)
 	sweptAddState(t, dir, reviewState, sweptStrippedTitle, "work", "")
+	sweptDo(t, dir, "workstream", "new", sweptWorkstreamTitle)
+	sweptDo(t, dir, "workstream", "new", sweptStrippedWorkstreamTitle)
 	sweptStripSlugs(t, dir)
+	sweptStripWorkstreamSlugs(t, dir)
 	return dir
 }
 
@@ -1829,6 +2012,33 @@ func sweptRetitle(t *testing.T, root, title string) {
 		}
 		return strings.Join(kept, "\n")
 	})
+}
+
+// sweptStripWorkstreamSlugs removes the slug from every workstream of a
+// workbench, which is the defect check --migrate-slugs repairs one row at a
+// time. It stands beside sweptStripSlugs rather than inside it because the two
+// walk different collections and a caller may want either on its own.
+func sweptStripWorkstreamSlugs(t *testing.T, dir string) {
+	t.Helper()
+	workstreams := filepath.Join(sweptRoot(t, dir), bench.WorkstreamsDir)
+	entries, err := os.ReadDir(workstreams)
+	if err != nil {
+		t.Fatalf("read workstreams: %v", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		sweptRewrite(t, filepath.Join(workstreams, entry.Name(), bench.WorkstreamAnchor), func(source string) string {
+			var kept []string
+			for _, line := range strings.Split(source, "\n") {
+				if !strings.HasPrefix(line, "slug:") {
+					kept = append(kept, line)
+				}
+			}
+			return strings.Join(kept, "\n")
+		})
+	}
 }
 
 // sweptRewrite reads a file, hands it to a change, and writes it back.

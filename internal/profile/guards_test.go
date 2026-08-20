@@ -1840,12 +1840,21 @@ var streamWriters = []string{
 // terminal behind stdout how wide it is.
 var processStreamHolders = []string{"main", "windowWidth"}
 
-// columnarCatalogKeys are the two catalog entries that compose columns inside
-// a translated string, where the translator owns the spacing and no column is
-// declared. Both are present in every shipped catalog, and the guard asserts
-// that each still matches something, so a retired entry cannot leave a stale
-// name covering another one.
-var columnarCatalogKeys = []string{"card.line", "status.workbench"}
+// columnarCatalogKeys are the catalog entries that compose columns inside a
+// translated string, where the translator owns the spacing and no column is
+// declared. Every one of them is present in every shipped catalog, and the
+// guard asserts that each still matches something, so a retired entry cannot
+// leave a stale name covering another one.
+//
+// card.line.workstreams is card.line with a trailing field on the end, chosen
+// by the same caller, so it is exempt for card.line's own reason.
+// workstream.line is that line's counterpart for an act on a workstream.
+var columnarCatalogKeys = []string{
+	"card.line",
+	"card.line.workstreams",
+	"workstream.line",
+	"status.workbench",
+}
 
 // rowLayoutReason is what a reader who trips this guard needs: why the shape
 // is refused here, and what to do instead of working around it.

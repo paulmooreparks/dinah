@@ -31,6 +31,9 @@ type sweptRecord struct {
 	blocks   []sweptActRecord
 	moves    []sweptActRecord
 	releases []sweptActRecord
+	// joins are the memberships the fixture wrote, which land on the card's own
+	// journal and so draw a row of its history alongside the acts above.
+	joins []sweptActRecord
 	// comments and links are what the fixture wrote onto its first card.
 	comments []sweptCommentRecord
 	links    []sweptLinkRecord
@@ -51,6 +54,23 @@ type sweptRecord struct {
 	benches []sweptBenchRecord
 	// workbench is the healthy tree's own fields, as init wrote them.
 	workbench sweptWorkbenchRecord
+	// workstreams are the workstreams the healthy tree holds, in creation
+	// order, and strippedWorkstreams are the ones the tree a slug migration
+	// repairs holds, which that repair's third report draws one row per.
+	workstreams         []sweptWorkstreamRecord
+	strippedWorkstreams []sweptWorkstreamRecord
+}
+
+// sweptWorkstreamRecord is one workstream the fixture created: the title it was
+// filed under, the slug that title derives, the status it ended in, and the
+// cards the fixture joined to it. The identifier is not recorded, because
+// NewID mints it and the fixture never reads it back, so the row that draws it
+// carries a matcher instead.
+type sweptWorkstreamRecord struct {
+	title  string
+	slug   string
+	status string
+	cards  []string
 }
 
 // sweptCardRecord is one card the fixture filed, carrying what the fixture
@@ -691,7 +711,7 @@ func readSweptStackedRecords(t *testing.T, block sweptBlock, tag string, lines [
 		t.Errorf("%s (%s), locale %s, pass %s: "+format, append([]any{block.site, block.label, tag, sweptPass}, args...)...)
 		return nil
 	}
-	labels := sweptLabels(block, tag)
+	labels := sweptLabels(block.keys, tag)
 	for i, label := range labels {
 		for j := i + 1; j < len(labels); j++ {
 			if labels[j] == label {
@@ -1102,6 +1122,12 @@ func expectHistory(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 		}
 		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventCommented), comment.actor, ""))
 	}
+	for _, act := range r.joins {
+		if act.card != card.ref {
+			continue
+		}
+		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventWorkstreamJoined), act.actor, ""))
+	}
 	opaque, why := sweptStampColumn(0, "an act's stamp is the moment the fixture ran, which the fixture cannot know before it runs")
 	return sweptExpectation{
 		rows:         rows,
@@ -1209,6 +1235,81 @@ func expectWorkbenchFields(t *testing.T, r *sweptRecord, tag string) sweptExpect
 		rows = append(rows, sweptTexts(name, value))
 	}
 	return sweptExpectation{rows: rows, source: "the fields workbench lists"}
+}
+
+// expectWorkstreams is dinah workstream, one row per workstream the fixture
+// created, with the member count derived from the joins the fixture ran rather
+// than read back off the workstream.
+func expectWorkstreams(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, workstream := range r.workstreams {
+		rows = append(rows, sweptTexts(
+			sweptSlugCell(tag, workstream.slug),
+			workstream.title,
+			workstream.status,
+			strconv.Itoa(len(workstream.cards)),
+		))
+	}
+	return sweptExpectation{rows: rows, source: "the record's workstreams"}
+}
+
+// expectWorkstreamFields is one workstream's own fields, which walks the rows
+// the detail draws and reads each one off the record.
+//
+// The identifier row carries a matcher rather than text, for the reason
+// sweptWorkstreamRecord gives, and it is a cell matcher rather than an opaque
+// column because the value that cannot be known is one row of the value column
+// rather than the column itself.
+func expectWorkstreamFields(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	workstream := sweptWorkstreamNamed(t, r, sweptWorkstream)
+	rows := [][]sweptCell{
+		sweptTexts("slug", sweptSlugCell(tag, workstream.slug)),
+		{{text: "id"}, {match: bench.IsID}},
+		sweptTexts("title", workstream.title),
+		sweptTexts("status", workstream.status),
+		sweptTexts("cards", strconv.Itoa(len(workstream.cards))),
+	}
+	return sweptExpectation{rows: rows, source: "the fields one workstream's detail lists"}
+}
+
+// expectWorkstreamMembers is the cards belonging to one workstream, read out of
+// the joins the fixture ran and carrying each card's own state title.
+func expectWorkstreamMembers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	workstream := sweptWorkstreamNamed(t, r, sweptWorkstream)
+	var rows [][]sweptCell
+	for _, ref := range workstream.cards {
+		card := r.cards[sweptCardAt(r, ref)]
+		rows = append(rows, sweptTexts(card.ref, card.title, r.states[card.state].title))
+	}
+	return sweptExpectation{rows: rows, source: "the cards the record joined to " + sweptWorkstream}
+}
+
+// expectAssignedWorkstreamSlugs is the third report of one slug migration,
+// which derives a slug from each workstream's own title through the same call
+// the head makes.
+func expectAssignedWorkstreamSlugs(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, workstream := range r.strippedWorkstreams {
+		rows = append(rows, sweptTexts(bench.SlugifyDashed(workstream.title), workstream.title))
+	}
+	return sweptExpectation{rows: rows, source: "the workstreams the stripped tree holds"}
+}
+
+// sweptWorkstreamNamed is the record of the workstream an entry reads, found by
+// the slug that entry names.
+func sweptWorkstreamNamed(t *testing.T, r *sweptRecord, slug string) sweptWorkstreamRecord {
+	t.Helper()
+	for _, workstream := range r.workstreams {
+		if workstream.slug == slug {
+			return workstream
+		}
+	}
+	t.Fatalf("the record holds no workstream under the slug %q, so the entry that reads one has nothing to compare", slug)
+	return sweptWorkstreamRecord{}
 }
 
 // The suite carries four controls, and each one perturbs something and
