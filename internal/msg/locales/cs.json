@@ -1161,6 +1161,11 @@
       "context": "The one-line summary of the global flag --workbench.",
       "skeleton": true
     },
+    "guide.reading": {
+      "text": "The guides stand in the order Dinah recommends reading them.",
+      "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language.",
+      "skeleton": true
+    },
     "help.arguments": {
       "text": "What you may write:",
       "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is.",

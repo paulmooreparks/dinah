@@ -1069,14 +1069,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        476/476
-  af        0/476
-  cs        0/476
-  de        0/476
-  es        0/476
-  fil       0/476
-  hi        476/476
-  id        0/476
+  en        477/477
+  af        0/477
+  cs        0/477
+  de        0/477
+  es        0/477
+  fil       0/477
+  hi        477/477
+  id        0/477
 [exit 0]
 ```
 
@@ -1317,12 +1317,15 @@ repository checkout:
 
 ```console
 $ dinah guide
+The guides stand in the order Dinah recommends reading them.
+
   Topic             Title
   ----------------  -----------------------------------
+  first-session     Your first session at a workbench
   getting-started   Getting started
-  query             Asking questions of a workbench
-  references        References
   verbs             The five verbs
+  references        References
+  query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
 [exit 0]
 ```
