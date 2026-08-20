@@ -626,7 +626,18 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 	}
 	rank := rankOfKind(entity.Kind)
 	tree.Root.Count = containedCount(entity.Dir, entity.Kind)
-	l.fillContained(&tree.Root, entity.Dir, entity.Kind, tree.Root.Ref, rank, contentsLimit(level))
+	// Children below the workbench are still composed against the slug, the
+	// form ResolveEntity's own head-recomposition still defaults to. Only the
+	// root's own displayed reference changes, per dinah-151 OQ-9; changing
+	// the seed the children compose against as well would rename every
+	// address below the workbench rather than the one address the ruling is
+	// about, and would desync from the resolver's own default the moment a
+	// child address was resolved a second time.
+	childRef := tree.Root.Ref
+	if entity.Kind == bench.KindWorkbench {
+		childRef = l.Bench.Slug
+	}
+	l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level))
 	return tree, nil
 }
 
@@ -635,7 +646,12 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 	switch entity.Kind {
 	case bench.KindWorkbench:
-		return TreeNode{Kind: entity.Kind, Ref: l.Bench.Slug, Title: l.Bench.Title}
+		// The reference is the form path, show, and edit already accept for
+		// the workbench itself, per dinah-151 OQ-9, rather than the bare
+		// slug: a slug is a prefix for building a card reference and nothing
+		// accepts it alone, so drawing it here would put an address in the
+		// tree a reader could not type back.
+		return TreeNode{Kind: entity.Kind, Ref: "workbench", Title: l.Bench.Title}
 	case bench.KindState:
 		node := TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Ref}
 		if state := l.Bench.State(entity.ID); state != nil {

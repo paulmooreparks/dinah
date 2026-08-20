@@ -5958,9 +5958,9 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 	// The table, row by row, in the shape the guide draws it. Every cell was
 	// provoked against a build rather than read off the resolvers.
 	for _, row := range []string{
-		"| path         | yes            | no      | yes    | yes          |",
-		"| edit         | yes            | no      | yes    | yes          |",
-		"| show         | no             | no      | yes    | yes          |",
+		"| path         | yes            | yes     | yes    | yes          |",
+		"| edit         | yes            | yes     | yes    | yes          |",
+		"| show         | no             | yes     | yes    | yes          |",
 		"| instructions | no             | yes     | yes    | no           |",
 		"| attach       | yes            | yes     | yes    | yes          |",
 		"| archive      | no             | yes     | yes    | yes          |",

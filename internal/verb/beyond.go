@@ -222,7 +222,7 @@ func (l *Library) Archive(req *Request) *Response {
 		Actor:    req.Actor,
 		Now:      now,
 		StateID:  stateSubject(entity),
-		StateRef: entity.Ref,
+		StateRef: stateRefSubject(entity),
 		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
@@ -266,7 +266,7 @@ func (l *Library) Delete(req *Request) *Response {
 		Actor:    req.Actor,
 		Now:      now,
 		StateID:  stateSubject(entity),
-		StateRef: entity.Ref,
+		StateRef: stateRefSubject(entity),
 		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
@@ -441,6 +441,17 @@ func stateSubject(entity *bench.EntityRef) string {
 		return ""
 	}
 	return entity.ID
+}
+
+// stateRefSubject is StateRef's own reading of the same question stateSubject
+// answers for StateID, so the two stay paired and StructuralAct.StateRef's
+// documented invariant, empty exactly when StateID is, holds by construction
+// rather than by every entity kind but state happening to carry no Ref today.
+func stateRefSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "state" {
+		return ""
+	}
+	return entity.Ref
 }
 
 // removalRecord composes the event a deletion is recorded by and names the

@@ -562,7 +562,7 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Card: found.Card}, nil
+		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card}, nil
 	}
 	path, card, err := b.resolveBelow(ref)
 	if err != nil {

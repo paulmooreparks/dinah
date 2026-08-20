@@ -52,14 +52,14 @@ If the collection you name holds nothing, Dinah tells you that nothing answers t
 
 ## Which command takes what
 
-Eight commands take a reference, and between them they accept five different
+Eight commands take a reference, and between them they accept three different
 sets of things. This table says what each one accepts:
 
 | Command      | This workbench | A state | A card | Below a card |
 |--------------|----------------|---------|--------|--------------|
-| path         | yes            | no      | yes    | yes          |
-| edit         | yes            | no      | yes    | yes          |
-| show         | no             | no      | yes    | yes          |
+| path         | yes            | yes     | yes    | yes          |
+| edit         | yes            | yes     | yes    | yes          |
+| show         | no             | yes     | yes    | yes          |
 | instructions | no             | yes     | yes    | no           |
 | attach       | yes            | yes     | yes    | yes          |
 | archive      | no             | yes     | yes    | yes          |

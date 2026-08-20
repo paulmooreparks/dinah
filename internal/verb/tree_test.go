@@ -848,11 +848,16 @@ func TestACardIsReachedByItsOwnAddressAndByNoOther(t *testing.T) {
 // whether some file came back is answered by the defect as readily as by the
 // fix. Every entity of the grammar keeps its anchor in a directory named for
 // its identifier, so the directory the resolution lands in is the node itself.
+// The workbench root carries no such directory; its own anchor sits directly
+// under the bench root, so its identity check compares the resolved path
+// against that anchor rather than against a node ID it does not have.
 //
 // The fixture builds every two-level case the grammar has: an attachment under
 // a comment, and one under each of the two kinds the workbench mounts
 // directly. A fixture reaching only one level down cannot fail against a
-// resolver that stops after one level.
+// resolver that stops after one level. It includes the root, per dinah-151
+// OQ-9: the root draws the address the tool already accepts for the
+// workbench, so it belongs in the corpus rather than out of it.
 func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("a card with things below it")
@@ -867,10 +872,8 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 	built := contentsOf(t, h, "workbench", LevelAll)
 	drawn := 0
 	deep := 0
+	root := false
 	walkTree(built.Root, func(node TreeNode) {
-		if node.Kind == bench.KindWorkbench {
-			return
-		}
 		drawn++
 		if collectionsBelowTheHead(node.Ref) > 1 {
 			deep++
@@ -888,12 +891,22 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 			t.Errorf("%s resolves to %s and nothing is there: %v", node.Ref, path, err)
 			return
 		}
+		if node.Kind == bench.KindWorkbench {
+			root = true
+			if want := filepath.Join(h.library.Bench.Root, bench.WorkbenchAnchor); path != want {
+				t.Errorf("%s resolves to %s rather than the workbench's own anchor %s", node.Ref, path, want)
+			}
+			return
+		}
 		if reached := filepath.Base(filepath.Dir(path)); reached != node.ID {
 			t.Errorf("%s names the %s %s and opens %s instead", node.Ref, node.Kind, node.ID, reached)
 		}
 	})
 	if drawn == 0 {
 		t.Fatal("the walk drew nothing below the workbench, so this test proves nothing")
+	}
+	if !root {
+		t.Fatal("the walk never visited the workbench root, so this test proves nothing about it")
 	}
 	if deep == 0 {
 		t.Fatal("the walk drew no reference descending through two collections, so this test proves nothing about a resolver that stops after one")
@@ -915,9 +928,10 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 // field the resolver stops filling under any head reddens here rather than
 // reaching a reader as a pair of empty parentheses.
 //
-// The workbench root is passed over because its own spelling is dinah-151
-// OQ-9, which is unanswered, and no reading of that question changes what any
-// other node carries.
+// The workbench root is included, per dinah-151 OQ-9: the root now draws the
+// address the tool already accepts for the workbench, so a walk rooted at
+// that address must draw the workbench itself back, exactly as a walk rooted
+// at any other node's reference must.
 func TestAWalkRootedAtAReferenceDrawsThatReferenceBack(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("a card with things below it")
@@ -931,9 +945,6 @@ func TestAWalkRootedAtAReferenceDrawsThatReferenceBack(t *testing.T) {
 
 	drawn := map[string]int{}
 	walkTree(contentsOf(t, h, "workbench", LevelAll).Root, func(node TreeNode) {
-		if node.Kind == bench.KindWorkbench {
-			return
-		}
 		drawn[node.Kind]++
 		rooted, err := h.library.Contents(&Request{Verb: "contents", Ref: node.Ref}, LevelRoot)
 		if err != nil {
@@ -950,7 +961,7 @@ func TestAWalkRootedAtAReferenceDrawsThatReferenceBack(t *testing.T) {
 	// The kinds are named rather than counted, because the defect this guard
 	// exists for reached one kind under two heads and no other, so a corpus
 	// that happens to miss a head proves nothing about it.
-	for _, kind := range []string{bench.KindState, bench.KindCard, bench.KindComment, bench.KindItem, bench.KindAttachment} {
+	for _, kind := range []string{bench.KindWorkbench, bench.KindState, bench.KindCard, bench.KindComment, bench.KindItem, bench.KindAttachment} {
 		if drawn[kind] == 0 {
 			t.Fatalf("the walk drew no %s, so this test proves nothing about that kind", kind)
 		}

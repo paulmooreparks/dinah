@@ -1742,7 +1742,7 @@
       "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given."
     },
     "param.edit.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a state, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
     },
     "param.extract.dir.summary": {
@@ -1798,7 +1798,7 @@
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
     },
     "param.path.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a state, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
     },
     "param.query.query.summary": {
