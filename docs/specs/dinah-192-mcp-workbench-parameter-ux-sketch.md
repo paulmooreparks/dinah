@@ -21,7 +21,7 @@ this page is the one the earlier build produced.
 
 The scratch tree holds four workbenches, every one of them created by running `dinah init`
 in a directory this card made. Two of them lie under the root the server below is started
-with, at `benchroot\plans` and `benchroot\plans-archive`. The third lies outside that root
+with, at `mcp-root\plans` and `mcp-root\plans-archive`. The third lies outside that root
 at `outside\out-of-reach`, and its `workbench.md` was then overwritten with a line that does
 not parse, which is what section 6 uses to show that a refused call never opened it. The
 fourth lies outside the root at `outside\good` and is left intact. None of the four holds
@@ -209,12 +209,12 @@ the way every other read is wrapped, and ordered by path.
     {
       "title": "plans-archive",
       "slug": "pa",
-      "path": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans-archive\\.dinah\\793d2e263ee6"
+      "path": "C:\\dinah-scratch\\dinah-192-spec2\\mcp-root\\plans-archive\\.dinah\\793d2e263ee6"
     },
     {
       "title": "plans",
       "slug": "pl",
-      "path": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans\\.dinah\\5164831b5ee4"
+      "path": "C:\\dinah-scratch\\dinah-192-spec2\\mcp-root\\plans\\.dinah\\5164831b5ee4"
     }
   ]
 }
@@ -232,7 +232,7 @@ one workbench and does not find `plans-archive` at all.
 $ dinah workbenches
   Workbench  Slug  Path
   ---------  ----  -------------------------------------------------------------
-  plans      pl    C:\dinah-scratch\dinah-192-spec2\benchroot\plans\.dinah\5164831b5ee4
+  plans      pl    C:\dinah-scratch\dinah-192-spec2\mcp-root\plans\.dinah\5164831b5ee4
 ```
 
 ## 4. The handshake
@@ -243,7 +243,7 @@ for word and gains a paragraph naming its reach.
 ```text
 You are working the workbench plans.
 
-This server also reaches the other workbenches under C:\dinah-scratch\dinah-192-spec2\benchroot. Every tool takes an optional workbench property, and a call that names none acts on plans. Call the workbenches tool to see what you may name.
+This server also reaches the other workbenches under C:\dinah-scratch\dinah-192-spec2\mcp-root. Every tool takes an optional workbench property, and a call that names none acts on plans. Call the workbenches tool to see what you may name.
 
 The working agreement, which binds you rather than the tool:
 1. Claim a card before producing work on it.
@@ -262,7 +262,7 @@ came from a server launched inside `outside\good`, which is a workbench that lie
 the root, so this is also what startup case 3 of the spec produces.
 
 ```text
-This server serves the workbenches under C:\dinah-scratch\dinah-192-spec2\benchroot, and it started in none of them. Every tool takes a workbench property, and a call that names none is refused with dinah.no-workbench-found. Call the workbenches tool to see what you may name.
+This server serves the workbenches under C:\dinah-scratch\dinah-192-spec2\mcp-root, and it started in none of them. Every tool takes a workbench property, and a call that names none is refused with dinah.no-workbench-found. Call the workbenches tool to see what you may name.
 
 The working agreement, which binds you rather than the tool:
 1. Claim a card before producing work on it.
@@ -353,7 +353,7 @@ Proposed. A call omitting the property acts on the workbench the server started 
   ],
   "status": {
     "workbench": "plans",
-    "root": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans\\.dinah\\5164831b5ee4",
+    "root": "C:\\dinah-scratch\\dinah-192-spec2\\mcp-root\\plans\\.dinah\\5164831b5ee4",
     "is_operator": false,
     "operator": "paul",
     "profile": "dinah-core/0.4",
@@ -375,7 +375,7 @@ Proposed. A call naming the other workbench under the root acts on that one inst
   ],
   "status": {
     "workbench": "plans-archive",
-    "root": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot\\plans-archive\\.dinah\\793d2e263ee6",
+    "root": "C:\\dinah-scratch\\dinah-192-spec2\\mcp-root\\plans-archive\\.dinah\\793d2e263ee6",
     "is_operator": false,
     "operator": "paul",
     "profile": "dinah-core/0.4",
@@ -401,7 +401,7 @@ root it was measured against.
     "next_card"
   ],
   "context": {
-    "root": "C:\\dinah-scratch\\dinah-192-spec2\\benchroot"
+    "root": "C:\\dinah-scratch\\dinah-192-spec2\\mcp-root"
   }
 }
 ```
