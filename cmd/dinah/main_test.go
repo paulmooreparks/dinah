@@ -207,13 +207,40 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 }
 
 // blockLists reports whether the ratified help block carries a command's
-// usage line under the block's own indent. A usage that fits its column is
-// followed by the padding before its summary, and one that reaches the column
-// takes the rest of its line and is followed by the line ending instead, so
-// asking for a trailing space alone would read a wrapped entry as a missing
-// one.
+// usage line under the block's own indent. The syntax column is a ceiling
+// (dinah-200): a usage that fits it is followed by the padding before its
+// summary, and one wider than the ceiling wraps between words, so this
+// reconstructs the same wrap the renderer draws and reads it back off the
+// block rather than looking for the usage as one contiguous run of text,
+// which a wrapped entry never is.
 func blockLists(block, usage string) bool {
-	return strings.Contains(block, "  "+usage+" ") || strings.Contains(block, "  "+usage+"\n")
+	wrapIndent := 2 + ceilingContinuationIndent
+	room := halfWindow(assumedWindow)
+	chunks := strings.Split(breakWords(usage, wrapIndent, room), "\n")
+	lines := strings.Split(block, "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(line, "  "+chunks[0]) {
+			continue
+		}
+		// The character right after the first chunk has to be a space (the
+		// padding before the summary) or the end of the line (a value the
+		// ceiling left whole), so a usage that is merely a prefix of a
+		// longer one is not read as a match.
+		if rest := line[len("  "+chunks[0]):]; rest != "" && rest[0] != ' ' {
+			continue
+		}
+		matched := true
+		for j := 1; j < len(chunks); j++ {
+			if i+j >= len(lines) || lines[i+j] != chunks[j] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 // diffLines reports the first line at which two blocks differ, which is what

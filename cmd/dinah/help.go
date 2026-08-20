@@ -90,7 +90,14 @@ func (s *session) helpBlock() string {
 	var b strings.Builder
 	b.WriteString(s.r.T("help.tagline") + "\n\n")
 	b.WriteString(s.r.T("help.usage") + "\n")
-	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack}
+	// hasCeiling caps the syntax column at half the window: the top-level
+	// listing is the one table this tool draws with values wide enough to
+	// swallow the whole line on their own (check's flags run past ninety
+	// display columns), and no other table opts into this. wrapTail is the
+	// same opt-in the arguments table already uses, so a long summary wraps
+	// at the right edge rather than running past it into whatever the
+	// terminal does with the overrun.
+	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack, ceilingColumn: 0, hasCeiling: true, wrapTail: true}
 	for _, group := range groups {
 		opening := true
 		for _, c := range commands {

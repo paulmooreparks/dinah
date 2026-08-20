@@ -424,3 +424,161 @@ func TestARuleKeepsOneColumnWhereTheWindowLeavesNone(t *testing.T) {
 		t.Errorf("a rule starting past the right edge draws %d columns, and one is the floor", got)
 	}
 }
+
+// TestTheCeilingSetsAColumnToHalfTheWindow asserts what a table opts into by
+// declaring hasCeiling: the column measures half the window it draws in
+// whatever the values in it are, rather than shrinking to a short value's
+// own width. That is what lines every row's field after it up in one place,
+// including a row whose own value is nowhere near the ceiling.
+func TestTheCeilingSetsAColumnToHalfTheWindow(t *testing.T) {
+	laid := tableSession(100).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0,
+		rows: rowsOf([]string{"add", "file a new card"}),
+	})
+	if want := halfWindow(100); laid.widths[0] != want {
+		t.Errorf("a ceiling-bearing column measures %d and half the window is %d, so a short value left the column at its own width rather than the declared ceiling", laid.widths[0], want)
+	}
+}
+
+// TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine asserts the
+// shape dinah-200 exists for: a value wider than the ceiling breaks between
+// words rather than running past the column, and the field after it stays
+// on the row's own first line rather than resuming under wherever the
+// capped value's own lines happen to end.
+//
+// The want string is built from breakWords directly rather than counted by
+// hand, so the test reads the rule the renderer follows rather than a
+// number this test produced independently of it.
+func TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine(t *testing.T) {
+	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	summary := "look for structural defects"
+	laid := tableSession(100).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0,
+		rows: rowsOf([]string{value, summary}),
+	})
+	room := laid.widths[0]
+	wrapped := breakWords(value, laid.indent+ceilingContinuationIndent, room)
+	lines := strings.Split(wrapped, "\n")
+	if len(lines) < 2 {
+		t.Fatalf("this fixture is meant to need more than one line at a window of 100, got %d line(s): %q", len(lines), lines)
+	}
+	want := strings.Repeat(" ", laid.indent) + pad(lines[0], room+tableGutter) + summary
+	for _, line := range lines[1:] {
+		want += "\n" + line
+	}
+	if got := laid.rowLine(laid.rows[0]); got != want {
+		t.Errorf("a capped value wrapped as:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryDrawsSyntaxThenSummary
+// checks the one interaction dinah-200's tail-wrapping opt-in creates: a row
+// whose capped column needs three lines and whose summary, wrapping through
+// the same breakTail the arguments table already uses, needs two lines of
+// its own.
+//
+// The two wraps are independent axes and this asserts they do not get
+// folded into one interleaved run: every line of the capped column's own
+// continuation comes before every line of the summary's, so a reader sees
+// the whole option list first and the whole description after, rather than
+// a description line landing between two option-list lines it has nothing
+// to do with.
+func TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryDrawsSyntaxThenSummary(t *testing.T) {
+	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	summary := "look for structural defects in this workbench and repair what can be repaired automatically"
+	laid := tableSession(80).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0, wrapTail: true,
+		rows: rowsOf([]string{value, summary}),
+	})
+	room := laid.widths[0]
+	wrapIndent := laid.indent + ceilingContinuationIndent
+	syntaxLines := strings.Split(breakWords(value, wrapIndent, room), "\n")
+	if len(syntaxLines) < 3 {
+		t.Fatalf("this fixture is meant to need at least three lines for its syntax at a window of 80, got %d: %q", len(syntaxLines), syntaxLines)
+	}
+	begins := laid.indent + room + tableGutter
+	summaryLines := strings.Split(breakTail(summary, begins, laid.window), "\n")
+	if len(summaryLines) < 2 {
+		t.Fatalf("this fixture is meant to need at least two lines for its summary at a window of 80, got %d: %q", len(summaryLines), summaryLines)
+	}
+
+	want := strings.Repeat(" ", laid.indent) + pad(syntaxLines[0], room+tableGutter) + summaryLines[0]
+	for _, line := range syntaxLines[1:] {
+		want += "\n" + line
+	}
+	for _, line := range summaryLines[1:] {
+		want += "\n" + line
+	}
+	if got := laid.rowLine(laid.rows[0]); got != want {
+		t.Errorf("a row whose syntax wraps three lines and whose summary also wraps drew:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// TestACappedValueWhoseFirstWordOverrunsFallsBackToOwnLines asserts the sane
+// fallback for the one case wrapping cannot help: a single word wider than
+// the ceiling on its own. breakWords writes such a word whole rather than
+// splitting it, exactly as breakTail already does for the last column of a
+// different table, so this row falls back to the shape a capped overflow
+// drew before wrapping existed: the value on its own line and the field
+// after it on one further line, rather than squeezing the field after it
+// onto a line the word left no room in.
+func TestACappedValueWhoseFirstWordOverrunsFallsBackToOwnLines(t *testing.T) {
+	long := strings.Repeat("x", 80)
+	summary := "b"
+	laid := tableSession(100).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0,
+		rows: rowsOf([]string{long, summary}),
+	})
+	lines := strings.Split(laid.rowLine(laid.rows[0]), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("a single word wider than the ceiling should fall back to its own line plus one line for the field after it, got %d: %q", len(lines), lines)
+	}
+	if want := strings.Repeat(" ", laid.indent) + long; lines[0] != want {
+		t.Errorf("the overrunning word's own line is %q, want %q", lines[0], want)
+	}
+	if want := strings.Repeat(" ", laid.indent+ceilingContinuationIndent) + summary; lines[1] != want {
+		t.Errorf("the field after an overrunning value is %q, want %q", lines[1], want)
+	}
+}
+
+// TestTheCeilingNeverNarrowsBelowTheHeading asserts the floor applyCeiling
+// keeps: a window narrow enough that half of it falls short of the column's
+// own heading leaves the column at its heading rather than under it, the same
+// floor narrowToWindow holds elsewhere in this file.
+func TestTheCeilingNeverNarrowsBelowTheHeading(t *testing.T) {
+	laid := measure(table{
+		indent: 2, columns: headed("Command", "What"),
+		hasCeiling: true, ceilingColumn: 0,
+		rows: rowsOf([]string{"add", "file a new card"}),
+	}, 10)
+	applyCeiling(&laid)
+	if want := displayWidth("Command"); laid.widths[0] != want {
+		t.Errorf("the capped column measures %d and its own heading draws %d, so the ceiling narrowed it past the floor", laid.widths[0], want)
+	}
+}
+
+// TestTheCeilingIgnoresAnOutOfRangeColumn asserts that a table declaring a
+// ceilingColumn no column of it carries changes nothing: applyCeiling reads
+// widths it does not have and returns rather than indexing past the slice. No
+// production table asks for this; it is the defensive half of the same guard
+// that also refuses a negative column, exercised directly since nothing
+// short of a malformed table ever reaches it.
+func TestTheCeilingIgnoresAnOutOfRangeColumn(t *testing.T) {
+	for _, column := range []int{-1, 5} {
+		laid := measure(table{
+			indent: 2, columns: headed("Command", "What"),
+			hasCeiling: true, ceilingColumn: column,
+			rows: rowsOf([]string{"add <title> [--state <state>]", "file a new card"}),
+		}, 100)
+		before := laid.widths[0]
+		applyCeiling(&laid)
+		if laid.widths[0] != before {
+			t.Errorf("ceilingColumn %d: applyCeiling changed column 0 from %d to %d, and an out-of-range column should change nothing",
+				column, before, laid.widths[0])
+		}
+	}
+}
