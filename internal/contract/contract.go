@@ -157,6 +157,15 @@ const (
 	// a state, because a card belongs to a workstream and stands in a
 	// state, and one sentence cannot honestly say both.
 	Referenced = LayerPrefix + "referenced"
+	// UnknownRoot is a --root naming a directory the filesystem does not
+	// carry at startup. The mcp command raises it before serving, and the
+	// beyond check that names it carries the same wording.
+	UnknownRoot = LayerPrefix + "unknown-root"
+	// OutsideRoot is a workbench named by an MCP caller whose path lies
+	// outside the root the server was started with. The mcp command raises
+	// it at startup when --workbench named the contradiction, and the call
+	// dispatch raises it when the per-call workbench argument does.
+	OutsideRoot = LayerPrefix + "outside-root"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -166,6 +175,7 @@ var Introduced = []string{
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
 	UnknownWorkstream, Referenced, UnknownField, UnknownValue,
+	UnknownRoot, OutsideRoot,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
