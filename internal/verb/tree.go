@@ -710,7 +710,7 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []Tr
 	var nodes []TreeNode
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		for position, id := range l.membersOf(collection, mount) {
+		for position, id := range l.containmentMembersOf(collection, mount) {
 			child := l.containedNode(collection, id, position+1, mount, ref)
 			l.fillContained(&child, filepath.Join(collection, id), mount.Kind, child.Ref, rank+1, limit)
 			nodes = append(nodes, child)
@@ -719,9 +719,11 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []Tr
 	return nodes
 }
 
-// membersOf lists one collection's live members in the order the walk draws
-// them.
-func (l *Library) membersOf(collection string, mount bench.Mount) []string {
+// containmentMembersOf lists one collection's live members in the order the
+// walk draws them. Named distinctly from Library.membersOf in beyond.go,
+// which lists a workstream's own member cards: same shape, different
+// question, and the two would otherwise collide under one name.
+func (l *Library) containmentMembersOf(collection string, mount bench.Mount) []string {
 	switch mount.Kind {
 	case bench.KindState:
 		ids := make([]string, 0, len(l.Bench.States))

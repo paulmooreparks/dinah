@@ -97,7 +97,7 @@ func payload(t *testing.T, answer *response) map[string]any {
 }
 
 // TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-five tools the spec names, that each input schema is generated from
+// twenty-eight tools the spec names, that each input schema is generated from
 // the same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
@@ -117,8 +117,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 25 {
-		t.Errorf("wanted twenty-five tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 28 {
+		t.Errorf("wanted twenty-eight tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -140,7 +140,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench"} {
+	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
@@ -305,7 +305,15 @@ func TestGuidesAreResourcesAndMatchTheCLI(t *testing.T) {
 	if len(listed.Resources) != len(topics) {
 		t.Fatalf("wanted one resource per guide, got %d for %d guides", len(listed.Resources), len(topics))
 	}
-	for _, resource := range listed.Resources {
+	for at, resource := range listed.Resources {
+		// The position is asserted as well as the membership, because one
+		// declared reading order governs every surface that offers the
+		// guides. A count and a set of bytes hold while this head answers
+		// in any arrangement, and the arrangement is the thing a reader
+		// arriving with no guide open takes its recommendation from.
+		if wanted := "dinah://guide/" + topics[at]; resource.URI != wanted {
+			t.Errorf("resource %d is %s and the reading order places %s there", at, resource.URI, wanted)
+		}
 		read := ask(t, library, `{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"`+resource.URI+`"}}`)
 		body, err := json.Marshal(read.Result)
 		if err != nil {
@@ -506,6 +514,74 @@ func TestTheTreeToolsCarryTheLibraryObject(t *testing.T) {
 		if string(got) != string(again) {
 			t.Errorf("the %s tool carries\n%s\nand the library builds\n%s", c.tool, got, again)
 		}
+	}
+}
+
+// TestTheWorkstreamToolsAnswerTheWayTheTerminalDoes asserts the three tools
+// this card adds. The workstream tool creates, lists and reads through the one
+// library the terminal runs, and the two membership tools write the card's own
+// list, so an agent reaches the same four acts a person reaches and the
+// answers are the canonical forms the cli head prints under --json.
+func TestTheWorkstreamToolsAnswerTheWayTheTerminalDoes(t *testing.T) {
+	library := newLibrary(t)
+
+	created := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka","action":"new","workstream":"Portfolio work"}}}`))
+	if created["outcome"] != contract.OutcomeOK {
+		t.Fatalf("creating a workstream: %v", created)
+	}
+	made, ok := created["workstream"].(map[string]any)
+	if !ok {
+		t.Fatalf("the answer carries no workstream member: %v", created)
+	}
+	if made["slug"] != "portfolio-work" || made["status"] != "active" {
+		t.Errorf("the created workstream reads %v", made)
+	}
+
+	root := library.Bench.Root
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka"}}}`))
+	listing, ok := listed["listing"].(map[string]any)
+	if !ok {
+		t.Fatalf("the listing carries no listing member: %v", listed)
+	}
+	if rows, ok := listing["workstreams"].([]any); !ok || len(rows) != 1 {
+		t.Errorf("the listing carries %v", listing["workstreams"])
+	}
+
+	card := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add_card","arguments":{"actor":"alka","title":"a card to belong"}}}`))
+	if card["outcome"] != contract.OutcomeOK {
+		t.Fatalf("filing a card: %v", card)
+	}
+	ref := card["card"].(map[string]any)["ref"].(string)
+
+	joined := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join_workstream","arguments":{"actor":"alka","card":"`+ref+`","workstream":"portfolio-work"}}}`))
+	if joined["outcome"] != contract.OutcomeOK {
+		t.Fatalf("joining a workstream: %v", joined)
+	}
+	memberships, ok := joined["card"].(map[string]any)["workstreams"].([]any)
+	if !ok || len(memberships) != 1 || memberships[0] != made["id"] {
+		t.Errorf("the card carries %v, wanted the workstream's own identifier", joined["card"])
+	}
+
+	read := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka","action":"get","workstream":"portfolio-work"}}}`))
+	detail, ok := read["detail"].(map[string]any)
+	if !ok {
+		t.Fatalf("the read carries no detail member: %v", read)
+	}
+	if detail["workstream"].(map[string]any)["cards"].(float64) != 1 {
+		t.Errorf("the read counts %v member cards, wanted one", detail["workstream"])
+	}
+
+	left := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"leave_workstream","arguments":{"actor":"alka","card":"`+ref+`","workstream":"portfolio-work"}}}`))
+	if left["outcome"] != contract.OutcomeOK {
+		t.Fatalf("leaving a workstream: %v", left)
+	}
+	if _, carried := left["card"].(map[string]any)["workstreams"]; carried {
+		t.Errorf("a card belonging to no workstream still carries the member: %v", left["card"])
+	}
+
+	refused := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join_workstream","arguments":{"actor":"alka","card":"`+ref+`","workstream":"nosuch"}}}`))
+	if refused["outcome"] != contract.OutcomeRefused || refused["refusal"] != contract.UnknownWorkstream {
+		t.Errorf("joining an unknown workstream: wanted %s, got %v", contract.UnknownWorkstream, refused)
 	}
 }
 

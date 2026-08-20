@@ -438,6 +438,19 @@ type CheckReport struct {
 	// MigratedStates says the stranded-state migration ran, so a caller can
 	// tell an empty list of removals from a migration nobody asked for.
 	MigratedStates bool `json:"migrated_states,omitempty"`
+	// AssignedWorkstreamSlugs are the workstreams the slug migration
+	// repaired with the slug each one was given, on the terms AssignedSlugs
+	// carries the states.
+	AssignedWorkstreamSlugs []bench.WorkstreamSlugAssignment `json:"assigned_workstream_slugs,omitempty"`
+	// AdoptedWorkstreams are the identifiers the adoption repair created a
+	// workstream at, each one a membership the live cards already carried
+	// that named nothing. It is absent from a request that asked for no
+	// migration and from a request that asked and found nothing to adopt,
+	// which MigratedWorkstreams below is what separates.
+	AdoptedWorkstreams []string `json:"adopted_workstreams,omitempty"`
+	// MigratedWorkstreams says the adoption repair ran, so a caller can tell
+	// an empty list of adoptions from a migration nobody asked for.
+	MigratedWorkstreams bool `json:"migrated_workstreams,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -466,9 +479,20 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
+		streamAssigned, streamReported := l.Bench.BackfillWorkstreamSlugs()
+		report.AssignedWorkstreamSlugs = streamAssigned
+		report.Findings = append(report.Findings, streamReported...)
 		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
 		report.AssignedWorkbenchSlug = wsAssigned
 		report.Findings = append(report.Findings, wsReported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	if req != nil && req.MigrateWorkstreams {
+		adopted, err := l.adoptWorkstreams(req)
+		report.MigratedWorkstreams = true
+		report.AdoptedWorkstreams = adopted
 		if err != nil {
 			return report, err
 		}
@@ -520,6 +544,46 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.Findings = append(report.Findings, finding)
 	}
 	return report, nil
+}
+
+// adoptWorkstreams creates a workstream at every identifier the live cards
+// list that names none, keeping the identifier so that no card file is touched
+// and every reference already written down still resolves.
+//
+// It is a repair somebody asks for rather than one that runs at open, because
+// a tool that mints entities nobody asked for is writing into a file it does
+// not understand, and a workbench opened by accident would gain directories
+// its owner never made.
+//
+// The workbench's own lock covers the run, which is what the writer of a new
+// entity of a workbench-level collection already takes.
+func (l *Library) adoptWorkstreams(req *Request) ([]string, error) {
+	dangling, err := l.Bench.DanglingWorkstreams()
+	if err != nil {
+		return nil, err
+	}
+	if len(dangling) == 0 {
+		return nil, nil
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	if err != nil {
+		return nil, err
+	}
+	defer lock.Release()
+	var adopted []string
+	for _, id := range dangling {
+		workstream, err := l.Bench.AdoptWorkstream(id)
+		if err != nil {
+			return adopted, err
+		}
+		ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Actor}
+		if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+			return adopted, err
+		}
+		adopted = append(adopted, id)
+	}
+	return adopted, nil
 }
 
 // Export writes the interchange form of the bench definition.

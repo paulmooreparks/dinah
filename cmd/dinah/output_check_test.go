@@ -202,8 +202,13 @@ func columnarFields(line string) []columnarField {
 	runes := []rune(line)
 	var fields []columnarField
 	at := 0
-	column := 0
 	for at < len(runes) {
+		// The column is recomputed from the whole prefix rather than carried
+		// forward one field at a time, per columnAt's own reasoning: a width
+		// is a property of a grapheme cluster rather than of a rune, and a
+		// running sum drifts the moment a wide-glyph field sits ahead of
+		// another.
+		column := columnAt(runes, at)
 		start := column
 		var text strings.Builder
 		// A tree's guides live inside the field they lead, and they open with
@@ -215,13 +220,11 @@ func columnarFields(line string) []columnarField {
 			start = column + lead
 			text.WriteString(prefix)
 			at += lead + len([]rune(prefix))
-			column = start + len(prefix)
 		} else {
 			for at < len(runes) && runes[at] == ' ' {
 				at++
-				column++
 			}
-			start = column
+			start = columnAt(runes, at)
 		}
 		if at >= len(runes) {
 			break
@@ -242,13 +245,16 @@ func columnarFields(line string) []columnarField {
 			text.WriteRune(' ')
 			at++
 		}
-		// The field is measured whole rather than one rune at a time, which
-		// is how the row renderer measures the cell it padded. A grapheme
-		// cluster draws one glyph out of several runes, so a per-rune sum
-		// reads an emoji sequence three times as wide as it is drawn and
-		// reports the field after it as misplaced.
-		column = start + displayWidth(text.String())
 		fields = append(fields, columnarField{at: start, text: text.String()})
+		// The gap after this field is left for the next iteration to
+		// consume, rather than skipped here. A stacked tree row's value can
+		// open with the guide's own run of blank continuation spaces, which
+		// is content rather than gutter, and only guidedLead's own search
+		// over how many of the leading spaces are gutter tells the two
+		// apart. Skipping every space here first, the way an ordinary table
+		// column would, feeds guidedLead a string that no longer carries the
+		// blanks it needs and reads a deeper row's guide as flush with its
+		// shallower sibling's.
 	}
 	return fields
 }
@@ -318,6 +324,20 @@ func guideDecomposition(text string) (string, bool) {
 		return "", false
 	}
 	return string(runes[:at]), true
+}
+
+// columnAt is the display column a rune index begins in, measured over the
+// whole prefix in one call rather than by adding one rune's width at a time.
+//
+// The running sum this replaces reports a column no terminal puts the field
+// in, because a width is a property of a grapheme cluster rather than of a
+// rune: a joined emoji sequence draws one glyph nine columns wide out of five
+// runes measuring thirteen. It agreed with the renderer for as long as every
+// field ahead of another was Latin, Han or Devanagari, where the two measures
+// coincide, so a card title in any column but the last is what this measure
+// has to get right.
+func columnAt(runes []rune, index int) int {
+	return displayWidth(string(runes[:index]))
 }
 
 // TestTheOutputCheckReportsAMisalignedBlock arms the check above. A check that

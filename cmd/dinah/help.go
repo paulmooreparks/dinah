@@ -134,7 +134,11 @@ func (s *session) verbHelp(name string) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(verb.Usage(name) + "\n\n")
+	// The syntax line is broken between words at the window, indented under
+	// itself, for the same reason the arguments table breaks its last column:
+	// a command declaring enough flags draws a line no eighty-column terminal
+	// can hold, and every line of this page is held to the window.
+	b.WriteString(breakTail(verb.Usage(name), 2, windowWidth()) + "\n\n")
 	b.WriteString(s.r.T("cmd."+name+".summary") + "\n")
 	if key := "cmd." + name + ".note"; s.r.Has(key) {
 		b.WriteString("\n" + s.r.T(key) + "\n")

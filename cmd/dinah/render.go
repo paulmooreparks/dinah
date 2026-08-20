@@ -71,17 +71,32 @@ func (s *session) emitJSON(value any) int {
 }
 
 // renderCard prints the one line a person needs after an act: where the card
-// is, what it is called and what state it is in.
+// is, what it is called, what state it is in, and which workstreams it belongs
+// to.
+//
+// A card belonging to at least one workstream draws from a sibling key
+// carrying the whole sentence with the trailing field in it, chosen here the
+// way check.count.one and check.count.other are chosen by their caller, so a
+// translator gets a whole sentence in each form rather than a fragment
+// concatenated onto one. This is the single site every act prints its card
+// line from, so the field appears after claim, move, release, block, unblock,
+// add and show as well as after join and leave.
 func (s *session) renderCard(card *verb.CardView) {
 	if card == nil {
 		return
 	}
-	s.line(s.r.T("card.line",
+	values := []string{
 		"ref", card.Ref,
 		"title", card.Title,
 		"state", card.StateTitle,
 		"substate", s.token(card.Substate),
-	))
+	}
+	key := "card.line"
+	if len(card.Workstreams) > 0 {
+		key = "card.line.workstreams"
+		values = append(values, "workstreams", s.workstreamsCell(card.Workstreams))
+	}
+	s.line(s.r.T(key, values...))
 	if card.Holder != "" {
 		s.line(s.r.T("card.holder", "holder", card.Holder))
 	}
@@ -448,9 +463,24 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		if report.AssignedWorkbenchSlug != nil {
 			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
 		}
+		// The workstream slugs are the third report of the one repair, so
+		// they stay with the other two rather than reading as a separate
+		// answer further down.
+		s.line(s.r.TN("check.workstream-slug-assigned", len(report.AssignedWorkstreamSlugs)))
+		workstreams := table{indent: 2, columns: s.columns("slugs", "slug", "title")}
+		for _, assignment := range report.AssignedWorkstreamSlugs {
+			workstreams.rows = append(workstreams.rows, tableRow{fields: []string{assignment.Slug, assignment.Title}})
+		}
+		s.table(workstreams)
 	}
 	if report.StampedOrdinals != nil {
 		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
+	}
+	// The adopted identifiers are counted and not listed, because every
+	// workstream this repair creates carries no slug and so draws a finding
+	// naming that same identifier immediately below.
+	if report.MigratedWorkstreams {
+		s.line(s.r.TN("check.workstream-adopted", len(report.AdoptedWorkstreams)))
 	}
 	if report.MigratedStates {
 		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
@@ -703,4 +733,105 @@ func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 		t.rows = append(t.rows, tableRow{fields: []string{name, value}})
 	}
 	s.table(t)
+}
+
+// renderWorkstreams prints every live workstream of the workbench, and the
+// sentence that says so when the workbench carries none. The columns are the
+// shape dinah states already draws, and a workstream carrying no slug prints
+// through slugCell rather than as a blank.
+func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
+	if len(listing.Workstreams) == 0 {
+		s.line(s.r.T("workstreams.empty"))
+		return
+	}
+	t := table{indent: 2, columns: s.columns("workstreams", "slug", "name", "status", "cards")}
+	for _, workstream := range listing.Workstreams {
+		fields := []string{
+			s.slugCell(workstream.Slug),
+			workstream.Title,
+			workstream.Status,
+			strconv.Itoa(workstream.Cards),
+		}
+		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+}
+
+// renderWorkstreamDetail prints one workstream's own fields, its notes, and
+// the live cards belonging to it.
+//
+// The field names travel untranslated, the way the workbench listing's do,
+// because a field name is machine vocabulary a caller types back.
+func (s *session) renderWorkstreamDetail(detail *verb.WorkstreamDetail) {
+	workstream := detail.Workstream
+	fields := table{indent: 2, columns: s.columns("workstream", "field", "value")}
+	rows := [][]string{
+		{"slug", s.slugCell(workstream.Slug)},
+		{"id", workstream.ID},
+		{"title", workstream.Title},
+		{"status", workstream.Status},
+		{"cards", strconv.Itoa(workstream.Cards)},
+	}
+	for _, row := range rows {
+		fields.rows = append(fields.rows, tableRow{fields: row})
+	}
+	s.table(fields)
+	if detail.Body != "" {
+		s.line("")
+		s.write(detail.Body)
+	}
+	if len(detail.Cards) == 0 {
+		return
+	}
+	s.line("")
+	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "state")}
+	for _, card := range detail.Cards {
+		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.StateTitle}})
+	}
+	s.table(members)
+}
+
+// renderWorkstreamLine prints the one line a person needs after creating a
+// workstream or writing one of its fields, which reads the way the card line
+// reads after an act on a card.
+func (s *session) renderWorkstreamLine(workstream *verb.WorkstreamView) {
+	if workstream == nil {
+		return
+	}
+	s.line(s.r.T("workstream.line",
+		"ref", workstream.Ref,
+		"title", workstream.Title,
+		"status", workstream.Status,
+	))
+}
+
+// workstreamsCell renders a card's memberships for the trailing field of the
+// card line: each identifier as what a person could type to reach it, which is
+// the workstream's slug where it carries one and the identifier where it does
+// not, joined by the catalog's own separator.
+//
+// The resolution happens here rather than in the library because the machine
+// surface carries the identifiers the card's frontmatter stores, deliberately,
+// and a reader of the JSON resolves them the way a reader of a link's to
+// already does. The head reads the open workbench for the same reason the
+// composer reads its states to list them.
+func (s *session) workstreamsCell(ids []string) string {
+	refs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		refs = append(refs, s.workstreamRef(id))
+	}
+	return strings.Join(refs, s.r.T("card.line.workstreams.separator"))
+}
+
+// workstreamRef is what a person types to reach one workstream a card lists.
+// A membership naming nothing keeps the identifier the card carries, so the
+// line still shows the value a reader has to go and repair.
+func (s *session) workstreamRef(id string) string {
+	if s.library == nil {
+		return id
+	}
+	if workstream := s.library.Bench.Workstream(id); workstream != nil {
+		return workstream.Ref()
+	}
+	return id
 }

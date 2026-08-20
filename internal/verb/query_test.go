@@ -3,6 +3,7 @@ package verb
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -62,9 +63,10 @@ func wantRefs(t *testing.T, text string, matches *Matches, want ...string) {
 	}
 }
 
-// setWorkstreams writes a card's workstreams list into its anchor by hand,
-// because no verb assigns membership and the field reaches a card only through
-// frontmatter somebody wrote.
+// setWorkstreams writes a card's workstreams list into its anchor by hand.
+// join assigns membership now, but it resolves the workstream first, so it
+// cannot produce the identifier naming nothing that most of these fixtures
+// need, and a hand-written list is the only way to reach that state.
 func (h *harness) setWorkstreams(ref string, names ...string) {
 	h.t.Helper()
 	path := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
@@ -220,12 +222,42 @@ func TestAClosedVocabularyRefusesATypoAndAnOpenOneDoesNot(t *testing.T) {
 	if legal := h.refuse("event:comment").Extra["legal"]; !strings.Contains(legal, contract.EventCommented) {
 		t.Errorf("the event vocabulary reported was %q", legal)
 	}
+	// The two membership events land on a card's own journal, so the
+	// vocabulary a card query is checked against has to name them or a card
+	// carries history nobody can ask for.
+	for _, event := range []string{contract.EventWorkstreamJoined, contract.EventWorkstreamLeft} {
+		if legal := h.refuse("event:comment").Extra["legal"]; !strings.Contains(legal, event) {
+			t.Errorf("the event vocabulary omits %s, which a card journal carries: %q", event, legal)
+		}
+	}
 	if refusal := h.refuse("state:nosuchstate"); refusal.Name != contract.UnknownState {
 		t.Errorf("state:nosuchstate refused %s, want %s", refusal.Name, contract.UnknownState)
 	}
 	for _, text := range []string{"holder:reday", "actor:reday", "block_kind:reday"} {
 		wantRefs(t, text, h.ask(text))
 	}
+}
+
+// TestAMembershipEventIsQueryableOnTheCardItLandsOn asserts the behaviour the
+// closed vocabulary exists for. join and leave record on the card's own
+// journal, which is the journal a query reads, so naming either event has to be
+// a question with an answer rather than a refusal. Before the two names joined
+// contract.Events every assertion here refused with dinah.unknown-value, and
+// h.ask turns a refusal into a failure, so the whole test goes red at the first
+// line that names one.
+func TestAMembershipEventIsQueryableOnTheCardItLandsOn(t *testing.T) {
+	h := newHarness(t)
+	member := h.add("a card that joins")
+	h.add("a card that never joins")
+	stream := h.newWorkstream("Portfolio work")
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: member, Workstream: stream.Ref})
+	wantRefs(t, "event:workstream_joined", h.ask("event:workstream_joined"), member)
+	wantRefs(t, "event:workstream_left", h.ask("event:workstream_left"))
+	h.mustDo(&Request{Verb: Leave, Actor: "alka", Card: member, Workstream: stream.Ref})
+	wantRefs(t, "event:workstream_left", h.ask("event:workstream_left"), member)
+	// The join is still in the journal after the departure, because a journal
+	// is append-only and the act plane asks what a card has ever carried.
+	wantRefs(t, "event:workstream_joined", h.ask("event:workstream_joined"), member)
 }
 
 // TestAnAtValueIsReadByTheQueryRatherThanByParseStamp asserts that a malformed
@@ -355,10 +387,18 @@ func TestTheEmptyValueAsksForAbsenceOnEveryFieldButAt(t *testing.T) {
 	}
 }
 
-// TestWorkstreamMatchesByMembershipAndItsRosterIsTheLiveCards asserts the
+// TestWorkstreamMatchesByItsRegistryAsWellAsTheLiveCards asserts the
 // membership rule, the complement rule for !=, and check 6 with its roster read
-// from every live card rather than from the cards the other terms leave.
-func TestWorkstreamMatchesByMembershipAndItsRosterIsTheLiveCards(t *testing.T) {
+// from the workbench's own workstreams and from every live card rather than
+// from the cards the other terms leave.
+//
+// It was TestWorkstreamMatchesByMembershipAndItsRosterIsTheLiveCards, and its
+// name moved with its rule: once a workbench can carry a workstream nobody has
+// joined, the live cards are half the roster rather than all of it. The
+// fixture holds one of those, since a fixture creating no workstream reaches
+// no case the old rule and the new rule disagree about, and a test that never
+// reaches a disagreement cannot report one.
+func TestWorkstreamMatchesByItsRegistryAsWellAsTheLiveCards(t *testing.T) {
 	h := newHarness(t)
 	both := h.add("in a and b")
 	sole := h.add("in c")
@@ -380,6 +420,28 @@ func TestWorkstreamMatchesByMembershipAndItsRosterIsTheLiveCards(t *testing.T) {
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: sole, State: doing})
 	wantRefs(t, "state:intake workstream:c", h.ask("state:"+intake+" workstream:c"))
 
+	// A workstream the workbench carries and no card has joined is a name the
+	// query recognises: it returns no rows and exits 0, where the old rule
+	// refused it as a value referring to nothing.
+	empty := h.newWorkstream("Nobody has joined this")
+	wantRefs(t, "workstream:nobody-has-joined-this", h.ask("workstream:nobody-has-joined-this"))
+	wantRefs(t, "workstream:"+empty.ID, h.ask("workstream:"+empty.ID))
+
+	// A workstream a card does belong to answers to both of its spellings, and
+	// != stays the exact complement of : under either one.
+	joined := h.newWorkstream("Portfolio work")
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: none, Workstream: "portfolio-work"})
+	wantRefs(t, "workstream:portfolio-work", h.ask("workstream:portfolio-work"), none)
+	wantRefs(t, "workstream:"+joined.ID, h.ask("workstream:"+joined.ID), none)
+	wantRefs(t, "workstream!=portfolio-work", h.ask("workstream!=portfolio-work"), both, sole)
+	wantRefs(t, "workstream!="+joined.ID, h.ask("workstream!="+joined.ID), both, sole)
+
+	legal := strings.Join([]string{
+		"a", "b", "c",
+		empty.ID, "nobody-has-joined-this",
+		joined.ID, "portfolio-work",
+	}, ", ")
+	legal = sortedList(legal)
 	for _, text := range []string{"workstream:d", "workstream!=d", "workstream:a,d"} {
 		refusal := h.refuse(text)
 		if refusal.Name != contract.UnknownValue {
@@ -388,16 +450,29 @@ func TestWorkstreamMatchesByMembershipAndItsRosterIsTheLiveCards(t *testing.T) {
 		if refusal.Detail != "d" {
 			t.Errorf("query %q named %q rather than the offending value", text, refusal.Detail)
 		}
-		if refusal.Extra["legal"] != "a, b, c" {
-			t.Errorf("query %q listed the roster as %q", text, refusal.Extra["legal"])
+		if refusal.Extra["legal"] != legal {
+			t.Errorf("query %q listed the roster as %q, want %q", text, refusal.Extra["legal"], legal)
 		}
 	}
+}
+
+// sortedList reorders a comma-and-space list the way the roster is sorted, so
+// a test naming what it expects does not also have to sort it by hand.
+func sortedList(list string) string {
+	parts := strings.Split(list, ", ")
+	sort.Strings(parts)
+	return strings.Join(parts, ", ")
 }
 
 // TestAnArchivedCardIsOutOfReachOfAQuery asserts the scope of section 5: the
 // live half of the cards collection is read and the archive is not, so an
 // archived card is never returned and an identifier only it lists is not in the
 // workstream roster.
+//
+// The roster is empty here because the workbench carries no workstream either,
+// which is the half of it the registry contributes. The fixture below adds one
+// and takes it away again, so the assertion rests on both halves being empty
+// rather than on the cards half alone.
 func TestAnArchivedCardIsOutOfReachOfAQuery(t *testing.T) {
 	h := newHarness(t)
 	live := h.add("live")
@@ -415,6 +490,22 @@ func TestAnArchivedCardIsOutOfReachOfAQuery(t *testing.T) {
 	}
 	if legal := h.refuse("workstream:gone").Extra["legal"]; legal != "" {
 		t.Errorf("the roster reported %q, and no live card lists a workstream", legal)
+	}
+
+	// The registry half is what the cards half is being separated from. A
+	// workstream the workbench carries reaches the roster with no card in it
+	// at all, and archiving it takes it back out.
+	carried := h.newWorkstream("Still here")
+	if legal := h.refuse("workstream:gone").Extra["legal"]; legal != carried.ID+", still-here" {
+		t.Errorf("the roster reported %q, wanted the live workstream's own two names", legal)
+	}
+	archived := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: "workstream/still-here"})
+	h.reopen()
+	if archived.Outcome != contract.OutcomeOK {
+		t.Fatalf("archive the workstream: %s %s", archived.Outcome, archived.Refusal)
+	}
+	if legal := h.refuse("workstream:gone").Extra["legal"]; legal != "" {
+		t.Errorf("the roster reported %q after the workstream was archived", legal)
 	}
 }
 
@@ -523,11 +614,17 @@ func TestAQueryCarryingTwoMistakesIsRefusedForTheEarlier(t *testing.T) {
 		{"Priority>=next substate:reday", contract.UnknownField},
 		{"at:2026-08-01 substate:reday", contract.UnknownField},
 		{"substate:reday state:nosuchstate", contract.UnknownValue},
+		// workstream:d is a mistake because no workstream of this fixture
+		// answers to d and no card lists it, which is what leaves this row
+		// carrying two mistakes rather than one.
 		{"state:nosuchstate workstream:d", contract.UnknownState},
 	} {
 		if refusal := h.refuse(pair.text); refusal.Name != pair.want {
 			t.Errorf("query %q refused %s, want the earlier %s", pair.text, refusal.Name, pair.want)
 		}
+	}
+	if refusal := h.refuse("workstream:d"); refusal.Name != contract.UnknownValue {
+		t.Errorf("workstream:d alone refused %s, so the row above carries one mistake rather than two", refusal.Name)
 	}
 	// The catalog key of each row carries its own order, so a row moved in the
 	// list without its key moving with it prints a sentence for the wrong

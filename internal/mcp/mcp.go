@@ -274,6 +274,8 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Action = value
 	case "field":
 		req.Field = value
+	case "workstream":
+		req.Workstream = value
 	case "value":
 		req.Value = value
 	case "title":
@@ -312,6 +314,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateSlugs = value
 	case "migrate-states":
 		req.MigrateStates = value
+	case "migrate-workstreams":
+		req.MigrateWorkstreams = value
 	case "catalogs":
 		// The version tool always reports catalog coverage, so the marker
 		// carries nothing here.

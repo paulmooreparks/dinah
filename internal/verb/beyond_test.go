@@ -2117,3 +2117,384 @@ func (h *harness) anchorBytes() string {
 	}
 	return text
 }
+
+// newWorkstream files a workstream through the library and fails the test
+// unless it was created, returning what the response carried.
+func (h *harness) newWorkstream(title string) *WorkstreamView {
+	h.t.Helper()
+	response := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: title})
+	if response.Outcome != contract.OutcomeOK {
+		h.t.Fatalf("workstream new %q: %s %s", title, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	return response.Workstream
+}
+
+// workstreamEvents reads one workstream's journal, which is where its own arc
+// is recorded.
+func (h *harness) workstreamEvents(id string) []bench.Event {
+	h.t.Helper()
+	workstream := h.library.Bench.Workstream(id)
+	if workstream == nil {
+		h.t.Fatalf("the workbench carries no workstream %s", id)
+	}
+	events, torn, err := bench.ReadJournal(workstream.JournalPath())
+	if err != nil {
+		h.t.Fatalf("read the journal of workstream %s: %v", id, err)
+	}
+	if torn {
+		h.t.Fatalf("the journal of workstream %s is torn", id)
+	}
+	return events
+}
+
+// TestAWorkstreamIsBornWithASlugAStatusAnOrdinalAndAJournal asserts what
+// `workstream new` writes: the four frontmatter fields, the slug derived from
+// the whole title, and a journal opening with a created event naming the
+// caller.
+func TestAWorkstreamIsBornWithASlugAStatusAnOrdinalAndAJournal(t *testing.T) {
+	h := newHarness(t)
+	view := h.newWorkstream("Portfolio work")
+	if view.Slug != "portfolio-work" {
+		t.Errorf("the slug is %q, and the whole title through SlugifyDashed is portfolio-work", view.Slug)
+	}
+	if view.Title != "Portfolio work" || view.Status != bench.StatusActive || view.Cards != 0 {
+		t.Errorf("the workstream reads %+v, wanted the title, an active status and no cards", view)
+	}
+	stored := h.library.Bench.Workstream(view.ID)
+	if stored == nil {
+		t.Fatalf("the workbench carries no workstream %s", view.ID)
+	}
+	if stored.Ordinal != 1 {
+		t.Errorf("the creation ordinal is %d, wanted 1", stored.Ordinal)
+	}
+	events := h.workstreamEvents(view.ID)
+	if len(events) != 1 || events[0].Event != contract.EventCreated || events[0].Actor != "alka" {
+		t.Errorf("the journal opens with %+v, wanted one created event naming alka", events)
+	}
+	listing, err := h.library.Workstreams()
+	if err != nil {
+		t.Fatalf("list the workstreams: %v", err)
+	}
+	if len(listing.Workstreams) != 1 || listing.Workstreams[0].Cards != 0 {
+		t.Errorf("the listing reads %+v, wanted the one workstream with no cards", listing.Workstreams)
+	}
+}
+
+// TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix asserts the
+// collision resolution the state slugs already use, and that the suffix the
+// resolver writes is a slug the workstream grammar admits.
+func TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix(t *testing.T) {
+	h := newHarness(t)
+	first := h.newWorkstream("Sprint 2")
+	second := h.newWorkstream("Sprint 2")
+	if first.Slug != "sprint-2" {
+		t.Errorf("the first slug is %q, and SlugifyDashed derives sprint-2 where Slugify would derive sprint2", first.Slug)
+	}
+	if second.Slug != "sprint-2-2" {
+		t.Errorf("the second slug is %q, wanted the counting suffix sprint-2-2", second.Slug)
+	}
+	for _, slug := range []string{first.Slug, second.Slug} {
+		if !bench.ValidStateSlug(slug) {
+			t.Errorf("%q is not a slug the grammar admits, so the resolver wrote something nobody can type", slug)
+		}
+	}
+}
+
+// TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported pins the state a
+// write can reach and creation cannot. The write is accepted, the shared slug
+// still resolves to the earlier workstream, and check raises exactly one
+// duplicate finding, naming the workstream whose slug is now shadowed.
+//
+// Four assertions carry four different regressions. A later card that decides
+// to refuse the write turns the test red at the outcome. One that changes which
+// workstream a reference reaches turns it red at the resolution. One that makes
+// check report both workstreams turns it red at the count. And one that puts
+// checkWorkstreams back on an unordered walk turns it red at the identity,
+// since the finding would then name whichever of the pair sorted later by a
+// random identifier.
+//
+// The workbench holds a third workstream carrying its own slug, and the count
+// is what that one is here for. On a workbench holding the colliding pair
+// alone, a check that raised a duplicate over a workstream sharing its slug
+// with nobody has no such workstream to raise it over, so the count agrees with
+// a checker that cannot tell a collision from an ordinary slug. The bystander
+// is the wrong answer that assertion had none of.
+func TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported(t *testing.T) {
+	h := newHarness(t)
+	first := h.newWorkstream("Portfolio work")
+	second := h.newWorkstream("Console redesign")
+	bystander := h.newWorkstream("Documentation sweep")
+
+	req := &Request{Verb: "workstream", Action: "set", Actor: "alka", Workstream: "console-redesign", Field: bench.SlugField, Value: first.Slug, Confirm: true}
+	got := h.library.SetWorkstream(req)
+	h.reopen()
+	if got.Outcome != contract.OutcomeOK {
+		t.Fatalf("renaming onto a taken slug: %s %s, wanted it accepted", got.Outcome, got.Refusal)
+	}
+	if stored := h.library.Bench.Workstream(second.ID); stored.Slug != first.Slug {
+		t.Errorf("the second workstream stored the slug %q, wanted the duplicate %q it was told to take", stored.Slug, first.Slug)
+	}
+	if found := h.library.Bench.WorkstreamByRef(first.Slug); found == nil || found.ID != first.ID {
+		t.Errorf("the shared slug resolved to %v, wanted the earlier workstream %s", found, first.ID)
+	}
+	var duplicates []string
+	for _, finding := range h.check() {
+		if finding.Key == bench.FindingWorkstreamSlugDuplicate {
+			duplicates = append(duplicates, finding.Detail)
+		}
+	}
+	if len(duplicates) != 1 {
+		t.Fatalf("check raised %d %s findings %v, wanted exactly one over the pair, so the duplicate this write minted is either undetected or reported twice", len(duplicates), bench.FindingWorkstreamSlugDuplicate, duplicates)
+	}
+	if duplicates[0] != second.ID {
+		t.Errorf("the duplicate finding names %s, wanted the shadowed workstream %s; the earlier workstream is %s and the bystander is %s", duplicates[0], second.ID, first.ID, bystander.ID)
+	}
+}
+
+// TestWritingAWorkstreamFieldRecordsOneUpdateOnItsOwnJournal asserts the field
+// write, the one event it appends, and the confirmation a slug change needs.
+func TestWritingAWorkstreamFieldRecordsOneUpdateOnItsOwnJournal(t *testing.T) {
+	h := newHarness(t)
+	view := h.newWorkstream("Portfolio work")
+
+	set := func(field, value string, confirm bool) *Response {
+		h.t.Helper()
+		req := &Request{Verb: "workstream", Action: "set", Actor: "alka", Workstream: "portfolio-work", Field: field, Value: value, Confirm: confirm}
+		response := h.library.SetWorkstream(req)
+		h.reopen()
+		return response
+	}
+
+	if got := set("status", "paused", false); got.Outcome != contract.OutcomeOK {
+		t.Fatalf("set status: %s %s", got.Outcome, got.Refusal)
+	}
+	stored := h.library.Bench.Workstream(view.ID)
+	if stored.Status != "paused" {
+		t.Errorf("the stored status is %q, wanted paused", stored.Status)
+	}
+	events := h.workstreamEvents(view.ID)
+	if len(events) != 2 {
+		t.Fatalf("the journal carries %d events, wanted the created event and one update", len(events))
+	}
+	update := events[1]
+	if update.Event != contract.EventWorkstreamUpdated || update.Field != "status" || update.From != bench.StatusActive || update.To != "paused" {
+		t.Errorf("the update reads %+v, wanted field=status from=active to=paused", update)
+	}
+
+	before, err := bench.ReadText(stored.AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	refused := set(bench.SlugField, "folio", false)
+	if refused.Outcome != contract.OutcomeRefused || refused.Refusal != contract.Unconfirmed {
+		t.Fatalf("a slug change without --yes: %s %s, wanted a refusal of %s", refused.Outcome, refused.Refusal, contract.Unconfirmed)
+	}
+	after, err := bench.ReadText(stored.AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor again: %v", err)
+	}
+	if after != before {
+		t.Errorf("the refused slug change rewrote the anchor:\n%q\n%q", before, after)
+	}
+	if got := set(bench.SlugField, "folio", true); got.Outcome != contract.OutcomeOK {
+		t.Fatalf("a slug change with the flag: %s %s", got.Outcome, got.Refusal)
+	}
+	if h.library.Bench.WorkstreamByRef("portfolio-work") != nil {
+		t.Error("the old slug still resolves after the rename")
+	}
+	if h.library.Bench.WorkstreamByRef("folio") == nil {
+		t.Error("the new slug does not resolve after the rename")
+	}
+}
+
+// TestJoiningAndLeavingWriteOnlyTheMembershipNamed asserts the pair's whole
+// contract: the identifier is appended and removed, the events land on the
+// card's own journal, a repeat of either writes nothing at all, and a
+// workstream no reference names refuses.
+func TestJoiningAndLeavingWriteOnlyTheMembershipNamed(t *testing.T) {
+	h := newHarness(t)
+	first := h.newWorkstream("Portfolio work")
+	second := h.newWorkstream("Console redesign")
+	third := h.newWorkstream("Translation")
+	ref := h.add("a card to belong")
+
+	for _, slug := range []string{"portfolio-work", "console-redesign", "translation"} {
+		h.mustDo(&Request{Verb: Join, Actor: "alka", Card: ref, Workstream: slug})
+	}
+	card := h.card(ref)
+	wanted := []string{first.ID, second.ID, third.ID}
+	if strings.Join(card.Workstreams, ",") != strings.Join(wanted, ",") {
+		t.Fatalf("the card lists %v, wanted %v in the order they were joined", card.Workstreams, wanted)
+	}
+
+	anchor, err := bench.ReadText(card.AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: ref, Workstream: "portfolio-work"})
+	again, err := bench.ReadText(h.card(ref).AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor again: %v", err)
+	}
+	if again != anchor {
+		t.Errorf("joining a workstream the card already belongs to rewrote the anchor:\n%q\n%q", anchor, again)
+	}
+
+	h.mustDo(&Request{Verb: Leave, Actor: "alka", Card: ref, Workstream: "console-redesign"})
+	card = h.card(ref)
+	wanted = []string{first.ID, third.ID}
+	if strings.Join(card.Workstreams, ",") != strings.Join(wanted, ",") {
+		t.Errorf("after leaving the second, the card lists %v, wanted %v in their original order", card.Workstreams, wanted)
+	}
+	events, _, err := bench.ReadJournal(card.JournalPath())
+	if err != nil {
+		t.Fatalf("read the card's journal: %v", err)
+	}
+	joined, left := 0, 0
+	for _, ev := range events {
+		switch ev.Event {
+		case contract.EventWorkstreamJoined:
+			joined++
+		case contract.EventWorkstreamLeft:
+			left++
+			if ev.Workstream != second.ID {
+				t.Errorf("the left event names workstream %s, wanted %s", ev.Workstream, second.ID)
+			}
+		}
+	}
+	if joined != 3 || left != 1 {
+		t.Errorf("the card's journal carries %d joins and %d departures, wanted 3 and 1", joined, left)
+	}
+
+	anchor, err = bench.ReadText(card.AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor a third time: %v", err)
+	}
+	h.mustDo(&Request{Verb: Leave, Actor: "alka", Card: ref, Workstream: "console-redesign"})
+	again, err = bench.ReadText(h.card(ref).AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor a fourth time: %v", err)
+	}
+	if again != anchor {
+		t.Errorf("leaving a workstream the card never joined rewrote the anchor:\n%q\n%q", anchor, again)
+	}
+
+	refused := h.do(&Request{Verb: Join, Actor: "alka", Card: ref, Workstream: "nosuch"})
+	if refused.Outcome != contract.OutcomeRefused || refused.Refusal != contract.UnknownWorkstream || refused.Detail != "nosuch" {
+		t.Errorf("joining an unknown workstream: %s %s %q, wanted a refusal of %s naming nosuch", refused.Outcome, refused.Refusal, refused.Detail, contract.UnknownWorkstream)
+	}
+	if got := h.card(ref); strings.Join(got.Workstreams, ",") != strings.Join(wanted, ",") {
+		t.Errorf("the refused join rewrote the membership list: %v", got.Workstreams)
+	}
+}
+
+// TestJoinAndLeaveHonourTheBasis asserts that the pair inherits Do's
+// transaction rather than opening one of their own: a basis naming a revision
+// the card no longer has comes back stale, carrying the revision on disk, and
+// writes nothing.
+func TestJoinAndLeaveHonourTheBasis(t *testing.T) {
+	h := newHarness(t)
+	h.newWorkstream("Portfolio work")
+	ref := h.add("a card to belong")
+	current := h.card(ref).Revision
+
+	for _, name := range []string{Join, Leave} {
+		response := h.do(&Request{Verb: name, Actor: "alka", Card: ref, Workstream: "portfolio-work", Basis: "sha256:0000"})
+		if response.Outcome != contract.OutcomeStale {
+			t.Errorf("%s on a stale basis: %s, wanted %s", name, response.Outcome, contract.OutcomeStale)
+			continue
+		}
+		if response.Card == nil || response.Card.Revision != current {
+			t.Errorf("%s on a stale basis carried back %+v, wanted the revision on disk %s", name, response.Card, current)
+		}
+		if got := h.card(ref); len(got.Workstreams) != 0 || got.Revision != current {
+			t.Errorf("%s on a stale basis wrote to the card: %v %s", name, got.Workstreams, got.Revision)
+		}
+	}
+}
+
+// TestDeletingAWorkstreamLiveCardsBelongToIsRefusedAndArchivingIsNot asserts
+// the pair the format's Workstreams section fixes, and the reading this card
+// makes of which cards count: the live half alone, so a workstream only
+// archived cards list is deleted without refusal and those cards keep the
+// membership they were archived with.
+func TestDeletingAWorkstreamLiveCardsBelongToIsRefusedAndArchivingIsNot(t *testing.T) {
+	h := newHarness(t)
+	view := h.newWorkstream("Portfolio work")
+	live := h.add("a card that stays")
+	going := h.add("a card that is archived")
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: live, Workstream: "portfolio-work"})
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: going, Workstream: "portfolio-work"})
+
+	refused := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: "workstream/portfolio-work", Confirm: true})
+	h.reopen()
+	if refused.Outcome != contract.OutcomeRefused || refused.Refusal != contract.Referenced {
+		t.Fatalf("deleting a workstream live cards belong to: %s %s, wanted a refusal of %s", refused.Outcome, refused.Refusal, contract.Referenced)
+	}
+
+	archivedCard := h.card(going)
+	membership := strings.Join(archivedCard.Workstreams, ",")
+	archived := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: going})
+	h.reopen()
+	if archived.Outcome != contract.OutcomeOK {
+		t.Fatalf("archiving the card: %s %s", archived.Outcome, archived.Refusal)
+	}
+	h.mustDo(&Request{Verb: Leave, Actor: "alka", Card: live, Workstream: "portfolio-work"})
+
+	deleted := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: "workstream/portfolio-work", Confirm: true})
+	h.reopen()
+	if deleted.Outcome != contract.OutcomeOK {
+		t.Fatalf("deleting a workstream only an archived card lists: %s %s", deleted.Outcome, deleted.Refusal)
+	}
+	if h.library.Bench.Workstream(view.ID) != nil {
+		t.Error("the workstream directory survived the deletion")
+	}
+	stayed, err := bench.LoadCard(h.library.Bench.ArchivedCardsRoot(), archivedCard.ID)
+	if err != nil {
+		t.Fatalf("read the archived card: %v", err)
+	}
+	if strings.Join(stayed.Workstreams, ",") != membership {
+		t.Errorf("the archived card's membership reads %v, wanted the %v it was archived with", stayed.Workstreams, membership)
+	}
+	findings, err := h.library.Bench.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	for _, finding := range findings {
+		if finding.Key == bench.FindingDanglingWorkstream {
+			t.Errorf("check reported %+v about a card in the archived half, which its walk never reaches", finding)
+		}
+	}
+}
+
+// TestArchivingAWorkstreamLeavesItsMembersResolvable asserts that an archived
+// workstream still resolves, so a card belonging to one is not a dangler and
+// check stays quiet about it.
+func TestArchivingAWorkstreamLeavesItsMembersResolvable(t *testing.T) {
+	h := newHarness(t)
+	view := h.newWorkstream("Portfolio work")
+	ref := h.add("a card that belongs")
+	h.mustDo(&Request{Verb: Join, Actor: "alka", Card: ref, Workstream: "portfolio-work"})
+
+	archived := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: "workstream/portfolio-work"})
+	h.reopen()
+	if archived.Outcome != contract.OutcomeOK {
+		t.Fatalf("archiving a workstream cards belong to: %s %s", archived.Outcome, archived.Refusal)
+	}
+	if got := h.library.Bench.Workstreams(); len(got) != 0 {
+		t.Errorf("the live listing carries %d workstreams after the archiving, wanted none", len(got))
+	}
+	if !h.library.Bench.HasWorkstream(view.ID) {
+		t.Error("the archived workstream no longer resolves, so its members became danglers")
+	}
+	findings, err := h.library.Bench.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	for _, finding := range findings {
+		if finding.Key == bench.FindingDanglingWorkstream {
+			t.Errorf("check reported %+v about a membership that resolves in the archived half", finding)
+		}
+	}
+}
