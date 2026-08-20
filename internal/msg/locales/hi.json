@@ -1266,7 +1266,7 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
     },
     "param.show.card.summary": {
-      "text": "एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
+      "text": "एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
     },
     "param.tree.depth.summary": {
