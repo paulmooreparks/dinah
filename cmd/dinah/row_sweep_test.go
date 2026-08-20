@@ -81,11 +81,14 @@ type sweptBlock struct {
 	// place.
 	wrapsTail bool
 	// capsColumn says the block draws its first column under a ceiling
-	// (andon-style dinah-200): a field wider than the cap takes its own line
-	// and the field after it resumes at sweptCapContinuation rather than
-	// under the column it belongs to. One entry declares it, and reading its
-	// output without knowing that would report the fixed-indent continuation
-	// as a field that has drifted from the column it belongs to.
+	// (dinah-200): a value too wide for the cap breaks between words rather
+	// than running past the column, and the field after it stays on the
+	// row's own first line however many lines the capped value needs. A
+	// continuation line of the capped value leads at sweptCapContinuation
+	// rather than under the column it belongs to or under the column after
+	// it, and reading its output without knowing that would report the
+	// fixed-indent continuation as a field that has drifted, or as the
+	// field after the capped column arriving early.
 	capsColumn bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
@@ -963,10 +966,11 @@ func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, 
 // sweptIndent is the display column every block of this inventory starts at.
 const sweptIndent = 2
 
-// sweptCapContinuation is the display column a capsColumn block's second
-// field resumes at once its first has broken across lines: the block's own
-// indent plus the production renderer's ceilingContinuationIndent, read off
-// the same constant the renderer uses rather than a number copied from it.
+// sweptCapContinuation is the display column a capsColumn block's capped
+// value continues at once it has wrapped across more than one line: the
+// block's own indent plus the production renderer's
+// ceilingContinuationIndent, read off the same constant the renderer uses
+// rather than a number copied from it.
 const sweptCapContinuation = sweptIndent + ceilingContinuationIndent
 
 // readSweptRows folds a block's rendered rows back into fields and asserts,
@@ -980,9 +984,11 @@ const sweptCapContinuation = sweptIndent + ceilingContinuationIndent
 // in. A row may also stop short, which is how a state offering nothing says so
 // where the card reference would have been: the field it stops on takes the
 // rest of the line and the row ends there. A capsColumn block departs from
-// that one rule on purpose: its first field's continuation resumes at
-// sweptCapContinuation rather than under the column after it, which is what
-// the ceiling exists to produce. Anything else is a row whose fields have
+// that one rule on purpose: the field after its capped column is read off the
+// row's own first line whatever the capped column's own value needs, and a
+// continuation line of the capped column, read at sweptCapContinuation, is
+// folded back into the capped field of the row already closed for it rather
+// than read as a field of a new one. Anything else is a row whose fields have
 // drifted, which is what this test exists to catch.
 func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, columns []int) [][]string {
 	t.Helper()
@@ -1008,17 +1014,17 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
 			continue
 		}
-		// A capsColumn block's first field, once it has broken across lines
-		// because it is wider than the ceiling, is followed by its second
-		// field at the fixed continuation indent rather than under the
-		// column the field belongs to, which is the whole point of the
-		// ceiling. next==1 with no line read yet for this row happens only
-		// on such a continuation, since every row whose first field fits
-		// reads both fields off the one line in the inner loop below without
-		// ever returning here.
-		if block.capsColumn && next == 1 && sweptLead(line) == sweptCapContinuation {
-			row = append(row, sweptField(line, sweptCapContinuation, -1))
-			closeRow()
+		// A capsColumn block draws every row's field after the capped
+		// column on the row's first line, whatever the capped column's own
+		// value needs, so the first line of such a row reads through the
+		// ordinary path below like any other two-column row. A capsColumn
+		// continuation line carries only more of the capped column's own
+		// value, at the fixed sweptCapContinuation indent, and is folded
+		// back into the row already closed for it rather than read as a
+		// field of its own.
+		if block.capsColumn && next == 0 && len(rows) > 0 && sweptLead(line) == sweptCapContinuation {
+			previous := rows[len(rows)-1]
+			previous[0] += " " + sweptField(line, sweptCapContinuation, -1)
 			continue
 		}
 		if sweptLead(line) != columns[next] {
@@ -1032,8 +1038,7 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 				break
 			}
 			edge := columns[next+1]
-			resumes := i+1 < len(lines) && (sweptLead(lines[i+1]) == edge ||
-				(block.capsColumn && next == 0 && sweptLead(lines[i+1]) == sweptCapContinuation))
+			resumes := i+1 < len(lines) && sweptLead(lines[i+1]) == edge
 			if displayWidth(line) <= edge {
 				row = append(row, sweptField(line, columns[next], -1))
 				next++

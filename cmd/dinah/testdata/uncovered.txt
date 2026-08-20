@@ -33,4 +33,4 @@ render.go:644.23,646.3  a composition splicing no fragment at all, which needs a
 render.go:672.2,672.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
 render.go:798.23,800.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
 render.go:830.22,832.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
-table.go:233.30,235.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
+table.go:241.30,243.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
