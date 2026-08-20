@@ -6476,8 +6476,8 @@ func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
 			t.Errorf("%s is a skeleton and reports %d keys translated", tag, translated)
 		}
 	}
-	if complete != 2 {
-		t.Errorf("%d catalogs report every key translated, want the two that are really translated", complete)
+	if complete != 3 {
+		t.Errorf("%d catalogs report every key translated, want the three that are really translated", complete)
 	}
 }
 
