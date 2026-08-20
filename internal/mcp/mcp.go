@@ -297,13 +297,13 @@ func answerWorkbenches(root string) (map[string]any, error) {
 
 // resolveLibrary carries out the per-call workbench resolution. It returns
 // either a library and a nil refusal, or a nil library and the refusal that
-// comes back. The five steps the spec numbers are the order of the ifs below,
+// comes back. The six steps the spec numbers are the order of the ifs below,
 // since each step names the refusal that came back when no later step ran.
 func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, request *verb.Request, candidate string) (*verb.Library, *contract.Refusal) {
-	if defaultLib == nil {
-		return nil, contract.Refuse(contract.NoWorkbenchFound, "")
-	}
 	if candidate == "" {
+		if defaultLib == nil {
+			return nil, contract.Refuse(contract.NoWorkbenchFound, "")
+		}
 		return defaultLib, nil
 	}
 	abs, err := filepath.Abs(candidate)
@@ -327,6 +327,9 @@ func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]
 	}
 	opened, err := bench.Open(abs)
 	if err != nil {
+		if refusal, ok := err.(*contract.Refusal); ok {
+			return nil, refusal
+		}
 		return nil, contract.Refuse(contract.NoWorkbench, abs)
 	}
 	library := verb.New(opened, defaultLib.Home)
