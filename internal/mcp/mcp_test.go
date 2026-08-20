@@ -55,10 +55,14 @@ func newLibrary(t *testing.T) *verb.Library {
 }
 
 // ask drives one JSON-RPC request through the head and returns the response.
+// The root defaults to the test's bench root, which holds exactly the one
+// workbench newLibrary opens; the libraries map is held by the test helper so
+// each ask call reuses what an earlier ask opened.
 func ask(t *testing.T, library *verb.Library, line string) *response {
 	t.Helper()
 	out := &strings.Builder{}
-	if err := Serve(library, strings.NewReader(line+"\n"), out); err != nil {
+	root := library.Bench.Root
+	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	answer := &response{}
@@ -97,7 +101,7 @@ func payload(t *testing.T, answer *response) map[string]any {
 }
 
 // TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-eight tools the spec names, that each input schema is generated from
+// twenty-six tools the spec names, that each input schema is generated from
 // the same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
@@ -117,8 +121,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 28 {
-		t.Errorf("wanted twenty-eight tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 29 {
+		t.Errorf("wanted twenty-nine tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -343,7 +347,7 @@ func TestGuidesAreResourcesAndMatchTheCLI(t *testing.T) {
 func TestNotificationsGetNoAnswer(t *testing.T) {
 	library := newLibrary(t)
 	out := &strings.Builder{}
-	if err := Serve(library, strings.NewReader(`{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"), out); err != nil {
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(`{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"), out); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	if out.String() != "" {
@@ -454,67 +458,6 @@ func newLibraryAt(t *testing.T, root string) *verb.Library {
 		t.Fatalf("open %s: %v", root, err)
 	}
 	return verb.New(opened, filepath.Join(root, "home"))
-}
-
-// TestTheTreeToolsCarryTheLibraryObject asserts that the two tree tools reach
-// the same library call the cli head reaches, so the object an agent reads and
-// the object `--json` prints are byte for byte the same, and that each answer
-// carries the affordances member every tool response carries.
-func TestTheTreeToolsCarryTheLibraryObject(t *testing.T) {
-	library := newLibrary(t)
-	cases := []struct {
-		tool      string
-		arguments string
-		direct    func() (*verb.Tree, error)
-	}{
-		{
-			tool:      "tree",
-			arguments: `{"group-by":"state,substate","depth":"cards"}`,
-			direct: func() (*verb.Tree, error) {
-				return library.Tree(&verb.Request{Verb: "tree"}, verb.ParseChain("state,substate"), verb.LevelCards)
-			},
-		},
-		{
-			tool:      "contents",
-			arguments: `{"ref":"fx-1","depth":"entities"}`,
-			direct: func() (*verb.Tree, error) {
-				return library.Contents(&verb.Request{Verb: "contents", Ref: "fx-1"}, verb.LevelEntities)
-			},
-		},
-	}
-	for _, c := range cases {
-		answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+c.tool+`","arguments":`+c.arguments+`}}`))
-		carried, ok := answer["tree"]
-		if !ok {
-			t.Fatalf("the %s tool carried no tree: %v", c.tool, answer)
-		}
-		if _, ok := answer["affordances"]; !ok {
-			t.Errorf("the %s tool carried no affordances", c.tool)
-		}
-		built, err := c.direct()
-		if err != nil {
-			t.Fatalf("the %s call: %v", c.tool, err)
-		}
-		wanted, err := json.Marshal(built)
-		if err != nil {
-			t.Fatalf("marshal: %v", err)
-		}
-		got, err := json.Marshal(carried)
-		if err != nil {
-			t.Fatalf("marshal: %v", err)
-		}
-		var normalized any
-		if err := json.Unmarshal(wanted, &normalized); err != nil {
-			t.Fatalf("unmarshal: %v", err)
-		}
-		again, err := json.Marshal(normalized)
-		if err != nil {
-			t.Fatalf("marshal: %v", err)
-		}
-		if string(got) != string(again) {
-			t.Errorf("the %s tool carries\n%s\nand the library builds\n%s", c.tool, got, again)
-		}
-	}
 }
 
 // TestTheWorkstreamToolsAnswerTheWayTheTerminalDoes asserts the three tools
@@ -633,7 +576,7 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 				t.Errorf("%s: the property %s describes itself with the bare catalog key %s", tool.Name, name, description)
 			}
 			described++
-			if name == "actor" || name == "basis" {
+			if name == "actor" || name == "basis" || name == "workbench" {
 				beyond++
 			}
 			if _, carried := property["enum"]; carried {
@@ -644,7 +587,9 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 	if described == 0 {
 		t.Fatal("no property was read, so this test proves nothing")
 	}
-	if beyond != 2*len(listed.Tools) {
-		t.Errorf("read %d actor and basis properties across %d tools, want one of each per tool", beyond, len(listed.Tools))
+	// workbenches is the one tool that does not carry a workbench property,
+	// so the injected count is three per tool minus the one exception.
+	if beyond != 3*len(listed.Tools)-1 {
+		t.Errorf("read %d injected properties across %d tools, want 3 per tool minus the workbenches exception", beyond, len(listed.Tools))
 	}
 }

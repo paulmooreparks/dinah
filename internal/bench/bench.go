@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"dinah/internal/contract"
 )
@@ -465,6 +466,111 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []strin
 	return baseFound, baseAmbiguous, append(passed, basePassed...), nil
 }
 
+// Enumerate walks downward from root, listing every workbench the benchIn
+// check would accept: a workbench.md recognised as ours at any directory
+// itself, or a sole workbench inside a .dinah of any directory below it. The
+// walk skips dotfiles and symbolic links at every rung, since neither can be
+// expected to mean what its name says: a dotfile holds user state on a POSIX
+// machine, and a symlink can point anywhere the server is not entitled to
+// follow. A .dinah directory the walker descends into runs the same check,
+// which is the discovery shape every other rung of the search already uses.
+//
+// The descent is cached for the process life of the caller, since the second
+// per-call invocation during an MCP session would otherwise re-read every
+// anchor the walk had already read. Address resolution never reads the cache:
+// PathUnderRoot answers the per-call question from the filesystem on every
+// call, so a directory removed after the cache was built cannot pretend it
+// still sits under the root.
+//
+// A workbench.md that exists and cannot be read fails the walk, the way
+// benchIn fails its caller: an anchor it could not open might be the real
+// workbench the walk is meant to surface, and reporting the walk as empty
+// would lie. A directory the walk cannot stat fails for the same reason an
+// ancestor chain with a gap cannot satisfy PathUnderRoot: the walk met a
+// rung it could not confirm, and a listing the walk cannot confirm does not
+// describe what is on the disk.
+var enumerateCache = sync.Map{}
+
+func Enumerate(root string) ([]Candidate, error) {
+	if root == "" {
+		return nil, contract.Refuse(contract.NoWorkbenchFound, "")
+	}
+	if cached, ok := enumerateCache.Load(root); ok {
+		return cached.([]Candidate), nil
+	}
+	listed, err := enumerate(root)
+	if err != nil {
+		return nil, err
+	}
+	enumerateCache.Store(root, listed)
+	return listed, nil
+}
+
+func enumerate(root string) ([]Candidate, error) {
+	info, err := statPath(root)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownRoot, root)
+	}
+	if !info.IsDir() {
+		return nil, contract.Refuse(contract.UnknownRoot, root)
+	}
+	var collected []Candidate
+	seen := map[string]bool{}
+	if err := walkFor(root, &collected, seen); err != nil {
+		return nil, err
+	}
+	if collected == nil {
+		collected = []Candidate{}
+	}
+	return collected, nil
+}
+
+func walkFor(dir string, collected *[]Candidate, seen map[string]bool) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return contract.Refuse(contract.UnknownRoot, dir)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") && name != "." && name != ".." {
+			continue
+		}
+		full := filepath.Join(dir, name)
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+		found, ambiguous, passed, err := benchIn(full, false)
+		if err != nil {
+			return err
+		}
+		_ = passed
+		if found != "" && !seen[found] {
+			seen[found] = true
+			*collected = append(*collected, describe(found))
+		}
+		if len(ambiguous) > 0 {
+			for _, candidate := range ambiguous {
+				if seen[candidate] {
+					continue
+				}
+				seen[candidate] = true
+				*collected = append(*collected, describe(candidate))
+			}
+		}
+		if err := walkFor(full, collected, seen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // samePath reports whether two directory paths name the same directory. It
 // asks the filesystem, the way sameDirs in cmd/dinah's tests does, because one
 // directory answers to several spellings: Windows hands out the short 8.3 form
@@ -479,6 +585,12 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []strin
 // silently resumes reading the home it was asked to leave alone. A boundary
 // that is not there at all is the one exception, since a directory that does
 // not exist holds no user base for the walk to reach.
+//
+// PathUnderRoot reports the opposite: true means admitted, false means
+// refused, and a stat the filesystem cannot answer refuses too. The two
+// functions want opposite failure postures, and a flag deciding which way a
+// safety check fails would be the thing that has to be legible at the call
+// site.
 func samePath(a, b string) bool {
 	if a == "" || b == "" {
 		return false
@@ -495,6 +607,62 @@ func samePath(a, b string) bool {
 		return true
 	}
 	return os.SameFile(here, boundary)
+}
+
+// statPath is os.Stat by default; a test overrides it to force a stat failure
+// without depending on how an OS permission bit behaves on the platform running
+// the test, mirroring the reason readAnchorContent and Hooks.BeforeOrdinalStamp
+// exist in this file.
+var statPath = os.Stat
+
+// PathUnderRoot reports whether candidate lies inside root: equal to it, or
+// under it as ancestor. The comparison is settled by the filesystem, the way
+// samePath is, because a directory answers to several spellings: Windows hands
+// out the short 8.3 form of any user name holding a space and compares paths
+// without regard to case, and macOS mounts a case-insensitive volume by
+// default. A string comparison misses every one of those spellings and admits
+// two paths the filesystem says name the same directory.
+//
+// Every stat the comparison makes is answered, including on the root, the
+// candidate and every ancestor between them. A stat failure refuses, for any
+// reason at all, since an ancestor chain with a gap in it cannot show that the
+// root sits above the gap. The walk stops at the first ancestor it cannot
+// stat, which is what binds the boundary on platforms where a stat fails for
+// reasons a permission bit does not name.
+//
+// A path under a root the filesystem has already removed after the server
+// started refuses for the same reason: the walk met an ancestor it cannot
+// stat, so the comparison cannot settle.
+func PathUnderRoot(root, candidate string) (bool, error) {
+	if root == "" || candidate == "" {
+		return false, nil
+	}
+	rootInfo, err := statPath(root)
+	if err != nil {
+		return false, err
+	}
+	candidateInfo, err := statPath(candidate)
+	if err != nil {
+		return false, err
+	}
+	if os.SameFile(candidateInfo, rootInfo) {
+		return true, nil
+	}
+	ancestor := filepath.Dir(candidate)
+	for ancestor != candidate {
+		info, err := statPath(ancestor)
+		if err != nil {
+			return false, err
+		}
+		if os.SameFile(info, rootInfo) {
+			return true, nil
+		}
+		if filepath.Dir(ancestor) == ancestor {
+			break
+		}
+		ancestor = filepath.Dir(ancestor)
+	}
+	return false, nil
 }
 
 // soleBench returns the one bench a base directory holds. A base holding

@@ -211,6 +211,17 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.NotOperator, Key: "check.workbench-field.4"},
 		{Refusal: contract.Unconfirmed, Key: "check.workbench-field.5"},
 	},
+	// mcp carries the two checks the startup path raises: the directory
+	// --root names has to exist, and any workbench the registration names
+	// has to lie under that root. The order is the one AC-20 and AC-21
+	// exercise: the unknown-root check trips first when both are true at
+	// once. The dinah.no-workbench refusal startup case 2 raises is not
+	// here because it belongs to workbench discovery rather than to mcp,
+	// and no other command's check list carries it either.
+	"mcp": {
+		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
+		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
+	},
 }
 
 // Checks returns the ordered precondition list of a command, prefixed by the

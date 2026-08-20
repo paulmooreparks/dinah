@@ -782,7 +782,7 @@
       "skeleton": true
     },
     "cmd.mcp.summary": {
-      "text": "serve this workbench over MCP on stdio",
+      "text": "serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -948,17 +948,17 @@
     },
     "column.help.check": {
       "text": "What can go wrong",
-      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.help.order": {
       "text": "Order",
-      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.help.refusal": {
       "text": "Refusal",
-      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.holding.card": {
@@ -1247,7 +1247,7 @@
       "skeleton": true
     },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
       "skeleton": true
     },
@@ -1262,7 +1262,7 @@
       "skeleton": true
     },
     "help.footer": {
-      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, what can go wrong, and its exit codes.",
+      "text": "Run 'dinah help <command>' for one command's arguments, what can go wrong, and its exit codes.",
       "context": "The last line of the help block, pointing at the per-command help.",
       "skeleton": true
     },
@@ -1307,7 +1307,7 @@
       "skeleton": true
     },
     "help.usage": {
-      "text": "Usage: dinah \u003ccommand\u003e [arguments]",
+      "text": "Usage: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are.",
       "skeleton": true
     },
@@ -1317,12 +1317,12 @@
       "skeleton": true
     },
     "init.actor.recorded": {
-      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor \u003cname\u003e` to change it, or `dinah config set actor` to clear it.",
+      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor <name>` to change it, or `dinah config set actor` to clear it.",
       "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is.",
       "skeleton": true
     },
     "init.actor.unrecorded": {
-      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor \u003cname\u003e` to say who you are.",
+      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor <name>` to say who you are.",
       "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is.",
       "skeleton": true
     },
@@ -1547,7 +1547,7 @@
       "skeleton": true
     },
     "param.ls.state.summary": {
-      "text": "which state to list, also written --state \u003cstate\u003e; every state when you name none",
+      "text": "which state to list, also written --state <state>; every state when you name none",
       "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1557,12 +1557,12 @@
       "skeleton": true
     },
     "param.move.state.summary": {
-      "text": "which state to carry the card to, also written --state \u003cstate\u003e",
+      "text": "which state to carry the card to, also written --state <state>",
       "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.next.state.summary": {
-      "text": "which state to offer a card from, also written --state \u003cstate\u003e; every state when you name none",
+      "text": "which state to offer a card from, also written --state <state>; every state when you name none",
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1682,7 +1682,7 @@
       "skeleton": true
     },
     "refusal.dinah.add-needs-a-state.next": {
-      "text": "; hand-edit {detail} to add a state to the states list and create its states/\u003cid\u003e/state.md, then run `dinah check` to confirm before trying `dinah add` again",
+      "text": "; hand-edit {detail} to add a state to the states list and create its states/<id>/state.md, then run `dinah check` to confirm before trying `dinah add` again",
       "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
       "skeleton": true
     },
@@ -1692,7 +1692,7 @@
       "skeleton": true
     },
     "refusal.dinah.ambiguous-workbench.next": {
-      "text": "choose one with --workbench \u003cdir\u003e, or run from inside it",
+      "text": "choose one with --workbench <dir>, or run from inside it",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
       "skeleton": true
     },
@@ -1772,7 +1772,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-configured-workbench.next": {
-      "text": "; run `dinah config set workbench \u003cdir\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "text": "; run `dinah config set workbench <dir>` to point it at one that exists, or `dinah config set workbench` to clear it",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -1788,16 +1788,16 @@
     },
     "refusal.dinah.no-workbench": {
       "text": "{detail} was named by --workbench, and it carries no workbench.md",
-      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH.",
+      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found": {
       "text": "no workbench was found walking up from {detail}, or in the user base at {home}",
-      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
+      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from or the directory the MCP server started in, and {home} is the user base it fell back to.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; run `dinah init` here to create one, or pass --workbench \u003cdir\u003e to point at one that exists",
+      "text": "; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -1917,7 +1917,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-field.ordered": {
-      "text": " Only {instantField} accepts \u003e=, \u003c=, \u003e and \u003c.",
+      "text": " Only {instantField} accepts >=, <=, > and <.",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are.",
       "skeleton": true
     },
@@ -1927,7 +1927,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-guide.next": {
-      "text": "run `dinah guide \u003ctopic\u003e` with one of them",
+      "text": "run `dinah guide <topic>` with one of them",
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation.",
       "skeleton": true
     },
@@ -2102,7 +2102,7 @@
       "skeleton": true
     },
     "refusal.no-owner.next": {
-      "text": "; run `dinah config set actor \u003cname\u003e` to say so",
+      "text": "; run `dinah config set actor <name>` to say so",
       "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -2564,6 +2564,66 @@
     "workstreams.empty": {
       "text": "this workbench carries no workstream",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table.",
+      "skeleton": true
+    },
+    "check.mcp.1": {
+      "text": "the directory --root names is one the filesystem carries",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
+      "skeleton": true
+    },
+    "check.mcp.2": {
+      "text": "the workbench you name lies under the root",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root.",
+      "skeleton": true
+    },
+    "tool.workbenches.summary": {
+      "text": "the workbenches this server may serve",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root.",
+      "skeleton": true
+    },
+    "mcp.reach": {
+      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title.",
+      "skeleton": true
+    },
+    "mcp.reach.nodefault": {
+      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named.",
+      "skeleton": true
+    },
+    "mcp.no-default": {
+      "text": "no default workbench: {detail}",
+      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer.",
+      "skeleton": true
+    },
+    "refusal.dinah.outside-root": {
+      "text": "{detail} lies outside {root}, the root the server was started with",
+      "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named.",
+      "skeleton": true
+    },
+    "refusal.dinah.outside-root.next": {
+      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-root": {
+      "text": "{detail} is not a directory the filesystem carries",
+      "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-root.next": {
+      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
+      "skeleton": true
+    },
+    "schema.workbench.description": {
+      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
+      "skeleton": true
+    },
+    "param.mcp.root.summary": {
+      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
       "skeleton": true
     }
   }

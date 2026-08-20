@@ -489,6 +489,20 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.workbench-not-applicable.next"}},
 		NextStep:  []string{"refusal.dinah.workbench-not-applicable.next"},
 	},
+	{
+		// OutsideRoot carries the resolved path and the named root value the
+		// sentence and its context member both reference, so a reader
+		// looking at either side sees the same pair.
+		Name:      OutsideRoot,
+		Values:    []string{"root"},
+		Fragments: []Fragment{{Key: "refusal.dinah.outside-root.next"}},
+		NextStep:  []string{"refusal.dinah.outside-root.next"},
+	},
+	{
+		Name:      UnknownRoot,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-root.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-root.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no

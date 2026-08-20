@@ -51,6 +51,9 @@ type session struct {
 	// benchFlagSource names which of the two named it, SourceFlag or
 	// SourceEnvironment, empty when neither did.
 	benchFlagSource string
+	// mcpRoot is the directory the mcp command was bound to, empty when mcp
+	// was not the command that ran.
+	mcpRoot string
 	// cwd is where bench discovery starts.
 	cwd string
 	// workbenchSource names the rung that resolved the active workbench for

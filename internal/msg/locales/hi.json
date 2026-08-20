@@ -121,14 +121,6 @@
       "text": "कुंजी वह है जो यह उपकरण जानता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
-    "check.contents.1": {
-      "text": "संदर्भ इस वर्कबेंच में किसी वस्तु को नामित करता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.contents.2": {
-      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
     "check.count.one": {
       "text": "{count} दोष।",
       "context": "The count line after check's findings, for exactly one finding."
@@ -293,6 +285,10 @@
       "text": "{detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
     },
+    "check.ordinal-unwritable": {
+      "text": "{detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
+      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
+    },
     "check.ordinal-stamped.one": {
       "text": "{count} रचना-क्रमांक अंकित किया।",
       "context": "The line the ordinal migration prints for what it stamped, for exactly one entity."
@@ -300,10 +296,6 @@
     "check.ordinal-stamped.other": {
       "text": "{count} रचना-क्रमांक अंकित किए।",
       "context": "The line the ordinal migration prints for what it stamped, for any other number."
-    },
-    "check.ordinal-unwritable": {
-      "text": "{detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",
-      "context": "A check finding the ordinal migration raises: the entity's anchor could not be read or written (a bare directory an interrupted claim left behind, or a file the filesystem refused), the walk stepped over it and carried on."
     },
     "check.path.1": {
       "text": "संदर्भ किसी पथ तक पहुँचता है",
@@ -393,22 +385,6 @@
       "text": "कार्ड {detail} की पंजिका अधूरी पंक्ति पर समाप्त होती है",
       "context": "A check finding: a torn journal tail left by a crash."
     },
-    "check.tree.1": {
-      "text": "नामित प्रत्येक अक्ष वह है जिस पर यह उपकरण समूहन करता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.tree.2": {
-      "text": "कोई भी अक्ष दो बार नामित नहीं है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.tree.3": {
-      "text": "श्रृंखला अधिकतम चार अक्ष नामित करती है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.tree.4": {
-      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
     "check.unblock.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -431,26 +407,6 @@
     },
     "check.whoami.1": {
       "text": "कोई स्वामी मिलता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.workbench-field.1": {
-      "text": "क्षेत्र वह है जो यह वर्कबेंच रखता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.workbench-field.2": {
-      "text": "मान उपस्थित है और सही रूप में है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.workbench-field.3": {
-      "text": "लिखते समय, निवेदन किसी स्वामी को नामता है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.workbench-field.4": {
-      "text": "वह स्वामी संचालक है",
-      "context": "One row of the precondition list of a command outside the five the profile specifies."
-    },
-    "check.workbench-field.5": {
-      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.workbench-slug-assigned": {
@@ -476,6 +432,26 @@
     "check.workbench.2": {
       "text": "the workbench designates an operator",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
+    },
+    "check.workbench-field.1": {
+      "text": "क्षेत्र वह है जो यह वर्कबेंच रखता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.2": {
+      "text": "मान उपस्थित है और सही रूप में है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.3": {
+      "text": "लिखते समय, निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.4": {
+      "text": "वह स्वामी संचालक है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.workbench-field.5": {
+      "text": "उपनाम बदलने में पुष्टि फ़्लैग है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.workstream-adopted.one": {
       "text": "{count} वर्कस्ट्रीम अपनाई।",
@@ -553,10 +529,6 @@
       "text": "बाधा दर्ज करें और कार्ड मुक्त करें",
       "context": "The one-line summary of the block command, shown beside its syntax in the help block."
     },
-    "cmd.check.note": {
-      "text": "दोष मिलने पर Dinah 2 के साथ बाहर निकलता है, इसलिए कोई स्क्रिप्ट केवल निकास कोड पढ़कर काम चला सकती है।",
-      "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals."
-    },
     "cmd.check.summary": {
       "text": "इस वर्कबेंच में संरचनात्मक दोष जाँचें",
       "context": "The one-line summary of the check command, shown beside its syntax in the help block."
@@ -572,10 +544,6 @@
     "cmd.config.summary": {
       "text": "अपनी उपयोगकर्ता सेटिंग सूचीबद्ध करें, या कोई एक पढ़ें या लिखें",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
-    },
-    "cmd.contents.summary": {
-      "text": "वर्कबेंच की किसी इकाई में क्या है",
-      "context": "The one-line summary of the contents command, shown beside its syntax in the help block."
     },
     "cmd.delete.summary": {
       "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु, उसके इतिहास सहित नष्ट करें",
@@ -626,7 +594,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "इस वर्कबेंच को stdio पर MCP से परोसें",
+      "text": "serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -661,10 +629,6 @@
       "text": "यह वर्कबेंच कहाँ खड़ी है, और आप क्या रोके हुए हैं",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block."
     },
-    "cmd.tree.summary": {
-      "text": "अक्षों की श्रृंखला पर नियोजित वर्कबेंच के कार्ड",
-      "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
-    },
     "cmd.unblock.summary": {
       "text": "बाधा हटाएँ (केवल संचालक)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block."
@@ -688,14 +652,6 @@
     "cmd.workstream.summary": {
       "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, नई बनाएँ, या किसी एक के क्षेत्र लिखें",
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block."
-    },
-    "column.arguments.argument": {
-      "text": "आप इसे ऐसे लिखें",
-      "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
-    },
-    "column.arguments.what": {
-      "text": "यह क्या है",
-      "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
     },
     "column.blocked.card": {
       "text": "कार्ड",
@@ -881,26 +837,6 @@
       "text": "उपनाम",
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
-    "column.tree.count": {
-      "text": "गणना",
-      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
-    },
-    "column.tree.entity": {
-      "text": "इकाई",
-      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
-    },
-    "column.tree.hidden": {
-      "text": "नहीं दिखाया गया",
-      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
-    },
-    "column.tree.reference": {
-      "text": "संदर्भ",
-      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
-    },
-    "column.tree.title": {
-      "text": "शीर्षक",
-      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
-    },
     "column.workbench.field": {
       "text": "क्षेत्र",
       "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -957,14 +893,6 @@
       "text": "स्थिति",
       "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
-    "contents.empty": {
-      "text": "{title} ({ref}) में कुछ नहीं है।",
-      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake."
-    },
-    "contents.header": {
-      "text": "{title} ({ref}) में {count} इकाइयाँ हैं।",
-      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
-    },
     "extract.done": {
       "text": "परिभाषा {dir} में लिखी गई।",
       "context": "Printed after extract succeeds."
@@ -993,12 +921,8 @@
       "text": "गाइड उसी क्रम में दी गई हैं जिसमें Dinah उन्हें पढ़ने की सलाह देती है।",
       "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language."
     },
-    "help.arguments": {
-      "text": "आप क्या लिख सकते हैं:",
-      "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is."
-    },
     "help.environment": {
-      "text": "पर्यावरण: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -1029,10 +953,6 @@
       "text": "वर्कबेंच",
       "context": "A heading of the help block, grouping the commands beneath it."
     },
-    "help.guide": {
-      "text": "और जानने के लिए `dinah guide {topic}` चलाएँ।",
-      "context": "The closing line of a command's help page, pointing at the guide that explains that command's argument language. {topic} is the guide's topic name, which is machine vocabulary and is never translated."
-    },
     "help.reading": {
       "text": "Dinah जो मार्गदर्शिकाएँ अपने भीतर रखती है उन्हें पढ़ने के लिए 'dinah guide' चलाएँ, और त्वरित आरंभ https://github.com/paulmooreparks/dinah/blob/main/docs/quick-start.md पर पढ़ें।",
       "context": "The line below the help block's footer, pointing a reader at the guides the binary carries and at the quick start. The URL names a location rather than reading as prose, and it stays as it is in every language."
@@ -1048,10 +968,6 @@
     "help.usage": {
       "text": "प्रयोग: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
-    },
-    "help.vocabulary": {
-      "text": "{summary} (इनमें से एक: {values})",
-      "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated."
     },
     "init.actor.recorded": {
       "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, और अब आप जो भी करेंगे, Dinah उस पर यही नाम दर्ज करेगी। इसे बदलने के लिए `dinah config set actor <name>` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
@@ -1105,222 +1021,6 @@
       "text": "प्रश्न पूछा नहीं जा सका: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
-    "param.add.state.summary": {
-      "text": "कार्ड किस स्थिति में दर्ज करना है; कुछ न लिखने पर पहली स्थिति",
-      "context": "The meaning of the state argument of `dinah add`, printed in that command's arguments table."
-    },
-    "param.add.title.summary": {
-      "text": "कार्ड का शीर्षक, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
-      "context": "The meaning of the title argument of `dinah add`, printed in that command's arguments table."
-    },
-    "param.attach.description.summary": {
-      "text": "संलग्नक का वर्णन करने वाली एक पंक्ति, उसी के साथ रखी जाती है",
-      "context": "The meaning of the description argument of `dinah attach`, printed in that command's arguments table."
-    },
-    "param.attach.file.summary": {
-      "text": "इस मशीन पर उस फ़ाइल का पथ जिसे आप जोड़ रहे हैं",
-      "context": "The meaning of the file argument of `dinah attach`, printed in that command's arguments table."
-    },
-    "param.attach.ref.summary": {
-      "text": "फ़ाइल किससे जुड़ेगी: यह वर्कबेंच, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई टिप्पणी या संलग्नक; --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
-      "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table."
-    },
-    "param.attach.replace.summary": {
-      "text": "नया संलग्नक जोड़ने के बजाय मौजूदा संलग्नक के बाइट बदलें",
-      "context": "The meaning of the replace argument of `dinah attach`, printed in that command's arguments table."
-    },
-    "param.block.card.summary": {
-      "text": "जिस कार्ड को आप रोक रहे हैं",
-      "context": "The meaning of the card argument of `dinah block`, printed in that command's arguments table."
-    },
-    "param.block.kind.summary": {
-      "text": "यह किस तरह की बाधा है, आपका अपना शब्द; Dinah जो आप लिखते हैं वही रखता है और किसी सूची से नहीं मिलाता",
-      "context": "The meaning of the kind argument of `dinah block`, printed in that command's arguments table."
-    },
-    "param.block.reason.summary": {
-      "text": "यह क्यों रुका है, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
-      "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table."
-    },
-    "param.card.summary": {
-      "text": "जिस कार्ड पर आप काम कर रहे हैं, उसके संदर्भ के रूप में लिखा गया, जैसे wb-1",
-      "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
-    },
-    "param.check.finish.summary": {
-      "text": "अधूरे रह गए संरचनात्मक काम को पूरा करें या वापस लौटाएँ",
-      "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table."
-    },
-    "param.check.migrate-ordinals.summary": {
-      "text": "हर उस वस्तु पर रचना-क्रमांक अंकित करें जिस पर कोई नहीं है",
-      "context": "The meaning of the migrate-ordinals argument of `dinah check`, printed in that command's arguments table."
-    },
-    "param.check.migrate-slugs.summary": {
-      "text": "इस वर्कबेंच की हर उस स्थिति के लिए slug निकालें जिस पर कोई नहीं है",
-      "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table."
-    },
-    "param.check.migrate-states.summary": {
-      "text": "इस वर्कबेंच की अपनी स्थिति-सूची से छूटे हुए पहचानकर्ता हटाएँ",
-      "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table."
-    },
-    "param.check.migrate-workstreams.summary": {
-      "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
-      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
-    },
-    "param.claim.card.summary": {
-      "text": "जिस कार्ड को आप ले रहे हैं",
-      "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table."
-    },
-    "param.claim.expires.summary": {
-      "text": "आपका दावा कब तक टिकेगा, संख्या और इकाई के रूप में लिखा गया: 30m, 2h, 7d",
-      "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table."
-    },
-    "param.comment.text.summary": {
-      "text": "टिप्पणी, एक ही शब्द में या उद्धरण चिह्नों के भीतर; अकेला - इसे पाइप से पढ़ता है",
-      "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table."
-    },
-    "param.config.action.summary": {
-      "text": "एक सेटिंग पढ़ें या लिखें; कुछ न लिखने पर हर सेटिंग अपने मान के साथ",
-      "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table."
-    },
-    "param.config.key.summary": {
-      "text": "आप कौन-सी सेटिंग पढ़ या लिख रहे हैं",
-      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table."
-    },
-    "param.config.value.summary": {
-      "text": "set पर, उसमें क्या रखना है",
-      "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
-    },
-    "param.contents.depth.summary": {
-      "text": "कितनी गहराई तक खींचना है, root, cards, entities, या all के रूप में लिखा गया; कुछ न लिखने पर entities",
-      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table."
-    },
-    "param.contents.ref.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
-      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given."
-    },
-    "param.edit.card.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
-      "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
-    },
-    "param.extract.dir.summary": {
-      "text": "इस वर्कबेंच की परिभाषा कहाँ लिखनी है",
-      "context": "The meaning of the dir argument of `dinah extract`, printed in that command's arguments table."
-    },
-    "param.guide.topic.summary": {
-      "text": "कौन-सी मार्गदर्शिका पढ़नी है; कुछ न लिखने पर सभी विषय",
-      "context": "The meaning of the topic argument of `dinah guide`, printed in that command's arguments table."
-    },
-    "param.help.command.summary": {
-      "text": "जिस command का पृष्ठ आप चाहते हैं",
-      "context": "The meaning of the command argument of `dinah help`, printed in that command's arguments table."
-    },
-    "param.init.dir.summary": {
-      "text": "वर्कबेंच कहाँ बनाना है; कुछ न लिखने पर वही निर्देशिका जिसमें आप हैं",
-      "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table."
-    },
-    "param.init.from.summary": {
-      "text": "वर्कबेंच रखने वाली एक निर्देशिका, या `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल",
-      "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table."
-    },
-    "param.init.operator.summary": {
-      "text": "इस वर्कबेंच का स्वामी कौन है; कुछ न लिखने पर आपका अपना actor",
-      "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table."
-    },
-    "param.init.slug.summary": {
-      "text": "वह उपसर्ग जो हर कार्ड संदर्भ पर रहता है; कुछ न लिखने पर निर्देशिका के नाम से निकाला जाता है",
-      "context": "The meaning of the slug argument of `dinah init`, printed in that command's arguments table."
-    },
-    "param.instructions.card.summary": {
-      "text": "एक कार्ड या एक स्थिति; instructions न यह वर्कबेंच लेता है और न कार्ड के नीचे की कोई चीज़",
-      "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table."
-    },
-    "param.ls.ready.summary": {
-      "text": "केवल वही कार्ड दिखाएँ जो लिए जाने को तैयार हैं",
-      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table."
-    },
-    "param.ls.state.summary": {
-      "text": "कौन-सी स्थिति दिखानी है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
-      "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table."
-    },
-    "param.move.override.summary": {
-      "text": "कार्ड को तब भी ले जाएँ जब प्रवाह ऐसा कोई कदम नहीं देता",
-      "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table."
-    },
-    "param.move.state.summary": {
-      "text": "कार्ड को किस स्थिति में ले जाना है, इसे --state <state> भी लिखा जाता है",
-      "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table."
-    },
-    "param.next.state.summary": {
-      "text": "किस स्थिति से कार्ड देना है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
-      "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
-    },
-    "param.path.card.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
-      "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
-    },
-    "param.query.query.summary": {
-      "text": "प्रश्न, एक ही शब्द में या उद्धरण चिह्नों के भीतर; कुछ न लिखने पर हर जीवित कार्ड",
-      "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table."
-    },
-    "param.ref.summary": {
-      "text": "एक स्थिति, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
-      "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
-    },
-    "param.show.card.summary": {
-      "text": "एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
-      "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
-    },
-    "param.tree.depth.summary": {
-      "text": "कितनी गहराई तक खींचना है, root, groups, या cards के रूप में लिखा गया; कुछ न लिखने पर cards",
-      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table."
-    },
-    "param.tree.group-by.summary": {
-      "text": "किन अक्षों पर नियोजित करना है, सबसे बाहरी पहले, अल्पविराम से अलग किए गए अधिकतम चार; कुछ न लिखने पर state,substate",
-      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated."
-    },
-    "param.tree.query.summary": {
-      "text": "कौन-से कार्ड नियोजित करने हैं, प्रश्न के रूप में एक ही शब्द में या उद्धरण चिह्नों के भीतर लिखा गया; कुछ न लिखने पर हर जीवित कार्ड",
-      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads."
-    },
-    "param.version.catalogs.summary": {
-      "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",
-      "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table."
-    },
-    "param.workbench.action.summary": {
-      "text": "एक फ़ील्ड पढ़ें या लिखें; कुछ न लिखने पर हर फ़ील्ड अपने मान के साथ",
-      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table."
-    },
-    "param.workbench.field.summary": {
-      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
-      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table."
-    },
-    "param.workbench.value.summary": {
-      "text": "set पर, उसमें क्या रखना है",
-      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table."
-    },
-    "param.workstream.action.summary": {
-      "text": "एक वर्कस्ट्रीम बनाएँ, एक पढ़ें, या किसी एक का फ़ील्ड लिखें; कुछ न लिखने पर हर वर्कस्ट्रीम",
-      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table."
-    },
-    "param.workstream.field.summary": {
-      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
-      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table."
-    },
-    "param.workstream.summary": {
-      "text": "जिस वर्कस्ट्रीम का नाम आप ले रहे हैं, उसके slug या उसकी पहचान के रूप में",
-      "context": "The meaning of the workstream argument, shared by the commands that name one."
-    },
-    "param.workstream.value.summary": {
-      "text": "set पर, उसमें क्या रखना है",
-      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table."
-    },
-    "param.workstream.workstream.summary": {
-      "text": "जिस वर्कस्ट्रीम को आप पढ़ या लिख रहे हैं, या जिसे बना रहे हैं उसका शीर्षक",
-      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
-    },
-    "param.yes.summary": {
-      "text": "इस काम की पुष्टि करें, जिसके बिना Dinah इसे नहीं करता",
-      "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something."
-    },
     "query.empty": {
       "text": "उस क्वेरी से कोई कार्ड मेल नहीं खाता।",
       "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal."
@@ -1341,14 +1041,6 @@
       "text": "; संचालक से इसे `dinah unblock {card}` से हटाने को कहें",
       "context": "Spliced onto refusal.blocked as the next step. {card} is the card reference the reader named."
     },
-    "refusal.dinah.add-needs-a-state": {
-      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्थिति नहीं बची है",
-      "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
-    },
-    "refusal.dinah.add-needs-a-state.next": {
-      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
-      "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit."
-    },
     "refusal.dinah.ambiguous-workbench": {
       "text": "{base} से एक से अधिक वर्कबेंच पहुँच योग्य हैं",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-workbench, naming the directory the search found several workbenches under. The candidate rows print beneath it, in the same shape the workbenches listing renders, and refusal.dinah.ambiguous-workbench.next follows as the closing line naming the ways forward."
@@ -1356,14 +1048,6 @@
     "refusal.dinah.ambiguous-workbench.next": {
       "text": "--workbench <dir> से एक चुनें, या उसके भीतर से चलाएँ",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
-    },
-    "refusal.dinah.chain-too-long": {
-      "text": "एक समूहन श्रृंखला अधिकतम {allowed} अक्षों पर नियोजित होती है, और यह {asked} नामित करती है।",
-      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one."
-    },
-    "refusal.dinah.chain-too-long.next": {
-      "text": " श्रृंखला छोटी करें, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
-      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है",
@@ -1373,14 +1057,6 @@
       "text": "; उसे किनारे रखें, या कोई और डायरेक्टरी चुनें",
       "context": "Spliced onto refusal.dinah.exists as the next step, carrying the clause that base entry used to end with."
     },
-    "refusal.dinah.interrupted": {
-      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई",
-      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
-    },
-    "refusal.dinah.interrupted.next": {
-      "text": ", और `dinah check --finish` उसे पूरा करता है",
-      "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with."
-    },
     "refusal.dinah.last-state": {
       "text": "{detail} ही बची हुई एकमात्र स्थिति है",
       "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about."
@@ -1389,29 +1065,25 @@
       "text": "; इसे सेवानिवृत्त करने से पहले एक और स्थिति जोड़ें",
       "context": "Spliced onto refusal.dinah.last-state as the next step, carrying the clause that base entry used to end with."
     },
+    "refusal.dinah.interrupted": {
+      "text": "{detail} पर की गई क्रिया अभिलेखन के बाद बाधित हुई",
+      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about."
+    },
+    "refusal.dinah.interrupted.next": {
+      "text": ", और `dinah check --finish` उसे पूरा करता है",
+      "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.locked": {
       "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about."
-    },
-    "refusal.dinah.locked.next": {
-      "text": "; इसके पूरा होने की प्रतीक्षा करके दोबारा आज़माएँ, या यदि वह कभी पूरा न हो तो `dinah check --finish` चलाएँ",
-      "context": "Spliced onto refusal.dinah.locked as the next step, and onto refusal.dinah.locked.unnamed, since the advice is the same whether the lock names somebody or nobody."
     },
     "refusal.dinah.locked.unnamed": {
       "text": "इस पर पहले से ताला है",
       "context": "The sentence printed after the refusal name dinah.locked when the lock record names nobody, in place of refusal.dinah.locked."
     },
-    "refusal.dinah.multiple-words": {
-      "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है।",
-      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). One of two fragments is spliced on: refusal.dinah.multiple-words.example when the free text carries no quotation mark, refusal.dinah.multiple-words.quote-yourself when it does."
-    },
-    "refusal.dinah.multiple-words.example": {
-      "text": " पूरे वाक्यांश को उद्धरण चिह्नों में रखें: {example}",
-      "context": "Spliced onto refusal.dinah.multiple-words when the free text carries no quotation mark, so wrapping it in double quotes reads back correctly verbatim in bash, cmd.exe and PowerShell alike. {example} is the command line rebuilt with the free text quoted."
-    },
-    "refusal.dinah.multiple-words.quote-yourself": {
-      "text": " उस पाठ में एक उद्धरण चिह्न है, इसलिए पूरे वाक्यांश को स्वयं उद्धरण चिह्नों में रखें। जब पाठ में स्वयं उद्धरण चिह्न हो, तो Dinah द्वारा बनाई गई कोई भी कमांड लाइन हर शेल में सही ढंग से पेस्ट नहीं होती।",
-      "context": "Spliced onto refusal.dinah.multiple-words when the free text contains a literal quotation mark: which shell will read the pasted line back is undocumented and cannot be asked for, and bash, cmd.exe and PowerShell disagree on how to escape an embedded quote, so no single rebuilt example is correct in all three. The caller is asked to add the quoting themselves rather than being handed a line that is wrong somewhere."
+    "refusal.dinah.locked.next": {
+      "text": "; इसके पूरा होने की प्रतीक्षा करके दोबारा आज़माएँ, या यदि वह कभी पूरा न हो तो `dinah check --finish` चलाएँ",
+      "context": "Spliced onto refusal.dinah.locked as the next step, and onto refusal.dinah.locked.unnamed, since the advice is the same whether the lock names somebody or nobody."
     },
     "refusal.dinah.no-configured-workbench": {
       "text": "वर्कबेंच सेटिंग {detail} बताती है, और उसमें कोई workbench.md नहीं है",
@@ -1421,6 +1093,22 @@
       "text": "; `dinah config set workbench <dir>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with."
     },
+    "refusal.dinah.no-workbench": {
+      "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है",
+      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property."
+    },
+    "refusal.dinah.no-workbench.next": {
+      "text": "; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
+    },
+    "refusal.dinah.no-workbench-found": {
+      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली",
+      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from or the directory the MCP server started in, and {home} is the user base it fell back to."
+    },
+    "refusal.dinah.no-workbench-found.next": {
+      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें",
+      "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.no-editor": {
       "text": "कोई संपादक नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about."
@@ -1428,22 +1116,6 @@
     "refusal.dinah.no-editor.next": {
       "text": "; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
-    },
-    "refusal.dinah.no-workbench": {
-      "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है",
-      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
-    },
-    "refusal.dinah.no-workbench-found": {
-      "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली",
-      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
-    },
-    "refusal.dinah.no-workbench-found.next": {
-      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें",
-      "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with."
-    },
-    "refusal.dinah.no-workbench.next": {
-      "text": "; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
-      "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.occupied": {
       "text": "स्थिति {detail} में अभी भी कार्ड हैं",
@@ -1460,22 +1132,6 @@
     "refusal.dinah.referenced.next": {
       "text": "; पहले `dinah leave` से उन्हें बाहर करें, या वर्कस्ट्रीम को हटाने के बजाय पुरालेख में भेजें",
       "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal."
-    },
-    "refusal.dinah.repair-would-empty-states": {
-      "text": "{detail} वर्कबेंच में बची हर स्थिति के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई स्थिति नहीं बचेगी, इसलिए dinah check --migrate-states मना करता है।",
-      "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list."
-    },
-    "refusal.dinah.repair-would-empty-states.next": {
-      "text": " कोई स्थिति जोड़ने के लिए वर्कबेंच की states सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-states फिर से चलाएँ।",
-      "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with."
-    },
-    "refusal.dinah.repeated-axis": {
-      "text": "एक समूहन श्रृंखला प्रत्येक अक्ष को एक बार नाम देती है, और यह {detail} को दो बार नाम देती है।",
-      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one."
-    },
-    "refusal.dinah.repeated-axis.next": {
-      "text": " दोहराव हटाएँ, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
-      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unconfirmed": {
       "text": "delete इतिहास मिटाता है",
@@ -1501,14 +1157,6 @@
       "text": " आदेश को --yes के साथ फिर चलाएँ।",
       "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next."
     },
-    "refusal.dinah.unknown-axis": {
-      "text": "Dinah {detail} पर समूहन नहीं करता। जिन अक्षों पर एक वृक्ष नियोजित हो सकता है, वे हैं: {axes}।",
-      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one."
-    },
-    "refusal.dinah.unknown-axis.next": {
-      "text": " इनमें से किसी एक को नाम दें, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
-      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is."
-    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
@@ -1516,14 +1164,6 @@
     "refusal.dinah.unknown-command.next": {
       "text": "; कमांड की सूची के लिए `dinah help` चलाएँ, जो काम के अनुसार समूहित है",
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints."
-    },
-    "refusal.dinah.unknown-depth": {
-      "text": "इस आदेश के लिए Dinah में {detail} नामक कोई गहराई स्तर नहीं है। यह जिन स्तरों को लेता है, वे हैं: {levels}।",
-      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one."
-    },
-    "refusal.dinah.unknown-depth.next": {
-      "text": " इनमें से किसी एक को नाम दें, या यह देखने के लिए आदेश पर `dinah help` चलाएँ कि वह क्या जाँचता है।",
-      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unknown-field": {
       "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। क्वेरी जिन क्षेत्रों का नाम ले सकती है वे हैं: {fields}।",
@@ -1557,17 +1197,13 @@
       "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about."
     },
-    "refusal.dinah.unknown-path.next": {
-      "text": "; इस वर्कबेंच में क्या है यह देखने के लिए `dinah ls` चलाएँ",
-      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to."
-    },
-    "refusal.dinah.unknown-path.next-addressed": {
-      "text": "; {addressed} को उसे रखने वाली चीज़ के ज़रिए नहीं, बल्कि उसके अपने संदर्भ से नाम दिया जाता है",
-      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a state through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or state, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path."
-    },
     "refusal.dinah.unknown-path.next-file": {
       "text": "; देखें कि {file} मौजूद है और आप उसे यहाँ से पढ़ सकते हैं",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal carries a file: a path on the filesystem the reader named."
+    },
+    "refusal.dinah.unknown-path.next": {
+      "text": "; इस वर्कबेंच में क्या है यह देखने के लिए `dinah ls` चलाएँ",
+      "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to."
     },
     "refusal.dinah.unknown-value": {
       "text": "Dinah {term} में {detail} स्वीकार नहीं करता।",
@@ -1609,13 +1245,13 @@
       "text": "{detail} समझ नहीं आया",
       "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about."
     },
-    "refusal.dinah.usage.dash-hint": {
-      "text": ". Dinah दो डैश से शुरू होने वाले शब्द को विकल्प मानकर पढ़ता है। पहले `--` लिखें, और उसके बाद हर शब्द को Dinah सादे पाठ के रूप में पढ़ेगा, डैश सहित।",
-      "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does."
-    },
     "refusal.dinah.usage.next": {
       "text": "; कमांड की सूची के लिए dinah help चलाएँ",
       "context": "Spliced onto refusal.dinah.usage as the next step, carrying the clause that base entry used to end with. It is spliced ahead of refusal.dinah.usage.dash-hint, which is the position it held inside the sentence."
+    },
+    "refusal.dinah.usage.dash-hint": {
+      "text": ". Dinah दो डैश से शुरू होने वाले शब्द को विकल्प मानकर पढ़ता है। पहले `--` लिखें, और उसके बाद हर शब्द को Dinah सादे पाठ के रूप में पढ़ेगा, डैश सहित।",
+      "context": "Spliced onto refusal.dinah.usage when the word that triggered the refusal has two leading dashes: parseArgs's two flag-scan refusal sites in cmd/dinah/args.go set dashHint for this and no other dinah.usage caller does."
     },
     "refusal.dinah.workbench-not-applicable": {
       "text": "यहाँ Dinah {source} का उपयोग नहीं करता: init {source} द्वारा नामित वर्कबेंच ({detail}) खोलने के बजाय एक नया वर्कबेंच बनाता है।",
@@ -1624,6 +1260,34 @@
     "refusal.dinah.workbench-not-applicable.next": {
       "text": " इसके बजाय init को लक्ष्य डायरेक्टरी सामान्य तर्क के रूप में दें।",
       "context": "Spliced onto refusal.dinah.workbench-not-applicable as the next step, carrying the sentence that base entry used to end with."
+    },
+    "refusal.dinah.repair-would-empty-states": {
+      "text": "{detail} वर्कबेंच में बची हर स्थिति के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई स्थिति नहीं बचेगी, इसलिए dinah check --migrate-states मना करता है।",
+      "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list."
+    },
+    "refusal.dinah.repair-would-empty-states.next": {
+      "text": " कोई स्थिति जोड़ने के लिए वर्कबेंच की states सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-states फिर से चलाएँ।",
+      "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with."
+    },
+    "refusal.dinah.add-needs-a-state": {
+      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्थिति नहीं बची है",
+      "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
+    },
+    "refusal.dinah.add-needs-a-state.next": {
+      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit."
+    },
+    "refusal.dinah.multiple-words": {
+      "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है।",
+      "context": "Printed when an open-tail command (add, block, comment, config set) gets more than one unquoted word for its free-text slot. {count} is the number of words seen past the command's fixed arguments. {label} names the slot in plain language (\"the title\", \"the reason\", \"the comment\", \"the value\"). One of two fragments is spliced on: refusal.dinah.multiple-words.example when the free text carries no quotation mark, refusal.dinah.multiple-words.quote-yourself when it does."
+    },
+    "refusal.dinah.multiple-words.example": {
+      "text": " पूरे वाक्यांश को उद्धरण चिह्नों में रखें: {example}",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text carries no quotation mark, so wrapping it in double quotes reads back correctly verbatim in bash, cmd.exe and PowerShell alike. {example} is the command line rebuilt with the free text quoted."
+    },
+    "refusal.dinah.multiple-words.quote-yourself": {
+      "text": " उस पाठ में एक उद्धरण चिह्न है, इसलिए पूरे वाक्यांश को स्वयं उद्धरण चिह्नों में रखें। जब पाठ में स्वयं उद्धरण चिह्न हो, तो Dinah द्वारा बनाई गई कोई भी कमांड लाइन हर शेल में सही ढंग से पेस्ट नहीं होती।",
+      "context": "Spliced onto refusal.dinah.multiple-words when the free text contains a literal quotation mark: which shell will read the pasted line back is undocumented and cannot be asked for, and bash, cmd.exe and PowerShell disagree on how to escape an embedded quote, so no single rebuilt example is correct in all three. The caller is asked to add the quoting themselves rather than being handed a line that is wrong somewhere."
     },
     "refusal.held": {
       "text": "यह कार्ड {detail} ने लिया हुआ है",
@@ -1645,6 +1309,18 @@
       "text": "{detail} अनुपस्थित है, खाली है, या पार्स नहीं हो सकता",
       "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed."
     },
+    "refusal.malformed.in-file": {
+      "text": ", {file} में",
+      "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse."
+    },
+    "refusal.malformed.next-file": {
+      "text": "; {file} को स्वयं संपादित करके ठीक करें, फिर कमांड दोबारा चलाएँ",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal carries a file. It names no dinah check, because the command that read the file created no workbench to check."
+    },
+    "refusal.malformed.next": {
+      "text": "; कमांड को `dinah {usage}` की तरह लिखकर दोबारा आज़माएँ",
+      "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed."
+    },
     "refusal.malformed.at": {
       "text": ", {path} में",
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to."
@@ -1652,18 +1328,6 @@
     "refusal.malformed.fix": {
       "text": "; फ़ाइल को स्वयं संपादित करके जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair."
-    },
-    "refusal.malformed.in-file": {
-      "text": ", {file} में",
-      "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse."
-    },
-    "refusal.malformed.next": {
-      "text": "; कमांड को `dinah {usage}` की तरह लिखकर दोबारा आज़माएँ",
-      "context": "Spliced onto refusal.malformed as the next step when the refusal names no file. {usage} is the syntax line of the command the reader typed."
-    },
-    "refusal.malformed.next-file": {
-      "text": "; {file} को स्वयं संपादित करके ठीक करें, फिर कमांड दोबारा चलाएँ",
-      "context": "Spliced onto refusal.malformed as the next step when the refusal carries a file. It names no dinah check, because the command that read the file created no workbench to check."
     },
     "refusal.malformed.reads-as-a-card-reference": {
       "text": "; Dinah {cardRef} को कार्ड संदर्भ के रूप में पढ़ता है, इसलिए वर्कबेंच उपनाम डैश और संख्या पर समाप्त नहीं हो सकता",
@@ -1705,6 +1369,10 @@
       "text": "यह कार्ड आपने नहीं लिया है; {detail} ने लिया है",
       "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about."
     },
+    "refusal.not-holder.unnamed": {
+      "text": "यह कार्ड किसी ने नहीं लिया है, इसलिए छोड़ने को कुछ नहीं है",
+      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal."
+    },
     "refusal.not-holder.next": {
       "text": "; Dinah आपको कौन मानता है यह देखने के लिए `dinah whoami` चलाएँ, या {detail} से इसे छोड़ने को कहें",
       "context": "Spliced onto refusal.not-holder as the next step when somebody else holds the card. {detail} is that owner."
@@ -1712,10 +1380,6 @@
     "refusal.not-holder.next-unheld": {
       "text": "; पहले `dinah claim {card}` से इसे लें",
       "context": "Spliced onto refusal.not-holder.unnamed as the next step when nobody holds the card. {card} is the card reference the reader named."
-    },
-    "refusal.not-holder.unnamed": {
-      "text": "यह कार्ड किसी ने नहीं लिया है, इसलिए छोड़ने को कुछ नहीं है",
-      "context": "The sentence printed after the refusal name not-holder when nobody holds the card, in place of refusal.not-holder. Written for release, the one verb that raises this refusal."
     },
     "refusal.not-operator": {
       "text": "यह क्रिया संचालक की है, और आप {detail} हैं",
@@ -1773,10 +1437,6 @@
       "text": "; यह बिल्ड {floor} से {ceiling} तक पढ़ती है",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them."
     },
-    "schema.basis.description": {
-      "text": "हर बदलने वाले अनुरोध के लिए Dinah स्वयं basis निकालता है, और इसे लिखने का कोई तरीका उपलब्ध नहीं है, इसलिए इस property को वैसे ही छोड़ दें।",
-      "context": "The description of the basis property, which every generated machine schema carries and no command declares."
-    },
     "show.comments": {
       "text": "टिप्पणियाँ:",
       "context": "The label above a card's comments."
@@ -1785,29 +1445,29 @@
       "text": "कड़ियाँ:",
       "context": "The label above a card's links."
     },
-    "slot.comment": {
-      "text": "टिप्पणी",
-      "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
-    },
     "slot.query": {
       "text": "क्वेरी",
       "context": "Names query's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
-    "slot.reason": {
-      "text": "कारण",
-      "context": "Names block's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    "slug.missing": {
+      "text": "कोई उपनाम नहीं (check --migrate-slugs चलाएँ)",
+      "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string."
     },
     "slot.title": {
       "text": "शीर्षक",
       "context": "Names add's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
+    "slot.reason": {
+      "text": "कारण",
+      "context": "Names block's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "slot.comment": {
+      "text": "टिप्पणी",
+      "context": "Names comment's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
     "slot.value": {
       "text": "मान",
       "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}."
-    },
-    "slug.missing": {
-      "text": "कोई उपनाम नहीं (check --migrate-slugs चलाएँ)",
-      "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string."
     },
     "states.moved-by.agent": {
       "text": "एजेंट",
@@ -1981,34 +1641,6 @@
       "text": "वर्कस्ट्रीम बदली",
       "context": "The word a person reads for the workstream_updated journal event."
     },
-    "tree.empty": {
-      "text": "यहाँ कोई कार्ड नहीं है।",
-      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it."
-    },
-    "tree.header": {
-      "text": "{title} ({ref}) में {count} कार्ड हैं।",
-      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it."
-    },
-    "tree.header.filtered": {
-      "text": "{title} ({ref}) में {held} कार्ड हैं, जिनमें से {matched} प्रश्न से मेल खाते हैं।",
-      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller."
-    },
-    "tree.hidden.depth": {
-      "text": "{count} नहीं दिखाए गए",
-      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those."
-    },
-    "tree.hidden.filter": {
-      "text": "{count} छानकर हटाए गए",
-      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
-    },
-    "tree.hidden.join": {
-      "text": "{first}, {second}",
-      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's."
-    },
-    "tree.unset": {
-      "text": "(कोई मान नहीं)",
-      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
-    },
     "version.catalogs": {
       "text": "सूचियाँ:",
       "context": "The label above the shipped locales and their coverage."
@@ -2052,6 +1684,422 @@
     "workstreams.empty": {
       "text": "इस वर्कबेंच में कोई वर्कस्ट्रीम नहीं है",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
+    },
+    "help.arguments": {
+      "text": "आप क्या लिख सकते हैं:",
+      "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is."
+    },
+    "help.guide": {
+      "text": "और जानने के लिए `dinah guide {topic}` चलाएँ।",
+      "context": "The closing line of a command's help page, pointing at the guide that explains that command's argument language. {topic} is the guide's topic name, which is machine vocabulary and is never translated."
+    },
+    "help.vocabulary": {
+      "text": "{summary} (इनमें से एक: {values})",
+      "context": "One argument's meaning followed by the closed set of values it accepts. {summary} is the argument's own sentence and {values} is the members separated by commas. The members are machine vocabulary and are never translated."
+    },
+    "column.arguments.argument": {
+      "text": "आप इसे ऐसे लिखें",
+      "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "column.arguments.what": {
+      "text": "यह क्या है",
+      "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "cmd.check.note": {
+      "text": "दोष मिलने पर Dinah 2 के साथ बाहर निकलता है, इसलिए कोई स्क्रिप्ट केवल निकास कोड पढ़कर काम चला सकती है।",
+      "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals."
+    },
+    "schema.basis.description": {
+      "text": "हर बदलने वाले अनुरोध के लिए Dinah स्वयं basis निकालता है, और इसे लिखने का कोई तरीका उपलब्ध नहीं है, इसलिए इस property को वैसे ही छोड़ दें।",
+      "context": "The description of the basis property, which every generated machine schema carries and no command declares."
+    },
+    "param.card.summary": {
+      "text": "जिस कार्ड पर आप काम कर रहे हैं, उसके संदर्भ के रूप में लिखा गया, जैसे wb-1",
+      "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
+    },
+    "param.ref.summary": {
+      "text": "एक स्थिति, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
+      "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
+    },
+    "param.yes.summary": {
+      "text": "इस काम की पुष्टि करें, जिसके बिना Dinah इसे नहीं करता",
+      "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something."
+    },
+    "param.add.title.summary": {
+      "text": "कार्ड का शीर्षक, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
+      "context": "The meaning of the title argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.add.state.summary": {
+      "text": "कार्ड किस स्थिति में दर्ज करना है; कुछ न लिखने पर पहली स्थिति",
+      "context": "The meaning of the state argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.attach.ref.summary": {
+      "text": "फ़ाइल किससे जुड़ेगी: यह वर्कबेंच, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई टिप्पणी या संलग्नक; --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
+      "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.attach.file.summary": {
+      "text": "इस मशीन पर उस फ़ाइल का पथ जिसे आप जोड़ रहे हैं",
+      "context": "The meaning of the file argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.attach.description.summary": {
+      "text": "संलग्नक का वर्णन करने वाली एक पंक्ति, उसी के साथ रखी जाती है",
+      "context": "The meaning of the description argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.attach.replace.summary": {
+      "text": "नया संलग्नक जोड़ने के बजाय मौजूदा संलग्नक के बाइट बदलें",
+      "context": "The meaning of the replace argument of `dinah attach`, printed in that command's arguments table."
+    },
+    "param.block.card.summary": {
+      "text": "जिस कार्ड को आप रोक रहे हैं",
+      "context": "The meaning of the card argument of `dinah block`, printed in that command's arguments table."
+    },
+    "param.block.reason.summary": {
+      "text": "यह क्यों रुका है, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
+      "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table."
+    },
+    "param.block.kind.summary": {
+      "text": "यह किस तरह की बाधा है, आपका अपना शब्द; Dinah जो आप लिखते हैं वही रखता है और किसी सूची से नहीं मिलाता",
+      "context": "The meaning of the kind argument of `dinah block`, printed in that command's arguments table."
+    },
+    "param.check.finish.summary": {
+      "text": "अधूरे रह गए संरचनात्मक काम को पूरा करें या वापस लौटाएँ",
+      "context": "The meaning of the finish argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-ordinals.summary": {
+      "text": "हर उस वस्तु पर रचना-क्रमांक अंकित करें जिस पर कोई नहीं है",
+      "context": "The meaning of the migrate-ordinals argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-slugs.summary": {
+      "text": "इस वर्कबेंच की हर उस स्थिति के लिए slug निकालें जिस पर कोई नहीं है",
+      "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-states.summary": {
+      "text": "इस वर्कबेंच की अपनी स्थिति-सूची से छूटे हुए पहचानकर्ता हटाएँ",
+      "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.migrate-workstreams.summary": {
+      "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
+      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.claim.card.summary": {
+      "text": "जिस कार्ड को आप ले रहे हैं",
+      "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table."
+    },
+    "param.claim.expires.summary": {
+      "text": "आपका दावा कब तक टिकेगा, संख्या और इकाई के रूप में लिखा गया: 30m, 2h, 7d",
+      "context": "The meaning of the expires argument of `dinah claim`, printed in that command's arguments table."
+    },
+    "param.comment.text.summary": {
+      "text": "टिप्पणी, एक ही शब्द में या उद्धरण चिह्नों के भीतर; अकेला - इसे पाइप से पढ़ता है",
+      "context": "The meaning of the text argument of `dinah comment`, printed in that command's arguments table."
+    },
+    "param.config.action.summary": {
+      "text": "एक सेटिंग पढ़ें या लिखें; कुछ न लिखने पर हर सेटिंग अपने मान के साथ",
+      "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.config.key.summary": {
+      "text": "आप कौन-सी सेटिंग पढ़ या लिख रहे हैं",
+      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.config.value.summary": {
+      "text": "set पर, उसमें क्या रखना है",
+      "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
+    },
+    "param.edit.card.summary": {
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
+    },
+    "param.extract.dir.summary": {
+      "text": "इस वर्कबेंच की परिभाषा कहाँ लिखनी है",
+      "context": "The meaning of the dir argument of `dinah extract`, printed in that command's arguments table."
+    },
+    "param.guide.topic.summary": {
+      "text": "कौन-सी मार्गदर्शिका पढ़नी है; कुछ न लिखने पर सभी विषय",
+      "context": "The meaning of the topic argument of `dinah guide`, printed in that command's arguments table."
+    },
+    "param.help.command.summary": {
+      "text": "जिस command का पृष्ठ आप चाहते हैं",
+      "context": "The meaning of the command argument of `dinah help`, printed in that command's arguments table."
+    },
+    "param.init.dir.summary": {
+      "text": "वर्कबेंच कहाँ बनाना है; कुछ न लिखने पर वही निर्देशिका जिसमें आप हैं",
+      "context": "The meaning of the dir argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.init.from.summary": {
+      "text": "वर्कबेंच रखने वाली एक निर्देशिका, या `dinah export` या `dinah extract` से लिखी गई एक फ़ाइल",
+      "context": "The meaning of the from argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.init.slug.summary": {
+      "text": "वह उपसर्ग जो हर कार्ड संदर्भ पर रहता है; कुछ न लिखने पर निर्देशिका के नाम से निकाला जाता है",
+      "context": "The meaning of the slug argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.init.operator.summary": {
+      "text": "इस वर्कबेंच का स्वामी कौन है; कुछ न लिखने पर आपका अपना actor",
+      "context": "The meaning of the operator argument of `dinah init`, printed in that command's arguments table."
+    },
+    "param.instructions.card.summary": {
+      "text": "एक कार्ड या एक स्थिति; instructions न यह वर्कबेंच लेता है और न कार्ड के नीचे की कोई चीज़",
+      "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table."
+    },
+    "param.ls.state.summary": {
+      "text": "कौन-सी स्थिति दिखानी है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
+      "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table."
+    },
+    "param.ls.ready.summary": {
+      "text": "केवल वही कार्ड दिखाएँ जो लिए जाने को तैयार हैं",
+      "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table."
+    },
+    "param.move.state.summary": {
+      "text": "कार्ड को किस स्थिति में ले जाना है, इसे --state <state> भी लिखा जाता है",
+      "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table."
+    },
+    "param.move.override.summary": {
+      "text": "कार्ड को तब भी ले जाएँ जब प्रवाह ऐसा कोई कदम नहीं देता",
+      "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table."
+    },
+    "param.next.state.summary": {
+      "text": "किस स्थिति से कार्ड देना है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
+      "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
+    },
+    "param.path.card.summary": {
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
+    },
+    "param.query.query.summary": {
+      "text": "प्रश्न, एक ही शब्द में या उद्धरण चिह्नों के भीतर; कुछ न लिखने पर हर जीवित कार्ड",
+      "context": "The meaning of the query argument of `dinah query`, printed in that command's arguments table."
+    },
+    "param.show.card.summary": {
+      "text": "एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1; show यह वर्कबेंच नहीं लेता",
+      "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
+    },
+    "param.version.catalogs.summary": {
+      "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",
+      "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table."
+    },
+    "param.workbench.action.summary": {
+      "text": "एक फ़ील्ड पढ़ें या लिखें; कुछ न लिखने पर हर फ़ील्ड अपने मान के साथ",
+      "context": "The meaning of the action argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workbench.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
+      "context": "The meaning of the field argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workbench.value.summary": {
+      "text": "set पर, उसमें क्या रखना है",
+      "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table."
+    },
+    "param.workstream.action.summary": {
+      "text": "एक वर्कस्ट्रीम बनाएँ, एक पढ़ें, या किसी एक का फ़ील्ड लिखें; कुछ न लिखने पर हर वर्कस्ट्रीम",
+      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
+      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.summary": {
+      "text": "जिस वर्कस्ट्रीम का नाम आप ले रहे हैं, उसके slug या उसकी पहचान के रूप में",
+      "context": "The meaning of the workstream argument, shared by the commands that name one."
+    },
+    "param.workstream.value.summary": {
+      "text": "set पर, उसमें क्या रखना है",
+      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.workstream.summary": {
+      "text": "जिस वर्कस्ट्रीम को आप पढ़ या लिख रहे हैं, या जिसे बना रहे हैं उसका शीर्षक",
+      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "check.mcp.1": {
+      "text": "the directory --root names is one the filesystem carries",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist."
+    },
+    "check.mcp.2": {
+      "text": "the workbench you name lies under the root",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root."
+    },
+    "tool.workbenches.summary": {
+      "text": "the workbenches this server may serve",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root."
+    },
+    "mcp.reach": {
+      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title."
+    },
+    "mcp.reach.nodefault": {
+      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named."
+    },
+    "mcp.no-default": {
+      "text": "no default workbench: {detail}",
+      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer."
+    },
+    "refusal.dinah.outside-root": {
+      "text": "{detail} lies outside {root}, the root the server was started with",
+      "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named."
+    },
+    "refusal.dinah.outside-root.next": {
+      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded."
+    },
+    "refusal.dinah.unknown-root": {
+      "text": "{detail} is not a directory the filesystem carries",
+      "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named."
+    },
+    "refusal.dinah.unknown-root.next": {
+      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal."
+    },
+    "schema.workbench.description": {
+      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
+    },
+    "param.mcp.root.summary": {
+      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table."
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " इनमें से किसी एक को नाम दें, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " दोहराव हटाएँ, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is."
+    },
+    "check.tree.3": {
+      "text": "श्रृंखला अधिकतम चार अक्ष नामित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "cmd.contents.summary": {
+      "text": "वर्कबेंच की किसी इकाई में क्या है",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block."
+    },
+    "param.tree.depth.summary": {
+      "text": "कितनी गहराई तक खींचना है, root, groups, या cards के रूप में लिखा गया; कुछ न लिखने पर cards",
+      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table."
+    },
+    "tree.hidden.depth": {
+      "text": "{count} नहीं दिखाए गए",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those."
+    },
+    "check.contents.2": {
+      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "param.tree.group-by.summary": {
+      "text": "किन अक्षों पर नियोजित करना है, सबसे बाहरी पहले, अल्पविराम से अलग किए गए अधिकतम चार; कुछ न लिखने पर state,substate",
+      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated."
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " इनमें से किसी एक को नाम दें, या यह देखने के लिए आदेश पर `dinah help` चलाएँ कि वह क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is."
+    },
+    "check.tree.4": {
+      "text": "गहराई स्तर वह है जिसे यह आदेश घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "refusal.dinah.unknown-path.next-addressed": {
+      "text": "; {addressed} को उसे रखने वाली चीज़ के ज़रिए नहीं, बल्कि उसके अपने संदर्भ से नाम दिया जाता है",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a state through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or state, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path."
+    },
+    "param.tree.query.summary": {
+      "text": "कौन-से कार्ड नियोजित करने हैं, प्रश्न के रूप में एक ही शब्द में या उद्धरण चिह्नों के भीतर लिखा गया; कुछ न लिखने पर हर जीवित कार्ड",
+      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads."
+    },
+    "check.contents.1": {
+      "text": "संदर्भ इस वर्कबेंच में किसी वस्तु को नामित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "param.contents.ref.summary": {
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक स्थिति, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given."
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " श्रृंखला छोटी करें, या यह देखने के लिए `dinah help tree` चलाएँ कि यह आदेश क्या जाँचता है।",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is."
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) में कुछ नहीं है।",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake."
+    },
+    "check.tree.2": {
+      "text": "कोई भी अक्ष दो बार नामित नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's."
+    },
+    "column.tree.title": {
+      "text": "शीर्षक",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "refusal.dinah.repeated-axis": {
+      "text": "एक समूहन श्रृंखला प्रत्येक अक्ष को एक बार नाम देती है, और यह {detail} को दो बार नाम देती है।",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah {detail} पर समूहन नहीं करता। जिन अक्षों पर एक वृक्ष नियोजित हो सकता है, वे हैं: {axes}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "इस आदेश के लिए Dinah में {detail} नामक कोई गहराई स्तर नहीं है। यह जिन स्तरों को लेता है, वे हैं: {levels}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one."
+    },
+    "tree.empty": {
+      "text": "यहाँ कोई कार्ड नहीं है।",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it."
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) में {held} कार्ड हैं, जिनमें से {matched} प्रश्न से मेल खाते हैं।",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller."
+    },
+    "param.contents.depth.summary": {
+      "text": "कितनी गहराई तक खींचना है, root, cards, entities, या all के रूप में लिखा गया; कुछ न लिखने पर entities",
+      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table."
+    },
+    "tree.unset": {
+      "text": "(कोई मान नहीं)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
+    },
+    "column.tree.entity": {
+      "text": "इकाई",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "check.tree.1": {
+      "text": "नामित प्रत्येक अक्ष वह है जिस पर यह उपकरण समूहन करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) में {count} इकाइयाँ हैं।",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
+    },
+    "refusal.dinah.chain-too-long": {
+      "text": "एक समूहन श्रृंखला अधिकतम {allowed} अक्षों पर नियोजित होती है, और यह {asked} नामित करती है।",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one."
+    },
+    "cmd.tree.summary": {
+      "text": "अक्षों की श्रृंखला पर नियोजित वर्कबेंच के कार्ड",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
+    },
+    "column.tree.reference": {
+      "text": "संदर्भ",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.hidden": {
+      "text": "नहीं दिखाया गया",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) में {count} कार्ड हैं।",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it."
+    },
+    "column.tree.count": {
+      "text": "गणना",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "tree.hidden.filter": {
+      "text": "{count} छानकर हटाए गए",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
     }
   }
 }
