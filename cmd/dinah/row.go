@@ -40,15 +40,6 @@ type row struct {
 	// written whole, which is what every row drew before the arguments table
 	// of a command's help asked for the other behaviour.
 	wrapTail bool
-	// capIndent overrides the ordinary column-boundary continuation for a
-	// cell that overflows: instead of resuming under the column after it,
-	// the continuation resumes capIndent display columns past the row's own
-	// indent. Zero keeps the ordinary rule. A table that caps a column asks
-	// for this because the column after the capped one is not where the row
-	// ran out of room; the value broke because it is wider than the ceiling
-	// permits, and indenting under the field after it would repeat the very
-	// crowding the ceiling exists to prevent.
-	capIndent int
 }
 
 // minTailColumns is how much of a line a continuation always keeps for its own
@@ -114,11 +105,7 @@ func formatRow(r row, window int) string {
 		b.WriteString(c.text)
 		b.WriteString("\n")
 		column += c.width
-		if r.capIndent > 0 {
-			begins = continuation(r.indent+r.capIndent, r.indent, window)
-		} else {
-			begins = continuation(column, r.indent, window)
-		}
+		begins = continuation(column, r.indent, window)
 		b.WriteString(strings.Repeat(" ", begins))
 	}
 	if r.wrapTail && window > 0 {
@@ -129,16 +116,17 @@ func formatRow(r row, window int) string {
 	return b.String()
 }
 
-// breakTail breaks a tail between words so that no line of it reaches past the
-// window, and indents every line after the first to the column the tail began
-// at.
+// breakWords breaks text between words so that no line of it draws wider
+// than room, indenting every line after the first to indent. It is the one
+// word-breaker the renderer owns; breakTail below and the ceiling-bearing
+// column both wrap through it rather than each carrying their own copy, so
+// the rule that a word is never split lives in one place.
 //
-// A word wider than the room left is written whole and overruns, which is the
-// rule the rest of the renderer follows and what keeps a reference inside a
-// summary copyable. A tail with no room at all is written whole for the same
+// A word wider than room is written whole and overruns, which is the rule
+// the rest of the renderer follows and what keeps a reference inside a
+// value copyable. Text with no room at all is written whole for the same
 // reason, since breaking it a character at a time would help nobody.
-func breakTail(text string, begins, window int) string {
-	room := window - begins
+func breakWords(text string, indent, room int) string {
 	if room < 1 {
 		return text
 	}
@@ -155,12 +143,20 @@ func breakTail(text string, begins, window int) string {
 			drawn += 1 + width
 		default:
 			b.WriteString("\n")
-			b.WriteString(strings.Repeat(" ", begins))
+			b.WriteString(strings.Repeat(" ", indent))
 			b.WriteString(word)
 			drawn = width
 		}
 	}
 	return b.String()
+}
+
+// breakTail breaks a tail between words so that no line of it reaches past
+// the window, and indents every line after the first to the column the tail
+// began at. It is breakWords with the room derived from where the tail
+// began and the window it draws in, rather than a room stated directly.
+func breakTail(text string, begins, window int) string {
+	return breakWords(text, begins, window-begins)
 }
 
 // continuation clamps a continuation line's indent so the line keeps
