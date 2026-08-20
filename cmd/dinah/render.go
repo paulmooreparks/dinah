@@ -234,6 +234,100 @@ func (s *session) renderMatches(matches *verb.Matches) {
 	s.table(t)
 }
 
+// renderTree prints a projected tree: one sentence naming the root, and then a
+// table starting at the root's children.
+//
+// The root is not a row. It is a given for the whole command rather than a
+// finding, so a row for it would indent every other row by one level to say
+// something the caller already typed, and the count it carries reads better in
+// words than as a bare number beside a title.
+func (s *session) renderTree(tree *verb.Tree) {
+	s.line(s.treeHeader(tree))
+	if len(tree.Root.Children) == 0 {
+		return
+	}
+	t := table{indent: 2, columns: s.columns("tree", "reference", "entity", "title", "count", "hidden")}
+	s.treeRows(&t, tree, tree.Root.Children, nil)
+	s.table(t)
+}
+
+// treeHeader is the sentence above the table. Under a filter it says what the
+// workbench holds and how much of that matched, so the first number is the
+// root's count added to what the filter removed and the second is the count
+// alone.
+func (s *session) treeHeader(tree *verb.Tree) string {
+	root := tree.Root
+	count := strconv.Itoa(root.Count)
+	if tree.Producer == verb.ProducerContainment {
+		if root.Count == 0 {
+			return s.r.T("contents.empty", "title", root.Title, "ref", root.Ref)
+		}
+		return s.r.T("contents.header", "title", root.Title, "ref", root.Ref, "count", count)
+	}
+	if root.Hidden == nil || root.Hidden.Filtered == 0 {
+		return s.r.T("tree.header", "title", root.Title, "ref", root.Ref, "count", count)
+	}
+	held := strconv.Itoa(root.Count + root.Hidden.Filtered)
+	return s.r.T("tree.header.filtered", "title", root.Title, "ref", root.Ref, "held", held, "matched", count)
+}
+
+// treeRows appends one row per node, depth first, carrying the guides that
+// place each row in the tree. The guides describe every level below the top
+// level the table draws, so the root contributes none.
+func (s *session) treeRows(t *table, tree *verb.Tree, nodes []verb.TreeNode, above []bool) {
+	for i, node := range nodes {
+		guides := append(append([]bool{}, above...), i == len(nodes)-1)
+		t.rows = append(t.rows, tableRow{fields: s.treeFields(tree, node), guides: guides})
+		s.treeRows(t, tree, node.Children, guides)
+	}
+}
+
+// treeFields is one node's cells, in column order.
+//
+// The Reference column carries two things and the Entity column beside it is
+// what says which: a row reading a value under Reference and an axis under
+// Entity is a group rather than an entity, so the cell to its left is a value
+// rather than an address. The Count cell is blank on a card under the grouped
+// producer, because a card is one card and the number would tell the reader
+// nothing.
+func (s *session) treeFields(tree *verb.Tree, node verb.TreeNode) []string {
+	if node.Kind == verb.NodeGroup {
+		value := node.Value
+		if value == "" {
+			value = s.r.T("tree.unset")
+		}
+		return []string{value, node.Axis, node.Title, strconv.Itoa(node.Count), s.hiddenCell(node.Hidden)}
+	}
+	count := strconv.Itoa(node.Count)
+	if tree.Subject == verb.SubjectCard {
+		count = ""
+	}
+	return []string{node.Ref, node.Kind, node.Title, count, s.hiddenCell(node.Hidden)}
+}
+
+// hiddenCell renders what a node is not showing. The depth sentence prints the
+// node's own direct children the depth did not draw, which is not the same
+// number as the subjects those children hold, and the Count column beside it
+// already carries the subjects.
+func (s *session) hiddenCell(hidden *verb.Hidden) string {
+	if hidden == nil {
+		return ""
+	}
+	var parts []string
+	for _, reason := range hidden.Reason {
+		switch reason {
+		case verb.ReasonDepth:
+			parts = append(parts, s.r.T("tree.hidden.depth", "count", strconv.Itoa(hidden.Children)))
+		case verb.ReasonFilter:
+			parts = append(parts, s.r.T("tree.hidden.filter", "count", strconv.Itoa(hidden.Filtered)))
+		}
+	}
+	if len(parts) < 2 {
+		return strings.Join(parts, "")
+	}
+	return s.r.T("tree.hidden.join", "first", parts[0], "second", parts[1])
+}
+
 // renderSettings prints each setting with the value in force and the rung of
 // its ladder that produced it. A setting no rung carried prints an empty
 // value beside the source that says so, because the row itself is the answer

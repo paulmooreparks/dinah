@@ -119,6 +119,32 @@ func (h *harness) add(title string) string {
 	return response.Card.Ref
 }
 
+// comment writes a comment on a card and fails the test unless it was written.
+func (h *harness) comment(ref, text string) {
+	h.t.Helper()
+	response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: ref, Text: text})
+	if response.Outcome != contract.OutcomeOK {
+		h.t.Fatalf("comment on %s: %s %s", ref, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+}
+
+// attach copies a file into an entity's attachments and fails the test unless
+// it was copied. The bytes are written outside the workbench first, since
+// attach reads a path the way a person would give it one.
+func (h *harness) attach(ref, name, body string) {
+	h.t.Helper()
+	source := filepath.Join(h.t.TempDir(), name)
+	if err := os.WriteFile(source, []byte(body), 0o644); err != nil {
+		h.t.Fatalf("write %s: %v", source, err)
+	}
+	response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: ref, File: source})
+	if response.Outcome != contract.OutcomeOK {
+		h.t.Fatalf("attach to %s: %s %s", ref, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+}
+
 // do runs one contract verb and returns its response, reopening the bench
 // afterwards so the next act reads what this one wrote.
 func (h *harness) do(req *Request) *Response {

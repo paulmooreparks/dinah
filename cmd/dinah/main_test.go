@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-four commands, and every command the binary
+	// The block lists thirty-six commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 34 {
-		t.Errorf("wanted thirty-four listed commands, got %d", listed)
+	if listed != 36 {
+		t.Errorf("wanted thirty-six listed commands, got %d", listed)
 	}
 }
 
@@ -6289,8 +6289,8 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "description", "expires", "from", "kind", "lang",
-		"operator", "slug", "state", "workbench",
+		"actor", "depth", "description", "expires", "from", "group-by",
+		"kind", "lang", "operator", "slug", "state", "workbench",
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",
@@ -6326,8 +6326,9 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 }
 
 // TestTheReferencesGuideSaysWhichCommandTakesWhat asserts dinah-172 AC-8: the
-// new guide teaches every form of a reference, says what each of the seven
-// commands accepts, and is listed among the topics.
+// new guide teaches every form of a reference, says what each command taking
+// one accepts, and is listed among the topics. dinah-151 adds the eighth row,
+// for contents, which the sentence over the table counts.
 func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 	root := newBench(t)
 	listing := runCLI(t, root, "guide")
@@ -6356,13 +6357,14 @@ func TestTheReferencesGuideSaysWhichCommandTakesWhat(t *testing.T) {
 	// The table, row by row, in the shape the guide draws it. Every cell was
 	// provoked against a build rather than read off the resolvers.
 	for _, row := range []string{
-		"| path         | yes            | no      | yes    | yes          |",
-		"| edit         | yes            | no      | yes    | yes          |",
-		"| show         | no             | no      | yes    | yes          |",
+		"| path         | yes            | yes     | yes    | yes          |",
+		"| edit         | yes            | yes     | yes    | yes          |",
+		"| show         | no             | yes     | yes    | yes          |",
 		"| instructions | no             | yes     | yes    | no           |",
 		"| attach       | yes            | yes     | yes    | yes          |",
 		"| archive      | no             | yes     | yes    | yes          |",
 		"| delete       | no             | yes     | yes    | yes          |",
+		"| contents     | yes            | yes     | yes    | yes          |",
 	} {
 		if !strings.Contains(got.out, row) {
 			t.Errorf("the references guide does not carry the row %q", row)
@@ -6476,8 +6478,8 @@ func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
 			t.Errorf("%s is a skeleton and reports %d keys translated", tag, translated)
 		}
 	}
-	if complete != 2 {
-		t.Errorf("%d catalogs report every key translated, want the two that are really translated", complete)
+	if complete != 3 {
+		t.Errorf("%d catalogs report every key translated, want the three that are really translated", complete)
 	}
 }
 

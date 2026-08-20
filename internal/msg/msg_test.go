@@ -6,11 +6,20 @@ import (
 )
 
 // TestEveryDeclaredLanguageShips asserts that the catalogs the language ruling
-// calls for are all present: English and Hindi complete, and the format's six
-// other declared languages as generated skeletons carrying every key.
+// calls for are all present: English, Hindi and German complete, and the
+// format's five remaining declared languages as generated skeletons carrying
+// every key. The roster itself lives once, as Complete and Skeleton, so this
+// test and internal/verb's TestVersionCarriesTheConformanceClaim read the
+// same declaration rather than each carrying its own copy.
 func TestEveryDeclaredLanguageShips(t *testing.T) {
-	complete := map[string]bool{"en": true, "hi": true}
-	skeletons := map[string]bool{"de": true, "cs": true, "id": true, "es": true, "fil": true, "af": true}
+	complete := map[string]bool{}
+	for _, tag := range Complete {
+		complete[tag] = true
+	}
+	skeletons := map[string]bool{}
+	for _, tag := range Skeleton {
+		skeletons[tag] = true
+	}
 	seen := map[string]bool{}
 	for _, tag := range Tags() {
 		seen[tag] = true
@@ -87,8 +96,8 @@ func TestMissingKeysFallBackPerKey(t *testing.T) {
 	if got := hindi.T("word.yes"); got == For(Base).T("word.yes") {
 		t.Error("a translated key should not render as English")
 	}
-	german := For("de")
-	if got := german.T("word.yes"); got != For(Base).T("word.yes") {
+	czech := For("cs")
+	if got := czech.T("word.yes"); got != For(Base).T("word.yes") {
 		t.Errorf("a skeleton key should fall back to English, got %q", got)
 	}
 	unknown := For("qq")

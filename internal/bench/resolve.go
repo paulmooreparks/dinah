@@ -86,18 +86,16 @@ var checklistKinds = map[string]string{
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
-// a workstream, a card, or anything below a card composed by path. It is what
-// the plumbing guarantee of `path` rests on, what `edit` walks, and what
-// `show` walks for the composed form below a card.
+// a state, a workstream, a card, or anything below any of the first three
+// composed by path. It is what the plumbing guarantee of `path` rests on,
+// what `edit` walks, and what `show` walks for the composed form.
 //
 // A workstream resolves to its directory rather than to its anchor, because
 // its notes, its journal and its attachments all sit inside it and the
-// reference names the entity rather than one file of it. A collection below a
-// card already resolves to a directory the same way.
+// reference names the entity rather than one file of it. A workstream is
+// tried first, per WorkstreamRefPrefix and the reasoning on resolveWorkstreamRef,
+// before the rest of the grammar gets a chance to shadow it.
 func (b *Bench) ResolvePath(ref string) (string, error) {
-	if IsWorkbenchRef(ref) {
-		return filepath.Abs(filepath.Join(b.Root, WorkbenchAnchor))
-	}
 	if rest, named := strings.CutPrefix(strings.TrimSpace(ref), WorkstreamRefPrefix); named {
 		workstream := b.WorkstreamByRef(rest)
 		if workstream == nil {
@@ -105,16 +103,47 @@ func (b *Bench) ResolvePath(ref string) (string, error) {
 		}
 		return filepath.Abs(workstream.Dir)
 	}
-	head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/")
-	found, err := b.ResolveCard(head)
-	if err != nil {
-		return "", err
-	}
-	path, err := walkBelowCard(found.Card, rest)
+	path, _, err := b.resolveBelow(ref)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Abs(path)
+}
+
+// resolveBelow resolves a reference to the file it names, and to the card that
+// file belongs to when it belongs to one. ResolvePath and ResolveEntity are
+// two readings of that pair, so both accept the same references.
+//
+// The head segment names where the walk starts and the rest descends through
+// the containment grammar. A state is an entity of the workbench and the
+// containment walk draws one, so the reference a walk prints for it opens the
+// state the way every other reference opens what it names. The slug heads a
+// path below the workbench without naming the workbench itself, which is the
+// form the walk prints for a workbench attachment; whether the bare slug also
+// opens the workbench is a separate question and this does not answer it.
+func (b *Bench) resolveBelow(ref string) (string, *Card, error) {
+	head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/")
+	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {
+		if rest == "" {
+			return filepath.Join(b.Root, WorkbenchAnchor), nil, nil
+		}
+		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil)
+		return path, nil, err
+	}
+	if state := b.StateByRef(head); state != nil {
+		if rest == "" {
+			return b.StateAnchorPath(state.ID), nil, nil
+		}
+		dir := filepath.Join(b.Root, StatesDir, state.ID)
+		path, err := descend(dir, KindState, strings.Split(rest, "/"), nil)
+		return path, nil, err
+	}
+	found, err := b.ResolveCard(head)
+	if err != nil {
+		return "", nil, err
+	}
+	path, err := walkBelowCard(found.Card, rest)
+	return path, found.Card, err
 }
 
 // walkBelowCard resolves the segments below a card. An empty rest is the
@@ -125,62 +154,129 @@ func walkBelowCard(card *Card, rest string) (string, error) {
 	}
 	segments := strings.Split(rest, "/")
 	head := segments[0]
-	tail := segments[1:]
-	switch head {
-	case CardAnchor, "card":
+	// The card's own two files are named by segment rather than by
+	// collection, so they are answered ahead of the grammar. Neither is an
+	// entity of the containment table: the anchor is the card itself and the
+	// journal is content.
+	if head == CardAnchor || head == KindCard {
 		return card.AnchorPath(), nil
-	case "journal", JournalName:
+	}
+	if head == "journal" || head == JournalName {
 		return card.JournalPath(), nil
-	case CommentsDir:
-		return entityBelow(filepath.Join(card.Dir, CommentsDir), CommentAnchor, tail, nil)
-	case AttachmentsDir:
-		return attachmentBelow(filepath.Join(card.Dir, AttachmentsDir), tail)
-	case ChecklistDir:
-		return entityBelow(filepath.Join(card.Dir, ChecklistDir), ItemAnchor, tail, nil)
 	}
-	kind, ok := checklistKinds[head]
-	if !ok {
-		return "", contract.Refuse(contract.UnknownPath, rest)
+	if kind, ok := checklistKinds[head]; ok {
+		items, ok := checklistMount()
+		if !ok {
+			return "", contract.Refuse(contract.UnknownPath, rest)
+		}
+		aliased := append([]string{items.Dir}, segments[1:]...)
+		return descend(card.Dir, KindCard, aliased, &kind)
 	}
-	return entityBelow(filepath.Join(card.Dir, ChecklistDir), ItemAnchor, tail, &kind)
+	return descend(card.Dir, KindCard, segments, nil)
 }
 
-// entityBelow resolves a collection, or one entity of it named by identifier
-// or by one-based position. A kind narrows the collection first, which is
-// what a checklist alias such as oq selects on.
-//
-// Position counts in creation order rather than in the listing's ascending-hex
-// order, so `<card>/comment/2` names the second comment somebody wrote and
-// keeps naming it however the identifiers happened to fall.
-func entityBelow(collection, anchor string, tail []string, kind *string) (string, error) {
-	ids := SortByOrdinal(collection, anchor, ListIDs(collection))
-	if kind != nil {
-		ids = filterByKind(collection, anchor, ids, *kind)
+// checklistMount is the collection a checklist alias such as oq narrows, read
+// off the containment grammar so the aliases follow the table rather than a
+// second statement of where a checklist lives.
+func checklistMount() (Mount, bool) {
+	for _, mount := range Contains(KindCard) {
+		if mount.Kind == KindItem {
+			return mount, true
+		}
 	}
+	return Mount{}, false
+}
+
+// descend resolves the segments below one entity by walking the containment
+// grammar a collection at a time. A pair of segments names a collection and
+// then a member of it, and the member's own kind decides what the pair after
+// that may name, so a reference reaches as deep as the grammar goes.
+//
+// A collection holding a kind that is addressed in its own right is refused,
+// so the workbench's cards and states are reached by the address a person
+// types for them and by nothing else. See addressedInItsOwnRight.
+//
+// A segment the grammar does not know is refused rather than dropped. The
+// resolver used to read the first collection and discard everything past the
+// entity it found, which made `<card>/comments/1/attachments/1` open the
+// comment: an address the containment walk prints and a different file behind
+// it, with nothing said.
+//
+// A kind narrows the collection's members first, which is what a checklist
+// alias such as oq selects on. Position counts in creation order rather than
+// in the listing's ascending-hex order, so `<card>/comment/2` names the second
+// comment somebody wrote and keeps naming it however the identifiers happened
+// to fall.
+func descend(dir, kind string, segments []string, narrow *string) (string, error) {
+	mount, ok := MountOf(kind, segments[0])
+	if !ok {
+		return "", contract.Refuse(contract.UnknownPath, segments[0])
+	}
+	if addressedInItsOwnRight(mount.Kind) {
+		// The segment names a collection this workbench plainly has, so a
+		// refusal quoting the segment alone tells a reader that something
+		// they can see does not exist. What is refused is the addressing
+		// rather than the word, so the whole path below the head is quoted
+		// and the next step says how the thing is named instead.
+		return "", contract.RefuseWith(
+			contract.UnknownPath,
+			strings.Join(segments, "/"),
+			map[string]string{"addressed": mount.Kind},
+		)
+	}
+	collection := filepath.Join(dir, mount.Dir)
+	tail := segments[1:]
 	if len(tail) == 0 {
 		if !Exists(collection) {
 			return "", contract.Refuse(contract.UnknownPath, collection)
 		}
 		return collection, nil
 	}
+	ids := SortByOrdinal(collection, mount.Anchor, ListIDs(collection))
+	if narrow != nil {
+		ids = filterByKind(collection, mount.Anchor, ids, *narrow)
+	}
 	id, err := pick(ids, tail[0])
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(collection, id, anchor), nil
+	member := filepath.Join(collection, id)
+	below := tail[1:]
+	if len(below) == 0 {
+		return filepath.Join(member, mount.Anchor), nil
+	}
+	// An attachment wraps bytes rather than containing entities, so the one
+	// segment that may follow one names the payload it wraps.
+	if mount.Kind == KindAttachment && below[0] == PayloadDir {
+		if len(below) > 1 {
+			return "", contract.Refuse(contract.UnknownPath, below[1])
+		}
+		return payloadOf(member)
+	}
+	return descend(member, mount.Kind, below, nil)
 }
 
-// attachmentBelow resolves an attachment, and its payload file when the
-// reference reaches past the entity into the bytes it wraps.
-func attachmentBelow(collection string, tail []string) (string, error) {
-	path, err := entityBelow(collection, AttachmentAnchor, tail, nil)
-	if err != nil {
-		return "", err
-	}
-	if len(tail) < 2 || tail[1] != PayloadDir {
-		return path, nil
-	}
-	payload := filepath.Join(filepath.Dir(path), PayloadDir)
+// addressedInItsOwnRight reports whether a kind is one a person names directly
+// rather than by its position in the collection that holds it. A card is named
+// by its reference and a state by its slug, and each of those addresses is the
+// only one either kind has.
+//
+// The containment walk mounts both under the workbench and draws a row for
+// each, and the reference it draws for that row is the direct address rather
+// than a composed one, so nothing the tool prints needs the composed form. A
+// resolver accepting it anyway gives one entity two spellings, and the two
+// then have to be kept equal everywhere: the widened form reached the card
+// collection while filling in no card, which crashed the containment walk and
+// wrote a card's own history into the workbench journal under the workbench's
+// lock.
+func addressedInItsOwnRight(kind string) bool {
+	return kind == KindCard || kind == KindState
+}
+
+// payloadOf is the file an attachment wraps, which is the one file its payload
+// directory holds.
+func payloadOf(dir string) (string, error) {
+	payload := filepath.Join(dir, PayloadDir)
 	entries, err := os.ReadDir(payload)
 	if err != nil || len(entries) == 0 {
 		return "", contract.Refuse(contract.UnknownPath, payload)

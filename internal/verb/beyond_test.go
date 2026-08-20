@@ -614,13 +614,24 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	if release.Format != bench.StorageFormat {
 		t.Errorf("storage format: wanted %d, got %d", bench.StorageFormat, release.Format)
 	}
-	wanted := map[string]bool{"en": true, "hi": true, "de": true, "cs": true, "id": true, "es": true, "fil": true, "af": true}
+	// The roster of which catalogs ship complete lives once, as msg.Complete
+	// and msg.Skeleton, so this test reads the same declaration
+	// TestEveryDeclaredLanguageShips in internal/msg reads rather than
+	// carrying its own copy.
+	isComplete := map[string]bool{}
+	for _, tag := range msg.Complete {
+		isComplete[tag] = true
+	}
+	wanted := map[string]bool{}
+	for _, tag := range append(append([]string{}, msg.Complete...), msg.Skeleton...) {
+		wanted[tag] = true
+	}
 	for _, coverage := range release.Catalogs {
 		delete(wanted, coverage.Tag)
 		if coverage.Present != coverage.Total {
 			t.Errorf("%s: wanted every key present, got %d of %d", coverage.Tag, coverage.Present, coverage.Total)
 		}
-		complete := coverage.Tag == "en" || coverage.Tag == "hi"
+		complete := isComplete[coverage.Tag]
 		if complete && coverage.Translated != coverage.Total {
 			t.Errorf("%s ships complete, got %d of %d translated", coverage.Tag, coverage.Translated, coverage.Total)
 		}
@@ -953,6 +964,32 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 			}
 		})
 	}
+
+	// The references above are the only spellings that reach a card and the
+	// entities below one, so the pairing they assert is the whole of it. A
+	// second spelling composed down from the workbench carries no card, and
+	// an attach through one wrote the card's own event to the bench journal
+	// and took the bench lock, which left two spellings of one comment
+	// excluding neither each other nor a concurrent writer.
+	t.Run("a card is not reached down from the workbench", func(t *testing.T) {
+		benchLines := journalLength(t, benchJournal)
+		cardLines := journalLength(t, card.JournalPath())
+		for _, spelling := range []string{
+			h.library.Bench.Slug + "/cards/1",
+			"workbench/cards/1/comments/1",
+		} {
+			response := h.library.Attach(&Request{Verb: "attach", Actor: "alka", Ref: spelling, File: source})
+			if response.Outcome == contract.OutcomeOK {
+				t.Errorf("attach %s succeeded, and no walk draws that reference", spelling)
+			}
+		}
+		if got := journalLength(t, benchJournal); got != benchLines {
+			t.Errorf("the workbench journal grew to %d lines over a card's own event, wanted %d", got, benchLines)
+		}
+		if got := journalLength(t, card.JournalPath()); got != cardLines {
+			t.Errorf("the card journal grew to %d lines over a refused attach, wanted %d", got, cardLines)
+		}
+	})
 }
 
 // TestAStructuralActIsRefusedByAnyOfItsThreeLocks asserts that archiving and
@@ -1103,8 +1140,9 @@ func TestASiblingLockIsInvisibleToEveryReadPath(t *testing.T) {
 // TestDeletingACardRecordsItOnTheBenchJournal asserts that deleting a card
 // leaves exactly one new line on the bench's own journal, that the line is a
 // deleted event carrying the identifier and the title as of the event, and
-// that both names the closed event set gained here render for a reader in each
-// of the two complete catalogs.
+// that both names the closed event set gained here render for a reader in
+// English and Hindi, two of the language ruling's now three complete
+// catalogs.
 //
 // The bench journal is where the record has to go, since the deletion destroys
 // the journal inside the card.

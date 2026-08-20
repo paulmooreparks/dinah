@@ -266,11 +266,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			break
 		}
 	}
-	if summaries != 34 {
-		t.Errorf("read %d command entries out of the block, want 34", summaries)
+	if summaries != 36 {
+		t.Errorf("read %d command entries out of the block, want 36", summaries)
 	}
-	if continued != 5 {
-		t.Errorf("%d entries continued on a line of their own, want the five whose syntax cannot be laid out inside the window", continued)
+	if continued != 6 {
+		t.Errorf("%d entries continued on a line of their own, want the six whose syntax cannot be laid out inside the window", continued)
 	}
 	if want != 41 {
 		t.Errorf("the measured summary column is %d, and every block of this shape has started it at 41 since the width was declared", want)

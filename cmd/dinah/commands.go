@@ -43,6 +43,8 @@ func init() {
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
+		{name: "tree", group: groupRead, run: runTree, openTail: true},
+		{name: "contents", group: groupRead, run: runContents, bounded: 1},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		{name: "log", group: groupRead, run: runLog, bounded: 1},
 		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
@@ -319,6 +321,60 @@ func runQuery(s *session, parsed *arguments) int {
 		s.renderMatches(matches)
 		return 0
 	})
+}
+
+// runTree presents the workbench's cards nested along a chain of axes.
+//
+// The query is the command's free-text slot rather than a flag, so a caller
+// who types the terms unquoted meets the same refusal `dinah query` gives them
+// with the quoted line rebuilt.
+func runTree(s *session, parsed *arguments) int {
+	req := s.request("tree", parsed)
+	text, refusal := s.freeText([]string{"query"}, parsed.rest(), "slot.query")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Query = text
+	chain := verb.ParseChain(parsed.value("group-by"))
+	level := depthOr(parsed, verb.LevelCards)
+	return s.withBench(func(l *verb.Library) int {
+		tree, err := l.Tree(req, chain, level)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(tree)
+		}
+		s.renderTree(tree)
+		return 0
+	})
+}
+
+// runContents walks the containment grammar down from any entity.
+func runContents(s *session, parsed *arguments) int {
+	req := s.request("contents", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	level := depthOr(parsed, verb.LevelEntities)
+	return s.withBench(func(l *verb.Library) int {
+		tree, err := l.Contents(req, level)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(tree)
+		}
+		s.renderTree(tree)
+		return 0
+	})
+}
+
+// depthOr reads the depth flag, falling back to the command's own default when
+// the caller named none.
+func depthOr(parsed *arguments, fallback string) string {
+	if level := parsed.value("depth"); level != "" {
+		return level
+	}
+	return fallback
 }
 
 // runShow reads a card, or anything below it.

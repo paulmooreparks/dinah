@@ -140,6 +140,27 @@ const (
 	// because an empty result is also the honest answer to a query that is
 	// exactly right, and a reader cannot tell a typo from a fact.
 	UnknownValue = LayerPrefix + "unknown-value"
+	// UnknownAxis is a group-by chain naming a word this tool does not
+	// group on. It is a distinct name from UnknownField because state is
+	// both a field and an axis and at is a field and not an axis, so one
+	// name covering both would tell a reader that at is not a field, which
+	// is false.
+	UnknownAxis = LayerPrefix + "unknown-axis"
+	// RepeatedAxis is a group-by chain naming one axis twice. Grouping twice
+	// on one axis puts every card of a group into a single child group,
+	// always, so it is a typing mistake rather than a query. It carries a
+	// name of its own because the sentence that lists the legal axes would
+	// name the repeated axis as not an axis and then list it as one.
+	RepeatedAxis = LayerPrefix + "repeated-axis"
+	// ChainTooLong is a group-by chain naming more axes than a tree nests
+	// along. It carries a name of its own because it has no offending word
+	// to name: every axis in the chain may be legal, and the length is the
+	// whole of the mistake.
+	ChainTooLong = LayerPrefix + "chain-too-long"
+	// UnknownDepth is a depth level neither tree ladder declares, or one the
+	// other command declares and this one does not. The sentence lists the
+	// levels of the command that refused rather than the union of both.
+	UnknownDepth = LayerPrefix + "unknown-depth"
 	// MultipleWords is an open-tail command's free-text slot (add's title,
 	// block's reason, comment's text, config set's value) getting more than
 	// one unquoted word. The sentence names the word count and rebuilds the
@@ -165,7 +186,8 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
-	UnknownWorkstream, Referenced, UnknownField, UnknownValue,
+	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
+	UnknownDepth, UnknownWorkstream, Referenced,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
