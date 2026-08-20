@@ -40,6 +40,15 @@ type row struct {
 	// written whole, which is what every row drew before the arguments table
 	// of a command's help asked for the other behaviour.
 	wrapTail bool
+	// capIndent overrides the ordinary column-boundary continuation for a
+	// cell that overflows: instead of resuming under the column after it,
+	// the continuation resumes capIndent display columns past the row's own
+	// indent. Zero keeps the ordinary rule. A table that caps a column asks
+	// for this because the column after the capped one is not where the row
+	// ran out of room; the value broke because it is wider than the ceiling
+	// permits, and indenting under the field after it would repeat the very
+	// crowding the ceiling exists to prevent.
+	capIndent int
 }
 
 // minTailColumns is how much of a line a continuation always keeps for its own
@@ -105,7 +114,11 @@ func formatRow(r row, window int) string {
 		b.WriteString(c.text)
 		b.WriteString("\n")
 		column += c.width
-		begins = continuation(column, r.indent, window)
+		if r.capIndent > 0 {
+			begins = continuation(r.indent+r.capIndent, r.indent, window)
+		} else {
+			begins = continuation(column, r.indent, window)
+		}
 		b.WriteString(strings.Repeat(" ", begins))
 	}
 	if r.wrapTail && window > 0 {

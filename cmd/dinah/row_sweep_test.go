@@ -80,6 +80,13 @@ type sweptBlock struct {
 	// would report an aligned continuation as a first field in the wrong
 	// place.
 	wrapsTail bool
+	// capsColumn says the block draws its first column under a ceiling
+	// (andon-style dinah-200): a field wider than the cap takes its own line
+	// and the field after it resumes at sweptCapContinuation rather than
+	// under the column it belongs to. One entry declares it, and reading its
+	// output without knowing that would report the fixed-indent continuation
+	// as a field that has drifted from the column it belongs to.
+	capsColumn bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
 	// nothing beyond the six below.
@@ -956,6 +963,12 @@ func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, 
 // sweptIndent is the display column every block of this inventory starts at.
 const sweptIndent = 2
 
+// sweptCapContinuation is the display column a capsColumn block's second
+// field resumes at once its first has broken across lines: the block's own
+// indent plus the production renderer's ceilingContinuationIndent, read off
+// the same constant the renderer uses rather than a number copied from it.
+const sweptCapContinuation = sweptIndent + ceilingContinuationIndent
+
 // readSweptRows folds a block's rendered rows back into fields and asserts,
 // for every field of every row, that it begins at the display column its own
 // heading begins at. It returns each row's fields.
@@ -966,8 +979,11 @@ const sweptIndent = 2
 // it resume on the next line at the column the field's own would have ended
 // in. A row may also stop short, which is how a state offering nothing says so
 // where the card reference would have been: the field it stops on takes the
-// rest of the line and the row ends there. Anything else is a row whose fields
-// have drifted, which is what this test exists to catch.
+// rest of the line and the row ends there. A capsColumn block departs from
+// that one rule on purpose: its first field's continuation resumes at
+// sweptCapContinuation rather than under the column after it, which is what
+// the ceiling exists to produce. Anything else is a row whose fields have
+// drifted, which is what this test exists to catch.
 func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, columns []int) [][]string {
 	t.Helper()
 	var rows [][]string
@@ -992,6 +1008,19 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
 			continue
 		}
+		// A capsColumn block's first field, once it has broken across lines
+		// because it is wider than the ceiling, is followed by its second
+		// field at the fixed continuation indent rather than under the
+		// column the field belongs to, which is the whole point of the
+		// ceiling. next==1 with no line read yet for this row happens only
+		// on such a continuation, since every row whose first field fits
+		// reads both fields off the one line in the inner loop below without
+		// ever returning here.
+		if block.capsColumn && next == 1 && sweptLead(line) == sweptCapContinuation {
+			row = append(row, sweptField(line, sweptCapContinuation, -1))
+			closeRow()
+			continue
+		}
 		if sweptLead(line) != columns[next] {
 			return fail("field %d begins at display column %d and its heading begins at %d:\n%q",
 				next, sweptLead(line), columns[next], line)
@@ -1003,7 +1032,8 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 				break
 			}
 			edge := columns[next+1]
-			resumes := i+1 < len(lines) && sweptLead(lines[i+1]) == edge
+			resumes := i+1 < len(lines) && (sweptLead(lines[i+1]) == edge ||
+				(block.capsColumn && next == 0 && sweptLead(lines[i+1]) == sweptCapContinuation))
 			if displayWidth(line) <= edge {
 				row = append(row, sweptField(line, columns[next], -1))
 				next++
@@ -1469,16 +1499,16 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:108", label: "the command list of bare dinah",
+			site: "help.go:112", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
-			noHeadingRow: true,
-			opensAt:      "help.usage", sections: sweptHelpSections(), expect: expectCommands,
+			noHeadingRow: true, capsColumn: true,
+			opensAt: "help.usage", sections: sweptHelpSections(), expect: expectCommands,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag)
 			},
 		},
 		{
-			site: "help.go:116", label: "the global flag list",
+			site: "help.go:120", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			opensAt: "help.flags", expect: expectFlags,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1486,7 +1516,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:156", label: "dinah help <command>",
+			site: "help.go:160", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1494,7 +1524,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:192", label: "what you may write, on dinah help <command>",
+			site: "help.go:196", label: "what you may write, on dinah help <command>",
 			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
 			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {

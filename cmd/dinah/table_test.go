@@ -424,3 +424,72 @@ func TestARuleKeepsOneColumnWhereTheWindowLeavesNone(t *testing.T) {
 		t.Errorf("a rule starting past the right edge draws %d columns, and one is the floor", got)
 	}
 }
+
+// TestTheCeilingCapsAColumnAtHalfTheWindow asserts what a table opts into by
+// declaring hasCeiling: a column no wider than half the window it draws in,
+// with a value too wide for the capped column breaking onto its own line and
+// the field after it resuming ceilingContinuationIndent columns past the
+// row's own indent rather than under the column it belongs to.
+func TestTheCeilingCapsAColumnAtHalfTheWindow(t *testing.T) {
+	long := strings.Repeat("x", 60)
+	laid := tableSession(100).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0,
+		rows: rowsOf(
+			[]string{"add <title>", "file a new card"},
+			[]string{long, "b"},
+		),
+	})
+	if want := halfWindow(100); laid.widths[0] != want {
+		t.Errorf("the capped column measures %d and half the window is %d, so a value the ordinary measure would have widened it past the ceiling did not get clamped", laid.widths[0], want)
+	}
+	lines := splitLines(laid.rowLine(laid.rows[1]))
+	if len(lines) != 2 {
+		t.Fatalf("a value wider than the capped column should break onto its own line, got %d lines: %q", len(lines), lines)
+	}
+	if want := "  " + long; lines[0] != want {
+		t.Errorf("the overflowing value's own line is %q, want %q", lines[0], want)
+	}
+	want := strings.Repeat(" ", 2+ceilingContinuationIndent) + "b"
+	if lines[1] != want {
+		t.Errorf("the continuation is %q, want it indented %d columns past the row's own indent rather than under the column after it: %q", lines[1], ceilingContinuationIndent, want)
+	}
+}
+
+// TestTheCeilingNeverNarrowsBelowTheHeading asserts the floor applyCeiling
+// keeps: a window narrow enough that half of it falls short of the column's
+// own heading leaves the column at its heading rather than under it, the same
+// floor narrowToWindow holds elsewhere in this file.
+func TestTheCeilingNeverNarrowsBelowTheHeading(t *testing.T) {
+	laid := measure(table{
+		indent: 2, columns: headed("Command", "What"),
+		hasCeiling: true, ceilingColumn: 0,
+		rows: rowsOf([]string{"add", "file a new card"}),
+	}, 10)
+	applyCeiling(&laid)
+	if want := displayWidth("Command"); laid.widths[0] != want {
+		t.Errorf("the capped column measures %d and its own heading draws %d, so the ceiling narrowed it past the floor", laid.widths[0], want)
+	}
+}
+
+// TestTheCeilingIgnoresAnOutOfRangeColumn asserts that a table declaring a
+// ceilingColumn no column of it carries changes nothing: applyCeiling reads
+// widths it does not have and returns rather than indexing past the slice. No
+// production table asks for this; it is the defensive half of the same guard
+// that also refuses a negative column, exercised directly since nothing
+// short of a malformed table ever reaches it.
+func TestTheCeilingIgnoresAnOutOfRangeColumn(t *testing.T) {
+	for _, column := range []int{-1, 5} {
+		laid := measure(table{
+			indent: 2, columns: headed("Command", "What"),
+			hasCeiling: true, ceilingColumn: column,
+			rows: rowsOf([]string{"add <title> [--state <state>]", "file a new card"}),
+		}, 100)
+		before := laid.widths[0]
+		applyCeiling(&laid)
+		if laid.widths[0] != before {
+			t.Errorf("ceilingColumn %d: applyCeiling changed column 0 from %d to %d, and an out-of-range column should change nothing",
+				column, before, laid.widths[0])
+		}
+	}
+}
