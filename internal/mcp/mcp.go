@@ -332,7 +332,16 @@ func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]
 		}
 		return nil, contract.Refuse(contract.NoWorkbench, abs)
 	}
-	library := verb.New(opened, defaultLib.Home)
+	// A nil defaultLib is the no-discovery case the spec numbers as step 1 of
+	// resolveLibrary. The Home the verb library carries is empty then, which
+	// is the same shape an agent running the cli head against the per-call
+	// target sees: the library carries the bench it answered; it does not
+	// carry a separate home that has to be inherited.
+	var home string
+	if defaultLib != nil {
+		home = defaultLib.Home
+	}
+	library := verb.New(opened, home)
 	if libraries != nil {
 		libraries[abs] = library
 	}
