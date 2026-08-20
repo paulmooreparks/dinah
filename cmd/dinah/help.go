@@ -90,7 +90,11 @@ func (s *session) helpBlock() string {
 	var b strings.Builder
 	b.WriteString(s.r.T("help.tagline") + "\n\n")
 	b.WriteString(s.r.T("help.usage") + "\n")
-	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack}
+	// hasCeiling caps the syntax column at half the window: the top-level
+	// listing is the one table this tool draws with values wide enough to
+	// swallow the whole line on their own (check's flags run past ninety
+	// display columns), and no other table opts into this.
+	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack, ceilingColumn: 0, hasCeiling: true}
 	for _, group := range groups {
 		opening := true
 		for _, c := range commands {

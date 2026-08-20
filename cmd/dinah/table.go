@@ -73,6 +73,16 @@ type table struct {
 	// assumedWindow whenever no width is stated, so wrapping by default would
 	// rewrite the piped output of every listing the tool prints.
 	wrapTail bool
+	// ceilingColumn, together with hasCeiling, caps that column at half the
+	// window the table draws in, so a single outlying value can never push
+	// every field after it past the middle of the line. It is an opt-in a
+	// table takes for itself, the same way wrapTail is: every table that
+	// declares neither keeps measuring its columns at the width its values
+	// need, exactly as every table drew before this existed. Column 0 is a
+	// legitimate column to cap, so hasCeiling rather than a negative sentinel
+	// is what tells "no ceiling" apart from "column 0, capped".
+	ceilingColumn int
+	hasCeiling    bool
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -89,6 +99,13 @@ const tableGutter = 2
 // constant keeps a run whose window is unknown laying out the same way in
 // every terminal and in a pipe.
 const assumedWindow = 80
+
+// ceilingContinuationIndent is how far a ceiling-capped cell's continuation
+// sits past its row's own indent, once the value breaks: four columns, not
+// the column the field after it begins at. Aligning under that column would
+// repeat the crowding the ceiling exists to prevent, since the whole reason
+// the value broke is that it does not fit before that column.
+const ceilingContinuationIndent = 4
 
 // ruleGlyph is what a separator is drawn with. The table draws it rather than
 // serving it from a catalog, so no translation can change it and no
@@ -289,19 +306,26 @@ type laidTable struct {
 	// wrapTail is carried from the table, so the measure and the row assembly
 	// both read one answer.
 	wrapTail bool
+	// ceilingColumn and hasCeiling are carried from the table, so the ceiling
+	// pass and the row assembly both read one answer.
+	ceilingColumn int
+	hasCeiling    bool
 }
 
 // layOut removes the columns no row fills, chooses every column's width, and
 // returns what the heading, separator and rows are all drawn from.
 //
-// The three passes run in one order and the order is load-bearing. The measure
-// comes first, the near-miss widening second, and the narrow-window backstop
-// last, so that the backstop has the final word on how much of the window the
-// columns before the last one may take. Nothing widens a column after it. An
-// earlier reading of this ran the widening a second time at the end and priced
-// it at one display column, which is what one step costs rather than what a
-// loop over every value costs: each value between a narrowed column's floor
-// and the width it was measured at is a step the widening climbs back, so ten
+// The four passes run in one order and the order is load-bearing. The measure
+// comes first, the near-miss widening second, the ceiling third, and the
+// narrow-window backstop last, so that the backstop has the final word on how
+// much of the window the columns before the last one may take. Nothing widens
+// a column after it: the ceiling only ever narrows, so it composes with the
+// backstop rather than fighting it, and running it after the near-miss
+// widening keeps that pass free to reason about the measure alone. An earlier
+// reading of this ran the widening a second time at the end and priced it at
+// one display column, which is what one step costs rather than what a loop
+// over every value costs: each value between a narrowed column's floor and
+// the width it was measured at is a step the widening climbs back, so ten
 // ordinary state names at a forty-column window walked three columns out again
 // and put the last column past the room left for it.
 func (s *session) layOut(t table) laidTable {
@@ -310,8 +334,39 @@ func (s *session) layOut(t table) laidTable {
 		window = assumedWindow
 	}
 	laid := measure(t, window)
+	if laid.hasCeiling {
+		applyCeiling(&laid)
+	}
 	narrowToWindow(&laid)
 	return laid
+}
+
+// halfWindow is the widest a ceiling-bearing column may measure: half the
+// window it draws in, rounded down. layOut has already replaced an unknown
+// window with assumedWindow by the time this runs, so a piped run sees the
+// same ceiling every time it draws.
+func halfWindow(window int) int {
+	return window / 2
+}
+
+// applyCeiling narrows a table's declared column to halfWindow, never below
+// its own heading, since a heading is a floor every other pass in this file
+// respects too. A value still wider than the capped column takes its own
+// line at layout, exactly as a value the narrow-window backstop has taken a
+// column below already does; the ceiling reaches that same behaviour from a
+// window wide enough that the backstop never fires.
+func applyCeiling(laid *laidTable) {
+	c := laid.ceilingColumn
+	if c < 0 || c >= len(laid.widths) {
+		return
+	}
+	ceiling := halfWindow(laid.window)
+	if floor := displayWidth(laid.columns[c].heading); ceiling < floor {
+		ceiling = floor
+	}
+	if laid.widths[c] > ceiling {
+		laid.widths[c] = ceiling
+	}
 }
 
 // measure runs the two passes before the backstop: it removes the columns no
@@ -336,11 +391,13 @@ func measure(t table, window int) laidTable {
 		// read off the declared table for the same reason: those two helpers
 		// rebuild without it, so filled.wrapTail is false on every path and
 		// would silently retire a wrapping table's opt-in.
-		labels:   t.labels,
-		window:   window,
-		columns:  filled.columns,
-		rows:     filled.rows,
-		wrapTail: t.wrapTail,
+		labels:        t.labels,
+		window:        window,
+		columns:       filled.columns,
+		rows:          filled.rows,
+		wrapTail:      t.wrapTail,
+		ceilingColumn: t.ceilingColumn,
+		hasCeiling:    t.hasCeiling,
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
@@ -750,8 +807,15 @@ func (laid laidTable) ruleWidth(column, start int) int {
 // the length it went in however narrow the window. A column label wide enough
 // to reach the edge would wrap where a body cell wraps, which is the layout
 // this table asked for rather than a fault in it.
+//
+// A ceiling-bearing table stamps capIndent the same way, onto every row
+// alike, so a capped column's overflow resumes at the fixed indent rather
+// than under the column after it, in the heading row exactly as in the body.
 func (laid laidTable) rowLine(r tableRow) string {
 	built := row{indent: laid.indent, wrapTail: laid.wrapTail}
+	if laid.hasCeiling {
+		built.capIndent = ceilingContinuationIndent
+	}
 	for c, field := range r.fields {
 		if c == len(r.fields)-1 {
 			built.tail = field

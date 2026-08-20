@@ -226,22 +226,30 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 }
 
 // TestEnglishCommandListStartsEverySummaryAtOneColumn asserts that every
-// summary of the block bare dinah prints begins at one display column, and
-// that the two entries whose syntax cannot be laid out inside the window
-// continue on a line of their own instead of pushing their summary right.
+// summary of the block bare dinah prints begins at one of two display
+// columns, and that the six entries whose syntax cannot be laid out inside
+// the window continue on a line of their own instead of pushing their
+// summary right.
 //
-// The column is computed from the fixture's own syntax lines rather than typed
-// in: it is the indent, the widest syntax among the entries that fit an
-// eighty-column window packed tight, and the gutter. That comes to 41, which
-// is where the declared width of 39 started every summary before dinah-115,
-// and computing it is what makes this test read the rule rather than the
-// number a previous measurement produced.
+// The fitting column is computed from the fixture's own syntax lines rather
+// than typed in: it is the indent, the widest syntax among the entries that
+// fit an eighty-column window packed tight, and the gutter. That comes to
+// 41, which is where the declared width of 39 started every summary before
+// dinah-115, and computing it is what makes this test read the rule rather
+// than the number a previous measurement produced.
+//
+// The continued column is the syntax column's ceiling (dinah-200): a value
+// too wide for the column breaks onto its own line, and the field after it
+// resumes four columns past the row's own indent rather than under where
+// the fitting entries' summaries begin, since pushing it there would repeat
+// the crowding the ceiling exists to prevent.
 func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	got := runCLI(t, t.TempDir())
 	if got.code != 0 {
 		t.Fatalf("the help block: %d %s", got.code, got.errw)
 	}
 	want := 2 + widestFittingSyntax(t) + 2
+	continuedAt := 2 + ceilingContinuationIndent
 	lines := strings.Split(got.out, "\n")
 	continued, summaries := 0, 0
 	for _, c := range commands {
@@ -256,12 +264,14 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			}
 			summaries++
 			at := startColumnOf(line, summary)
+			wanted := want
 			if at < 0 {
 				continued++
 				at = startColumnOf(lines[i+1], summary)
+				wanted = continuedAt
 			}
-			if at != want {
-				t.Errorf("the summary of %s begins at display column %d and the measured layout puts it at %d", c.name, at, want)
+			if at != wanted {
+				t.Errorf("the summary of %s begins at display column %d and the measured layout puts it at %d", c.name, at, wanted)
 			}
 			break
 		}
