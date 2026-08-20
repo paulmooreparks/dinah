@@ -222,7 +222,7 @@ func (l *Library) Archive(req *Request) *Response {
 		Actor:    req.Actor,
 		Now:      now,
 		StateID:  stateSubject(entity),
-		StateRef: entity.Ref,
+		StateRef: stateRefSubject(entity),
 		Record:   func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
@@ -266,9 +266,9 @@ func (l *Library) Delete(req *Request) *Response {
 		Actor:         req.Actor,
 		Now:           now,
 		StateID:       stateSubject(entity),
-		StateRef:      entity.Ref,
+		StateRef:      stateRefSubject(entity),
 		WorkstreamID:  workstreamSubject(entity),
-		WorkstreamRef: entity.Ref,
+		WorkstreamRef: workstreamRefSubject(entity),
 		Record:        func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
@@ -452,6 +452,17 @@ func stateSubject(entity *bench.EntityRef) string {
 	return entity.ID
 }
 
+// stateRefSubject is StateRef's own reading of the same question stateSubject
+// answers for StateID, so the two stay paired and StructuralAct.StateRef's
+// documented invariant, empty exactly when StateID is, holds by construction
+// rather than by every entity kind but state happening to carry no Ref today.
+func stateRefSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "state" {
+		return ""
+	}
+	return entity.Ref
+}
+
 // workstreamSubject names the workstream a deletion is removing, and is empty
 // for an act on any other kind. It is what arms the membership scan the act
 // runs once its own sibling exists. Archiving passes it nothing, because a
@@ -461,6 +472,19 @@ func workstreamSubject(entity *bench.EntityRef) string {
 		return ""
 	}
 	return entity.ID
+}
+
+// workstreamRefSubject is WorkstreamRef's own reading of the same question
+// workstreamSubject answers for WorkstreamID, paired the same way
+// stateRefSubject pairs with stateSubject, so StructuralAct.WorkstreamRef's
+// documented invariant, empty exactly when WorkstreamID is, holds by
+// construction rather than by every entity kind but workstream happening to
+// carry no Ref today.
+func workstreamRefSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "workstream" {
+		return ""
+	}
+	return entity.Ref
 }
 
 // removalRecord composes the event a deletion is recorded by and names the

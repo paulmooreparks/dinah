@@ -81,6 +81,19 @@ func readAll() map[string]*Catalog {
 	return catalogs
 }
 
+// Complete lists the catalogs the language ruling declares fully translated:
+// the base language plus every locale a human has finished. Skeleton lists
+// the ruling's remaining declared locales, each shipped as a generated
+// skeleton until somebody translates it. The two lists are the single
+// declaration of that roster; a test in this package and a test in
+// internal/verb both read them rather than each carrying its own copy of the
+// same fact, which is what let German ship translated while two separate
+// hardcoded rosters still called it a skeleton.
+var Complete = []string{Base, "hi", "de"}
+
+// Skeleton is documented on Complete, which it is the other half of.
+var Skeleton = []string{"cs", "id", "es", "fil", "af"}
+
 // Tags lists every shipped locale tag, sorted, with the base language first
 // so a coverage report reads from the complete catalog outward.
 func Tags() []string {

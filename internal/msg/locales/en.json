@@ -727,15 +727,15 @@
     },
     "column.help.check": {
       "text": "What can go wrong",
-      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.help.order": {
       "text": "Order",
-      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.help.refusal": {
       "text": "Refusal",
-      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.holding.card": {
       "text": "Card",
@@ -946,7 +946,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, what can go wrong, and its exit codes.",
+      "text": "Run 'dinah help <command>' for one command's arguments, what can go wrong, and its exit codes.",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.read": {
@@ -978,15 +978,15 @@
       "context": "The first line of the help block, the tool's one-sentence description. The word Dinah names the product and stays in Latin script; do not respell it."
     },
     "help.usage": {
-      "text": "Usage: dinah \u003ccommand\u003e [arguments]",
+      "text": "Usage: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.actor.recorded": {
-      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor \u003cname\u003e` to change it, or `dinah config set actor` to clear it.",
+      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor <name>` to change it, or `dinah config set actor` to clear it.",
       "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.actor.unrecorded": {
-      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor \u003cname\u003e` to say who you are.",
+      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor <name>` to say who you are.",
       "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.done": {
@@ -1206,7 +1206,7 @@
       "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unknown-field.ordered": {
-      "text": " Only {instantField} accepts \u003e=, \u003c=, \u003e and \u003c.",
+      "text": " Only {instantField} accepts >=, <=, > and <.",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are."
     },
     "refusal.dinah.unknown-guide": {
@@ -1214,7 +1214,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-guide.next": {
-      "text": "run `dinah guide \u003ctopic\u003e` with one of them",
+      "text": "run `dinah guide <topic>` with one of them",
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation."
     },
     "refusal.dinah.unknown-key": {
@@ -1314,7 +1314,7 @@
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
     },
     "refusal.dinah.add-needs-a-state.next": {
-      "text": "; hand-edit {detail} to add a state to the states list and create its states/\u003cid\u003e/state.md, then run `dinah check` to confirm before trying `dinah add` again",
+      "text": "; hand-edit {detail} to add a state to the states list and create its states/<id>/state.md, then run `dinah check` to confirm before trying `dinah add` again",
       "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit."
     },
     "refusal.dinah.multiple-words": {
@@ -1386,7 +1386,7 @@
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner.next": {
-      "text": "; run `dinah config set actor \u003cname\u003e` to say so",
+      "text": "; run `dinah config set actor <name>` to say so",
       "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.no-reason": {
@@ -1956,6 +1956,150 @@
     "param.workstream.workstream.summary": {
       "text": "the workstream you are reading or writing, or the title of the one you are creating",
       "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "check.contents.1": {
+      "text": "the reference names something in this workbench",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.contents.2": {
+      "text": "the depth level is one this command declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.1": {
+      "text": "every axis named is one this tool groups on",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.2": {
+      "text": "no axis is named twice",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.3": {
+      "text": "the chain names at most four axes",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.4": {
+      "text": "the depth level is one this command declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "cmd.contents.summary": {
+      "text": "what an entity of the workbench contains",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block."
+    },
+    "cmd.tree.summary": {
+      "text": "the workbench's cards nested along a chain of axes",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
+    },
+    "column.tree.count": {
+      "text": "Count",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.entity": {
+      "text": "Entity",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.hidden": {
+      "text": "Not shown",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.reference": {
+      "text": "Reference",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.title": {
+      "text": "Title",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) contains nothing.",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake."
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) contains {count} entities.",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
+    },
+    "param.contents.depth.summary": {
+      "text": "how far down to draw, written as root, cards, entities, or all; entities when you name none",
+      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table."
+    },
+    "param.contents.ref.summary": {
+      "text": "this workbench written as `workbench` or `.`, a state, a card, or something below a card such as wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given."
+    },
+    "param.tree.depth.summary": {
+      "text": "how far down to draw, written as root, groups, or cards; cards when you name none",
+      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table."
+    },
+    "param.tree.group-by.summary": {
+      "text": "the axes to nest along, outermost first, up to four of them separated by commas; state,substate when you name none",
+      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated."
+    },
+    "param.tree.query.summary": {
+      "text": "which cards to nest, written as a query in one shell word or in quotation marks; every live card when you write none",
+      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads."
+    },
+    "refusal.dinah.chain-too-long": {
+      "text": "A group-by chain nests along at most {allowed} axes, and this one names {asked}.",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one."
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " Shorten the chain, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.repeated-axis": {
+      "text": "A group-by chain names each axis once, and this one names {detail} twice.",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " Remove the repeat, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah does not group on {detail}. The axes a tree may nest along are: {axes}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " Name one of those instead, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "Dinah has no depth level {detail} for this command. The levels it takes are: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " Name one of those instead, or run `dinah help` on the command to see what it checks.",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.unknown-path.next-addressed": {
+      "text": "; a {addressed} is named by its own reference rather than through whatever holds it",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a state through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or state, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path."
+    },
+    "tree.empty": {
+      "text": "No cards here.",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it."
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) holds {count} cards.",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it."
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) holds {held} cards, of which {matched} match the query.",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller."
+    },
+    "tree.hidden.depth": {
+      "text": "{count} not shown",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those."
+    },
+    "tree.hidden.filter": {
+      "text": "{count} filtered out",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's."
+    },
+    "tree.unset": {
+      "text": "(no value)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
     }
   }
 }

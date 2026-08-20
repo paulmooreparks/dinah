@@ -358,6 +358,41 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.unknown-field.next"},
 	},
 	{
+		// The axis list rides as a value read off the disposition table
+		// itself rather than written into the catalog, so an axis added to
+		// the vocabulary reaches this sentence without a translator being
+		// asked for anything.
+		Name:      UnknownAxis,
+		Values:    []string{"axes"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-axis.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-axis.next"},
+	},
+	{
+		// This sentence names the repeated axis and lists nothing, since the
+		// axis it names is already one of the legal ones and listing them
+		// would say so twice.
+		Name:      RepeatedAxis,
+		Fragments: []Fragment{{Key: "refusal.dinah.repeated-axis.next"}},
+		NextStep:  []string{"refusal.dinah.repeated-axis.next"},
+	},
+	{
+		// Two numbers and no axis name at all, because the chain that was
+		// refused may name nothing illegal.
+		Name:      ChainTooLong,
+		Values:    []string{"asked", "allowed"},
+		Fragments: []Fragment{{Key: "refusal.dinah.chain-too-long.next"}},
+		NextStep:  []string{"refusal.dinah.chain-too-long.next"},
+	},
+	{
+		// The levels ride as a value rather than as a Listing, because which
+		// ladder this refusal enumerates depends on the command that raised
+		// it and the head cannot resolve that without learning both.
+		Name:      UnknownDepth,
+		Values:    []string{"levels"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-depth.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-depth.next"},
+	},
+	{
 		Name:      UnknownGuide,
 		Listing:   "guides",
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-guide.next"}},
@@ -373,17 +408,22 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-key.next"},
 	},
 	{
-		// Two of the fifteen raise sites name a path on the filesystem and
-		// thirteen name something inside the workbench, so the next step
-		// splits on the value that separates the families.
+		// Two of the raise sites name a path on the filesystem and the rest
+		// name something inside the workbench, so the next step splits on the
+		// value that separates the families. A third family is a reader
+		// reaching a card or a state through whatever holds it, where the
+		// segment is a collection that plainly exists and the advice is to
+		// name the thing by its own reference instead.
 		Name:   UnknownPath,
-		Values: []string{"file"},
+		Values: []string{"file", "addressed"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-path.next-file", When: "file"},
+			{Key: "refusal.dinah.unknown-path.next-addressed", When: "addressed"},
 			{Key: "refusal.dinah.unknown-path.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unknown-path.next-file",
+			"refusal.dinah.unknown-path.next-addressed",
 			"refusal.dinah.unknown-path.next",
 		},
 	},

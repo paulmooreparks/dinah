@@ -389,6 +389,10 @@ func assignValue(req *verb.Request, name, value string) {
 		req.State = value
 	case "query":
 		req.Query = value
+	case "group-by":
+		req.GroupBy = value
+	case "depth":
+		req.Depth = value
 	case "action":
 		req.Action = value
 	case "field":

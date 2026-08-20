@@ -561,65 +561,151 @@ func reportInterruption(err error, act *StructuralAct, benchLock *Lock) error {
 // EntityRef is a reference resolved to an entity directory and the kind of
 // thing that directory holds.
 type EntityRef struct {
-	// Kind is one of workbench, state, workstream, card, comment,
-	// attachment and item.
+	// Kind is one of the containment grammar's kinds, as Contains names
+	// them: workbench, state, card, comment, item and attachment, plus
+	// workstream, which resolves through its own dedicated prefix rather
+	// than through the containment grammar.
 	Kind string
 	// Dir is the entity's directory.
 	Dir string
 	// ID is the entity's identifier, empty for the bench itself.
 	ID string
 	// Ref is what a person typed, or could type, to reach this entity: a
-	// state's slug (falling back to its identifier), empty for a kind that
-	// carries no human-readable form of its own. A refusal raised over this
-	// entity names it by Ref rather than by the bare ID, so a person who
-	// typed a slug is never told about a raw identifier they never saw.
+	// state's or a workstream's slug (falling back to its identifier), and
+	// for anything below a head, that head's own reference followed by the
+	// path down to it. It is empty only for the workbench itself, whose own
+	// spelling is a question this resolver does not settle. A refusal
+	// raised over this entity names it by Ref rather than by the bare ID,
+	// so a person who typed a slug is never told about a raw identifier
+	// they never saw, and a command drawing a header from an answer has an
+	// address to print in it.
 	Ref string
 	// Card is the card the entity belongs to, when one does.
 	Card *Card
 }
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
-// bench itself, a state, a workstream, a card, or a comment or attachment
-// below one.
+// bench itself, a state, a workstream, a card, or any entity below one of
+// those. It accepts the same references ResolvePath does, so a reference a
+// walk prints names the same entity to every command that takes one.
+//
+// An answer of kind card always carries the card, and an answer below a card
+// always carries the card it belongs to. Callers read Card without asking, and
+// the ones that ask read a nil as the entity belonging to no card at all: the
+// event a write records goes to the bench journal and the lock it takes is the
+// bench's. A half-filled answer therefore does not degrade, it misreports, so
+// the last guard below refuses rather than returning one.
 func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	ref = strings.TrimSpace(ref)
 	// The empty reference is this resolver's own case and IsWorkbenchRef does
 	// not carry it, because ResolvePath refuses it. See IsWorkbenchRef.
 	if ref == "" || IsWorkbenchRef(ref) {
-		return &EntityRef{Kind: "workbench", Dir: b.Root}, nil
+		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil
 	}
+	// A workstream names its own kind in the grammar, per WorkstreamRefPrefix,
+	// so it is tried before the states and the cards rather than falling
+	// through to them: a bare workstream reference would otherwise be
+	// shadowed by a state or a card sharing its name.
 	if entity, named, err := b.resolveWorkstreamRef(ref); named {
 		return entity, err
 	}
-	if state := b.StateByRef(ref); state != nil {
-		return &EntityRef{Kind: "state", Dir: filepath.Join(b.Root, StatesDir, state.ID), ID: state.ID, Ref: state.Ref()}, nil
-	}
 	head, rest, _ := strings.Cut(ref, "/")
-	found, err := b.ResolveCard(head)
-	if err != nil {
-		return nil, err
-	}
 	if rest == "" {
-		entity := &EntityRef{Kind: "card", Dir: found.Card.Dir, ID: found.Card.ID, Card: found.Card}
-		return entity, nil
+		if state := b.StateByRef(ref); state != nil {
+			return &EntityRef{
+				Kind: KindState,
+				Dir:  filepath.Join(b.Root, StatesDir, state.ID),
+				ID:   state.ID,
+				Ref:  state.Ref(),
+			}, nil
+		}
+		found, err := b.ResolveCard(head)
+		if err != nil {
+			return nil, err
+		}
+		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card}, nil
 	}
-	path, err := walkBelowCard(found.Card, rest)
+	path, card, err := b.resolveBelow(ref)
 	if err != nil {
 		return nil, err
 	}
-	dir := path
-	kind := "card"
-	switch filepath.Base(path) {
-	case CommentAnchor:
-		dir, kind = filepath.Dir(path), "comment"
-	case AttachmentAnchor:
-		dir, kind = filepath.Dir(path), "attachment"
-	case ItemAnchor:
-		dir, kind = filepath.Dir(path), "item"
-	case CardAnchor:
-		dir, kind = filepath.Dir(path), "card"
-	default:
+	kind, named := KindOfAnchor(filepath.Base(path))
+	if !named {
 		return nil, contract.Refuse(contract.UnknownPath, rest)
 	}
-	return &EntityRef{Kind: kind, Dir: dir, ID: filepath.Base(dir), Card: found.Card}, nil
+	// No reference reaches this guard today, because descend refuses a
+	// collection whose kind is addressed in its own right before anything
+	// half-filled is built, so deleting it reddens no test. It stays because
+	// the invariant belongs on this function rather than in the caller that
+	// happens to enforce it, and a reader meeting it here is told what every
+	// caller of ResolveEntity may assume.
+	if kind == KindCard && card == nil {
+		return nil, contract.Refuse(contract.UnknownCard, ref)
+	}
+	dir := filepath.Dir(path)
+	headKind, headRef, headDir := KindWorkbench, b.Slug, b.Root
+	if card != nil {
+		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
+	} else if !IsWorkbenchRef(head) && head != b.Slug {
+		if state := b.StateByRef(head); state != nil {
+			headKind, headRef = KindState, state.Ref()
+			headDir = filepath.Join(b.Root, StatesDir, state.ID)
+		}
+	}
+	return &EntityRef{
+		Kind: kind,
+		Dir:  dir,
+		ID:   filepath.Base(dir),
+		Ref:  b.refBelowHead(headKind, headRef, headDir, dir),
+		Card: card,
+	}, nil
+}
+
+// refBelowHead composes the reference of an entity sitting below a head: the
+// head's own reference, then one collection name and one position for each
+// level down to the entity. The head is whichever of the workbench, a state,
+// or a card the reference was resolved through.
+//
+// A position is the entity's place in its collection's creation order, which
+// is what a containment walk draws and what a person types, rather than the
+// identifier its directory is named for. Composing it here is what gives one
+// entity one spelling however the caller reached it, whether by an identifier,
+// by a narrowed checklist alias, or by the position itself.
+//
+// An entity this composer cannot name comes back with no reference at all,
+// because a reference naming the head instead would send a reader somewhere
+// they did not ask for, and an absent answer is one a caller can see.
+func (b *Bench) refBelowHead(headKind, headRef, headDir, dir string) string {
+	below, err := filepath.Rel(headDir, dir)
+	if err != nil {
+		return ""
+	}
+	// The path below a head alternates a collection's directory with one
+	// member's identifier, so every level is two segments and an odd count is
+	// a path this composer was never meant to be given.
+	segments := strings.Split(filepath.ToSlash(below), "/")
+	if len(segments)%2 != 0 {
+		return ""
+	}
+	ref, kind, at := headRef, headKind, headDir
+	for i := 0; i < len(segments); i += 2 {
+		mount, ok := MountOf(kind, segments[i])
+		if !ok {
+			return ""
+		}
+		collection := filepath.Join(at, mount.Dir)
+		position := 0
+		for n, id := range SortByOrdinal(collection, mount.Anchor, ListIDs(collection)) {
+			if id == segments[i+1] {
+				position = n + 1
+				break
+			}
+		}
+		if position == 0 {
+			return ""
+		}
+		ref = ref + "/" + mount.Dir + "/" + strconv.Itoa(position)
+		kind, at = mount.Kind, filepath.Join(collection, segments[i+1])
+	}
+	return ref
 }

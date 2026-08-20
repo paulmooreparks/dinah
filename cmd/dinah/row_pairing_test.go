@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -1529,6 +1530,170 @@ func sweptControlRecords(t *testing.T, block sweptBlock, tag string, lines []str
 		return nil
 	}
 	return readSweptRows(t, block, tag, recordLines[2:], columns)
+}
+
+// sweptTreeNode is one expected row of a tree block before its guide prefix is
+// composed: the four fields the row carries, and the rows nested under it. The
+// nesting is what decides the prefix, so the expectation is written as a shape
+// and flattened rather than written flat.
+type sweptTreeNode struct {
+	// ref is what the Reference column carries before the guide, which is the
+	// group's value on a group row and the entity's own reference elsewhere.
+	ref string
+	// entity is the Entity column: the axis on a group row and the kind on an
+	// entity row. Neither is translated, so both are the same in every locale.
+	entity string
+	// title is the Title column, empty on every group row.
+	title string
+	// count is the Count column, empty on a card of the grouped producer.
+	count string
+	// children are the rows drawn under this one.
+	children []sweptTreeNode
+}
+
+// sweptTreeRows flattens an expected tree, composing each row's guide prefix
+// out of its ancestors. A level whose node was the last of its siblings
+// contributes four spaces and every other contributes a trunk, and the node's
+// own piece is the corner where it is last and the tee where it is not. The
+// four pieces are the spec's own.
+func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
+	var rows [][]sweptCell
+	for at, node := range nodes {
+		piece, below := "|-- ", "|   "
+		if at == len(nodes)-1 {
+			piece, below = "`-- ", "    "
+		}
+		rows = append(rows, sweptTexts(ancestors+piece+node.ref, node.entity, node.title, node.count))
+		rows = append(rows, sweptTreeRows(node.children, ancestors+below)...)
+	}
+	return rows
+}
+
+// sweptSubstates are the three substates the grouped producer draws under a
+// state, in the order it draws them, which is the order the contract declares
+// them in rather than an order this fixture chose.
+var sweptSubstates = []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+
+// expectTree is dinah tree with no arguments: a group per declared state in
+// flow order, the three substates under each one whether or not a card stands
+// there, and the cards themselves at the third level.
+//
+// A group carries its value under Reference, its axis under Entity, nothing
+// under Title, and its own card count under Count. A card carries no count at
+// all, since the grouped producer counts cards rather than what a card holds.
+//
+// The cards of a group come in the order the fixture filed them. That is the
+// arrival order the producer draws here because no card of any group in this
+// fixture moved after another card of the same group was filed, and a fixture
+// that breaks that reddens this expectation rather than passing quietly.
+func expectTree(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var states []sweptTreeNode
+	for at, state := range r.states {
+		held := sweptCardsIn(r, at)
+		node := sweptTreeNode{ref: state.ref(), entity: bench.KindState, count: strconv.Itoa(len(held))}
+		for _, substate := range sweptSubstates {
+			var cards []sweptTreeNode
+			for _, card := range held {
+				if card.standing != substate {
+					continue
+				}
+				cards = append(cards, sweptTreeNode{ref: card.ref, entity: bench.KindCard, title: card.title})
+			}
+			group := sweptTreeNode{
+				ref:      substate,
+				entity:   verb.FieldSubstate,
+				count:    strconv.Itoa(len(cards)),
+				children: cards,
+			}
+			node.children = append(node.children, group)
+		}
+		states = append(states, node)
+	}
+	return sweptExpectation{
+		rows:   sweptTreeRows(states, ""),
+		source: "the record's states and cards, nested the way the default chain groups them",
+	}
+}
+
+// expectContents is dinah contents from the workbench root: the states in flow
+// order, then the cards in arrival order, then whatever each card holds.
+//
+// Every row carries a count here, including a card holding nothing, because
+// the containment producer counts what an entity contains rather than the
+// cards below a group.
+func expectContents(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var nodes []sweptTreeNode
+	for _, state := range r.states {
+		nodes = append(nodes, sweptTreeNode{
+			ref:    state.ref(),
+			entity: bench.KindState,
+			title:  state.title,
+			count:  "0",
+		})
+	}
+	for _, card := range sweptArrivalOrder(r) {
+		var comments []sweptTreeNode
+		for at, comment := range sweptCommentsOn(r, card.ref) {
+			comments = append(comments, sweptTreeNode{
+				ref:    card.ref + "/comments/" + strconv.Itoa(at+1),
+				entity: bench.KindComment,
+				title:  comment.body,
+				count:  "0",
+			})
+		}
+		nodes = append(nodes, sweptTreeNode{
+			ref:      card.ref,
+			entity:   bench.KindCard,
+			title:    card.title,
+			count:    strconv.Itoa(len(comments)),
+			children: comments,
+		})
+	}
+	return sweptExpectation{
+		rows:   sweptTreeRows(nodes, ""),
+		source: "the record's states and cards, walked the way the containment grammar mounts them",
+	}
+}
+
+// sweptArrivalOrder is the record's cards in the order the containment walk
+// draws them, which is the order they arrived in the state they now stand in.
+//
+// A card the fixture never moved arrived when it was filed, and every move the
+// fixture ran happened after every card was filed, so the unmoved cards come
+// first in filing order and the moved ones follow in the order of their last
+// move. That reproduces the arrival rule against the record rather than
+// against a card read back out of a workbench.
+func sweptArrivalOrder(r *sweptRecord) []sweptCardRecord {
+	moved := map[string]int{}
+	for at, act := range r.moves {
+		moved[act.card] = at
+	}
+	var stayed, travelled []sweptCardRecord
+	for _, card := range r.cards {
+		if _, ok := moved[card.ref]; ok {
+			travelled = append(travelled, card)
+			continue
+		}
+		stayed = append(stayed, card)
+	}
+	sort.SliceStable(travelled, func(i, j int) bool {
+		return moved[travelled[i].ref] < moved[travelled[j].ref]
+	})
+	return append(stayed, travelled...)
+}
+
+// sweptCommentsOn is the comments the record wrote onto one card, in the order
+// it wrote them, which is the order a positional reference counts in.
+func sweptCommentsOn(r *sweptRecord, ref string) []sweptCommentRecord {
+	var kept []sweptCommentRecord
+	for _, comment := range r.comments {
+		if comment.card == ref {
+			kept = append(kept, comment)
+		}
+	}
+	return kept
 }
 
 // sweptArgumentsCommand is the command dinah help <command> is asked about for

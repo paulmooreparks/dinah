@@ -180,6 +180,7 @@ var guides = map[string][]string{
 	"attach":       {"references"},
 	"archive":      {"references"},
 	"delete":       {"references"},
+	"contents":     {"references"},
 	"query":        {"query"},
 }
 
@@ -258,8 +259,20 @@ var params = map[string][]Param{
 	},
 	"next":  {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
 	"query": {{Name: "query", Rest: true}},
-	"show":  {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
-	"log":   {{Name: "card", Required: true, Shared: "card"}},
+	"tree": {
+		{Name: "query", Rest: true},
+		{Name: "group-by", Flag: true, Value: "axes"},
+		{Name: "depth", Flag: true, Value: "level"},
+	},
+	// contents writes its own sentence for ref rather than taking the shared
+	// one, because the shared sentence ends "not this workbench" and the
+	// workbench is the one reference contents is most often given.
+	"contents": {
+		{Name: "ref", Required: true, Guide: "references"},
+		{Name: "depth", Flag: true, Value: "level"},
+	},
+	"show": {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
+	"log":  {{Name: "card", Required: true, Shared: "card"}},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
 	"instructions": {{Name: "card", Display: "card|state", Required: true, Guide: "references"}},
