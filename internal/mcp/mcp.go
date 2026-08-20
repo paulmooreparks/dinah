@@ -12,11 +12,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
+	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
 
@@ -69,7 +72,12 @@ const (
 // The transport is the standard library's: encoding/json over bufio, which
 // covers the whole of what this head needs, so the module keeps its record of
 // no external dependencies.
-func Serve(library *verb.Library, in io.Reader, out io.Writer) error {
+//
+// root is the directory the server is bound to, defaultLib is the workbench
+// resolved at startup and may be nil when discovery did not resolve one, and
+// libraries is the map every per-call dispatch reads against. Serve owns the
+// map and the entries it opens, the way it owns the single library today.
+func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer) error {
 	reader := bufio.NewScanner(in)
 	reader.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	encoder := json.NewEncoder(out)
@@ -82,7 +90,7 @@ func Serve(library *verb.Library, in io.Reader, out io.Writer) error {
 		if err := json.Unmarshal([]byte(line), &req); err != nil {
 			continue
 		}
-		answer := dispatch(library, &req)
+		answer := dispatch(root, defaultLib, libraries, &req)
 		if answer == nil {
 			continue
 		}
@@ -95,18 +103,18 @@ func Serve(library *verb.Library, in io.Reader, out io.Writer) error {
 
 // dispatch answers one request, or returns nil for a notification, which
 // carries no identifier and wants no answer.
-func dispatch(library *verb.Library, req *request) *response {
+func dispatch(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, req *request) *response {
 	if len(req.ID) == 0 {
 		return nil
 	}
 	answer := &response{JSONRPC: "2.0", ID: req.ID}
 	switch req.Method {
 	case "initialize":
-		answer.Result = initializeResult(library)
+		answer.Result = initializeResult(root, defaultLib)
 	case "tools/list":
 		answer.Result = map[string]any{"tools": toolList()}
 	case "tools/call":
-		result, err := call(library, req.Params)
+		result, err := call(root, defaultLib, libraries, req.Params)
 		if err != nil {
 			answer.Error = &rpcError{Code: codeInvalidParams, Message: err.Error()}
 			return answer
@@ -132,7 +140,7 @@ func dispatch(library *verb.Library, req *request) *response {
 // initializeResult carries the working agreement and the orientation an agent
 // needs before its first tool call, served live from the binary and never
 // seeded into the bench.
-func initializeResult(library *verb.Library) map[string]any {
+func initializeResult(root string, defaultLib *verb.Library) map[string]any {
 	result := map[string]any{
 		"protocolVersion": Version,
 		"capabilities": map[string]any{
@@ -143,16 +151,22 @@ func initializeResult(library *verb.Library) map[string]any {
 			"name":    "dinah",
 			"version": verb.ToolRelease,
 		},
-		"instructions": workingAgreement(library),
+		"instructions": workingAgreement(root, defaultLib),
 	}
 	return result
 }
 
 // workingAgreement is section 8 of the profile: the four rules that bind an
-// owner rather than a tool, and the bench this process serves.
-func workingAgreement(library *verb.Library) string {
+// owner rather than a tool, and the bench this process serves. The default
+// library may be nil, when discovery did not resolve one; the rules still bind
+// the agent and the bench the call names is still the one the agent reads
+// about.
+func workingAgreement(root string, defaultLib *verb.Library) string {
 	var b strings.Builder
-	b.WriteString("You are working the workbench " + library.Bench.Title + ".\n\n")
+	catalog := msg.For(msg.Base)
+	if defaultLib != nil {
+		b.WriteString("You are working the workbench " + defaultLib.Bench.Title + ".\n\n")
+	}
 	b.WriteString("The working agreement, which binds you rather than the tool:\n")
 	b.WriteString("1. Claim a card before producing work on it.\n")
 	b.WriteString("2. Do not hold a claim on a card you have stopped working.\n")
@@ -162,7 +176,14 @@ func workingAgreement(library *verb.Library) string {
 	b.WriteString("A successful claim or move carries the instructions of the position in three ")
 	b.WriteString("separate layers and the moves the flow allows. Tokens are canonical on this ")
 	b.WriteString("surface and are never translated.\n\n")
-	b.WriteString("The operator of this workbench is " + library.Bench.Operator + ". ")
+	if defaultLib != nil {
+		b.WriteString(catalog.T("mcp.reach", "root", root, "title", defaultLib.Bench.Title))
+		b.WriteString("\n\n")
+		b.WriteString("The operator of this workbench is " + defaultLib.Bench.Operator + ". ")
+	} else {
+		b.WriteString(catalog.T("mcp.reach.nodefault", "root", root))
+		b.WriteString("\n\n")
+	}
 	b.WriteString("Read the embedded guides through resources/list and resources/read.\n")
 	return b.String()
 }
@@ -205,8 +226,21 @@ func readResource(params json.RawMessage) (map[string]any, error) {
 	return map[string]any{"contents": []map[string]any{content}}, nil
 }
 
-// call runs one tool and returns its canonical answer.
-func call(library *verb.Library, params json.RawMessage) (map[string]any, error) {
+// call runs one tool and returns its canonical answer. The workbench
+// argument is read off the tool call here, because this is the one site that
+// has to know which library answers; the workbench value never reaches the
+// library, since `workbench` tells the head rather than the library which
+// implementation of the verb runs.
+//
+// The workbenches tool acts on the root rather than on a library, so it is
+// answered ahead of the table lookup that leads to `run`, and the refusal it
+// carries when no workbench is reachable is the same one the override branch
+// of bench.DiscoverSource raises. Every other tool gets the per-call
+// resolution the spec describes: a missing or empty argument falls through to
+// the default, the value is resolved to an absolute path, the containment
+// check refuses anything outside the root, a missing workbench.md refuses,
+// and `bench.Open` runs last so its own refusals travel unchanged.
+func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, params json.RawMessage) (map[string]any, error) {
 	var args struct {
 		Name      string         `json:"name"`
 		Arguments map[string]any `json:"arguments"`
@@ -214,11 +248,20 @@ func call(library *verb.Library, params json.RawMessage) (map[string]any, error)
 	if err := json.Unmarshal(params, &args); err != nil {
 		return nil, err
 	}
+	if args.Name == "workbenches" {
+		return answerWorkbenches(root)
+	}
 	tool, ok := toolsByName[args.Name]
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownVerb, args.Name)
 	}
-	payload := tool.run(library, request2Args(tool.command, args.Arguments))
+	request := request2Args(tool.command, args.Arguments)
+	candidate, _ := args.Arguments["workbench"].(string)
+	library, refusal := resolveLibrary(root, defaultLib, libraries, request, candidate)
+	if refusal != nil {
+		return answerRefusal(request, refusal), nil
+	}
+	payload := tool.run(library, request)
 	encoded, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err
@@ -227,6 +270,86 @@ func call(library *verb.Library, params json.RawMessage) (map[string]any, error)
 		"content": []map[string]any{{"type": "text", "text": string(encoded)}},
 	}
 	return result, nil
+}
+
+// answerWorkbenches serves the workbenches tool: bench.Enumerate walks the
+// root, the rows are sorted by path, and the answer carries the same shape
+// every tool's payload carries. Enumerate refuses with NoWorkbenchFound when
+// its cache lookup fails, which is what an MCP caller would otherwise see as
+// a transport error; translating here keeps the refusal on the response side.
+func answerWorkbenches(root string) (map[string]any, error) {
+	listed, err := bench.Enumerate(root)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(listed, func(i, j int) bool {
+		return listed[i].Path < listed[j].Path
+	})
+	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "states", "list_cards", "next_card", "workbenches"})
+	encoded, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"content": []map[string]any{{"type": "text", "text": string(encoded)}},
+	}, nil
+}
+
+// resolveLibrary carries out the per-call workbench resolution. It returns
+// either a library and a nil refusal, or a nil library and the refusal that
+// comes back. The five steps the spec numbers are the order of the ifs below,
+// since each step names the refusal that came back when no later step ran.
+func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, request *verb.Request, candidate string) (*verb.Library, *contract.Refusal) {
+	if defaultLib == nil {
+		return nil, contract.Refuse(contract.NoWorkbenchFound, "")
+	}
+	if candidate == "" {
+		return defaultLib, nil
+	}
+	abs, err := filepath.Abs(candidate)
+	if err != nil {
+		return nil, contract.Refuse(contract.NoWorkbench, candidate)
+	}
+	contained, err := bench.PathUnderRoot(root, abs)
+	if err != nil {
+		return nil, contract.RefuseWith(contract.OutsideRoot, abs, map[string]string{"root": root})
+	}
+	if !contained {
+		return nil, contract.RefuseWith(contract.OutsideRoot, abs, map[string]string{"root": root})
+	}
+	if !bench.Exists(filepath.Join(abs, bench.WorkbenchAnchor)) {
+		return nil, contract.Refuse(contract.NoWorkbench, abs)
+	}
+	if libraries != nil {
+		if lib, ok := libraries[abs]; ok {
+			return lib, nil
+		}
+	}
+	opened, err := bench.Open(abs)
+	if err != nil {
+		return nil, contract.Refuse(contract.NoWorkbench, abs)
+	}
+	library := verb.New(opened, defaultLib.Home)
+	if libraries != nil {
+		libraries[abs] = library
+	}
+	return library, nil
+}
+
+// answerRefusal wraps a refused response in the content envelope every
+// payload travels through, so the MCP client reads it as a tool answer rather
+// than as a transport error.
+func answerRefusal(request *verb.Request, refusal *contract.Refusal) map[string]any {
+	response := verb.ComposeRefusal(request, refusal)
+	encoded, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return map[string]any{
+			"content": []map[string]any{{"type": "text", "text": err.Error()}},
+		}
+	}
+	return map[string]any{
+		"content": []map[string]any{{"type": "text", "text": string(encoded)}},
+	}
 }
 
 // request2Args builds a library request from the tool call's arguments, using

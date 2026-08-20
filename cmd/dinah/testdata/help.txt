@@ -47,7 +47,7 @@ WORKBENCH
   version [--catalogs]                   what Dinah is and what it conforms to
 
 SERVE
-  mcp                                    serve this workbench over MCP on stdio
+  mcp [--root <dir>]                     serve workbenches over MCP on stdio
 
 Global flags:
   Option             What it does
@@ -58,7 +58,7 @@ Global flags:
   --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
   --actor <name>     act as this owner
 
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 

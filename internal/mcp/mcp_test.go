@@ -55,10 +55,14 @@ func newLibrary(t *testing.T) *verb.Library {
 }
 
 // ask drives one JSON-RPC request through the head and returns the response.
+// The root defaults to the test's bench root, which holds exactly the one
+// workbench newLibrary opens; the libraries map is held by the test helper so
+// each ask call reuses what an earlier ask opened.
 func ask(t *testing.T, library *verb.Library, line string) *response {
 	t.Helper()
 	out := &strings.Builder{}
-	if err := Serve(library, strings.NewReader(line+"\n"), out); err != nil {
+	root := library.Bench.Root
+	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	answer := &response{}
@@ -117,8 +121,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 26 {
-		t.Errorf("wanted twenty-six tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 27 {
+		t.Errorf("wanted twenty-seven tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -343,7 +347,7 @@ func TestGuidesAreResourcesAndMatchTheCLI(t *testing.T) {
 func TestNotificationsGetNoAnswer(t *testing.T) {
 	library := newLibrary(t)
 	out := &strings.Builder{}
-	if err := Serve(library, strings.NewReader(`{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"), out); err != nil {
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(`{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"), out); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
 	if out.String() != "" {
@@ -572,7 +576,7 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 				t.Errorf("%s: the property %s describes itself with the bare catalog key %s", tool.Name, name, description)
 			}
 			described++
-			if name == "actor" || name == "basis" {
+			if name == "actor" || name == "basis" || name == "workbench" {
 				beyond++
 			}
 			if _, carried := property["enum"]; carried {
@@ -583,7 +587,9 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 	if described == 0 {
 		t.Fatal("no property was read, so this test proves nothing")
 	}
-	if beyond != 2*len(listed.Tools) {
-		t.Errorf("read %d actor and basis properties across %d tools, want one of each per tool", beyond, len(listed.Tools))
+	// workbenches is the one tool that does not carry a workbench property,
+	// so the injected count is three per tool minus the one exception.
+	if beyond != 3*len(listed.Tools)-1 {
+		t.Errorf("read %d injected properties across %d tools, want 3 per tool minus the workbenches exception", beyond, len(listed.Tools))
 	}
 }

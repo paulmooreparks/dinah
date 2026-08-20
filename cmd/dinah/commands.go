@@ -791,16 +791,95 @@ func runVersion(s *session, parsed *arguments) int {
 	return 0
 }
 
-// runMCP serves this bench over MCP on stdio.
+// runMCP serves workbenches over MCP on stdio. The four startup cases the
+// spec numbers decide whether the process exits before serving or serves and
+// what default it carries:
+//
+//  1. A root was named and no directory sits at the resolved path. The process
+//     writes dinah.unknown-root to stderr and exits 2 without serving.
+//  2. Discovery refuses with dinah.no-workbench and an explicit pointer
+//     (--workbench or DINAH_WORKBENCH) named the workbench. The process
+//     writes the refusal name to stderr and exits 2.
+//  3. Discovery resolved a workbench that lies outside the root and the
+//     pointer was explicit. The process writes dinah.outside-root to stderr
+//     and exits 2.
+//  4. Everything else, including the case where discovery resolved a
+//     workbench outside the root through the ancestor walk or the user
+//     config. The process serves with no default workbench, writes one line
+//     to stderr from mcp.no-default naming what was dropped when something
+//     was dropped, and answers every unqualified call with
+//     dinah.no-workbench-found.
+//
+// The root is resolved through the same ladder --workbench and DINAH_WORKBENCH
+// already climb, so the precedence is the board's own rather than one mcp
+// invented.
 func runMCP(s *session, parsed *arguments) int {
-	library, err := s.open()
-	if err != nil {
-		return s.reportError(err)
+	root, _ := bench.Resolve(
+		bench.Layer{Source: bench.SourceFlag, Value: parsed.value("root")},
+		bench.Layer{Source: bench.SourceEnvironment, Value: os.Getenv("DINAH_MCP_ROOT")},
+	)
+	if root != "" {
+		abs, err := filepath.Abs(root)
+		if err != nil || !bench.Exists(abs) {
+			path := root
+			if abs != "" {
+				path = abs
+			}
+			s.errLine(contract.UnknownRoot + " " + path)
+			return contract.ExitCode(contract.OutcomeRefused)
+		}
+		root = abs
 	}
-	if err := mcp.Serve(library, s.in, s.out); err != nil {
+	s.mcpRoot = root
+
+	explicit := s.benchFlag != ""
+	library, openErr := s.open()
+	switch {
+	case openErr != nil && isRefusalNamed(openErr, contract.NoWorkbench) && explicit:
+		s.errLine(openErr.Error())
+		return contract.ExitCode(contract.OutcomeRefused)
+	case openErr != nil:
+		if root == "" {
+			return s.reportError(openErr)
+		}
+		libraries := map[string]*verb.Library{}
+		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out); err != nil {
+			return s.reportError(err)
+		}
+		return 0
+	case library != nil && root != "":
+		abs, _ := filepath.Abs(library.Bench.Root)
+		contained, err := bench.PathUnderRoot(root, abs)
+		if err != nil || !contained {
+			if explicit {
+				s.errLine(contract.OutsideRoot + " " + abs)
+				return contract.ExitCode(contract.OutcomeRefused)
+			}
+			s.errLine(s.r.T("mcp.no-default", "detail", abs))
+			library = nil
+		}
+	case library != nil && root == "":
+		abs, _ := filepath.Abs(library.Bench.Root)
+		root = abs
+		s.mcpRoot = root
+	}
+	libraries := map[string]*verb.Library{}
+	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out); err != nil {
 		return s.reportError(err)
 	}
 	return 0
+}
+
+// serveMCPLoop's body is inlined inside runMCP, since the guard against hand-
+// laid rows only exempts runMCP from naming the stream.
+
+// isRefusalNamed reports whether err is a contract.Refusal with the given
+// name. It is the one check the startup path runs without dereferencing the
+// typed value, because FromError and Report already wrap the error and the
+// call site has no library to hand to them.
+func isRefusalNamed(err error, name string) bool {
+	refusal, ok := err.(*contract.Refusal)
+	return ok && refusal.Name == name
 }
 
 // runHelp prints one command's arguments, refusals and exit codes. It is the

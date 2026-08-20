@@ -346,7 +346,13 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 func (l *Library) FromError(req *Request, err error) *Response {
 	switch typed := err.(type) {
 	case *contract.Refusal:
-		return l.refuseWith(req, nil, typed.Name, typed.Detail, typed.Extra)
+		// A refusal always travels through ComposeRefusal, so a caller with a
+		// library and a caller without one compose the same shape. The
+		// affordances default to the no-card set and a card the library was
+		// holding never reaches this branch, so passing through ComposeRefusal
+		// rather than refuseWith drops the card the library might otherwise
+		// attach.
+		return ComposeRefusal(req, typed)
 	case *contract.Stale:
 		response := &Response{
 			Outcome:     contract.OutcomeStale,

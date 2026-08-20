@@ -6290,7 +6290,7 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
 		"actor", "description", "expires", "from", "kind", "lang",
-		"operator", "slug", "state", "workbench",
+		"operator", "root", "slug", "state", "workbench",
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",

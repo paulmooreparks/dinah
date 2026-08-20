@@ -594,7 +594,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "इस वर्कबेंच को stdio पर MCP से परोसें",
+      "text": "serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -715,15 +715,15 @@
     },
     "column.help.check": {
       "text": "क्या गलत हो सकता है",
-      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.help.order": {
       "text": "क्रम",
-      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.help.refusal": {
       "text": "अस्वीकृति",
-      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.holding.card": {
       "text": "कार्ड",
@@ -922,7 +922,7 @@
       "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language."
     },
     "help.environment": {
-      "text": "पर्यावरण: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -934,7 +934,7 @@
       "context": "The heading above the flags that belong to the invocation rather than to one command."
     },
     "help.footer": {
-      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help \u003ccommand\u003e' चलाएँ।",
+      "text": "किसी एक कमांड के तर्क, क्या गलत हो सकता है, और उसके निकास कोड देखने के लिए 'dinah help <command>' चलाएँ।",
       "context": "The last line of the help block, pointing at the per-command help."
     },
     "help.group.read": {
@@ -966,15 +966,15 @@
       "context": "The first line of the help block, the tool's one-sentence description."
     },
     "help.usage": {
-      "text": "प्रयोग: dinah \u003ccommand\u003e [arguments]",
+      "text": "प्रयोग: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are."
     },
     "init.actor.recorded": {
-      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, और अब आप जो भी करेंगे, Dinah उस पर यही नाम दर्ज करेगी। इसे बदलने के लिए `dinah config set actor \u003cname\u003e` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
+      "text": "Dinah ने आपको {path} में actor {actor} के रूप में दर्ज किया, और अब आप जो भी करेंगे, Dinah उस पर यही नाम दर्ज करेगी। इसे बदलने के लिए `dinah config set actor <name>` चलाएँ, या हटाने के लिए `dinah config set actor` चलाएँ।",
       "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.actor.unrecorded": {
-      "text": "Dinah ने वर्कबेंच बना दिया, लेकिन {path} में आपको actor के रूप में दर्ज नहीं कर सकी ({reason})। आप कौन हैं यह बताने के लिए `dinah config set actor \u003cname\u003e` चलाएँ।",
+      "text": "Dinah ने वर्कबेंच बना दिया, लेकिन {path} में आपको actor के रूप में दर्ज नहीं कर सकी ({reason})। आप कौन हैं यह बताने के लिए `dinah config set actor <name>` चलाएँ।",
       "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is."
     },
     "init.done": {
@@ -1095,7 +1095,7 @@
     },
     "refusal.dinah.no-workbench": {
       "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है",
-      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
+      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property."
     },
     "refusal.dinah.no-workbench.next": {
       "text": "; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
@@ -1103,7 +1103,7 @@
     },
     "refusal.dinah.no-workbench-found": {
       "text": "{detail} से ऊपर खोजने पर, और उपयोगकर्ता आधार {home} में भी, कोई वर्कबेंच नहीं मिली",
-      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
+      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from or the directory the MCP server started in, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-workbench-found.next": {
       "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें",
@@ -1174,7 +1174,7 @@
       "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unknown-field.ordered": {
-      "text": " केवल {instantField} \u003e=, \u003c=, \u003e और \u003c स्वीकार करता है।",
+      "text": " केवल {instantField} >=, <=, > और < स्वीकार करता है।",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are."
     },
     "refusal.dinah.unknown-guide": {
@@ -1182,7 +1182,7 @@
       "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.dinah.unknown-guide.next": {
-      "text": "इनमें से किसी एक के साथ `dinah guide \u003ctopic\u003e` चलाएँ",
+      "text": "इनमें से किसी एक के साथ `dinah guide <topic>` चलाएँ",
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation."
     },
     "refusal.dinah.unknown-key": {
@@ -1274,7 +1274,7 @@
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."
     },
     "refusal.dinah.add-needs-a-state.next": {
-      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/\u003cid\u003e/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "text": "; {detail} को हाथ से बदलकर states सूची में एक स्थिति जोड़ें और उसकी states/<id>/state.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
       "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit."
     },
     "refusal.dinah.multiple-words": {
@@ -1346,7 +1346,7 @@
       "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about."
     },
     "refusal.no-owner.next": {
-      "text": "; यह बताने के लिए `dinah config set actor \u003cname\u003e` चलाएँ",
+      "text": "; यह बताने के लिए `dinah config set actor <name>` चलाएँ",
       "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.no-reason": {
@@ -1778,7 +1778,7 @@
       "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table."
     },
     "param.check.migrate-workstreams.summary": {
-      "text": "\u0939\u0930 \u0909\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u094b \u0905\u092a\u0928\u093e\u090f\u0901 \u091c\u093f\u0938\u0947 \u0915\u094b\u0908 \u0915\u093e\u0930\u094d\u0921 \u0928\u093e\u092e \u0926\u0947\u0924\u093e \u0939\u0948 \u0914\u0930 \u092f\u0939 \u0935\u0930\u094d\u0915\u092c\u0947\u0902\u091a \u0928\u0939\u0940\u0902 \u0930\u0916\u0924\u093e",
+      "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
     },
     "param.claim.card.summary": {
@@ -1890,24 +1890,72 @@
       "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table."
     },
     "param.workstream.action.summary": {
-      "text": "\u090f\u0915 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u092c\u0928\u093e\u090f\u0901, \u090f\u0915 \u092a\u0922\u093c\u0947\u0902, \u092f\u093e \u0915\u093f\u0938\u0940 \u090f\u0915 \u0915\u093e \u092b\u093c\u0940\u0932\u094d\u0921 \u0932\u093f\u0916\u0947\u0902; \u0915\u0941\u091b \u0928 \u0932\u093f\u0916\u0928\u0947 \u092a\u0930 \u0939\u0930 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e",
+      "text": "एक वर्कस्ट्रीम बनाएँ, एक पढ़ें, या किसी एक का फ़ील्ड लिखें; कुछ न लिखने पर हर वर्कस्ट्रीम",
       "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table."
     },
     "param.workstream.field.summary": {
-      "text": "\u0906\u092a \u0915\u094c\u0928-\u0938\u093e \u092b\u093c\u0940\u0932\u094d\u0921 \u092a\u0922\u093c \u092f\u093e \u0932\u093f\u0916 \u0930\u0939\u0947 \u0939\u0948\u0902",
+      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
       "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table."
     },
     "param.workstream.summary": {
-      "text": "\u091c\u093f\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u093e \u0928\u093e\u092e \u0906\u092a \u0932\u0947 \u0930\u0939\u0947 \u0939\u0948\u0902, \u0909\u0938\u0915\u0947 slug \u092f\u093e \u0909\u0938\u0915\u0940 \u092a\u0939\u091a\u093e\u0928 \u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902",
+      "text": "जिस वर्कस्ट्रीम का नाम आप ले रहे हैं, उसके slug या उसकी पहचान के रूप में",
       "context": "The meaning of the workstream argument, shared by the commands that name one."
     },
     "param.workstream.value.summary": {
-      "text": "set \u092a\u0930, \u0909\u0938\u092e\u0947\u0902 \u0915\u094d\u092f\u093e \u0930\u0916\u0928\u093e \u0939\u0948",
+      "text": "set पर, उसमें क्या रखना है",
       "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table."
     },
     "param.workstream.workstream.summary": {
-      "text": "\u091c\u093f\u0938 \u0935\u0930\u094d\u0915\u0938\u094d\u091f\u094d\u0930\u0940\u092e \u0915\u094b \u0906\u092a \u092a\u0922\u093c \u092f\u093e \u0932\u093f\u0916 \u0930\u0939\u0947 \u0939\u0948\u0902, \u092f\u093e \u091c\u093f\u0938\u0947 \u092c\u0928\u093e \u0930\u0939\u0947 \u0939\u0948\u0902 \u0909\u0938\u0915\u093e \u0936\u0940\u0930\u094d\u0937\u0915",
+      "text": "जिस वर्कस्ट्रीम को आप पढ़ या लिख रहे हैं, या जिसे बना रहे हैं उसका शीर्षक",
       "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "check.mcp.1": {
+      "text": "the directory --root names is one the filesystem carries",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist."
+    },
+    "check.mcp.2": {
+      "text": "the workbench you name lies under the root",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root."
+    },
+    "tool.workbenches.summary": {
+      "text": "the workbenches this server may serve",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root."
+    },
+    "mcp.reach": {
+      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title."
+    },
+    "mcp.reach.nodefault": {
+      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named."
+    },
+    "mcp.no-default": {
+      "text": "no default workbench: {detail}",
+      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer."
+    },
+    "refusal.dinah.outside-root": {
+      "text": "{detail} lies outside {root}, the root the server was started with",
+      "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named."
+    },
+    "refusal.dinah.outside-root.next": {
+      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded."
+    },
+    "refusal.dinah.unknown-root": {
+      "text": "{detail} is not a directory the filesystem carries",
+      "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named."
+    },
+    "refusal.dinah.unknown-root.next": {
+      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal."
+    },
+    "schema.workbench.description": {
+      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
+    },
+    "param.mcp.root.summary": {
+      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table."
     }
   }
 }

@@ -318,7 +318,7 @@ var params = map[string][]Param{
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
-	"mcp":  {},
+	"mcp":  {{Name: "root", Flag: true, Value: "dir"}},
 	"help": {{Name: "command", Required: true}},
 }
 

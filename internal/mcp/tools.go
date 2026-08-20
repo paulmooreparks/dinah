@@ -14,6 +14,12 @@ import (
 // unixy form reads as an abbreviation to a reader who never saw the cli. That
 // gives list_cards, add_card and next_card, and leaves every other name as it
 // stands.
+//
+// summaryKey overrides the catalog key toolList reads to describe a tool. It
+// is empty on every tool except one whose command's own summary would be
+// false on this surface: workbenches, whose command answers "what is
+// reachable from here" and whose MCP tool answers "what this server may
+// serve".
 type tool struct {
 	// name is what an agent calls.
 	name string
@@ -22,6 +28,9 @@ type tool struct {
 	command string
 	// run answers the call with a value that marshals to the canonical form.
 	run func(*verb.Library, *verb.Request) any
+	// summaryKey, when set, replaces "cmd.<command>.summary" as the catalog
+	// key toolList reads.
+	summaryKey string
 }
 
 // tools is the whole MCP surface. A command that exists only because a shell
@@ -33,6 +42,13 @@ type tool struct {
 // repository, where a user setting is a machine artifact, and the operator
 // check guards the write here exactly as it does at a terminal, because the
 // library holds it.
+//
+// workbenches is the one tool that sat inside the rule while the head served
+// one workbench and sits outside it now. The rule's reason is unchanged:
+// every other excluded command needs a shell or a filesystem to make sense.
+// workbenches needs neither, and the workbench argument creates an address
+// space an agent cannot enumerate from any other tool. The exception is the
+// reason for the rule, not a contradiction of it.
 var tools = []tool{
 	{name: "claim", command: verb.Claim, run: doVerb},
 	{name: "move", command: verb.Move, run: doVerb},
@@ -60,6 +76,7 @@ var tools = []tool{
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},
+	{name: "workbenches", command: "workbenches", run: nil, summaryKey: "tool.workbenches.summary"},
 }
 
 // toolsByName indexes the surface for dispatch.
@@ -80,10 +97,14 @@ func toolList() []map[string]any {
 	catalog := msg.For(msg.Base)
 	list := make([]map[string]any, 0, len(tools))
 	for _, t := range tools {
+		descriptionKey := "cmd." + t.command + ".summary"
+		if t.summaryKey != "" {
+			descriptionKey = t.summaryKey
+		}
 		entry := map[string]any{
 			"name":        t.name,
-			"description": catalog.T("cmd." + t.command + ".summary"),
-			"inputSchema": schemaFor(t.command),
+			"description": catalog.T(descriptionKey),
+			"inputSchema": schemaFor(t),
 		}
 		list = append(list, entry)
 	}
@@ -95,19 +116,25 @@ func toolList() []map[string]any {
 //
 // Every property carries the same sentence the cli head prints beside the
 // argument, so an agent reading the schema and a person reading the help page
-// are told the same thing. The two properties beyond the parameter list are
-// resolved by name, because neither is a parameter: actor takes the sentence
-// the global flag row already prints, and basis takes one written for it.
+// are told the same thing. The three properties beyond the parameter list are
+// resolved by name, because none is a parameter: actor takes the sentence
+// the global flag row already prints, basis takes one written for it, and
+// workbench takes one written for the address space the MCP head binds.
+//
+// The workbench property is held out for workbenches itself, which would
+// otherwise carry a property whose value the tool does not consume; the
+// exclusion is the one case the uniformity rule gives up, since a caller
+// asking what the property may say cannot already know the answer.
 //
 // No property carries an enum. A description is additive and constrains no
 // caller, where an enum changes what a strict client will send, which is a
 // change to a published machine interface.
-func schemaFor(command string) map[string]any {
+func schemaFor(t tool) map[string]any {
 	catalog := msg.For(msg.Base)
 	properties := map[string]any{}
 	var required []string
-	for _, param := range verb.Params(command) {
-		description := catalog.T(param.SummaryKey(command))
+	for _, param := range verb.Params(t.command) {
+		description := catalog.T(param.SummaryKey(t.command))
 		properties[param.Name] = map[string]any{"type": param.Type(), "description": description}
 		if param.Required {
 			required = append(required, param.Name)
@@ -115,6 +142,9 @@ func schemaFor(command string) map[string]any {
 	}
 	properties["actor"] = map[string]any{"type": "string", "description": catalog.T("flag.actor.summary")}
 	properties["basis"] = map[string]any{"type": "string", "description": catalog.T("schema.basis.description")}
+	if t.name != "workbenches" {
+		properties["workbench"] = map[string]any{"type": "string", "description": catalog.T("schema.workbench.description")}
+	}
 	sort.Strings(required)
 	schema := map[string]any{
 		"type":       "object",

@@ -229,6 +229,14 @@
       "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.mcp.1": {
+      "text": "the directory --root names is one the filesystem carries",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist."
+    },
+    "check.mcp.2": {
+      "text": "the workbench you name lies under the root",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root."
+    },
     "check.missing-anchor": {
       "text": "directory {detail} carries no anchor file, so it does not count as part of the workbench",
       "context": "A check finding: a hex directory without its anchor."
@@ -594,8 +602,12 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "serve this workbench over MCP on stdio",
+      "text": "serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
+    },
+    "tool.workbenches.summary": {
+      "text": "the workbenches this server may serve",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root."
     },
     "cmd.move.summary": {
       "text": "carry a card to another state",
@@ -922,7 +934,7 @@
       "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language."
     },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -1008,6 +1020,18 @@
     "ls.empty": {
       "text": "No cards here.",
       "context": "Printed when a listing has nothing in it."
+    },
+    "mcp.reach": {
+      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title."
+    },
+    "mcp.reach.nodefault": {
+      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named."
+    },
+    "mcp.no-default": {
+      "text": "no default workbench: {detail}",
+      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer."
     },
     "next.none": {
       "text": "nothing ready",
@@ -1095,7 +1119,7 @@
     },
     "refusal.dinah.no-workbench": {
       "text": "{detail} was named by --workbench, and it carries no workbench.md",
-      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
+      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property."
     },
     "refusal.dinah.no-workbench.next": {
       "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
@@ -1103,7 +1127,7 @@
     },
     "refusal.dinah.no-workbench-found": {
       "text": "no workbench was found walking up from {detail}, or in the user base at {home}",
-      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to."
+      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from or the directory the MCP server started in, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-workbench-found.next": {
       "text": "; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists",
@@ -1124,6 +1148,14 @@
     "refusal.dinah.occupied.next": {
       "text": "; move them out with `dinah move` first, then try again",
       "context": "Spliced onto refusal.dinah.occupied as the next step."
+    },
+    "refusal.dinah.outside-root": {
+      "text": "{detail} lies outside {root}, the root the server was started with",
+      "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named."
+    },
+    "refusal.dinah.outside-root.next": {
+      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded."
     },
     "refusal.dinah.referenced": {
       "text": "cards still belong to workstream {detail}",
@@ -1204,6 +1236,14 @@
     "refusal.dinah.unknown-path.next": {
       "text": "; run `dinah ls` to see what this workbench carries",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to."
+    },
+    "refusal.dinah.unknown-root": {
+      "text": "{detail} is not a directory the filesystem carries",
+      "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named."
+    },
+    "refusal.dinah.unknown-root.next": {
+      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal."
     },
     "refusal.dinah.unknown-value": {
       "text": "Dinah does not accept {detail} in {term}.",
@@ -1713,6 +1753,10 @@
       "text": "Dinah computes a basis for every request that changes something, and nothing here offers a way to write one, so leave this property alone.",
       "context": "The description of the basis property, which every generated machine schema carries and no command declares."
     },
+    "schema.workbench.description": {
+      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
+    },
     "param.card.summary": {
       "text": "the card you are acting on, written as its reference, such as wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
@@ -1856,6 +1900,10 @@
     "param.move.override.summary": {
       "text": "carry the card even where the flow offers no such move",
       "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table."
+    },
+    "param.mcp.root.summary": {
+      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table."
     },
     "param.next.state.summary": {
       "text": "which state to offer a card from, also written --state <state>; every state when you name none",
