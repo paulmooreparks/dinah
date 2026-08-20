@@ -473,6 +473,50 @@ func TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine(t *testing.T) 
 	}
 }
 
+// TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryDrawsSyntaxThenSummary
+// checks the one interaction dinah-200's tail-wrapping opt-in creates: a row
+// whose capped column needs three lines and whose summary, wrapping through
+// the same breakTail the arguments table already uses, needs two lines of
+// its own.
+//
+// The two wraps are independent axes and this asserts they do not get
+// folded into one interleaved run: every line of the capped column's own
+// continuation comes before every line of the summary's, so a reader sees
+// the whole option list first and the whole description after, rather than
+// a description line landing between two option-list lines it has nothing
+// to do with.
+func TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryDrawsSyntaxThenSummary(t *testing.T) {
+	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	summary := "look for structural defects in this workbench and repair what can be repaired automatically"
+	laid := tableSession(80).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0, wrapTail: true,
+		rows: rowsOf([]string{value, summary}),
+	})
+	room := laid.widths[0]
+	wrapIndent := laid.indent + ceilingContinuationIndent
+	syntaxLines := strings.Split(breakWords(value, wrapIndent, room), "\n")
+	if len(syntaxLines) < 3 {
+		t.Fatalf("this fixture is meant to need at least three lines for its syntax at a window of 80, got %d: %q", len(syntaxLines), syntaxLines)
+	}
+	begins := laid.indent + room + tableGutter
+	summaryLines := strings.Split(breakTail(summary, begins, laid.window), "\n")
+	if len(summaryLines) < 2 {
+		t.Fatalf("this fixture is meant to need at least two lines for its summary at a window of 80, got %d: %q", len(summaryLines), summaryLines)
+	}
+
+	want := strings.Repeat(" ", laid.indent) + pad(syntaxLines[0], room+tableGutter) + summaryLines[0]
+	for _, line := range syntaxLines[1:] {
+		want += "\n" + line
+	}
+	for _, line := range summaryLines[1:] {
+		want += "\n" + line
+	}
+	if got := laid.rowLine(laid.rows[0]); got != want {
+		t.Errorf("a row whose syntax wraps three lines and whose summary also wraps drew:\n%q\nwant:\n%q", got, want)
+	}
+}
+
 // TestACappedValueWhoseFirstWordOverrunsFallsBackToOwnLines asserts the sane
 // fallback for the one case wrapping cannot help: a single word wider than
 // the ceiling on its own. breakWords writes such a word whole rather than

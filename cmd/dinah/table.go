@@ -837,6 +837,15 @@ func (laid laidTable) rowLine(r tableRow) string {
 // capped value needs, which is what keeps a reader's eye running down the
 // summaries in a straight line rather than chasing them down the page.
 //
+// The field after the capped column wraps too, through breakTail, exactly
+// as it already does for the arguments table's own tail, when the table
+// declares wrapTail. The two wraps are independent (a value that needs
+// three lines and a summary that needs two are not the same axis), so this
+// draws the capped column's own continuation lines first and the summary's
+// after, rather than letting formatRow's ordinary wrapTail handling fold
+// them into one interleaved run where a reader cannot tell which column a
+// given line belongs to.
+//
 // This assumes the shape hasCeiling exists for: exactly two columns, the
 // capped one first and an unpadded field after it. A table asking for a
 // ceiling on any other shape is not a case this draws correctly, and none
@@ -844,12 +853,12 @@ func (laid laidTable) rowLine(r tableRow) string {
 //
 // A value whose very first word is wider than the column on its own is the
 // one case wrapping cannot help: breakWords writes that word whole rather
-// than splitting it, exactly as breakTail already does for the last column
-// of a different table, so the same word can still reach past the cap. Such
-// a row falls back to the shape a capped overflow drew before wrapping
-// existed: the whole capped value on its own lines, and the field after it
-// on one further line of its own, rather than fighting the first line for
-// room the word cannot leave it.
+// than splitting it, exactly as breakTail already does for a tail, so the
+// same word can still reach past the cap. Such a row falls back to the
+// shape a capped overflow drew before wrapping existed: the whole capped
+// value on its own lines, and the field after it on one further line of
+// its own (wrapped the same way, if the table asks for it), rather than
+// fighting the first line for room the word cannot leave it.
 func (laid laidTable) ceilingRowLine(r tableRow) string {
 	c := laid.ceilingColumn
 	room := laid.widths[c]
@@ -860,24 +869,42 @@ func (laid laidTable) ceilingRowLine(r tableRow) string {
 		after = r.fields[c+1]
 	}
 	wrapped := breakWords(value, wrapIndent, room)
-	first, rest, more := strings.Cut(wrapped, "\n")
+	first, syntaxRest, moreSyntax := strings.Cut(wrapped, "\n")
 
 	// A single word wider than the cap on its own is the one case wrapping
 	// cannot help: breakWords writes it whole, exactly as breakTail already
-	// does for the last column of a different table, so first can still
-	// overrun room. There, the value draws on its own line or lines and the
-	// field after it follows on one line of its own, rather than fighting
-	// the value for room its own first word already used up.
+	// does for a tail, so first can still overrun room. There, the value
+	// draws on its own line or lines and the field after it follows on one
+	// line of its own, wrapped the same way a wrapping table's own tail
+	// wraps, rather than fighting the value for room its own first word
+	// already used up.
 	if displayWidth(first) > room {
 		whole := formatRow(row{indent: laid.indent, tail: wrapped}, laid.window)
-		trailer := formatRow(row{indent: wrapIndent, tail: after}, laid.window)
+		trailer := formatRow(row{indent: wrapIndent, tail: after, wrapTail: laid.wrapTail}, laid.window)
 		return whole + "\n" + trailer
 	}
-	line := formatRow(row{indent: laid.indent, cells: []cell{{text: first, width: room + tableGutter}}, tail: after}, laid.window)
-	if !more {
-		return line
+
+	// The field after the capped column wraps through breakTail exactly as
+	// the arguments table's own tail does, at the column it begins in on
+	// the row's first line. Only its own first segment goes into the cell
+	// row below; its further lines are appended after the capped column has
+	// had its own say, rather than folded into formatRow's ordinary
+	// wrapTail handling, which would interleave a capped value's own
+	// continuation lines between the summary's, one column pretending to be
+	// the other's.
+	summary, summaryRest, moreSummary := after, "", false
+	if laid.wrapTail && laid.window > 0 {
+		begins := laid.indent + room + tableGutter
+		summary, summaryRest, moreSummary = strings.Cut(breakTail(after, begins, laid.window), "\n")
 	}
-	return line + "\n" + rest
+	line := formatRow(row{indent: laid.indent, cells: []cell{{text: first, width: room + tableGutter}}, tail: summary}, laid.window)
+	if moreSyntax {
+		line += "\n" + syntaxRest
+	}
+	if moreSummary {
+		line += "\n" + summaryRest
+	}
+	return line
 }
 
 // rule returns a separator's run of glyphs, built one column at a time so that

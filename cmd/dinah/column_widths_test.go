@@ -229,7 +229,10 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 // summary of the block bare dinah prints begins at the same display column,
 // whether its own syntax fits on one line or wraps across several, since the
 // syntax column now measures at the declared ceiling rather than at the
-// width its own values need (dinah-200).
+// width its own values need (dinah-200). The summary itself may also wrap,
+// through the same wrapTail the arguments table already uses, and this
+// checks the summary's own first line rather than the whole text for that
+// reason.
 //
 // The column is computed from the rule the renderer follows rather than
 // typed in: the indent, half of the window the block draws at (assumedWindow,
@@ -237,7 +240,11 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 // whose usage is wider than that half needs more than one line for it, and
 // this asserts the count of those against the six the fixture is known to
 // carry, so a change to the command list that stops exercising the wrap is
-// caught here rather than by a coincidence elsewhere.
+// caught here rather than by a coincidence elsewhere. It separately counts
+// how many summaries wrap, against no fixed number, since which summaries
+// are long enough depends on the catalog text this test does not own; the
+// count only has to be positive, which is what proves the interaction this
+// test exists for is actually exercised.
 func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	got := runCLI(t, t.TempDir())
 	if got.code != 0 {
@@ -247,7 +254,7 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	wrapIndent := 2 + ceilingContinuationIndent
 	want := 2 + room + tableGutter
 	lines := strings.Split(got.out, "\n")
-	wrapped, summaries := 0, 0
+	wrapped, summariesWrapped, summaries := 0, 0, 0
 	for _, c := range commands {
 		if c.group == "" {
 			continue
@@ -258,6 +265,10 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 		if first != usage {
 			wrapped++
 		}
+		summaryFirst := strings.Split(breakTail(summary, want, assumedWindow), "\n")[0]
+		if summaryFirst != summary {
+			summariesWrapped++
+		}
 		found := false
 		for _, line := range lines {
 			if !strings.HasPrefix(line, "  "+first) {
@@ -265,7 +276,7 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			}
 			found = true
 			summaries++
-			if at := startColumnOf(line, summary); at != want {
+			if at := startColumnOf(line, summaryFirst); at != want {
 				t.Errorf("the summary of %s begins at display column %d and the ceiling puts it at %d", c.name, at, want)
 			}
 			break
@@ -279,6 +290,9 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	}
 	if wrapped != 6 {
 		t.Errorf("%d entries wrapped across more than one line, want the six whose syntax is wider than half the window", wrapped)
+	}
+	if summariesWrapped == 0 {
+		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")
 	}
 	if want != 44 {
 		t.Errorf("the ceiling-bearing summary column measures %d, and this shape has started it at 44 since the ceiling was declared", want)

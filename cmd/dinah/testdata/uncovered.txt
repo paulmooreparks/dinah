@@ -16,8 +16,8 @@
 # simply unreached: each is a human rendering the suite has never printed, and
 # each is worth a test rather than a permanent line here.
 
-help.go:137.32,139.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
-help.go:228.9,230.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
+help.go:140.32,142.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
+help.go:231.9,233.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
 render.go:49.29,51.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
 render.go:51.27,53.4  the same, on the branch where the stale response carries a card.
 render.go:54.3,54.102  the same, writing the stale sentence.
