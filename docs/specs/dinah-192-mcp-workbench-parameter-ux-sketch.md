@@ -13,6 +13,12 @@ below names a directory of his. The scratch tree sits at `C:\dinah-scratch\dinah
 outside his profile, and `DINAH_HOME`, `TMP`, and `TEMP` all pointed inside it for every
 run.
 
+Section 5's two blocks were rendered again, later, from a second throwaway build in
+`C:\dinah-scratch\dinah-192-spec3`, because the sentence one of them prints was shortened
+after they were first drawn. Both are generated help pages and neither names a directory of
+anybody's, so the change of scratch tree costs the two blocks nothing. Every other block on
+this page is the one the earlier build produced.
+
 The scratch tree holds four workbenches, every one of them created by running `dinah init`
 in a directory this card made. Two of them lie under the root the server below is started
 with, at `benchroot\plans` and `benchroot\plans-archive`. The third lies outside that root
@@ -287,22 +293,28 @@ What you may write:
                    workbench Dinah discovers at startup when you name none
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                     Refusal
-  -----  ------------------------------------  ------------------
-  1      --root names a directory that exists  dinah.unknown-root
-  2      the workbench --workbench or DINAH_WORKBENCH names lies under the root
-                                               dinah.outside-root
+  Order  What can go wrong                           Refusal
+  -----  ------------------------------------------  ------------------
+  1      --root names a directory that exists        dinah.unknown-root
+  2      the workbench you name lies under the root  dinah.outside-root
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 ```
 
-Row 2 of the refusal table prints on two lines, and that is the renderer obeying its own
-rule rather than a fault. `chooseWidths` in `cmd/dinah/table.go` leaves a field the window
-cannot hold out of the measurement, so the middle column measures at 36 columns, which is
-row 1's exact width, and the row renderer gives the oversized field the rest of its line and
-starts `dinah.outside-root` at column 47 beneath it. The spec keeps the check sentence at
-its full length rather than cutting it to fit, because the same sentence is longer again in
-seven of the eight locales and shortening the English would buy nothing for the other seven.
+Both refusal names stand in their own column, and the refusal table's widest line is 71
+columns.
+An earlier draft of `check.mcp.2` ran to 70 columns and pushed `dinah.outside-root` onto a
+line of its own, which is the renderer obeying its own rule rather than a fault:
+`chooseWidths` in `cmd/dinah/table.go` leaves a field the window cannot hold out of the
+measurement, and the row renderer gives that field the rest of its line. The sentence was
+shortened instead, and 51 display columns is the width at which the row still fits, measured
+by rendering the page at 51 columns and again at 52. Naming both `--workbench` and
+`DINAH_WORKBENCH` cannot be done inside that width, and after the startup rule split on
+where the default came from the sentence does not need to: the check applies exactly when
+somebody named a workbench, whichever of the two spellings they named it with.
+
+The same page in Hindi, which is the one locale carrying a translation, renders both rows
+the same way and runs narrower, because its ordinal heading is shorter than the English one.
 
 Proposed. The ratified help block gains the flag on its `mcp` line and the variable on its
 environment line, and nothing else on the page moves.
@@ -434,7 +446,12 @@ are drawn in section 5 rather than here because the page is where a reader meets
 | Key | English text |
 |---|---|
 | `check.mcp.1` | `--root names a directory that exists` |
-| `check.mcp.2` | `the workbench --workbench or DINAH_WORKBENCH names lies under the root` |
+| `check.mcp.2` | `the workbench you name lies under the root` |
+
+A translation of either sentence stays at or under 51 display columns. That is the width the
+row's other fields leave, and a sentence over it takes a line of its own and puts the page
+over 80 columns, because this table does not wrap. The translator's note on both keys says
+so.
 
 ## 8. What the operator is being asked to accept
 
@@ -453,12 +470,12 @@ workbench outside the root and never opens one to describe it, so no card, no op
 and no state list travels in that answer.
 
 The startup surface is `--root <dir>` on `dinah mcp` plus `DINAH_MCP_ROOT`, with the flag
-winning. Section 5 shows the page and the two lines of the ratified block that move, and it
-shows the second refusal row printing on two lines.
+winning. Section 5 shows the page and the two lines of the ratified block that move.
 
 The handshake gains a paragraph and loses its opening line when there is no default
 workbench. Section 4 shows both forms.
 
 The English of the two new refusals and the two new help-page checks is section 7's four
 plus two rows. Approving them fixes the sentences the eight locale files are translated
-from.
+from. Seven of those eight carry the English text today and one is translated, so a word
+changed here changes seven pages now and the eighth when somebody translates it.
