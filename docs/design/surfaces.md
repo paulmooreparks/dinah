@@ -302,6 +302,20 @@ transitions and names the media type each accepts, so illegal actions are
 absent from the representation and legal ones arrive with their paperwork
 attached; the contract version rides in the media type.
 
+Two commands read the workbench as a tree rather than as a listing, and
+both build the same node so that one renderer draws them and one shape
+carries them to every head. `dinah tree` nests the cards along an ordered
+chain of axes, taking the query language as its filter, and its
+no-argument form is the status tree of states over substates over cards.
+`dinah contents` walks the containment grammar down from any entity the
+reference resolver reaches, reading a table of what contains what rather
+than kind-specific code, so a declared extension kind appears in it with
+no line written for it. Every node truncated by depth or thinned by the
+filter reports what it is holding back, so no view of the workbench
+silently hides work. The sidebar this document describes is that first
+tree with its default chain, so the extension renders nodes rather than
+reimplementing the grouping.
+
 MCP mirrors the verbs one to one as tools, canonical JSON both ways, the
 working agreement in the initialize instructions, guides as resources,
 and the same affordances block in every tool response, so an agent on

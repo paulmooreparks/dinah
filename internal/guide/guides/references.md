@@ -52,23 +52,26 @@ If the collection you name holds nothing, Dinah tells you that nothing answers t
 
 ## Which command takes what
 
-Seven commands take a reference, and between them they accept five different
+Eight commands take a reference, and between them they accept three different
 sets of things. This table says what each one accepts:
 
 | Command      | This workbench | A state | A card | Below a card |
 |--------------|----------------|---------|--------|--------------|
-| path         | yes            | no      | yes    | yes          |
-| edit         | yes            | no      | yes    | yes          |
-| show         | no             | no      | yes    | yes          |
+| path         | yes            | yes     | yes    | yes          |
+| edit         | yes            | yes     | yes    | yes          |
+| show         | no             | yes     | yes    | yes          |
 | instructions | no             | yes     | yes    | no           |
 | attach       | yes            | yes     | yes    | yes          |
 | archive      | no             | yes     | yes    | yes          |
 | delete       | no             | yes     | yes    | yes          |
+| contents     | yes            | yes     | yes    | yes          |
 
-Two of those rows carry a detail the table is too coarse to hold. `attach`
+Three of those rows carry a detail the table is too coarse to hold. `attach`
 takes a comment or an attachment below a card and takes nothing else below one,
 so `dinah attach wb-1/journal notes.md` is refused. `instructions` takes a card
-or a state and nothing else at all.
+or a state and nothing else at all. `contents` takes a card by the card's own
+reference and never through what holds it, so `dinah contents wb/cards/1` is
+refused and `dinah contents wb-1` is what you write.
 
 Each command's own help page carries the same answer for that one command, so
 run `dinah help attach` when you want it beside the arguments rather than here.

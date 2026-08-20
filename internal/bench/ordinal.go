@@ -319,18 +319,34 @@ type ordinalCollection struct {
 }
 
 // ordinalCollections lists the collections below one card that a positional
-// reference selects a member of: the card's comments, attachments and
-// checklist, and the attachments of each comment.
+// reference selects a member of: everything a card mounts, and everything each
+// of its comments mounts.
+//
+// The list is derived from Contains rather than written out here, so a kind
+// gaining a collection reaches the ordinal migration without this function
+// being edited.
 func ordinalCollections(cardDir string) []ordinalCollection {
-	comments := filepath.Join(cardDir, CommentsDir)
-	collections := []ordinalCollection{
-		{dir: comments, anchor: CommentAnchor},
-		{dir: filepath.Join(cardDir, AttachmentsDir), anchor: AttachmentAnchor},
-		{dir: filepath.Join(cardDir, ChecklistDir), anchor: ItemAnchor},
+	var collections []ordinalCollection
+	for _, mount := range Contains(KindCard) {
+		dir := filepath.Join(cardDir, mount.Dir)
+		collections = append(collections, ordinalCollection{dir: dir, anchor: mount.Anchor})
+		if mount.Kind != KindComment {
+			continue
+		}
+		for _, id := range ListIDs(dir) {
+			collections = append(collections, belowComment(filepath.Join(dir, id))...)
+		}
 	}
-	for _, id := range ListIDs(comments) {
-		attachments := filepath.Join(comments, id, AttachmentsDir)
-		collections = append(collections, ordinalCollection{dir: attachments, anchor: AttachmentAnchor})
+	return collections
+}
+
+// belowComment lists the collections one comment mounts, which the card walk
+// above reaches for each comment it finds.
+func belowComment(commentDir string) []ordinalCollection {
+	var collections []ordinalCollection
+	for _, mount := range Contains(KindComment) {
+		dir := filepath.Join(commentDir, mount.Dir)
+		collections = append(collections, ordinalCollection{dir: dir, anchor: mount.Anchor})
 	}
 	return collections
 }

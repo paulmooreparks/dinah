@@ -224,6 +224,18 @@ var placeholder = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\}`)
 // but letters, digits, and spaces outside its placeholders.
 var wordyLiteral = regexp.MustCompile(`^[A-Za-z0-9 ]*$`)
 
+// separatorLiteral matches the literal text of a rendering whose placeholders
+// are joined by one punctuation mark and nothing else. Such an entry is two
+// wildcards with a separator between them, so every line carrying that mark
+// answers it and a line it finds is evidence of nothing.
+//
+// The narrowing above cannot reach this case, because a mark is not a letter,
+// a digit or a space, so the entry keeps the wide wildcard and matches most of
+// the document. tree.hidden.join, whose stored text is `{first}, {second}`, is
+// the entry that showed it: the rule found it in four blocks that print no
+// tree at all, one of them the installer transcript Dinah writes no line of.
+var separatorLiteral = regexp.MustCompile(`^ *[^A-Za-z0-9 ] *$`)
+
 // rendering is one catalog entry compiled for the discovery rule: the form
 // that matches at an anchor and ends at a boundary, and the form that matches
 // a whole field.
@@ -262,6 +274,9 @@ func renderingsOfTheCatalog(t *testing.T) []rendering {
 		if !ok || entry.Text == "" {
 			continue
 		}
+		if identifiesNothing(entry.Text) {
+			continue
+		}
 		pattern := renderingPattern(entry.Text)
 		compiled = append(compiled, rendering{
 			key:      key,
@@ -273,6 +288,17 @@ func renderingsOfTheCatalog(t *testing.T) []rendering {
 		t.Fatal("the base catalog compiled to no rendering, so the discovery rule reads nothing")
 	}
 	return compiled
+}
+
+// identifiesNothing reports whether an entry's stored text is placeholders
+// joined by a single punctuation mark, which recognises any line carrying that
+// mark and so cannot be evidence that the entry itself was rendered.
+func identifiesNothing(text string) bool {
+	literal := placeholder.ReplaceAllString(text, "")
+	if literal == text {
+		return false
+	}
+	return separatorLiteral.MatchString(literal)
 }
 
 // renderingPattern turns one entry's stored text into the expression that
@@ -642,6 +668,14 @@ const layoutGuide = "workbench-layout"
 // every path the tool writes is drawn: the guide leaves out .gitignore and the
 // lock files on purpose, and a check demanding completeness would force them
 // into a document that is better without them.
+//
+// It also puts a constraint on the guide that the guide itself does not say:
+// every fenced block in it is read as a directory tree, so an author who
+// fences a command there is told that the workbench carries no such path. An
+// author meeting that message is not looking at a broken workbench, they are
+// looking at a fence this check cannot tell from a tree. The check verifying
+// the shape it depends on, rather than depending on it silently, is dinah-144
+// work rather than a change to the guide.
 func TestTheLayoutGuideDrawsPathsTheToolWrites(t *testing.T) {
 	text, err := guide.Text(layoutGuide)
 	if err != nil {

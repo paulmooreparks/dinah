@@ -121,6 +121,14 @@
       "text": "der Schlüssel ist einer, den dieses Werkzeug kennt",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.contents.1": {
+      "text": "die Referenz nennt etwas in dieser Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.contents.2": {
+      "text": "die Tiefenstufe ist eine, die dieser Befehl kennt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.count.one": {
       "text": "{count} Mangel.",
       "context": "The count line after check's findings, for exactly one finding."
@@ -385,6 +393,22 @@
       "text": "das Protokoll der Karte {detail} endet in einer unvollständigen Zeile",
       "context": "A check finding: a torn journal tail left by a crash."
     },
+    "check.tree.1": {
+      "text": "jede genannte Achse ist eine gruppierbare",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.2": {
+      "text": "keine Achse wird zweimal genannt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.3": {
+      "text": "die Kette nennt höchstens vier Achsen",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.tree.4": {
+      "text": "die Tiefenstufe ist eine, die dieser Befehl kennt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.unblock.1": {
       "text": "die Karte existiert",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -549,6 +573,10 @@
       "text": "Ihre Benutzereinstellungen auflisten oder eine davon lesen oder schreiben",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block."
     },
+    "cmd.contents.summary": {
+      "text": "was eine Einheit der Werkbank enthält",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block."
+    },
     "cmd.delete.summary": {
       "text": "eine Karte, einen Zustand oder etwas unterhalb einer Karte samt ihrer Geschichte vernichten",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block."
@@ -632,6 +660,10 @@
     "cmd.status.summary": {
       "text": "wie diese Werkbank steht und was Sie halten",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block."
+    },
+    "cmd.tree.summary": {
+      "text": "die Karten der Werkbank, verschachtelt entlang einer Achsenkette",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block."
     },
     "cmd.unblock.summary": {
       "text": "eine Blockade aufheben (nur Betreiber)",
@@ -849,6 +881,26 @@
       "text": "Slug",
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.tree.count": {
+      "text": "Anzahl",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.entity": {
+      "text": "Einheit",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.hidden": {
+      "text": "Nicht gezeigt",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.reference": {
+      "text": "Referenz",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.tree.title": {
+      "text": "Titel",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "column.workbench.field": {
       "text": "Feld",
       "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -904,6 +956,14 @@
     "column.workstreams.status": {
       "text": "Status",
       "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) enthält nichts.",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake."
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) enthält {count} Einheiten.",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
     },
     "extract.done": {
       "text": "Definition nach {dir} geschrieben.",
@@ -1129,6 +1189,14 @@
       "text": "was darunter gespeichert wird, bei einem set",
       "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table."
     },
+    "param.contents.depth.summary": {
+      "text": "wie tief gezeichnet wird, geschrieben als root, cards, entities oder all; entities, wenn Sie keine nennen",
+      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table."
+    },
+    "param.contents.ref.summary": {
+      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given."
+    },
     "param.edit.card.summary": {
       "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table."
@@ -1200,6 +1268,18 @@
     "param.show.card.summary": {
       "text": "eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
+    },
+    "param.tree.depth.summary": {
+      "text": "wie tief gezeichnet wird, geschrieben als root, groups oder cards; cards, wenn Sie keine nennen",
+      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table."
+    },
+    "param.tree.group-by.summary": {
+      "text": "die Achsen zum Verschachteln, äußerste zuerst, bis zu vier, durch Kommas getrennt; state,substate, wenn Sie keine nennen",
+      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated."
+    },
+    "param.tree.query.summary": {
+      "text": "welche Karten verschachtelt werden, geschrieben als Abfrage in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
+      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads."
     },
     "param.version.catalogs.summary": {
       "text": "jede mitgelieferte Sprache melden und wie weit sie übersetzt ist",
@@ -1276,6 +1356,14 @@
     "refusal.dinah.ambiguous-workbench.next": {
       "text": "wählen Sie eine mit --workbench <Verzeichnis>, oder führen Sie den Befehl darin aus",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
+    },
+    "refusal.dinah.chain-too-long": {
+      "text": "Eine Gruppierungskette verschachtelt entlang höchstens {allowed} Achsen, und diese nennt {asked}.",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one."
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " Kürzen Sie die Kette, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.exists": {
       "text": "{detail} trägt bereits eine workbench.md",
@@ -1381,6 +1469,14 @@
       "text": " Bearbeiten Sie die Zustandsliste der Werkbank von Hand, um einen Zustand hinzuzufügen, oder stellen Sie eines der fehlenden Verzeichnisse wieder her, und führen Sie dann dinah check --migrate-states erneut aus.",
       "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with."
     },
+    "refusal.dinah.repeated-axis": {
+      "text": "Eine Gruppierungskette nennt jede Achse einmal, und diese nennt {detail} zweimal.",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " Entfernen Sie die Wiederholung, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unconfirmed": {
       "text": "delete vernichtet Geschichte",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about."
@@ -1405,6 +1501,14 @@
       "text": " Führen Sie den Befehl erneut mit --yes aus.",
       "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next."
     },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah gruppiert nicht nach {detail}. Die Achsen, entlang derer ein Baum verschachteln darf, sind: {axes}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " Nennen Sie stattdessen eine davon, oder führen Sie `dinah help tree` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah bietet keinen Befehl namens {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about."
@@ -1412,6 +1516,14 @@
     "refusal.dinah.unknown-command.next": {
       "text": "; führen Sie `dinah help` aus für die Liste der Befehle, gruppiert nach dem, was sie tun",
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints."
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "Dinah hat für diesen Befehl keine Tiefenstufe {detail}. Die Stufen, die er nimmt, sind: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " Nennen Sie stattdessen eine davon, oder führen Sie `dinah help` zum Befehl aus, um zu sehen, was er prüft.",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is."
     },
     "refusal.dinah.unknown-field": {
       "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Abfrage nennen darf, sind: {fields}.",
@@ -1448,6 +1560,10 @@
     "refusal.dinah.unknown-path.next": {
       "text": "; führen Sie `dinah ls` aus, um zu sehen, was diese Werkbank trägt",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to."
+    },
+    "refusal.dinah.unknown-path.next-addressed": {
+      "text": "; ein {addressed} wird über seine eigene Referenz benannt, nicht über das, was es hält",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a state through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or state, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path."
     },
     "refusal.dinah.unknown-path.next-file": {
       "text": "; prüfen Sie, ob {file} existiert und ob Sie es von hier aus lesen können",
@@ -1864,6 +1980,34 @@
     "token.workstream_updated": {
       "text": "Arbeitsstrang aktualisiert",
       "context": "The word a person reads for the workstream_updated journal event."
+    },
+    "tree.empty": {
+      "text": "Keine Karten hier.",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it."
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) hält {count} Karten.",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it."
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) hält {held} Karten, von denen {matched} auf die Abfrage passen.",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller."
+    },
+    "tree.hidden.depth": {
+      "text": "{count} nicht gezeigt",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those."
+    },
+    "tree.hidden.filter": {
+      "text": "{count} herausgefiltert",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's."
+    },
+    "tree.unset": {
+      "text": "(kein Wert)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
     },
     "version.catalogs": {
       "text": "Kataloge:",
