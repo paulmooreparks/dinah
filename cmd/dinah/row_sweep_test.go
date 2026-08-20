@@ -316,6 +316,17 @@ func assertEveryBlockLinesUp(t *testing.T, benches *sweptWorkbenches, full, stac
 // record holds no standing, so a per-record padding puts that record's values
 // three display columns left of the first record's, which is assertion four.
 //
+// The card column's values are the arming mechanism, and they are a fixed
+// length chosen without regard to any translation. A column collapses to a
+// stack only where a value in it cannot fit the column at its own heading's
+// width plus the gutter, and a heading is translated text, so a control that
+// leans on how wide one language's heading happens to render arms in that
+// language and holds its shape in every other. This length is chosen so it
+// clears any heading this table's three columns could plausibly translate to
+// (German once did this for real: "Standing" fell from eight display columns
+// to "Stand"'s five, and the control that had only ever been armed by an
+// eight-column heading stopped arming).
+//
 // It is rendered through the head's own tableLines and read by the same
 // assertions the corpus is read by, so it arms them rather than standing in
 // for them.
@@ -332,8 +343,8 @@ func assertTheStackedCheckCanFail(t *testing.T) {
 			indent:  sweptIndent,
 			columns: s.columns("ls", "card", "standing", "title"),
 			rows: []tableRow{
-				{fields: []string{"demo-1", msg.For(tag).T("token.ready"), "a card of some length"}},
-				{fields: []string{"demo-2", "", "a second card of some length"}},
+				{fields: []string{"demo-reference-0000000001", msg.For(tag).T("token.ready"), "a card of some length"}},
+				{fields: []string{"demo-reference-0000000002", "", "a second card of some length"}},
 			},
 		})
 		if !drawsTheStackedForm(block, tag, lines[0]) {
