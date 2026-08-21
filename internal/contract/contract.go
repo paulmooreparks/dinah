@@ -259,10 +259,10 @@ const (
 	// since the name the attachment has as of the line is the answer a
 	// reader of the journal wants by one rule across the family.
 	EventAttachmentRenamed = "attachment_renamed"
-	EventArchived           = "archived"
-	EventRestored           = "restored"
-	EventDeleted            = "deleted"
-	EventManualCorrection   = "manual_correction"
+	EventArchived          = "archived"
+	EventRestored          = "restored"
+	EventDeleted           = "deleted"
+	EventManualCorrection  = "manual_correction"
 	// EventWorkbenchUpdated records a write to one of the workbench's own
 	// fields, on the workbench journal. It covers a title change, a slug
 	// change and an operator change alike, which is why it is not named for a
