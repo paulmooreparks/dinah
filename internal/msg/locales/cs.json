@@ -71,6 +71,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.attachment-filename-drift": {
+      "text": "attachment {detail} payload file name disagrees with its anchor",
+      "context": "A check finding: an attachment's payload file and its anchor's filename field disagree, which is the residue of a crash between a rename's two writes or of a hand edit nobody noticed.",
+      "skeleton": true
+    },
     "check.block-without-reason": {
       "text": "card {detail} is blocked and carries no reason",
       "context": "A check finding: every blocked card carries a reason.",
@@ -431,6 +436,26 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
       "skeleton": true
     },
+    "check.rename.1": {
+      "text": "the reference resolves to an attachment",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.3": {
+      "text": "the name is non-empty after trimming",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.4": {
+      "text": "the name carries no slash, back slash, or dot-dot",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.show.1": {
       "text": "the reference resolves to a card or a path below one",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -681,6 +706,11 @@
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.rename.summary": {
+      "text": "rename an attachment",
+      "context": "The one-line summary of the rename command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.attach.summary": {
       "text": "attach a file, or replace its bytes",
       "context": "The one-line summary of the attach command, shown beside its syntax in the help block.",
@@ -869,6 +899,21 @@
     "column.arguments.what": {
       "text": "What it is",
       "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
+    "column.attachments.position": {
+      "text": "#",
+      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.attachments.filename": {
+      "text": "File",
+      "context": "Heading over the attachment's current filename, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.attachments.description": {
+      "text": "Description",
+      "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.blocked.card": {
@@ -1351,6 +1396,11 @@
       "context": "The label above the state's own instructions.",
       "skeleton": true
     },
+    "log.attachment-renamed": {
+      "text": "{from} to {to}",
+      "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
+      "skeleton": true
+    },
     "log.moved": {
       "text": "{from} to {to}",
       "context": "The detail of a recorded move, carrying the titles as they stood at the time.",
@@ -1581,6 +1631,16 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "skeleton": true
     },
+    "param.rename.ref.summary": {
+      "text": "the attachment you are renaming",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.rename.name.summary": {
+      "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.show.card.summary": {
       "text": "a state, a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
@@ -1696,6 +1756,16 @@
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
       "skeleton": true
     },
+    "refusal.dinah.ambiguous-name": {
+      "text": "{ordinals} on this card all answer to {selector}",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward.",
+      "skeleton": true
+    },
+    "refusal.dinah.ambiguous-name.next": {
+      "text": "name one as attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
     "refusal.dinah.chain-too-long": {
       "text": "A group-by chain nests along at most {allowed} axes, and this one names {asked}.",
       "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one.",
@@ -1804,6 +1874,16 @@
     "refusal.dinah.no-workbench.next": {
       "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-renamable": {
+      "text": "{detail} is not an attachment and rename will not change its name",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {detail} is the reference the rename verb resolved, naming what the reference reached rather than the word the caller typed.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-renamable.next": {
+      "text": "; pass an attachment ref such as <card>/attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment.",
       "skeleton": true
     },
     "refusal.dinah.occupied": {
@@ -2221,6 +2301,11 @@
       "context": "The description of the basis property, which every generated machine schema carries and no command declares.",
       "skeleton": true
     },
+    "show.attachments": {
+      "text": "Attachments:",
+      "context": "The label above a card's attachments, printed between the links block and the comments block.",
+      "skeleton": true
+    },
     "show.comments": {
       "text": "Comments:",
       "context": "The label above a card's comments.",
@@ -2254,6 +2339,11 @@
     "slot.value": {
       "text": "the value",
       "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "skeleton": true
+    },
+    "slot.name": {
+      "text": "the name",
+      "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "skeleton": true
     },
     "slug.missing": {
@@ -2314,6 +2404,11 @@
     "token.attachment_replaced": {
       "text": "attachment replaced",
       "context": "How the canonical token attachment_replaced is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.attachment_renamed": {
+      "text": "attachment renamed",
+      "context": "How the canonical token attachment_renamed is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.backward": {

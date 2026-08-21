@@ -57,6 +57,10 @@
       "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.attachment-filename-drift": {
+      "text": "Anhang {detail}: der Name der Nutzlastdatei weicht vom Anker ab",
+      "context": "A check finding: an attachment's payload file and its anchor's filename field disagree, which is the residue of a crash between a rename's two writes or of a hand edit nobody noticed."
+    },
     "check.block-without-reason": {
       "text": "Karte {detail} ist blockiert und trägt keinen Grund",
       "context": "A check finding: every blocked card carries a reason."
@@ -353,6 +357,22 @@
       "text": "die anfragende Person hält die Karte",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
+    "check.rename.1": {
+      "text": "die Referenz löst sich zu einem Anhang auf",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.3": {
+      "text": "der Name ist nach dem Trimmen nicht leer",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.4": {
+      "text": "der Name trägt keinen Schrägstrich, Rückstrich oder Punkt-Punkt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.show.1": {
       "text": "die Referenz nennt eine Karte oder etwas darunter",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -553,6 +573,10 @@
       "text": "eine Karte, einen Zustand oder etwas unterhalb einer Karte aus dem Live-Bestand nehmen",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
     },
+    "cmd.rename.summary": {
+      "text": "einen Anhang umbenennen",
+      "context": "The one-line summary of the rename command, shown beside its syntax in the help block."
+    },
     "cmd.attach.summary": {
       "text": "eine Datei anhängen oder ihre Bytes ersetzen",
       "context": "The one-line summary of the attach command, shown beside its syntax in the help block."
@@ -704,6 +728,18 @@
     "column.arguments.what": {
       "text": "Was es ist",
       "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "column.attachments.position": {
+      "text": "#",
+      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.attachments.filename": {
+      "text": "Datei",
+      "context": "Heading over the attachment's current filename, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.attachments.description": {
+      "text": "Beschreibung",
+      "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.blocked.card": {
       "text": "Karte",
@@ -1089,6 +1125,10 @@
       "text": "Anweisungen, dieser Zustand:",
       "context": "The label above the state's own instructions."
     },
+    "log.attachment-renamed": {
+      "text": "{from} nach {to}",
+      "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}."
+    },
     "log.moved": {
       "text": "{from} nach {to}",
       "context": "The detail of a recorded move, carrying the titles as they stood at the time."
@@ -1289,6 +1329,14 @@
       "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
     },
+    "param.rename.ref.summary": {
+      "text": "der Anhang, den Sie umbenennen",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
+    },
+    "param.rename.name.summary": {
+      "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
+    },
     "param.show.card.summary": {
       "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
@@ -1381,6 +1429,14 @@
       "text": "wählen Sie eine mit --workbench <Verzeichnis>, oder führen Sie den Befehl darin aus",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
+    "refusal.dinah.ambiguous-name": {
+      "text": "{ordinals} auf dieser Karte antworten alle auf {selector}",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.ambiguous-name.next": {
+      "text": "; nennen Sie einen als attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with."
+    },
     "refusal.dinah.chain-too-long": {
       "text": "Eine Gruppierungskette verschachtelt entlang höchstens {allowed} Achsen, und diese nennt {asked}.",
       "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one."
@@ -1468,6 +1524,14 @@
     "refusal.dinah.no-workbench.next": {
       "text": "; richten Sie --workbench auf ein Verzeichnis, das eine trägt, oder lassen Sie --workbench weg, um von hier aus aufwärts zu suchen",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
+    },
+    "refusal.dinah.not-renamable": {
+      "text": "{detail} ist kein Anhang, und rename ändert seinen Namen nicht",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {detail} is the reference the rename verb resolved, naming what the reference reached rather than the word the caller typed."
+    },
+    "refusal.dinah.not-renamable.next": {
+      "text": "; übergeben Sie eine Anhang-Referenz wie <Karte>/attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment."
     },
     "refusal.dinah.occupied": {
       "text": "Karten belegen Zustand {detail} weiterhin",
@@ -1821,6 +1885,10 @@
       "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
     },
+    "show.attachments": {
+      "text": "Anhänge:",
+      "context": "The label above a card's attachments, printed between the links block and the comments block."
+    },
     "show.comments": {
       "text": "Kommentare:",
       "context": "The label above a card's comments."
@@ -1848,6 +1916,10 @@
     "slot.value": {
       "text": "der Wert",
       "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "slot.name": {
+      "text": "der Name",
+      "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
     "slug.missing": {
       "text": "kein Slug (führen Sie check --migrate-slugs aus)",
@@ -1896,6 +1968,10 @@
     "token.attachment_replaced": {
       "text": "Anhang ersetzt",
       "context": "How the canonical token attachment_replaced is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attachment_renamed": {
+      "text": "Anhang umbenannt",
+      "context": "How the canonical token attachment_renamed is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
     "token.backward": {
       "text": "rückwärts",
