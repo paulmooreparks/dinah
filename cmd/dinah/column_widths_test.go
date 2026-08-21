@@ -261,7 +261,7 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 		}
 		usage := verb.Usage(c.name)
 		summary := msg.For(msg.Base).T("cmd." + c.name + ".summary")
-		first := strings.Split(breakWords(usage, wrapIndent, room), "\n")[0]
+		first := strings.Split(firstChunk(usage, wrapIndent, room), "\n")[0]
 		if first != usage {
 			wrapped++
 		}
@@ -297,6 +297,56 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	if want != 44 {
 		t.Errorf("the ceiling-bearing summary column measures %d, and this shape has started it at 44 since the ceiling was declared", want)
 	}
+}
+
+// firstChunk is the rendering rule for a ceiling-bearing, wrapOptions-on table
+// cell: a value that fits the room is written whole; a value that exceeds the
+// room is broken on option boundaries when it carries them, otherwise on word
+// boundaries. The test reads its own expected first chunk through this rule so
+// it agrees with what the renderer draws, rather than recomputing the wrap
+// shape by hand.
+func firstChunk(value string, indent, room int) string {
+	if displayWidth(value) <= room {
+		return value
+	}
+	if hasOptionBoundary(value) {
+		return breakOnOptions(value, indent, room)
+	}
+	return breakWords(value, indent, room)
+}
+
+// hasOptionBoundary is true when value carries at least one boundary the
+// breakOnOptions rule recognises. The check is structural and exists to match
+// splitOnOptionBoundaries's own view, so the two never disagree on what the
+// rule applies to.
+func hasOptionBoundary(value string) bool {
+	depth := 0
+	for i := 0; i < len(value); i++ {
+		switch value[i] {
+		case '[':
+			if i+2 < len(value) && value[i+1] == '-' && value[i+2] == '-' {
+				depth++
+			}
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case ' ':
+			if depth > 0 {
+				continue
+			}
+			j := i + 1
+			switch {
+			case j+2 < len(value) && value[j] == '[' && value[j+1] == '-' && value[j+2] == '-':
+				return true
+			case j < len(value) && value[j] == '<':
+				return true
+			case j+1 < len(value) && value[j] == '-' && value[j+1] == '-':
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong asserts that a

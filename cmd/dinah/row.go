@@ -159,6 +159,104 @@ func breakTail(text string, begins, window int) string {
 	return breakWords(text, begins, window-begins)
 }
 
+// breakOnOptions breaks text on option boundaries first and falls back to
+// word-wrap for the trailing piece when boundaries do not reach the window.
+// An "option boundary" is a space followed by `[--`, by `<`, or by a bare
+// `--`. Each option chunk is kept whole on its own line, indented to indent,
+// so a reader's eye sees one option group per line rather than a chunk
+// broken across the page.
+//
+// The first chunk is returned without a leading indent, so the caller can
+// lay it on the row's first line in place; every option chunk after it
+// carries indent spaces at its head. The trailing chunk after the last
+// option boundary is plain prose and is word-wrapped through breakWords at
+// indent, so a value whose option list runs out before its meaning does
+// falls back to the wrap behaviour the rest of the renderer already uses.
+// A value with no option boundary at all is word-wrapped whole, the same
+// shape breakTail already produces, so the rule degrades to today's
+// behaviour rather than silently changing it.
+func breakOnOptions(text string, indent, room int) string {
+	if room < 1 {
+		return text
+	}
+	pieces := splitOnOptionBoundaries(text)
+	if len(pieces) <= 1 {
+		return breakWords(text, indent, room)
+	}
+	// The first piece may itself exceed the room: the boundary rule keeps
+	// each later piece whole but the first is whatever sits before the first
+	// boundary, and a long command name followed by several short tokens
+	// runs wider than any one piece should. Word-wrap that piece so the
+	// row's first line still fits the column; the boundaries themselves
+	// stay intact for every piece after it.
+	var b strings.Builder
+	last := len(pieces) - 1
+	first := pieces[0]
+	if displayWidth(first) > room {
+		b.WriteString(breakWords(first, indent, room))
+	} else {
+		b.WriteString(first)
+	}
+	for _, piece := range pieces[1:last] {
+		b.WriteString("\n")
+		b.WriteString(strings.Repeat(" ", indent))
+		b.WriteString(piece)
+	}
+	tail := pieces[last]
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat(" ", indent))
+	b.WriteString(breakWords(tail, indent, room))
+	return b.String()
+}
+
+// splitOnOptionBoundaries splits text on option boundaries and returns the
+// pieces, with each piece kept whole. The boundary is the space character
+// itself, which is then dropped: a boundary at position k means pieces[k]
+// ends just before the space and pieces[k+1] starts with the option group
+// (`[--...`, `<...`, or `--...`). Text with no boundary returns the input
+// as a single piece, so callers can tell "no boundaries found" apart from
+// "one piece" by length.
+//
+// Boundaries that fall inside an open square-bracket group are skipped, so
+// `[--state <state>]` is one chunk rather than two. A bracket group opens
+// at the `[` of a `[--` boundary and closes at the matching `]`, which is
+// what keeps the rule's pieces readable: every option group sits on its own
+// line, with the bracket's own internal `<` left whole rather than treated
+// as the start of a fresh option.
+func splitOnOptionBoundaries(text string) []string {
+	var pieces []string
+	last := 0
+	depth := 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '[':
+			if i+2 < len(text) && text[i+1] == '-' && text[i+2] == '-' {
+				depth++
+			}
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case ' ':
+			if depth > 0 {
+				continue
+			}
+			j := i + 1
+			switch {
+			case j+2 < len(text) && text[j] == '[' && text[j+1] == '-' && text[j+2] == '-':
+			case j < len(text) && text[j] == '<':
+			case j+1 < len(text) && text[j] == '-' && text[j+1] == '-':
+			default:
+				continue
+			}
+			pieces = append(pieces, text[last:i])
+			last = i + 1
+		}
+	}
+	pieces = append(pieces, text[last:])
+	return pieces
+}
+
 // continuation clamps a continuation line's indent so the line keeps
 // minTailColumns for its own text, and never takes it below the row's own
 // indent. An unknown window clamps nothing.

@@ -216,7 +216,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 func blockLists(block, usage string) bool {
 	wrapIndent := 2 + ceilingContinuationIndent
 	room := halfWindow(assumedWindow)
-	chunks := strings.Split(breakWords(usage, wrapIndent, room), "\n")
+	chunks := strings.Split(firstChunk(usage, wrapIndent, room), "\n")
 	lines := strings.Split(block, "\n")
 	for i, line := range lines {
 		if !strings.HasPrefix(line, "  "+chunks[0]) {

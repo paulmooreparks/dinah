@@ -88,6 +88,13 @@ type table struct {
 	// one first, draws through this; see ceilingRowLine.
 	ceilingColumn int
 	hasCeiling    bool
+	// wrapOptions asks the capped column to break on option boundaries
+	// (a space followed by `[--`, by `<`, or by a bare `--`) before
+	// falling back to word-wrap on the trailing prose. It is an opt-in a
+	// table takes for itself, the same way wrapTail is: every table that
+	// does not ask for it breaks the capped column on word boundaries, the
+	// behaviour every ceiling-bearing table drew before this existed.
+	wrapOptions bool
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -318,6 +325,9 @@ type laidTable struct {
 	// pass and the row assembly both read one answer.
 	ceilingColumn int
 	hasCeiling    bool
+	// wrapOptions is carried from the table, so the row assembly reads the
+	// same answer the table declared.
+	wrapOptions bool
 }
 
 // layOut removes the columns no row fills, chooses every column's width, and
@@ -403,6 +413,7 @@ func measure(t table, window int) laidTable {
 		wrapTail:      t.wrapTail,
 		ceilingColumn: t.ceilingColumn,
 		hasCeiling:    t.hasCeiling,
+		wrapOptions:   t.wrapOptions,
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
@@ -869,6 +880,9 @@ func (laid laidTable) ceilingRowLine(r tableRow) string {
 		after = r.fields[c+1]
 	}
 	wrapped := breakWords(value, wrapIndent, room)
+	if laid.wrapOptions && displayWidth(value) > room {
+		wrapped = breakOnOptions(value, wrapIndent, room)
+	}
 	first, syntaxRest, moreSyntax := strings.Cut(wrapped, "\n")
 
 	// A single word wider than the cap on its own is the one case wrapping
