@@ -25,10 +25,11 @@ type Event struct {
 	Title string `json:"title,omitempty"`
 	// From and To are the state identifiers a move left and entered, the
 	// values a workbench_updated event rewrote a field from and to, and the
-	// filenames an attachment_renamed event rewrote the anchor from and to.
-	// A reader resolving "what is the attachment called as of this line"
-	// reads Filename on a rename, since the rename carries the new name
-	// there and From carries the one it had before.
+	// previous filename an attachment_renamed event rewrote the anchor from.
+	// To is not carried by attachment_renamed, since the new name sits in
+	// Filename alongside the three sibling attachment events, so a reader
+	// resolving "what is the attachment called as of this line" reads
+	// Filename on every event in the family and From only on a rename.
 	From string `json:"from,omitempty"`
 	To   string `json:"to,omitempty"`
 	// FromTitle and ToTitle are those states' titles as of the move.
