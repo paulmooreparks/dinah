@@ -2170,7 +2170,7 @@
       "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
     },
     "param.rename.name.summary": {
-      "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",
+      "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
     }
   }

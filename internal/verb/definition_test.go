@@ -112,6 +112,34 @@ func TestEveryArgumentNamesOneSentenceAndTheCatalogCarriesNoOther(t *testing.T) 
 		}
 		t.Errorf("the catalog carries %s and no parameter names it, so it is a dead string", key)
 	}
+	// Every param.<command>.<argument>.summary in the base catalog carries
+	// English text. The base catalog is the fallback every other catalog
+	// degrades through, so a non-ASCII string here is a translation that
+	// slipped into the wrong file and would render to an English reader as
+	// a foreign script. The test reads the text directly so a translation
+	// mistake fails the build rather than passing silently.
+	for _, key := range catalogKeysUnder(t, "param.") {
+		entry, ok := msg.BaseEntry(key)
+		if !ok {
+			continue
+		}
+		if !isASCIIText(entry.Text) {
+			t.Errorf("%s in the base catalog carries non-ASCII text %q, which means a translation slipped into en", key, entry.Text)
+		}
+	}
+}
+
+// isASCIIText reports whether s carries only printable ASCII, the character
+// set the base catalog's English text has to occupy. It rejects umlauts and
+// every other non-ASCII byte, which is what catches a translation slipping
+// into the wrong locale file.
+func isASCIIText(s string) bool {
+	for _, r := range s {
+		if r < 0x20 || r > 0x7e {
+			return false
+		}
+	}
+	return true
 }
 
 // TestEveryDeclaredVocabularyResolves asserts that an argument naming a closed
