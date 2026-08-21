@@ -163,6 +163,61 @@ func ReplaceAttachment(dir, source string) (*Attachment, error) {
 	return attachment, nil
 }
 
+// RenameAttachment carries an attachment's payload under a new filename and
+// rewrites the anchor's filename field to match. It is called under the
+// nearest enclosing journal-bearing entity's lock, which is what keeps a
+// crash between the two writes detectable by check.
+//
+// The two writes happen in the order the spec fixes: the file on disk first,
+// the anchor second. A crash between them leaves the anchor carrying the old
+// name and the payload file carrying the new one, which is the disagreement
+// check reports.
+//
+// A name equal to the current name is the no-op branch, and the caller checks
+// for it before this runs so the journal records nothing. Renaming to a name
+// some other attachment already carries is allowed, since the name selector
+// already refuses the reference that would guess at it.
+func RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
+	attachment, err := LoadAttachment(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	if attachment.Filename == name {
+		return attachment, attachment, nil
+	}
+	payload := filepath.Join(dir, PayloadDir)
+	entries, err := os.ReadDir(payload)
+	if err != nil || len(entries) == 0 {
+		return nil, nil, contract.Refuse(contract.UnknownPath, payload)
+	}
+	from := entries[0].Name()
+	if err := os.Rename(filepath.Join(payload, from), filepath.Join(payload, name)); err != nil {
+		return nil, nil, err
+	}
+	fm, body := loadAnchor(filepath.Join(dir, AttachmentAnchor))
+	fm.Set("filename", name)
+	if err := WriteText(filepath.Join(dir, AttachmentAnchor), fm.Render(body)); err != nil {
+		return nil, nil, err
+	}
+	before := &Attachment{Filename: from, ID: attachment.ID, Dir: attachment.Dir}
+	attachment.Filename = name
+	return before, attachment, nil
+}
+
+// ValidAttachmentName reports whether a name is one rename will accept. Empty
+// after trimming, a name carrying a slash, a back slash, or one that is `.` or
+// `..` is refused malformed; every other name passes through.
+func ValidAttachmentName(name string) bool {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" || trimmed == "." || trimmed == ".." {
+		return false
+	}
+	if strings.ContainsAny(trimmed, `/\`) {
+		return false
+	}
+	return true
+}
+
 // LoadAttachment reads an attachment entity from its directory.
 func LoadAttachment(dir string) (*Attachment, error) {
 	text, err := ReadText(filepath.Join(dir, AttachmentAnchor))

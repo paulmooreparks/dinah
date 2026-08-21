@@ -253,6 +253,12 @@ const (
 	EventAttached           = "attached"
 	EventAttachmentReplaced = "attachment_replaced"
 	EventAttachmentRemoved  = "attachment_removed"
+	// EventAttachmentRenamed carries the attachment's identifier in
+	// Attachment, the new filename in Filename, and the previous filename
+	// in From. The same shape as the three sibling attachment events uses,
+	// since the name the attachment has as of the line is the answer a
+	// reader of the journal wants by one rule across the family.
+	EventAttachmentRenamed = "attachment_renamed"
 	EventArchived           = "archived"
 	EventRestored           = "restored"
 	EventDeleted            = "deleted"
@@ -276,7 +282,7 @@ const (
 	EventWorkstreamLeft   = "workstream_left"
 )
 
-// Events lists the seventeen event names a query over cards accepts in its
+// Events lists the eighteen event names a query over cards accepts in its
 // event field, in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
@@ -291,8 +297,8 @@ const (
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
-	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
-	EventRestored, EventDeleted, EventManualCorrection,
+	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
+	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
 	EventWorkstreamJoined, EventWorkstreamLeft,
 }
 

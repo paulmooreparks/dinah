@@ -279,6 +279,67 @@ func (l *Library) Delete(req *Request) *Response {
 	return response
 }
 
+// Rename carries an attachment's payload under a new filename and rewrites
+// the anchor's filename field to match. Cards, states, comments, checklist
+// items, and the workbench itself sit outside this verb, since their names
+// travel by other acts.
+//
+// The reference resolves ahead of the precondition list, so a name a reader
+// cannot find is met with the unknown-path refusal rather than something
+// invented on the call's behalf. The card the attachment hangs from, when
+// one does, carries the event, since an attachment's journal is not the
+// journal of a verb to record history under.
+func (l *Library) Rename(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if entity.Kind != bench.KindAttachment {
+		return l.refuseWith(req, entity.Card, contract.NotRenamable, entity.Ref, map[string]string{"kind": entity.Kind})
+	}
+	if req.Actor == "" {
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if !bench.ValidAttachmentName(req.Value) {
+		return l.refuse(req, entity.Card, contract.Malformed, "name")
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
+	before, after, err := bench.RenameAttachment(entity.Dir, req.Value)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if before.Filename == after.Filename {
+		response := l.ok(req, entity.Card)
+		response.Detail = entity.ID
+		return response
+	}
+	ev := bench.Event{
+		TS:         now,
+		Event:      contract.EventAttachmentRenamed,
+		Actor:      req.Actor,
+		Attachment: after.ID,
+		Filename:   after.Filename,
+		From:       before.Filename,
+	}
+	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, entity.Card)
+	response.Detail = entity.ID
+	return response
+}
+
 // WorkbenchView is the workbench's own fields as a read reports them: the
 // three a person wrote when the workbench was created, and nothing structural.
 type WorkbenchView struct {
