@@ -236,7 +236,7 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 	if narrow != nil {
 		ids = filterByKind(collection, mount.Anchor, ids, *narrow)
 	}
-	id, err := pick(ids, tail[0])
+	id, err := pick(collection, mount, ids, tail[0])
 	if err != nil {
 		return "", err
 	}
@@ -301,9 +301,21 @@ func filterByKind(collection, anchor string, ids []string, kind string) []string
 	return kept
 }
 
-// pick selects an entity of a collection by identifier or by one-based
-// position within it.
-func pick(ids []string, selector string) (string, error) {
+// pick selects an entity of a collection by identifier, by one-based position
+// within it, or by the value the collection's name field carries in the
+// entity's anchor. Precedence is identifier, then position, then name, so an
+// existing reference the addition of a name arm cannot change meaning stays
+// answered by the form it has always had.
+//
+// A name selector against a collection that declares no name field refuses
+// unknown-path exactly as it does for any other unrecognised selector, which
+// is what keeps comments and checklist items behaving as they do today.
+//
+// Two attachments may carry the same filename, since attach permits it now
+// and this card does not narrow attach. A name selector matching more than
+// one entity refuses ambiguous-name and carries the ordinal of every match
+// alongside the selector, so the caller retries with attachments/<n>.
+func pick(collection string, mount Mount, ids []string, selector string) (string, error) {
 	if IsID(selector) {
 		for _, id := range ids {
 			if id == selector {
@@ -313,8 +325,43 @@ func pick(ids []string, selector string) (string, error) {
 		return "", contract.Refuse(contract.UnknownPath, selector)
 	}
 	position, err := strconv.Atoi(selector)
-	if err != nil || position < 1 || position > len(ids) {
+	if err == nil {
+		if position >= 1 && position <= len(ids) {
+			return ids[position-1], nil
+		}
 		return "", contract.Refuse(contract.UnknownPath, selector)
 	}
-	return ids[position-1], nil
+	if mount.NameField != "" {
+		matches := matchByName(collection, mount, ids, selector)
+		switch len(matches) {
+		case 1:
+			return matches[0], nil
+		case 0:
+			return "", contract.Refuse(contract.UnknownPath, selector)
+		default:
+			ordinals := make([]string, 0, len(matches))
+			for _, id := range matches {
+				ordinals = append(ordinals, strconv.Itoa(EntityOrdinal(collection, id, mount.Anchor)))
+			}
+			return "", contract.RefuseWith(contract.AmbiguousName, selector, map[string]string{
+				"selector": selector,
+				"ordinals": strings.Join(ordinals, ","),
+			})
+		}
+	}
+	return "", contract.Refuse(contract.UnknownPath, selector)
+}
+
+// matchByName returns the identifiers of the entities whose anchor declares
+// the collection's name field with the selector as its value. Order matches
+// ids, so a single match returns that match's id in its place.
+func matchByName(collection string, mount Mount, ids []string, selector string) []string {
+	var matches []string
+	for _, id := range ids {
+		fm, _ := loadAnchor(filepath.Join(collection, id, mount.Anchor))
+		if fm.Value(mount.NameField) == selector {
+			matches = append(matches, id)
+		}
+	}
+	return matches
 }

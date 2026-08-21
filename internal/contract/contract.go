@@ -187,6 +187,16 @@ const (
 	// it at startup when --workbench named the contradiction, and the call
 	// dispatch raises it when the per-call workbench argument does.
 	OutsideRoot = LayerPrefix + "outside-root"
+	// AmbiguousName is a name selector matching more than one entity of a
+	// collection that declares a name field, raised before the resolver
+	// guesses which one the caller meant. The detail names the selector and
+	// the ordinal of every match, so the caller can pick one by ordinal and
+	// retry, since ordinal is tried ahead of name.
+	AmbiguousName = LayerPrefix + "ambiguous-name"
+	// NotRenamable is a rename aimed at something that is not an attachment.
+	// The detail names what the reference resolved to, so the caller sees
+	// what was misunderstood rather than what they tried to write.
+	NotRenamable = LayerPrefix + "not-renamable"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -197,7 +207,7 @@ var Introduced = []string{
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
-	UnknownRoot, OutsideRoot,
+	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
