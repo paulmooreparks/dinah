@@ -80,6 +80,24 @@ type sweptBlock struct {
 	// would report an aligned continuation as a first field in the wrong
 	// place.
 	wrapsTail bool
+	// capsColumn says the block draws its first column under a ceiling
+	// (dinah-200): a value too wide for the cap breaks between words rather
+	// than running past the column, and the field after it stays on the
+	// row's own first line however many lines the capped value needs. A
+	// continuation line of the capped value leads at sweptCapContinuation
+	// rather than under the column it belongs to or under the column after
+	// it, and reading its output without knowing that would report the
+	// fixed-indent continuation as a field that has drifted, or as the
+	// field after the capped column arriving early. A capsColumn block that
+	// also declares wrapsTail wraps its field after the capped column too,
+	// through the ordinary wrapsTail continuation below; the capped
+	// column's own continuation lines and the field after it wrapping are
+	// two independent axes, so a row can carry both, and the production
+	// renderer draws the capped column's lines before the wrapped field's,
+	// which reading them in the order they arrive reconstructs correctly
+	// without this reader needing to know which axis a given line belongs
+	// to before it sees the line's own lead.
+	capsColumn bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
 	// nothing beyond the six below.
@@ -956,6 +974,13 @@ func assertNoRowThatFitsIsContinued(t *testing.T, block sweptBlock, tag string, 
 // sweptIndent is the display column every block of this inventory starts at.
 const sweptIndent = 2
 
+// sweptCapContinuation is the display column a capsColumn block's capped
+// value continues at once it has wrapped across more than one line: the
+// block's own indent plus the production renderer's
+// ceilingContinuationIndent, read off the same constant the renderer uses
+// rather than a number copied from it.
+const sweptCapContinuation = sweptIndent + ceilingContinuationIndent
+
 // readSweptRows folds a block's rendered rows back into fields and asserts,
 // for every field of every row, that it begins at the display column its own
 // heading begins at. It returns each row's fields.
@@ -966,8 +991,13 @@ const sweptIndent = 2
 // it resume on the next line at the column the field's own would have ended
 // in. A row may also stop short, which is how a state offering nothing says so
 // where the card reference would have been: the field it stops on takes the
-// rest of the line and the row ends there. Anything else is a row whose fields
-// have drifted, which is what this test exists to catch.
+// rest of the line and the row ends there. A capsColumn block departs from
+// that one rule on purpose: the field after its capped column is read off the
+// row's own first line whatever the capped column's own value needs, and a
+// continuation line of the capped column, read at sweptCapContinuation, is
+// folded back into the capped field of the row already closed for it rather
+// than read as a field of a new one. Anything else is a row whose fields have
+// drifted, which is what this test exists to catch.
 func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, columns []int) [][]string {
 	t.Helper()
 	var rows [][]string
@@ -990,6 +1020,19 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == columns[tail] {
 			previous := rows[len(rows)-1]
 			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
+			continue
+		}
+		// A capsColumn block draws every row's field after the capped
+		// column on the row's first line, whatever the capped column's own
+		// value needs, so the first line of such a row reads through the
+		// ordinary path below like any other two-column row. A capsColumn
+		// continuation line carries only more of the capped column's own
+		// value, at the fixed sweptCapContinuation indent, and is folded
+		// back into the row already closed for it rather than read as a
+		// field of its own.
+		if block.capsColumn && next == 0 && len(rows) > 0 && sweptLead(line) == sweptCapContinuation {
+			previous := rows[len(rows)-1]
+			previous[0] += " " + sweptField(line, sweptCapContinuation, -1)
 			continue
 		}
 		if sweptLead(line) != columns[next] {
@@ -1469,16 +1512,16 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:108", label: "the command list of bare dinah",
+			site: "help.go:115", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
-			noHeadingRow: true,
-			opensAt:      "help.usage", sections: sweptHelpSections(), expect: expectCommands,
+			noHeadingRow: true, capsColumn: true, wrapsTail: true,
+			opensAt: "help.usage", sections: sweptHelpSections(), expect: expectCommands,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag)
 			},
 		},
 		{
-			site: "help.go:116", label: "the global flag list",
+			site: "help.go:123", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			opensAt: "help.flags", expect: expectFlags,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1486,7 +1529,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:156", label: "dinah help <command>",
+			site: "help.go:166", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1494,7 +1537,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:192", label: "what you may write, on dinah help <command>",
+			site: "help.go:203", label: "what you may write, on dinah help <command>",
 			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
 			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {

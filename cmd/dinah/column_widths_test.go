@@ -226,84 +226,127 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 }
 
 // TestEnglishCommandListStartsEverySummaryAtOneColumn asserts that every
-// summary of the block bare dinah prints begins at one display column, and
-// that the two entries whose syntax cannot be laid out inside the window
-// continue on a line of their own instead of pushing their summary right.
+// summary of the block bare dinah prints begins at the same display column,
+// whether its own syntax fits on one line or wraps across several, since the
+// syntax column now measures at the declared ceiling rather than at the
+// width its own values need (dinah-200). The summary itself may also wrap,
+// through the same wrapTail the arguments table already uses, and this
+// checks the summary's own first line rather than the whole text for that
+// reason.
 //
-// The column is computed from the fixture's own syntax lines rather than typed
-// in: it is the indent, the widest syntax among the entries that fit an
-// eighty-column window packed tight, and the gutter. That comes to 41, which
-// is where the declared width of 39 started every summary before dinah-115,
-// and computing it is what makes this test read the rule rather than the
-// number a previous measurement produced.
+// The column is computed from the rule the renderer follows rather than
+// typed in: the indent, half of the window the block draws at (assumedWindow,
+// since bare dinah draws with no width stated), and the gutter. A command
+// whose usage is wider than that half needs more than one line for it, and
+// this asserts the count of those against the six the fixture is known to
+// carry, so a change to the command list that stops exercising the wrap is
+// caught here rather than by a coincidence elsewhere. It separately counts
+// how many summaries wrap, against no fixed number, since which summaries
+// are long enough depends on the catalog text this test does not own; the
+// count only has to be positive, which is what proves the interaction this
+// test exists for is actually exercised.
 func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	got := runCLI(t, t.TempDir())
 	if got.code != 0 {
 		t.Fatalf("the help block: %d %s", got.code, got.errw)
 	}
-	want := 2 + widestFittingSyntax(t) + 2
+	room := halfWindow(assumedWindow)
+	wrapIndent := 2 + ceilingContinuationIndent
+	want := 2 + room + tableGutter
 	lines := strings.Split(got.out, "\n")
-	continued, summaries := 0, 0
+	wrapped, summariesWrapped, summaries := 0, 0, 0
 	for _, c := range commands {
 		if c.group == "" {
 			continue
 		}
 		usage := verb.Usage(c.name)
 		summary := msg.For(msg.Base).T("cmd." + c.name + ".summary")
-		for i, line := range lines {
-			if !strings.HasPrefix(line, "  "+usage) {
+		first := strings.Split(firstChunk(usage, wrapIndent, room), "\n")[0]
+		if first != usage {
+			wrapped++
+		}
+		summaryFirst := strings.Split(breakTail(summary, want, assumedWindow), "\n")[0]
+		if summaryFirst != summary {
+			summariesWrapped++
+		}
+		found := false
+		for _, line := range lines {
+			if !strings.HasPrefix(line, "  "+first) {
 				continue
 			}
+			found = true
 			summaries++
-			at := startColumnOf(line, summary)
-			if at < 0 {
-				continued++
-				at = startColumnOf(lines[i+1], summary)
-			}
-			if at != want {
-				t.Errorf("the summary of %s begins at display column %d and the measured layout puts it at %d", c.name, at, want)
+			if at := startColumnOf(line, summaryFirst); at != want {
+				t.Errorf("the summary of %s begins at display column %d and the ceiling puts it at %d", c.name, at, want)
 			}
 			break
+		}
+		if !found {
+			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
 	if summaries != 36 {
 		t.Errorf("read %d command entries out of the block, want 36", summaries)
 	}
-	if continued != 6 {
-		t.Errorf("%d entries continued on a line of their own, want the six whose syntax cannot be laid out inside the window", continued)
+	if wrapped != 6 {
+		t.Errorf("%d entries wrapped across more than one line, want the six whose syntax is wider than half the window", wrapped)
 	}
-	if want != 41 {
-		t.Errorf("the measured summary column is %d, and every block of this shape has started it at 41 since the width was declared", want)
+	if summariesWrapped == 0 {
+		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")
+	}
+	if want != 44 {
+		t.Errorf("the ceiling-bearing summary column measures %d, and this shape has started it at 44 since the ceiling was declared", want)
 	}
 }
 
-// widestFittingSyntax is the widest syntax line among the command entries that
-// can be laid out inside an eighty-column window with their fields packed
-// tight. An entry that cannot be laid out inside the window however the
-// columns are chosen does not get to widen the column, so the five long
-// syntax lines are left out of this the same way the table leaves them out.
-func widestFittingSyntax(t *testing.T) int {
-	t.Helper()
-	widest := displayWidth(msg.For(msg.Base).T("column.commands.command"))
-	fits := 0
-	for _, c := range commands {
-		if c.group == "" {
-			continue
-		}
-		usage := verb.Usage(c.name)
-		summary := msg.For(msg.Base).T("cmd." + c.name + ".summary")
-		if 2+displayWidth(usage)+2+displayWidth(summary) > 80 {
-			continue
-		}
-		fits++
-		if drawn := displayWidth(usage); drawn > widest {
-			widest = drawn
+// firstChunk is the rendering rule for a ceiling-bearing, wrapOptions-on table
+// cell: a value that fits the room is written whole; a value that exceeds the
+// room is broken on option boundaries when it carries them, otherwise on word
+// boundaries. The test reads its own expected first chunk through this rule so
+// it agrees with what the renderer draws, rather than recomputing the wrap
+// shape by hand.
+func firstChunk(value string, indent, room int) string {
+	if displayWidth(value) <= room {
+		return value
+	}
+	if hasOptionBoundary(value) {
+		return breakOnOptions(value, indent, room)
+	}
+	return breakWords(value, indent, room)
+}
+
+// hasOptionBoundary is true when value carries at least one boundary the
+// breakOnOptions rule recognises. The check is structural and exists to match
+// splitOnOptionBoundaries's own view, so the two never disagree on what the
+// rule applies to.
+func hasOptionBoundary(value string) bool {
+	depth := 0
+	for i := 0; i < len(value); i++ {
+		switch value[i] {
+		case '[':
+			if i+2 < len(value) && value[i+1] == '-' && value[i+2] == '-' {
+				depth++
+			}
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case ' ':
+			if depth > 0 {
+				continue
+			}
+			j := i + 1
+			switch {
+			case j+2 < len(value) && value[j] == '[' && value[j+1] == '-' && value[j+2] == '-':
+				return true
+			case j < len(value) && value[j] == '<':
+				return true
+			case j+1 < len(value) && value[j] == '-' && value[j+1] == '-':
+				return true
+			}
 		}
 	}
-	if fits == 0 {
-		t.Fatal("no command entry fits the window, so this measure asserts nothing")
-	}
-	return widest
+	return false
 }
 
 // TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong asserts that a

@@ -73,6 +73,28 @@ type table struct {
 	// assumedWindow whenever no width is stated, so wrapping by default would
 	// rewrite the piped output of every listing the tool prints.
 	wrapTail bool
+	// ceilingColumn, together with hasCeiling, declares that column at half
+	// the window the table draws in, breaking a value too wide for it
+	// between words rather than measuring the column out to the value's own
+	// width. It is an opt-in a table takes for itself, the same way
+	// wrapTail is: every table that declares neither keeps measuring its
+	// columns at the width its values need, exactly as every table drew
+	// before this existed. The field after the capped column stays pinned
+	// to the first line of the capped value, however many lines that value
+	// wraps to, which is what keeps the listing scannable in a straight
+	// column. Column 0 is a legitimate column to cap, so hasCeiling rather
+	// than a negative sentinel is what tells "no ceiling" apart from
+	// "column 0, capped". Only a table of exactly two columns, the capped
+	// one first, draws through this; see ceilingRowLine.
+	ceilingColumn int
+	hasCeiling    bool
+	// wrapOptions asks the capped column to break on option boundaries
+	// (a space followed by `[--`, by `<`, or by a bare `--`) before
+	// falling back to word-wrap on the trailing prose. It is an opt-in a
+	// table takes for itself, the same way wrapTail is: every table that
+	// does not ask for it breaks the capped column on word boundaries, the
+	// behaviour every ceiling-bearing table drew before this existed.
+	wrapOptions bool
 }
 
 // tableGutter is how many display columns separate one column from the next.
@@ -89,6 +111,16 @@ const tableGutter = 2
 // constant keeps a run whose window is unknown laying out the same way in
 // every terminal and in a pipe.
 const assumedWindow = 80
+
+// ceilingContinuationIndent is how far a ceiling-bearing column's wrapped
+// lines sit past its row's own indent: two columns past where the value
+// itself starts, which in this table's one indent of two puts a wrapped
+// line at four. It is a shallow, fixed indent rather than one that tracks
+// the column's own width, in the same spirit as a manual page's option
+// list: the line after the first says "this continues the value above",
+// nothing more, and the field that follows the value stays on the first
+// line regardless of how many lines the value itself needs.
+const ceilingContinuationIndent = 2
 
 // ruleGlyph is what a separator is drawn with. The table draws it rather than
 // serving it from a catalog, so no translation can change it and no
@@ -289,29 +321,67 @@ type laidTable struct {
 	// wrapTail is carried from the table, so the measure and the row assembly
 	// both read one answer.
 	wrapTail bool
+	// ceilingColumn and hasCeiling are carried from the table, so the ceiling
+	// pass and the row assembly both read one answer.
+	ceilingColumn int
+	hasCeiling    bool
+	// wrapOptions is carried from the table, so the row assembly reads the
+	// same answer the table declared.
+	wrapOptions bool
 }
 
 // layOut removes the columns no row fills, chooses every column's width, and
 // returns what the heading, separator and rows are all drawn from.
 //
-// The three passes run in one order and the order is load-bearing. The measure
-// comes first, the near-miss widening second, and the narrow-window backstop
-// last, so that the backstop has the final word on how much of the window the
-// columns before the last one may take. Nothing widens a column after it. An
-// earlier reading of this ran the widening a second time at the end and priced
-// it at one display column, which is what one step costs rather than what a
-// loop over every value costs: each value between a narrowed column's floor
-// and the width it was measured at is a step the widening climbs back, so ten
-// ordinary state names at a forty-column window walked three columns out again
-// and put the last column past the room left for it.
+// The four passes run in one order and the order is load-bearing. The measure
+// comes first, the near-miss widening second, the ceiling third, and the
+// narrow-window backstop last, so that the backstop has the final word on how
+// much of the window the columns before the last one may take. A
+// ceiling-bearing column's width is a declaration rather than a further
+// narrowing of the measure, so running it after the near-miss widening
+// discards whatever that pass chose for it; the backstop can still narrow it
+// further in a window too small even for half itself, which is why the
+// ceiling has to run before the backstop rather than after.
 func (s *session) layOut(t table) laidTable {
 	window := s.width
 	if window <= 0 {
 		window = assumedWindow
 	}
 	laid := measure(t, window)
+	if laid.hasCeiling {
+		applyCeiling(&laid)
+	}
 	narrowToWindow(&laid)
 	return laid
+}
+
+// halfWindow is the width a ceiling-bearing column draws at: half the
+// window it draws in, rounded down. layOut has already replaced an unknown
+// window with assumedWindow by the time this runs, so a piped run sees the
+// same ceiling every time it draws.
+func halfWindow(window int) int {
+	return window / 2
+}
+
+// applyCeiling sets a table's declared column to halfWindow, never below its
+// own heading, since a heading is a floor every other pass in this file
+// respects too. This is a declaration rather than a narrowing of what
+// chooseWidths measured: a short value that would otherwise have left the
+// column at its own width is padded out to the ceiling instead, which is
+// what lines every row's field after the capped column up in one place
+// whether its own value is long or short. ceilingRowLine is what a value
+// wider than the ceiling actually draws, wrapping between words rather than
+// running past the column.
+func applyCeiling(laid *laidTable) {
+	c := laid.ceilingColumn
+	if c < 0 || c >= len(laid.widths) {
+		return
+	}
+	ceiling := halfWindow(laid.window)
+	if floor := displayWidth(laid.columns[c].heading); ceiling < floor {
+		ceiling = floor
+	}
+	laid.widths[c] = ceiling
 }
 
 // measure runs the two passes before the backstop: it removes the columns no
@@ -336,11 +406,14 @@ func measure(t table, window int) laidTable {
 		// read off the declared table for the same reason: those two helpers
 		// rebuild without it, so filled.wrapTail is false on every path and
 		// would silently retire a wrapping table's opt-in.
-		labels:   t.labels,
-		window:   window,
-		columns:  filled.columns,
-		rows:     filled.rows,
-		wrapTail: t.wrapTail,
+		labels:        t.labels,
+		window:        window,
+		columns:       filled.columns,
+		rows:          filled.rows,
+		wrapTail:      t.wrapTail,
+		ceilingColumn: t.ceilingColumn,
+		hasCeiling:    t.hasCeiling,
+		wrapOptions:   t.wrapOptions,
 	}
 	laid.widths = chooseWidths(laid)
 	clearTheGutter(&laid)
@@ -742,7 +815,11 @@ func (laid laidTable) ruleWidth(column, start int) int {
 }
 
 // rowLine lays one row out: every field but the last padded to its column and
-// the gutter after it, and the last field taking whatever is left of the line.
+// the gutter after it, and the last field taking whatever is left of the
+// line. A ceiling-bearing table draws through ceilingRowLine instead, which
+// keeps the field after the capped column on the first line rather than
+// letting it resume under whichever column the capped value happened to
+// reach.
 //
 // A wrapping table stamps wrapTail onto its heading row and its rule row as
 // well as onto its body, and both survive it. breakTail breaks a tail between
@@ -751,6 +828,9 @@ func (laid laidTable) ruleWidth(column, start int) int {
 // to reach the edge would wrap where a body cell wraps, which is the layout
 // this table asked for rather than a fault in it.
 func (laid laidTable) rowLine(r tableRow) string {
+	if laid.hasCeiling {
+		return laid.ceilingRowLine(r)
+	}
 	built := row{indent: laid.indent, wrapTail: laid.wrapTail}
 	for c, field := range r.fields {
 		if c == len(r.fields)-1 {
@@ -760,6 +840,85 @@ func (laid laidTable) rowLine(r tableRow) string {
 		built.cells = append(built.cells, cell{text: field, width: laid.widths[c] + tableGutter})
 	}
 	return formatRow(built, laid.window)
+}
+
+// ceilingRowLine lays out a row of a ceiling-bearing table: the capped
+// column breaks between words rather than running past its own width, and
+// the field after it stays on the row's first line however many lines the
+// capped value needs, which is what keeps a reader's eye running down the
+// summaries in a straight line rather than chasing them down the page.
+//
+// The field after the capped column wraps too, through breakTail, exactly
+// as it already does for the arguments table's own tail, when the table
+// declares wrapTail. The two wraps are independent (a value that needs
+// three lines and a summary that needs two are not the same axis), so this
+// draws the capped column's own continuation lines first and the summary's
+// after, rather than letting formatRow's ordinary wrapTail handling fold
+// them into one interleaved run where a reader cannot tell which column a
+// given line belongs to.
+//
+// This assumes the shape hasCeiling exists for: exactly two columns, the
+// capped one first and an unpadded field after it. A table asking for a
+// ceiling on any other shape is not a case this draws correctly, and none
+// of this tool's tables ask for one.
+//
+// A value whose very first word is wider than the column on its own is the
+// one case wrapping cannot help: breakWords writes that word whole rather
+// than splitting it, exactly as breakTail already does for a tail, so the
+// same word can still reach past the cap. Such a row falls back to the
+// shape a capped overflow drew before wrapping existed: the whole capped
+// value on its own lines, and the field after it on one further line of
+// its own (wrapped the same way, if the table asks for it), rather than
+// fighting the first line for room the word cannot leave it.
+func (laid laidTable) ceilingRowLine(r tableRow) string {
+	c := laid.ceilingColumn
+	room := laid.widths[c]
+	wrapIndent := laid.indent + ceilingContinuationIndent
+	value := r.fields[c]
+	after := ""
+	if len(r.fields) > c+1 {
+		after = r.fields[c+1]
+	}
+	wrapped := breakWords(value, wrapIndent, room)
+	if laid.wrapOptions && displayWidth(value) > room {
+		wrapped = breakOnOptions(value, wrapIndent, room)
+	}
+	first, syntaxRest, moreSyntax := strings.Cut(wrapped, "\n")
+
+	// A single word wider than the cap on its own is the one case wrapping
+	// cannot help: breakWords writes it whole, exactly as breakTail already
+	// does for a tail, so first can still overrun room. There, the value
+	// draws on its own line or lines and the field after it follows on one
+	// line of its own, wrapped the same way a wrapping table's own tail
+	// wraps, rather than fighting the value for room its own first word
+	// already used up.
+	if displayWidth(first) > room {
+		whole := formatRow(row{indent: laid.indent, tail: wrapped}, laid.window)
+		trailer := formatRow(row{indent: wrapIndent, tail: after, wrapTail: laid.wrapTail}, laid.window)
+		return whole + "\n" + trailer
+	}
+
+	// The field after the capped column wraps through breakTail exactly as
+	// the arguments table's own tail does, at the column it begins in on
+	// the row's first line. Only its own first segment goes into the cell
+	// row below; its further lines are appended after the capped column has
+	// had its own say, rather than folded into formatRow's ordinary
+	// wrapTail handling, which would interleave a capped value's own
+	// continuation lines between the summary's, one column pretending to be
+	// the other's.
+	summary, summaryRest, moreSummary := after, "", false
+	if laid.wrapTail && laid.window > 0 {
+		begins := laid.indent + room + tableGutter
+		summary, summaryRest, moreSummary = strings.Cut(breakTail(after, begins, laid.window), "\n")
+	}
+	line := formatRow(row{indent: laid.indent, cells: []cell{{text: first, width: room + tableGutter}}, tail: summary}, laid.window)
+	if moreSyntax {
+		line += "\n" + syntaxRest
+	}
+	if moreSummary {
+		line += "\n" + summaryRest
+	}
+	return line
 }
 
 // rule returns a separator's run of glyphs, built one column at a time so that

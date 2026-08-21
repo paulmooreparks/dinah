@@ -90,7 +90,14 @@ func (s *session) helpBlock() string {
 	var b strings.Builder
 	b.WriteString(s.r.T("help.tagline") + "\n\n")
 	b.WriteString(s.r.T("help.usage") + "\n")
-	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack}
+	// hasCeiling caps the syntax column at half the window: the top-level
+	// listing is the one table this tool draws with values wide enough to
+	// swallow the whole line on their own (check's flags run past ninety
+	// display columns), and no other table opts into this. wrapTail is the
+	// same opt-in the arguments table already uses, so a long summary wraps
+	// at the right edge rather than running past it into whatever the
+	// terminal does with the overrun.
+	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack, ceilingColumn: 0, hasCeiling: true, wrapTail: true, wrapOptions: true}
 	for _, group := range groups {
 		opening := true
 		for _, c := range commands {
@@ -134,11 +141,14 @@ func (s *session) verbHelp(name string) string {
 		return ""
 	}
 	var b strings.Builder
-	// The syntax line is broken between words at the window, indented under
-	// itself, for the same reason the arguments table breaks its last column:
-	// a command declaring enough flags draws a line no eighty-column terminal
-	// can hold, and every line of this page is held to the window.
-	b.WriteString(breakTail(verb.Usage(name), 2, windowWidth()) + "\n\n")
+	// The syntax line is broken on option boundaries when the syntax itself
+	// runs past the window, indented under itself, for the same reason the
+	// arguments table breaks its last column: a command declaring enough
+	// flags draws a line no eighty-column terminal can hold, and every line
+	// of this page is held to the window. A syntax that fits the window is
+	// written whole, the same way every help page draws one today.
+	usage := verb.Usage(name)
+	b.WriteString(s.renderSyntaxLine(usage, 2) + "\n\n")
 	b.WriteString(s.r.T("cmd."+name+".summary") + "\n")
 	if key := "cmd." + name + ".note"; s.r.Has(key) {
 		b.WriteString("\n" + s.r.T(key) + "\n")
@@ -180,9 +190,10 @@ func (s *session) argumentLines(name string) []string {
 		return nil
 	}
 	arguments := table{
-		indent:   2,
-		columns:  s.columns("arguments", "argument", "what"),
-		wrapTail: true,
+		indent:      2,
+		columns:     s.columns("arguments", "argument", "what"),
+		wrapTail:    true,
+		wrapOptions: true,
 	}
 	for _, param := range declared {
 		row := tableRow{fields: []string{param.Token(), s.argumentMeaning(name, param)}}
