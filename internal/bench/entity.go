@@ -84,6 +84,35 @@ func Comments(cardDir string) ([]*Comment, error) {
 	return comments, nil
 }
 
+// Attachments reads a card's attachments in creation order.
+//
+// The order is the ordinal's rather than the directory listing's, on the same
+// terms Comments already orders its comments. An attachment carrying no
+// ordinal sorts ahead of every stamped one and keeps its place relative to
+// its unstamped neighbours, which is what an unmigrated workbench falls
+// back to until check's missing-ordinal finding is acted on.
+func Attachments(cardDir string) ([]*Attachment, error) {
+	collection := filepath.Join(cardDir, AttachmentsDir)
+	var attachments []*Attachment
+	for _, id := range SortByOrdinal(collection, AttachmentAnchor, ListIDs(collection)) {
+		dir := filepath.Join(collection, id)
+		text, err := ReadText(filepath.Join(dir, AttachmentAnchor))
+		if err != nil {
+			continue
+		}
+		fm, _ := ParseAnchor(text)
+		attachments = append(attachments, &Attachment{
+			ID:          id,
+			Dir:         dir,
+			Filename:    fm.Value("filename"),
+			Description: fm.Value("description"),
+			Provenance:  fm.Value("provenance"),
+			Ordinal:     OrdinalOf(fm),
+		})
+	}
+	return attachments, nil
+}
+
 // Attachment is one attachment: the entity wrapping bytes the format never
 // inspects, carrying the original filename, a description and provenance.
 type Attachment struct {

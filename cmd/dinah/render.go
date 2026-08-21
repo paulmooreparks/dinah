@@ -394,7 +394,7 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	s.table(t)
 }
 
-// renderDetail prints a card, its links and its comments.
+// renderDetail prints a card, its links, its attachments and its comments.
 func (s *session) renderDetail(detail *verb.Detail) {
 	s.renderCard(&detail.Card)
 	if detail.Body != "" {
@@ -409,6 +409,19 @@ func (s *session) renderDetail(detail *verb.Detail) {
 			links.rows = append(links.rows, tableRow{fields: []string{link.Kind, link.Ref}})
 		}
 		s.table(links)
+	}
+	if len(detail.Attachments) > 0 {
+		s.line("")
+		s.line(s.r.T("show.attachments"))
+		attachments := table{indent: 2, columns: s.columns("attachments", "position", "filename", "description")}
+		for _, attachment := range detail.Attachments {
+			attachments.rows = append(attachments.rows, tableRow{fields: []string{
+				strconv.Itoa(attachment.Ordinal),
+				attachment.Filename,
+				attachment.Description,
+			}})
+		}
+		s.table(attachments)
 	}
 	if len(detail.Comments) > 0 {
 		s.line("")
@@ -439,6 +452,10 @@ func (s *session) renderHistory(events []bench.Event) {
 			tail = ev.Reason
 		case contract.EventCreated:
 			tail = ev.Title
+		case contract.EventAttached, contract.EventAttachmentReplaced, contract.EventAttachmentRemoved:
+			tail = ev.Filename
+		case contract.EventAttachmentRenamed:
+			tail = s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
 		}
 		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, tail}
 		t.rows = append(t.rows, tableRow{fields: fields})

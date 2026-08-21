@@ -1631,16 +1631,6 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "skeleton": true
     },
-    "param.rename.ref.summary": {
-      "text": "the attachment you are renaming",
-      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table.",
-      "skeleton": true
-    },
-    "param.rename.name.summary": {
-      "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
-      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table.",
-      "skeleton": true
-    },
     "param.show.card.summary": {
       "text": "a state, a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
@@ -1877,8 +1867,8 @@
       "skeleton": true
     },
     "refusal.dinah.not-renamable": {
-      "text": "{detail} is not an attachment and rename will not change its name",
-      "context": "The sentence printed after the refusal name dinah.not-renamable. {detail} is the reference the rename verb resolved, naming what the reference reached rather than the word the caller typed.",
+      "text": "{kind} is not an attachment and rename will not change its name",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed.",
       "skeleton": true
     },
     "refusal.dinah.not-renamable.next": {
@@ -2719,6 +2709,11 @@
     "param.mcp.root.summary": {
       "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.rename.name.summary": {
+      "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table.",
       "skeleton": true
     }
   }

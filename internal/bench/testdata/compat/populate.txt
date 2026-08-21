@@ -16,6 +16,7 @@ delete sample-1/attachments/2 --yes
 attach sample-1 payload-three.txt --description "the third payload"
 archive sample-1/attachments/2
 attach sample-1 payload-two.txt --description "the surviving payload"
+rename sample-1/attachments/1 renamed-payload.txt
 claim sample-2
 release sample-2
 claim sample-3 --expires 8h

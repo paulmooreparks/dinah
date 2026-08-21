@@ -1456,7 +1456,15 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:421", label: "a card's comments",
+			site: "render.go:424", label: "a card's attachments",
+			keys: []string{"column.attachments.position", "column.attachments.filename", "column.attachments.description"}, varies: lastCell,
+			opensAt: "show.attachments", expect: expectAttachments,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "show", w.card)
+			},
+		},
+		{
+			site: "render.go:434", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
@@ -1467,7 +1475,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:446", label: "dinah log",
+			site: "render.go:463", label: "dinah log",
 			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
 			varies: lastCell, expect: expectHistory,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1475,7 +1483,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:462", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:479", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			expect: expectAssignedSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1483,28 +1491,28 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:491", label: "one removed stranded state", varies: noCell,
+			site: "render.go:508", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states")
 			},
 		},
 		{
-			site: "render.go:627", label: "the states a refusal lists", varies: noCell,
+			site: "render.go:644", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
-			site: "render.go:508", label: "one finding", varies: noCell,
+			site: "render.go:525", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
-			site: "render.go:533", label: "catalog coverage",
+			site: "render.go:550", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1545,7 +1553,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:457", label: "the guide topics",
+			site: "commands.go:473", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1553,7 +1561,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:735", label: "the workbench's own fields",
+			site: "render.go:752", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			expect: expectWorkbenchFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1561,7 +1569,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:474", label: "the workstream slugs check --migrate-slugs assigned",
+			site: "render.go:491", label: "the workstream slugs check --migrate-slugs assigned",
 			keys:   []string{"column.slugs.slug", "column.slugs.title"},
 			varies: lastCell, expect: expectAssignedWorkstreamSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1578,7 +1586,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:757", label: "dinah workstream",
+			site: "render.go:774", label: "dinah workstream",
 			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1586,7 +1594,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:778", label: "one workstream's own fields",
+			site: "render.go:795", label: "one workstream's own fields",
 			keys:   []string{"column.workstream.field", "column.workstream.value"},
 			varies: lastCell, expect: expectWorkstreamFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1595,7 +1603,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:791", label: "the cards belonging to one workstream",
+			site: "render.go:808", label: "the cards belonging to one workstream",
 			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.state"},
 			varies: lastCell, expect: expectWorkstreamMembers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1731,6 +1739,9 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	sweptRelease(t, benches, "fx-12", "")
 	sweptComment(t, benches, "fx-1", "the first note", "")
 	sweptComment(t, benches, "fx-1", "the second note", "bo")
+	sweptAttach(t, benches, "fx-1", "notes.txt", "the body notes the file", "")
+	sweptAttach(t, benches, "fx-1", "data.csv", "the rows the body builds", "")
+	sweptRename(t, benches, "fx-1/attachments/1", "renamed-notes.txt", "")
 	sweptWriteLinks(t, benches, "fx-1")
 	sweptSetEditor(t, benches, "notepad")
 	benches.record.settings = sweptSettings(t, benches)
@@ -1901,6 +1912,36 @@ func sweptComment(t *testing.T, w *sweptWorkbenches, ref, body, actor string) {
 	sweptDo(t, w.healthy, sweptWithActor([]string{"comment", ref, body}, actor)...)
 	r := w.record
 	r.comments = append(r.comments, sweptCommentRecord{card: ref, actor: sweptActor(r, actor), body: body})
+}
+
+// sweptAttach writes a small file into the workbench directory and attaches
+// it to a card, which leaves the attachments block of `dinah show` carrying
+// one row whose filename is the name it was attached under.
+func sweptAttach(t *testing.T, w *sweptWorkbenches, ref, filename, description, actor string) {
+	t.Helper()
+	payload := filepath.Join(w.healthy, filename)
+	if err := os.WriteFile(payload, []byte("swept fixture payload\n"), 0o644); err != nil {
+		t.Fatalf("write payload: %v", err)
+	}
+	args := []string{"attach", ref, filename}
+	if description != "" {
+		args = append(args, "--description", description)
+	}
+	sweptDo(t, w.healthy, sweptWithActor(args, actor)...)
+	r := w.record
+	r.attachments = append(r.attachments, sweptAttachmentRecord{
+		card: ref, actor: sweptActor(r, actor), filename: filename, description: description,
+	})
+}
+
+// sweptRename carries an attachment under a new filename and records the act,
+// which leaves the log block of the card it hangs from carrying a renamed row
+// alongside its creation, claim, and other acts.
+func sweptRename(t *testing.T, w *sweptWorkbenches, ref, to, actor string) {
+	t.Helper()
+	sweptDo(t, w.healthy, sweptWithActor([]string{"rename", ref, to}, actor)...)
+	r := w.record
+	r.renames = append(r.renames, sweptActRecord{card: ref, actor: sweptActor(r, actor), reason: to})
 }
 
 // sweptSetEditor writes the editor setting, which is what leaves the editor

@@ -1166,8 +1166,8 @@
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
     },
     "refusal.dinah.not-renamable": {
-      "text": "{detail} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
-      "context": "The sentence printed after the refusal name dinah.not-renamable. {detail} is the reference the rename verb resolved, naming what the reference reached rather than the word the caller typed."
+      "text": "{kind} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed."
     },
     "refusal.dinah.not-renamable.next": {
       "text": "; कोई संलग्नक-संदर्भ दें जैसे <कार्ड>/attachments/<ordinal>",
@@ -1789,14 +1789,6 @@
       "text": "एक स्थिति, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
     },
-    "param.rename.ref.summary": {
-      "text": "जिस संलग्नक का आप नाम बदल रहे हैं",
-      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
-    },
-    "param.rename.name.summary": {
-      "text": "वह फ़ाइल-नाम जो संलग्नक को धारण करना है, एक शेल-शब्द में या उद्धरण-चिह्नों में",
-      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
-    },
     "param.yes.summary": {
       "text": "इस काम की पुष्टि करें, जिसके बिना Dinah इसे नहीं करता",
       "context": "The meaning of the --yes flag, shared by the commands that ask before they destroy something."
@@ -2176,6 +2168,10 @@
     "tree.hidden.filter": {
       "text": "{count} छानकर हटाए गए",
       "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
+    },
+    "param.rename.name.summary": {
+      "text": "वह फ़ाइल-नाम जो संलग्नक को धारण करना है, एक शेल-शब्द में या उद्धरण-चिह्नों में",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
     }
   }
 }

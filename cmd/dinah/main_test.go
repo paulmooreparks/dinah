@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 36 {
-		t.Errorf("wanted thirty-six listed commands, got %d", listed)
+	if listed != 37 {
+		t.Errorf("wanted thirty-seven listed commands, got %d", listed)
 	}
 }
 
@@ -6530,6 +6530,14 @@ var placeholdersOutsideTheParameterTable = map[string]string{
 	// states list names a state it carries no directory for. The identifier
 	// belongs to the workbench's own storage rather than to any argument.
 	"id": "refusal.dinah.add-needs-a-state.next",
+	// The position of one attachment among several matching a name selector,
+	// in the form rename's caller is told to spell. The argument rename
+	// declares is a reference, not an ordinal.
+	"ordinal": "refusal.dinah.ambiguous-name.next",
+	// The reference rename expects, in the form the call has to take to
+	// reach one. The argument rename declares is a reference, not the
+	// reference's card segment.
+	"card": "refusal.dinah.not-renamable.next",
 }
 
 // TestEveryPlaceholderNamesSomethingDeclared asserts dinah-172 AC-18: a word a

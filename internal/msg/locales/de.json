@@ -1329,14 +1329,6 @@
       "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things."
     },
-    "param.rename.ref.summary": {
-      "text": "der Anhang, den Sie umbenennen",
-      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
-    },
-    "param.rename.name.summary": {
-      "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",
-      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
-    },
     "param.show.card.summary": {
       "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table."
@@ -1526,8 +1518,8 @@
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.not-renamable": {
-      "text": "{detail} ist kein Anhang, und rename ändert seinen Namen nicht",
-      "context": "The sentence printed after the refusal name dinah.not-renamable. {detail} is the reference the rename verb resolved, naming what the reference reached rather than the word the caller typed."
+      "text": "{kind} ist kein Anhang, und rename ändert seinen Namen nicht",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed."
     },
     "refusal.dinah.not-renamable.next": {
       "text": "; übergeben Sie eine Anhang-Referenz wie <Karte>/attachments/<ordinal>",
@@ -2176,6 +2168,10 @@
     "workstreams.empty": {
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
+    },
+    "param.rename.name.summary": {
+      "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
     }
   }
 }

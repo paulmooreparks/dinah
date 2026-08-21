@@ -689,7 +689,7 @@ $ dinah log rel-1
   2026-08-18T21:02:23Z  released   ana
   2026-08-18T21:02:23Z  claimed    ana
   2026-08-18T21:02:23Z  moved      ana    Doing to Done
-  2026-08-18T21:02:23Z  attached   ana
+  2026-08-18T21:02:23Z  attached   ana    notes.txt
 [exit 0]
 ```
 
@@ -1069,14 +1069,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        525/525
-  af        0/525
-  cs        0/525
-  de        525/525
-  es        0/525
-  fil       0/525
-  hi        525/525
-  id        0/525
+  en        543/543
+  af        0/543
+  cs        0/543
+  de        543/543
+  es        0/543
+  fil       0/543
+  hi        543/543
+  id        0/543
 [exit 0]
 ```
 
