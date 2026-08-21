@@ -83,10 +83,10 @@ func TestContinuationIndentClamp(t *testing.T) {
 // per-line output.
 func TestBreakOnOptions(t *testing.T) {
 	cases := []struct {
-		name  string
-		text  string
+		name   string
+		text   string
 		indent int
-		want  string
+		want   string
 	}{
 		{
 			name:   "square bracket",

@@ -148,11 +148,7 @@ func (s *session) verbHelp(name string) string {
 	// of this page is held to the window. A syntax that fits the window is
 	// written whole, the same way every help page draws one today.
 	usage := verb.Usage(name)
-	width := windowWidth()
-	if width > 0 && displayWidth(usage) > width {
-		usage = breakOnOptions(usage, 2, width)
-	}
-	b.WriteString(usage + "\n\n")
+	b.WriteString(s.renderSyntaxLine(usage, 2) + "\n\n")
 	b.WriteString(s.r.T("cmd."+name+".summary") + "\n")
 	if key := "cmd." + name + ".note"; s.r.Has(key) {
 		b.WriteString("\n" + s.r.T(key) + "\n")

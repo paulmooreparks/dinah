@@ -319,6 +319,34 @@ func (s *session) rowLine(r row) string {
 	return formatRow(r, s.width)
 }
 
+// renderSyntaxLine lays out a verb's syntax line for the help page: the line
+// drawn whole when it fits the window, and broken on option boundaries (a
+// space followed by `[--`, by `<`, or by a bare `--`) and indented under
+// itself when it does not. The break is structural rather than visual, so a
+// reader's eye sees one option group per line rather than a chunk of option
+// glyphs scattered down the page.
+//
+// The width check lives here rather than at the call site because the rule
+// that no caller outside the renderer and the table measures how wide text
+// draws is what TestNoRowIsLaidOutOutsideTheOneRenderer enforces, and a
+// syntax line that asks the renderer whether it fits is the same question
+// raised at a different layer. A line shorter than the window is written
+// whole, exactly as every help page draws one today; a longer line runs
+// through breakOnOptions at indent, which falls back to breakWords when the
+// syntax carries no option boundary, so the rule degrades to the word-wrap
+// the rest of the renderer already uses. An unknown window (s.width == 0)
+// renders the line whole, the same way every row does.
+//
+// The line is returned as one string with embedded newlines; the caller
+// writes it through the same path as every other line of the block, so the
+// page keeps its single-line-per-line shape.
+func (s *session) renderSyntaxLine(text string, indent int) string {
+	if s.width <= 0 || displayWidth(text) <= s.width {
+		return text
+	}
+	return breakOnOptions(text, indent, s.width)
+}
+
 // row renders a row and writes it to stdout.
 func (s *session) row(r row) {
 	s.line(s.rowLine(r))
