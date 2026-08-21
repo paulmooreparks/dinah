@@ -10,8 +10,11 @@ WORK
   block <card> <reason> [--kind <kind>]     raise an obstacle and free the card
   unblock <card>                            lift a block (operator only)
   comment <card> <text|->                   record a comment on a card
-  attach <ref> <file> [--description        attach a file, or replace its bytes
-    <text>] [--replace]
+  attach                                    attach a file, or replace its bytes
+    <ref>
+    <file>
+    [--description <text>]
+    [--replace]
   join <card> <workstream>                  add a card to a workstream
   leave <card> <workstream>                 take a card out of a workstream
   archive <ref>                             move a card, a state, or anything
@@ -27,7 +30,8 @@ READ
   next [state]                              the card a state offers next
   query [query]                             the cards of the workbench that
                                             match a query
-  tree [query] [--group-by <axes>]          the workbench's cards nested along a
+  tree [query]                              the workbench's cards nested along a
+    [--group-by <axes>]
     [--depth <level>]
                                             chain of axes
   contents <ref> [--depth <level>]          what an entity of the workbench
@@ -40,8 +44,10 @@ READ
   guide [topic]                             the embedded guides, or one of them
 
 WORKBENCH
-  init [dir] [--from <source>] [--slug      create a workbench here, optionally
-    <slug>] [--operator <actor>]
+  init [dir]                                create a workbench here, optionally
+    [--from <source>]
+    [--slug <slug>]
+    [--operator <actor>]
                                             from a template
   export                                    write this workbench's interchange
                                             form to stdout
@@ -54,8 +60,11 @@ WORKBENCH
                                             anything below a card in your editor
   config [get|set] [key] [value]            list your user settings, or read or
                                             write one
-  check [--finish] [--migrate-ordinals]     look for structural defects in this
-    [--migrate-slugs] [--migrate-states]
+  check                                     look for structural defects in this
+    [--finish]
+    [--migrate-ordinals]
+    [--migrate-slugs]
+    [--migrate-states]
     [--migrate-workstreams]
                                             workbench
   whoami                                    the actor your actions carry, and
