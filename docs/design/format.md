@@ -124,7 +124,7 @@ asked.
         <12-hex>/
           attachment.md     # anchor: filename, description, provenance
           payload/
-            <payload file>  # the bytes, under their original filename
+            <payload file>  # the bytes, under their current filename
   archive/
     cards/<12-hex>/...      # archived cards, on-demand only
 ```
@@ -526,9 +526,9 @@ Ordering comes from the ordinal field, not from the timestamp and not from
 the directory name.
 
 An attachment is likewise an entity: a hex directory whose anchor,
-`attachment.md`, records the original filename, a description, provenance,
+`attachment.md`, records the current filename, a description, provenance,
 and a creation ordinal, beside a `payload/` directory holding exactly one
-file carrying the bytes under their original name. The payload directory is
+file carrying the bytes under their current name. The payload directory is
 what makes the payload structurally identified: a stray file beside the
 anchor is unambiguously garbage rather than a candidate payload, and the
 payload's namespace contains no reserved names, so filename collisions
@@ -538,12 +538,20 @@ entity around it is what makes the attachment referenceable, replaceable
 accountably, and archivable. Any entity may carry an `attachments/`
 collection: the workbench itself (reference documents that belong to the
 board rather than to any card), a state, a card, a comment. Replacing a
-payload is a journaled act (attached, attachment_replaced, and
-attachment_removed are registry members of the closed event set, carrying
-the attachment id and its filename as of the event), recorded in the
-nearest enclosing journal per the History section; prior payload versions
-are git's concern when the workbench is versioned, per the content plane's
-integrity assignment. A multi-file deliverable is multiple attachments.
+payload is a journaled act (attached, attachment_replaced,
+attachment_renamed, and attachment_removed are registry members of the
+closed event set, carrying the attachment id and its filename as of the
+event), recorded in the nearest enclosing journal per the History section;
+prior payload versions are git's concern when the workbench is versioned,
+per the content plane's integrity assignment. A multi-file deliverable is
+multiple attachments.
+
+The current filename a reader derives from the journal alone is the
+filename in the most recent attachment event for that attachment. The
+`attached` event holds the name the file arrived under, and a subsequent
+`attachment_renamed` event carries the new name in `filename` and the
+previous one in `from`, so reading the journal line by line gives one
+answer across the attachment family.
 
 Attachments may be organized into folders, and a folder is itself an
 entity, by the taxonomy's own tests: it has identity that survives
