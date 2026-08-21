@@ -134,6 +134,18 @@ var beyondChecks = map[string][]Check{
 	"show": {
 		{Refusal: contract.UnknownPath, Key: "check.show.1"},
 	},
+	// rename checks UnknownPath first so a reference that resolves to
+	// anything but an attachment fails on the resolution it tried rather
+	// than on the rename-specific name it did not try yet, then NoOwner
+	// for the same reason the workbench-level pair does, then Malformed
+	// for the name itself, then NotRenamable for the case the reference
+	// resolved to something the verb refuses.
+	"rename": {
+		{Refusal: contract.UnknownPath, Key: "check.rename.1"},
+		{Refusal: contract.NoOwner, Key: "check.rename.2"},
+		{Refusal: contract.Malformed, Key: "check.rename.3"},
+		{Refusal: contract.NotRenamable, Key: "check.rename.4"},
+	},
 	"log": {
 		{Refusal: contract.UnknownCard, Key: "check.log.1"},
 	},
