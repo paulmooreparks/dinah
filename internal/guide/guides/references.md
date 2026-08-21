@@ -37,6 +37,8 @@ name of what you want:
     dinah path wb-1/checklist/1      one checklist item
     dinah path wb-1/attachments      every attachment
     dinah path wb-1/attachments/1    one attachment
+    dinah path wb-1/attachments/1/payload
+                                     the file the attachment carries
 
 You may write three shorter spellings that select one kind of checklist item:
 
@@ -44,9 +46,12 @@ You may write three shorter spellings that select one kind of checklist item:
     dinah path wb-1/ac               the acceptance criteria
     dinah path wb-1/d                the decisions
 
-You may write an entity's own identifier in place of its number. The number
-counts in the order the entities were created, which is not always the order a
-listing prints them in.
+You may write an entity's own identifier in place of its number, and you may
+write an attachment's filename in place of its number. Dinah tries the
+identifier first, then the position, then the filename, so an attachment
+named `1` or whose filename is twelve hex characters is reachable by ordinal
+and by identifier rather than by name. The number counts in the order the
+entities were created, which is not always the order a listing prints them in.
 
 If the collection you name holds nothing, Dinah tells you that nothing answers to the reference rather than telling you the collection is empty.
 
@@ -65,6 +70,7 @@ sets of things. This table says what each one accepts:
 | archive      | no             | yes     | yes    | yes          |
 | delete       | no             | yes     | yes    | yes          |
 | contents     | yes            | yes     | yes    | yes          |
+| rename       | no             | no      | no     | yes          |
 
 Three of those rows carry a detail the table is too coarse to hold. `attach`
 takes a comment or an attachment below a card and takes nothing else below one,
