@@ -1340,11 +1340,16 @@ The guides stand in the order Dinah recommends reading them.
   references        References
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
+  mcp               Working over MCP
 [exit 0]
 ```
 
 Read `dinah guide workbench-layout` before you start editing files by hand,
 because it maps the whole directory for you.
+
+Read `dinah guide mcp` before you point an agent at the workbench, because
+it teaches the machine surface the way an agent reads it rather than the way
+a person types commands.
 
 ## Point an agent at the workbench
 

@@ -185,6 +185,7 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 		b.WriteString("\n\n")
 	}
 	b.WriteString("Read the embedded guides through resources/list and resources/read.\n")
+	b.WriteString("Read the guide mcp through resources/read for the loop this surface expects.\n")
 	return b.String()
 }
 
@@ -262,6 +263,9 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 		return answerRefusal(request, refusal), nil
 	}
 	payload := tool.run(library, request)
+	if response, ok := payload.(*verb.Response); ok {
+		response.Affordances = surfaceAffordances(response.Affordances)
+	}
 	encoded, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err
@@ -348,11 +352,43 @@ func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]
 	return library, nil
 }
 
+// commandTool maps a library command name to the tool an agent calls on this
+// surface. Most affordances keep the same spelling in both vocabularies; the
+// two reads the surface names in full form are the exceptions, and a refusal
+// that carried the library's short forms would point an agent at a tool this
+// surface does not serve.
+var commandTool = map[string]string{
+	"ls":   "list_cards",
+	"next": "next_card",
+}
+
+// surfaceAffordances translates a response's affordances from the library's
+// command spellings to the tool names an agent can actually call on this
+// surface. The read path already serves the tool names; the refusal path
+// inherits the library's no-card default set, which still spells the two
+// reads as commands. Translating here keeps the two vocabularies from
+// disagreeing, which is the promise the mcp guide makes when it says that
+// following the affordances cannot dead-end. Reads never return a
+// *verb.Response, so applying the translation to every such payload touches
+// refusals alone and is safe to run twice.
+func surfaceAffordances(affordances []string) []string {
+	translated := make([]string, 0, len(affordances))
+	for _, affordance := range affordances {
+		if name, ok := commandTool[affordance]; ok {
+			translated = append(translated, name)
+		} else {
+			translated = append(translated, affordance)
+		}
+	}
+	return translated
+}
+
 // answerRefusal wraps a refused response in the content envelope every
 // payload travels through, so the MCP client reads it as a tool answer rather
 // than as a transport error.
 func answerRefusal(request *verb.Request, refusal *contract.Refusal) map[string]any {
 	response := verb.ComposeRefusal(request, refusal)
+	response.Affordances = surfaceAffordances(response.Affordances)
 	encoded, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		return map[string]any{
