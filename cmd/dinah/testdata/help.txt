@@ -21,6 +21,7 @@ WORK
                                             below a card, out of the live set
   delete <ref> --yes                        destroy a card, a state, or anything
                                             below a card, along with its history
+  rename <ref> <name>                       rename an attachment
 
 READ
   status                                    where this workbench stands, and

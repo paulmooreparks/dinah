@@ -503,6 +503,26 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-root.next"}},
 		NextStep:  []string{"refusal.dinah.unknown-root.next"},
 	},
+	{
+		// A name selector against a collection that declares a name field
+		// matched more than one entity. The sentence names the selector and
+		// the ordinal of every match, so the caller can retry with one of
+		// them as attachments/<n>.
+		Name:      AmbiguousName,
+		Values:    []string{"selector", "ordinals"},
+		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-name.next"}},
+		NextStep:  []string{"refusal.dinah.ambiguous-name.next"},
+	},
+	{
+		// A rename aimed at something that is not an attachment. The
+		// detail names what the reference resolved to, so the sentence
+		// names the entity the caller meant rather than the word they
+		// typed.
+		Name:      NotRenamable,
+		Values:    []string{"kind"},
+		Fragments: []Fragment{{Key: "refusal.dinah.not-renamable.next"}},
+		NextStep:  []string{"refusal.dinah.not-renamable.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no

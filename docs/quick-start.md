@@ -618,6 +618,14 @@ without telling you that `--replace` did nothing, and you are left with two
 copies of the file. The paragraph below explains how a reference like
 `rel-1/attachments/1` is built.
 
+If you want to rename an attachment without rewriting its bytes, give
+`rename` the attachment's own reference and the new filename:
+`dinah rename rel-1/attachments/1 cert-notes.txt`. Dinah renames the file
+under `payload/` to match, rewrites the anchor's `filename` to match, and
+appends one `attachment_renamed` line to the journal. A rename to the name
+the attachment already carries exits 0 and appends no line, so replaying a
+script does not fill the journal with rows recording nothing.
+
 You address anything below a card with a path reference, which is the card's
 reference followed by slash-separated segments. You write `rel-1/attachments/1`
 for the attachment you just made. The segments you can use are `comments`,
@@ -635,9 +643,13 @@ keeps `rel-1/comments/1` pointing at the comment you wrote first as others
 arrive.
 
 ```console
+$ dinah rename rel-1/attachments/1 cert-notes.txt
+rel-1  Write the release notes  [Done / active]
+  held by ana
+[exit 0]
 $ dinah show rel-1/attachments/1
 ---
-filename: notes.txt
+filename: cert-notes.txt
 provenance: ana
 ordinal: 1
 ---
@@ -659,7 +671,7 @@ ordinal: 2
 Second half needs the signing certificate.
 [exit 0]
 $ dinah path rel-1/attachments/1/payload
-/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/payload/notes.txt
+/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/payload/cert-notes.txt
 [exit 0]
 ```
 
@@ -679,17 +691,18 @@ $ dinah path rel-1/journal
 /home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/journal.ndjson
 [exit 0]
 $ dinah log rel-1
-  When                  Action     Actor  Detail
-  --------------------  ---------  -----  --------------------------
-  2026-08-18T21:02:23Z  created    ana    Write the release notes
-  2026-08-18T21:02:23Z  claimed    ana
-  2026-08-18T21:02:23Z  moved      ana    Intake to Doing (override)
-  2026-08-18T21:02:23Z  commented  ana
-  2026-08-18T21:02:23Z  commented  ana
-  2026-08-18T21:02:23Z  released   ana
-  2026-08-18T21:02:23Z  claimed    ana
-  2026-08-18T21:02:23Z  moved      ana    Doing to Done
-  2026-08-18T21:02:23Z  attached   ana
+  When                  Action              Actor  Detail
+  --------------------  ------------------  -----  ---------------------------
+  2026-08-18T21:02:23Z  created             ana    Write the release notes
+  2026-08-18T21:02:23Z  claimed             ana
+  2026-08-18T21:02:23Z  moved               ana    Intake to Doing (override)
+  2026-08-18T21:02:23Z  commented           ana
+  2026-08-18T21:02:23Z  commented           ana
+  2026-08-18T21:02:23Z  released            ana
+  2026-08-18T21:02:23Z  claimed             ana
+  2026-08-18T21:02:23Z  moved               ana    Doing to Done
+  2026-08-18T21:02:23Z  attached            ana    notes.txt
+  2026-08-18T21:02:23Z  attachment renamed  ana    notes.txt to cert-notes.txt
 [exit 0]
 ```
 
@@ -1069,14 +1082,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        525/525
-  af        0/525
-  cs        0/525
-  de        525/525
-  es        0/525
-  fil       0/525
-  hi        525/525
-  id        0/525
+  en        543/543
+  af        0/543
+  cs        0/543
+  de        543/543
+  es        0/543
+  fil       0/543
+  hi        543/543
+  id        0/543
 [exit 0]
 ```
 

@@ -100,6 +100,7 @@ var wantedEvents = map[string][]string{
 	contract.EventAttached:           {"ts", "event", "actor", "attachment", "filename"},
 	contract.EventAttachmentReplaced: {"ts", "event", "actor", "attachment", "filename"},
 	contract.EventAttachmentRemoved:  {"ts", "event", "actor", "attachment", "filename", "note"},
+	contract.EventAttachmentRenamed:  {"ts", "event", "actor", "attachment", "filename", "from"},
 	contract.EventArchived:           {"ts", "event", "actor", "note"},
 	contract.EventDeleted:            {"ts", "event", "actor", "title", "note"},
 	contract.EventWorkbenchUpdated:   {"ts", "event", "actor", "field", "from", "to"},

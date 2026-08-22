@@ -187,6 +187,16 @@ const (
 	// it at startup when --workbench named the contradiction, and the call
 	// dispatch raises it when the per-call workbench argument does.
 	OutsideRoot = LayerPrefix + "outside-root"
+	// AmbiguousName is a name selector matching more than one entity of a
+	// collection that declares a name field, raised before the resolver
+	// guesses which one the caller meant. The detail names the selector and
+	// the ordinal of every match, so the caller can pick one by ordinal and
+	// retry, since ordinal is tried ahead of name.
+	AmbiguousName = LayerPrefix + "ambiguous-name"
+	// NotRenamable is a rename aimed at something that is not an attachment.
+	// The detail names what the reference resolved to, so the caller sees
+	// what was misunderstood rather than what they tried to write.
+	NotRenamable = LayerPrefix + "not-renamable"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -197,7 +207,7 @@ var Introduced = []string{
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
-	UnknownRoot, OutsideRoot,
+	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -243,10 +253,16 @@ const (
 	EventAttached           = "attached"
 	EventAttachmentReplaced = "attachment_replaced"
 	EventAttachmentRemoved  = "attachment_removed"
-	EventArchived           = "archived"
-	EventRestored           = "restored"
-	EventDeleted            = "deleted"
-	EventManualCorrection   = "manual_correction"
+	// EventAttachmentRenamed carries the attachment's identifier in
+	// Attachment, the new filename in Filename, and the previous filename
+	// in From. The same shape as the three sibling attachment events uses,
+	// since the name the attachment has as of the line is the answer a
+	// reader of the journal wants by one rule across the family.
+	EventAttachmentRenamed = "attachment_renamed"
+	EventArchived          = "archived"
+	EventRestored          = "restored"
+	EventDeleted           = "deleted"
+	EventManualCorrection  = "manual_correction"
 	// EventWorkbenchUpdated records a write to one of the workbench's own
 	// fields, on the workbench journal. It covers a title change, a slug
 	// change and an operator change alike, which is why it is not named for a
@@ -266,7 +282,7 @@ const (
 	EventWorkstreamLeft   = "workstream_left"
 )
 
-// Events lists the seventeen event names a query over cards accepts in its
+// Events lists the eighteen event names a query over cards accepts in its
 // event field, in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
@@ -281,8 +297,8 @@ const (
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
-	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
-	EventRestored, EventDeleted, EventManualCorrection,
+	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
+	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
 	EventWorkstreamJoined, EventWorkstreamLeft,
 }
 

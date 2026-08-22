@@ -2,6 +2,7 @@ package verb
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
@@ -222,10 +223,33 @@ type Detail struct {
 	Body string `json:"body"`
 	// Links are what the card records about other cards.
 	Links []LinkView `json:"links,omitempty"`
+	// Attachments are the card's attachments in creation order.
+	Attachments []AttachmentView `json:"attachments,omitempty"`
 	// Comments are the card's comments in timestamp order.
 	Comments []CommentView `json:"comments,omitempty"`
 	// Path is the file the card lives in.
 	Path string `json:"path"`
+}
+
+// AttachmentView is one attachment as a read reports it.
+type AttachmentView struct {
+	// ID is the attachment's identifier.
+	ID string `json:"id"`
+	// Ordinal is the attachment's one-based position among the attachments
+	// of the entity it hangs from.
+	Ordinal int `json:"ordinal"`
+	// Ref is what a person types to name the attachment: the card's own
+	// reference, then attachments and the attachment's ordinal. Resolved
+	// here so a ref printed after a rename still names the attachment the
+	// view describes.
+	Ref string `json:"ref"`
+	// Filename is the attachment's current filename.
+	Filename string `json:"filename"`
+	// Description is the optional prose describing the attachment, absent
+	// when the anchor carries none.
+	Description string `json:"description,omitempty"`
+	// Provenance says where the bytes came from.
+	Provenance string `json:"provenance"`
 }
 
 // LinkView is one link as a read reports it.
@@ -301,6 +325,22 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	for _, link := range card.Links {
 		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
 	}
+	attachments, err := bench.Attachments(card.Dir)
+	if err != nil {
+		return nil, "", err
+	}
+	cardRef := card.Ref(l.Bench.Slug)
+	for _, attachment := range attachments {
+		view := AttachmentView{
+			ID:          attachment.ID,
+			Ordinal:     attachment.Ordinal,
+			Ref:         attachmentRef(cardRef, attachment),
+			Filename:    attachment.Filename,
+			Description: attachment.Description,
+			Provenance:  attachment.Provenance,
+		}
+		detail.Attachments = append(detail.Attachments, view)
+	}
 	comments, err := bench.Comments(card.Dir)
 	if err != nil {
 		return nil, "", err
@@ -310,6 +350,39 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		detail.Comments = append(detail.Comments, view)
 	}
 	return detail, "", nil
+}
+
+// attachmentRef composes the reference a person types to reach one attachment
+// from its card: the card's own reference, then attachments and the
+// attachment's one-based ordinal.
+//
+// The ordinal is read off the anchor rather than taken from the attachment's
+// in-memory position, since an attachment carrying no stored ordinal still
+// needs a ref the resolver will answer: directory-order ordinal is what
+// resolve.go's pick already serves, so the ref printed here is what the
+// reader can type to land back on the same attachment.
+func attachmentRef(cardRef string, attachment *bench.Attachment) string {
+	ordinal := attachment.Ordinal
+	if ordinal == 0 {
+		ordinal = directoryOrdinal(attachment)
+	}
+	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
+}
+
+// directoryOrdinal falls back to the attachment's directory-order position
+// when its anchor carries no stored ordinal. It mirrors what SortByOrdinal
+// does on a collection with no ordinals stamped, so the ref printed in show
+// is the same one path would answer to.
+func directoryOrdinal(attachment *bench.Attachment) int {
+	collection := filepath.Dir(attachment.Dir)
+	ids := bench.ListIDs(collection)
+	ids = bench.SortByOrdinal(collection, bench.AttachmentAnchor, ids)
+	for n, id := range ids {
+		if id == attachment.ID {
+			return n + 1
+		}
+	}
+	return 1
 }
 
 // linkRef resolves a link's stored card identifier to what a person types to

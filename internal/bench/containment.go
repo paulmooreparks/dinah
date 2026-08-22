@@ -30,6 +30,11 @@ type Mount struct {
 	Kind string
 	// Anchor is the anchor filename each member of the collection carries.
 	Anchor string
+	// NameField is the anchor field a name selector reads, when the
+	// collection declares one. Empty means the collection declares no name
+	// and a name selector against it refuses unknown-path, the same way it
+	// does against one this table does not list.
+	NameField string
 }
 
 // containment is the one statement of what contains what. Every reader of the
@@ -43,18 +48,18 @@ var containment = map[string][]Mount{
 	KindWorkbench: {
 		{Dir: StatesDir, Kind: KindState, Anchor: StateAnchor},
 		{Dir: CardsDir, Kind: KindCard, Anchor: CardAnchor},
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
 	KindState: {
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
 	KindCard: {
 		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor},
 		{Dir: ChecklistDir, Kind: KindItem, Anchor: ItemAnchor},
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
 	KindComment: {
-		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor},
+		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
 	KindItem:       {},
 	KindAttachment: {},

@@ -37,6 +37,7 @@ func init() {
 		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
+		{name: "rename", group: groupWork, run: runRename, bounded: 2},
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "states", group: groupRead, run: runStates},
@@ -225,6 +226,21 @@ func runDelete(s *session, parsed *arguments) int {
 	req.Ref = at(parsed.rest(), 0)
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Delete(req))
+	})
+}
+
+// runRename carries an attachment's payload under a new filename.
+func runRename(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("rename", parsed)
+	req.Ref = at(words, 0)
+	name, refusal := s.freeText([]string{"rename", req.Ref}, words[min(1, len(words)):], "slot.name")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Value = name
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Rename(req))
 	})
 }
 

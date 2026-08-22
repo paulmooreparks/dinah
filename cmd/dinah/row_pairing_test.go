@@ -36,8 +36,13 @@ type sweptRecord struct {
 	// journal and so draw a row of its history alongside the acts above.
 	joins []sweptActRecord
 	// comments and links are what the fixture wrote onto its first card.
-	comments []sweptCommentRecord
-	links    []sweptLinkRecord
+	comments    []sweptCommentRecord
+	links       []sweptLinkRecord
+	attachments []sweptAttachmentRecord
+	// renames are the attachment renames the fixture ran, each carrying the
+	// reference of the attachment that was renamed and the new filename it was
+	// carried under.
+	renames []sweptActRecord
 	// states are the states the healthy tree holds, in the order the workbench
 	// anchor lists them, which is the order every listing walks.
 	states []sweptStateRecord
@@ -114,6 +119,16 @@ type sweptLinkRecord struct {
 	card string
 	kind string
 	to   string
+}
+
+// sweptAttachmentRecord is one attachment the fixture wrote onto its first
+// card. The position is recorded because dinah show draws it; the description
+// is empty on a fixture that did not pass --description.
+type sweptAttachmentRecord struct {
+	card        string
+	actor       string
+	filename    string
+	description string
 }
 
 // sweptStateRecord is one state of a tree the fixture built. slug is empty on a
@@ -1085,6 +1100,33 @@ func expectComments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	}
 }
 
+// expectAttachments is a card's attachments, in the position order the
+// fixture wrote them. The position is the row's first column and the
+// description is what --description carried, empty when the fixture passed none.
+// A rename the fixture ran against one of these attachments rewrites its
+// filename to the new one, since the rendered block carries the post-rename
+// filename rather than the original.
+func expectAttachments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	filenames := make([]string, len(r.attachments))
+	for i, attachment := range r.attachments {
+		filenames[i] = attachment.filename
+	}
+	for _, act := range r.renames {
+		_, posStr, _ := strings.Cut(act.card, "/attachments/")
+		pos, err := strconv.Atoi(posStr)
+		if err != nil || pos < 1 || pos > len(filenames) {
+			continue
+		}
+		filenames[pos-1] = act.reason
+	}
+	var rows [][]sweptCell
+	for i, attachment := range r.attachments {
+		rows = append(rows, sweptTexts(strconv.Itoa(i+1), filenames[i], attachment.description))
+	}
+	return sweptExpectation{rows: rows, source: "the record's attachments, with renames applied"}
+}
+
 // expectHistory is dinah log against the held card: the card's own creation
 // and every act the record carries against it, with the stamp column opaque
 // and the detail column drawn under the head's own rule for each act.
@@ -1122,6 +1164,29 @@ func expectHistory(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 			continue
 		}
 		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventCommented), comment.actor, ""))
+	}
+	for _, attachment := range r.attachments {
+		if attachment.card != card.ref {
+			continue
+		}
+		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventAttached), attachment.actor, attachment.filename))
+	}
+	for _, act := range r.renames {
+		cardRef, _, _ := strings.Cut(act.card, "/attachments/")
+		if cardRef != card.ref {
+			continue
+		}
+		// The act's reason carries the new filename; the previous one is
+		// read off the record by the position the reference names.
+		var previous string
+		_, posStr, _ := strings.Cut(act.card, "/attachments/")
+		if pos, err := strconv.Atoi(posStr); err == nil {
+			if pos-1 >= 0 && pos-1 < len(r.attachments) {
+				previous = r.attachments[pos-1].filename
+			}
+		}
+		carried := msg.For(tag).T("log.attachment-renamed", "from", previous, "to", act.reason)
+		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventAttachmentRenamed), act.actor, carried))
 	}
 	for _, act := range r.joins {
 		if act.card != card.ref {
@@ -1643,12 +1708,25 @@ func expectContents(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 				count:  "0",
 			})
 		}
+		var attachments []sweptTreeNode
+		for at, attachment := range sweptAttachmentsOn(r, card.ref) {
+			title := attachment.filename
+			if attachment.description != "" {
+				title = attachment.description
+			}
+			attachments = append(attachments, sweptTreeNode{
+				ref:    card.ref + "/attachments/" + strconv.Itoa(at+1),
+				entity: bench.KindAttachment,
+				title:  title,
+				count:  "0",
+			})
+		}
 		nodes = append(nodes, sweptTreeNode{
 			ref:      card.ref,
 			entity:   bench.KindCard,
 			title:    card.title,
-			count:    strconv.Itoa(len(comments)),
-			children: comments,
+			count:    strconv.Itoa(len(comments) + len(attachments)),
+			children: append(comments, attachments...),
 		})
 	}
 	return sweptExpectation{
@@ -1691,6 +1769,19 @@ func sweptCommentsOn(r *sweptRecord, ref string) []sweptCommentRecord {
 	for _, comment := range r.comments {
 		if comment.card == ref {
 			kept = append(kept, comment)
+		}
+	}
+	return kept
+}
+
+// sweptAttachmentsOn is the attachments the record wrote onto one card, in
+// the order the fixture wrote them, which is the order a positional reference
+// counts in.
+func sweptAttachmentsOn(r *sweptRecord, ref string) []sweptAttachmentRecord {
+	var kept []sweptAttachmentRecord
+	for _, attachment := range r.attachments {
+		if attachment.card == ref {
+			kept = append(kept, attachment)
 		}
 	}
 	return kept

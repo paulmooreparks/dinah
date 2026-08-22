@@ -180,6 +180,7 @@ var guides = map[string][]string{
 	"attach":       {"references"},
 	"archive":      {"references"},
 	"delete":       {"references"},
+	"rename":       {"references"},
 	"contents":     {"references"},
 	"query":        {"query"},
 }
@@ -250,6 +251,10 @@ var params = map[string][]Param{
 	"delete": {
 		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes"},
+	},
+	"rename": {
+		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
+		{Name: "name", Required: true, Rest: true},
 	},
 	"status": {},
 	"states": {},

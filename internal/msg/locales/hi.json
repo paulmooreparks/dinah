@@ -57,6 +57,10 @@
       "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.attachment-filename-drift": {
+      "text": "संलग्नक {detail} की न्यासफ़ाइल का नाम उसके अंकर से अलग है",
+      "context": "A check finding: an attachment's payload file and its anchor's filename field disagree, which is the residue of a crash between a rename's two writes or of a hand edit nobody noticed."
+    },
     "check.block-without-reason": {
       "text": "कार्ड {detail} बाधित है पर कारण नहीं",
       "context": "A check finding: every blocked card carries a reason."
@@ -337,6 +341,22 @@
       "text": "whoever asks holds the card",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
+    "check.rename.1": {
+      "text": "संदर्भ किसी संलग्नक तक पहुँचता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.3": {
+      "text": "नाम छँटाई के बाद खाली नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.4": {
+      "text": "नाम में स्लैश, बैकस्लैश, या डॉट-डॉट नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.show.1": {
       "text": "संदर्भ किसी कार्ड या उसके नीचे के पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -521,6 +541,10 @@
       "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
     },
+    "cmd.rename.summary": {
+      "text": "संलग्नक का नाम बदलें",
+      "context": "The one-line summary of the rename command, shown beside its syntax in the help block."
+    },
     "cmd.attach.summary": {
       "text": "फ़ाइल संलग्न करें, या उसके बाइट बदलें",
       "context": "The one-line summary of the attach command, shown beside its syntax in the help block."
@@ -652,6 +676,18 @@
     "cmd.workstream.summary": {
       "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, नई बनाएँ, या किसी एक के क्षेत्र लिखें",
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block."
+    },
+    "column.attachments.position": {
+      "text": "#",
+      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.attachments.filename": {
+      "text": "फ़ाइल",
+      "context": "Heading over the attachment's current filename, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.attachments.description": {
+      "text": "विवरण",
+      "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.blocked.card": {
       "text": "कार्ड",
@@ -997,6 +1033,10 @@
       "text": "निर्देश, यह स्थिति:",
       "context": "The label above the state's own instructions."
     },
+    "log.attachment-renamed": {
+      "text": "{from} से {to}",
+      "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}."
+    },
     "log.moved": {
       "text": "{from} से {to}",
       "context": "The detail of a recorded move, carrying the titles as they stood at the time."
@@ -1048,6 +1088,14 @@
     "refusal.dinah.ambiguous-workbench.next": {
       "text": "--workbench <dir> से एक चुनें, या उसके भीतर से चलाएँ",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
+    },
+    "refusal.dinah.ambiguous-name": {
+      "text": "इस कार्ड पर {ordinals} सभी {selector} का उत्तर देते हैं",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.ambiguous-name.next": {
+      "text": "; किसी एक को attachments/<ordinal> के रूप में नाम दें",
+      "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है",
@@ -1116,6 +1164,14 @@
     "refusal.dinah.no-editor.next": {
       "text": "; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
+    },
+    "refusal.dinah.not-renamable": {
+      "text": "{kind} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed."
+    },
+    "refusal.dinah.not-renamable.next": {
+      "text": "; कोई संलग्नक-संदर्भ दें जैसे <कार्ड>/attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment."
     },
     "refusal.dinah.occupied": {
       "text": "स्थिति {detail} में अभी भी कार्ड हैं",
@@ -1437,6 +1493,10 @@
       "text": "; यह बिल्ड {floor} से {ceiling} तक पढ़ती है",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them."
     },
+    "show.attachments": {
+      "text": "संलग्नक:",
+      "context": "The label above a card's attachments, printed between the links block and the comments block."
+    },
     "show.comments": {
       "text": "टिप्पणियाँ:",
       "context": "The label above a card's comments."
@@ -1468,6 +1528,10 @@
     "slot.value": {
       "text": "मान",
       "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "slot.name": {
+      "text": "नाम",
+      "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
     },
     "states.moved-by.agent": {
       "text": "एजेंट",
@@ -1512,6 +1576,10 @@
     "token.attachment_replaced": {
       "text": "संलग्नक बदला",
       "context": "How the canonical token attachment_replaced is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
+    "token.attachment_renamed": {
+      "text": "संलग्नक नाम बदला",
+      "context": "How the canonical token attachment_renamed is rendered where a person reads it. The machine surface always carries the canonical spelling."
     },
     "token.backward": {
       "text": "पीछे",
@@ -2100,6 +2168,10 @@
     "tree.hidden.filter": {
       "text": "{count} छानकर हटाए गए",
       "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
+    },
+    "param.rename.name.summary": {
+      "text": "वह फ़ाइल-नाम जो संलग्नक को धारण करना है, एक शेल-शब्द में या उद्धरण-चिह्नों में",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
     }
   }
 }
