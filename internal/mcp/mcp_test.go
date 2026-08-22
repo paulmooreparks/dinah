@@ -438,6 +438,22 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 	if refused["outcome"] != contract.OutcomeRefused || refused["refusal"] != contract.NotOperator {
 		t.Errorf("a write by somebody other than the operator: wanted %s, got %v", contract.NotOperator, refused)
 	}
+	// A refusal names where to recover in the same tool vocabulary every
+	// read answers in, so an agent that follows the affordances can actually
+	// call what they name. The library spells these two reads as commands; the
+	// head translates them to the surface's tool names before serving.
+	if affordances, ok := refused["affordances"].([]any); ok {
+		got := make([]string, len(affordances))
+		for i, a := range affordances {
+			got[i], _ = a.(string)
+		}
+		want := []string{"status", "states", "list_cards", "next_card"}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("a refusal's affordances: got [%s], want surface tool names [%s]", strings.Join(got, ","), strings.Join(want, ","))
+		}
+	} else {
+		t.Errorf("a refusal carries no affordances member: %v", refused)
+	}
 
 	written := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka","action":"set","field":"title","value":"Renamed"}}}`))
 	if written["outcome"] != contract.OutcomeOK {
@@ -446,6 +462,33 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 	reread := payload(t, ask(t, newLibraryAt(t, library.Bench.Root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka"}}}`))
 	if reread["workbench"].(map[string]any)["title"] != "Renamed" {
 		t.Errorf("the write did not reach the anchor: %v", reread["workbench"])
+	}
+}
+
+// TestARefusalFromWorkbenchResolutionNamesRecoveryInToolNames asserts that the
+// other refusal route, the one the library-resolution step raises before a
+// tool runs, also serves its affordances as tool names rather than the
+// library's command spellings. It travels through answerRefusal rather than
+// through a tool's returned response, so it needs its own pin.
+func TestARefusalFromWorkbenchResolutionNamesRecoveryInToolNames(t *testing.T) {
+	library := newLibrary(t)
+	outside := filepath.ToSlash(filepath.Join(library.Bench.Root, "..", "outside"))
+
+	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"workbench":"`+outside+`"}}}`))
+	if refused["outcome"] != contract.OutcomeRefused || refused["refusal"] != contract.OutsideRoot {
+		t.Fatalf("a workbench argument outside the root: wanted %s, got %v", contract.OutsideRoot, refused)
+	}
+	affordances, ok := refused["affordances"].([]any)
+	if !ok {
+		t.Fatalf("an outside-root refusal carries no affordances member: %v", refused)
+	}
+	got := make([]string, len(affordances))
+	for i, a := range affordances {
+		got[i], _ = a.(string)
+	}
+	want := []string{"status", "states", "list_cards", "next_card"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("an outside-root refusal's affordances: got [%s], want [%s]", strings.Join(got, ","), strings.Join(want, ","))
 	}
 }
 
