@@ -1,6 +1,6 @@
 # Working over MCP
 
-Dinah also serves one workbench as an MCP server, over stdio, and a fresh
+Dinah serves its workbenches over MCP, on stdio, and a fresh
 agent on that surface is a caller like any other: it does not see the
 terminal commands a person types, it sees a fixed set of tools and the JSON
 they answer with. This guide is that caller's read-then-act loop. You are
@@ -123,11 +123,18 @@ write is refused as stale rather than silently clobbering the newer state.
 That is the optimistic check, and it is why you pass basis forward.
 
 `workbench` names the workbench a call targets when a process serves more
-than one. Omit it and the call resolves to the server's default workbench.
-The value selects a workbench; it never reaches the library, so it does not
-change the shape of the answer, only which workbench the answer describes.
-The one tool that takes no `workbench` is `workbenches`, which lists the
-workbenches a server can serve.
+than one. The value is a path to a workbench directory, the directory that
+holds its `workbench.md`. Omit it and the call resolves to the server's
+default workbench. A value outside the served directory is refused with
+`outside-root`, and a path holding no `workbench.md` is refused with
+`no-workbench`; the refusal names the path it tried, so it points you at
+what is reachable. The one tool that takes no `workbench` is `workbenches`,
+and its output, the enumerated workbench paths, is exactly the set of valid
+values to pass here.
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status","arguments":{"workbench":"/srv/dinah/incident"}}}
+```
 
 ## When to act and when to read
 
