@@ -6917,27 +6917,47 @@ func guideLinesOutsideFences(text string) []string {
 
 // TestAGuideIsWrappedToTheWindowItIsReadIn asserts dinah-239 AC-11: the body
 // of a guide reaches the stream laid out for the window rather than raw, so
-// two widths produce two different pages and neither one reaches past the
+// different widths produce different pages and none of them reaches past the
 // window it was asked for. Only the prose is measured; a fenced block is
 // reproduced whole by design.
+//
+// The widths are a spread reaching down to the 20 windowWidth clamps to,
+// rather than the 40 and 80 this test first carried. Wrapping that overruns
+// by a marker's width is invisible at a roomy window and shows at a narrow
+// one, so a pair of widths either side of the fault line proves the pair and
+// not the rule. The whole-corpus form of this sweep lives in
+// TestEveryShippedGuideFitsEveryWindowItIsWrappedFor, which measures
+// wrapGuideText directly; this test's own job is the wiring, that runGuide
+// reaches the wrap at all.
+//
+// The measure excuses the same shapes that sweep excuses, and it has to: at
+// 20 columns principles.md carries the single 23-column token
+// `states/<id>/state.md`, which breakWords writes whole because it has
+// nowhere to break, exactly as the spec's overflow rule says it will.
 func TestAGuideIsWrappedToTheWindowItIsReadIn(t *testing.T) {
 	root := newBench(t)
+	widths := []int{20, 24, 32, 40, 56, 80}
 	pages := map[int]string{}
-	for _, width := range []int{40, 80} {
+	for _, width := range widths {
 		t.Setenv("COLUMNS", strconv.Itoa(width))
 		got := runCLI(t, root, "guide", "principles")
 		if got.code != 0 {
 			t.Fatalf("guide principles at %d columns: %d %s", width, got.code, got.errw)
 		}
 		for _, line := range guideLinesOutsideFences(got.out) {
+			if guideIsIndentedCode(line) || guideIsTableRow(line) || guideWrapsNoFurther(line) {
+				continue
+			}
 			if displayWidth(line) > width {
 				t.Errorf("at %d columns a line draws %d: %q", width, displayWidth(line), line)
 			}
 		}
 		pages[width] = got.out
 	}
-	if pages[40] == pages[80] {
-		t.Error("the guide reads the same at 40 columns as at 80, so nothing wrapped it")
+	for i := 1; i < len(widths); i++ {
+		if pages[widths[i-1]] == pages[widths[i]] {
+			t.Errorf("the guide reads the same at %d columns as at %d, so nothing wrapped it", widths[i-1], widths[i])
+		}
 	}
 }
 

@@ -128,10 +128,12 @@ func copyWhile(lines []string, at int, belongs func(string) bool, out *[]string)
 // the window itself. breakWords counts a continuation line from the first
 // word it writes and not from the indent it wrote before it, so a room of the
 // whole window lets every line after the first draw indent columns past the
-// window's edge. Every other caller in the renderer already deducts what its
-// line begins at, breakTail through window-begins and this file's own block
-// quote through width less its marker, so a hanging indent deducts its own
-// marker for the same reason. The cost is that the first line stops indent
+// window's edge. breakTail and this file's own block quote deduct too, but
+// for a different reason rather than for this one: their prefix occupies
+// every line including the first, so their deduction is exact and costs
+// nothing. A hanging indent occupies every line except the first, so one room
+// cannot be right for both, and the narrower room is the only one that keeps
+// every line inside the window. The cost is that the first line stops indent
 // columns short of the window; the alternative is a guide whose every wrapped
 // list item reaches past the edge it was wrapped for.
 func wrappedLines(text string, indent, width int) []string {

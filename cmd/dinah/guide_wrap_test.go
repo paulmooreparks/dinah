@@ -11,6 +11,22 @@ import (
 // three windows and the unknown one.
 var guideTestWidths = []int{20, 40, 80, 0}
 
+// guideWrapWidths are the windows every marker-bearing fixture below is held
+// across, rather than the one width the fixture happened to be drawn at. A
+// rule checked at a single width proves the drawing and leaves the defect
+// living at every width nobody drew: the room deduction wrappedLines makes is
+// visible at 40 columns on one line of one guide and invisible at 80, so a
+// suite pinned to 40 and 80 rests on the wording of that one line. Every
+// fixture here is longer than the widest of these windows, so all of them
+// wrap.
+func guideWrapWidths() []int {
+	var widths []int
+	for width := 20; width <= 60; width++ {
+		widths = append(widths, width)
+	}
+	return widths
+}
+
 // flattenWords reduces text to its words separated by single spaces, which is
 // what a wrap is allowed to change nothing about.
 func flattenWords(text string) string {
@@ -104,74 +120,92 @@ func TestATableIsReproducedWhole(t *testing.T) {
 }
 
 // TestALongHeadingWrapsUnderItsMarker asserts that a heading wider than the
-// window keeps its marker on the first line and indents every line after it
-// to the marker's own width.
+// window keeps its marker on the first line, indents every line after it to
+// the marker's own width, and reaches past no window it was wrapped for. The
+// three claims are held at every window from 20 to 60 columns rather than at
+// the one the fixture was written against.
 func TestALongHeadingWrapsUnderItsMarker(t *testing.T) {
 	source := "## A state says how much work it will hold and says so before you ask\n"
-	wrapped := wrapGuideText(source, 40)
-	lines := strings.Split(strings.TrimRight(wrapped, "\n"), "\n")
-	if len(lines) < 2 {
-		t.Fatalf("heading did not wrap: %q", wrapped)
-	}
-	if !strings.HasPrefix(lines[0], "## A state") {
-		t.Errorf("first line lost its marker: %q", lines[0])
-	}
-	for _, line := range lines[1:] {
-		if !strings.HasPrefix(line, "   ") || strings.HasPrefix(line, "    ") {
-			t.Errorf("continuation is not indented to the marker's width: %q", line)
+	for _, width := range guideWrapWidths() {
+		wrapped := wrapGuideText(source, width)
+		lines := strings.Split(strings.TrimRight(wrapped, "\n"), "\n")
+		if len(lines) < 2 {
+			t.Errorf("at %d columns the heading did not wrap: %q", width, wrapped)
+			continue
 		}
+		if !strings.HasPrefix(lines[0], "## A state") {
+			t.Errorf("at %d columns the first line lost its marker: %q", width, lines[0])
+		}
+		for _, line := range lines[1:] {
+			if !strings.HasPrefix(line, "   ") || strings.HasPrefix(line, "    ") {
+				t.Errorf("at %d columns a continuation is not indented to the marker's width: %q", width, line)
+			}
+		}
+		checkWrappedTo(t, source, wrapped, width)
 	}
-	checkWrappedTo(t, source, wrapped, 40)
 }
 
 // TestBothListItemSourceShapesWrapAlike asserts that an item the source
 // hard-wrapped with a two-space continuation and the same item written as one
-// long line reach the reader as the same lines.
+// long line reach the reader as the same lines, indented to the marker and
+// inside the window. Held at every window from 20 to 60 columns, since the
+// two shapes agreeing at one width says nothing about their agreeing at
+// another, and neither does one width's continuation fitting.
 func TestBothListItemSourceShapesWrapAlike(t *testing.T) {
 	broken := "- `state` is the state the card is in. Give it a state's short name or its\n  identifier.\n"
 	whole := "- `state` is the state the card is in. Give it a state's short name or its identifier.\n"
-	fromBroken := wrapGuideText(broken, 40)
-	fromWhole := wrapGuideText(whole, 40)
-	if fromBroken != fromWhole {
-		t.Errorf("the two source shapes wrapped differently\nbroken: %q\n whole: %q", fromBroken, fromWhole)
-	}
-	lines := strings.Split(strings.TrimRight(fromBroken, "\n"), "\n")
-	if len(lines) < 2 {
-		t.Fatalf("the item did not wrap: %q", fromBroken)
-	}
-	if !strings.HasPrefix(lines[0], "- ") {
-		t.Errorf("first line lost its marker: %q", lines[0])
-	}
-	for _, line := range lines[1:] {
-		if !strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "   ") {
-			t.Errorf("continuation is not indented to the marker's width: %q", line)
+	for _, width := range guideWrapWidths() {
+		fromBroken := wrapGuideText(broken, width)
+		fromWhole := wrapGuideText(whole, width)
+		if fromBroken != fromWhole {
+			t.Errorf("at %d columns the two source shapes wrapped differently\nbroken: %q\n whole: %q", width, fromBroken, fromWhole)
 		}
+		lines := strings.Split(strings.TrimRight(fromBroken, "\n"), "\n")
+		if len(lines) < 2 {
+			t.Errorf("at %d columns the item did not wrap: %q", width, fromBroken)
+			continue
+		}
+		if !strings.HasPrefix(lines[0], "- ") {
+			t.Errorf("at %d columns the first line lost its marker: %q", width, lines[0])
+		}
+		for _, line := range lines[1:] {
+			if !strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "   ") {
+				t.Errorf("at %d columns a continuation is not indented to the marker's width: %q", width, line)
+			}
+		}
+		checkWrappedTo(t, broken, fromBroken, width)
 	}
-	checkWrappedTo(t, broken, fromBroken, 40)
 }
 
 // TestABlockQuoteKeepsItsMarkerOnEveryLine asserts that a quoted paragraph
 // wraps with its marker reproduced on continuation lines as well as the
-// first. No shipped guide carries one, so the fixture is built here.
+// first, and that the marker's own room deduction holds the whole quoted line
+// inside the window. No shipped guide carries a block quote, so the fixture is
+// built here, and it is held at every window from 20 to 60 columns: the
+// deduction wrapQuote makes at its own call site is exact at some widths by
+// arithmetic accident and only correct at all of them by rule.
 func TestABlockQuoteKeepsItsMarkerOnEveryLine(t *testing.T) {
 	source := "> The operator answers for the workbench and is the only owner who may\n" +
 		"> lift a block, so a workbench with nobody in that seat has actions\n" +
 		"> nobody can perform.\n"
-	wrapped := wrapGuideText(source, 40)
-	lines := strings.Split(strings.TrimRight(wrapped, "\n"), "\n")
-	if len(lines) < 2 {
-		t.Fatalf("the quote did not wrap: %q", wrapped)
-	}
-	for _, line := range lines {
-		if !strings.HasPrefix(line, "> ") {
-			t.Errorf("a quoted line lost its marker: %q", line)
+	for _, width := range guideWrapWidths() {
+		wrapped := wrapGuideText(source, width)
+		lines := strings.Split(strings.TrimRight(wrapped, "\n"), "\n")
+		if len(lines) < 2 {
+			t.Errorf("at %d columns the quote did not wrap: %q", width, wrapped)
+			continue
 		}
-		if displayWidth(line) > 40 {
-			t.Errorf("a quoted line draws %d columns: %q", displayWidth(line), line)
+		for _, line := range lines {
+			if !strings.HasPrefix(line, "> ") {
+				t.Errorf("at %d columns a quoted line lost its marker: %q", width, line)
+			}
+			if displayWidth(line) > width {
+				t.Errorf("at %d columns a quoted line draws %d: %q", width, displayWidth(line), line)
+			}
 		}
-	}
-	if got, want := flattenWords(strings.ReplaceAll(wrapped, ">", "")), flattenWords(strings.ReplaceAll(source, ">", "")); got != want {
-		t.Errorf("words changed across the wrap\n got: %q\nwant: %q", got, want)
+		if got, want := flattenWords(strings.ReplaceAll(wrapped, ">", "")), flattenWords(strings.ReplaceAll(source, ">", "")); got != want {
+			t.Errorf("at %d columns words changed across the wrap\n got: %q\nwant: %q", width, got, want)
+		}
 	}
 }
 
@@ -190,6 +224,66 @@ func TestEveryShippedGuideRoundTripsAtAnUnknownWidth(t *testing.T) {
 		}
 		if got := wrapGuideText(text, 0); got != text {
 			t.Errorf("guide %q changed at an unknown width", topic)
+		}
+	}
+}
+
+// guideWrapsNoFurther reports whether a line has nothing left to break: what
+// it carries is one word, with or without the marker leading it. breakWords
+// writes such a word whole and lets it overrun, which the spec states as the
+// wrap's own boundary, so a line of that shape is not held to the window.
+func guideWrapsNoFurther(line string) bool {
+	body := strings.TrimLeft(line, " ")
+	for _, marker := range []string{"> ", "- ", "* "} {
+		body = strings.TrimPrefix(body, marker)
+	}
+	body = strings.TrimLeft(body, "#")
+	return len(strings.Fields(body)) <= 1
+}
+
+// TestEveryShippedGuideFitsEveryWindowItIsWrappedFor sweeps the whole corpus
+// across every window from 20 to 120 columns and requires that no line the
+// wrap governs reaches past the window it was wrapped for.
+//
+// This is the guard the rest of the suite was missing. The width rule was
+// held at 40 and 80 on one guide, so the only assertion standing between the
+// renderer and a line one column past the edge was a single continuation of a
+// single paragraph of principles.md, and rewording that paragraph would have
+// removed it without a test going red. A rule the design has to satisfy at
+// every width is asserted at every width; 20 is the floor windowWidth clamps
+// to and 120 is comfortably past any window the guides were authored for.
+//
+// Four line shapes are excused, and they are the four the spec names as the
+// wrap's boundary rather than a licence taken here: a line inside a fenced
+// block, an indented code line, a table row, and a line carrying one
+// unbreakable word.
+func TestEveryShippedGuideFitsEveryWindowItIsWrappedFor(t *testing.T) {
+	topics := guide.Topics()
+	if len(topics) == 0 {
+		t.Fatal("no guides are embedded")
+	}
+	for _, topic := range topics {
+		text, err := guide.Text(topic)
+		if err != nil {
+			t.Fatalf("read guide %q: %v", topic, err)
+		}
+		for width := 20; width <= 120; width++ {
+			inside := false
+			for _, line := range strings.Split(wrapGuideText(text, width), "\n") {
+				if guideOpensFence(line) {
+					inside = !inside
+					continue
+				}
+				if inside || guideIsIndentedCode(line) || guideIsTableRow(line) {
+					continue
+				}
+				if guideWrapsNoFurther(line) {
+					continue
+				}
+				if drawn := displayWidth(line); drawn > width {
+					t.Errorf("guide %q at %d columns draws a line of %d: %q", topic, width, drawn, line)
+				}
+			}
 		}
 	}
 }
