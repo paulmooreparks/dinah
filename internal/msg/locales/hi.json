@@ -282,48 +282,48 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.pull.1": {
-      "text": "पूछने वाले व्यक्ति के लिए एक स्वामी हल होता है",
-      "context": "One row of the ordered precondition list of pull: the actor must not be empty, so the workbench has a name to record on the claim event."
+      "text": "अनुरोध एक स्वामी का नाम देता है",
+      "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event."
     },
     "check.pull.2": {
-      "text": "यदि कोई राज्य नामित है, तो वह वही है जिसे वर्कबेंच घोषित करती है",
-      "context": "One row of the ordered precondition list of pull: the named form refuses when the state the caller typed is not a state of the workbench."
+      "text": "नामित गंतव्य वह राज्य है जिसे वर्कबेंच घोषित करती है",
+      "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no state to be unknown."
     },
     "check.pull.3": {
-      "text": "--override के साथ पूछने पर पूछने वाला व्यक्ति ऑपरेटर होता है",
-      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator asking with it is refused before the qualifying set is even read."
+      "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह ऑपरेटर का है",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any state is considered."
     },
     "check.pull.4": {
-      "text": "वर्कबेंच पर एक से अधिक राज्य अर्ह होते हैं, इसलिए नग्न रूप को चुनने देने की बजाय एक नाम दें",
-      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when the qualifying set has more than one entry."
+      "text": "जब कोई गंतव्य नामित नहीं है, तब ठीक एक राज्य अर्ह होता है",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one state qualifies."
     },
     "check.pull.5": {
-      "text": "नामित राज्य प्रवाह में पहला नहीं है, इसलिए उसके पहले कुछ है जहाँ से कार्ड आ सकती है",
+      "text": "प्रवाह में गंतव्य से पहले एक राज्य है",
       "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
     },
     "check.pull.6": {
-      "text": "जब अपस्ट्रीम राज्य ऑपरेटर-स्वामित्व में हो तो पूछने वाला व्यक्ति ऑपरेटर होता है",
-      "context": "One row of the ordered precondition list of pull: an operator-owned upstream narrows the qualifying set to the operator, and a non-operator trying to pull from it is refused under the lock."
+      "text": "पूछने वाले के लिए प्रस्थान वैध है",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream is the operator's to move work out of, which is move's own departure test read under the lock."
     },
     "check.pull.7": {
-      "text": "अपस्ट्रीम कतार से चुनी गई कार्ड बाधित नहीं है",
+      "text": "कार्ड का उप-राज्य `blocked` नहीं है",
       "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
     },
     "check.pull.8": {
-      "text": "अपस्ट्रीम कतार से चुनी गई कार्ड पहले से किसी और स्वामी के पास नहीं है",
-      "context": "One row of the ordered precondition list of pull: a held card is not ready, and pull never takes a lease another owner already has."
+      "text": "कार्ड का उप-राज्य `active` नहीं है",
+      "context": "One row of the ordered precondition list of pull: pull takes claim's stricter test, refusing a card already active whoever holds it."
     },
     "check.pull.9": {
-      "text": "कार्ड किसी ऐसे राज्य में नहीं है जिसे वर्कबेंच अंतिम घोषित करती है",
-      "context": "One row of the ordered precondition list of pull: a terminal state refuses a forward move, and the race between the queue read and the lock can surface that here."
+      "text": "यह `done` राज्य से बाहर आगे की चाल नहीं है",
+      "context": "One row of the ordered precondition list of pull: a forward move out of a done state refuses, and the race between the queue read and the lock can surface that here."
     },
     "check.pull.10": {
-      "text": "गंतव्य अपनी क्षमता सीमा से नीचे है, या ऑपरेटर --override लेकर चलता है",
+      "text": "गंतव्य अपनी क्षमता सीमा से नीचे है",
       "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
     },
     "check.pull.11": {
-      "text": "कार्ड का ताला कोई अन्य प्रक्रिया नहीं पकड़े हुए है",
-      "context": "One row of the ordered precondition list of pull: the lock taken before the card is re-read is a held lock, and a card another process is already writing is refused rather than queued."
+      "text": "गंतव्य को सेवामुक्त नहीं किया जा रहा है",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} का रचना-क्रमांक उसी संग्रह के किसी और सदस्य के क्रमांक जैसा है, इसलिए एक ही स्थान दो को नामित करता है",

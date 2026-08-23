@@ -17,20 +17,20 @@
 # each is worth a test rather than a permanent line here.
 
 help.go:140.32,142.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
-render.go:49.29,51.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
-render.go:51.27,53.4  the same, on the branch where the stale response carries a card.
-render.go:54.3,54.102  the same, writing the stale sentence.
-render.go:55.10,56.108  the unreachable outcome, which is by construction the outcome no invocation produces.
-render.go:65.16,68.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
-render.go:113.19,115.3  a token the catalog carries no rendering for, and every token the head prints has one.
-render.go:209.29,212.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
-render.go:400.23,403.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
-render.go:451.30,452.20  the blocked branch in the history renderer, which the held card never exercises because the swept fixture claims and walks it without blocking it.
-render.go:576.23,578.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
-render.go:619.18,621.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
-render.go:661.23,663.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
-render.go:689.2,689.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
-render.go:815.23,817.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
-render.go:847.22,849.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
+render.go:54.29,56.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
+render.go:56.27,58.4  the same, on the branch where the stale response carries a card.
+render.go:59.3,59.102  the same, writing the stale sentence.
+render.go:60.10,61.108  the unreachable outcome, which is by construction the outcome no invocation produces.
+render.go:70.16,73.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
+render.go:137.19,139.3  a token the catalog carries no rendering for, and every token the head prints has one.
+render.go:233.29,236.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
+render.go:424.23,427.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
+render.go:475.30,476.20  the blocked branch in the history renderer, which the held card never exercises because the swept fixture claims and walks it without blocking it.
+render.go:600.23,602.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
+render.go:643.18,645.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
+render.go:696.23,698.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
+render.go:724.2,724.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
+render.go:850.23,852.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
+render.go:882.22,884.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
 help.go:235.9,237.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
 table.go:248.30,250.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

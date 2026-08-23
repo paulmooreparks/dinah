@@ -27,12 +27,6 @@ type Library struct {
 	// refuses it there, which is the window a lock taken only around the
 	// write would leave open.
 	Interleave func()
-	// lastActor and lastOverride carry the values Pull set on entry, so the
-	// qualifying predicate reads the same actor and override the caller
-	// named without threading them through every helper. They are populated
-	// by Pull only and read by pullCandidates while it runs.
-	lastActor    string
-	lastOverride bool
 }
 
 // New returns a library over an opened bench, on the real clock.
@@ -77,11 +71,11 @@ type Request struct {
 	Kind   string
 	// Override is the marker CORE-MOVE-9 admits and CORE-MOVE-11 reserves.
 	Override bool
-	// NoClaim is the marker a pull uses to skip the claimed event and the
-	// claim stamp, so a pull naming --no-claim lands a card without taking
-	// its lease. The card's substate still becomes active because the move
-	// half of the transaction writes it; a follow-up claim by some other
-	// owner sees an active, unheld card and acts on it then.
+	// NoClaim is the marker a pull carries to move a card without claiming
+	// it. The card lands in the ready substate an ordinary move leaves, so
+	// the next owner to claim it or to pull it onward takes it from there.
+	// The marker weakens no precondition: a pull still runs the claim's own
+	// rows, so a card a claim would refuse is a card a pull refuses.
 	NoClaim bool
 	// Basis is the revision the owner read before deciding.
 	Basis string
@@ -235,13 +229,10 @@ type Response struct {
 	// Message is a catalog key the head reads to compose the one-line
 	// sentence printed on a cardless OK response, the empty answer a read
 	// or a mutation can give. Empty when the response carries a card or
-	// carries no printable line. Substitution values live on MessageDetail
-	// for a single token and on MessageValues for the named-value map a
-	// templated catalog entry needs.
+	// carries no printable line.
 	Message string `json:"message,omitempty"`
-	// MessageDetail is the single token a Message template inserts.
-	MessageDetail string `json:"message_detail,omitempty"`
-	// MessageValues is the named-value map a Message template inserts.
+	// MessageValues are the named values a Message template inserts, and it
+	// is nil for a sentence carrying no slot.
 	MessageValues map[string]string `json:"message_values,omitempty"`
 }
 

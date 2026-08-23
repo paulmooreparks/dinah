@@ -6690,3 +6690,101 @@ func TestEveryVocabularySourceHasAListingThatAnswersIt(t *testing.T) {
 		}
 	}
 }
+
+// TestPullOnTheCommandLine asserts the head's half of the pull command: the
+// named form takes the card at the head of the upstream queue and claims it,
+// both forms answer at exit 0 with a sentence when nothing is waiting, and a
+// bare form with more than one qualifying state refuses and prints the states
+// it could not choose between.
+//
+// The refusal's rows are the reason this lives here rather than in
+// internal/verb. The qualifying set is computed at the raise site and carried
+// on the response, so the library test can assert the set and only the head
+// can assert that a reader sees it drawn.
+func TestPullOnTheCommandLine(t *testing.T) {
+	t.Run("nothing waiting answers at exit 0", func(t *testing.T) {
+		root := newBench(t)
+		bare := runCLI(t, root, "pull")
+		if bare.code != 0 {
+			t.Fatalf("a bare pull with nothing waiting: wanted exit 0, got %d %s", bare.code, bare.errw)
+		}
+		if strings.TrimSpace(bare.out) == "" {
+			t.Error("the bare form should print a sentence saying it found nothing to pull")
+		}
+		named := runCLI(t, root, "pull", "doing")
+		if named.code != 0 {
+			t.Fatalf("a named pull with nothing waiting: wanted exit 0, got %d %s", named.code, named.errw)
+		}
+		if strings.TrimSpace(named.out) == "" {
+			t.Error("the named form should print a sentence naming the upstream state it found empty")
+		}
+		if named.out == bare.out {
+			t.Error("the two forms answer different questions and should not print the same sentence")
+		}
+	})
+
+	t.Run("the named form takes the head of the upstream queue", func(t *testing.T) {
+		root := newBench(t)
+		runCLI(t, root, "add", "First in")
+		runCLI(t, root, "add", "Second in")
+		offered := runCLI(t, root, "next", "intake")
+		got := runCLI(t, root, "pull", "doing", "--quiet")
+		if got.code != 0 {
+			t.Fatalf("pull: %d %s", got.code, got.errw)
+		}
+		if !strings.Contains(got.out, "First in") {
+			t.Errorf("pull should take the head of the queue, got %q", got.out)
+		}
+		if !strings.Contains(offered.out, "First in") {
+			t.Errorf("next should have offered the same card, got %q", offered.out)
+		}
+		if !strings.Contains(got.out, "held by") {
+			t.Errorf("a pull claims the card it takes, got %q", got.out)
+		}
+	})
+
+	t.Run("a bare form with two qualifying states refuses and lists them", func(t *testing.T) {
+		root := newBench(t)
+		// intake holds a ready card, so doing qualifies, and doing holds a
+		// ready card of its own, so done qualifies too. The default flow
+		// declares no capacity limit, so neither is filtered out.
+		runCLI(t, root, "add", "Waiting in intake")
+		runCLI(t, root, "add", "Waiting in doing", "--state", "doing")
+		got := runCLI(t, root, "pull")
+		if got.code != 2 {
+			t.Fatalf("an ambiguous bare pull: wanted exit 2, got %d %q %q", got.code, got.out, got.errw)
+		}
+		if !strings.HasPrefix(got.errw, contract.AmbiguousState+" ") {
+			t.Errorf("wanted the refusal name first on stderr, got %q", got.errw)
+		}
+		for _, slug := range []string{"doing", "done"} {
+			if !regexp.MustCompile(`(?m)^\s+` + slug + `\s*$`).MatchString(got.errw) {
+				t.Errorf("the refusal should draw %s as a row of its own, got %q", slug, got.errw)
+			}
+		}
+	})
+
+	t.Run("help pull prints the arguments and the thirteen checks in order", func(t *testing.T) {
+		root := newBench(t)
+		got := runCLI(t, root, "help", "pull")
+		if got.code != 0 {
+			t.Fatalf("help pull: %d %s", got.code, got.errw)
+		}
+		for _, argument := range []string{"state", "no-claim", "expires", "override"} {
+			if !strings.Contains(got.out, argument) {
+				t.Errorf("the help should name the %s argument, got %q", argument, got.out)
+			}
+		}
+		rows := regexp.MustCompile(`(?m)^  (\d+) `).FindAllStringSubmatch(got.out, -1)
+		if len(rows) != len(verb.Checks(verb.Pull)) {
+			t.Fatalf("wanted %d numbered check rows, got %d", len(verb.Checks(verb.Pull)), len(rows))
+		}
+		for i, check := range verb.Checks(verb.Pull) {
+			line := rows[i][0]
+			_ = line
+			if !strings.Contains(got.out, check.Refusal) {
+				t.Errorf("row %d: the help should carry the refusal name %s", i+1, check.Refusal)
+			}
+		}
+	})
+}

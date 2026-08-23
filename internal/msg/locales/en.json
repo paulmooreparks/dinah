@@ -290,48 +290,48 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.pull.1": {
-      "text": "an owner resolves for the person asking",
-      "context": "One row of the ordered precondition list of pull: the actor must not be empty, so the workbench has a name to record on the claim event."
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event."
     },
     "check.pull.2": {
-      "text": "the named state, when one is named, is one the workbench declares",
-      "context": "One row of the ordered precondition list of pull: the named form refuses when the state the caller typed is not a state of the workbench."
+      "text": "the named destination is a state the workbench declares",
+      "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no state to be unknown."
     },
     "check.pull.3": {
-      "text": "the person asking is the operator, when --override is carried",
-      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator asking with it is refused before the qualifying set is even read."
+      "text": "an override marker, if carried, is the operator's",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any state is considered."
     },
     "check.pull.4": {
-      "text": "more than one state on the workbench qualifies, so name one rather than letting the bare form choose",
-      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when the qualifying set has more than one entry."
+      "text": "exactly one state qualifies, when no destination is named",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one state qualifies."
     },
     "check.pull.5": {
-      "text": "the named state is not the first state of the flow, so something precedes it for a card to come from",
+      "text": "the destination has a state before it in the flow",
       "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
     },
     "check.pull.6": {
-      "text": "the person asking is the operator, when the upstream state is operator-owned",
-      "context": "One row of the ordered precondition list of pull: an operator-owned upstream narrows the qualifying set to the operator, and a non-operator trying to pull from it is refused under the lock."
+      "text": "the departure is legal for whoever asks",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream is the operator's to move work out of, which is move's own departure test read under the lock."
     },
     "check.pull.7": {
-      "text": "the card chosen from the upstream queue is not blocked",
+      "text": "the card's substate is not `blocked`",
       "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
     },
     "check.pull.8": {
-      "text": "the card chosen from the upstream queue is not already held by another owner",
-      "context": "One row of the ordered precondition list of pull: a held card is not ready, and pull never takes a lease another owner already has."
+      "text": "the card's substate is not `active`",
+      "context": "One row of the ordered precondition list of pull: pull takes claim's stricter test, refusing a card already active whoever holds it."
     },
     "check.pull.9": {
-      "text": "the card is not in a state the workbench declares terminal",
-      "context": "One row of the ordered precondition list of pull: a terminal state refuses a forward move, and the race between the queue read and the lock can surface that here."
+      "text": "the move is not a forward move out of a `done` state",
+      "context": "One row of the ordered precondition list of pull: a forward move out of a done state refuses, and the race between the queue read and the lock can surface that here."
     },
     "check.pull.10": {
-      "text": "the destination stands below its capacity, or --override is carried by the operator",
+      "text": "the destination is below its capacity limit",
       "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
     },
     "check.pull.11": {
-      "text": "no other process holds the card's lock",
-      "context": "One row of the ordered precondition list of pull: the lock taken before the card is re-read is a held lock, and a card another process is already writing is refused rather than queued."
+      "text": "the destination is not being retired",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",

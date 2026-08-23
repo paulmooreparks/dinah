@@ -298,48 +298,48 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.pull.1": {
-      "text": "die fragende Person ist als Eigentümer benannt",
-      "context": "One row of the ordered precondition list of pull: the actor must not be empty, so the workbench has a name to record on the claim event."
+      "text": "die Anfrage benennt einen Eigentümer",
+      "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event."
     },
     "check.pull.2": {
-      "text": "der genannte Zustand, falls einer genannt wird, ist einer, den die Werkbank deklariert",
-      "context": "One row of the ordered precondition list of pull: the named form refuses when the state the caller typed is not a state of the workbench."
+      "text": "die Werkbank deklariert den benannten Zielzustand",
+      "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no state to be unknown."
     },
     "check.pull.3": {
-      "text": "die fragende Person ist die Bedienung, wenn --override mitgeführt wird",
-      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator asking with it is refused before the qualifying set is even read."
+      "text": "eine Übersteuerung stammt vom Betreiber",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any state is considered."
     },
     "check.pull.4": {
-      "text": "mehr als ein Zustand der Werkbank qualifiziert sich — nenne einen, denn die nackte Form wählt nicht selbst",
-      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when the qualifying set has more than one entry."
+      "text": "genau ein Zustand kommt in Frage, wenn kein Ziel benannt ist",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one state qualifies."
     },
     "check.pull.5": {
-      "text": "der genannte Zustand ist nicht der erste Zustand des Flusses, sodass ihm etwas vorangeht, aus dem eine Karte kommen kann",
+      "text": "dem Ziel geht im Fluss ein Zustand voraus",
       "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
     },
     "check.pull.6": {
-      "text": "die fragende Person ist die Bedienung, wenn der vorgelagerte Zustand der Bedienung gehört",
-      "context": "One row of the ordered precondition list of pull: an operator-owned upstream narrows the qualifying set to the operator, and a non-operator trying to pull from it is refused under the lock."
+      "text": "der Abgang ist für die anfragende Person zulässig",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream is the operator's to move work out of, which is move's own departure test read under the lock."
     },
     "check.pull.7": {
-      "text": "die aus der vorgelagerten Schlange gewählte Karte ist nicht blockiert",
+      "text": "der Unterzustand der Karte ist nicht `blocked`",
       "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
     },
     "check.pull.8": {
-      "text": "die aus der vorgelagerten Schlange gewählte Karte wird nicht bereits von einem anderen Eigentümer gehalten",
-      "context": "One row of the ordered precondition list of pull: a held card is not ready, and pull never takes a lease another owner already has."
+      "text": "der Unterzustand der Karte ist nicht `active`",
+      "context": "One row of the ordered precondition list of pull: pull takes claim's stricter test, refusing a card already active whoever holds it."
     },
     "check.pull.9": {
-      "text": "die Karte befindet sich nicht in einem Zustand, den die Werkbank als endgültig deklariert",
-      "context": "One row of the ordered precondition list of pull: a terminal state refuses a forward move, and the race between the queue read and the lock can surface that here."
+      "text": "kein Vorwärtszug aus einem `done`-Zustand heraus",
+      "context": "One row of the ordered precondition list of pull: a forward move out of a done state refuses, and the race between the queue read and the lock can surface that here."
     },
     "check.pull.10": {
-      "text": "das Ziel liegt unter seiner Kapazitätsgrenze, oder --override wird von der Bedienung mitgeführt",
+      "text": "das Ziel liegt unter seiner Kapazitätsgrenze",
       "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
     },
     "check.pull.11": {
-      "text": "kein anderer Prozess hält die Sperre der Karte",
-      "context": "One row of the ordered precondition list of pull: the lock taken before the card is re-read is a held lock, and a card another process is already writing is refused rather than queued."
+      "text": "das Ziel wird nicht gerade stillgelegt",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} trägt eine Erstellungs-Ordnungszahl, die ein anderes Mitglied seiner Sammlung bereits trägt, sodass eine Position zwei von ihnen benennt",

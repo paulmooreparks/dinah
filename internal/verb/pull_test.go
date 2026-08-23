@@ -3,14 +3,11 @@ package verb
 import (
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
-	"dinah/internal/guide"
 )
 
 // TestPullAgreesWithNextWhenBothHaveAHead asserts that a pull and a next
@@ -374,25 +371,53 @@ func TestCapacityAndRetiringRefuseUnderEachForm(t *testing.T) {
 
 	t.Run("a retiring state refuses locked", func(t *testing.T) {
 		h := newHarness(t)
-		// Plant the sibling beside the aftercare state directory so the
-		// bench reads it as a retirement in flight. The state remains
-		// declared and its directory is intact, which is the shape an
-		// archive aborts in: the sibling stands, the act has not yet
-		// removed the id from workbench.md. A pull into that state
-		// refuses locked for the same reason the qualifier excludes it
-		// in the bare form.
-		dir := filepath.Join(h.root, bench.StatesDir, aftercare)
+		// Plant the sibling beside the doing state directory so the bench
+		// reads it as a retirement in flight. The state remains declared
+		// and its directory is intact, which is the shape an archive
+		// aborts in: the sibling stands, and the act has not yet removed
+		// the identifier from workbench.md. A pull into that state refuses
+		// locked for the same reason the qualifier leaves it out of the
+		// bare form's set.
+		//
+		// The destination is doing rather than aftercare because the
+		// refusal has to be reachable. Row 13 is evaluated under the
+		// card's lock, so a card must be standing ready in the upstream
+		// state for the pull to get that far, and aftercare's upstream is
+		// the done state, which refuses terminal at row 11 first.
+		dir := filepath.Join(h.root, bench.StatesDir, doing)
 		h.plant(bench.SiblingPath(dir), bench.LockRecord{
 			Actor: "alka",
 			PID:   4321,
 			TS:    bench.Stamp(h.clock),
 			Op:    bench.OpArchive,
 		})
-		h.add("ignored")
-		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: aftercare})
+		h.add("waiting in intake")
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: doing})
 		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.Locked {
 			t.Fatalf("the named form into a retiring state: wanted %s, got %s %s",
 				contract.Locked, response.Outcome, response.Refusal)
+		}
+	})
+
+	t.Run("a retiring state with nothing waiting answers empty", func(t *testing.T) {
+		h := newHarness(t)
+		// The same retiring destination, with its upstream left empty.
+		// Rows 8 to 13 read the one card the selection chose, so with no
+		// card to choose the pull never reaches them and answers the
+		// empty answer rather than the refusal above. Both forms answer a
+		// pull that finds nothing to take the same way, which is what
+		// keeps one fact from having two vocabularies.
+		dir := filepath.Join(h.root, bench.StatesDir, review)
+		h.plant(bench.SiblingPath(dir), bench.LockRecord{
+			Actor: "alka",
+			PID:   4321,
+			TS:    bench.Stamp(h.clock),
+			Op:    bench.OpArchive,
+		})
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: review})
+		if response.Outcome != contract.OutcomeOK || response.Card != nil {
+			t.Fatalf("wanted the empty answer, got %s %s %+v",
+				response.Outcome, response.Refusal, response.Card)
 		}
 	})
 }
@@ -424,12 +449,32 @@ func TestNoUpstreamRefusesNamedPullsToTheFirstState(t *testing.T) {
 // destinations from a non-operator's qualifying set: the pull either picks
 // the only remaining state or refuses no upstream at all.
 func TestOperatorOwnedUpstreamFiltersAndAdmitsTheOperator(t *testing.T) {
-	t.Run("a non-operator into an operator-owned state in the named form", func(t *testing.T) {
+	t.Run("a non-operator pulling out of an operator-owned upstream is refused", func(t *testing.T) {
 		h := newHarness(t)
-		h.add("ordinary")
-		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: review})
+		// The destination is finished, whose upstream is the fixture's
+		// operator-owned review state, because the row reads the state the
+		// card departs rather than the state it arrives in: a state is
+		// operator-owned to say who may take work out of it, so pulling
+		// into one is as legal for anybody as moving into one.
+		ref := h.add("waiting in review")
+		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: finished})
 		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
 			t.Fatalf("wanted %s, got %s %s", contract.NotOperator, response.Outcome, response.Refusal)
+		}
+	})
+
+	t.Run("the operator pulling out of an operator-owned upstream is admitted", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("waiting in review")
+		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: finished})
+		h.reopen()
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the operator should be admitted, got %s %s", response.Outcome, response.Refusal)
+		}
+		if response.Card == nil || response.Card.State != finished {
+			t.Errorf("expected the card in finished, got %+v", response.Card)
 		}
 	})
 
@@ -567,48 +612,6 @@ func TestPullChecksAgainstTheFullThirteenRowTable(t *testing.T) {
 	for i, row := range want {
 		if checks[i].Refusal != row.Refusal || checks[i].Key != row.Key {
 			t.Errorf("row %d: wanted %+v, got %+v", i, row, checks[i])
-		}
-	}
-}
-
-// TestHelpPullListsThePullCommandInTheRightForm asserts the help text
-// rendered for the pull verb names the verb, names a destination as a
-// positional argument, names --no-claim as the only flag, and ends each
-// line with a period that the catalog renders.
-func TestHelpPullListsThePullCommandInTheRightForm(t *testing.T) {
-	body, err := guide.Text("pull")
-	if err != nil {
-		t.Fatalf("guide pull: %v", err)
-	}
-	// The verb and its argument appear in order: pull <state>, then the
-	// flag list, then the precondition list the table above pins.
-	if !strings.Contains(body, "dinah pull") {
-		t.Errorf("guide should start with `dinah pull`, got %q", body)
-	}
-	if !strings.Contains(body, "<state>") {
-		t.Errorf("guide should name the destination slot, got %q", body)
-	}
-	if !strings.Contains(body, "--no-claim") {
-		t.Errorf("guide should name the --no-claim flag, got %q", body)
-	}
-	// Every line the help prints ends with a period, the sentence
-	// boundary the catalog renders.
-	for _, line := range strings.Split(body, "\n") {
-		if line == "" {
-			continue
-		}
-		if !strings.HasSuffix(strings.TrimRight(line, " \t"), ".") {
-			t.Errorf("guide line does not end with a period: %q", line)
-		}
-	}
-	// The precondition list enumerates every refusal row.
-	for _, row := range Checks(Pull) {
-		if row.Key == "check.workbench.1" || row.Key == "check.workbench.2" {
-			continue
-		}
-		re := regexp.MustCompile(regexp.QuoteMeta(row.Key))
-		if !re.MatchString(body) {
-			t.Errorf("guide does not mention %s", row.Key)
 		}
 	}
 }

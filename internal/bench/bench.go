@@ -1079,42 +1079,6 @@ func (b *Bench) StateByRef(ref string) *State {
 	return nil
 }
 
-// StrandedStateByRef returns the stranded identifier the reference names,
-// matching the identifier first and then a slug or title read off the state
-// anchor the archive still holds. A stranded state carries no live anchor of
-// its own, so the slug is recovered from the archive directory the retiring
-// act moved the state into; an anchor that will not read is skipped.
-//
-// The match is the one piece of the lookup the State set cannot answer: a
-// retired state's directory is gone, so its slug and title no longer reach
-// StateByRef. The pull verb's stranded check is the caller.
-func (b *Bench) StrandedStateByRef(ref string) string {
-	if ref == "" {
-		return ""
-	}
-	for _, id := range b.StrandedStates {
-		if id == ref {
-			return id
-		}
-	}
-	want := asciiLower(strings.TrimSpace(ref))
-	for _, id := range b.StrandedStates {
-		anchor := filepath.Join(b.Root, ArchiveDir, StatesDir, id, StateAnchor)
-		text, err := ReadText(anchor)
-		if err != nil {
-			continue
-		}
-		fm, _ := ParseAnchor(text)
-		if slug := asciiLower(strings.TrimSpace(fm.Value("slug"))); slug != "" && slug == want {
-			return id
-		}
-		if title := asciiLower(strings.TrimSpace(fm.Value("title"))); title != "" && title == want {
-			return id
-		}
-	}
-	return ""
-}
-
 // asciiLower lowercases using ASCII rules alone. The locale-aware form is a
 // correctness bug the format's encoding section names: an uppercase I
 // lowercased under a Turkish locale is not i, and a bench must parse

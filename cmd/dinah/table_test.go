@@ -582,3 +582,16 @@ func TestTheCeilingIgnoresAnOutOfRangeColumn(t *testing.T) {
 		}
 	}
 }
+
+// TestTailIsUnbreakableAnswersFalseForATableWithNoColumns asserts the guard
+// that keeps the tail test from reading past the end of an empty layout.
+//
+// A table laid out with no columns has no last column to judge, so the answer
+// is false rather than a panic. The reachable route to it is a refusal whose
+// listing turned out to hold nothing, which the suite does not otherwise
+// print, so the guard is asserted here directly rather than through a command.
+func TestTailIsUnbreakableAnswersFalseForATableWithNoColumns(t *testing.T) {
+	if tailIsUnbreakable(laidTable{indent: 2, window: 20}) {
+		t.Error("a layout with no columns has no unbreakable tail to report")
+	}
+}

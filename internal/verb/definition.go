@@ -262,7 +262,7 @@ var params = map[string][]Param{
 		{Name: "state", Vocabulary: "state", AlsoFlag: true},
 		{Name: "ready", Flag: true, Marker: true},
 	},
-	"next":  {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
+	"next": {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
 	// Pull combines a claim and a move into one atomic act. The state is
 	// the destination; the named form names it, the bare form chooses the
 	// one state that qualifies and refuses when more than one does. The

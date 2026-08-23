@@ -422,58 +422,27 @@ rel-1  Write the release notes  [Intake / ready]
 [exit 0]
 ```
 
-## The five commands that move a card
+## Take a card, and carry it on
 
-You change where a card stands with five commands: `claim`, `move`, `release`,
-`block`, and `unblock`. Dinah's own guide calls these five the verbs, and you
-can read it with `dinah guide verbs`. The shared rules fix what each one does. A
-second tool reading the same workbench answers you the same way.
+A workbench is a pull system, which means nobody hands you work. You take the
+next card yourself, and `dinah pull` is the one command that does it. Name a
+state, and Dinah takes the card at the head of the state before it, moves it
+in, and claims it for you.
 
-Nobody hands you work here. You claim a card yourself:
-
-```console
-$ dinah claim rel-1
-rel-1  Write the release notes  [Intake / active]
-  held by ana
-
-Instructions, this workbench:
-Every card on this workbench ends with a line in the changelog.
-
-Moves this card may make:
-  State  Name   Direction
-  -----  -----  ---------
-  doing  Doing  forward
-  done   Done   forward
-[exit 0]
-```
-
-When your claim succeeds, Dinah shows you the instructions for where the card
-stands and the moves the flow allows from there. You do not have to remember
-either. Pass `--quiet` when you have read them already.
-
-Dinah will not let anybody else take a card you hold:
+You capped `Doing` at one card earlier, and `rel-3` is already standing there,
+so Dinah refuses to pull another card into it:
 
 ```console
-$ dinah claim rel-1 --actor bo
-held ana holds this card; wait for ana to release it
-[exit 2]
-```
-
-`move` carries a card to another state and changes nothing else. If you move a
-card you hold, you still hold it afterwards. You capped `Doing` at one card
-above, and `rel-3` already stands there, so Dinah refuses the move below:
-
-```console
-$ dinah move rel-1 doing
+$ dinah pull doing
 at-capacity state doing has reached its limit; move a card out of doing first, or raise that state's wip_limit
 [exit 2]
 ```
 
-Only the operator can override that limit, and Dinah records the override on the
-move:
+Only the operator can carry a card through a full state, and Dinah records the
+override:
 
 ```console
-$ dinah move rel-1 doing --override
+$ dinah pull doing --override
 rel-1  Write the release notes  [Doing / active]
   held by ana
 
@@ -491,6 +460,85 @@ Moves this card may make:
   done    Done    forward
 [exit 0]
 ```
+
+Dinah picked `rel-1` because it stood at the head of the queue in `Intake`, the
+state before `Doing`. That is the card `dinah next intake` was offering you a
+moment ago, and pull and next read the queue the same way. When a claim
+succeeds, Dinah shows you the instructions for where the card now stands and
+the moves the flow allows from there, so you do not have to remember either.
+Pass `--quiet` when you have read them already.
+
+You can leave the state out. Dinah then works out which state you could pull
+into and uses that one, and when more than one qualifies it stops and asks you
+to name one rather than choosing for you. What qualifies depends on what is
+standing on the workbench at the moment you type the command, and on who you
+are, so the bare form can mean one thing today and another tomorrow. Run
+`dinah help pull` for the whole list of what Dinah checks before it moves a
+card.
+
+Add `--no-claim` when you want to carry a card forward and leave it for
+somebody else. The card lands in the new state still waiting, and the next
+person to pull that state's own queue takes it from there.
+
+## The five commands underneath
+
+A pull is not a sixth kind of act. It is a claim and a move, run together, and
+the card's own history says so:
+
+```console
+$ dinah log rel-1
+  When                  Action   Actor  Detail
+  --------------------  -------  -----  --------------------------
+  2026-01-05T09:00:00Z  created  ana    Write the release notes
+  2026-01-05T09:00:00Z  claimed  ana
+  2026-01-05T09:00:00Z  moved    ana    Intake to Doing (override)
+[exit 0]
+```
+
+Five commands change where a card stands: `claim`, `move`, `release`, `block`,
+and `unblock`. Dinah's own guide calls these five the verbs, and you can read it
+with `dinah guide verbs`. The shared rules fix what each one does. A second tool
+reading the same workbench answers you the same way.
+
+You can run the two halves of a pull separately whenever you want the card
+rather than the next card. `claim` takes up a card you name:
+
+```console
+$ dinah claim rel-2
+rel-2  Draft the changelog  [Intake / active]
+  held by ana
+
+Instructions, this workbench:
+Every card on this workbench ends with a line in the changelog.
+
+Moves this card may make:
+  State  Name   Direction
+  -----  -----  ---------
+  doing  Doing  forward
+  done   Done   forward
+[exit 0]
+```
+
+Dinah will not let anybody else take a card you hold:
+
+```console
+$ dinah claim rel-2 --actor bo
+held ana holds this card; wait for ana to release it
+[exit 2]
+```
+
+`release` gives a card back. Release one as soon as you stop working it, so the
+queue tells the truth about what is free:
+
+```console
+$ dinah release rel-2
+rel-2  Draft the changelog  [Intake / ready]
+[exit 0]
+```
+
+`move` carries a card to another state and changes nothing else. If you move a
+card you hold, you still hold it afterwards. `move` obeys the same capacity
+limit `pull` obeyed above, and the operator overrides it the same way.
 
 Say what you did while you are there:
 
@@ -1337,7 +1385,6 @@ The guides stand in the order Dinah recommends reading them.
   first-session     Your first session at a workbench
   getting-started   Getting started
   verbs             The five verbs
-  pull              pull
   references        References
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk

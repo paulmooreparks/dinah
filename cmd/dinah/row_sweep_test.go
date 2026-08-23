@@ -1325,7 +1325,7 @@ const (
 func sweptBlocks() []sweptBlock {
 	return []sweptBlock{
 		{
-			site: "render.go:175", label: "the legal moves under a served instruction",
+			site: "render.go:172", label: "the legal moves under a served instruction",
 			keys: []string{"column.moves.state", "column.moves.name", "column.moves.direction"}, varies: lastCell,
 			opensAt: "instructions.moves", expect: expectMoves,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1333,7 +1333,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:195", label: "the cards you hold",
+			site: "render.go:192", label: "the cards you hold",
 			keys: []string{"column.holding.card", "column.holding.title"}, varies: lastCell,
 			opensAt: "status.holding", expect: expectHolding,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1341,7 +1341,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:204", label: "the cards that are blocked",
+			site: "render.go:201", label: "the cards that are blocked",
 			keys: []string{"column.blocked.card", "column.blocked.reason"}, varies: lastCell,
 			opensAt: "status.blocked", expect: expectBlocked,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1349,7 +1349,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:231", label: "dinah states",
+			site: "render.go:228", label: "dinah states",
 			keys:   []string{"column.states.slug", "column.states.name", "column.states.kind", "column.states.cards", "column.states.owner"},
 			varies: lastCell, expect: expectStates,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1357,7 +1357,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:244", label: "dinah ls",
+			site: "render.go:241", label: "dinah ls",
 			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.title"}, varies: lastCell,
 			expect: expectListing,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1365,7 +1365,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:261", label: "dinah query",
+			site: "render.go:258", label: "dinah query",
 			keys:   []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"},
 			expect: expectMatches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1373,7 +1373,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:278", label: "dinah tree",
+			site: "render.go:275", label: "dinah tree",
 			keys:   []string{"column.tree.reference", "column.tree.entity", "column.tree.title", "column.tree.count"},
 			expect: expectTree,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1381,7 +1381,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:278", label: "dinah contents",
+			site: "render.go:275", label: "dinah contents",
 			keys:   []string{"column.tree.reference", "column.tree.entity", "column.tree.title", "column.tree.count"},
 			expect: expectContents,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1389,7 +1389,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:367", label: "dinah config",
+			site: "render.go:364", label: "dinah config",
 			keys: []string{"column.config.setting", "column.config.value", "column.config.source"}, varies: lastCell,
 			expect: expectSettings,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1397,7 +1397,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:395", label: "dinah workbenches",
+			site: "render.go:392", label: "dinah workbenches",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			expect: expectWorkbenches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1405,7 +1405,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:395", label: "the ambiguous-workbench refusal, written to stderr",
+			site: "render.go:392", label: "the ambiguous-workbench refusal, written to stderr",
 			keys: []string{"column.workbenches.workbench", "column.workbenches.slug", "column.workbenches.path"}, varies: lastCell,
 			expect: expectWorkbenches,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1413,7 +1413,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:421", label: "dinah next, a state offering a card",
+			site: "render.go:418", label: "dinah next, a state offering a card",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			expect: expectOffers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1430,7 +1430,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:421", label: "dinah next, a state offering nothing",
+			site: "render.go:418", label: "dinah next, a state offering nothing",
 			keys: []string{"column.next.state", "column.next.card", "column.next.title"}, varies: lastCell,
 			expect: expectOffers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1448,7 +1448,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:438", label: "a card's links",
+			site: "render.go:435", label: "a card's links",
 			keys: []string{"column.links.link", "column.links.card"}, varies: lastCell,
 			opensAt: "show.links", expect: expectLinks,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1456,7 +1456,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:451", label: "a card's attachments",
+			site: "render.go:448", label: "a card's attachments",
 			keys: []string{"column.attachments.position", "column.attachments.filename", "column.attachments.description"}, varies: lastCell,
 			opensAt: "show.attachments", expect: expectAttachments,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1464,7 +1464,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:461", label: "a card's comments",
+			site: "render.go:458", label: "a card's comments",
 			keys: []string{"column.comments.when", "column.comments.who"}, varies: noCell,
 			blanksAreLost: true,
 			opensAt:       "show.comments", expect: expectComments,
@@ -1475,7 +1475,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:490", label: "dinah log",
+			site: "render.go:487", label: "dinah log",
 			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
 			varies: lastCell, expect: expectHistory,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1483,7 +1483,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:506", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:503", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			expect: expectAssignedSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1491,28 +1491,28 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:535", label: "one removed stranded state", varies: noCell,
+			site: "render.go:532", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states")
 			},
 		},
 		{
-			site: "render.go:671", label: "the states a refusal lists", varies: noCell,
+			site: "render.go:668", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
-			site: "render.go:552", label: "one finding", varies: noCell,
+			site: "render.go:549", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
-			site: "render.go:577", label: "catalog coverage",
+			site: "render.go:574", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1561,7 +1561,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:791", label: "the workbench's own fields",
+			site: "render.go:787", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			expect: expectWorkbenchFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1569,7 +1569,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:518", label: "the workstream slugs check --migrate-slugs assigned",
+			site: "render.go:515", label: "the workstream slugs check --migrate-slugs assigned",
 			keys:   []string{"column.slugs.slug", "column.slugs.title"},
 			varies: lastCell, expect: expectAssignedWorkstreamSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1586,7 +1586,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:813", label: "dinah workstream",
+			site: "render.go:809", label: "dinah workstream",
 			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1594,7 +1594,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:834", label: "one workstream's own fields",
+			site: "render.go:830", label: "one workstream's own fields",
 			keys:   []string{"column.workstream.field", "column.workstream.value"},
 			varies: lastCell, expect: expectWorkstreamFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1603,7 +1603,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:847", label: "the cards belonging to one workstream",
+			site: "render.go:843", label: "the cards belonging to one workstream",
 			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.state"},
 			varies: lastCell, expect: expectWorkstreamMembers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1612,7 +1612,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:682", label: "a refusal that carries a list", varies: noCell,
+			site: "render.go:678", label: "a refusal that carries a list", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "pull")
