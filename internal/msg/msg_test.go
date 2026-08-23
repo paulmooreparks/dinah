@@ -167,10 +167,11 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 // only its placeholders and its leading separator. Anything else a translation
 // should carry goes unchecked here, whether it is content the English lists
 // and the translation drops or content the English never named. German's
-// help.environment omits DINAH_MCP_ROOT, which the English lists, and this
-// test says nothing about it. That omission is filed as dinah-248, so a reader
-// chasing a missing-content defect later should not expect this guard to have
-// caught it.
+// help.environment omitted DINAH_MCP_ROOT, which the English lists, and this
+// test said nothing about it; dinah-248 fixed the omission and added
+// TestEveryLocaleNamesEveryEnvironmentVariable, which reads that entry's
+// content. A reader chasing a missing-content defect elsewhere in the catalog
+// should still not expect this guard to have caught it.
 func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
 	for _, key := range Keys() {
@@ -192,6 +193,37 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 			}
 			if splice && !strings.HasPrefix(rendered, "; ") {
 				t.Errorf("%s/%s: wanted the leading separator that splices it onto the refusal, got %q", tag, key, rendered)
+			}
+		}
+	}
+}
+
+// TestEveryLocaleNamesEveryEnvironmentVariable asserts that help.environment
+// names, in every catalog, every environment variable the English entry names.
+// The variable names are identifiers rather than words, so a translation
+// rewrites the sentence around them and carries the names through unchanged.
+// German lost DINAH_MCP_ROOT when the MCP work added it to English and did not
+// come back for the other catalogs, and nothing caught that: the entry carries
+// no placeholder and splices onto nothing, so
+// TestATranslationKeepsThePlaceholdersAndTheSplice reads none of its content.
+// This guard reads the content, for the one entry whose content is a list of
+// identifiers that must appear everywhere.
+func TestEveryLocaleNamesEveryEnvironmentVariable(t *testing.T) {
+	const key = "help.environment"
+	entry, ok := BaseEntry(key)
+	if !ok {
+		t.Fatalf("%s: the English catalog carries no such key", key)
+	}
+	identifier := regexp.MustCompile(`\b[A-Z][A-Z0-9_]{2,}\b`)
+	names := identifier.FindAllString(entry.Text, -1)
+	if len(names) == 0 {
+		t.Fatalf("%s: the English entry names no environment variable, so this guard checks nothing: %q", key, entry.Text)
+	}
+	for _, tag := range Tags() {
+		rendered := For(tag).T(key)
+		for _, name := range names {
+			if !strings.Contains(rendered, name) {
+				t.Errorf("%s/%s: wanted the environment variable %s, got %q", tag, key, name, rendered)
 			}
 		}
 	}
