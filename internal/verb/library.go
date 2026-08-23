@@ -77,6 +77,12 @@ type Request struct {
 	Kind   string
 	// Override is the marker CORE-MOVE-9 admits and CORE-MOVE-11 reserves.
 	Override bool
+	// NoClaim is the marker a pull carries to move a card without claiming
+	// it. The card lands in the ready substate an ordinary move leaves, so
+	// the next owner to claim it or to pull it onward takes it from there.
+	// The marker weakens no precondition: a pull still runs the claim's own
+	// rows, so a card a claim would refuse is a card a pull refuses.
+	NoClaim bool
 	// Basis is the revision the owner read before deciding.
 	Basis string
 	// Title is the title a new card carries.
@@ -226,6 +232,14 @@ type Response struct {
 	// context, so a caller parsing --json reads one shape whichever layer
 	// said no.
 	Context map[string]string `json:"context,omitempty"`
+	// Message is a catalog key the head reads to compose the one-line
+	// sentence printed on a cardless OK response, the empty answer a read
+	// or a mutation can give. Empty when the response carries a card or
+	// carries no printable line.
+	Message string `json:"message,omitempty"`
+	// MessageValues are the named values a Message template inserts, and it
+	// is nil for a sentence carrying no slot.
+	MessageValues map[string]string `json:"message_values,omitempty"`
 }
 
 // view renders a card for a response.

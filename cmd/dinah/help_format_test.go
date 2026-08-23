@@ -26,6 +26,8 @@ WORK
     [--priority <level>]
   claim <card> [--expires <duration>]                    Take up a ready card
   move <card> <state> [--override]                       Carry a card to another state
+  pull [state] [--no-claim] [--expires <duration>]       Claim the head of a state's queue and move it
+    [--override]                                           there in one act
   release <card>                                         Give the card back to its queue
   block <card> <reason> [--kind <kind>]                  Raise an obstacle and free the card
   unblock <card>                                         Lift a block (operator only)
@@ -105,6 +107,7 @@ WORK
   add <title> [--state <state>] [--severity <level>] [--priority <level>]                             File a new card in the first state
   claim <card> [--expires <duration>]                                                                 Take up a ready card
   move <card> <state> [--override]                                                                    Carry a card to another state
+  pull [state] [--no-claim] [--expires <duration>] [--override]                                       Claim the head of a state's queue and move it there in one act
   release <card>                                                                                      Give the card back to its queue
   block <card> <reason> [--kind <kind>]                                                               Raise an obstacle and free the card
   unblock <card>                                                                                      Lift a block (operator only)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -640,5 +641,71 @@ func TestTheCeilingIgnoresAnOutOfRangeColumn(t *testing.T) {
 			t.Errorf("ceilingColumn %d: applyCeiling changed column 0 from %d to %d, and an out-of-range column should change nothing",
 				column, before, laid.widths[0])
 		}
+	}
+}
+
+// TestTailIsUnbreakableAnswersFalseForATableWithNoColumns asserts the guard
+// that keeps the tail test from reading past the end of an empty layout.
+//
+// A table laid out with no columns has no last column to judge, so the answer
+// is false rather than a panic. The reachable route to it is a refusal whose
+// listing turned out to hold nothing, which the suite does not otherwise
+// print, so the guard is asserted here directly rather than through a command.
+func TestTailIsUnbreakableAnswersFalseForATableWithNoColumns(t *testing.T) {
+	if tailIsUnbreakable(laidTable{indent: 2, window: 20}) {
+		t.Error("a layout with no columns has no unbreakable tail to report")
+	}
+}
+
+// TestTheUnbreakableTailAsksForItsMeasureOnlyWhenItFits asserts the two-sided
+// shape of the tail reservation, which the empty-layout guard above does not
+// reach: an unbreakable tail gets its measured width where the columns ahead
+// of it still fit at their headings, and gets the flat reservation everywhere
+// else.
+//
+// Each case is a laid table built by hand rather than a command's output,
+// because the arithmetic under test is what chooses between the two answers
+// and a rendered page shows only the answer that was chosen.
+func TestTheUnbreakableTailAsksForItsMeasureOnlyWhenItFits(t *testing.T) {
+	// The tail measures 24 columns, over the flat reservation, and the one
+	// column ahead of it stands at a 5-column heading. A row therefore needs
+	// 2 + 5 + 2 + 24 = 33 columns.
+	build := func(window int, tail ...string) laidTable {
+		laid := laidTable{
+			indent:  2,
+			window:  window,
+			columns: []tableColumn{{heading: "Order"}, {heading: "Refusal"}},
+			widths:  []int{5, 24},
+		}
+		for i, value := range tail {
+			laid.rows = append(laid.rows, tableRow{fields: []string{fmt.Sprint(i + 1), value}})
+		}
+		return laid
+	}
+	unbreakable := []string{"dinah.ambiguous-state", "unsupported-version"}
+	breakable := []string{"dinah.ambiguous-state", "one that reads as prose"}
+
+	cases := []struct {
+		name string
+		laid laidTable
+		want int
+	}{
+		{"an unbreakable tail that fits asks for its measure", build(80, unbreakable...), 24},
+		{"an unbreakable tail too wide for the window keeps the flat reservation", build(32, unbreakable...), minTailColumns},
+		{"a breakable tail keeps the flat reservation and wraps", build(80, breakable...), minTailColumns},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := tailRoom(c.laid); got != c.want {
+				t.Errorf("tailRoom: got %d, want %d", got, c.want)
+			}
+		})
+	}
+
+	if !tailIsUnbreakable(build(80, unbreakable...)) {
+		t.Error("a tail of single-word refusal names is unbreakable")
+	}
+	if tailIsUnbreakable(build(80, breakable...)) {
+		t.Error("a tail carrying a value with a space in it can be broken")
 	}
 }
