@@ -363,21 +363,25 @@ func halfWindow(window int) int {
 	return window / 2
 }
 
-// applyCeiling sets a table's declared column to halfWindow, never below its
-// own heading, since a heading is a floor every other pass in this file
-// respects too. This is a declaration rather than a narrowing of what
-// chooseWidths measured: a short value that would otherwise have left the
-// column at its own width is padded out to the ceiling instead, which is
-// what lines every row's field after the capped column up in one place
-// whether its own value is long or short. ceilingRowLine is what a value
-// wider than the ceiling actually draws, wrapping between words rather than
-// running past the column.
+// applyCeiling bounds a table's declared column at halfWindow, never below
+// its own heading, since a heading is a floor every other pass in this file
+// respects too. The ceiling is a bound rather than a width: a column whose
+// own measured width already fits under it keeps that width, so a wide
+// window puts the field after it beside the widest value in the column
+// instead of stranding every row behind a river of blank space. Only a
+// column measuring wider than the ceiling is capped, which is what lines a
+// narrow window's rows up in one place. ceilingRowLine is what a value wider
+// than the cap actually draws, wrapping between words rather than running
+// past the column.
 func applyCeiling(laid *laidTable) {
 	c := laid.ceilingColumn
 	if c < 0 || c >= len(laid.widths) {
 		return
 	}
 	ceiling := halfWindow(laid.window)
+	if natural := laid.widths[c]; natural < ceiling {
+		ceiling = natural
+	}
 	if floor := displayWidth(laid.columns[c].heading); ceiling < floor {
 		ceiling = floor
 	}
@@ -848,14 +852,13 @@ func (laid laidTable) rowLine(r tableRow) string {
 // capped value needs, which is what keeps a reader's eye running down the
 // summaries in a straight line rather than chasing them down the page.
 //
-// The field after the capped column wraps too, through breakTail, exactly
-// as it already does for the arguments table's own tail, when the table
-// declares wrapTail. The two wraps are independent (a value that needs
-// three lines and a summary that needs two are not the same axis), so this
-// draws the capped column's own continuation lines first and the summary's
-// after, rather than letting formatRow's ordinary wrapTail handling fold
-// them into one interleaved run where a reader cannot tell which column a
-// given line belongs to.
+// The field after the capped column wraps too, when the table declares
+// wrapTail. The two wraps run down the page together: physical line N
+// carries the capped column's own Nth line beside the field's own Nth line,
+// so each column reads straight down its own track and neither is pushed
+// below the other. A line whose field has already run out is written with no
+// trailing pad, so a syntax continuation standing alone carries no invisible
+// spaces after it.
 //
 // This assumes the shape hasCeiling exists for: exactly two columns, the
 // capped one first and an unpadded field after it. A table asking for a
@@ -879,46 +882,73 @@ func (laid laidTable) ceilingRowLine(r tableRow) string {
 	if len(r.fields) > c+1 {
 		after = r.fields[c+1]
 	}
-	wrapped := breakWords(value, wrapIndent, room)
-	if laid.wrapOptions && displayWidth(value) > room {
-		wrapped = breakOnOptions(value, wrapIndent, room)
+	wrap := func(indent int) string {
+		w := breakWords(value, indent, room)
+		if laid.wrapOptions && displayWidth(value) > room {
+			w = breakOnOptions(value, indent, room)
+		}
+		return w
 	}
-	first, syntaxRest, moreSyntax := strings.Cut(wrapped, "\n")
 
 	// A single word wider than the cap on its own is the one case wrapping
 	// cannot help: breakWords writes it whole, exactly as breakTail already
-	// does for a tail, so first can still overrun room. There, the value
-	// draws on its own line or lines and the field after it follows on one
-	// line of its own, wrapped the same way a wrapping table's own tail
-	// wraps, rather than fighting the value for room its own first word
-	// already used up.
+	// does for a tail, so the first line can still overrun room. There, the
+	// value draws on its own line or lines and the field after it follows on
+	// one further line of its own, wrapped the same way a wrapping table's
+	// own tail wraps, rather than fighting the value for room its own first
+	// word already used up.
+	first, _, _ := strings.Cut(wrap(wrapIndent), "\n")
 	if displayWidth(first) > room {
-		whole := formatRow(row{indent: laid.indent, tail: wrapped}, laid.window)
+		whole := formatRow(row{indent: laid.indent, tail: wrap(wrapIndent)}, laid.window)
 		trailer := formatRow(row{indent: wrapIndent, tail: after, wrapTail: laid.wrapTail}, laid.window)
 		return whole + "\n" + trailer
 	}
 
-	// The field after the capped column wraps through breakTail exactly as
-	// the arguments table's own tail does, at the column it begins in on
-	// the row's first line. Only its own first segment goes into the cell
-	// row below; its further lines are appended after the capped column has
-	// had its own say, rather than folded into formatRow's ordinary
-	// wrapTail handling, which would interleave a capped value's own
-	// continuation lines between the summary's, one column pretending to be
-	// the other's.
-	summary, summaryRest, moreSummary := after, "", false
+	// Both axes are wrapped into their own list of lines, with no indent of
+	// their own, and the loop below puts each line where it belongs. The
+	// field's wrap-decision room stays pinned to the column it starts in on
+	// the row's first line, exactly as the capped column's room stays pinned
+	// to its declared width: the continuation moves where it draws, not how
+	// much fits on it.
+	syntaxLines := splitLines(wrap(0))
+	summaryLines := []string{after}
 	if laid.wrapTail && laid.window > 0 {
 		begins := laid.indent + room + tableGutter
-		summary, summaryRest, moreSummary = strings.Cut(breakTail(after, begins, laid.window), "\n")
+		summaryLines = splitLines(breakWords(after, 0, laid.window-begins))
 	}
-	line := formatRow(row{indent: laid.indent, cells: []cell{{text: first, width: room + tableGutter}}, tail: summary}, laid.window)
-	if moreSyntax {
-		line += "\n" + syntaxRest
+
+	lines := len(syntaxLines)
+	if len(summaryLines) > lines {
+		lines = len(summaryLines)
 	}
-	if moreSummary {
-		line += "\n" + summaryRest
+	var b strings.Builder
+	for i := 0; i < lines; i++ {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		var syntax, summary string
+		if i < len(syntaxLines) {
+			syntax = syntaxLines[i]
+		}
+		if i < len(summaryLines) {
+			summary = summaryLines[i]
+		}
+		indent := laid.indent
+		if i > 0 {
+			indent = wrapIndent
+		}
+		if summary == "" {
+			// Nothing follows on this line, so the syntax continuation is
+			// written raw rather than through a padded cell, which is what
+			// keeps a line whose field has already run out free of trailing
+			// spaces.
+			b.WriteString(strings.Repeat(" ", indent))
+			b.WriteString(syntax)
+			continue
+		}
+		b.WriteString(formatRow(row{indent: indent, cells: []cell{{text: syntax, width: room + tableGutter}}, tail: summary}, laid.window))
 	}
-	return line
+	return b.String()
 }
 
 // rule returns a separator's run of glyphs, built one column at a time so that

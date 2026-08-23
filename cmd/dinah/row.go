@@ -130,21 +130,33 @@ func breakWords(text string, indent, room int) string {
 	if room < 1 {
 		return text
 	}
+	return packTokens(strings.Fields(text), indent, room)
+}
+
+// packTokens lays pre-split tokens out the way breakWords lays out the words
+// of a string: as many tokens as fit on a line, joined by one space, moving
+// to a new line indented to indent when the next token would not fit. A
+// token wider than room on its own is written whole rather than split, which
+// is the rule breakWords already follows for one overlong word.
+//
+// It exists so that the option-boundary wrap and the word wrap share one
+// packing loop. The only difference between them is what counts as a token.
+func packTokens(tokens []string, indent, room int) string {
 	var b strings.Builder
 	drawn := 0
-	for _, word := range strings.Fields(text) {
-		width := displayWidth(word)
+	for _, tok := range tokens {
+		width := displayWidth(tok)
 		switch {
 		case drawn == 0:
-			b.WriteString(word)
+			b.WriteString(tok)
 			drawn = width
 		case drawn+1+width <= room:
-			b.WriteString(" " + word)
+			b.WriteString(" " + tok)
 			drawn += 1 + width
 		default:
 			b.WriteString("\n")
 			b.WriteString(strings.Repeat(" ", indent))
-			b.WriteString(word)
+			b.WriteString(tok)
 			drawn = width
 		}
 	}
@@ -159,22 +171,45 @@ func breakTail(text string, begins, window int) string {
 	return breakWords(text, begins, window-begins)
 }
 
-// breakOnOptions breaks text on option boundaries first and falls back to
-// word-wrap for the trailing piece when boundaries do not reach the window.
-// An "option boundary" is a space followed by `[--`, by `<`, or by a bare
-// `--`. Each option chunk is kept whole on its own line, indented to indent,
-// so a reader's eye sees one option group per line rather than a chunk
-// broken across the page.
+// isOptionShaped reports whether a piece begins the way every option-group
+// piece splitOnOptionBoundaries produces does: with `[`, `<`, or `-`. A
+// piece beginning with an ordinary word character is free prose trailing
+// after the option list ran out, not an option group, so a caller explodes
+// it into its own words before packing and it keeps wrapping at the word
+// level.
+func isOptionShaped(piece string) bool {
+	if piece == "" {
+		return false
+	}
+	switch piece[0] {
+	case '[', '<', '-':
+		return true
+	default:
+		return false
+	}
+}
+
+// breakOnOptions breaks text on option boundaries and packs the pieces, as
+// many to a line as fit, indenting every line after the first to indent. An
+// "option boundary" is a space next to an option group: before `[`, before
+// `<`, before a bare `--`, or after a closing `]`. Each option group is kept
+// whole rather than broken across a line end, so a reader's eye sees whole
+// groups, and the packing keeps a row's continuation as short as the groups
+// allow rather than spending one line per group.
 //
-// The first chunk is returned without a leading indent, so the caller can
-// lay it on the row's first line in place; every option chunk after it
-// carries indent spaces at its head. The trailing chunk after the last
-// option boundary is plain prose and is word-wrapped through breakWords at
-// indent, so a value whose option list runs out before its meaning does
-// falls back to the wrap behaviour the rest of the renderer already uses.
-// A value with no option boundary at all is word-wrapped whole, the same
-// shape breakTail already produces, so the rule degrades to today's
-// behaviour rather than silently changing it.
+// The first line is returned without a leading indent, so the caller can lay
+// it on the row's first line in place; every line after it carries indent
+// spaces at its head. A trailing piece that is free prose rather than an
+// option group is exploded into its own words first, so a value whose option
+// list runs out before its meaning does still wraps at the word level. A
+// value with no option boundary at all is word-wrapped whole, the same shape
+// breakTail already produces, so the rule degrades to the renderer's
+// ordinary behaviour rather than silently changing it.
+//
+// A piece wider than room on its own is written whole, which is the rule
+// breakWords already follows for one overlong word: packTokens's own
+// start-of-line branch writes a token whole whatever its width, so a long
+// command name needs no case of its own here.
 func breakOnOptions(text string, indent, room int) string {
 	if room < 1 {
 		return text
@@ -183,46 +218,36 @@ func breakOnOptions(text string, indent, room int) string {
 	if len(pieces) <= 1 {
 		return breakWords(text, indent, room)
 	}
-	// The first piece may itself exceed the room: the boundary rule keeps
-	// each later piece whole but the first is whatever sits before the first
-	// boundary, and a long command name followed by several short tokens
-	// runs wider than any one piece should. Word-wrap that piece so the
-	// row's first line still fits the column; the boundaries themselves
-	// stay intact for every piece after it.
-	var b strings.Builder
 	last := len(pieces) - 1
-	first := pieces[0]
-	if displayWidth(first) > room {
-		b.WriteString(breakWords(first, indent, room))
-	} else {
-		b.WriteString(first)
+	tokens := pieces
+	if !isOptionShaped(pieces[last]) {
+		tokens = append(append([]string{}, pieces[:last]...), strings.Fields(pieces[last])...)
 	}
-	for _, piece := range pieces[1:last] {
-		b.WriteString("\n")
-		b.WriteString(strings.Repeat(" ", indent))
-		b.WriteString(piece)
-	}
-	tail := pieces[last]
-	b.WriteString("\n")
-	b.WriteString(strings.Repeat(" ", indent))
-	b.WriteString(breakWords(tail, indent, room))
-	return b.String()
+	return packTokens(tokens, indent, room)
 }
 
 // splitOnOptionBoundaries splits text on option boundaries and returns the
 // pieces, with each piece kept whole. The boundary is the space character
 // itself, which is then dropped: a boundary at position k means pieces[k]
 // ends just before the space and pieces[k+1] starts with the option group
-// (`[--...`, `<...`, or `--...`). Text with no boundary returns the input
+// (`[...`, `<...`, or `--...`). Text with no boundary returns the input
 // as a single piece, so callers can tell "no boundaries found" apart from
 // "one piece" by length.
 //
 // Boundaries that fall inside an open square-bracket group are skipped, so
-// `[--state <state>]` is one chunk rather than two. A bracket group opens
-// at the `[` of a `[--` boundary and closes at the matching `]`, which is
-// what keeps the rule's pieces readable: every option group sits on its own
-// line, with the bracket's own internal `<` left whole rather than treated
-// as the start of a fresh option.
+// `[--state <state>]` is one chunk rather than two. A bracket group opens at
+// any `[` and closes at the matching `]`, which is what keeps the rule's
+// pieces readable: every option group stays whole, with the bracket's own
+// internal `<` left alone rather than treated as the start of a fresh
+// option. Opening on any `[` rather than only on `[--` is what lets a
+// vocabulary group like `[new|get|set]` or a plain `[field]` split out as
+// its own piece instead of gluing onto whatever came before it.
+//
+// A space also opens a boundary when the character before it closed a
+// bracket group at depth zero, which is what separates a last option group
+// from free prose following it. No command's syntax has that shape today,
+// so this closes a gap in the rule rather than changing any command's
+// rendering.
 func splitOnOptionBoundaries(text string) []string {
 	var pieces []string
 	last := 0
@@ -230,9 +255,7 @@ func splitOnOptionBoundaries(text string) []string {
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
 		case '[':
-			if i+2 < len(text) && text[i+1] == '-' && text[i+2] == '-' {
-				depth++
-			}
+			depth++
 		case ']':
 			if depth > 0 {
 				depth--
@@ -242,8 +265,10 @@ func splitOnOptionBoundaries(text string) []string {
 				continue
 			}
 			j := i + 1
+			closesBracket := i > 0 && text[i-1] == ']'
 			switch {
-			case j+2 < len(text) && text[j] == '[' && text[j+1] == '-' && text[j+2] == '-':
+			case closesBracket:
+			case j < len(text) && text[j] == '[':
 			case j < len(text) && text[j] == '<':
 			case j+1 < len(text) && text[j] == '-' && text[j+1] == '-':
 			default:

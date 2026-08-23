@@ -1378,7 +1378,7 @@ out which of two possible errors you are looking at.
 $ dinah help claim
 claim <card> [--expires <duration>]
 
-take up a ready card
+Take up a ready card
 
 What you may write:
   As you write it         What it is
