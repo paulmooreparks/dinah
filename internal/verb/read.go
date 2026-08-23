@@ -23,6 +23,11 @@ type StateView struct {
 	Kind string `json:"kind"`
 	// OperatorOwned marks a state only the operator moves a card out of.
 	OperatorOwned bool `json:"operator_owned"`
+	// AwaitingOutside marks a state where the workbench waits on somebody
+	// who is not an owner of it, so no owner takes work up there. It
+	// answers a different question from OperatorOwned, which is about
+	// departure alone, and a state may carry both.
+	AwaitingOutside bool `json:"awaiting_outside"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
 	// Count is the number of live cards the state holds.
@@ -112,8 +117,9 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 			Slug:          state.Slug,
 			Title:         state.Title,
 			Kind:          state.Kind,
-			OperatorOwned: state.OperatorOwned,
-			Capacity:      state.Capacity,
+			OperatorOwned:   state.OperatorOwned,
+			AwaitingOutside: state.AwaitingOutside,
+			Capacity:        state.Capacity,
 			Count:         counts[state.ID],
 		}
 		views = append(views, view)
@@ -174,6 +180,10 @@ type Offer struct {
 	Title string `json:"title"`
 	// Card is the card offered, absent when the state has nothing ready.
 	Card *CardView `json:"card,omitempty"`
+	// AwaitingOutside says the state waits on somebody outside the
+	// workbench, so it offers nothing whatever is standing there. It tells a
+	// reader an empty offer here means waiting rather than nothing ready.
+	AwaitingOutside bool `json:"awaiting_outside,omitempty"`
 }
 
 // Next reports the card a state offers, and changes nothing. Offering a card
@@ -200,7 +210,12 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 	offers := make([]Offer, 0, len(states))
 	for _, state := range states {
 		offer := Offer{State: state.ID, Title: state.Title}
-		if head := headOfReady(state.ID, cards); head != nil {
+		// A waiting state offers nothing whatever is ready there, because a
+		// claim would be refused, and an offer a claim refuses is an offer
+		// nobody can take.
+		if state.AwaitingOutside {
+			offer.AwaitingOutside = true
+		} else if head := headOfReady(state.ID, cards); head != nil {
 			offer.Card = l.view(head)
 		}
 		offers = append(offers, offer)
