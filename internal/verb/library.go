@@ -27,6 +27,12 @@ type Library struct {
 	// refuses it there, which is the window a lock taken only around the
 	// write would leave open.
 	Interleave func()
+	// lastActor and lastOverride carry the values Pull set on entry, so the
+	// qualifying predicate reads the same actor and override the caller
+	// named without threading them through every helper. They are populated
+	// by Pull only and read by pullCandidates while it runs.
+	lastActor    string
+	lastOverride bool
 }
 
 // New returns a library over an opened bench, on the real clock.
@@ -71,6 +77,12 @@ type Request struct {
 	Kind   string
 	// Override is the marker CORE-MOVE-9 admits and CORE-MOVE-11 reserves.
 	Override bool
+	// NoClaim is the marker a pull uses to skip the claimed event and the
+	// claim stamp, so a pull naming --no-claim lands a card without taking
+	// its lease. The card's substate still becomes active because the move
+	// half of the transaction writes it; a follow-up claim by some other
+	// owner sees an active, unheld card and acts on it then.
+	NoClaim bool
 	// Basis is the revision the owner read before deciding.
 	Basis string
 	// Title is the title a new card carries.
@@ -220,6 +232,17 @@ type Response struct {
 	// context, so a caller parsing --json reads one shape whichever layer
 	// said no.
 	Context map[string]string `json:"context,omitempty"`
+	// Message is a catalog key the head reads to compose the one-line
+	// sentence printed on a cardless OK response, the empty answer a read
+	// or a mutation can give. Empty when the response carries a card or
+	// carries no printable line. Substitution values live on MessageDetail
+	// for a single token and on MessageValues for the named-value map a
+	// templated catalog entry needs.
+	Message string `json:"message,omitempty"`
+	// MessageDetail is the single token a Message template inserts.
+	MessageDetail string `json:"message_detail,omitempty"`
+	// MessageValues is the named-value map a Message template inserts.
+	MessageValues map[string]string `json:"message_values,omitempty"`
 }
 
 // view renders a card for a response.
@@ -297,7 +320,7 @@ func (l *Library) affordances(card *bench.Card) []string {
 	}
 	switch card.Substate {
 	case contract.SubstateReady:
-		return []string{Claim, Move, Block, "comment", "show", "log"}
+		return []string{Pull, Claim, Move, Block, "comment", "show", "log"}
 	case contract.SubstateActive:
 		return []string{Move, Release, Block, "comment", "show", "log"}
 	case contract.SubstateBlocked:

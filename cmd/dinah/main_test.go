@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 37 {
-		t.Errorf("wanted thirty-seven listed commands, got %d", listed)
+	if listed != 38 {
+		t.Errorf("wanted thirty-eight listed commands, got %d", listed)
 	}
 }
 
@@ -6321,8 +6321,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",
-		"migrate-states", "migrate-workstreams", "override", "quiet", "ready",
-		"replace", "yes",
+		"migrate-states", "migrate-workstreams", "no-claim", "override",
+		"quiet", "ready", "replace", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

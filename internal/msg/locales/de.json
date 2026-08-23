@@ -1,6 +1,14 @@
 {
   "tag": "de",
   "entries": {
+    "answer.pull.empty.bare": {
+      "text": "kein Zustand dieser Werkbank hat eine bereite Karte zum Ziehen",
+      "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders."
+    },
+    "answer.pull.empty.named": {
+      "text": "keine Karte ist bereit in {upstream}, dem Zustand vor {destination}",
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in."
+    },
     "card.blocked": {
       "text": "  blockiert: {reason}",
       "context": "Printed under the card line when the card is blocked."
@@ -288,6 +296,50 @@
     "check.next.1": {
       "text": "die Werkbank deklariert den genannten Zustand",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.pull.1": {
+      "text": "die fragende Person ist als Eigentümer benannt",
+      "context": "One row of the ordered precondition list of pull: the actor must not be empty, so the workbench has a name to record on the claim event."
+    },
+    "check.pull.2": {
+      "text": "der genannte Zustand, falls einer genannt wird, ist einer, den die Werkbank deklariert",
+      "context": "One row of the ordered precondition list of pull: the named form refuses when the state the caller typed is not a state of the workbench."
+    },
+    "check.pull.3": {
+      "text": "die fragende Person ist die Bedienung, wenn --override mitgeführt wird",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator asking with it is refused before the qualifying set is even read."
+    },
+    "check.pull.4": {
+      "text": "mehr als ein Zustand der Werkbank qualifiziert sich — nenne einen, denn die nackte Form wählt nicht selbst",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when the qualifying set has more than one entry."
+    },
+    "check.pull.5": {
+      "text": "der genannte Zustand ist nicht der erste Zustand des Flusses, sodass ihm etwas vorangeht, aus dem eine Karte kommen kann",
+      "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
+    },
+    "check.pull.6": {
+      "text": "die fragende Person ist die Bedienung, wenn der vorgelagerte Zustand der Bedienung gehört",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream narrows the qualifying set to the operator, and a non-operator trying to pull from it is refused under the lock."
+    },
+    "check.pull.7": {
+      "text": "die aus der vorgelagerten Schlange gewählte Karte ist nicht blockiert",
+      "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
+    },
+    "check.pull.8": {
+      "text": "die aus der vorgelagerten Schlange gewählte Karte wird nicht bereits von einem anderen Eigentümer gehalten",
+      "context": "One row of the ordered precondition list of pull: a held card is not ready, and pull never takes a lease another owner already has."
+    },
+    "check.pull.9": {
+      "text": "die Karte befindet sich nicht in einem Zustand, den die Werkbank als endgültig deklariert",
+      "context": "One row of the ordered precondition list of pull: a terminal state refuses a forward move, and the race between the queue read and the lock can surface that here."
+    },
+    "check.pull.10": {
+      "text": "das Ziel liegt unter seiner Kapazitätsgrenze, oder --override wird von der Bedienung mitgeführt",
+      "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
+    },
+    "check.pull.11": {
+      "text": "kein anderer Prozess hält die Sperre der Karte",
+      "context": "One row of the ordered precondition list of pull: the lock taken before the card is re-read is a held lock, and a card another process is already writing is refused rather than queued."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} trägt eine Erstellungs-Ordnungszahl, die ein anderes Mitglied seiner Sammlung bereits trägt, sodass eine Position zwei von ihnen benennt",
@@ -668,6 +720,10 @@
     "cmd.next.summary": {
       "text": "die Karte, die ein Zustand als nächste anbietet",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block."
+    },
+    "cmd.pull.summary": {
+      "text": "eine bereite Karte beanspruchen und in einen Zustand ziehen, in einem Schritt",
+      "context": "The one-line summary of the pull command, shown beside its syntax in the help block."
     },
     "cmd.path.summary": {
       "text": "den Dateipfad dieser Werkbank, einer Karte oder von etwas unterhalb einer Karte ausgeben",
@@ -1317,6 +1373,22 @@
       "text": "aus welchem Zustand eine Karte angeboten wird, auch geschrieben --state <Zustand>; jeder Zustand, wenn Sie keinen nennen",
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
     },
+    "param.pull.state.summary": {
+      "text": "in welchen Zustand die gezogene Karte landet, auch geschrieben --state <Zustand>; die nackte Form lehnt ab, wenn mehr als ein Zustand in Frage kommt",
+      "context": "The meaning of the state argument of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.no-claim.summary": {
+      "text": "die Karte verschieben, ohne sie zu beanspruchen; der Eigentümer bleibt der vorherige Halter",
+      "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.expires.summary": {
+      "text": "wie lange die Beanspruchung läuft, geschrieben als 30m, 2h oder 1d; Standard ist die Gültigkeit der Werkbank",
+      "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.override.summary": {
+      "text": "die Kapazitäts- und Rückzugsprüfungen für die Bedienung umgehen",
+      "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table."
+    },
     "param.path.card.summary": {
       "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table."
@@ -1421,6 +1493,14 @@
       "text": "wählen Sie eine mit --workbench <Verzeichnis>, oder führen Sie den Befehl darin aus",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
+    "refusal.dinah.ambiguous-state": {
+      "text": "mehr als ein Zustand dieser Werkbank qualifiziert sich für ein nacktes Ziehen",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-state, raised when the bare form of pull has more than one state in its qualifying set. The candidate rows print beneath it, one per qualifying state, and refusal.dinah.ambiguous-state.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.ambiguous-state.next": {
+      "text": "nennen Sie einen als `dinah pull <Zustand>`, oder übergeben Sie --state <Zustand>",
+      "context": "The line printed after dinah.ambiguous-state's candidate rows, naming the ways forward."
+    },
     "refusal.dinah.ambiguous-name": {
       "text": "{ordinals} auf dieser Karte antworten alle auf {selector}",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward."
@@ -1516,6 +1596,14 @@
     "refusal.dinah.no-workbench.next": {
       "text": "; richten Sie --workbench auf ein Verzeichnis, das eine trägt, oder lassen Sie --workbench weg, um von hier aus aufwärts zu suchen",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
+    },
+    "refusal.dinah.no-upstream": {
+      "text": "der Zustand {state} steht im Fluss an erster Stelle, sodass ihm nichts vorangeht, aus dem ein Ziehen nehmen könnte",
+      "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.no-upstream.next": {
+      "text": "nennen Sie einen weiter hinten im Fluss liegenden Zustand, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {state}",
+      "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
       "text": "{kind} ist kein Anhang, und rename ändert seinen Namen nicht",

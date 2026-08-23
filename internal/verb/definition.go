@@ -263,6 +263,18 @@ var params = map[string][]Param{
 		{Name: "ready", Flag: true, Marker: true},
 	},
 	"next":  {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
+	// Pull combines a claim and a move into one atomic act. The state is
+	// the destination; the named form names it, the bare form chooses the
+	// one state that qualifies and refuses when more than one does. The
+	// three flags sit on the move's own shape: --no-claim drops the
+	// claim half, --override lets the operator pick a state at its limit,
+	// and --expires sets the claim's lease exactly as it does on claim.
+	Pull: {
+		{Name: "state", Vocabulary: "state", AlsoFlag: true},
+		{Name: "no-claim", Flag: true, Marker: true},
+		{Name: "expires", Flag: true, Value: "duration"},
+		{Name: "override", Flag: true, Marker: true},
+	},
 	"query": {{Name: "query", Rest: true}},
 	"tree": {
 		{Name: "query", Rest: true},

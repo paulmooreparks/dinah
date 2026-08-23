@@ -197,6 +197,15 @@ const (
 	// The detail names what the reference resolved to, so the caller sees
 	// what was misunderstood rather than what they tried to write.
 	NotRenamable = LayerPrefix + "not-renamable"
+	// AmbiguousState is a pull with no destination named finding more than
+	// one state it could pull into. The sentence names the states that
+	// qualified, because a reader whose command stopped needs to know what
+	// to type instead.
+	AmbiguousState = LayerPrefix + "ambiguous-state"
+	// NoUpstream is a pull naming a state that stands first in the flow, so
+	// nothing precedes it for a card to come from. It is a fact about the
+	// flow rather than about what is on the workbench today.
+	NoUpstream = LayerPrefix + "no-upstream"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -208,6 +217,7 @@ var Introduced = []string{
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
+	AmbiguousState, NoUpstream,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

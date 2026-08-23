@@ -49,6 +49,14 @@ type Shape struct {
 	// NoNext is why this refusal offers no next step, empty on every
 	// refusal that offers one.
 	NoNext string
+	// Carried names the named value whose content this refusal prints as
+	// rows, for a set the raise site computed and no enumerable Listing can
+	// name. The value holds one member per line, and the composer splits on
+	// newlines when it prints it. A shape declares Carried or a Listing and
+	// never both, since the two ways to print rows serve the one purpose
+	// from two sides and using both would leave the order between them
+	// unstated.
+	Carried string
 }
 
 // Fragment is one catalog fragment spliced onto a refusal's sentence.
@@ -522,6 +530,25 @@ var Shapes = []Shape{
 		Values:    []string{"kind"},
 		Fragments: []Fragment{{Key: "refusal.dinah.not-renamable.next"}},
 		NextStep:  []string{"refusal.dinah.not-renamable.next"},
+	},
+	{
+		// A bare pull found more than one state it could pull into, and
+		// the qualifying states ride as a Carried set rather than a Listing
+		// since the value depends on the invocation. The next step names
+		// the syntax the reader should type to pick one.
+		Name:      AmbiguousState,
+		Carried:   "states",
+		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-state.next"}},
+		NextStep:  []string{"refusal.dinah.ambiguous-state.next"},
+	},
+	{
+		// A state standing first in the flow refuses at the named form,
+		// because no upstream state precedes it. The detail names the
+		// state, which a reader needs to see alongside the rule.
+		Name:      NoUpstream,
+		Values:    []string{"state"},
+		Fragments: []Fragment{{Key: "refusal.dinah.no-upstream.next"}},
+		NextStep:  []string{"refusal.dinah.no-upstream.next"},
 	},
 }
 

@@ -1,6 +1,14 @@
 {
   "tag": "en",
   "entries": {
+    "answer.pull.empty.bare": {
+      "text": "no state on this workbench has a card ready to pull",
+      "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders."
+    },
+    "answer.pull.empty.named": {
+      "text": "no card is ready in {upstream}, the state ahead of {destination}",
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in."
+    },
     "card.blocked": {
       "text": "  blocked: {reason}",
       "context": "Printed under the card line when the card is blocked."
@@ -280,6 +288,50 @@
     "check.next.1": {
       "text": "the named state is one the workbench declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.pull.1": {
+      "text": "an owner resolves for the person asking",
+      "context": "One row of the ordered precondition list of pull: the actor must not be empty, so the workbench has a name to record on the claim event."
+    },
+    "check.pull.2": {
+      "text": "the named state, when one is named, is one the workbench declares",
+      "context": "One row of the ordered precondition list of pull: the named form refuses when the state the caller typed is not a state of the workbench."
+    },
+    "check.pull.3": {
+      "text": "the person asking is the operator, when --override is carried",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator asking with it is refused before the qualifying set is even read."
+    },
+    "check.pull.4": {
+      "text": "more than one state on the workbench qualifies, so name one rather than letting the bare form choose",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when the qualifying set has more than one entry."
+    },
+    "check.pull.5": {
+      "text": "the named state is not the first state of the flow, so something precedes it for a card to come from",
+      "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
+    },
+    "check.pull.6": {
+      "text": "the person asking is the operator, when the upstream state is operator-owned",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream narrows the qualifying set to the operator, and a non-operator trying to pull from it is refused under the lock."
+    },
+    "check.pull.7": {
+      "text": "the card chosen from the upstream queue is not blocked",
+      "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
+    },
+    "check.pull.8": {
+      "text": "the card chosen from the upstream queue is not already held by another owner",
+      "context": "One row of the ordered precondition list of pull: a held card is not ready, and pull never takes a lease another owner already has."
+    },
+    "check.pull.9": {
+      "text": "the card is not in a state the workbench declares terminal",
+      "context": "One row of the ordered precondition list of pull: a terminal state refuses a forward move, and the race between the queue read and the lock can surface that here."
+    },
+    "check.pull.10": {
+      "text": "the destination stands below its capacity, or --override is carried by the operator",
+      "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
+    },
+    "check.pull.11": {
+      "text": "no other process holds the card's lock",
+      "context": "One row of the ordered precondition list of pull: the lock taken before the card is re-read is a held lock, and a card another process is already writing is refused rather than queued."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} carries a creation ordinal that another member of its collection already carries, so one position names two of them",
@@ -640,6 +692,10 @@
     "cmd.next.summary": {
       "text": "the card a state offers next",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block."
+    },
+    "cmd.pull.summary": {
+      "text": "claim the head of a state's queue and move it there in one act",
+      "context": "The one-line summary of the pull command, shown beside its syntax in the help block. Pull is not a sixth verb: it combines a claim and a move into one transaction."
     },
     "cmd.path.summary": {
       "text": "print the file path of this workbench, of a card, or of anything below a card",
@@ -1113,6 +1169,14 @@
       "text": "choose one with --workbench <dir>, or run from inside it",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
+    "refusal.dinah.ambiguous-state": {
+      "text": "more than one state on this workbench qualifies for a bare pull",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-state, raised when the bare form of pull has more than one state in its qualifying set. The candidate rows print beneath it, one per qualifying state, and refusal.dinah.ambiguous-state.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.ambiguous-state.next": {
+      "text": "name one as `dinah pull <state>`, or pass --state <state>",
+      "context": "The line printed after dinah.ambiguous-state's candidate rows, naming the ways forward."
+    },
     "refusal.dinah.ambiguous-name": {
       "text": "{ordinals} on this card all answer to {selector}",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward."
@@ -1188,6 +1252,14 @@
     "refusal.dinah.no-editor.next": {
       "text": "; set DINAH_EDITOR, or install one of {detail}",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
+    },
+    "refusal.dinah.no-upstream": {
+      "text": "the state {state} stands first in the flow, so nothing precedes it for a pull to take from",
+      "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.no-upstream.next": {
+      "text": "name a state later in the flow, or move a card into {state} with `dinah move` instead",
+      "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.occupied": {
       "text": "cards still occupy state {detail}",
@@ -1976,6 +2048,22 @@
     "param.next.state.summary": {
       "text": "which state to offer a card from, also written --state <state>; every state when you name none",
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
+    },
+    "param.pull.state.summary": {
+      "text": "which state to pull a card into; the one qualifying state when you name none, refused when more than one qualifies",
+      "context": "The meaning of the state argument of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.no-claim.summary": {
+      "text": "land the card at the destination without taking its lease; ownership stays with whoever held it before",
+      "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.expires.summary": {
+      "text": "how long the claim's lease runs before it lapses, like 30m or 1d; the workbench's default when you write none",
+      "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.override.summary": {
+      "text": "let the operator pull into a state at its capacity; refused for anyone else",
+      "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table."
     },
     "param.path.card.summary": {
       "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",

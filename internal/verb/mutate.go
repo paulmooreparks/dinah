@@ -120,10 +120,11 @@ func (l *Library) lapse(card *bench.Card) error {
 	return bench.AppendEvent(card.JournalPath(), ev)
 }
 
-// claim takes up a waiting card. The list is CORE-CLAIM's: the card exists,
-// the request names an owner, the owner named as holder is the owner asking,
-// the card is not blocked, and the card is not already held.
-func (l *Library) claim(req *Request, card *bench.Card) *Response {
+// canClaim runs the precondition sequence CORE-CLAIM declares. It returns a
+// refusal response when the card may not be claimed and nil when the card is
+// ready to take. Pull reuses the same checks for the claimed event it bundles
+// with its move, so both verbs run the same gates in the same order.
+func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, card, contract.NoOwner, "")
 	}
@@ -135,6 +136,16 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 	}
 	if card.Substate == contract.SubstateActive {
 		return l.refuse(req, card, contract.Held, card.Holder)
+	}
+	return nil
+}
+
+// claim takes up a waiting card. The list is CORE-CLAIM's: the card exists,
+// the request names an owner, the owner named as holder is the owner asking,
+// the card is not blocked, and the card is not already held.
+func (l *Library) claim(req *Request, card *bench.Card) *Response {
+	if refusal := l.canClaim(req, card); refusal != nil {
+		return refusal
 	}
 	now := l.Now()
 	card.Substate = contract.SubstateActive
@@ -158,47 +169,68 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 	return response
 }
 
-// move carries a card from one state to another. The list is CORE-MOVE's, in
-// the order section 6.4 declares it.
-func (l *Library) move(req *Request, card *bench.Card) *Response {
+// canMove runs the precondition sequence CORE-MOVE declares, in the order
+// section 6.4 states it. It returns the destination and departure state when
+// the move is permitted, so a caller can write the journal event without
+// re-resolving either. The retiring check is intentionally the last of the
+// destination checks, read under the card lock this transaction already
+// holds. A move that reached the sibling first is one the retiring act's own
+// scan cannot miss, and a move arriving later reads the sibling and stops
+// itself.
+//
+// Pull reuses these gates, with two small differences: pull's own preflight
+// already answers the NoOwner / NotOperator / Override checks before the
+// transaction opens, so it calls into here knowing req.Actor is non-empty and
+// the operator has been confirmed. The returned destination and departure
+// are what pull writes into its moved event.
+func (l *Library) canMove(req *Request, card *bench.Card) (*bench.State, *bench.State, bool, *Response, error) {
 	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
+		return nil, nil, false, l.refuse(req, card, contract.NoOwner, ""), nil
 	}
 	destination := l.Bench.StateByRef(req.State)
 	if destination == nil {
-		return l.refuse(req, card, contract.UnknownState, req.State)
+		return nil, nil, false, l.refuse(req, card, contract.UnknownState, req.State), nil
 	}
 	operator := req.Actor == l.Bench.Operator
 	if req.Override && !operator {
-		return l.refuse(req, card, contract.NotOperator, req.Actor)
+		return nil, nil, false, l.refuse(req, card, contract.NotOperator, req.Actor), nil
 	}
 	departure := l.Bench.State(card.State)
 	if departure != nil && departure.OperatorOwned && !operator {
-		return l.refuse(req, card, contract.NotOperator, req.Actor)
+		return nil, nil, false, l.refuse(req, card, contract.NotOperator, req.Actor), nil
 	}
 	if card.Substate == contract.SubstateBlocked {
-		return l.refuse(req, card, contract.Blocked, card.BlockReason)
+		return nil, nil, false, l.refuse(req, card, contract.Blocked, card.BlockReason), nil
 	}
 	if card.Holder != "" && card.Holder != req.Actor {
-		return l.refuse(req, card, contract.Held, card.Holder)
+		return nil, nil, false, l.refuse(req, card, contract.Held, card.Holder), nil
 	}
 	forward := departure != nil && destination.Position > departure.Position
 	if forward && departure.Kind == contract.KindDone {
-		return l.refuse(req, card, contract.Terminal, stateRef(departure))
+		return nil, nil, false, l.refuse(req, card, contract.Terminal, stateRef(departure)), nil
 	}
 	reached, err := l.atCapacity(destination)
 	if err != nil {
-		return l.FromError(req, err)
+		return nil, nil, false, nil, err
 	}
 	if reached && !req.Override {
-		return l.refuse(req, card, contract.AtCapacity, stateRef(destination))
+		return nil, nil, false, l.refuse(req, card, contract.AtCapacity, stateRef(destination)), nil
 	}
-	// The last of the destination checks, read under the card lock this
-	// transaction already holds. A move that reached the sibling first is
-	// one the retiring act's own scan cannot miss, and a move arriving
-	// later reads the sibling and stops itself.
 	if holder, retiring := l.retiring(destination.ID); retiring {
-		return l.refuse(req, card, contract.Locked, holder)
+		return nil, nil, false, l.refuse(req, card, contract.Locked, holder), nil
+	}
+	return destination, departure, reached && req.Override, nil, nil
+}
+
+// move carries a card from one state to another. The list is CORE-MOVE's, in
+// the order section 6.4 declares it.
+func (l *Library) move(req *Request, card *bench.Card) *Response {
+	destination, departure, override, refusal, err := l.canMove(req, card)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	if refusal != nil {
+		return refusal
 	}
 	ev := bench.Event{
 		TS:        bench.Stamp(l.Now()),
@@ -208,7 +240,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 		FromTitle: titleOf(departure),
 		To:        destination.ID,
 		ToTitle:   destination.Title,
-		Override:  req.Override && reached,
+		Override:  override,
 	}
 	card.State = destination.ID
 	response, err := l.commit(req, card, ev)
@@ -440,15 +472,23 @@ func (l *Library) lapseRead(card *bench.Card) error {
 }
 
 // commit finishes a mutation inside the transaction its caller opened: the
-// anchor write through a temporary and a rename, then the journal append. The
+// anchor write through a temporary and a rename, then the journal appends. The
 // card's lock is already held by Do, which is what keeps the decision and the
 // write on the same side of it.
-func (l *Library) commit(req *Request, card *bench.Card, ev bench.Event) (*Response, error) {
+//
+// The variadic event list carries every journal entry the transaction
+// produces, so pull can write a single claimed and a single moved event in
+// one card.Save and one round of AppendEvent calls. A single-event caller
+// passes one element, the common case; every event lands with the same
+// timestamp the card's anchor stamp bears.
+func (l *Library) commit(req *Request, card *bench.Card, events ...bench.Event) (*Response, error) {
 	if err := card.Save(); err != nil {
 		return nil, err
 	}
-	if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
-		return nil, err
+	for _, ev := range events {
+		if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
+			return nil, err
+		}
 	}
 	return l.ok(req, card), nil
 }

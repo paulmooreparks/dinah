@@ -28,6 +28,7 @@ func init() {
 		{name: "add", group: groupWork, run: runAdd, openTail: true},
 		{name: "claim", group: groupWork, run: runClaim, bounded: 1},
 		{name: "move", group: groupWork, run: runMove, bounded: 2},
+		{name: "pull", group: groupWork, run: runPull, bounded: 1},
 		{name: "release", group: groupWork, run: runRelease, bounded: 1},
 		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true},
 		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
@@ -98,6 +99,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateStates:   parsed.has("migrate-states"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
+		NoClaim:            parsed.has("no-claim"),
 	}
 	return req
 }
@@ -311,6 +313,25 @@ func runNext(s *session, parsed *arguments) int {
 		}
 		s.renderOffers(offers)
 		return 0
+	})
+}
+
+// runPull picks the destination, claims a card from its upstream, and moves
+// it there in one transaction. The named form names the destination; the bare
+// form chooses the one state that qualifies and refuses when more than one
+// does. --no-claim weakens what pull writes, not what pull allows.
+func runPull(s *session, parsed *arguments) int {
+	req := s.request(verb.Pull, parsed)
+	if req.State == "" {
+		req.State = at(parsed.rest(), 0)
+	}
+	expires, err := verb.ParseDuration(parsed.value("expires"))
+	if err != nil {
+		return s.reportError(err)
+	}
+	req.Expires = expires
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Pull(req))
 	})
 }
 

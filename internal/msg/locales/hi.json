@@ -1,6 +1,14 @@
 {
   "tag": "hi",
   "entries": {
+    "answer.pull.empty.bare": {
+      "text": "इस वर्कबेंच पर किसी भी राज्य में खींचने के लिए तैयार कोई कार्ड नहीं है",
+      "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders."
+    },
+    "answer.pull.empty.named": {
+      "text": "{upstream} में, {destination} से पहले के राज्य में, कोई कार्ड तैयार नहीं है",
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in."
+    },
     "card.blocked": {
       "text": "  बाधित: {reason}",
       "context": "Printed under the card line when the card is blocked."
@@ -272,6 +280,50 @@
     "check.next.1": {
       "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.pull.1": {
+      "text": "पूछने वाले व्यक्ति के लिए एक स्वामी हल होता है",
+      "context": "One row of the ordered precondition list of pull: the actor must not be empty, so the workbench has a name to record on the claim event."
+    },
+    "check.pull.2": {
+      "text": "यदि कोई राज्य नामित है, तो वह वही है जिसे वर्कबेंच घोषित करती है",
+      "context": "One row of the ordered precondition list of pull: the named form refuses when the state the caller typed is not a state of the workbench."
+    },
+    "check.pull.3": {
+      "text": "--override के साथ पूछने पर पूछने वाला व्यक्ति ऑपरेटर होता है",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator asking with it is refused before the qualifying set is even read."
+    },
+    "check.pull.4": {
+      "text": "वर्कबेंच पर एक से अधिक राज्य अर्ह होते हैं, इसलिए नग्न रूप को चुनने देने की बजाय एक नाम दें",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when the qualifying set has more than one entry."
+    },
+    "check.pull.5": {
+      "text": "नामित राज्य प्रवाह में पहला नहीं है, इसलिए उसके पहले कुछ है जहाँ से कार्ड आ सकती है",
+      "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
+    },
+    "check.pull.6": {
+      "text": "जब अपस्ट्रीम राज्य ऑपरेटर-स्वामित्व में हो तो पूछने वाला व्यक्ति ऑपरेटर होता है",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream narrows the qualifying set to the operator, and a non-operator trying to pull from it is refused under the lock."
+    },
+    "check.pull.7": {
+      "text": "अपस्ट्रीम कतार से चुनी गई कार्ड बाधित नहीं है",
+      "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
+    },
+    "check.pull.8": {
+      "text": "अपस्ट्रीम कतार से चुनी गई कार्ड पहले से किसी और स्वामी के पास नहीं है",
+      "context": "One row of the ordered precondition list of pull: a held card is not ready, and pull never takes a lease another owner already has."
+    },
+    "check.pull.9": {
+      "text": "कार्ड किसी ऐसे राज्य में नहीं है जिसे वर्कबेंच अंतिम घोषित करती है",
+      "context": "One row of the ordered precondition list of pull: a terminal state refuses a forward move, and the race between the queue read and the lock can surface that here."
+    },
+    "check.pull.10": {
+      "text": "गंतव्य अपनी क्षमता सीमा से नीचे है, या ऑपरेटर --override लेकर चलता है",
+      "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
+    },
+    "check.pull.11": {
+      "text": "कार्ड का ताला कोई अन्य प्रक्रिया नहीं पकड़े हुए है",
+      "context": "One row of the ordered precondition list of pull: the lock taken before the card is re-read is a held lock, and a card another process is already writing is refused rather than queued."
     },
     "check.ordinal-duplicate": {
       "text": "{detail} का रचना-क्रमांक उसी संग्रह के किसी और सदस्य के क्रमांक जैसा है, इसलिए एक ही स्थान दो को नामित करता है",
@@ -628,6 +680,10 @@
     "cmd.next.summary": {
       "text": "स्थिति आगे जो कार्ड देती है",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block."
+    },
+    "cmd.pull.summary": {
+      "text": "एक ही कार्रवाई में किसी स्थिति की कतार के शीर्ष कार्ड का दावा करें और उसे वहाँ ले जाएँ",
+      "context": "The one-line summary of the pull command, shown beside its syntax in the help block. Pull is not a sixth verb: it combines a claim and a move into one transaction."
     },
     "cmd.path.summary": {
       "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु का फ़ाइल पथ छापें",
@@ -1097,6 +1153,14 @@
       "text": "; किसी एक को attachments/<ordinal> के रूप में नाम दें",
       "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with."
     },
+    "refusal.dinah.ambiguous-state": {
+      "text": "इस workbench पर एक से अधिक स्थिति एक नंगे pull के योग्य हैं",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-state. The candidate rows print beneath it, in the same shape the states listing renders, and refusal.dinah.ambiguous-state.next follows as the closing line naming the ways forward."
+    },
+    "refusal.dinah.ambiguous-state.next": {
+      "text": "`dinah pull <state>` के रूप में किसी एक को नाम दें, या --state <state> पास करें",
+      "context": "The line printed after dinah.ambiguous-state's candidate rows, naming the ways forward."
+    },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है",
       "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about."
@@ -1164,6 +1228,14 @@
     "refusal.dinah.no-editor.next": {
       "text": "; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
+    },
+    "refusal.dinah.no-upstream": {
+      "text": "स्थिति {state} प्रवाह में पहले स्थान पर है, इसलिए उसके पहले कुछ नहीं है जिससे pull ले",
+      "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.no-upstream.next": {
+      "text": "प्रवाह में बाद की किसी स्थिति को name करें, या उसके बजाय `dinah move` से एक कार्ड {state} में भेजें",
+      "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
       "text": "{kind} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
@@ -1928,6 +2000,22 @@
     "param.next.state.summary": {
       "text": "किस स्थिति से कार्ड देना है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
+    },
+    "param.pull.state.summary": {
+      "text": "किस स्थिति में कार्ड खींचना है; कुछ न लिखने पर एकमात्र योग्य स्थिति, एक से अधिक योग्य होने पर मना",
+      "context": "The meaning of the state argument of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.no-claim.summary": {
+      "text": "कार्ड को गंतव्य पर उसके पट्टे के बिना उतारें; स्वामित्व पहले जिसके पास था उसी के पास रहता है",
+      "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.expires.summary": {
+      "text": "दावे का पट्टा कितनी देर में समाप्त हो, जैसे 30m या 1d; कुछ न लिखने पर वर्कबेंच का मानक",
+      "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.override.summary": {
+      "text": "संचालक को अपनी क्षमता पर पहुँची स्थिति में खींचने दें; अन्य किसी के लिए मना",
+      "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table."
     },
     "param.path.card.summary": {
       "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",

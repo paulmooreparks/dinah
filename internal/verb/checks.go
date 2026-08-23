@@ -36,12 +36,28 @@ const (
 // section 6 states them.
 var ContractVerbs = []string{Claim, Move, Release, Block, Unblock}
 
+// Pull is the verb name reserved for the one-command route that combines a
+// claim and a move. It is not in ContractVerbs because section 6.1's refusal
+// table names the five, and a sixth would contradict the profile's shape.
+// Pull is a member of runsWorkbenchChecks so the workbench's two refusals
+// still head its list.
+const Pull = "pull"
+
 // WorkbenchChecks are the two refusals that belong to the workbench rather
 // than to any verb. Section 6.1 evaluates them ahead of every verb's own
 // list, which is what CORE-OUT-6 makes observable.
 var WorkbenchChecks = []Check{
 	{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
 	{Refusal: contract.NoOperator, Key: "check.workbench.2"},
+}
+
+// runsWorkbenchChecks names the commands whose transaction runs
+// WorkbenchChecks ahead of the verb's own list, even when they are not
+// contract verbs. Pull belongs here because it is a mutation whose
+// effect is the move's, and the workbench's two refusals belong to the
+// invocation rather than to any single verb.
+var runsWorkbenchChecks = map[string]bool{
+	Pull: true,
 }
 
 // checkLists are the ordered precondition lists of section 6.3 to 6.7. The
@@ -80,6 +96,29 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.NotOperator, Key: "check.unblock.2"},
 		{Refusal: contract.NotBlocked, Key: "check.unblock.3"},
 	},
+}
+
+// pullChecks is pull's own precondition list, kept apart from checkLists so
+// IsContractVerb continues to answer false for pull while Checks still returns
+// the full list for the help and the refusal-set tests.
+//
+// The order matches the spec's thirteen-row refusal table for the eleven rows
+// not raised by WorkbenchChecks. Rows 1 and 2 belong to the workbench pair
+// WorkbenchChecks supplies; row 4 is the bare-form set answer and row 5 the
+// no-upstream refusal raised before any lock is taken, both enforced by the
+// pull command itself rather than by a generic precondition walker.
+var pullChecks = []Check{
+	{Refusal: contract.NoOwner, Key: "check.pull.1"},
+	{Refusal: contract.UnknownState, Key: "check.pull.2"},
+	{Refusal: contract.NotOperator, Key: "check.pull.3"},
+	{Refusal: contract.AmbiguousState, Key: "check.pull.4"},
+	{Refusal: contract.NoUpstream, Key: "check.pull.5"},
+	{Refusal: contract.NotOperator, Key: "check.pull.6"},
+	{Refusal: contract.Blocked, Key: "check.pull.7"},
+	{Refusal: contract.Held, Key: "check.pull.8"},
+	{Refusal: contract.Terminal, Key: "check.pull.9"},
+	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
+	{Refusal: contract.Locked, Key: "check.pull.11"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -237,13 +276,26 @@ var beyondChecks = map[string][]Check{
 }
 
 // Checks returns the ordered precondition list of a command, prefixed by the
-// two workbench-level checks for the five contract verbs. It is what per-verb
-// help is generated from, so the help text and the behaviour move together.
+// two workbench-level checks for the five contract verbs and for any other
+// command whose transaction runs them. It is what per-verb help is generated
+// from, so the help text and the behaviour move together.
 func Checks(name string) []Check {
 	if list, ok := checkLists[name]; ok {
-		return append(append([]Check{}, WorkbenchChecks...), list...)
+		if runsWorkbenchChecks[name] || IsContractVerb(name) {
+			return append(append([]Check{}, WorkbenchChecks...), list...)
+		}
+		return append([]Check{}, list...)
+	}
+	if name == Pull {
+		if runsWorkbenchChecks[name] {
+			return append(append([]Check{}, WorkbenchChecks...), pullChecks...)
+		}
+		return append([]Check{}, pullChecks...)
 	}
 	if list, ok := beyondChecks[name]; ok {
+		if runsWorkbenchChecks[name] {
+			return append(append([]Check{}, WorkbenchChecks...), list...)
+		}
 		return append([]Check{}, list...)
 	}
 	return nil
@@ -255,6 +307,16 @@ func Checks(name string) []Check {
 func IsContractVerb(name string) bool {
 	_, ok := checkLists[name]
 	return ok
+}
+
+// RunsWorkbenchChecks reports whether a command's transaction runs
+// WorkbenchChecks before its own list. The five contract verbs run them and so
+// does pull, which is a mutation that combines a claim and a move.
+func RunsWorkbenchChecks(name string) bool {
+	if IsContractVerb(name) {
+		return true
+	}
+	return runsWorkbenchChecks[name]
 }
 
 // CheckKey composes the catalog key of one check, so a caller reading the

@@ -1082,14 +1082,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        543/543
-  af        0/543
-  cs        0/543
-  de        543/543
-  es        0/543
-  fil       0/543
-  hi        543/543
-  id        0/543
+  en        565/565
+  af        0/565
+  cs        0/565
+  de        565/565
+  es        0/565
+  fil       0/565
+  hi        565/565
+  id        0/565
 [exit 0]
 ```
 
@@ -1337,6 +1337,7 @@ The guides stand in the order Dinah recommends reading them.
   first-session     Your first session at a workbench
   getting-started   Getting started
   verbs             The five verbs
+  pull              pull
   references        References
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
