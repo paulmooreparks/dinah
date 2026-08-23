@@ -102,18 +102,17 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all twenty-nine commands, in the four groups Dinah sorts them
-into. Dinah does not accept `--help`:
+`dinah help` lists all thirty-seven commands, in the four groups Dinah sorts
+them into. Running `dinah` with no arguments at all prints the same list. So
+does whichever spelling of the help flag you already have the habit of typing,
+because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
 
-```console
-$ dinah --help
-dinah.usage --help was not understood; run dinah help for the list of commands. Dinah reads a word starting with two dashes as an option. Write `--` first, and Dinah reads every word that follows as plain text, dashes included.
-[exit 2]
-```
+To see one command's arguments and the reasons it can say no, name that
+command. Both `dinah help move` and `dinah move --help` print that page, and
+you may put the flag on either side of the command name.
 
-Run `dinah help` instead, or run `dinah` with no arguments at all, and Dinah
-prints you the same list of commands. To see one command's arguments and the
-reasons it can say no, name that command: `dinah help move`.
+The version flags work the same way. `dinah --version`, `-version`, `-V` and
+`-v` each print what `dinah version` printed above.
 
 ## Open a workbench
 
@@ -1130,14 +1129,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        565/565
-  af        0/565
-  cs        0/565
-  de        565/565
-  es        0/565
-  fil       0/565
-  hi        565/565
-  id        0/565
+  en        567/567
+  af        0/567
+  cs        0/567
+  de        567/567
+  es        0/567
+  fil       0/567
+  hi        567/567
+  id        0/567
 [exit 0]
 ```
 

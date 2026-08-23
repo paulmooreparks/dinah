@@ -16,7 +16,7 @@
 # simply unreached: each is a human rendering the suite has never printed, and
 # each is worth a test rather than a permanent line here.
 
-help.go:140.32,142.3  verbHelp refusing a command it does not know, which runHelp settles before composing anything, so no invocation reaches it.
+help.go:147.32,149.3  verbHelp refusing a command it does not know, which helpFor settles before composing anything, so no invocation reaches it whether the help command or a help flag asked.
 render.go:54.29,56.27  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
 render.go:56.27,58.4  the same, on the branch where the stale response carries a card.
 render.go:59.3,59.102  the same, writing the stale sentence.
@@ -32,5 +32,5 @@ render.go:696.23,698.3  a composition splicing no fragment at all, which needs a
 render.go:724.2,724.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
 render.go:850.23,852.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
 render.go:882.22,884.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
-help.go:235.9,237.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
+help.go:242.9,244.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
 table.go:248.30,250.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

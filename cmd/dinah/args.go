@@ -65,15 +65,57 @@ func sortedNames(set map[string]bool) []string {
 	return names
 }
 
-// sessionFlagNames are the five flags read directly off the parsed
-// arguments at session build time, before any command is looked up. A
-// caller may write one of these anywhere before the marker. dinah-100
+// sessionFlagNames are the flags read directly off the parsed arguments at
+// session build time, before any command is looked up. A caller may write one
+// of these anywhere before the marker. help and version joined the original
+// five in dinah-213, and they belong here for the same reason the others do:
+// each is answered by the invocation itself rather than by a command, so no
+// command's free-text zone may reclaim one as prose. dinah-100
 // bounds every open-tail command's free text to one already-delimited argv
 // word, so one of these flags can no longer occupy a position "inside" that
 // free text at all; it is either its own argv token, recognized here, or it
 // sits inside the free text's own quoting, where nothing examines it.
 var sessionFlagNames = map[string]bool{
 	"workbench": true, "lang": true, "actor": true, "json": true, "quiet": true,
+	"help": true, "version": true,
+}
+
+// askedFor maps every spelling of "what does this do" and "what is this" onto
+// the flag the head reads for it. A caller who wants the surface has already
+// decided how to ask for it before the tool is ever run, from whatever tool
+// taught them the habit, so the answer to all of these is the same page rather
+// than a refusal telling them they asked wrong.
+//
+// The single-dash and slash spellings are here because nothing else in the
+// tool would accept them: parseArgs reads a word with one leading dash as a
+// positional, and looksLikeMistypedFlag then refuses it as a mistyped long
+// flag. That refusal is right for `-workbench` and wrong for `-h`, and the
+// difference is that these words have exactly one meaning wherever they are
+// typed. `dinah --help` was the spelling that prompted this; it refused as an
+// unknown option, which reads to a caller, and to an agent reading an exit
+// code, as a tool that does not work.
+//
+// A spelling is recognized only while the flag scan is open, so the POSIX
+// `--` marker shields all of them: a caller who means the literal text `-h`
+// or the path `/?` writes it after `--`, which is the same escape every other
+// flag-shaped word already uses.
+//
+// `/?` is the only slash spelling here. It is what a Windows caller types and
+// it is not a path anyone has, so recognizing it costs nothing. `/h` and
+// `/version` were tried and dropped: each is a legitimate absolute path, and a
+// POSIX shell rewrites both before the tool ever sees them, so they would have
+// bought a collision and no working spelling.
+var askedFor = map[string]string{
+	"--help":    "help",
+	"-help":     "help",
+	"-h":        "help",
+	"-?":        "help",
+	"--?":       "help",
+	"/?":        "help",
+	"--version": "version",
+	"-version":  "version",
+	"-V":        "version",
+	"-v":        "version",
 }
 
 // domainCapture is one occurrence of a domain flag (a flag belonging to some
@@ -153,6 +195,13 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 		}
 		if word == "--" {
 			markerSeen = true
+			continue
+		}
+		if asked, ok := askedFor[word]; ok {
+			// Recorded as a flag rather than as a positional, and not as a
+			// domainCapture: help and version belong to the invocation the
+			// way --json does, so no command's free-text zone reclaims one.
+			parsed.flags[asked] = ""
 			continue
 		}
 		if word == "-" || !strings.HasPrefix(word, "--") {
