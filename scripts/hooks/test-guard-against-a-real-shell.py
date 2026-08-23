@@ -55,6 +55,18 @@ already split, so it needs no shell grammar and shares no reasoning with
 the thing it is checking. Built out of the guard it would inherit the
 guard's mistakes and report agreement on every one of them.
 
+A GENERATOR IS ONLY AS GOOD AS ITS SHAPES, and every cycle of this card
+has found one missing. The shape found missing most recently was two git
+invocations inside a single span. The crossing that pairs a qualifying
+invocation with a bare one always put a separator between them, so the
+guard's span ended in the gap and each invocation was judged on its own,
+and not one string in the file reached the rule that refuses a span
+holding two invocations. Arming said so out loud and nobody read it:
+disabling that rule reddened two cases in the fast suite and nothing at
+all here. The strings are generated now, with the second invocation
+spelled four ways, because the guard's counter once excluded three of
+them and cleared the reset that followed.
+
 SAFETY. Every generated string is git and nothing else, wrapped in
 punctuation. `git` is the stub, so no repository is touched, and the
 shell runs with its working directory in a temporary sandbox. The one
@@ -528,7 +540,79 @@ def qualified(command, path):
     return 'git -C "%s" %s' % (path, command[len("git "):])
 
 
-def strings(linked, spaced):
+def second_invocation_spellings(stub):
+    """Ways of writing a git invocation that are not the bare word `git`.
+
+    The guard finds an invocation with a word-bounded `git`, which is
+    what each of these carries, and for one cycle it counted invocations
+    with a narrower expression that carried none of them. A span then
+    read as one invocation while the shell ran two, and the `-C` on the
+    one that had it cleared the one that did not. These four spellings
+    are what tell the two apart, so a counter that narrows again is
+    caught here rather than by a reader.
+
+    On this platform `git.exe` and `git` name the same file, so the
+    extension needs no second stub; the shell resolves it and the
+    recording is the stub's.
+    """
+    return [
+        ("plainly", "git"),
+        ("with a relative path", "./git"),
+        ("with an absolute path", stub.replace("\\", "/")),
+        ("with an executable extension", "git.exe"),
+    ]
+
+
+def two_in_one_span(linked, stub):
+    """Two invocations with no boundary character between them.
+
+    The crossing lower down pairs a qualifying invocation with a bare one
+    across a separator, so the guard's span ends between them and each is
+    judged alone. This block is the case that crossing cannot reach: a
+    substitution keeps both invocations inside one span, because the span
+    deliberately crosses a parenthesis and a backtick, and the guard's
+    answer there is to refuse a span it cannot attribute a `-C` to. Not
+    one of the strings generated anywhere else in this file puts two
+    invocations in one span, so nothing else here exercises that rule at
+    all, and disabling the rule used to redden nothing.
+
+    The substitution is written unquoted, in double quotation marks and
+    in single ones, because the three are three different commands. A
+    shell runs a substitution inside double quotation marks and the guard
+    has to see it; a shell runs nothing inside single ones and the guard
+    is right to see a string there.
+
+    The last shape carries no qualifying invocation at all. `echo git -C
+    <a linked worktree> $(git reset --hard)` puts the board's own idiom
+    in the span as bare text, which is the sharpest statement of the
+    defect: no real permission is needed to clear the span, only the
+    letters of one.
+    """
+    shapes = []
+    reader = 'git -C "%s" stash list' % linked
+    writer = 'git -C "%s" commit -m wip' % linked
+    for command, (how, word) in itertools.product(
+            VERBS, second_invocation_spellings(stub)):
+        inner = word + " " + command[len("git "):]
+        for where, spelled in (
+                ("substituted into a qualifying read", "%s $(%s)" % (reader, inner)),
+                ("substituted into a qualifying read, double-quoted",
+                 '%s "$(%s)"' % (reader, inner)),
+                ("substituted into a qualifying read, single-quoted",
+                 "%s '$(%s)'" % (reader, inner)),
+                ("in backticks inside a qualifying read", "%s `%s`" % (reader, inner)),
+                ("substituted into a qualifying deny-set invocation",
+                 "%s $(%s)" % (writer, inner)),
+                ("substituted into a qualifying deny-set invocation, double-quoted",
+                 '%s "$(%s)"' % (writer, inner)),
+                ("substituted beside the bare text of the idiom",
+                 'echo git -C "%s" $(%s)' % (linked, inner))):
+            shapes.append(("%s, second invocation spelled %s, %s"
+                           % (command, how, where), spelled))
+    return shapes
+
+
+def strings(linked, spaced, stub):
     """Every generated string, as `(name, command)`.
 
     The crossing is deliberate and it is the point. Each deny-set verb is
@@ -623,6 +707,10 @@ def strings(linked, spaced):
         good = qualified(command, linked)
         generated.append(("%s, both invocations qualifying across %s" % (command, joined),
                           good + separator + good))
+
+    # Two invocations sharing one span, which the crossing above cannot
+    # produce because it always puts a separator between them.
+    generated.extend(two_in_one_span(linked, stub))
 
     return generated
 
@@ -726,6 +814,14 @@ def main():
 
         sandbox = os.path.join(root, "sandbox")
         os.makedirs(sandbox)
+
+        # A second copy of the stub in the shells' working directory, so
+        # that `./git` is a real command rather than a string the shell
+        # cannot run. `git.exe` needs no copy: on this platform the
+        # extension names the same file.
+        relative_stub = os.path.join(sandbox, "git")
+        shutil.copyfile(stub, relative_stub)
+        os.chmod(relative_stub, 0o755)
         record = os.path.join(root, "record-probe")
         os.makedirs(record)
 
@@ -785,7 +881,7 @@ def main():
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
             for name, command, allowed, offences, trunk_refused in pool.map(
-                    examine, strings(linked, spaced)):
+                    examine, strings(linked, spaced, stub)):
                 total += 1
                 if trunk_refused:
                     regressions.append((name, command))

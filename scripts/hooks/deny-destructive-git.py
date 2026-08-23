@@ -31,9 +31,16 @@ such a session runs the reset in the checkout.
 An invocation carrying `--git-dir` or `--work-tree` is refused rather
 than analysed. Both name a target the guard does not follow, so the
 honest answer is that the invocation has not said where it runs in the
-form the guard reads. A relative `-C` is refused for the same reason: it
-names a directory only in combination with a working directory, and the
-working directory is exactly what the guard has stopped consulting.
+form the guard reads. `-c core.worktree=` and `-c core.bare=` are the
+configuration spellings of the same setting and are refused with them,
+because a principle that turns on which of two documented spellings an
+agent reached for is not a principle. The environment spelling is a
+third, and it is outside this guard rather than covered by it:
+`GIT_WORK_TREE=<path> git -C <worktree> reset --hard` carries nothing
+in its command text that a reader could refuse. A relative `-C` is
+refused for a related reason: it names a directory only in combination
+with a working directory, and the working directory is exactly what the
+guard has stopped consulting.
 
 Finding the verbs is a regular-expression job, and this file has now
 tried the alternative three times. Each attempt built a reader that split
@@ -58,7 +65,7 @@ is what a shell does with a brace expansion. Nothing here tracks state,
 keeps a position, or infers a directory, so nothing here reopens what
 OQ-9 deleted.
 
-Three normalisations run before the patterns, and each one preserves the
+Four normalisations run before the patterns, and each one preserves the
 length of the command so that a match's offsets still index the original
 text. Line continuations are folded, because one invocation split over
 two lines is still one invocation. Quoted spans are blanked, so a commit
@@ -66,7 +73,22 @@ message mentioning a command is an argument rather than a command.
 Redirection operators are blanked, because `>` and `<` and the `&` of
 `2>&1` are punctuation inside a single command rather than boundaries
 between two, and leaving them in the character class was how the last
-version cleared `git >/dev/null reset --hard`.
+version cleared `git >/dev/null reset --hard`. Boundary characters
+standing inside a substitution are blanked for the same reason the
+redirection operators are: a `;` between two commands inside `$( )`
+separates those two and does not end the command the substitution is a
+word of, and leaving it there ended the span early and cleared `git
+$(echo;) reset --hard`.
+
+Blanking a quoted span is where the second and third of those meet, and
+the two kinds of quotation mark do not earn the same treatment. A shell
+runs nothing inside single quotation marks, so a single-quoted span is
+data all the way through. It runs a substitution inside double quotation
+marks exactly as it runs one outside them, so a double-quoted span is
+data except for its substitutions, which stay visible to the rules.
+Blanking both kinds alike hid `git -C <a linked worktree> commit -m
+"$(git reset --hard)"` from the guard while bash ran the reset, and
+`git commit -m "$(...)"` is a spelling agents reach for.
 
 Permission is then decided over the matched span, which reaches from the
 `git` word to the next character that could start another command, so a
@@ -89,6 +111,21 @@ crosses a parenthesis, a brace and a backtick, because a shell keeps all
 of those inside one command, and the price of crossing them is that two
 invocations can share a span. Which of them a `-C` belongs to is then a
 question the guard cannot answer, and it refuses rather than guesses.
+
+Counting those words and finding them are one pattern, and they were two
+for exactly one cycle. The finder matched `git` with a word boundary on
+each side, which is what `./git`, `/usr/bin/git` and `git.exe` carry; the
+counter's own expression disqualified all three. A span therefore read as
+one invocation while the shell ran two, and the `-C` on the one that
+carried it cleared the one that did not. Seven strings leaked that way,
+`git -C <a linked worktree> stash list $(./git reset --hard)` among them,
+while the same string spelled `$(git reset --hard)` was correctly
+refused. Keeping two patterns in step is what failed, so there is one
+pattern, and it is the finder's. Breadth belongs to the finder because a
+wider finder detects more invocations, and a counter no narrower than the
+finder cannot read a span as simpler than the finder read it. The cost is
+that `.git/config` or `git-lfs` standing beside a deny-set verb now
+refuses that span, which is a refusal rather than a leak.
 
 Is a named directory a linked worktree? `git rev-parse --git-dir
 --git-common-dir` is the documented discriminator. The two answers differ
@@ -121,11 +158,27 @@ What this costs is stated rather than discovered. A bare `git commit`
 typed inside a worktree is refused, including by the operator in his own
 session. The board's own agents are unaffected, because the
 explicit-path discipline dinah-228 installs already requires `git -C
-<worktree>` on every git command from every stage. A pattern reading a
-span rather than a parse tree also refuses a little more than a parser
-would: `git log --grep commit` carries the word `commit` outside quotes
-and is refused. Refusing too much is the direction this guard is allowed
-to be wrong in, and quoting the word is the fix.
+<worktree>` on every git command from every stage. A `-C` whose path is
+held in a shell variable is refused as well, so `git -C $WT commit` and
+`git -C "$WT" commit` do not pass; the guard reads text, and `$WT` names
+a directory only once a shell has expanded it, which is why the refusal
+calls the path relative. A pattern reading a span rather than a parse
+tree also refuses a little more than a parser would: `git log --grep
+commit` carries the word `commit` outside quotes and is refused, and
+quoting the word clears it. The one-git-word-per-span rule has its own
+cost, and it falls on a command substitution inside a deny-set
+invocation, so `git -C <worktree> commit -m "wip" $(git -C <worktree>
+rev-parse HEAD)` and `git -C <worktree> cherry-pick $(git -C <worktree>
+rev-parse HEAD)` are refused although both of their invocations name the
+same worktree. The same rule refuses an unquoted `-C` whose path carries
+a git component, as `git -C /home/x/git/repo commit`, because those
+letters between two separators are what a git word looks like; quoting
+the path clears it, and the board's own worktrees carry no such
+component. Double-quoting the substitution does not clear those and
+is not meant to, because a shell runs a substitution inside double
+quotation marks; running the inner command first and passing its output
+is what clears them. Refusing too much is the direction this guard is
+allowed to be wrong in.
 
 Two things this guard does not cover and never did. A command that
 changes directory and then runs something other than git is outside it,
@@ -140,6 +193,9 @@ a quoted span destroys the word inside it. Blanking is what keeps a
 commit message from being read as a command, and a guard cannot both
 ignore quoted text and read it. The trunk's guard has always had this
 hole too, and closing it is not a matter of handling another spelling.
+A substitution written inside double quotation marks is not part of this
+hole and never was: the shell runs it, so the guard reads it, which is
+what the normalisation above is for.
 """
 
 import json
@@ -256,6 +312,29 @@ CONTINUATION = re.compile(r"\\[ \t]*\r?\n")
 # of the command in place and errs toward a refusal.
 QUOTED = re.compile("\"[^\"]*\"|'[^']*'")
 
+# A command substitution. The shell runs one of these wherever it stands,
+# including inside double quotation marks, where everything else is data.
+# That distinction is the whole reason this pattern exists: blanking a
+# double-quoted span entirely hid `git -C <a linked worktree> commit -m
+# "$(git reset --hard)"` from the guard while bash ran the reset, and
+# `git commit -m "$(...)"` is a spelling agents write. Single quotation
+# marks are a different matter and stay fully blanked, because a shell
+# runs nothing inside them.
+#
+# Non-greedy, so a substitution the pattern cannot delimit exactly is cut
+# short rather than missed. Cutting it short leaves the text ahead of the
+# cut visible to the rules, which is the direction that refuses.
+SUBSTITUTION = re.compile(r"\$\([\s\S]*?\)|`[^`]*`")
+
+# A boundary character standing inside a substitution is blanked with
+# `BOUNDARY`, the same pattern the span reader uses. A `;` between two
+# commands inside `$( )` separates those two commands and does not end
+# the command the substitution is a word of, so leaving it in the text
+# ends the span early and hides whatever follows: `git $(echo;) reset
+# --hard` runs a bare reset and had no verb in it as far as the guard
+# could see. This is the reasoning the redirection blanking below already
+# carries, applied to the other punctuation one command can hold.
+
 # A redirection operator, with the file descriptor in front of it and the
 # `&` and descriptor of `2>&1` behind it. Blanked because none of it
 # separates two commands, and because leaving `>` inside a word is how
@@ -289,14 +368,54 @@ ANY_C = re.compile(r"(?:^|\s)-C")
 # The argument a `-C` names, read from the original text.
 C_VALUE = re.compile(r"\s*(\"[^\"]*\"|'[^']*'|\S+)")
 
-# A `git` word, counted rather than located. Written to skip the shapes
-# that carry the letters without being the command: a path component
-# (`.git/config`), a hyphenated neighbour (`git-lfs`), an option
-# (`--git-dir`), and a remote (`git@host`, `git://host`).
-GIT_WORD = re.compile(r"(?<![\w./@:-])git(?![\w./@:-])", re.IGNORECASE)
+# A `git` word, counted rather than located, and it is `GIT` itself
+# rather than a second pattern written to resemble it. The counter used
+# to be its own expression, narrower than the finder by a lookaround that
+# disqualified `./git`, `/usr/bin/git` and `git.exe`, and that difference
+# was a fail-open: the finder saw two invocations where the counter saw
+# one, so `git -C <a linked worktree> stash list $(./git reset --hard)`
+# was cleared by a `-C` belonging to the other command. Written plainly
+# as `$(git reset --hard)` the same string was refused, which is what
+# said the rule was right and the counter was wrong.
+#
+# The two cannot simply be kept in step, because keeping two patterns in
+# step is the shape that produced this defect and several before it. They
+# are one pattern, and the breadth is the finder's because the finder's
+# is the safe direction: a wide finder detects more invocations, and a
+# counter no narrower than the finder cannot report a span as simpler
+# than the finder read it. Erring the other way costs a refusal, and
+# erring this way costs the guard.
+#
+# The price is paid where the letters appear without being the command.
+# `.git/config`, `git-lfs`, `--git-dir`, `git@host` and `git://host` now
+# count as git words, so a span already carrying a deny-set verb is
+# refused when one of them stands beside it. None of them is refused on
+# its own, because a span is only ever counted after a rule has matched
+# in it, and refusing too much is the direction this guard is allowed to
+# be wrong in.
+#
+# The instance of that worth knowing about is a `-C` path with a git
+# component in it, as `git -C /home/x/git/repo commit` or a worktree
+# under a directory named for this very tool. Quoting the path clears it,
+# because a quoted span is blank by the time anything is counted, and the
+# board's own worktrees live under `C:\dinah-scratch\<card>-<stage>\wt`
+# and carry no such component. The suite's own temporary directory did
+# carry one, which is how this was found rather than reported.
+GIT_WORD = re.compile(GIT, re.IGNORECASE)
 
-# Options naming a target the guard does not follow.
-UNFOLLOWED = re.compile(r"(?:^|\s)--(?:git-dir|work-tree)\b", re.IGNORECASE)
+# Options naming a target the guard does not follow. `--git-dir` and
+# `--work-tree` are the spellings on the command line; `-c core.worktree=`
+# and `-c core.bare=` are the configuration spellings of the same
+# setting, documented in git-config(1), and an invocation carrying either
+# has said no more about where it runs than one carrying the option.
+#
+# The environment spelling, `GIT_WORK_TREE=<path> git -C <worktree>
+# reset --hard`, is outside what a guard reading command text can
+# resolve, and it is named here rather than handled.
+UNFOLLOWED = re.compile(
+    WORD_START + r"(?:--(?:git-dir|work-tree)\b|-c\s*core\.(?:worktree|bare)\b)",
+    re.IGNORECASE,
+)
 
 
 def blank(text, pattern):
@@ -310,11 +429,54 @@ def blank(text, pattern):
     return pattern.sub(lambda match: " " * len(match.group(0)), text)
 
 
+def blank_around_substitutions(span):
+    """`span` blanked, except for the substitutions a shell still runs in it.
+
+    Used on a double-quoted span, where everything is data except a
+    command substitution. Same length out as in, like every other
+    normalisation here.
+    """
+    kept = [" "] * len(span)
+    for inner in SUBSTITUTION.finditer(span):
+        kept[inner.start():inner.end()] = span[inner.start():inner.end()]
+    return "".join(kept)
+
+
+def unquote_spans(text):
+    """`text` with its quoted spans blanked, by the rule each kind earns.
+
+    A single-quoted span is data all the way through. A double-quoted
+    span is data except for the substitutions inside it, which the shell
+    runs exactly as it runs them outside.
+    """
+    def replace(match):
+        span = match.group(0)
+        if span.startswith("'"):
+            return " " * len(span)
+        return blank_around_substitutions(span)
+
+    return QUOTED.sub(replace, text)
+
+
+def open_substitutions(text):
+    """`text` with the boundary characters inside substitutions blanked.
+
+    A separator inside `$( )` separates the commands in there and does
+    not end the command outside, so it must not end the span the guard
+    reads.
+    """
+    def replace(match):
+        return blank(match.group(0), BOUNDARY)
+
+    return SUBSTITUTION.sub(replace, text)
+
+
 def normalise(command):
     """The command as the patterns read it, character for character."""
     folded = blank(command, CONTINUATION)
-    unquoted = blank(folded, QUOTED)
-    return blank(unquoted, REDIRECTION)
+    unquoted = unquote_spans(folded)
+    redirected = blank(unquoted, REDIRECTION)
+    return open_substitutions(redirected)
 
 
 def unquote(token):
@@ -389,6 +551,9 @@ def fault(raw, scan):
     # question the guard cannot answer is refused rather than guessed.
     # The span crosses a parenthesis, a brace and a backtick, so this is
     # what keeps `git -C <worktree> log $(git reset --hard)` refused.
+    # `GIT_WORD` is `GIT`, so what counts an invocation here is what
+    # found one above; a counter narrower than the finder read
+    # `$(./git reset --hard)` as no invocation at all.
     if len(GIT_WORD.findall(scan)) > 1:
         return "the span carries more than one git word, so no -C in it is readable"
     anchored = GIT_C.search(scan)

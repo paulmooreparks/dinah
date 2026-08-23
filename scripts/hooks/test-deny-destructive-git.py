@@ -7,7 +7,7 @@ disagrees with the table, so a failure names itself rather than needing a
 debugger.
 
 The table builds its own repository under a temporary directory, with a
-main checkout and three linked worktrees, rather than asserting against
+main checkout and four linked worktrees, rather than asserting against
 the operator's real one. That keeps the run reproducible on a machine
 whose worktrees sit somewhere else, and it means the test never points a
 destructive command at anything a person cares about.
@@ -42,7 +42,7 @@ def git(*args, cwd=None):
 
 
 def build_repo(root):
-    """A main checkout with one commit, plus three linked worktrees beside it."""
+    """A main checkout with one commit, plus four linked worktrees beside it."""
     main = os.path.join(root, "checkout")
     os.makedirs(main)
     git("init", "-q", "-b", "main", cwd=main)
@@ -58,7 +58,14 @@ def build_repo(root):
     git("worktree", "add", "--detach", "-q", spaced, "HEAD", cwd=main)
     nested = os.path.join(main, ".claude", "worktrees", "legacy")
     git("worktree", "add", "--detach", "-q", nested, "HEAD", cwd=main)
-    return main, linked, spaced, nested
+    # A worktree whose own path carries a git component. The guard counts
+    # invocations with the pattern it finds them with, and that pattern
+    # matches the letters wherever a path separator or a hyphen stands
+    # either side of them, so this path costs an unquoted invocation a
+    # refusal. The two cases built on it pin the cost and the escape.
+    componented = os.path.join(root, "git", "card-impl", "wt")
+    git("worktree", "add", "--detach", "-q", componented, "HEAD", cwd=main)
+    return main, linked, spaced, nested, componented
 
 
 def verdict(command, cwd):
@@ -211,7 +218,7 @@ def leaks(linked):
     ]
 
 
-def cases(root, main, linked, spaced, nested):
+def cases(root, main, linked, spaced, nested, componented):
     gone = os.path.join(main, ".claude", "worktrees", "deleted-out-from-under-us")
     backslashed = linked.replace("/", "\\") if os.name == "nt" else linked
     table = []
@@ -477,6 +484,77 @@ def cases(root, main, linked, spaced, nested):
         ("a qualifying invocation with a bare one in backticks",
          'git -C "%s" log `git stash pop`' % linked, main, DENY),
 
+        # The same rule reached by a second invocation spelled as
+        # anything but the bare word. The guard finds an invocation with
+        # a word-bounded `git`, which every one of these carries, and its
+        # counter used to carry none of them, so a span read as one
+        # invocation while the shell ran two and the `-C` on the first
+        # cleared the second.
+        ("a second invocation spelled with a relative path",
+         'git -C "%s" stash list $(./git re' % linked + 'set --hard)', main, DENY),
+        ("a second invocation spelled with an absolute path",
+         'git -C "%s" stash list $(/usr/bin/git re' % linked + 'set --hard)',
+         main, DENY),
+        ("a second invocation spelled with an executable extension",
+         'git -C "%s" stash list $(git.exe re' % linked + 'set --hard)', main, DENY),
+        ("a second invocation with a path, in backticks",
+         'git -C "%s" stash list `./git stash pop`' % linked, main, DENY),
+        ("a second invocation inside a qualifying deny-set invocation",
+         'git -C "%s" commit -m wip $(./git re' % linked + 'set --hard)', main, DENY),
+        ("the bare text of the idiom clears nothing",
+         'echo git -C "%s" $(./git re' % linked + 'set --hard)', main, DENY),
+
+        # A substitution written inside double quotation marks. The shell
+        # runs it, so the guard has to see it; blanking the whole span
+        # cleared a reset the shell then ran. Single quotation marks are
+        # the other case, where the shell runs nothing and a string is a
+        # string.
+        ("a double-quoted substitution is still a command",
+         'git -C "%s" commit -m "$(git re' % linked + 'set --hard)"', main, DENY),
+        ("a double-quoted substitution carrying a path-spelled invocation",
+         'git -C "%s" stash list "$(./git re' % linked + 'set --hard)"', main, DENY),
+        ("a double-quoted substitution with two qualifying invocations",
+         'git -C "%s" commit -m "wip $(git -C %s rev-parse HEAD)"' % (linked, linked),
+         main, DENY),
+        ("a single-quoted substitution is a string",
+         "git -C \"%s\" stash list '$(./git re" % linked + "set --hard)'", main, ALLOW),
+        ("a double-quoted substitution running no git",
+         'git -C "%s" commit -m "wip $(date)"' % linked, main, ALLOW),
+
+        # A boundary character inside a substitution separates the
+        # commands in there and does not end the command outside it.
+        # Leaving it in ended the span early and cleared the verb behind.
+        ("a semicolon inside a substitution is not a boundary",
+         "git $(echo;) re" + "set --hard", main, DENY),
+        ("a pipe inside a substitution is not a boundary",
+         "git $(echo|cat) re" + "set --hard", main, DENY),
+        ("a substitution opening before the verb and closing after it",
+         "echo $( ; git re" + "set --hard )", main, DENY),
+
+        # The configuration spellings of the option the guard refuses by
+        # name. git-config(1) documents core.worktree as the setting
+        # --work-tree writes, so refusing one and clearing the other
+        # turned the guard's own principle on which spelling was reached
+        # for.
+        ("core.worktree set on the command line",
+         'git -C "%s" -c core.worktree=%s re' % (linked, main) + 'set --hard',
+         main, DENY),
+        ("core.bare set on the command line",
+         'git -C "%s" -c core.bare=false commit -m wip' % linked, main, DENY),
+        ("an unrelated configuration override still passes",
+         'git -C "%s" -c core.pager=cat stash pop' % linked, main, ALLOW),
+
+        # What counting invocations with the finder's own pattern costs.
+        # A path with a git component in it reads as a second invocation,
+        # so an unquoted `-C` naming one is refused; quoting the path
+        # blanks it for detection and the invocation passes. Refusing too
+        # much is the direction this guard is allowed to be wrong in, and
+        # the escape is the one the guard already prescribes elsewhere.
+        ("an unquoted -C path carrying a git component reads as a second invocation",
+         "git -C %s stash pop" % componented, main, DENY),
+        ("quoting that path clears it",
+         'git -C "%s" stash pop' % componented, main, ALLOW),
+
         # A command mentioning no git at all never reaches the rule.
         ("no git in the command", "rm -rf build", main, ALLOW),
     ])
@@ -484,12 +562,13 @@ def cases(root, main, linked, spaced, nested):
 
 
 def main():
-    root = tempfile.mkdtemp(prefix="deny-destructive-git-")
+    root = tempfile.mkdtemp(prefix="deny-destructive-hook-")
     failures = 0
     total = 0
     try:
-        checkout, linked, spaced, nested = build_repo(root)
-        for name, command, cwd, want in cases(root, checkout, linked, spaced, nested):
+        checkout, linked, spaced, nested, componented = build_repo(root)
+        for name, command, cwd, want in cases(
+                root, checkout, linked, spaced, nested, componented):
             total += 1
             try:
                 got = verdict(command, cwd)
