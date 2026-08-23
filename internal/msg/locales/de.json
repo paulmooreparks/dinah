@@ -437,6 +437,10 @@
       "text": "jeder genannte Arbeitsstrang ist auffindbar",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.query.7": {
+      "text": "jeder genannte severity- oder priority-Wert ist auffindbar",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.release.1": {
       "text": "die Karte existiert",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."

@@ -21,12 +21,14 @@ type Matches struct {
 	Count int `json:"count"`
 }
 
-// The ten field names the query language admits. The vocabulary is closed, so
-// a name absent from this list is refused whatever a card carries in its
+// The twelve field names the query language admits. The vocabulary is closed,
+// so a name absent from this list is refused whatever a card carries in its
 // frontmatter.
 const (
 	FieldState      = "state"
 	FieldSubstate   = "substate"
+	FieldSeverity   = bench.SeverityField
+	FieldPriority   = bench.PriorityField
 	FieldHolder     = "holder"
 	FieldBlockKind  = "block_kind"
 	FieldWorkstream = "workstream"
@@ -37,11 +39,14 @@ const (
 	FieldAt         = "at"
 )
 
-// QueryFields lists the ten legal field names in the order the spec's field
-// table states them, which is the order a refusal lists them back to a reader.
+// QueryFields lists the twelve legal field names in the order the spec's
+// field table states them, which is the order a refusal lists them back to a
+// reader. severity and priority sit between substate and holder, matching the
+// order CardView already reports a card in.
 var QueryFields = []string{
-	FieldState, FieldSubstate, FieldHolder, FieldBlockKind, FieldWorkstream,
-	FieldActor, FieldEvent, FieldEntered, FieldLeft, FieldAt,
+	FieldState, FieldSubstate, FieldSeverity, FieldPriority, FieldHolder,
+	FieldBlockKind, FieldWorkstream, FieldActor, FieldEvent, FieldEntered,
+	FieldLeft, FieldAt,
 }
 
 // The six operators a term may carry. The equality pair is what the nine
@@ -107,8 +112,9 @@ type query struct {
 // The refusals run in the order the spec's section 10 fixes, and the order is
 // normative: a query carrying two mistakes is refused for the earlier one, so
 // that a second implementation's output is comparable. The first four checks
-// read no card, and the last reads every live card because a card's own list
-// is half of what a workstream term may name.
+// read no card, and the last two read every live card because a card's own
+// list is half of what a workstream term may name, and a query naming a
+// severity or priority also needs every card's actual value to tolerate drift.
 func (l *Library) Query(req *Request) (*Matches, error) {
 	matched, _, err := l.selection(req.Query)
 	if err != nil {
@@ -126,7 +132,7 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 // selection applies a query string to the workbench's live cards, returning
 // the cards it selected and every card it was measured against.
 //
-// It is the whole of the query language in one call: the parse, the four
+// It is the whole of the query language in one call: the parse, the five
 // vocabulary checks and the selection, in the order the spec's section 10
 // fixes. Both the query command and the grouped tree go through it, so one
 // string handed to either selects one set of cards, and the tree's account of
@@ -149,6 +155,9 @@ func (l *Library) selection(text string) (matched, live []*bench.Card, err error
 		}
 	}
 	if err := l.checkWorkstreams(parsed, cards); err != nil {
+		return nil, nil, err
+	}
+	if err := l.checkLevels(parsed, cards); err != nil {
 		return nil, nil, err
 	}
 	kept, err := l.selectCards(parsed, cards)
@@ -374,7 +383,9 @@ func checkField(t term) error {
 
 // checkOperator runs check 3: the operator is one the named field accepts. at
 // takes the four ordered operators and no other field takes any of them, since
-// nothing but an instant ranks.
+// nothing but an instant ranks in this language. severity and priority also
+// rank internally (bench.Level.Rank), but the query does not expose that
+// ranking, so they take the equality pair like every other card field.
 func checkOperator(t term) error {
 	ordered := t.op != opIs && t.op != opIsNot
 	if ordered == (t.field == FieldAt) {
@@ -389,9 +400,10 @@ func checkOperator(t term) error {
 //
 // The field list is read off QueryFields rather than written into the catalog,
 // so a field added to the language reaches the refusal without a translator
-// being asked for anything. instantField names the one field whose values
-// rank, which is what the ordered-operator clause is about; the four operators
-// themselves are written in the catalog beside the sentence that frames them.
+// being asked for anything. instantField names the one field the query itself
+// compares in ranked order, which is what the ordered-operator clause is
+// about; the four operators themselves are written in the catalog beside the
+// sentence that frames them.
 func unknownField(token string) error {
 	return contract.RefuseWith(contract.UnknownField, token, map[string]string{
 		"fields":       strings.Join(QueryFields, ", "),
@@ -450,9 +462,9 @@ func stateValued(field string) bool {
 	return field == FieldState || field == FieldEntered || field == FieldLeft
 }
 
-// checkWorkstreams runs check 6, the last of the six, because it is the only
-// check that reads the cards as well as the workbench, and it normalises the
-// values it admits on its way through.
+// checkWorkstreams runs check 6, the first of two checks that read the cards
+// as well as the workbench, and it normalises the values it admits on its way
+// through.
 //
 // The roster half of the cards is every identifier at least one live card
 // lists, read from every live card rather than from the cards the query's
@@ -536,6 +548,68 @@ func (l *Library) workstreamIdentifier(value string) string {
 		return workstream.ID
 	}
 	return value
+}
+
+// checkLevels runs check 7, the newest of the query's checks and the second
+// to read the cards rather than the workbench alone. It admits a term whose
+// value the workbench currently declares for that axis, or whose value some
+// live card actually carries on that axis, the same drift-tolerant roster
+// checkWorkstreams already builds for the workstream field, and for the same
+// reason: dinah check can name a card carrying a level nobody declares
+// anymore, and a query that could not find that card by the value check just
+// reported would make the finding unactionable from the command people
+// actually filter with.
+func (l *Library) checkLevels(q *query, cards []*bench.Card) error {
+	rosters := map[string][]string{}
+	for i := range q.cardTerms {
+		t := &q.cardTerms[i]
+		if (t.field != FieldSeverity && t.field != FieldPriority) || t.empty {
+			continue
+		}
+		axis := t.field
+		roster, loaded := rosters[axis]
+		if !loaded {
+			roster = levelRoster(l.Bench, cards, axis)
+			rosters[axis] = roster
+		}
+		for _, value := range t.values {
+			if !contains(roster, value) {
+				return unknownValue(*t, value, roster)
+			}
+		}
+	}
+	return nil
+}
+
+// levelRoster is every value a term on one level axis may carry: the
+// workbench's currently declared members for that axis, in the declaration
+// order declaredLevelNames reports, followed by any value a live card
+// actually carries there that the workbench does not declare, sorted among
+// itself. Declaration order is the order a comparison like severity>=major
+// would later need, per the "Levels reach the surfaces" workstream notes, so
+// this reuses declaredLevelNames rather than sorting the whole roster the way
+// workstreamRoster does; only the drifted tail is sorted, since nothing
+// promises an order among values nobody declares.
+func levelRoster(b *bench.Bench, cards []*bench.Card, axis string) []string {
+	declared := declaredLevelNames(b.Levels(axis))
+	seen := map[string]bool{}
+	for _, name := range declared {
+		seen[name] = true
+	}
+	var drift []string
+	for _, card := range cards {
+		name := card.LevelOf(axis)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		drift = append(drift, name)
+	}
+	sort.Strings(drift)
+	roster := make([]string, 0, len(declared)+len(drift))
+	roster = append(roster, declared...)
+	roster = append(roster, drift...)
+	return roster
 }
 
 // unknownValue composes check 4's and check 6's shared refusal, which names
@@ -639,6 +713,10 @@ func (l *Library) cardValues(field string, card *bench.Card) []string {
 		return []string{card.State}
 	case FieldSubstate:
 		return []string{card.Substate}
+	case FieldSeverity:
+		return []string{card.Severity}
+	case FieldPriority:
+		return []string{card.Priority}
 	case FieldHolder:
 		return []string{card.Holder}
 	case FieldBlockKind:

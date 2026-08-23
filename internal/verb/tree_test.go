@@ -690,7 +690,7 @@ func TestABadChainIsRefusedByItsOwnName(t *testing.T) {
 		detail  string
 		lists   bool
 	}{
-		{chain: []string{"priority"}, refusal: contract.UnknownAxis, detail: "priority", lists: true},
+		{chain: []string{"urgency"}, refusal: contract.UnknownAxis, detail: "urgency", lists: true},
 		{chain: []string{FieldAt}, refusal: contract.UnknownAxis, detail: FieldAt, lists: true},
 		{chain: []string{FieldState, FieldState}, refusal: contract.RepeatedAxis, detail: FieldState},
 		{

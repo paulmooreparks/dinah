@@ -421,6 +421,10 @@
       "text": "क्वेरी जिस भी वर्कस्ट्रीम का नाम लेती है वह इस वर्कबेंच में है या किसी जीवित कार्ड में दर्ज है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.query.7": {
+      "text": "क्वेरी जिस भी severity या priority का नाम लेती है वह घोषित है या किसी जीवित कार्ड में दर्ज है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.release.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."

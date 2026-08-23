@@ -241,6 +241,7 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownValue, Key: "check.query.4"},
 		{Refusal: contract.UnknownState, Key: "check.query.5"},
 		{Refusal: contract.UnknownValue, Key: "check.query.6"},
+		{Refusal: contract.UnknownValue, Key: "check.query.7"},
 	},
 	// The three axis checks run in this order, so a chain of five axes one
 	// of which is a word Dinah does not group on is refused for the unknown
