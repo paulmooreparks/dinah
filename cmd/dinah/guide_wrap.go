@@ -84,9 +84,12 @@ func guideOpensFence(line string) bool {
 }
 
 // guideIsIndentedCode reports whether a line carries the leading spaces that
-// make it a code line. A blank line carries none and so ends the run.
+// make it a code line. A blank line carries none and so ends the run. The
+// indent is measured rather than built, because a constructed run of spaces
+// counts characters where a terminal counts columns, and the one row renderer
+// owns that job.
 func guideIsIndentedCode(line string) bool {
-	return strings.HasPrefix(line, strings.Repeat(" ", guideIndent))
+	return len(line)-len(strings.TrimLeft(line, " ")) >= guideIndent
 }
 
 // guideIsTableRow reports whether a line is a row of a pipe table, which the
