@@ -582,26 +582,33 @@ func (l *Library) checkLevels(q *query, cards []*bench.Card) error {
 }
 
 // levelRoster is every value a term on one level axis may carry: the
-// workbench's currently declared members for that axis, and every value a
-// live card actually carries there, deduplicated and sorted the way
-// workstreamRoster is.
+// workbench's currently declared members for that axis, in the declaration
+// order declaredLevelNames reports, followed by any value a live card
+// actually carries there that the workbench does not declare, sorted among
+// itself. Declaration order is the order a comparison like severity>=major
+// would later need, per the "Levels reach the surfaces" workstream notes, so
+// this reuses declaredLevelNames rather than sorting the whole roster the way
+// workstreamRoster does; only the drifted tail is sorted, since nothing
+// promises an order among values nobody declares.
 func levelRoster(b *bench.Bench, cards []*bench.Card, axis string) []string {
+	declared := declaredLevelNames(b.Levels(axis))
 	seen := map[string]bool{}
-	var roster []string
-	add := func(name string) {
+	for _, name := range declared {
+		seen[name] = true
+	}
+	var drift []string
+	for _, card := range cards {
+		name := card.LevelOf(axis)
 		if name == "" || seen[name] {
-			return
+			continue
 		}
 		seen[name] = true
-		roster = append(roster, name)
+		drift = append(drift, name)
 	}
-	for _, level := range b.Levels(axis) {
-		add(level.Name)
-	}
-	for _, card := range cards {
-		add(card.LevelOf(axis))
-	}
-	sort.Strings(roster)
+	sort.Strings(drift)
+	roster := make([]string, 0, len(declared)+len(drift))
+	roster = append(roster, declared...)
+	roster = append(roster, drift...)
 	return roster
 }
 
