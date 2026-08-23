@@ -655,10 +655,11 @@ pass after it, while a test does exactly that.
 
 The `observed` values are a closed set of two, `fail` and `pass`, closed
 by the rule that settles the question, since contract behavior hangs on
-the members. A criterion leaves the pending state on a `fail` before and
-a `pass` after, so a value the tool has never heard of cannot be weighed
-against that rule, and a board spelling the pair its own way would put
-the rule out of reach of any tool reading the item. Both values join the
+the members. A criterion whose citation uses a scheme demanding the
+observation leaves the pending state on a `fail` before and a `pass`
+after, so a value the tool has never heard of cannot be weighed against
+that rule, and a board spelling the pair its own way would put the rule
+out of reach of any tool reading the item. Both values join the
 token registry, stored canonically and never translated, on the terms the
 Language independence tiers already set for the members of a closed enum.
 
