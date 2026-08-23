@@ -130,7 +130,23 @@ func breakWords(text string, indent, room int) string {
 	if room < 1 {
 		return text
 	}
-	return packTokens(strings.Fields(text), indent, room)
+	return packTokens(strings.Fields(text), indent, room, 0)
+}
+
+// breakWordsHanging breaks text between words the way breakWords does, except
+// that every line after the first is narrowed by hang as well as indented to
+// indent. It is what a hanging continuation needs: a caller that draws its
+// continuation lines hang columns further right than its first line has that
+// many fewer columns left before the window's edge, so wrapping them all to
+// the first line's room is what puts a full continuation past the edge.
+//
+// Callers that draw every line at the same column pass through breakWords
+// instead, which is this with a hang of nothing.
+func breakWordsHanging(text string, indent, room, hang int) string {
+	if room < 1 {
+		return text
+	}
+	return packTokens(strings.Fields(text), indent, room, hang)
 }
 
 // packTokens lays pre-split tokens out the way breakWords lays out the words
@@ -139,24 +155,30 @@ func breakWords(text string, indent, room int) string {
 // token wider than room on its own is written whole rather than split, which
 // is the rule breakWords already follows for one overlong word.
 //
+// hang narrows every line after the first by that many columns, for a caller
+// whose continuations draw further right than its first line does. A caller
+// whose lines all start at one column passes nothing.
+//
 // It exists so that the option-boundary wrap and the word wrap share one
 // packing loop. The only difference between them is what counts as a token.
-func packTokens(tokens []string, indent, room int) string {
+func packTokens(tokens []string, indent, room, hang int) string {
 	var b strings.Builder
 	drawn := 0
+	line := room
 	for _, tok := range tokens {
 		width := displayWidth(tok)
 		switch {
 		case drawn == 0:
 			b.WriteString(tok)
 			drawn = width
-		case drawn+1+width <= room:
+		case drawn+1+width <= line:
 			b.WriteString(" " + tok)
 			drawn += 1 + width
 		default:
 			b.WriteString("\n")
 			b.WriteString(strings.Repeat(" ", indent))
 			b.WriteString(tok)
+			line = room - hang
 			drawn = width
 		}
 	}
@@ -223,7 +245,7 @@ func breakOnOptions(text string, indent, room int) string {
 	if !isOptionShaped(pieces[last]) {
 		tokens = append(append([]string{}, pieces[:last]...), strings.Fields(pieces[last])...)
 	}
-	return packTokens(tokens, indent, room)
+	return packTokens(tokens, indent, room, 0)
 }
 
 // splitOnOptionBoundaries splits text on option boundaries and returns the
@@ -346,10 +368,13 @@ func (s *session) rowLine(r row) string {
 
 // renderSyntaxLine lays out a verb's syntax line for the help page: the line
 // drawn whole when it fits the window, and broken on option boundaries (a
-// space followed by `[--`, by `<`, or by a bare `--`) and indented under
-// itself when it does not. The break is structural rather than visual, so a
-// reader's eye sees one option group per line rather than a chunk of option
-// glyphs scattered down the page.
+// space before `[`, before `<`, or before a bare `--`, and a space after a
+// closing `]`) and indented under itself when it does not. The break is
+// structural rather than visual, so a line breaks between option groups
+// rather than inside one, and a reader's eye never has to rejoin a group
+// split across a line end. As many groups as fit share a line, so a long
+// syntax costs as few lines as its groups allow rather than one line per
+// group.
 //
 // The width check lives here rather than at the call site because the rule
 // that no caller outside the renderer and the table measures how wide text

@@ -89,7 +89,8 @@ type table struct {
 	ceilingColumn int
 	hasCeiling    bool
 	// wrapOptions asks the capped column to break on option boundaries
-	// (a space followed by `[--`, by `<`, or by a bare `--`) before
+	// (a space before `[`, before `<`, or before a bare `--`, and a space
+	// after a closing `]`) before
 	// falling back to word-wrap on the trailing prose. It is an opt-in a
 	// table takes for itself, the same way wrapTail is: every table that
 	// does not ask for it breaks the capped column on word boundaries, the
@@ -950,15 +951,15 @@ func (laid laidTable) ceilingRowLine(r tableRow) string {
 
 	// Both axes are wrapped into their own list of lines, with no indent of
 	// their own, and the loop below puts each line where it belongs. The
-	// field's wrap-decision room stays pinned to the column it starts in on
-	// the row's first line, exactly as the capped column's room stays pinned
-	// to its declared width: the continuation moves where it draws, not how
-	// much fits on it.
+	// field's first line keeps the whole room its own column leaves it; its
+	// continuations draw ceilingContinuationIndent columns further right
+	// and are wrapped that much narrower, so the offset is a hanging indent
+	// rather than the same room slid sideways past the window's edge.
 	syntaxLines := splitLines(wrap(0))
 	summaryLines := []string{after}
 	if laid.wrapTail && laid.window > 0 {
 		begins := laid.indent + room + tableGutter
-		summaryLines = splitLines(breakWords(after, 0, laid.window-begins))
+		summaryLines = splitLines(breakWordsHanging(after, 0, laid.window-begins, ceilingContinuationIndent))
 	}
 
 	lines := len(syntaxLines)

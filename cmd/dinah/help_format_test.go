@@ -195,3 +195,58 @@ func TestHelpAtAWideWindowMatchesTheSketch(t *testing.T) {
 		t.Errorf("the help block at a window of 200 differs from the desired block:\n%s", diffLines(desiredHelpAt200, got))
 	}
 }
+
+// helpListingLines cuts the command listing out of the whole help block, by
+// the two catalog lines that bracket it: the usage line above it and the
+// global-flags heading below it. Reading the boundary out of the catalog
+// keeps the cut honest when a heading is reworded, and a boundary that goes
+// missing fails the test rather than silently returning a shorter block.
+func helpListingLines(t *testing.T, s *session) []string {
+	t.Helper()
+	lines := splitLines(s.helpBlock())
+	first, last := -1, -1
+	for i, line := range lines {
+		switch line {
+		case s.r.T("help.usage"):
+			first = i + 1
+		case s.r.T("help.flags"):
+			last = i
+		}
+	}
+	if first < 0 || last < 0 || last < first {
+		t.Fatalf("the help block does not carry a command listing between %q and %q", s.r.T("help.usage"), s.r.T("help.flags"))
+	}
+	return lines[first:last]
+}
+
+// TestNoListingLineReachesPastTheWindow sweeps the command listing across a
+// spread of windows and refuses any line that draws past the edge.
+//
+// It exists because the card that moved the description column's
+// continuation two columns to the right measured that continuation for the
+// room it used to have, so a continuation that filled its line ran two
+// columns past the window. Every criterion on that card, both golden blocks
+// and the regenerated testdata/help.txt all passed anyway: the goldens sit
+// at 107 and 200, and those are two of the widths where the words happen to
+// stop short of the edge. A defect a fixture records rather than catches is
+// what this sweep is for, so the widths below deliberately include narrow
+// ones, where the wrap runs most often and the overrun showed on thirteen
+// lines at once.
+//
+// The listing alone is measured, not the whole block. The global-flags
+// table declares no wrap and its rows run past a narrow window on the trunk
+// exactly as they do here (four rows and four footer sentences at a window
+// of fifty, all of them older than this test), so sweeping the whole block
+// would assert something this renderer has never done. The listing is the
+// one table that asks to wrap, which makes it the one table that can be
+// held to the window.
+func TestNoListingLineReachesPastTheWindow(t *testing.T) {
+	for _, window := range []int{40, 50, 60, 70, 80, 90, 100, 107, 120, 160, 200} {
+		s := tableSession(window)
+		for _, line := range helpListingLines(t, s) {
+			if drawn := displayWidth(line); drawn > window {
+				t.Errorf("at a window of %d a listing line draws %d columns wide:\n%s", window, drawn, line)
+			}
+		}
+	}
+}

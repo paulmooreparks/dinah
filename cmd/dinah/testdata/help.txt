@@ -21,7 +21,8 @@ WORK
   archive <ref>                             Move a card, a state, or anything
                                               below a card, out of the live set
   delete <ref> --yes                        Destroy a card, a state, or anything
-                                              below a card, along with its history
+                                              below a card, along with its
+                                              history
   rename <ref> <name>                       Rename an attachment
   card <get|set> <card> <field> [value]     Read one of a card's own fields, or
                                               write one
@@ -53,10 +54,11 @@ WORKBENCH
   extract <dir>                             Copy this workbench's definition out
                                               as a template
   path <ref>                                Print the file path of this
-                                              workbench, of a card, or of anything
-                                              below a card
+                                              workbench, of a card, or of
+                                              anything below a card
   edit <ref>                                Open this workbench, a card, or
-                                              anything below a card in your editor
+                                              anything below a card in your
+                                              editor
   config [get|set] [key] [value]            List your user settings, or read or
                                               write one
   check [--finish] [--migrate-ordinals]     Look for structural defects in this
