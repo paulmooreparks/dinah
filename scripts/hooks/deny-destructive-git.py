@@ -35,6 +35,30 @@ form the guard reads. A relative `-C` is refused for the same reason: it
 names a directory only in combination with a working directory, and the
 working directory is exactly what the guard has stopped consulting.
 
+Finding the invocations is a lexical job and the guard does it with a
+lexer of its own. `shlex` splits on whitespace and knows nothing about
+shell metacharacters, so a metacharacter glued to a word hides whatever
+is glued to it: `echo a;git reset --hard` tokenises to `a;git`, and the
+parenthesised, if-then and loop spellings hide the same way. The flag
+tests had the defect one layer down, since `--hard;` and
+`--hard>/dev/null` are not the string `--hard`. So `lex` splits on
+whitespace and on `; & | ( ) < >`, a backtick and a newline, emitting
+each metacharacter as a word of its own, which puts every hidden
+invocation and every glued flag back in plain sight. Quotation marks
+stay attached to the word that opens them, exactly as
+`shlex.split(posix=False)` left them, so a quoted span is still one word
+and a commit message mentioning a command is still an argument.
+
+Two matchers read the command and they disagree loudly. `lex` produces
+the invocations, and an independent regular expression counts the `git`
+words in the same command with its quoted spans blanked. A `git` the
+regular expression finds and the lexer did not place is a spelling the
+lexer cannot vouch for, so the command is refused rather than cleared.
+The comparison runs one way only: the lexer finding more is the
+conservative direction and needs no help. This is the check that would
+have caught the glued metacharacter, and it costs a refusal rather than
+a pass whenever the two readings drift apart.
+
 Is a named directory a linked worktree? `git rev-parse --git-dir
 --git-common-dir` is the documented discriminator. The two answers differ
 in a linked worktree, where the per-worktree git dir sits under
@@ -76,16 +100,23 @@ commands.
 import json
 import os
 import re
-import shlex
 import subprocess
 import sys
 
 
 GIT_TIMEOUT = 5
 
-# A word carrying `git` at all, used only to decide whether a command that
-# will not tokenise is worth refusing.
-GIT_WORD = re.compile(r"\bgit\b", re.IGNORECASE)
+# A `git` word, matched without the lexer's help. The word may carry a
+# directory in front of it and `.exe` behind it, and it may be glued to
+# any character that is not part of a name, which is the whole point:
+# `;git` and `(git` are occurrences and `--git-dir`, `.git/config`,
+# `git-lfs`, `git@host` and `git://host` are not.
+GIT_WORD = re.compile(r"(?<![\w.\-])git(?:\.exe)?(?![\w.\-@:])", re.IGNORECASE)
+
+# Characters that end a word wherever they appear, quoting aside. A shell
+# reads each of these as punctuation rather than as text, so a guard that
+# lets one sit inside a word reads a different command than the shell will.
+METACHARACTERS = ";&|()<>`\n"
 
 # Options naming a target the guard does not follow.
 UNFOLLOWED = ("--git-dir", "--work-tree")
@@ -93,6 +124,75 @@ UNFOLLOWED = ("--git-dir", "--work-tree")
 # Options consuming the token after them, skipped while hunting for the
 # subcommand. `-C` is read rather than skipped and so is not listed here.
 TAKES_VALUE = ("-c", "--namespace", "--exec-path", "--super-prefix") + UNFOLLOWED
+
+
+def lex(command):
+    """The command's words, with every metacharacter a word of its own.
+
+    Words break at whitespace and at each character in METACHARACTERS,
+    and the metacharacter is emitted as its own word so that nothing
+    stays glued to it. Quotation marks are kept attached to the word that
+    opens them, and a metacharacter inside a quoted span is text rather
+    than punctuation. A backslash is an ordinary character: Windows paths
+    are written with it, and treating it as an escape would join words
+    the shell keeps apart.
+
+    Raises ValueError when a quotation mark is never closed, because the
+    rest of that command is then anybody's guess.
+    """
+    words = []
+    current = ""
+    quote = None
+    for character in command:
+        if quote:
+            current += character
+            if character == quote:
+                quote = None
+            continue
+        if character in "\"'":
+            quote = character
+            current += character
+            continue
+        if character in METACHARACTERS:
+            if current:
+                words.append(current)
+                current = ""
+            words.append(character)
+            continue
+        if character.isspace():
+            if current:
+                words.append(current)
+                current = ""
+            continue
+        current += character
+    if quote:
+        raise ValueError("no closing quotation")
+    if current:
+        words.append(current)
+    return words
+
+
+def unquoted_text(command):
+    """The command with every quoted span replaced by a space.
+
+    Written as its own walk rather than assembled from `lex`'s output on
+    purpose. It exists to disagree with the lexer, and a second reading
+    that borrows the first one's work cannot.
+    """
+    text = []
+    quote = None
+    for character in command:
+        if quote:
+            text.append(" ")
+            if character == quote:
+                quote = None
+            continue
+        if character in "\"'":
+            quote = character
+            text.append(" ")
+            continue
+        text.append(character)
+    return "".join(text)
 
 
 def unquote(token):
@@ -106,6 +206,12 @@ def unquote(token):
     return token
 
 
+def git_positions(tokens):
+    """Where the lexer places a `git` word, by index into `tokens`."""
+    return [position for position, token in enumerate(tokens)
+            if os.path.basename(unquote(token)).lower() in ("git", "git.exe")]
+
+
 def git_slices(tokens):
     """Each git invocation in the command, as its own token list.
 
@@ -115,8 +221,7 @@ def git_slices(tokens):
     what keeps a commit message mentioning a command from being read as
     one.
     """
-    starts = [position for position, token in enumerate(tokens)
-              if os.path.basename(unquote(token)).lower() in ("git", "git.exe")]
+    starts = git_positions(tokens)
     slices = []
     for order, start in enumerate(starts):
         end = starts[order + 1] if order + 1 < len(starts) else len(tokens)
@@ -269,13 +374,19 @@ def offender(command):
     fault says why the invocation did not earn its permission.
     """
     try:
-        tokens = shlex.split(command, posix=False)
+        tokens = lex(command)
     except ValueError:
         # An unterminated quotation mark leaves the command unreadable,
         # and a hook that cannot read a command cannot clear it.
         if GIT_WORD.search(command):
             return "unreadable command", "the command does not tokenise"
         return None
+    placed = len(git_positions(tokens))
+    found = len(GIT_WORD.findall(unquoted_text(command)))
+    if found > placed:
+        return ("unplaceable git word",
+                "the command carries %d git word(s) and the guard could read only %d "
+                "of them as invocations" % (found, placed))
     for invocation in git_slices(tokens):
         directory, unfollowed, subcommand, arguments = read_invocation(invocation)
         label = denied(subcommand, arguments)

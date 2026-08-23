@@ -148,6 +148,45 @@ ORDINARY = [
 ]
 
 
+def glued_shapes(command):
+    """The same command with a shell metacharacter glued to a word.
+
+    This is the shape the suite went without for 269 cases, and its
+    absence is what let a whitespace-only tokeniser look correct. Each
+    spelling here is one a shell runs exactly as it runs the bare form,
+    with no space anywhere for a word-splitting reader to find.
+    """
+    return [
+        ("glued behind a semicolon", "echo a;%s" % command),
+        ("glued behind &&", "true&&%s" % command),
+        ("wrapped in parentheses", "(%s)" % command),
+        ("inside an if/then/fi", "if true;then %s;fi" % command),
+        ("inside a for loop", "for i in 1;do %s;done" % command),
+        ("with a redirection glued on", "%s>/dev/null" % command),
+        ("with a semicolon glued on", "%s;" % command),
+    ]
+
+
+def glued_flags(command):
+    """The same command with a metacharacter glued to each of its flags.
+
+    The verb scan reads a flag by comparing it with a string, so `--hard;`
+    and `--hard>/dev/null` are the same defect one layer down from a
+    hidden invocation rather than a different one, and they are generated
+    from the deny set rather than listed for the verbs somebody thought of.
+    """
+    shapes = []
+    words = command.split(" ")
+    for position, word in enumerate(words):
+        if not word.startswith("-"):
+            continue
+        for glue in (";", ">/dev/null"):
+            spelled = list(words)
+            spelled[position] = word + glue
+            shapes.append(("%s glued to %s" % (glue, word), " ".join(spelled)))
+    return shapes
+
+
 def leaks(linked):
     """The seven spellings that got past the parsing design.
 
@@ -187,9 +226,30 @@ def cases(root, main, linked, spaced, nested):
                       qualified(command, linked), linked, ALLOW))
         table.append(("%s, -C the main checkout" % name, qualified(command, main), linked, DENY))
 
+    # Every deny-set verb again, once per glued spelling. A verb that is
+    # refused when its words stand apart and allowed when a semicolon
+    # touches one of them is not refused at all.
+    for name, command in MUTATING:
+        for shape, spelled in glued_shapes(command) + glued_flags(command):
+            table.append(("%s, %s" % (name, shape), spelled, main, DENY))
+
     for name, command in ORDINARY:
         table.append(("%s in the main checkout" % name, command, main, ALLOW))
         table.append(("%s in a worktree" % name, command, linked, ALLOW))
+
+    # The other half of the same question. Splitting on metacharacters
+    # must not cost a command its permission, so a qualifying invocation
+    # keeps it in every one of those spellings, and so does ordinary work.
+    for name, command in [entry for entry in MUTATING
+                          if entry[0] in ("reset --hard", "clean -fdx", "commit",
+                                          "branch -D", "push --delete")]:
+        for shape, spelled in glued_shapes(qualified(command, linked)):
+            table.append(("%s, -C a worktree, %s" % (name, shape), spelled, main, ALLOW))
+
+    for name, command in [entry for entry in ORDINARY
+                          if entry[0] in ("status", "log", "fetch", "worktree prune")]:
+        for shape, spelled in glued_shapes(command):
+            table.append(("%s, %s" % (name, shape), spelled, main, ALLOW))
 
     for name, command in leaks(linked):
         table.append((name, command, main, DENY))
@@ -293,6 +353,31 @@ def cases(root, main, linked, spaced, nested):
          "/usr/bin/git stash pop", main, DENY),
         ("git named by an absolute path, qualifying",
          '/usr/bin/git -C "%s" stash pop' % linked, main, ALLOW),
+
+        # Metacharacters the shapes above do not generate, each hiding an
+        # invocation from a reader that splits on whitespace alone.
+        ("a backtick substitution", "echo `git stash pop`", main, DENY),
+        ("a dollar-paren substitution", "echo $(git stash pop)", main, DENY),
+        ("a pipe glued to the last word", "git stash pop|cat", main, DENY),
+        ("an ampersand glued to the last word", "git stash pop&", main, DENY),
+        ("a brace group with no spaces", "{git stash pop;}", main, DENY),
+        ("a bang glued to the invocation", "!git stash pop", main, DENY),
+        ("a case arm glued to the invocation",
+         "case x in x)git stash pop;;esac", main, DENY),
+        ("a brace group with spaces", "{ git stash pop ; }", main, DENY),
+
+        # The second matcher counts git words the lexer may have missed,
+        # and these are the ordinary spellings it must not count. Each one
+        # is allowed today and stays allowed, because a scan that refuses
+        # `.git/config` is a scan somebody turns off.
+        ("a dot-git directory is not a git word", "cat .git/config", main, ALLOW),
+        ("a hyphenated command is not a git word", "git-lfs install", main, ALLOW),
+        ("an ssh remote is not a second git word",
+         "git clone git@github.invalid:x/y.git", main, ALLOW),
+        ("a git protocol URL is not a second git word",
+         "git clone git://github.invalid/x/y.git", main, ALLOW),
+        ("a dot-git path beside a qualifying invocation",
+         'cat .git/HEAD && git -C "%s" stash pop' % linked, main, ALLOW),
 
         # A command mentioning no git at all never reaches the rule.
         ("no git in the command", "rm -rf build", main, ALLOW),
