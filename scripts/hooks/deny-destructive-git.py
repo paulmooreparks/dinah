@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse guard: deny destructive git commands outside .claude/worktrees/.
+"""PreToolUse guard: deny destructive git commands against the main checkout.
 
 Motivation (andon-650): worktree-isolated subagents twice ran git state
 mutations (a checkout and a reset --hard) whose Bash cwd was the MAIN
@@ -8,8 +8,9 @@ Both happened to be benign; this hook makes the failure mode deterministic
 instead of lucky.
 
 Reads the Claude Code hook payload on stdin. Denies when the command
-matches a destructive git pattern AND the effective target is not clearly
-a worktree. Fail-closed: missing cwd counts as the main checkout.
+matches a destructive git pattern AND the effective target is the main
+checkout. Fail-closed: a target this hook cannot classify counts as the
+main checkout.
 
 Deny set (deliberately narrow):
   - git reset --hard / --merge / --keep
@@ -19,21 +20,33 @@ Deny set (deliberately narrow):
   - git push --force / -f, and --force-with-lease when the refspec
     mentions main or master
 
-Allow: anything else, and any denied pattern whose cwd or -C target sits
-under .claude/worktrees/.
+Allow: anything else, and any denied pattern whose effective target is a
+linked worktree.
+
+The worktree test asks git rather than matching a path prefix. An earlier
+version allowed a destructive command exactly when the path contained
+`.claude/worktrees/`, which encoded one directory convention into a guard
+whose actual question is "is this the operator's own checkout?". That
+convention has since been reversed: this repository's worktrees belong
+under `C:\\dinah-scratch\\`, because Dinah's workbench discovery climbs
+from the working directory to the drive root, so a worktree nested inside
+the repository sits below the repository's own `.dinah/` and reaches the
+operator's live data. The old test denied every command in the location
+the board mandates and trusted the one location the board forbids.
+
+`git rev-parse --git-dir --git-common-dir` is the documented
+discriminator. The two answers differ in a linked worktree, where the
+per-worktree git dir sits under `<common>/worktrees/<name>`, and match in
+the main worktree. Nothing here depends on where a worktree is created,
+so the guard stays correct if the convention moves again.
 """
 
 import json
+import os
 import re
+import shlex
+import subprocess
 import sys
-
-
-def norm(p):
-    return (p or "").replace("\\", "/").lower()
-
-
-def in_worktree(path):
-    return "/.claude/worktrees/" in norm(path) or norm(path).endswith("/.claude/worktrees")
 
 
 # A newline separates commands exactly as `;` does, so it belongs in every
@@ -59,6 +72,8 @@ C_FLAG = re.compile(r"\bgit\s+-C\s+(\"[^\"]+\"|'[^']+'|\S+)")
 
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
 
+GIT_TIMEOUT = 5
+
 
 def join_continuations(command):
     """Fold shell line-continuations back onto one line.
@@ -78,6 +93,56 @@ def strip_quoted(command):
     trailing quote leaves the remainder in place, which errs toward
     matching (fail-closed)."""
     return QUOTED.sub(" ", command)
+
+
+def resolve(path, base):
+    """Absolute, symlink-resolved form of a path that may be relative."""
+    if not os.path.isabs(path):
+        path = os.path.join(base or os.getcwd(), path)
+    return os.path.normcase(os.path.realpath(path))
+
+
+def worktree_kind(target, base):
+    """Classify a directory as "linked", "main", or "unknown".
+
+    Asks git for both the per-worktree git dir and the common one. They
+    differ in a linked worktree and match in the main worktree, which is
+    what `--git-common-dir` is documented to express. "unknown" covers a
+    directory that is not a work tree, a git that will not run, and any
+    answer this cannot read; every one of those fails closed at the caller.
+    """
+    where = target if os.path.isabs(target) else os.path.join(base or os.getcwd(), target)
+    try:
+        result = subprocess.run(
+            ["git", "-C", where, "rev-parse", "--git-dir", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            timeout=GIT_TIMEOUT,
+        )
+    except Exception:
+        return "unknown"
+    if result.returncode != 0:
+        return "unknown"
+    lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if len(lines) != 2:
+        return "unknown"
+    git_dir, common_dir = lines
+    # git answers relative to the directory it was pointed at, so both are
+    # resolved against that directory rather than against this process's.
+    return "linked" if resolve(git_dir, where) != resolve(common_dir, where) else "main"
+
+
+def targets(command, cwd):
+    """The directories a command will act on.
+
+    An explicit `-C` wins, and a command may carry more than one. With no
+    `-C` the session's working directory is the target. An empty cwd is
+    reported as no target at all, which the caller fails closed on."""
+    found = [shlex.split(m.group(1))[0] if m.group(1)[:1] in "\"'" else m.group(1)
+             for m in C_FLAG.finditer(command)]
+    if found:
+        return found
+    return [cwd] if cwd else []
 
 
 def main():
@@ -100,23 +165,24 @@ def main():
     if not matched:
         return
 
-    # Where will this run? Explicit -C wins; otherwise the session cwd.
-    c_targets = [m.group(1).strip("\"'") for m in C_FLAG.finditer(command)]
     cwd = payload.get("cwd") or ""
-    if c_targets:
-        if all(in_worktree(t) for t in c_targets):
-            return  # explicitly worktree-scoped
-    elif in_worktree(cwd):
-        return  # running inside an isolation worktree
+    where = targets(command, cwd)
+    if where and all(worktree_kind(t, cwd) == "linked" for t in where):
+        return  # every target is a linked worktree
 
-    where = c_targets[0] if c_targets else (cwd or "<cwd not reported; failing closed>")
+    named = where[0] if where else "<cwd not reported; failing closed>"
     reason = (
-        "Blocked destructive git ({0}) outside .claude/worktrees/ (target: {1}). "
-        "Worktree-isolated agents must run this inside their own worktree "
-        "(pwd-check first; use git -C <worktree-path> ...). In the main checkout this "
-        "class of command is operator-only: ask the operator to run it, or the operator "
-        "can disable this guard via /hooks (.claude/settings.json, andon-650)."
-    ).format(matched, where)
+        "Blocked destructive git ({0}) against the main checkout (target: {1}). "
+        "This class of command is allowed only in a linked worktree. On this "
+        "repository worktrees belong under C:\\dinah-scratch\\, never inside the "
+        "checkout, because Dinah's workbench discovery climbs to the drive root "
+        "and a nested worktree reaches the operator's live data. Create one with "
+        "git -C <repo> worktree add --detach C:/dinah-scratch/<card>-<stage>/wt "
+        "<ref>, then run this there (cd into it, or use git -C <worktree> ...). "
+        "In the main checkout this is operator-only: ask the operator to run it, "
+        "or the operator can disable this guard via /hooks (.claude/settings.json, "
+        "andon-650)."
+    ).format(matched, named)
 
     print(json.dumps({
         "hookSpecificOutput": {
