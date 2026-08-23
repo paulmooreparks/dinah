@@ -6894,3 +6894,102 @@ func TestPullOnTheCommandLine(t *testing.T) {
 		}
 	})
 }
+
+// guideLinesOutsideFences returns the lines of a rendered guide that sit
+// outside its fenced blocks, which are the lines this card's wrap governs.
+// A fenced block is reproduced whole and is the terminal's problem, so it is
+// dropped here rather than measured.
+func guideLinesOutsideFences(text string) []string {
+	var prose []string
+	inside := false
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inside = !inside
+			continue
+		}
+		if inside {
+			continue
+		}
+		prose = append(prose, line)
+	}
+	return prose
+}
+
+// TestAGuideIsWrappedToTheWindowItIsReadIn asserts dinah-239 AC-11: the body
+// of a guide reaches the stream laid out for the window rather than raw, so
+// two widths produce two different pages and neither one reaches past the
+// window it was asked for. Only the prose is measured; a fenced block is
+// reproduced whole by design.
+func TestAGuideIsWrappedToTheWindowItIsReadIn(t *testing.T) {
+	root := newBench(t)
+	pages := map[int]string{}
+	for _, width := range []int{40, 80} {
+		t.Setenv("COLUMNS", strconv.Itoa(width))
+		got := runCLI(t, root, "guide", "principles")
+		if got.code != 0 {
+			t.Fatalf("guide principles at %d columns: %d %s", width, got.code, got.errw)
+		}
+		for _, line := range guideLinesOutsideFences(got.out) {
+			if displayWidth(line) > width {
+				t.Errorf("at %d columns a line draws %d: %q", width, displayWidth(line), line)
+			}
+		}
+		pages[width] = got.out
+	}
+	if pages[40] == pages[80] {
+		t.Error("the guide reads the same at 40 columns as at 80, so nothing wrapped it")
+	}
+}
+
+// TestAGuideTableSurvivesTheWindowItIsReadIn asserts dinah-239 AC-12: the
+// reference guide's support table is reproduced rather than re-flowed, so the
+// columns still line up under the check runCLI runs over every stream. The
+// alignment is confirmed by running that check here rather than argued from
+// the table's own authored padding.
+func TestAGuideTableSurvivesTheWindowItIsReadIn(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "40")
+	got := runCLI(t, root, "guide", "references")
+	if got.code != 0 {
+		t.Fatalf("guide references at 40 columns: %d %s", got.code, got.errw)
+	}
+	for _, row := range []string{
+		"| Command      | This workbench | A state | A card | Below a card |",
+		"|--------------|----------------|---------|--------|--------------|",
+		"| path         | yes            | yes     | yes    | yes          |",
+		"| rename       | no             | no      | no     | yes          |",
+	} {
+		if !strings.Contains(got.out, row) {
+			t.Errorf("the table lost the row %q at 40 columns", row)
+		}
+	}
+}
+
+// TestTheGuideListingIsUnchangedByTheBodyWrap asserts dinah-239 AC-13's first
+// half: the topic listing is served by the branch this card did not touch, so
+// the body wrap never reaches it and every topic still draws its whole title
+// on one line, however narrow the window is. A listing routed through the
+// body wrap would break those titles onto continuation lines at 40 columns,
+// which is what this refuses.
+func TestTheGuideListingIsUnchangedByTheBodyWrap(t *testing.T) {
+	root := newBench(t)
+	for _, width := range []string{"80", "40"} {
+		t.Setenv("COLUMNS", width)
+		got := runCLI(t, root, "guide")
+		if got.code != 0 {
+			t.Fatalf("guide at %s columns: %d %s", width, got.code, got.errw)
+		}
+		for _, topic := range guide.Topics() {
+			row := topic + "  "
+			at := strings.Index(got.out, row)
+			if at < 0 {
+				t.Fatalf("at %s columns the listing has no row for %q:\n%s", width, topic, got.out)
+			}
+			rest := got.out[at:]
+			line := rest[:strings.IndexByte(rest, '\n')]
+			if !strings.HasSuffix(line, guide.Title(topic)) {
+				t.Errorf("at %s columns the listing wrapped the title of %q: %q", width, topic, line)
+			}
+		}
+	}
+}
