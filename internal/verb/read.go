@@ -254,7 +254,8 @@ type AttachmentView struct {
 	// ID is the attachment's identifier.
 	ID string `json:"id"`
 	// Ordinal is the attachment's one-based position among the attachments
-	// of the entity it hangs from.
+	// of the entity it hangs from: the stored ordinal, or the
+	// directory-order position on an attachment whose anchor carries none.
 	Ordinal int `json:"ordinal"`
 	// Ref is what a person types to name the attachment: the card's own
 	// reference, then attachments and the attachment's ordinal. Resolved
@@ -349,10 +350,11 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	cardRef := card.Ref(l.Bench.Slug)
 	for _, attachment := range attachments {
+		ordinal := displayOrdinal(attachment)
 		view := AttachmentView{
 			ID:          attachment.ID,
-			Ordinal:     attachment.Ordinal,
-			Ref:         attachmentRef(cardRef, attachment),
+			Ordinal:     ordinal,
+			Ref:         attachmentRef(cardRef, ordinal),
 			Filename:    attachment.Filename,
 			Description: attachment.Description,
 			Provenance:  attachment.Provenance,
@@ -370,20 +372,26 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	return detail, "", nil
 }
 
-// attachmentRef composes the reference a person types to reach one attachment
-// from its card: the card's own reference, then attachments and the
-// attachment's one-based ordinal.
+// displayOrdinal is the one-based position a read reports for an attachment,
+// and the single place the stored-ordinal fallback is decided. The number the
+// position column prints, the number the JSON view carries and the number the
+// printed ref is built from are all this one value, so a workbench nobody has
+// migrated cannot show one number and answer to another.
 //
-// The ordinal is read off the anchor rather than taken from the attachment's
-// in-memory position, since an attachment carrying no stored ordinal still
-// needs a ref the resolver will answer: directory-order ordinal is what
-// resolve.go's pick already serves, so the ref printed here is what the
-// reader can type to land back on the same attachment.
-func attachmentRef(cardRef string, attachment *bench.Attachment) string {
-	ordinal := attachment.Ordinal
-	if ordinal == 0 {
-		ordinal = directoryOrdinal(attachment)
+// An attachment carrying no stored ordinal falls back to its directory-order
+// position, which is what resolve.go's pick serves on a collection with no
+// ordinals stamped.
+func displayOrdinal(attachment *bench.Attachment) int {
+	if attachment.Ordinal > 0 {
+		return attachment.Ordinal
 	}
+	return directoryOrdinal(attachment)
+}
+
+// attachmentRef composes the reference a person types to reach one attachment
+// from its card: the card's own reference, then attachments and the position
+// the caller resolved through displayOrdinal.
+func attachmentRef(cardRef string, ordinal int) string {
 	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
 }
 

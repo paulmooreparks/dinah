@@ -1164,14 +1164,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        604/604
-  af        0/604
-  cs        0/604
-  de        604/604
-  es        0/604
-  fil       0/604
-  hi        604/604
-  id        0/604
+  en        606/606
+  af        0/606
+  cs        0/606
+  de        606/606
+  es        0/606
+  fil       0/606
+  hi        606/606
+  id        0/606
 [exit 0]
 ```
 

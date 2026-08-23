@@ -257,8 +257,11 @@ var params = map[string][]Param{
 		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes"},
 	},
+	// rename writes its own sentence for ref rather than taking the shared
+	// one, because the shared sentence names a state, a card or anything
+	// below one, and rename renames an attachment alone.
 	"rename": {
-		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
+		{Name: "ref", Required: true, Guide: "references"},
 		{Name: "name", Required: true, Rest: true},
 	},
 	"status": {},

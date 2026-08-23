@@ -434,18 +434,22 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
-      "text": "संदर्भ किसी संलग्नक तक पहुँचता है",
+      "text": "संदर्भ किसी पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.2": {
-      "text": "निवेदन किसी स्वामी को नामता है",
+      "text": "संदर्भ किसी संलग्नक तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.3": {
-      "text": "नाम छँटाई के बाद खाली नहीं है",
+      "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.4": {
+      "text": "नाम छँटाई के बाद खाली नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.5": {
       "text": "नाम में स्लैश, बैकस्लैश, या डॉट-डॉट नहीं है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
@@ -1326,7 +1330,7 @@
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "प्रवाह में बाद की किसी स्थिति को name करें, या उसके बजाय `dinah move` से एक कार्ड {state} में भेजें",
+      "text": "; प्रवाह में बाद की किसी स्थिति को name करें, या उसके बजाय `dinah move` से एक कार्ड {state} में भेजें",
       "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
@@ -2364,6 +2368,10 @@
     "tree.hidden.filter": {
       "text": "{count} छानकर हटाए गए",
       "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
+    },
+    "param.rename.ref.summary": {
+      "text": "जिस संलग्नक का नाम बदलना है, जैसे wb-1/attachments/1 या wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
     },
     "param.rename.name.summary": {
       "text": "वह फ़ाइल-नाम जो संलग्नक को धारण करना है, एक शेल-शब्द में या उद्धरण-चिह्नों में",

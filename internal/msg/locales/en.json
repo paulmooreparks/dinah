@@ -442,18 +442,22 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
-      "text": "the reference resolves to an attachment",
+      "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.2": {
-      "text": "the request names an owner",
+      "text": "the reference resolves to an attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.3": {
-      "text": "the name is non-empty after trimming",
+      "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.4": {
+      "text": "the name is non-empty after trimming",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.5": {
       "text": "the name carries no slash, back slash, or dot-dot",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
@@ -1290,7 +1294,7 @@
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.ambiguous-name.next": {
-      "text": "name one as attachments/<ordinal>",
+      "text": "; name one as attachments/<ordinal>",
       "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.exists": {
@@ -1366,7 +1370,7 @@
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "name a state later in the flow, or move a card into {state} with `dinah move` instead",
+      "text": "; name a state later in the flow, or move a card into {state} with `dinah move` instead",
       "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.occupied": {
@@ -2364,6 +2368,10 @@
     "tree.unset": {
       "text": "(no value)",
       "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
+    },
+    "param.rename.ref.summary": {
+      "text": "the attachment to rename, such as wb-1/attachments/1 or wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
     },
     "param.rename.name.summary": {
       "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
