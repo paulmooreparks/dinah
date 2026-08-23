@@ -30,17 +30,18 @@ func (h *harness) checkpoint(req *Request) *ChangeSet {
 
 // mint takes a fresh cursor, which is what every test below starts from
 // because a cursor is the only way to say "from here".
-// The clock steps forward after the token is taken, so every act a test runs
-// afterwards carries a later stamp than the position the cursor recorded. The
-// harness clock is frozen, and the stored format is second resolution, so
-// without the step a fixture would be asking the merged order to separate two
-// acts written in the same instant by the entity key alone.
+//
+// The clock is deliberately left where it is. The harness clock is frozen and
+// the stored format is second resolution, so every act a fixture runs after
+// minting lands inside the cursor's own second, which is exactly the case a
+// cursor recorded as a single point in the merged order silently lost. An
+// earlier form of this helper stepped a minute forward and said in as many
+// words that it did so to keep fixtures clear of that comparison, and the
+// defect it was hiding then survived two reviews and fifteen criteria. A
+// fixture that wants a later stamp advances the clock itself and says why.
 func (h *harness) mint() string {
 	h.t.Helper()
-	token := h.checkpoint(&Request{}).Cursor
-	h.advance(time.Minute)
-	h.reopen()
-	return token
+	return h.checkpoint(&Request{}).Cursor
 }
 
 // archive moves an entity out of the live set and fails the test unless it
@@ -784,9 +785,21 @@ func TestAnInterruptedArchiveIsReportedGoneAndNotAlsoLive(t *testing.T) {
 // The archived half of the workstreams collection is outside the watched set,
 // so archiving one moves the live digest term and names nothing in the answer.
 // The caller learns the board moved, which is what changed is for.
+//
+// The board carries a card nothing in the window touches, and the last
+// assertion reads what cards holds rather than only what it does not. On an
+// empty board this test cannot see the answer it is recording, which is what
+// cycle-3 review caught: the archived workstream's key leaves the live term
+// and its own line is written into a journal the walk does not read, so the
+// call has a moved live term and no delivered evidence at all and falls back
+// to reporting every live card. That is a safe superset and it is D-13's
+// stated bound, and it is a case where the evidence does exist on disk and is
+// deliberately not read, which is worth stating out loud rather than leaving
+// for a reader to infer from two other files.
 func TestAnArchivedWorkstreamLeavesTheWalkWithoutAnEntry(t *testing.T) {
 	h := newHarness(t)
 	id, ref := h.workstream("A workstream on its way out")
+	bystander := h.add("A card nothing in the window touches")
 	minted := h.mint()
 
 	h.archive(ref)
@@ -807,6 +820,13 @@ func TestAnArchivedWorkstreamLeavesTheWalkWithoutAnEntry(t *testing.T) {
 	}
 	if holds(set.Unreadable, bench.WorkstreamsDir+"/"+id) {
 		t.Errorf("the archived workstream is named in unreadable: %v", set.Unreadable)
+	}
+	// The whole-board resync this leaves behind, stated rather than implied.
+	// A rule that started reading the archived workstreams half, or that
+	// stopped resyncing on a departure it could not attribute, would have to
+	// change this line deliberately.
+	if got := cardIDs(set); len(got) != 1 || got[0] != h.cardID(bystander) {
+		t.Errorf("wanted the untouched card resynced and nothing else, got %v", got)
 	}
 }
 
@@ -838,19 +858,54 @@ func TestAFilterRefusesOverTheNameItCannotResolve(t *testing.T) {
 	}
 }
 
-// TestTheCursorIsOpaqueAndFixedInSize is the property the token's whole shape
-// was chosen for: it does not grow with the board, which is what let gone be
-// derived from events rather than from a list of keys the cursor carries.
-func TestTheCursorIsOpaqueAndFixedInSize(t *testing.T) {
+// TestTheCursorIsBoundedByOneSecondRatherThanByTheBoard covers dinah-120
+// AC-18, which is the property the token's whole shape was chosen for, stated
+// as what the shape actually delivers.
+//
+// The cursor carries a boundary second and a frontier within that second, and
+// the frontier holds one entry per entity with a covered line at the
+// boundary. It is therefore bounded by how much happened inside one second
+// and not by how much is on the board, which is what let gone be derived from
+// events rather than from a list of keys the cursor carries. The second half
+// below is the assertion that says so: a board of thirteen cards whose newest
+// second holds two acts mints a token naming those two entities and no other.
+func TestTheCursorIsBoundedByOneSecondRatherThanByTheBoard(t *testing.T) {
 	h := newHarness(t)
-	h.add("The first card")
+	first := h.add("The first card")
 	small := len(h.mint())
+	var later []string
 	for i := 0; i < 12; i++ {
-		h.add("Card number " + strconv.Itoa(i))
+		// A second apart, which is what a board being filled looks like.
+		// Thirteen cards inside one frozen second would be one burst rather
+		// than a board, and the frontier is sized by the burst on purpose.
+		h.advance(time.Second)
+		h.reopen()
+		later = append(later, h.add("Card number "+strconv.Itoa(i)))
 	}
 	large := len(h.mint())
 	if large > small+len(bench.CardsDir+"/")+16 {
 		t.Errorf("the cursor grew from %d bytes to %d as the board did, and it is specified not to", small, large)
+	}
+
+	h.advance(time.Second)
+	h.reopen()
+	h.comment(first, "one act of the newest second")
+	h.comment(later[0], "the other act of the newest second")
+	held, err := decodeCursor(h.mint())
+	if err != nil {
+		t.Fatalf("decode the minted token: %v", err)
+	}
+	wanted := map[string]bool{
+		bench.CardsDir + "/" + h.cardID(first):    true,
+		bench.CardsDir + "/" + h.cardID(later[0]): true,
+	}
+	if len(held.Frontier) != len(wanted) {
+		t.Fatalf("the newest second holds two acts on a board of thirteen cards, and the frontier carries %d entries: %v", len(held.Frontier), held.Frontier)
+	}
+	for key := range held.Frontier {
+		if !wanted[key] {
+			t.Errorf("the frontier names %s, which carries no line in the cursor's own second", key)
+		}
 	}
 }
 
@@ -992,4 +1047,189 @@ func TestAFilterNamingADepartedCardStillAnswers(t *testing.T) {
 			t.Errorf("wanted %s, got %v", contract.UnknownCard, err)
 		}
 	})
+}
+
+// sameSecondPair files two cards and returns their references with the one
+// whose entity key sorts lower first, which is what lets the fixture below
+// choose its subject rather than leave it to a random identifier.
+func (h *harness) sameSecondPair() (lower, higher string) {
+	h.t.Helper()
+	first, second := h.add("The first card of the shared second"), h.add("The second card of the shared second")
+	if h.cardID(first) < h.cardID(second) {
+		return first, second
+	}
+	return second, first
+}
+
+// TestAnActInTheCursorsOwnSecondIsStillDelivered covers dinah-120 AC-17, which
+// is the case the merged order cannot decide and the cursor therefore must
+// not decide with it.
+//
+// bench.TimeFormat is second resolution, so two acts inside one second carry
+// one stamp and the merged order separates them by entity key. That order is
+// fine to present lines in and it is not the order they arrived in, so a
+// cursor recorded as a single point in it classified the later of two acts as
+// ancient history whenever that act's entity key sorted lower. The line was
+// never delivered and never could be: a call that delivers nothing leaves the
+// position where it was while the digest terms move on, so the call after it
+// reports no change at all, and an archiving lost that way takes the whole
+// departure with it.
+//
+// Every subtest below puts the cursor inside the second, which is why the
+// harness no longer steps its clock after minting.
+func TestAnActInTheCursorsOwnSecondIsStillDelivered(t *testing.T) {
+	t.Run("a card whose key sorts below the cursor's own line", func(t *testing.T) {
+		h := newHarness(t)
+		lower, higher := h.sameSecondPair()
+		// The act on the higher-sorting card puts the newest line of the
+		// second on a key above the subject's, so the comparison this test is
+		// about is the one the cursor actually faces.
+		h.comment(higher, "the act the cursor is taken after")
+		minted := h.mint()
+
+		h.comment(lower, "the act the cursor was taken before")
+
+		set := h.checkpoint(&Request{Since: minted})
+		if len(set.Events) != 1 {
+			t.Fatalf("wanted the act inside the cursor's own second, got %d: %v", len(set.Events), eventNames(set))
+		}
+		if got := set.Events[0].ID; got != h.cardID(lower) {
+			t.Errorf("wanted the act on %s, got the one on %s", h.cardID(lower), got)
+		}
+		if !holds(cardIDs(set), h.cardID(lower)) {
+			t.Errorf("the card acted on inside the cursor's second is not in cards: %v", cardIDs(set))
+		}
+		// Delivered once rather than on every call from here on.
+		if again := h.checkpoint(&Request{Since: set.Cursor}); again.Changed || len(again.Events) != 0 {
+			t.Errorf("the act was delivered a second time: changed=%v %v", again.Changed, eventNames(again))
+		}
+	})
+
+	t.Run("an archiving in the cursor's own second", func(t *testing.T) {
+		h := newHarness(t)
+		leaving := h.add("A card the operator archives")
+		leavingID := h.cardID(leaving)
+		h.add("A card that stays")
+		// A workstream key sorts above every card key, so the newest line of
+		// the second is above the departure this fixture is about whatever
+		// identifier the card happened to draw.
+		h.workstream("A workstream acted on just before the cursor")
+		minted := h.mint()
+
+		h.archive(leaving)
+
+		set := h.checkpoint(&Request{Since: minted})
+		found := false
+		for _, entry := range set.Gone {
+			if entry.ID == leavingID {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("the archiving inside the cursor's own second is reported nowhere: gone=%+v events=%v", set.Gone, eventNames(set))
+		}
+		if holds(cardIDs(set), leavingID) {
+			t.Errorf("the archived card is reported live as well as gone: %v", cardIDs(set))
+		}
+		// And the loss it used to cause was permanent, so the call after the
+		// reporting one has to be the silent one rather than the first one.
+		if again := h.checkpoint(&Request{Since: set.Cursor}); again.Changed {
+			t.Errorf("the cursor did not cover the departure it just reported: %+v", again.Gone)
+		}
+	})
+
+	t.Run("a second act on the entity the cursor sits on", func(t *testing.T) {
+		h := newHarness(t)
+		card := h.add("A card acted on twice inside one second")
+		h.comment(card, "the act the cursor is taken after")
+		minted := h.mint()
+
+		h.comment(card, "the act the cursor was taken before")
+
+		set := h.checkpoint(&Request{Since: minted})
+		if len(set.Events) != 1 || set.Events[0].ID != h.cardID(card) {
+			t.Fatalf("wanted the later act on the same entity, got %v", eventNames(set))
+		}
+	})
+}
+
+// TestAFilteredCallIsToldTheDeletionJournalWentUnread covers dinah-120 AC-19.
+//
+// Deleted events are written to the workbench journal, so an unparseable one
+// means gone cannot report a removal in that window. gone already exempts a
+// removed entry from both filters, so a filtered caller does learn of its own
+// card's destruction; the signal that the destruction could not be read has
+// to be exempt too, or the caller is handed an empty answer with nothing in
+// it to say that the news went unread, which is the silent absence of a
+// departure this verb exists to prevent.
+func TestAFilteredCallIsToldTheDeletionJournalWentUnread(t *testing.T) {
+	h := newHarness(t)
+	watched := h.add("The card the caller is watching")
+	watchedID := h.cardID(watched)
+	h.add("A card the caller is not watching")
+	minted := h.mint()
+
+	h.appendRaw(h.library.Bench.JournalPath(), "this line is not JSON\n")
+	h.remove(watched)
+
+	// The filter names the identifier rather than the reference, which is all
+	// a caller holds once the card it was watching has been destroyed.
+	set := h.checkpoint(&Request{Since: minted, Card: watchedID})
+	if !set.Changed {
+		t.Error("a card was destroyed and the filtered call reported the board unchanged")
+	}
+	if !holds(set.Unreadable, bench.WorkbenchKey) {
+		t.Fatalf("the filtered caller is not told the deletion journal went unread: %v", set.Unreadable)
+	}
+	if len(set.Gone) != 0 {
+		t.Errorf("the deleted event was read out of a journal that would not parse: %+v", set.Gone)
+	}
+}
+
+// TestACorruptedArchiveDoesNotExplainAMovedLiveTerm covers dinah-120 AC-20.
+//
+// Evidence is counted before the board is resynced, and the two halves are
+// not interchangeable evidence. A delivered archive line is a complete
+// explanation of a moved live term, since an archiving is why the live key
+// left. An archived journal that will not parse is not: it moves the archive
+// term, it says nothing whatever about the live half, and letting it stand as
+// the explanation suppresses a resync the live half had earned. The window is
+// narrow and the card it loses is one D-13 already admits can be missed,
+// which is why this is precision rather than a hole, and it is also why
+// nothing else in the suite would have noticed.
+func TestACorruptedArchiveDoesNotExplainAMovedLiveTerm(t *testing.T) {
+	h := newHarness(t)
+	edited := h.add("A card whose anchor is edited out of band")
+	leaving := h.add("A card archived before the cursor")
+	leavingID := h.cardID(leaving)
+	h.archive(leaving)
+	minted := h.mint()
+
+	// The archived journal takes a bad line with a good one after it, which
+	// is the shape ReadJournal refuses; a bad final line alone is a torn tail
+	// and is tolerated.
+	archived := filepath.Join(h.archivedDir(leavingID), bench.JournalName)
+	h.appendRaw(archived, "this line is not JSON\n")
+	if err := bench.AppendEvent(archived, bench.Event{TS: bench.Stamp(h.clock.Add(time.Hour)), Event: contract.EventCommented, Actor: "alka"}); err != nil {
+		t.Fatalf("append past the bad line: %v", err)
+	}
+
+	// And the live half moves with no journal line anywhere, which is the one
+	// case the walk has no evidence for.
+	anchor := filepath.Join(h.library.Bench.CardsRoot(), h.cardID(edited), bench.CardAnchor)
+	text, err := bench.ReadText(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	if err := bench.WriteText(anchor, text+"\nA paragraph somebody typed into the file.\n"); err != nil {
+		t.Fatalf("rewrite the anchor: %v", err)
+	}
+
+	set := h.checkpoint(&Request{Since: minted})
+	if !holds(set.Unreadable, bench.CardsDir+"/"+leavingID) {
+		t.Errorf("the corrupted archived journal is not named in unreadable: %v", set.Unreadable)
+	}
+	if !holds(cardIDs(set), h.cardID(edited)) {
+		t.Errorf("a corrupted archived journal was read as the explanation for a moved live term, and the edited card was lost: %v", cardIDs(set))
+	}
 }

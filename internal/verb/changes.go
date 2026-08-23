@@ -108,21 +108,43 @@ var archiveEvents = map[string]bool{
 
 // cursorVersion is the shape number the token carries, so a token minted by a
 // later shape is refused by an earlier binary rather than misread by it.
-const cursorVersion = 1
+const cursorVersion = 2
 
 // cursor is what a caller hands back, rendered as base64url of this object.
 //
-// The two digest terms answer "did anything change" against file bytes, and
-// the ts/entity/index triple is the position of the last event delivered
-// under the total order the merged read imposes. The triple is needed
-// because bench.TimeFormat is second resolution, so two events sharing a
-// timestamp are ordinary rather than exotic and a bare timestamp would drop
-// one of them.
+// The two digest terms answer "did anything change" against file bytes. What
+// the caller has already been told is a boundary second plus a frontier
+// within it, and the shape is chosen because the merged order is not monotone
+// with arrival.
 //
-// index is the index into the slice bench.ReadJournal returns rather than a
-// physical line number. That reader skips blank lines and a torn final line,
-// so the two differ, and the parsed index is the one that stays stable when a
-// torn tail is later appended past or trimmed by check.
+// The merged order sorts a line by its parsed stamp, then its stored stamp
+// text, then the entity key, then the index within that entity. That is a
+// total order, and it is the right order to present lines in, but
+// bench.TimeFormat is second resolution, so it is not the order the lines
+// arrived in: two acts inside one second are separated by an entity key that
+// says nothing about which came first. A cursor recorded as a single point in
+// that order therefore classifies a later act on a lower-sorting entity as
+// already delivered, and drops it for good, since a call that delivers
+// nothing leaves the position where it was while the digest terms move on.
+//
+// So the cursor covers a line rather than out-ranking it. TS is the stored
+// stamp of the newest line the caller has been given. Every line whose second
+// is strictly older than TS is covered. Within TS itself, a line is covered
+// only when Frontier records that entity at an index at least as high, which
+// is exact: a journal is append-only, so a line written into that second
+// after the cursor was taken carries an index above the one recorded, and an
+// entity absent from Frontier has been told nothing at that second at all.
+//
+// Frontier grows with the entities acted on inside one second and not with
+// the board, which is the property D-6 and D-9 chose the token's shape for. A
+// workbench that fills a hundred cards inside one second mints a token
+// carrying a hundred entries; a bench where acts are seconds apart carries
+// one or two, whatever its size.
+//
+// An index is the index into the slice bench.ReadJournal returns rather than
+// a physical line number. That reader skips blank lines and a torn final
+// line, so the two differ, and the parsed index is the one that stays stable
+// when a torn tail is later appended past or trimmed by check.
 type cursor struct {
 	Version int `json:"v"`
 	// Workbench is the slug of the workbench that issued the token. The
@@ -131,9 +153,13 @@ type cursor struct {
 	Workbench string `json:"workbench"`
 	Live      string `json:"live"`
 	Archive   string `json:"archive"`
-	TS        string `json:"ts,omitempty"`
-	Entity    string `json:"entity,omitempty"`
-	Index     int    `json:"index,omitempty"`
+	// TS is the boundary second: the stored stamp of the newest line this
+	// cursor covers. Empty on a cursor that covers nothing.
+	TS string `json:"ts,omitempty"`
+	// Frontier is the highest journal index covered within each entity that
+	// has a covered line at TS. An entity that is absent is covered at TS by
+	// nothing.
+	Frontier map[string]int `json:"frontier,omitempty"`
 }
 
 // encode renders a cursor as the opaque token a caller carries.
@@ -180,12 +206,8 @@ type position struct {
 // comes back as the zero time, which sorts it to the front, and the stored
 // text keeps it stable there.
 func (p position) before(other position) bool {
-	mine, theirs := bench.ParseStamp(p.event.TS), bench.ParseStamp(other.event.TS)
-	if !mine.Equal(theirs) {
-		return mine.Before(theirs)
-	}
 	if p.event.TS != other.event.TS {
-		return p.event.TS < other.event.TS
+		return stampLess(p.event.TS, other.event.TS)
 	}
 	if p.key != other.key {
 		return p.key < other.key
@@ -193,15 +215,68 @@ func (p position) before(other position) bool {
 	return p.index < other.index
 }
 
-// after reports whether a position falls after the cursor's, which is what
-// decides whether a line is delivered. A cursor carrying no position covers
-// nothing, so every line is after it.
-func (p position) after(c cursor) bool {
-	if c.TS == "" {
-		return true
+// stampLess orders two stored stamps: by the instant each parses to, and by
+// the stored text when they parse alike. A stamp that will not parse comes
+// back as the zero time, which sorts it to the front, and the stored text
+// keeps it stable there.
+func stampLess(a, b string) bool {
+	parsedA, parsedB := bench.ParseStamp(a), bench.ParseStamp(b)
+	if !parsedA.Equal(parsedB) {
+		return parsedA.Before(parsedB)
 	}
-	mark := position{key: c.Entity, index: c.Index, event: bench.Event{TS: c.TS}}
-	return mark.before(p)
+	return a < b
+}
+
+// delivered reports whether the cursor has already been told about a line,
+// which is what decides whether the line is delivered again.
+//
+// The question is coverage rather than rank. A line older than the boundary
+// second is covered. A line newer is not. A line inside the boundary second
+// is covered only when the frontier records its own entity at an index at
+// least as high, which is what keeps an act written into that second after
+// the cursor was taken from being classified as ancient history because of
+// how its entity key happens to sort.
+func (c cursor) delivered(p position) bool {
+	// A cursor that has covered nothing yet carries neither a boundary nor a
+	// frontier. The two are read together rather than the boundary alone,
+	// because a journal line with no stamp at all lands on the empty boundary
+	// and is covered by its frontier entry rather than by the second.
+	if c.TS == "" && c.Frontier == nil {
+		return false
+	}
+	if c.TS != p.event.TS {
+		return stampLess(p.event.TS, c.TS)
+	}
+	covered, ok := c.Frontier[p.key]
+	return ok && p.index <= covered
+}
+
+// coverThrough folds a set of delivered lines into the cursor's coverage and
+// returns the result, leaving the receiver's own frontier untouched so a
+// caller may keep comparing against the token it was handed.
+func (c cursor) coverThrough(delivered []position) cursor {
+	frontier := make(map[string]int, len(c.Frontier)+len(delivered))
+	for key, index := range c.Frontier {
+		frontier[key] = index
+	}
+	c.Frontier = frontier
+	for _, at := range delivered {
+		switch {
+		case c.TS != "" && stampLess(at.event.TS, c.TS):
+			// A line older than the boundary is already covered by it.
+		case c.TS == at.event.TS:
+			if covered, ok := c.Frontier[at.key]; !ok || at.index > covered {
+				c.Frontier[at.key] = at.index
+			}
+		default:
+			c.TS = at.event.TS
+			c.Frontier = map[string]int{at.key: at.index}
+		}
+	}
+	if len(c.Frontier) == 0 {
+		c.Frontier = nil
+	}
+	return c
 }
 
 // Changes answers one checkpoint: what has happened on this workbench since
@@ -262,8 +337,7 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 // the next call that found the digest moved, which is exactly what a first
 // call is specified not to do.
 func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (*ChangeSet, error) {
-	var last position
-	found := false
+	var everything []position
 	halves := []struct {
 		entries []bench.Watched
 		only    map[string]bool
@@ -272,16 +346,10 @@ func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (
 		// The archive is read through the same filter a reporting call reads
 		// it through, so the position a mint records can never sit on a line
 		// no later call would deliver.
-		delivered, _ := readHalf(half.entries, cursor{}, half.only)
-		for _, at := range delivered {
-			if !found || last.before(at) {
-				last, found = at, true
-			}
-		}
+		read, _ := readHalf(half.entries, cursor{}, half.only)
+		everything = append(everything, read...)
 	}
-	if found {
-		terms.TS, terms.Entity, terms.Index = last.event.TS, last.key, last.index
-	}
+	terms = terms.coverThrough(everything)
 	token, err := terms.encode()
 	if err != nil {
 		return nil, err
@@ -343,11 +411,12 @@ func (l *Library) watchedCard(ref string) (string, error) {
 // the cursor that covers all of it.
 func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched, wantedCard string, wantedState *bench.State) (*ChangeSet, error) {
 	var delivered []position
-	var unreadable []string
+	var unreadable, liveUnreadable []string
 	if held.Live != terms.Live {
 		read, unread := readHalf(live, held, nil)
 		delivered = append(delivered, read...)
 		unreadable = append(unreadable, unread...)
+		liveUnreadable = append(liveUnreadable, unread...)
 	}
 	if held.Archive != terms.Archive {
 		read, unread := readHalf(archive, held, archiveEvents)
@@ -356,17 +425,13 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	}
 	sort.SliceStable(delivered, func(i, j int) bool { return delivered[i].before(delivered[j]) })
 
-	// The cursor advances over every line this walk delivered, before any
-	// filter narrows what is reported. A cursor that advanced only over the
+	// The cursor's coverage grows over every line this walk delivered, before
+	// any filter narrows what is reported. A cursor that covered only the
 	// reported lines would tell a filtered caller about the same change on
 	// every call for the rest of the session.
 	advanced := terms
-	if len(delivered) > 0 {
-		last := delivered[len(delivered)-1]
-		advanced.TS, advanced.Entity, advanced.Index = last.event.TS, last.key, last.index
-	} else {
-		advanced.TS, advanced.Entity, advanced.Index = held.TS, held.Entity, held.Index
-	}
+	advanced.TS, advanced.Frontier = held.TS, held.Frontier
+	advanced = advanced.coverThrough(delivered)
 	token, err := advanced.encode()
 	if err != nil {
 		return nil, err
@@ -378,8 +443,14 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	// across cards. A workbench field rewrite, a workstream act, a deletion
 	// and a completed archiving each move the live term and each is a
 	// complete explanation of the movement, so none of them is a reason to
-	// resync the board.
-	explained := len(delivered) > 0 || len(unreadable) > 0
+	// resync the board. A completed archiving is delivered out of the archive
+	// half, so a delivered line counts wherever it was read from.
+	//
+	// An unreadable journal counts only from the live half. A corrupted
+	// archived journal moves the archive term and says nothing whatever about
+	// the live one, so letting it stand as the explanation for a moved live
+	// term would suppress a resync the live half had earned.
+	explained := len(delivered) > 0 || len(liveUnreadable) > 0
 	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedState)
 	answer.Events = l.eventsFrom(delivered, wantedCard, wantedState)
 	answer.Unreadable = filterKeys(unreadable, wantedCard)
@@ -407,7 +478,7 @@ func readHalf(entries []bench.Watched, held cursor, only map[string]bool) (deliv
 				continue
 			}
 			at := position{key: entry.Key, index: index, event: event}
-			if !at.after(held) {
+			if held.delivered(at) {
 				continue
 			}
 			delivered = append(delivered, at)
@@ -625,13 +696,23 @@ func liveCardIDs(live []bench.Watched) []string {
 // filterKeys narrows a list of entity keys to the card a caller named, so an
 // unreadable journal belonging to somebody else's card does not reach a
 // filtered answer.
+//
+// A key outside the cards collection is kept whatever the filter says,
+// because the filter cannot rule on it. The workbench journal is the one that
+// matters: deleted events are written there, so an unparseable workbench
+// journal means gone cannot report a removal in that window, and a caller
+// filtered to the very card that was destroyed would otherwise be handed an
+// empty answer with nothing in it to say that the journal which would have
+// carried the news went unread. That is the silent absence of a departure
+// this whole verb exists to prevent, so an unrulable key is reported rather
+// than dropped.
 func filterKeys(keys []string, wantedCard string) []string {
 	if wantedCard == "" {
 		return keys
 	}
 	var kept []string
 	for _, key := range keys {
-		if scope, id := splitKey(key); scope == ScopeCard && id == wantedCard {
+		if scope, id := splitKey(key); scope != ScopeCard || id == wantedCard {
 			kept = append(kept, key)
 		}
 	}
