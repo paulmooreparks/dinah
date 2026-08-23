@@ -95,6 +95,18 @@ $ dinah card get dinah-199 severity
 
 ```
 
+Proposed. Clearing runs neither level check, so a level left on a card by an earlier
+declaration comes off even on a workbench that declares no set for the axis. Refusing here
+would leave the one card that needs clearing as the one card that cannot be cleared.
+
+```text
+$ dinah card get fx-1 severity
+urgent
+$ dinah card set fx-1 severity
+$ dinah card get fx-1 severity
+
+```
+
 ## 6. The three ways a write is refused
 
 Proposed. You name a level the workbench does not declare, and Dinah lists the ones it
@@ -117,13 +129,15 @@ dinah.no-levels this workbench declares no severity levels, so there is none to 
 declare them under levels: in /home/paul/scratch/.dinah/9f2c1a04bb31/workbench.md
 ```
 
-Proposed. You name a field a card does not record, and Dinah lists the ones it does.
+Proposed. You name a field a card does not record, and Dinah names the ones it does. The
+sentence carries the field list rather than printing a table under it, because the set
+belongs to the command that refused rather than to the tool as a whole.
 
 ```text
 $ dinah card set dinah-199 urgency major
-dinah.unknown-key Dinah knows no setting or field called urgency; it knows these
-  severity
-  priority
+dinah.unknown-field Dinah has no field urgency. The fields a card records are: severity,
+priority. Name one of those instead, or run `dinah help card` to see what the command
+checks.
 ```
 
 Proposed. The same two level refusals answer `dinah add`, so a flag and a later write are
@@ -157,7 +171,7 @@ help page is generated from.
 
 ```text
 $ dinah help card
-  card [get|set] [card] [field] [value]
+  card <get|set> <card> <field> [value]
 
   Read or write one of a card's own fields.
 
@@ -173,11 +187,17 @@ $ dinah help card
   Order  Check                                          Refusal
   -----  ---------------------------------------------  -------------------
   1      the reference names a card of this workbench    unknown-card
-  2      the field is one a card records                 dinah.unknown-key
+  2      the field is one a card records                 dinah.unknown-field
   3      the workbench declares levels for that field    dinah.no-levels
   4      the value is a level that field declares        dinah.unknown-level
   5      the request names an owner                      no-owner
 ```
+
+The list is the union across both acts, which is what every generated help page prints and
+what `dinah help workstream` already prints for a command covering three. Rows 1 and 2
+answer `get` and `set` alike, rows 3 and 4 run only where a value is present, and row 5
+runs on every write including a clear. Section 5 of the spec carries that mapping, and the
+check list in `checks.go` carries it in its own comment.
 
 ## 9. The alternative surface, for the ruling at Operator Design Review
 
