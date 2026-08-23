@@ -122,7 +122,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.card.5": {
-      "text": "अनुरोध एक स्वामी का नाम लेता है",
+      "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.claim-without-active": {
@@ -318,39 +318,39 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.pull.1": {
-      "text": "अनुरोध एक स्वामी का नाम देता है",
+      "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event."
     },
     "check.pull.2": {
-      "text": "नामित गंतव्य वह राज्य है जिसे वर्कबेंच घोषित करती है",
+      "text": "नामित गंतव्य वह स्थिति है जिसे वर्कबेंच घोषित करती है",
       "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no state to be unknown."
     },
     "check.pull.3": {
-      "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह ऑपरेटर का है",
+      "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह संचालक का है",
       "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any state is considered."
     },
     "check.pull.4": {
-      "text": "जब कोई गंतव्य नामित नहीं है, तब ठीक एक राज्य अर्ह होता है",
+      "text": "जब कोई गंतव्य नामित नहीं है, तब ठीक एक स्थिति अर्ह होती है",
       "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one state qualifies."
     },
     "check.pull.5": {
-      "text": "प्रवाह में गंतव्य से पहले एक राज्य है",
+      "text": "प्रवाह में गंतव्य से पहले एक स्थिति है",
       "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
     },
     "check.pull.6": {
-      "text": "पूछने वाले के लिए प्रस्थान वैध है",
+      "text": "माँगने वाले के लिए प्रस्थान वैध है",
       "context": "One row of the ordered precondition list of pull: an operator-owned upstream is the operator's to move work out of, which is move's own departure test read under the lock."
     },
     "check.pull.7": {
-      "text": "कार्ड का उप-राज्य `blocked` नहीं है",
+      "text": "कार्ड की उपस्थिति `blocked` नहीं है",
       "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
     },
     "check.pull.8": {
-      "text": "कार्ड का उप-राज्य `active` नहीं है",
+      "text": "कार्ड की उपस्थिति `active` नहीं है",
       "context": "One row of the ordered precondition list of pull: pull takes claim's stricter test, refusing a card already active whoever holds it."
     },
     "check.pull.9": {
-      "text": "यह `done` राज्य से बाहर आगे की चाल नहीं है",
+      "text": "यह `done` स्थिति से बाहर आगे की चाल नहीं है",
       "context": "One row of the ordered precondition list of pull: a forward move out of a done state refuses, and the race between the queue read and the lock can surface that here."
     },
     "check.pull.10": {
@@ -1962,7 +1962,7 @@
       "context": "A paragraph under the summary of `dinah help check`, for a command whose exit code cannot be read off its list of refusals."
     },
     "schema.basis.description": {
-      "text": "हर बदलने वाले अनुरोध के लिए Dinah स्वयं basis निकालता है, और इसे लिखने का कोई तरीका उपलब्ध नहीं है, इसलिए इस property को वैसे ही छोड़ दें।",
+      "text": "हर बदलने वाले निवेदन के लिए Dinah स्वयं basis निकालता है, और इसे लिखने का कोई तरीका उपलब्ध नहीं है, इसलिए इस property को वैसे ही छोड़ दें।",
       "context": "The description of the basis property, which every generated machine schema carries and no command declares."
     },
     "param.card.summary": {
