@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-nine commands, and every command the binary
+	// The block lists forty commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 39 {
-		t.Errorf("wanted thirty-nine listed commands, got %d", listed)
+	if listed != 40 {
+		t.Errorf("wanted forty listed commands, got %d", listed)
 	}
 }
 
@@ -6084,8 +6084,8 @@ func TestQueryHelpIsGeneratedFromTheCheckList(t *testing.T) {
 		t.Fatalf("help query: %d %s", got.code, got.errw)
 	}
 	checks := verb.Checks("query")
-	if len(checks) != 6 {
-		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes six", len(checks))
+	if len(checks) != 7 {
+		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes seven", len(checks))
 	}
 	catalog := msg.For(msg.Base)
 	at := 0
@@ -6427,9 +6427,9 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "depth", "description", "expires", "from", "group-by",
-		"kind", "lang", "operator", "priority", "root", "severity", "slug",
-		"state", "workbench",
+		"actor", "card", "depth", "description", "expires", "from",
+		"group-by", "kind", "lang", "operator", "priority", "root",
+		"severity", "since", "slug", "state", "workbench",
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "help", "json", "migrate-ordinals",
@@ -6905,4 +6905,123 @@ func TestPullOnTheCommandLine(t *testing.T) {
 			rest = rest[at+len(check.Refusal):]
 		}
 	})
+}
+
+// guideLinesOutsideFences returns the lines of a rendered guide that sit
+// outside its fenced blocks, which are the lines this card's wrap governs.
+// A fenced block is reproduced whole and is the terminal's problem, so it is
+// dropped here rather than measured.
+func guideLinesOutsideFences(text string) []string {
+	var prose []string
+	inside := false
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inside = !inside
+			continue
+		}
+		if inside {
+			continue
+		}
+		prose = append(prose, line)
+	}
+	return prose
+}
+
+// TestAGuideIsWrappedToTheWindowItIsReadIn asserts dinah-239 AC-11: the body
+// of a guide reaches the stream laid out for the window rather than raw, so
+// different widths produce different pages and none of them reaches past the
+// window it was asked for. Only the prose is measured; a fenced block is
+// reproduced whole by design.
+//
+// The widths are a spread reaching down to the 20 windowWidth clamps to,
+// rather than the 40 and 80 this test first carried. Wrapping that overruns
+// by a marker's width is invisible at a roomy window and shows at a narrow
+// one, so a pair of widths either side of the fault line proves the pair and
+// not the rule. The whole-corpus form of this sweep lives in
+// TestEveryShippedGuideFitsEveryWindowItIsWrappedFor, which measures
+// wrapGuideText directly; this test's own job is the wiring, that runGuide
+// reaches the wrap at all.
+//
+// The measure excuses the same shapes that sweep excuses, and it has to: at
+// 20 columns principles.md carries the single 23-column token
+// `states/<id>/state.md`, which breakWords writes whole because it has
+// nowhere to break, exactly as the spec's overflow rule says it will.
+func TestAGuideIsWrappedToTheWindowItIsReadIn(t *testing.T) {
+	root := newBench(t)
+	widths := []int{20, 24, 32, 40, 56, 80}
+	pages := map[int]string{}
+	for _, width := range widths {
+		t.Setenv("COLUMNS", strconv.Itoa(width))
+		got := runCLI(t, root, "guide", "principles")
+		if got.code != 0 {
+			t.Fatalf("guide principles at %d columns: %d %s", width, got.code, got.errw)
+		}
+		for _, line := range guideLinesOutsideFences(got.out) {
+			if guideIsIndentedCode(line) || guideIsTableRow(line) || guideWrapsNoFurther(line) {
+				continue
+			}
+			if displayWidth(line) > width {
+				t.Errorf("at %d columns a line draws %d: %q", width, displayWidth(line), line)
+			}
+		}
+		pages[width] = got.out
+	}
+	for i := 1; i < len(widths); i++ {
+		if pages[widths[i-1]] == pages[widths[i]] {
+			t.Errorf("the guide reads the same at %d columns as at %d, so nothing wrapped it", widths[i-1], widths[i])
+		}
+	}
+}
+
+// TestAGuideTableSurvivesTheWindowItIsReadIn asserts dinah-239 AC-12: the
+// reference guide's support table is reproduced rather than re-flowed, so the
+// columns still line up under the check runCLI runs over every stream. The
+// alignment is confirmed by running that check here rather than argued from
+// the table's own authored padding.
+func TestAGuideTableSurvivesTheWindowItIsReadIn(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "40")
+	got := runCLI(t, root, "guide", "references")
+	if got.code != 0 {
+		t.Fatalf("guide references at 40 columns: %d %s", got.code, got.errw)
+	}
+	for _, row := range []string{
+		"| Command      | This workbench | A state | A card | Below a card |",
+		"|--------------|----------------|---------|--------|--------------|",
+		"| path         | yes            | yes     | yes    | yes          |",
+		"| rename       | no             | no      | no     | yes          |",
+	} {
+		if !strings.Contains(got.out, row) {
+			t.Errorf("the table lost the row %q at 40 columns", row)
+		}
+	}
+}
+
+// TestTheGuideListingIsUnchangedByTheBodyWrap asserts dinah-239 AC-13's first
+// half: the topic listing is served by the branch this card did not touch, so
+// the body wrap never reaches it and every topic still draws its whole title
+// on one line, however narrow the window is. A listing routed through the
+// body wrap would break those titles onto continuation lines at 40 columns,
+// which is what this refuses.
+func TestTheGuideListingIsUnchangedByTheBodyWrap(t *testing.T) {
+	root := newBench(t)
+	for _, width := range []string{"80", "40"} {
+		t.Setenv("COLUMNS", width)
+		got := runCLI(t, root, "guide")
+		if got.code != 0 {
+			t.Fatalf("guide at %s columns: %d %s", width, got.code, got.errw)
+		}
+		for _, topic := range guide.Topics() {
+			row := topic + "  "
+			at := strings.Index(got.out, row)
+			if at < 0 {
+				t.Fatalf("at %s columns the listing has no row for %q:\n%s", width, topic, got.out)
+			}
+			rest := got.out[at:]
+			line := rest[:strings.IndexByte(rest, '\n')]
+			if !strings.HasSuffix(line, guide.Title(topic)) {
+				t.Errorf("at %s columns the listing wrapped the title of %q: %q", width, topic, line)
+			}
+		}
+	}
 }

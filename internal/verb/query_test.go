@@ -152,7 +152,7 @@ func TestAnUnknownFieldIsNamedBackToTheReader(t *testing.T) {
 		text  string
 		field string
 	}{
-		{"substate:ready priority>=next", "priority"},
+		{"substate:ready urgency>=next", "urgency"},
 		{"State:doing", "State"},
 		{"Priority>=next", "Priority"},
 		{"field1:x", "field1"},
@@ -630,8 +630,8 @@ func TestAQueryCarryingTwoMistakesIsRefusedForTheEarlier(t *testing.T) {
 	// list without its key moving with it prints a sentence for the wrong
 	// position in the help block.
 	checks := Checks("query")
-	if len(checks) != 6 {
-		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes six", len(checks))
+	if len(checks) != 7 {
+		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes seven", len(checks))
 	}
 	for i, check := range checks {
 		if want := CheckKey("query", i+1); check.Key != want {

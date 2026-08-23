@@ -820,3 +820,134 @@ func TestLevelNamesNeverPassThroughTheTokenCatalog(t *testing.T) {
 		}
 	}
 }
+
+// TestAQueryFiltersBySeverityAndPriority asserts dinah-195 AC-1 through AC-6:
+// a query admits severity and priority as equality-only fields, tolerates a
+// drifted value the same way it tolerates a drifted workstream, refuses an
+// unknown value naming the declared members in declaration order rather than
+// alphabetically, answers correctly on an axis the workbench does not declare
+// at all, and treats the explicit empty value as a request for absence.
+func TestAQueryFiltersBySeverityAndPriority(t *testing.T) {
+	root := newBenchFromDefinition(t, bothAxesDefinition)
+	if got := runCLI(t, root, "add", "--severity", "major", "a major card"); got.code != 0 {
+		t.Fatalf("add --severity major: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--severity", "minor", "a minor card"); got.code != 0 {
+		t.Fatalf("add --severity minor: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--priority", "now", "an urgent card"); got.code != 0 {
+		t.Fatalf("add --priority now: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "a plain card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+
+	// AC-1: a severity query returns every live card whose stored severity
+	// matches, and refuses nothing.
+	major := queryRefs(t, root, "severity:major")
+	if len(major) != 1 || major[0] != "fx-1" {
+		t.Errorf("severity:major selected %v, wanted [fx-1]", major)
+	}
+
+	// AC-2: the same holds for priority, on the same check path.
+	urgent := queryRefs(t, root, "priority:now")
+	if len(urgent) != 1 || urgent[0] != "fx-3" {
+		t.Errorf("priority:now selected %v, wanted [fx-3]", urgent)
+	}
+
+	// AC-3: a value no declaration carries but a live card does is still
+	// findable, the same drift tolerance workstreamRoster gives workstream.
+	handWrite(t, root, "fx-4", "severity: urgent")
+	drifted := queryRefs(t, root, "severity:urgent")
+	if len(drifted) != 1 || drifted[0] != "fx-4" {
+		t.Errorf("severity:urgent (drifted) selected %v, wanted [fx-4]", drifted)
+	}
+
+	// AC-4: a value nothing carries refuses, and the declared members are
+	// listed in declaration order, not sorted.
+	refused := runCLI(t, root, "query", "severity:critical-plus")
+	if refused.code != 2 {
+		t.Fatalf("query severity:critical-plus exited %d, wanted 2: %s", refused.code, refused.errw)
+	}
+	if name := refusalNameOf(refused.errw); name != contract.UnknownValue {
+		t.Errorf("the refusal name is %s, wanted %s", name, contract.UnknownValue)
+	}
+	if !strings.Contains(refused.errw, "trivial, minor, major, critical") {
+		t.Errorf("the refusal does not list the declared members in declaration order:\n%s", refused.errw)
+	}
+	if strings.Contains(refused.errw, "critical, major") {
+		t.Errorf("the refusal lists the declared members alphabetically rather than in declaration order:\n%s", refused.errw)
+	}
+	// The drifted value from AC-3 trails the declared members rather than
+	// being interleaved among them.
+	if !strings.Contains(refused.errw, "trivial, minor, major, critical, urgent") {
+		t.Errorf("the drifted value does not trail the declared members:\n%s", refused.errw)
+	}
+
+	// AC-5: an axis the workbench does not declare at all still answers
+	// through the same check rather than a different one. With no live card
+	// carrying a value on that axis either, the roster is empty and any named
+	// value refuses; the empty value still asks for absence and finds every
+	// card, since none of them carries a priority at all.
+	bare := newBenchFromDefinition(t, severityOnlyDefinition)
+	if got := runCLI(t, bare, "add", "a card on a severity-only workbench"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	refusedBare := runCLI(t, bare, "query", "priority:now")
+	if refusedBare.code == 0 {
+		t.Fatalf("query priority:now on a workbench declaring no priority succeeded")
+	}
+	if name := refusalNameOf(refusedBare.errw); name != contract.UnknownValue {
+		t.Errorf("the refusal name on an undeclared axis is %s, wanted %s", name, contract.UnknownValue)
+	}
+	unsetBare := queryRefs(t, bare, `priority:""`)
+	if len(unsetBare) != 1 || unsetBare[0] != "fx-1" {
+		t.Errorf(`priority:"" on a workbench declaring no priority selected %v, wanted [fx-1]`, unsetBare)
+	}
+
+	// AC-6: the explicit empty value asks for absence, on both a declared
+	// axis and one no card has ever set.
+	unset := queryRefs(t, root, `severity:""`)
+	want := map[string]bool{"fx-3": true}
+	if len(unset) != len(want) {
+		t.Errorf(`severity:"" selected %v, wanted the cards carrying no severity`, unset)
+	}
+	for _, ref := range unset {
+		if !want[ref] {
+			t.Errorf(`severity:"" selected %s, which carries a severity`, ref)
+		}
+	}
+	unsetPriority := queryRefs(t, root, `priority:""`)
+	wantPriority := map[string]bool{"fx-1": true, "fx-2": true, "fx-4": true}
+	if len(unsetPriority) != len(wantPriority) {
+		t.Errorf(`priority:"" selected %v, wanted the cards carrying no priority`, unsetPriority)
+	}
+	for _, ref := range unsetPriority {
+		if !wantPriority[ref] {
+			t.Errorf(`priority:"" selected %s, which carries a priority`, ref)
+		}
+	}
+}
+
+// queryRefs runs a query through the CLI and decodes the refs it selected,
+// failing the test unless the query succeeded.
+func queryRefs(t *testing.T, root, text string) []string {
+	t.Helper()
+	got := runCLI(t, root, "query", text, "--json")
+	if got.code != 0 {
+		t.Fatalf("query %q: %d %s", text, got.code, got.errw)
+	}
+	var document struct {
+		Cards []struct {
+			Ref string `json:"ref"`
+		} `json:"cards"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &document); err != nil {
+		t.Fatalf("query %q: decode: %v\n%s", text, err, got.out)
+	}
+	refs := make([]string, 0, len(document.Cards))
+	for _, card := range document.Cards {
+		refs = append(refs, card.Ref)
+	}
+	return refs
+}

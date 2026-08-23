@@ -12,10 +12,10 @@ import (
 // docs/specs/dinah-220-help-formatting-ux-sketch.md, brought forward to the
 // command set the tool actually ships. Every row the sketch draws is here
 // byte for byte; the rows that differ from it are the ones the trunk added
-// after he drew it (the `card` command, `add`'s severity and priority flags,
-// and the `--help` and `--version` rows of the global-flag table), plus the
-// capitalized flag summaries he asked for when he answered the card's first
-// open question.
+// after he drew it (the `card` and `changes` commands, `add`'s severity and
+// priority flags, and the `--help` and `--version` rows of the global-flag
+// table), plus the capitalized flag summaries he asked for when he answered
+// the card's first open question.
 //
 // This sits alongside testdata/help.txt rather than replacing it: that
 // fixture covers the assumed window, and these two cover the widths the
@@ -59,6 +59,8 @@ READ
   contents <ref> [--depth <level>]                       What an entity of the workbench contains
   show <ref>                                             A card, or anything below it
   log <card>                                             The recorded actions of a card, oldest first
+  changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
+    [--state <state>]
   instructions <card|state>                              The instructions served at a position
   guide [topic]                                          The embedded guides, or one of them
 
@@ -136,6 +138,7 @@ READ
   contents <ref> [--depth <level>]                                                                    What an entity of the workbench contains
   show <ref>                                                                                          A card, or anything below it
   log <card>                                                                                          The recorded actions of a card, oldest first
+  changes [--since <cursor>] [--card <ref>] [--state <state>]                                         What has happened on this workbench since a cursor
   instructions <card|state>                                                                           The instructions served at a position
   guide [topic]                                                                                       The embedded guides, or one of them
 
