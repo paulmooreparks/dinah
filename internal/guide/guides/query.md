@@ -41,11 +41,17 @@ nothing between them. `holder:""` returns the cards nobody is holding.
 
 ## The fields you may name
 
-Ten fields, and no others. Five of them describe the card as it stands now:
+Twelve fields, and no others. Seven of them describe the card as it stands now:
 
 - `state` is the state the card is in. Give it a state's short name or its
   identifier.
 - `substate` is `ready`, `active`, or `blocked`.
+- `severity` is a level a workbench may declare in its own `levels:` block.
+  A card carrying none is not an error, and neither is a workbench that has
+  declared no severity set.
+- `priority` is a level the same way, declared in its own `levels:` block.
+  Severity and priority are independent, and a workbench may declare either,
+  both, or neither.
 - `holder` is the owner holding the card.
 - `block_kind` is the class of obstacle a blocked card carries.
 - `workstream` is a workstream the card belongs to. You name it by its slug or
@@ -82,20 +88,37 @@ is not in Done. On a journal field the negation applies inside the one act, so
 ## What a mistake looks like
 
 Dinah checks every term of the query before it filters a single card, and it
-tells you which word was wrong rather than returning nothing. `substate:reday` is an error message
-naming `reday` and listing the three values that field takes. `Priority>=next`
-is an error message saying there is no such field and listing the ten there
-are. A query that is spelled correctly and matches nothing says so plainly, so
-you can always tell a typo from an answer.
+tells you which word was wrong rather than returning nothing. `substate:reday`
+is an error message naming `reday` and listing the three values that field
+takes. `Priority>=next` is an error message saying there is no such field and
+listing the twelve there are, because field names are case-sensitive and
+`Priority` with a capital letter is not one of them. `severity:urgent` against
+a workbench whose declared severity set does not include `urgent` is a
+different error message. The field is real, and Dinah lists the severity
+names it does recognize in its place. A query that is spelled correctly and
+matches nothing says so plainly, so you can always tell a typo from an answer.
 
-## There is no priority to filter on
+## Severity and priority filter, but do not rank
 
-The question people ask first is usually some form of "what is ready and
-important". Dinah cannot answer it. A card may carry a `priority` key in its
-frontmatter and Dinah will preserve it, but nothing reads it and no workbench
-declares how one priority outranks another, so `priority>=next` is an error
-message rather than a query. Sort out importance with states, with the queue
-order, or with a workstream, until priorities are a thing Dinah understands.
+A card may carry a `severity` and a `priority`, each a member of a level set
+its workbench declares in `workbench.md`'s `levels:` block; see the guide on
+workbench layout. Query them the same way you query any other field:
+
+    dinah query "priority:now"
+    dinah query "severity:major,critical"
+
+Both take `:` and `!=`, the same as the other equality fields, and neither
+takes `>=`, `<=`, `>`, or `<`. The two axes are ranked internally, and a
+workbench can declare which of its priorities outranks another, but the query
+does not read that ranking. `priority>=now` is still an error message, not a
+query, because the language admits no ordered comparison on anything but `at`.
+
+A workbench that has not declared a set for an axis, or a card that carries no
+value on one, is not an error. `priority:""` returns the cards carrying none.
+If you want a card ranked ahead of another, sort that out with states, with
+the queue order, or with a workstream, the way you always could. Severity and
+priority are now things a query can name; Dinah still gives no ranked answer
+to "what is ready and important."
 
 ## When the query cannot say it
 

@@ -429,6 +429,10 @@
       "text": "each named workstream is one the workbench carries or a live card lists",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.query.7": {
+      "text": "each named severity or priority is declared or a live card carries",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.release.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
