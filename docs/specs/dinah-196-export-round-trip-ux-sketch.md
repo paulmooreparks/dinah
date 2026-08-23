@@ -247,7 +247,70 @@ An axis whose entries are all bare names still prints on one line, as section 3 
 Dinah picks the dashed form for one axis and the one-line form for another within the same
 block, which is what the format already allows an author to do.
 
-## 5. Nothing is added to the surface
+## 5. Two boards the drawings above do not cover
+
+Proposed. You may declare the two axes in either order, and Dinah publishes them in one
+order. A board that writes `priority:` above `severity:` still prints severity first, and
+the clone's anchor lists severity first as well, because Dinah has written the axes in that
+order since the import side of the interchange was built and a JSON object's member order
+means nothing to a tool reading it. Every other nested block keeps the order you typed, so
+the folders under `groups` stay where you put them.
+
+```yaml
+levels:
+  priority: [later, soon, next, now]
+  severity: [trivial, minor, major, critical]
+```
+
+```text
+$ dinah export
+{
+  "levels": {
+    "severity": [
+      "trivial",
+      "minor",
+      "major",
+      "critical"
+    ],
+    "priority": [
+      "later",
+      "soon",
+      "next",
+      "now"
+    ]
+  },
+```
+
+Proposed. A board that names its priority levels with numbers keeps the set. Dinah prints a
+one-line list whose entries are all numbers as JSON numbers, since the line you wrote is
+itself JSON, and it writes that same line back into the clone. The level model reads the
+four names as text at both ends, so `1` is a name in the way `later` is a name, and
+`dinah tree --group-by priority` groups by it.
+
+```yaml
+levels:
+  priority: [1, 2, 3, 4]
+```
+
+```text
+$ dinah export
+{
+  "levels": {
+    "priority": [
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+```
+
+Write those same four levels as dashed entries instead and Dinah prints them as the strings
+`"1"` to `"4"`, and the clone gets dashed entries rather than a one-line list. The one-line
+spelling would read back as numbers on the next hop, and the set would change type every
+time it crossed the interchange, so Dinah declines to write it.
+
+## 6. Nothing is added to the surface
 
 No new command appears, no flag appears, and no refusal appears. `dinah export` takes the
 arguments it takes today and exits 0 where it exits 0 today. The change is in what the
