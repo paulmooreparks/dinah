@@ -431,10 +431,11 @@ func readWorkbenchAnchor(t *testing.T, root string) string {
 	return string(data)
 }
 
-// TestLevelsIsARecognizedInterchangeMember guards the one thing section 1.1
-// changes about Export as a side effect: levels joins knownBenchKeys, so the
-// member is no longer emitted as the empty string a nested block reads as.
-func TestLevelsIsARecognizedInterchangeMember(t *testing.T) {
+// TestTheInterchangeFormCarriesTheLevelsBlock asserts dinah-196 AC-12, which
+// inverts the guard dinah-193 left here. Export used to skip levels for being
+// a known key and print no member at all; it now emits the declared block as
+// the object of arrays the importer already reads.
+func TestTheInterchangeFormCarriesTheLevelsBlock(t *testing.T) {
 	opened := benchDeclaring(t, "levels:\n  severity: [minor, major]\n")
 	encoded, err := opened.Export()
 	if err != nil {
@@ -444,7 +445,18 @@ func TestLevelsIsARecognizedInterchangeMember(t *testing.T) {
 	if err := json.Unmarshal(encoded, &object); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if raw, carried := object[LevelsKey]; carried {
-		t.Errorf("export carried levels as %s, and the export half of the interchange is dinah-196's", raw)
+	raw, carried := object[LevelsKey]
+	if !carried {
+		t.Fatalf("export carried no levels member:\n%s", encoded)
+	}
+	declared := map[string][]string{}
+	if err := json.Unmarshal(raw, &declared); err != nil {
+		t.Fatalf("the levels member is not an object of arrays: %v", err)
+	}
+	if got := strings.Join(declared["severity"], ","); got != "minor,major" {
+		t.Errorf("the exported severity axis is %q, wanted the declared members in order", got)
+	}
+	if _, invented := declared["priority"]; invented {
+		t.Errorf("export carries a priority axis the workbench does not declare: %s", raw)
 	}
 }
