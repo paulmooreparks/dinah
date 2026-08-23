@@ -2368,6 +2368,54 @@
     "param.rename.name.summary": {
       "text": "वह फ़ाइल-नाम जो संलग्नक को धारण करना है, एक शेल-शब्द में या उद्धरण-चिह्नों में",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
+    },
+    "cmd.changes.summary": {
+      "text": "इस वर्कबेंच पर किसी कर्सर के बाद जो हुआ",
+      "context": "The one-line summary of the changes command, shown beside its syntax in the help block."
+    },
+    "param.changes.since.summary": {
+      "text": "पिछले चलने पर छपा कर्सर; कुछ न देने पर एक नया कर्सर बनता है और कुछ नहीं बताया जाता",
+      "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table."
+    },
+    "param.changes.state.summary": {
+      "text": "किस स्थिति के बारे में बताना है; कुछ न लिखने पर हर स्थिति",
+      "context": "The meaning of the state argument of `dinah changes`, printed in that command's arguments table."
+    },
+    "check.changes.1": {
+      "text": "कर्सर वही है जो इस वर्कबेंच ने दिया था",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.changes.2": {
+      "text": "नामित कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.changes.3": {
+      "text": "नामित स्थिति वही है जो वर्कबेंच घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "column.changes.when": {
+      "text": "कब",
+      "context": "Heading over when the act was recorded, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.card": {
+      "text": "कार्ड",
+      "context": "Heading over the entity the line was read from, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.action": {
+      "text": "क्रिया",
+      "context": "Heading over what was done, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.actor": {
+      "text": "कर्ता",
+      "context": "Heading over who did it, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.detail": {
+      "text": "विवरण",
+      "context": "Heading over what the act carried, such as the states a move ran between, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "changes.cursor": {
+      "text": "कर्सर: {cursor}",
+      "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque."
     }
   }
 }

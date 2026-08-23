@@ -72,6 +72,7 @@ var tools = []tool{
 	{name: "contents", command: "contents", run: readContents},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
+	{name: "changes", command: "changes", run: readChanges},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
 	{name: "card", command: "card", run: doCard},
@@ -272,6 +273,20 @@ func readLog(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return journalView{Events: events, Affordances: []string{"show", "claim"}}
+}
+
+// readChanges answers the changes tool. It carries the same ChangeSet the cli
+// head emits under --json for the same arguments, since both heads hand the
+// one library call the one cursor, the one card and the one state.
+//
+// The answer is the ChangeSet itself rather than a wrapped payload, the way
+// log's is, because the shape already declares its own affordances member.
+func readChanges(l *verb.Library, r *verb.Request) any {
+	changes, err := l.Changes(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return changes
 }
 
 // readInstructions answers the instructions tool.

@@ -25,12 +25,27 @@ type Resolved struct {
 // 12-hex identifier and the dash-joined reference whose last segment is the
 // card's number.
 func (b *Bench) ResolveCard(ref string) (*Resolved, error) {
+	return b.resolveCardIn(b.CardsRoot(), ref)
+}
+
+// ResolveArchivedCard finds a card in the archive mirror, by the same grammar
+// ResolveCard accepts. Only a caller that has already failed to resolve a
+// reference against the live half has any business here, because reading the
+// mirror's anchors is work the live path never does.
+func (b *Bench) ResolveArchivedCard(ref string) (*Resolved, error) {
+	return b.resolveCardIn(b.ArchivedCardsRoot(), ref)
+}
+
+// resolveCardIn is the resolution both halves of the collection share. The
+// grammar is identical either side; only the directory the numbers are read
+// out of differs.
+func (b *Bench) resolveCardIn(root, ref string) (*Resolved, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return nil, contract.Refuse(contract.UnknownCard, ref)
 	}
 	if IsID(ref) {
-		card, err := LoadCard(b.CardsRoot(), ref)
+		card, err := LoadCard(root, ref)
 		if err != nil {
 			return nil, contract.Refuse(contract.UnknownCard, ref)
 		}
@@ -40,7 +55,7 @@ func (b *Bench) ResolveCard(ref string) (*Resolved, error) {
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownCard, ref)
 	}
-	cards, err := b.Cards()
+	cards, err := cardsIn(root)
 	if err != nil {
 		return nil, err
 	}
