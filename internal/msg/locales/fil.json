@@ -1261,6 +1261,11 @@
       "context": "The one-line summary of the global flag --actor.",
       "skeleton": true
     },
+    "flag.help.summary": {
+      "text": "print this help, or one command's page when a command is named",
+      "context": "The one-line summary of the global flag --help. The flag also answers to -h, -help, -?, --? and /?, and the syntax beside this summary lists the three the column has room for.",
+      "skeleton": true
+    },
     "flag.json.summary": {
       "text": "emit the canonical machine form",
       "context": "The one-line summary of the global flag --json.",
@@ -1274,6 +1279,11 @@
     "flag.quiet.summary": {
       "text": "suppress served instructions on claim and move",
       "context": "The one-line summary of the global flag --quiet.",
+      "skeleton": true
+    },
+    "flag.version.summary": {
+      "text": "print the version and stop",
+      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v, -version and /version, and the syntax beside this summary lists the two the column has room for.",
       "skeleton": true
     },
     "flag.workbench.summary": {

@@ -122,6 +122,18 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
 	}
+	// A request for help is answered before any command runs, so
+	// `dinah move --help` prints move's page rather than refusing that move
+	// was given no card. It is read ahead of --version for the same reason
+	// every tool reads it first: a caller who wrote both wants to be told
+	// what the tool does.
+	if parsed.has("help") {
+		return s.helpFor(at(parsed.positional, 0))
+	}
+	if parsed.has("version") {
+		s.command = "version"
+		return runVersion(s, parsed)
+	}
 	if len(parsed.positional) == 0 {
 		s.write(s.helpBlock())
 		return 0

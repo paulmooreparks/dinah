@@ -6309,6 +6309,87 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 	}
 }
 
+// TestEveryHelpSpellingReachesTheSamePage asserts dinah-213: each spelling in
+// askedFor prints help rather than refusing, whether it is written alone,
+// before a command or after one, and the page it prints is byte for byte the
+// page `dinah help` and `dinah help <command>` already print.
+//
+// The comparison is against the existing command rather than against a fixture
+// because the point of the card is that the flag is a second door onto one
+// room. A fixture would let the two drift apart and still pass.
+func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
+	tree := t.TempDir()
+	surface := runCLI(t, tree, "help")
+	if surface.code != 0 {
+		t.Fatalf("dinah help: %d %s", surface.code, surface.errw)
+	}
+	page := runCLI(t, tree, "help", "ls")
+	if page.code != 0 {
+		t.Fatalf("dinah help ls: %d %s", page.code, page.errw)
+	}
+	version := runCLI(t, tree, "version")
+	if version.code != 0 {
+		t.Fatalf("dinah version: %d %s", version.code, version.errw)
+	}
+	for spelling, asked := range askedFor {
+		want := surface
+		if asked == "version" {
+			want = version
+		}
+		// Alone, the spelling reaches the whole surface (or the version
+		// report, for the version family).
+		if got := runCLI(t, tree, spelling); got.code != 0 || got.out != want.out {
+			t.Errorf("dinah %s: wanted exit 0 and the %s output, got %d\n%s", spelling, asked, got.code, got.out)
+		}
+		if asked != "help" {
+			continue
+		}
+		// After a command and before one, the spelling reaches that
+		// command's own page. Both orders are asserted because a caller who
+		// has already typed the command name adds the flag on the end, and
+		// one who has not writes it first.
+		after := runCLI(t, tree, "ls", spelling)
+		if after.code != 0 || after.out != page.out {
+			t.Errorf("dinah ls %s: wanted ls's page, got %d\n%s", spelling, after.code, after.out)
+		}
+		before := runCLI(t, tree, spelling, "ls")
+		if before.code != 0 || before.out != page.out {
+			t.Errorf("dinah %s ls: wanted ls's page, got %d\n%s", spelling, before.code, before.out)
+		}
+		// A word that is not a command still refuses, so the flag opens no
+		// route around the unknown-command check.
+		unknown := runCLI(t, tree, spelling, "bogus")
+		if unknown.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("dinah %s bogus: wanted the unknown-command refusal, got %d", spelling, unknown.code)
+		}
+		if !strings.HasPrefix(unknown.errw, contract.UnknownVerb+" ") {
+			t.Errorf("dinah %s bogus: wanted %s to lead stderr, got %q", spelling, contract.UnknownVerb, unknown.errw)
+		}
+	}
+	// A command that would otherwise refuse for want of its arguments prints
+	// its page instead, which is the case the card was filed for: a caller
+	// asking what a command takes must not be told they used it wrongly.
+	move := runCLI(t, tree, "move", "--help")
+	if move.code != 0 {
+		t.Errorf("dinah move --help: wanted 0, got %d %s", move.code, move.errw)
+	}
+	if want := runCLI(t, tree, "help", "move"); move.out != want.out {
+		t.Errorf("dinah move --help differs from dinah help move:\n%s", move.out)
+	}
+	// The POSIX marker still shields every spelling as literal text, so a
+	// caller who means the word writes it after `--`.
+	shielded := runCLI(t, tree, "--", "-h")
+	if shielded.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Errorf("dinah -- -h: wanted the unknown-command refusal, got %d %s", shielded.code, shielded.out)
+	}
+	// Help outranks version when a caller wrote both, in either order.
+	for _, argv := range [][]string{{"--help", "--version"}, {"--version", "--help"}} {
+		if got := runCLI(t, tree, argv...); got.out != surface.out {
+			t.Errorf("dinah %s: wanted the surface, got\n%s", strings.Join(argv, " "), got.out)
+		}
+	}
+}
+
 // TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable asserts
 // dinah-172 AC-13: the sets args.go derives equal the sets it used to carry by
 // hand, named literally here so the derivation is checked against something
@@ -6320,9 +6401,9 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"kind", "lang", "operator", "root", "slug", "state", "workbench",
 	}
 	wantMarkers := []string{
-		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",
-		"migrate-states", "migrate-workstreams", "override", "quiet", "ready",
-		"replace", "yes",
+		"catalogs", "finish", "help", "json", "migrate-ordinals",
+		"migrate-slugs", "migrate-states", "migrate-workstreams", "override",
+		"quiet", "ready", "replace", "version", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
