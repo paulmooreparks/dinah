@@ -951,6 +951,23 @@ levels:
     - critical: Data loss or money; drop everything.
 ```
 
+A declaration reaches the JSON interchange as an object of arrays, one member
+per axis, where a bare name is a string and a name carrying a hint is a
+one-member object, since a JSON object preserves no member order and the
+sequence order is the rank.
+
+```json
+"levels": {
+  "severity": ["trivial", "minor", {"major": "fix before new work."}],
+  "priority": ["later", "soon", "next", "now"]
+}
+```
+
+The axes reach it in a fixed order, severity first, then priority, then any
+further axis in sorted order, whichever order the workbench declared them in.
+A reader of the interchange therefore never has to ask what an axis's position
+in the object meant.
+
 A hint is content-tier text in the author's language. Guidance longer than
 a hint, a real rubric with examples, is ordinary prose in the workbench
 body, which the serve-time composition already delivers as standing

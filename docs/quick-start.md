@@ -1381,6 +1381,13 @@ $ dinah export
 [exit 0]
 ```
 
+The printed definition carries the workbench's declared level sets, and any
+other block its frontmatter holds, as JSON of the same shape: a nested mapping
+prints as an object, a list prints as an array, and a level entry carrying a
+hint prints as a one-member object inside that array. A workbench you start
+from the result gets those blocks back in its own frontmatter, so nothing you
+declared is left behind by the trip through the exchange format.
+
 `extract` writes that same definition to a directory as a template you can use
 again. It carries the flow and the instructions, and none of the cards. You
 start a new workbench from a template with `init --from`:

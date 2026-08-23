@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	"dinah/internal/contract"
@@ -13,14 +14,10 @@ import (
 // knownBenchKeys are the workbench frontmatter keys the interchange form
 // carries under a name of its own. Every other key is an unrecognized member
 // travelling through, which CORE-JSON-7 requires a tool to preserve.
-// levels is recognized on the way in so that Instantiate can render it as the
-// nested block the level model reads, rather than as the one line of raw JSON
-// the unrecognized-member loop below writes. Export is the asymmetric half and
-// stays as it is: it reads an unrecognized key through FM.Value, which returns
-// the empty string for a nested block, so exporting a workbench that declares
-// levels loses the block. The export side is dinah-196's, which owns the
-// interchange for this slice, and the same gap runs through the anchor-clone
-// path dinah init --from <directory> takes.
+// levels is one of them on both sides now: Instantiate renders it as the
+// nested block the level model reads, and Export emits it explicitly beside
+// profile and title with its axes in the one published order, rather than
+// letting the loop below skip it for being known.
 var knownBenchKeys = map[string]bool{
 	"profile": true, "title": true, "states": true,
 	"format": true, "slug": true, "operator": true,
@@ -45,10 +42,13 @@ func (b *Bench) Export() ([]byte, error) {
 		if knownBenchKeys[key] {
 			continue
 		}
-		object[key] = rawValue(b.FM.Value(key))
+		object[key] = blockValue(b.FM, key)
 	}
 	object["profile"] = mustMarshal(b.Profile)
 	object["title"] = mustMarshal(b.Title)
+	if b.FM.Has(LevelsKey) {
+		object[LevelsKey] = orderedLevels(blockValue(b.FM, LevelsKey))
+	}
 	if b.Standing != "" {
 		object["instructions"] = mustMarshal(b.Standing)
 	}
@@ -71,7 +71,7 @@ func exportState(state *State) map[string]json.RawMessage {
 		if knownStateKeys[key] {
 			continue
 		}
-		element[key] = rawValue(state.FM.Value(key))
+		element[key] = blockValue(state.FM, key)
 	}
 	element["id"] = mustMarshal(state.ID)
 	element["title"] = mustMarshal(state.Title)
@@ -97,18 +97,9 @@ func exportState(state *State) map[string]json.RawMessage {
 	return element
 }
 
-// rawValue reads a preserved member back. A value that still parses as JSON
-// travels as the JSON it was; anything else travels as a string, which is
-// what a hand-written frontmatter value is.
-func rawValue(stored string) json.RawMessage {
-	if json.Valid([]byte(stored)) {
-		return json.RawMessage(stored)
-	}
-	return mustMarshal(stored)
-}
-
-// mustMarshal encodes a value that cannot fail to encode: a string, a bool or
-// an int. Anything else has no business being an interchange member.
+// mustMarshal encodes a value that cannot fail to encode: a string, a bool, an
+// int, or a list of strings. Anything else has no business being an
+// interchange member.
 func mustMarshal(value any) json.RawMessage {
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -245,11 +236,11 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			fm.Set(LevelsKey, string(raw))
 		}
 	}
-	for member, raw := range definition.Object {
+	for _, member := range sortedMembers(definition.Object) {
 		if knownBenchKeys[member] {
 			continue
 		}
-		fm.Set(member, string(raw))
+		writeMember(fm, member, definition.Object[member])
 	}
 	standing := ""
 	if raw, ok := definition.Object["instructions"]; ok {
@@ -338,13 +329,38 @@ func writeStateFromMember(root, id, slug string, element map[string]json.RawMess
 			fm.Set("wip_limit", strconv.Itoa(capacity))
 		}
 	}
-	for member, raw := range element {
+	for _, member := range sortedMembers(element) {
 		if knownStateKeys[member] || member == "id" || member == "capacity" || member == "instructions" {
 			continue
 		}
-		fm.Set(member, string(raw))
+		writeMember(fm, member, element[member])
 	}
 	return WriteText(filepath.Join(root, StatesDir, id, StateAnchor), fm.Render(memberString(element, "instructions")))
+}
+
+// sortedMembers names an interchange object's members in sorted order. Both
+// import loops ranged over a Go map before, so two clones of one definition
+// differed in frontmatter key order for no reason a reader could predict and
+// no byte comparison of a round trip was possible.
+func sortedMembers(object map[string]json.RawMessage) []string {
+	names := make([]string, 0, len(object))
+	for name := range object {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// writeMember writes one unrecognized member into an anchor's frontmatter as
+// the block of its own shape, falling back to the one raw JSON line when the
+// renderer refuses the value. The fallback loses nothing, because a line that
+// parses as JSON reads back as the JSON it carried.
+func writeMember(fm *Frontmatter, member string, raw json.RawMessage) {
+	if lines, renderable := renderBlock(member, 0, raw); renderable {
+		fm.SetRaw(member, lines)
+		return
+	}
+	fm.Set(member, string(raw))
 }
 
 // Extract copies a bench's definition into a new directory and leaves the
