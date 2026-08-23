@@ -754,6 +754,16 @@ func tailIsUnbreakable(laid laidTable) bool {
 //
 // A block of one column never stacks. It carries no heading, so it has no
 // label to draw and no column that can stand at one.
+//
+// A capped column is the one column a field cannot reach past, whatever the
+// window leaves it, because ceilingRowLine wraps its value down its own
+// track instead of letting one value take the rest of the line. The
+// staircase this rule exists to catch cannot form there, so the capped
+// column never puts a table into a stack. Without that exemption a window
+// narrow enough to leave the cap standing at its own heading stacks a table
+// that would have wrapped perfectly well, which is what the command listing
+// did between 32 and 33 columns: the stacked form draws every value whole,
+// so the escape from a 33-column window was a run of 87-column lines.
 func (laid laidTable) stacks() bool {
 	if len(laid.columns) < 2 {
 		return false
@@ -761,6 +771,9 @@ func (laid laidTable) stacks() bool {
 	for _, r := range laid.rows {
 		for c, field := range r.fields {
 			if c == len(r.fields)-1 {
+				continue
+			}
+			if laid.hasCeiling && c == laid.ceilingColumn {
 				continue
 			}
 			if laid.widths[c] > displayWidth(laid.columns[c].heading) {

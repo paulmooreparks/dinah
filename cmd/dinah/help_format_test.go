@@ -1,6 +1,12 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"dinah/internal/msg"
+	"dinah/internal/verb"
+)
 
 // The two blocks below are the operator's own desired output from
 // docs/specs/dinah-220-help-formatting-ux-sketch.md, brought forward to the
@@ -219,6 +225,113 @@ func helpListingLines(t *testing.T, s *session) []string {
 	return lines[first:last]
 }
 
+// helpSession is a session that renders one language at a stated window.
+// The width sweeps below use it to draw the same page in every catalog the
+// binary carries, because a width assertion taken in the base language alone
+// says nothing about a catalog whose words are longer.
+func helpSession(window int, tag string) *session {
+	return &session{r: msg.For(tag), width: window}
+}
+
+// helpSweepWindows are the windows the two sweeps below draw at: every width from
+// 24 up to 120, then two wide ones.
+//
+// The floor is 24 rather than a rounder number because that is the narrowest
+// window this tool lays anything out at, and because a floor above the widths
+// where a defect lives is the same failure as testing two widths and calling
+// the range covered. This card's first blocker showed at 50 and 80 and not at
+// 107 or 200; its second showed on the per-command pages at 34, 35, 36, 37,
+// 41 and 42, all of them under the floor of 40 the first sweep was written
+// with. Every width in between is drawn rather than sampled, since it is the
+// widths nobody thought to pick that these defects have twice hidden at.
+func helpSweepWindows() []int {
+	windows := make([]int, 0, 100)
+	for window := 24; window <= 120; window++ {
+		windows = append(windows, window)
+	}
+	return append(windows, 160, 200)
+}
+
+// reachesPastTheWindow reports whether a drawn line runs past the window on
+// text the renderer could have broken.
+//
+// A line the renderer could not break is over the edge because one unit of
+// it is wider than the room it had, which is the renderer's own documented
+// case: breakWords writes a word wider than its room whole rather than
+// splitting it, so that a reference inside a value stays copyable, and
+// packTokens only ever starts a line with such a unit. What these sweeps are
+// for is the other case, a line the packer would have broken had it been
+// measuring the room the line is actually drawn into.
+//
+// Which unit is unbreakable depends on the axis the fragment came from, so
+// the fragment is asked rather than assumed, through the renderer's own
+// splitter rather than through a second copy of its rule. A fragment
+// carrying an option boundary is a packed run of option groups and could
+// have broken at one. A fragment that is a single option group is atomic
+// however wide it is. A fragment carrying no option group at all is prose,
+// and prose breaks between words.
+func reachesPastTheWindow(fragment string, begins, window int) bool {
+	if fragment == "" {
+		return false
+	}
+	pieces := splitOnOptionBoundaries(fragment)
+	unit := pieces[0]
+	if len(pieces) == 1 && !isOptionShaped(unit) {
+		unit = strings.Fields(fragment)[0]
+	}
+	return begins+displayWidth(unit) <= window
+}
+
+// edgeFragment is the run of text that reaches a drawn listing line's right
+// edge, and the display column it begins at. It reports false when the line
+// carries nothing a wrap could have helped.
+//
+// A listing line can carry two fields, the capped column's own text and the
+// summary beside it, and only the second of them can reach the right edge.
+// Which columns each occupies is not guessed back out of the ink: begins is
+// read off the laid-out table, and a continuation line's summary draws
+// ceilingContinuationIndent further right, exactly as ceilingRowLine draws
+// it.
+//
+// A line whose capped column has run into the summary's own column is the
+// one case this steps around. Only a piece wider than the cap can push it
+// there, since every other piece is wrapped to the cap, and such a piece is
+// written whole by the renderer's own rule. The line is over the edge
+// because the piece is, which is not what a width sweep is looking for.
+func edgeFragment(line string, indent, begins, window int) (string, int, bool) {
+	if displayWidth(line) <= window {
+		return "", 0, false
+	}
+	summaryAt := begins
+	if drawnIndent := displayWidth(line) - displayWidth(strings.TrimLeft(line, " ")); drawnIndent > indent {
+		summaryAt = begins + ceilingContinuationIndent
+	}
+	if displayWidth(line) <= summaryAt {
+		trimmed := strings.TrimLeft(line, " ")
+		return trimmed, displayWidth(line) - displayWidth(trimmed), true
+	}
+	before, after := splitAtColumn(line, summaryAt)
+	if !strings.HasSuffix(before, " ") {
+		return "", 0, false
+	}
+	fragment := strings.TrimLeft(after, " ")
+	return fragment, summaryAt + displayWidth(after) - displayWidth(fragment), true
+}
+
+// splitAtColumn cuts a drawn line at a display column, returning what draws
+// before it and what draws from it. A column past the end of the line
+// returns the whole line and nothing after it.
+func splitAtColumn(line string, column int) (string, string) {
+	drawn := 0
+	for at, r := range line {
+		if drawn >= column {
+			return line[:at], line[at:]
+		}
+		drawn += displayWidth(string(r))
+	}
+	return line, ""
+}
+
 // TestNoListingLineReachesPastTheWindow sweeps the command listing across a
 // spread of windows and refuses any line that draws past the edge.
 //
@@ -241,11 +354,90 @@ func helpListingLines(t *testing.T, s *session) []string {
 // one table that asks to wrap, which makes it the one table that can be
 // held to the window.
 func TestNoListingLineReachesPastTheWindow(t *testing.T) {
-	for _, window := range []int{40, 50, 60, 70, 80, 90, 100, 107, 120, 160, 200} {
-		s := tableSession(window)
-		for _, line := range helpListingLines(t, s) {
-			if drawn := displayWidth(line); drawn > window {
-				t.Errorf("at a window of %d a listing line draws %d columns wide:\n%s", window, drawn, line)
+	for _, tag := range msg.Tags() {
+		for _, window := range helpSweepWindows() {
+			s := helpSession(window, tag)
+			laid := s.layOut(withGuides(s.commandListing()))
+			begins := laid.indent + laid.widths[laid.ceilingColumn] + tableGutter
+			for _, line := range helpListingLines(t, s) {
+				fragment, at, measurable := edgeFragment(line, laid.indent, begins, window)
+				if measurable && reachesPastTheWindow(fragment, at, window) {
+					t.Errorf("in %s at a window of %d a listing line draws %d columns wide:\n%s", tag, window, displayWidth(line), line)
+				}
+			}
+		}
+	}
+}
+
+// TestTheCommandListingNeverStacks holds the listing to its table at every
+// window the sweep draws, including the narrow ones.
+//
+// A stacked block draws each field whole, on a line of its own under its
+// column's heading, and nothing in that form wraps. So a listing that stacks
+// at a narrow window escapes the window by drawing lines wider than any
+// window: at 33 columns it drew 87. The capped column is exempt from the
+// stack rule because ceilingRowLine wraps its value rather than letting one
+// value take the rest of the line, and this is that exemption held in place.
+// Before it, this card had moved the threshold from below 32 to below 34,
+// which is how the two-column band was found at all.
+func TestTheCommandListingNeverStacks(t *testing.T) {
+	for _, tag := range msg.Tags() {
+		for _, window := range helpSweepWindows() {
+			s := helpSession(window, tag)
+			if laid := s.layOut(withGuides(s.commandListing())); laid.stacks() {
+				t.Errorf("in %s at a window of %d the command listing gives up its table for a stack", tag, window)
+			}
+		}
+	}
+}
+
+// commandSyntaxLines is the syntax line one command's help page draws at
+// this session's window, and its continuations, split into lines.
+//
+// It draws the line the way verbHelp draws it, through renderSyntaxLine at
+// the page's own indent, rather than by rendering the whole page: every
+// section under the syntax line reads the workbench, and a width sweep has
+// no workbench to read. The indent is the constant verbHelp itself passes,
+// so the two cannot drift apart.
+//
+// The syntax line alone is measured, for the reason the listing alone is:
+// the sections below it draw tables that declare no wrap and sentences the
+// renderer never breaks, and they run past a narrow window on the trunk
+// exactly as they do here. The syntax line is the one part of the page that
+// asks to wrap, which makes it the one part that can be held to the window.
+func commandSyntaxLines(s *session, name string) []string {
+	return splitLines(s.renderSyntaxLine(verb.Usage(name), syntaxContinuationIndent))
+}
+
+// TestNoSyntaxLineReachesPastTheWindow sweeps every command's own help page
+// across the same windows and refuses a syntax line drawn past the edge.
+//
+// It exists because the fix for the listing's own overrun was applied where
+// the defect was reported and not to the class it belongs to.
+// renderSyntaxLine is the sibling call site: it wrapped the syntax to the
+// whole window and then drew every continuation two columns further right,
+// so a continuation that filled its line ran two columns past the edge, in
+// exactly the shape the listing's had. It went unnoticed because before this
+// card the syntax line drew one option group per line and a continuation
+// never filled its room; the greedy packing is what fills it. Measured
+// against the binary, the branch drew past the window at twelve
+// command-and-width pairs that the trunk drew cleanly, none of them wider
+// than 42 columns.
+func TestNoSyntaxLineReachesPastTheWindow(t *testing.T) {
+	for _, tag := range msg.Tags() {
+		for _, window := range helpSweepWindows() {
+			s := helpSession(window, tag)
+			for _, c := range commands {
+				for _, line := range commandSyntaxLines(s, c.name) {
+					if displayWidth(line) <= window {
+						continue
+					}
+					trimmed := strings.TrimLeft(line, " ")
+					at := displayWidth(line) - displayWidth(trimmed)
+					if reachesPastTheWindow(trimmed, at, window) {
+						t.Errorf("in %s at a window of %d the syntax line of %s draws %d columns wide:\n%s", tag, window, c.name, displayWidth(line), line)
+					}
+				}
 			}
 		}
 	}

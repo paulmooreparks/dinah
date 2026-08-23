@@ -9,9 +9,11 @@ import (
 )
 
 // tableSession is a session that renders in the base language at a stated
-// window, which is all a table needs to lay itself out.
+// window, which is all a table needs to lay itself out. It is helpSession in
+// the one language a table case cares about, so the two share a constructor
+// rather than each building a session literal of its own.
 func tableSession(window int) *session {
-	return &session{r: msg.For(msg.Base), width: window}
+	return helpSession(window, msg.Base)
 }
 
 // headed builds the columns of a table from the heading words themselves,

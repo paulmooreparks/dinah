@@ -233,19 +233,34 @@ func isOptionShaped(piece string) bool {
 // start-of-line branch writes a token whole whatever its width, so a long
 // command name needs no case of its own here.
 func breakOnOptions(text string, indent, room int) string {
+	return breakOnOptionsHanging(text, indent, room, 0)
+}
+
+// breakOnOptionsHanging breaks text on option boundaries the way
+// breakOnOptions does, except that every line after the first is narrowed by
+// hang as well as indented to indent. It is to breakOnOptions what
+// breakWordsHanging is to breakWords, and it exists for the same reason: a
+// caller drawing its continuations hang columns further right than its first
+// line has that many fewer columns before the window's edge, so wrapping
+// them all to the first line's room is what puts a full continuation past
+// the edge.
+//
+// Callers whose lines all start at one column pass through breakOnOptions
+// instead, which is this with a hang of nothing.
+func breakOnOptionsHanging(text string, indent, room, hang int) string {
 	if room < 1 {
 		return text
 	}
 	pieces := splitOnOptionBoundaries(text)
 	if len(pieces) <= 1 {
-		return breakWords(text, indent, room)
+		return breakWordsHanging(text, indent, room, hang)
 	}
 	last := len(pieces) - 1
 	tokens := pieces
 	if !isOptionShaped(pieces[last]) {
 		tokens = append(append([]string{}, pieces[:last]...), strings.Fields(pieces[last])...)
 	}
-	return packTokens(tokens, indent, room, 0)
+	return packTokens(tokens, indent, room, hang)
 }
 
 // splitOnOptionBoundaries splits text on option boundaries and returns the
@@ -376,16 +391,23 @@ func (s *session) rowLine(r row) string {
 // syntax costs as few lines as its groups allow rather than one line per
 // group.
 //
+// The indent under the line is a hanging indent, so every line after the
+// first is wrapped indent columns narrower as well as drawn indent columns
+// further right. The first line draws flush at the window's left edge and
+// keeps the whole window; a continuation has indent fewer columns before
+// the edge, and wrapping it to the window would put a full continuation
+// exactly indent columns past it.
+//
 // The width check lives here rather than at the call site because the rule
 // that no caller outside the renderer and the table measures how wide text
 // draws is what TestNoRowIsLaidOutOutsideTheOneRenderer enforces, and a
 // syntax line that asks the renderer whether it fits is the same question
 // raised at a different layer. A line shorter than the window is written
 // whole, exactly as every help page draws one today; a longer line runs
-// through breakOnOptions at indent, which falls back to breakWords when the
-// syntax carries no option boundary, so the rule degrades to the word-wrap
-// the rest of the renderer already uses. An unknown window (s.width == 0)
-// renders the line whole, the same way every row does.
+// through breakOnOptionsHanging at indent, which falls back to the word
+// wrap when the syntax carries no option boundary, so the rule degrades to
+// the behaviour the rest of the renderer already uses. An unknown window
+// (s.width == 0) renders the line whole, the same way every row does.
 //
 // The line is returned as one string with embedded newlines; the caller
 // writes it through the same path as every other line of the block, so the
@@ -394,7 +416,7 @@ func (s *session) renderSyntaxLine(text string, indent int) string {
 	if s.width <= 0 || displayWidth(text) <= s.width {
 		return text
 	}
-	return breakOnOptions(text, indent, s.width)
+	return breakOnOptionsHanging(text, indent, s.width, indent)
 }
 
 // row renders a row and writes it to stdout.
