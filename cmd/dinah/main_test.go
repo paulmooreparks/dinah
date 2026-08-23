@@ -213,25 +213,37 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 // reconstructs the same wrap the renderer draws and reads it back off the
 // block rather than looking for the usage as one contiguous run of text,
 // which a wrapped entry never is.
+//
+// Since dinah-220 a continuation line can carry the summary's own
+// continuation after the syntax fragment, so each chunk is matched as a
+// prefix of its line rather than as the whole of it, with the same
+// space-or-end-of-line rule that keeps one usage from matching another's
+// prefix.
 func blockLists(block, usage string) bool {
 	wrapIndent := 2 + ceilingContinuationIndent
 	room := halfWindow(assumedWindow)
 	chunks := strings.Split(firstChunk(usage, wrapIndent, room), "\n")
 	lines := strings.Split(block, "\n")
-	for i, line := range lines {
-		if !strings.HasPrefix(line, "  "+chunks[0]) {
-			continue
+	// carries reports that a line opens with a chunk and ends the chunk at a
+	// space or at the line's end. The character right after the chunk has to
+	// be a space (the padding before the summary, or before the summary's
+	// own continuation) or nothing at all (a line the summary has run out
+	// on), so a usage that is merely a prefix of a longer one is not read as
+	// a match.
+	carries := func(line, chunk string) bool {
+		if !strings.HasPrefix(line, chunk) {
+			return false
 		}
-		// The character right after the first chunk has to be a space (the
-		// padding before the summary) or the end of the line (a value the
-		// ceiling left whole), so a usage that is merely a prefix of a
-		// longer one is not read as a match.
-		if rest := line[len("  "+chunks[0]):]; rest != "" && rest[0] != ' ' {
+		rest := line[len(chunk):]
+		return rest == "" || rest[0] == ' '
+	}
+	for i, line := range lines {
+		if !carries(line, "  "+chunks[0]) {
 			continue
 		}
 		matched := true
 		for j := 1; j < len(chunks); j++ {
-			if i+j >= len(lines) || lines[i+j] != chunks[j] {
+			if i+j >= len(lines) || !carries(lines[i+j], chunks[j]) {
 				matched = false
 				break
 			}
@@ -628,7 +640,7 @@ func TestInitHelpKeepsItsRefusalList(t *testing.T) {
 		t.Fatalf("help init: %d %s", got.code, got.errw)
 	}
 	for _, carried := range []string{
-		"create a workbench here, optionally from a template",
+		"Create a workbench here, optionally from a template",
 		"no workbench.md file sits at this exact path",
 		contract.Exists,
 		"the source definition carries what the profile requires",
@@ -5208,7 +5220,7 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 // so it says the same thing wherever the command is run.
 const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
 
-read this workbench's own fields, or write one
+Read this workbench's own fields, or write one
 
 What you may write:
   As you write it  What it is
@@ -6709,11 +6721,11 @@ func TestEveryPlaceholderNamesSomethingDeclared(t *testing.T) {
 // table wraps at.
 const ratifiedGlobalFlagTable = `  Option             What it does
   -----------------  -----------------------------------------------------------
-  --workbench <dir>  use this workbench instead of the one discovered from here
-  --json             emit the canonical machine form
-  --quiet            suppress served instructions on claim and move
-  --lang <tag>       render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
-  --actor <name>     act as this owner`
+  --workbench <dir>  Use this workbench instead of the one discovered from here
+  --json             Emit the canonical machine form
+  --quiet            Suppress served instructions on claim and move
+  --lang <tag>       Render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
+  --actor <name>     Act as this owner`
 
 const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
   -----  --------------------------------------------------  -------------------

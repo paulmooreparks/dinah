@@ -817,32 +817,32 @@
       "skeleton": true
     },
     "cmd.add.summary": {
-      "text": "file a new card in the first state",
+      "text": "File a new card in the first state",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.archive.summary": {
-      "text": "move a card, a state, or anything below a card, out of the live set",
+      "text": "Move a card, a state, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.card.summary": {
-      "text": "read one of a card's own fields, or write one",
+      "text": "Read one of a card's own fields, or write one",
       "context": "The one-line summary of the card command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.rename.summary": {
-      "text": "rename an attachment",
+      "text": "Rename an attachment",
       "context": "The one-line summary of the rename command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.attach.summary": {
-      "text": "attach a file, or replace its bytes",
+      "text": "Attach a file, or replace its bytes",
       "context": "The one-line summary of the attach command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.block.summary": {
-      "text": "raise an obstacle and free the card",
+      "text": "Raise an obstacle and free the card",
       "context": "The one-line summary of the block command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -852,172 +852,172 @@
       "skeleton": true
     },
     "cmd.check.summary": {
-      "text": "look for structural defects in this workbench",
+      "text": "Look for structural defects in this workbench",
       "context": "The one-line summary of the check command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.claim.summary": {
-      "text": "take up a ready card",
+      "text": "Take up a ready card",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.comment.summary": {
-      "text": "record a comment on a card",
+      "text": "Record a comment on a card",
       "context": "The one-line summary of the comment command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.config.summary": {
-      "text": "list your user settings, or read or write one",
+      "text": "List your user settings, or read or write one",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.contents.summary": {
-      "text": "what an entity of the workbench contains",
+      "text": "What an entity of the workbench contains",
       "context": "The one-line summary of the contents command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.delete.summary": {
-      "text": "destroy a card, a state, or anything below a card, along with its history",
+      "text": "Destroy a card, a state, or anything below a card, along with its history",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.edit.summary": {
-      "text": "open this workbench, a card, or anything below a card in your editor",
+      "text": "Open this workbench, a card, or anything below a card in your editor",
       "context": "The one-line summary of the edit command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.export.summary": {
-      "text": "write this workbench's interchange form to stdout",
+      "text": "Write this workbench's interchange form to stdout",
       "context": "The one-line summary of the export command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.extract.summary": {
-      "text": "copy this workbench's definition out as a template",
+      "text": "Copy this workbench's definition out as a template",
       "context": "The one-line summary of the extract command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.guide.summary": {
-      "text": "the embedded guides, or one of them",
+      "text": "The embedded guides, or one of them",
       "context": "The one-line summary of the guide command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.help.summary": {
-      "text": "one command's arguments, what can go wrong, and its exit codes",
+      "text": "One command's arguments, what can go wrong, and its exit codes",
       "context": "The one-line summary of the help command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.init.summary": {
-      "text": "create a workbench here, optionally from a template",
+      "text": "Create a workbench here, optionally from a template",
       "context": "The one-line summary of the init command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.instructions.summary": {
-      "text": "the instructions served at a position",
+      "text": "The instructions served at a position",
       "context": "The one-line summary of the instructions command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.join.summary": {
-      "text": "add a card to a workstream",
+      "text": "Add a card to a workstream",
       "context": "The one-line summary of the join command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.leave.summary": {
-      "text": "take a card out of a workstream",
+      "text": "Take a card out of a workstream",
       "context": "The one-line summary of the leave command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.log.summary": {
-      "text": "the recorded actions of a card, oldest first",
+      "text": "The recorded actions of a card, oldest first",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.ls.summary": {
-      "text": "the cards of a state, in queue order",
+      "text": "The cards of a state, in queue order",
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.mcp.summary": {
-      "text": "serve workbenches over MCP on stdio",
+      "text": "Serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.move.summary": {
-      "text": "carry a card to another state",
+      "text": "Carry a card to another state",
       "context": "The one-line summary of the move command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.next.summary": {
-      "text": "the card a state offers next",
+      "text": "The card a state offers next",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.pull.summary": {
-      "text": "claim the head of a state's queue and move it there in one act",
+      "text": "Claim the head of a state's queue and move it there in one act",
       "context": "The one-line summary of the pull command, shown beside its syntax in the help block. Pull is not a sixth verb: it combines a claim and a move into one transaction.",
       "skeleton": true
     },
     "cmd.path.summary": {
-      "text": "print the file path of this workbench, of a card, or of anything below a card",
+      "text": "Print the file path of this workbench, of a card, or of anything below a card",
       "context": "The one-line summary of the path command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.query.summary": {
-      "text": "the cards of the workbench that match a query",
+      "text": "The cards of the workbench that match a query",
       "context": "The one-line summary of the query command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.release.summary": {
-      "text": "give the card back to its queue",
+      "text": "Give the card back to its queue",
       "context": "The one-line summary of the release command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.show.summary": {
-      "text": "a card, or anything below it",
+      "text": "A card, or anything below it",
       "context": "The one-line summary of the show command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.states.summary": {
-      "text": "the flow, in order",
+      "text": "The flow, in order",
       "context": "The one-line summary of the states command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.status.summary": {
-      "text": "where this workbench stands, and what you hold",
+      "text": "Where this workbench stands, and what you hold",
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.tree.summary": {
-      "text": "the workbench's cards nested along a chain of axes",
+      "text": "The workbench's cards nested along a chain of axes",
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.unblock.summary": {
-      "text": "lift a block (operator only)",
+      "text": "Lift a block (operator only)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.version.summary": {
-      "text": "what Dinah is and what it conforms to",
+      "text": "What Dinah is and what it conforms to",
       "context": "The one-line summary of the version command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.whoami.summary": {
-      "text": "the actor your actions carry, and whether it is the operator",
+      "text": "The actor your actions carry, and whether it is the operator",
       "context": "The one-line summary of the whoami command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.workbench.summary": {
-      "text": "read this workbench's own fields, or write one",
+      "text": "Read this workbench's own fields, or write one",
       "context": "The one-line summary of the workbench command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.workbenches.summary": {
-      "text": "the workbenches reachable from here",
+      "text": "The workbenches reachable from here",
       "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.workstream.summary": {
-      "text": "read this workbench's workstreams, create one, or write one's fields",
+      "text": "Read this workbench's workstreams, create one, or write one's fields",
       "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -1397,37 +1397,37 @@
       "skeleton": true
     },
     "flag.actor.summary": {
-      "text": "act as this owner",
+      "text": "Act as this owner",
       "context": "The one-line summary of the global flag --actor.",
       "skeleton": true
     },
     "flag.help.summary": {
-      "text": "print this help, or one command's page when a command is named",
+      "text": "Print this help, or one command's page when a command is named",
       "context": "The one-line summary of the global flag --help. The flag also answers to -h, -help, -?, --? and /?, and the syntax beside this summary lists the three the column has room for.",
       "skeleton": true
     },
     "flag.json.summary": {
-      "text": "emit the canonical machine form",
+      "text": "Emit the canonical machine form",
       "context": "The one-line summary of the global flag --json.",
       "skeleton": true
     },
     "flag.lang.summary": {
-      "text": "render in this language; run `dinah version --catalogs` for the tags",
+      "text": "Render in this language; run `dinah version --catalogs` for the tags",
       "context": "The one-line summary of the global flag --lang.",
       "skeleton": true
     },
     "flag.quiet.summary": {
-      "text": "suppress served instructions on claim and move",
+      "text": "Suppress served instructions on claim and move",
       "context": "The one-line summary of the global flag --quiet.",
       "skeleton": true
     },
     "flag.version.summary": {
-      "text": "print the version and stop",
+      "text": "Print the version and stop",
       "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v and -version, and the syntax beside this summary lists the two the column has room for.",
       "skeleton": true
     },
     "flag.workbench.summary": {
-      "text": "use this workbench instead of the one discovered from here",
+      "text": "Use this workbench instead of the one discovered from here",
       "context": "The one-line summary of the global flag --workbench.",
       "skeleton": true
     },
@@ -2962,7 +2962,7 @@
       "skeleton": true
     },
     "cmd.changes.summary": {
-      "text": "what has happened on this workbench since a cursor",
+      "text": "What has happened on this workbench since a cursor",
       "context": "The one-line summary of the changes command, shown beside its syntax in the help block.",
       "skeleton": true
     },
