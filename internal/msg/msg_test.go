@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -149,5 +150,37 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 	}
 	if !strings.Contains(one, "1") || !strings.Contains(many, "4") {
 		t.Errorf("the count did not fill: %q and %q", one, many)
+	}
+}
+
+// TestATranslationKeepsThePlaceholdersAndTheSplice asserts that a translated
+// string carries every placeholder its English source names, and that a
+// next-step clause still opens with the separator that splices it onto the
+// refusal it follows. A translator may move a placeholder within the sentence
+// and may not drop or respell one, and a next-step clause that loses its
+// leading separator runs into the sentence before it.
+func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
+	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok {
+			continue
+		}
+		names := placeholder.FindAllString(entry.Text, -1)
+		splice := strings.HasSuffix(key, ".next") && strings.HasPrefix(entry.Text, "; ")
+		if len(names) == 0 && !splice {
+			continue
+		}
+		for _, tag := range Complete {
+			rendered := For(tag).T(key)
+			for _, name := range names {
+				if !strings.Contains(rendered, name) {
+					t.Errorf("%s/%s: wanted the placeholder %s, got %q", tag, key, name, rendered)
+				}
+			}
+			if splice && !strings.HasPrefix(rendered, "; ") {
+				t.Errorf("%s/%s: wanted the leading separator that splices it onto the refusal, got %q", tag, key, rendered)
+			}
+		}
 	}
 }
