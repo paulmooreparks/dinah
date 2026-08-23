@@ -113,14 +113,14 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 	views := make([]StateView, 0, len(l.Bench.States))
 	for _, state := range l.Bench.States {
 		view := StateView{
-			ID:            state.ID,
-			Slug:          state.Slug,
-			Title:         state.Title,
-			Kind:          state.Kind,
+			ID:              state.ID,
+			Slug:            state.Slug,
+			Title:           state.Title,
+			Kind:            state.Kind,
 			OperatorOwned:   state.OperatorOwned,
 			AwaitingOutside: state.AwaitingOutside,
 			Capacity:        state.Capacity,
-			Count:         counts[state.ID],
+			Count:           counts[state.ID],
 		}
 		views = append(views, view)
 	}
