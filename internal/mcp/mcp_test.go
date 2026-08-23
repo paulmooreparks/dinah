@@ -658,7 +658,11 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 	// A parameter the head deliberately reads and discards is named here with
 	// the reason, so that the deliberate case is visible rather than looking
-	// like the accident this check exists to find.
+	// like the accident this check exists to find. An entry here does not skip
+	// the parameter either. The check requires the parameter to go on landing
+	// nowhere, so an entry states what the head does today rather than excusing
+	// it from being read, and wiring the parameter up reddens this test until
+	// somebody says the decision has changed.
 	carriedNowhereOnPurpose := map[string]string{
 		"version.catalogs": "the version tool always reports catalog coverage, so the marker selects nothing",
 	}
@@ -674,9 +678,6 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 	for _, entry := range tools {
 		for _, param := range verb.Params(entry.command) {
 			named := entry.command + "." + param.Name
-			if _, deliberate := carriedNowhereOnPurpose[named]; deliberate {
-				continue
-			}
 			arguments := map[string]any{}
 			if param.Marker {
 				arguments[param.Name] = true
@@ -686,6 +687,13 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 			built := request2Args(entry.command, arguments)
 			empty := request2Args(entry.command, map[string]any{})
 			reached := !reflect.DeepEqual(built, empty)
+			if reason, deliberate := carriedNowhereOnPurpose[named]; deliberate {
+				if reached {
+					t.Errorf("%s: %q reaches the request, and this entry says it never does (%s); the decision has changed, so change the entry or take it out",
+						entry.name, param.Name, reason)
+				}
+				continue
+			}
 			if tracked, defective := knownDefect[named]; defective {
 				if reached {
 					t.Errorf("%s: %q now reaches the request, so the exemption has outlived its defect and belongs deleted (%s)",
