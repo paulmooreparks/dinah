@@ -13,8 +13,8 @@ shapes its author had already imagined, so the suite inherited the
 author's blind spot and reported green over the hole. What found all
 three was a reviewer using bash as an oracle: a fake `git` first on PATH,
 a real shell, and a comparison between what the guard decided and what
-the command actually did. That was improvised by hand and thrown away
-three times. This file is that oracle, kept.
+the command actually did. Three reviewers improvised that setup by hand
+and threw it away again, so this file keeps it.
 
 The question it asks is not "did the author think of this spelling". It
 is "does the guard agree with the shell", and the shell is the authority
@@ -37,11 +37,23 @@ Refusing too much is the direction this guard is allowed to be wrong in,
 and a pattern reading a span rather than a parse tree is expected to be
 wrong in it sometimes.
 
+THE SECOND ORACLE IS THE GUARD ALREADY DEPLOYED. Every generated string
+is also put to the version of this hook on `origin/main`, and a string
+the trunk refuses and this branch allows fails the run. Two consecutive
+cycles of this card shipped exactly that: a hole in a place where the
+operator already had protection, invisible to a harness that only ever
+asked whether the branch agreed with a shell. A branch may refuse more
+than the trunk and it may refuse differently, but it may not quietly
+refuse less. The trunk's own file is read out of git rather than
+reimplemented, and it is driven through the interface a hook has, which
+is a JSON payload on stdin and a decision on stdout, so nothing here has
+an opinion about how the trunk reaches its verdict.
+
 The oracle that reads the recorded arguments is deliberately not the
 guard's own code. It walks an argument vector, which is a list the shell
 already split, so it needs no shell grammar and shares no reasoning with
-the thing it is checking. A checker built out of the checked would agree
-with it about everything, including its mistakes.
+the thing it is checking. Built out of the guard it would inherit the
+guard's mistakes and report agreement on every one of them.
 
 SAFETY. Every generated string is git and nothing else, wrapped in
 punctuation. `git` is the stub, so no repository is touched, and the
@@ -51,7 +63,9 @@ and it exists only so that a `-C` can name a genuine linked worktree.
 """
 
 import concurrent.futures
+import io
 import itertools
+import json
 import os
 import shutil
 import subprocess
@@ -65,9 +79,16 @@ import importlib.util
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOOK = os.path.join(HERE, "deny-destructive-git.py")
 
+# Where the already-deployed guard is read from. A ref rather than a file,
+# because the question is what the operator is protected by today.
+TRUNK_REF = "origin/main"
+TRUNK_PATH = "scripts/hooks/deny-destructive-git.py"
+
 # How many shells run at once. The work is a process start rather than
-# arithmetic, so more workers than cores still pays.
-WORKERS = 12
+# arithmetic, so more workers than cores still pays, and the count comes
+# off the machine rather than off the one this was written on. The floor
+# keeps the run finite where `cpu_count` answers None.
+WORKERS = max(4, (os.cpu_count() or 4) * 2)
 
 # How long to wait after a shell returns before reading the recording
 # directory, so that an invocation the string backgrounded is not missed.
@@ -94,16 +115,99 @@ exit 0
 """
 
 
+def load_module(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def load_guard():
     """The guard module itself, imported rather than copied.
 
     The harness reads the real `decide`, so a change to the guard's early
     bail or to its patterns is a change to what this harness tests.
     """
-    spec = importlib.util.spec_from_file_location("deny_destructive_git", HOOK)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_module(HOOK, "deny_destructive_git")
+
+
+def fetch_trunk_guard(root):
+    """The deployed guard's source, written out of git into `root`.
+
+    Returns the path, or None when the ref is not available, which is the
+    case on a clone with no remote and on a machine that has not fetched.
+    A missing trunk costs the comparison rather than the run, and the
+    report says so out loud instead of reporting a green nobody earned.
+    """
+    try:
+        blob = subprocess.run(
+            ["git", "show", "%s:%s" % (TRUNK_REF, TRUNK_PATH)],
+            cwd=HERE, capture_output=True, text=True, timeout=60,
+        )
+    except Exception:
+        return None
+    if blob.returncode != 0 or not blob.stdout.strip():
+        return None
+    path = os.path.join(root, "trunk-deny-destructive-git.py")
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(blob.stdout)
+    return path
+
+
+class Trunk:
+    """The deployed guard, asked the same question through its own interface.
+
+    A hook's interface is a JSON payload on stdin and a decision on
+    stdout, and that is what this drives. Reaching inside for a function
+    would bind the comparison to the trunk's internal shape, and the
+    trunk is a fixed point this branch is measured against rather than a
+    library it may assume things about.
+
+    The stream swap is process-wide, so the calls are serialised. What
+    they serialise is regex work over a few dozen characters once the
+    worktree answers are cached, and the shells the other threads are
+    running write to pipes rather than to this process's stdout.
+    """
+
+    def __init__(self, module, cwd):
+        self.module = module
+        self.cwd = cwd
+        self.lock = threading.Lock()
+        self.errors = 0
+        kinds = {}
+        original = module.worktree_kind
+
+        def cached(target, base):
+            key = (target, base)
+            if key not in kinds:
+                kinds[key] = original(target, base)
+            return kinds[key]
+
+        module.worktree_kind = cached
+
+    def refuses(self, command):
+        """True when the deployed guard denies this command.
+
+        A command the trunk cannot read at all, which `shlex` raises on
+        for an unbalanced quotation mark, counts as no verdict rather
+        than as a refusal. Counting it as a refusal would make every
+        such string a failure of this branch for something the trunk
+        never did.
+        """
+        payload = json.dumps({"tool_input": {"command": command}, "cwd": self.cwd})
+        with self.lock:
+            stdin, stdout = sys.stdin, sys.stdout
+            sys.stdin = io.StringIO(payload)
+            sys.stdout = io.StringIO()
+            try:
+                self.module.main()
+                written = sys.stdout.getvalue()
+            except Exception:
+                self.errors += 1
+                return False
+            finally:
+                sys.stdin, sys.stdout = stdin, stdout
+        return '"deny"' in written
 
 
 def git(*args, cwd=None):
@@ -111,7 +215,14 @@ def git(*args, cwd=None):
 
 
 def build_repo(root):
-    """A main checkout with one commit and one linked worktree beside it."""
+    """A main checkout with one commit and two linked worktrees beside it.
+
+    The second worktree's path carries a space, because a path with a
+    space in it has to be quoted, and a quoted `-C` argument is the
+    legitimate case that any fix to the quoted-argument hole must not
+    break. Without it the harness cannot tell a guard that reads a quoted
+    path correctly from one that has stopped reading quoted paths at all.
+    """
     main = os.path.join(root, "checkout")
     os.makedirs(main)
     git("init", "-q", "-b", "main", cwd=main)
@@ -123,7 +234,9 @@ def build_repo(root):
     git("commit", "-q", "-m", "seed", cwd=main)
     linked = os.path.join(root, "scratch", "card-impl", "wt")
     git("worktree", "add", "--detach", "-q", linked, "HEAD", cwd=main)
-    return main, linked
+    spaced = os.path.join(root, "dinah scratch", "card-impl", "wt")
+    git("worktree", "add", "--detach", "-q", spaced, "HEAD", cwd=main)
+    return main, linked, spaced
 
 
 # ---------------------------------------------------------------------------
@@ -312,27 +425,86 @@ def wrappings():
 
 
 def between_git_and_verb():
-    """Punctuation written between `git` and its subcommand.
+    """What can stand between `git` and its subcommand and still be one command.
 
-    This is the position that leaked the fourth cycle: a lexer split `>`
-    out as a word of its own and the reader underneath called that `>`
-    the subcommand, cleared the command, and let `git >/dev/null reset
-    --hard` run. Every one of these is a real invocation of the verb that
-    follows it, so a guard reading any of them as anything else is wrong.
+    This is the position that has now leaked twice. In the fourth cycle a
+    lexer split `>` out as a word of its own and the reader underneath
+    called that `>` the subcommand, which cleared `git >/dev/null reset
+    --hard`. In the fifth the span the guard read refused to cross a
+    parenthesis, a brace or a backtick, so `git $(echo --no-pager) reset
+    --hard` had no verb in it as far as the guard could see, and the
+    trunk had been refusing that string all along.
+
+    Each entry carries its own leading separator rather than relying on
+    the caller to supply one, because `${IFS}` is a real spelling of the
+    separator itself and `git${IFS}reset --hard` has no space in it at
+    all. Every one of these is a real invocation of the verb that
+    follows, so a guard reading any of them as anything else is wrong.
     """
     return [
-        ("stdout redirection", ">/dev/null "),
-        ("stderr redirection", "2>/dev/null "),
-        ("stderr onto stdout", "2>&1 "),
-        ("stdin redirection", "</dev/null "),
-        ("append redirection", ">>/dev/null "),
-        ("descriptor duplication", "3>&1 "),
-        ("line continuation", "\\\n  "),
-        ("two continuations", "\\\n \\\n "),
-        ("redirection then continuation", ">/dev/null \\\n "),
-        ("global option", "--no-pager "),
-        ("global option then redirection", "--no-pager >/dev/null "),
-        ("configuration override", "-c core.pager=cat "),
+        ("stdout redirection", " >/dev/null "),
+        ("stderr redirection", " 2>/dev/null "),
+        ("stderr onto stdout", " 2>&1 "),
+        ("stdin redirection", " </dev/null "),
+        ("append redirection", " >>/dev/null "),
+        ("descriptor duplication", " 3>&1 "),
+        ("line continuation", " \\\n  "),
+        ("two continuations", " \\\n \\\n "),
+        ("redirection then continuation", " >/dev/null \\\n "),
+        ("global option", " --no-pager "),
+        ("global option then redirection", " --no-pager >/dev/null "),
+        ("configuration override", " -c core.pager=cat "),
+        # The expansion and substitution family, which the generator went
+        # without for three cycles and which is where the fifth cycle's
+        # regression lived.
+        ("an unset parameter expansion", " ${OPTS} "),
+        ("a parameter expansion with a default", " ${OPTS:-} "),
+        ("command substitution", " $(echo --no-pager) "),
+        ("empty command substitution", " $(true) "),
+        ("backtick substitution", " `echo --no-pager` "),
+        ("IFS as the separator, no space anywhere", "${IFS}"),
+        ("IFS after a global option", " --no-pager${IFS}"),
+        ("substitution then redirection", " $(echo --no-pager) >/dev/null "),
+        ("a single-element brace group", " {--no-pager} "),
+    ]
+
+
+def brace_expanded(command):
+    """The command with its whole argument list written as a brace expansion.
+
+    `git {reset,--hard}` runs `git reset --hard`, and the verb is inside
+    a construct a guard reading spans has to cross. Bash leaves a
+    single-element brace alone, so a command with one word after `git`
+    has no brace form and is skipped rather than generated wrong.
+    """
+    words = command.split(" ")[1:]
+    if len(words) < 2 or any("," in word for word in words):
+        return None
+    return "git {%s}" % ",".join(words)
+
+
+def quoted_arguments(linked):
+    """Layouts that hang a quoted argument off the command.
+
+    The generator never quoted an argument anywhere, which is how the
+    fifth cycle shipped a guard whose detector read the command with its
+    quoted spans blanked while its permission check read the raw text. A
+    `-C` written inside a quoted argument then vouched for an invocation
+    that carried none. It is reachable rather than theoretical, because
+    `git -C C:/dinah-scratch/...` is the exact string every agent
+    definition, four columns and this guard's own refusal text tell an
+    agent to write, so an agent quoting the board's advice in a commit
+    message disarms the guard against itself.
+    """
+    idiom = "git -C %s x" % linked
+    return [
+        ("a double-quoted argument holding the board's own idiom", '%%s "%s"' % idiom),
+        ("a single-quoted argument holding the board's own idiom", "%%s '%s'" % idiom),
+        ("a quoted argument mentioning the idiom in prose",
+         '%%s "see %s first"' % idiom),
+        ("a quoted -C with no git word in front of it",
+         '%%s "-C %s"' % linked),
+        ("a quoted argument carrying nothing special", '%s "a note"'),
     ]
 
 
@@ -356,7 +528,7 @@ def qualified(command, path):
     return 'git -C "%s" %s' % (path, command[len("git "):])
 
 
-def strings(linked):
+def strings(linked, spaced):
     """Every generated string, as `(name, command)`.
 
     The crossing is deliberate and it is the point. Each deny-set verb is
@@ -373,7 +545,7 @@ def strings(linked):
         generated.append(("%s, %s" % (command, shape), form % command))
 
     for command, (where, insert) in itertools.product(VERBS, between_git_and_verb()):
-        spelled = "git " + insert + command[len("git "):]
+        spelled = "git" + insert + command[len("git "):]
         generated.append(("%s, %s between git and the verb" % (command, where), spelled))
         for shape, form in wrappings():
             if shape == "bare":
@@ -381,6 +553,23 @@ def strings(linked):
             generated.append(
                 ("%s, %s between git and the verb, %s" % (command, where, shape),
                  form % spelled))
+
+    for command in VERBS:
+        spelled = brace_expanded(command)
+        if not spelled:
+            continue
+        generated.append(("%s, argument list brace-expanded" % command, spelled))
+        for shape, form in wrappings():
+            if shape == "bare":
+                continue
+            generated.append(("%s, argument list brace-expanded, %s" % (command, shape),
+                              form % spelled))
+
+    # A quoted argument on an otherwise bare invocation. The quoted text
+    # is what the guard must not read as permission, and the invocation
+    # around it is what the guard must still refuse.
+    for command, (where, form) in itertools.product(VERBS, quoted_arguments(linked)):
+        generated.append(("%s, %s" % (command, where), form % command))
 
     for command in VERBS:
         for shape, spelled in glued_to_each_flag(command):
@@ -412,6 +601,23 @@ def strings(linked):
     for command, (shape, form) in itertools.product(VERBS, wrappings()):
         generated.append(("%s, -C a worktree, %s" % (command, shape),
                           form % qualified(command, linked)))
+
+    # A worktree whose path contains a space can only be written quoted,
+    # so these say that blanking quoted spans for detection has not cost
+    # the guard the ability to read a path. A guard that refuses these is
+    # a guard the operator turns off, and the fix for the quoted-argument
+    # hole is precisely the fix that could break them.
+    for command, (shape, form) in itertools.product(VERBS, wrappings()):
+        generated.append(("%s, -C a worktree whose path has a space, %s" % (command, shape),
+                          form % qualified(command, spaced)))
+
+    # A qualifying invocation that also carries a quoted argument talking
+    # about git. The quoted text grants nothing, and it must take nothing
+    # away either.
+    for command in VERBS:
+        good = qualified(command, linked)
+        generated.append(("%s, -C a worktree plus a quoted mention of the idiom" % command,
+                          '%s "see git -C %s log first"' % (good, linked)))
 
     for command, (joined, separator) in itertools.product(VERBS, separators):
         good = qualified(command, linked)
@@ -502,12 +708,14 @@ def main():
 
     root = tempfile.mkdtemp(prefix="guard-against-a-real-shell-")
     failures = []
+    regressions = []
     shapes = {}
     over_refusals = 0
     total = 0
     reached = 0
+    trunk = None
     try:
-        checkout, linked = build_repo(root)
+        checkout, linked, spaced = build_repo(root)
 
         stubdir = os.path.join(root, "stub")
         os.makedirs(stubdir)
@@ -534,6 +742,15 @@ def main():
             return 1
 
         guard = load_guard()
+
+        # The deployed guard, asked from the sandbox the shells run in.
+        # That directory is no worktree, which is the situation the guard
+        # exists for: a command whose working directory nobody can vouch
+        # for.
+        trunk_path = fetch_trunk_guard(root)
+        if trunk_path:
+            trunk = Trunk(load_module(trunk_path, "trunk_deny_destructive_git"), sandbox)
+
         kinds = {}
         kinds_lock = threading.Lock()
 
@@ -551,9 +768,10 @@ def main():
         def examine(entry):
             name, command = entry
             allowed = guard.decide(command) is None
+            trunk_refused = bool(trunk and allowed and trunk.refuses(command))
             invocations = shells.run(command)
             if invocations is None:
-                return name, command, allowed, None
+                return name, command, allowed, None, trunk_refused
             offences = []
             for argv in invocations:
                 directory, subcommand, arguments = read_argv(argv)
@@ -563,11 +781,14 @@ def main():
                 if directory and os.path.isabs(directory) and kind_of(directory) == "linked":
                     continue
                 offences.append((label, argv))
-            return name, command, allowed, offences
+            return name, command, allowed, offences, trunk_refused
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
-            for name, command, allowed, offences in pool.map(examine, strings(linked)):
+            for name, command, allowed, offences, trunk_refused in pool.map(
+                    examine, strings(linked, spaced)):
                 total += 1
+                if trunk_refused:
+                    regressions.append((name, command))
                 if offences is None:
                     failures.append((name, command, "the shell did not finish", None))
                     continue
@@ -589,7 +810,20 @@ def main():
           "(over-refusal, not a failure)" % over_refusals)
     for shape, count in sorted(shapes.items(), key=lambda pair: -pair[1])[:12]:
         print("    %4d  %s" % (count, shape))
+    if trunk is None:
+        print("the deployed guard at %s could not be read, so no string was "
+              "compared against it" % TRUNK_REF)
+    else:
+        print("every string was also put to the deployed guard at %s (%d of them "
+              "it could not read)" % (TRUNK_REF, trunk.errors))
     print()
+
+    for name, command in regressions:
+        print("REGRESSION %s" % name)
+        print("     command: %r" % command)
+        print("     the deployed guard refuses this and this branch allows it")
+    if regressions:
+        print()
 
     if failures:
         for name, command, label, argv in failures:
@@ -597,10 +831,19 @@ def main():
             print("     command: %r" % command)
             print("     git received: %s (%r)" % (label, argv))
         print()
-        print("%d fail-open(s) out of %d generated strings" % (len(failures), total))
+
+    if failures or regressions:
+        print("%d fail-open(s) and %d regression(s) against %s, out of %d "
+              "generated strings" % (len(failures), len(regressions), TRUNK_REF, total))
         return 1
 
-    print("no fail-open in %d generated strings" % total)
+    if trunk is None:
+        print("no fail-open in %d generated strings, but the comparison against "
+              "%s did not run" % (total, TRUNK_REF))
+        return 1
+
+    print("no fail-open and no regression against %s in %d generated strings"
+          % (TRUNK_REF, total))
     return 0
 
 

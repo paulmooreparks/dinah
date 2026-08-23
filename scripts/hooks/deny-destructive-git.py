@@ -51,9 +51,12 @@ command separator, to the verb and to whichever flag decides the verb.
 Robustness to punctuation is a property of the character class rather
 than of a rule somebody remembered to write: a separator cannot hide an
 invocation, because a separator ends the span, and a separator cannot
-hide a flag, because `\b` sits between a flag and whatever is glued to
-it. Nothing here tracks state, keeps a position, or infers a directory,
-so nothing here reopens what OQ-9 deleted.
+hide a flag, because a flag is delimited by what a word cannot contain
+rather than by whitespace. Requiring whitespace in front of a flag was
+itself a fail-open, in eight of the rules at once, and `git {clean,-fdx}`
+is what a shell does with a brace expansion. Nothing here tracks state,
+keeps a position, or infers a directory, so nothing here reopens what
+OQ-9 deleted.
 
 Three normalisations run before the patterns, and each one preserves the
 length of the command so that a match's offsets still index the original
@@ -65,10 +68,27 @@ Redirection operators are blanked, because `>` and `<` and the `&` of
 between two, and leaving them in the character class was how the last
 version cleared `git >/dev/null reset --hard`.
 
-Permission is then read off the original text of the matched span. The
-span reaches from the `git` word to the next character that could start
-another command, so a `-C` in one invocation cannot vouch for another,
-which is what `git -C <worktree> stash pop && git reset --hard` needs.
+Permission is then decided over the matched span, which reaches from the
+`git` word to the next character that could start another command, so a
+`-C` in one invocation cannot vouch for another and `git -C <worktree>
+stash pop && git reset --hard` is refused.
+
+Detection and permission read the same text, and an earlier version of
+this file did not. It matched patterns against the normalised command and
+then looked for the `-C` in the original, so the two halves disagreed
+about which characters were data: `git reset --hard "git -C <a real
+worktree> x"` was cleared by a `-C` git never sees, and that string is
+the exact idiom every agent definition on this board and this guard's own
+refusal text tell an agent to write. The `-C` token is now found in the
+normalised text, where a quoted span is blank, and only its argument is
+read from the original, so a `-C` inside quotation marks grants nothing
+while `git -C "C:/dinah scratch/wt" stash pop` still names its worktree.
+
+A span holding more than one `git` word is refused outright. The span
+crosses a parenthesis, a brace and a backtick, because a shell keeps all
+of those inside one command, and the price of crossing them is that two
+invocations can share a span. Which of them a `-C` belongs to is then a
+question the guard cannot answer, and it refuses rather than guesses.
 
 Is a named directory a linked worktree? `git rev-parse --git-dir
 --git-common-dir` is the documented discriminator. The two answers differ
@@ -109,11 +129,17 @@ to be wrong in, and quoting the word is the fix.
 
 Two things this guard does not cover and never did. A command that
 changes directory and then runs something other than git is outside it,
-because it reads git commands. And a git command assembled inside a
-quoted string that another program then executes, as `eval "git reset
---hard"` does, is invisible to it, because blanking quoted spans is what
-keeps a commit message from being read as a command and the two cannot
-both be had.
+because it reads git commands.
+
+And quoting hides a command from it, which is a wider hole than the one
+example everybody reaches for. `eval "git reset --hard"` is the famous
+spelling, but quoting any part of the git word or the verb does the same
+thing for the same reason: `git 'reset' --hard`, `git re""set --hard`
+and `"git" reset --hard` all run the verb and all pass, because blanking
+a quoted span destroys the word inside it. Blanking is what keeps a
+commit message from being read as a command, and a guard cannot both
+ignore quoted text and read it. The trunk's guard has always had this
+hole too, and closing it is not a matter of handling another spelling.
 """
 
 import json
@@ -126,11 +152,21 @@ import sys
 GIT_TIMEOUT = 5
 
 # Characters that can end one command and begin another. A span of the
-# command that contains none of them is a single simple command, which is
-# the unit permission is decided over. Redirection operators are blanked
-# before the patterns run, so `>`, `<` and the `&` of `2>&1` never reach
-# this class and cannot be mistaken for a boundary.
-BOUNDARY_CHARACTERS = "|;&`(){}\n"
+# command that contains none of them is at most one simple command, which
+# is the unit permission is decided over. Redirection operators are
+# blanked before the patterns run, so `>`, `<` and the `&` of `2>&1` never
+# reach this class and cannot be mistaken for a boundary.
+#
+# These four and no more, which is the set the guard on the trunk has
+# always used. A wider set was tried and it was a fail-open: a shell keeps
+# a parenthesis, a brace and a backtick inside a single command, so a span
+# that stops at one of them stops before the verb, and `git ${OPTS} reset
+# --hard`, `git $(echo --no-pager) reset --hard`, the backtick form,
+# `git${IFS}reset --hard` and `git {reset,--hard}` all ran with the guard
+# reporting nothing to refuse. The file had already reasoned this out for
+# redirection one line down and then stopped short of expansion and
+# substitution.
+BOUNDARY_CHARACTERS = "|;&\n"
 
 # The span between a `git` word and the verb it is running. Written once
 # and spliced into every pattern, because a rule that spells its own
@@ -141,10 +177,22 @@ BOUNDARY = re.compile("[" + re.escape(BOUNDARY_CHARACTERS) + "]")
 
 GIT = r"\bgit\b"
 
+# Where a word can begin. Written as a refusal of the characters that
+# continue a word rather than as a list of the characters that separate
+# them, because the separating characters are not knowable: whitespace is
+# the ordinary one, but brace expansion writes a word boundary as `{` or
+# `,`, and `git {clean,-fdx}` runs `git clean -fdx` with no whitespace in
+# it at all. Requiring whitespace was a fail-open in eight of the rules
+# below at once, and the differential harness produced 300 strings for
+# it. The `@` is refused so that `git@host:x/y` stays a remote rather
+# than a word beginning at `host`.
+WORD_START = r"(?<![\w.=/~@+-])"
+
+
 # A bundled short flag carrying a particular letter, as `-fdx` carries
 # `f`. The trailing `\b` is what makes `-fdx;` and `-fdx` the same flag.
 def short(letter):
-    return r"\s-[a-z]*" + letter + r"[a-z]*\b"
+    return WORD_START + r"-[a-z]*" + letter + r"[a-z]*\b"
 
 
 def rule(*parts):
@@ -154,27 +202,28 @@ def rule(*parts):
 # A colon refspec, as in `git push origin :topic` or
 # `git push origin HEAD:refs/heads/x`. A remote spelled as a URL carries a
 # colon too, so `://` and a `user@host` prefix are both excluded.
-COLON_REFSPEC = r"\s(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
+COLON_REFSPEC = WORD_START + r"(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
 
 DENIED = [
     (rule(GIT, GAP, r"\breset\b", GAP, r"(?:--hard|--merge|--keep)\b"),
      "git reset --hard/--merge/--keep"),
     (rule(GIT, GAP, r"\bclean\b", GAP, "(?:", short("f"), "|", short("d"), "|",
-          short("x"), r"|\s--force\b)"),
+          short("x"), "|", WORD_START, r"--force\b)"),
      "git clean -f/-d/-x"),
-    (rule(GIT, GAP, r"\bcheckout\b", GAP, r"(?:\s--(?![\w.=-])|", short("f"),
-          r"|\s--force\b)"),
+    (rule(GIT, GAP, r"\bcheckout\b", GAP, "(?:", WORD_START, r"--(?![\w.=-])|", short("f"),
+          "|", WORD_START, r"--force\b)"),
      "git checkout -- / -f"),
     (rule(GIT, GAP, r"\brestore\b(?!", GAP, r"--staged\b(?!", GAP, r"--worktree\b))"),
      "git restore (working tree)"),
     (rule(GIT, GAP, r"\bswitch\b", GAP, "(?:", short("f"),
-          r"|\s--force\b|\s--discard-changes\b)"),
+          "|", WORD_START, r"--force\b|", WORD_START, r"--discard-changes\b)"),
      "git switch -f/--force/--discard-changes"),
-    (rule(GIT, GAP, r"\bpush\b", GAP, r"(?:\s--force(?!-with-lease)\b|", short("f"), ")"),
+    (rule(GIT, GAP, r"\bpush\b", GAP, "(?:", WORD_START,
+          r"--force(?!-with-lease)\b|", short("f"), ")"),
      "git push --force"),
     (rule(GIT, GAP, r"\bpush\b", GAP, r"--force-with-lease", GAP, r"\b(?:main|master)\b"),
      "git push --force-with-lease to main/master"),
-    (rule(GIT, GAP, r"\bpush\b", GAP, r"(?:\s--delete\b|", short("d"), "|",
+    (rule(GIT, GAP, r"\bpush\b", GAP, "(?:", WORD_START, r"--delete\b|", short("d"), "|",
           COLON_REFSPEC, ")"),
      "git push --delete / colon refspec"),
     (rule(GIT, GAP, r"\bstash\b(?!\s+(?:list|show)\b)"),
@@ -191,9 +240,9 @@ DENIED = [
     (rule(GIT, GAP, r"\bbisect\b(?!\s+(?:log|view)\b)"), "git bisect"),
     (rule(GIT, GAP, r"\bpull\b(?!", GAP, r"--ff-only\b)"), "git pull (may merge)"),
     (rule(GIT, GAP, r"\bworktree\b", GAP, r"\bremove\b"), "git worktree remove"),
-    (rule(GIT, GAP, r"\bbranch\b", GAP, r"(?:\s--delete\b|", short("d"), ")"),
+    (rule(GIT, GAP, r"\bbranch\b", GAP, "(?:", WORD_START, r"--delete\b|", short("d"), ")"),
      "git branch -d/-D"),
-    (rule(GIT, GAP, r"\btag\b", GAP, r"(?:\s--delete\b|", short("d"), ")"),
+    (rule(GIT, GAP, r"\btag\b", GAP, "(?:", WORD_START, r"--delete\b|", short("d"), ")"),
      "git tag -d"),
 ]
 
@@ -223,14 +272,28 @@ REDIRECTION = re.compile(r"\d*(?:>>|>&|>|<<<|<<|<&|<)\d*-?")
 #
 # The case fold covers the `git` word and stops there. `-c` and `-C` are
 # different options, `-c` sets configuration and `-C` names a directory,
-# and folding the case of the flag was itself a fail-open: this harness's
-# first run caught `git -c core.pager=cat reset --hard` being cleared by
-# a `-C` that was never written.
-GIT_C = re.compile(r"(?i:\bgit\b)\s+-C\s*(\"[^\"]*\"|'[^']*'|\S+)")
+# and folding the case of the flag was itself a fail-open: the
+# differential harness's first run caught `git -c core.pager=cat reset
+# --hard` being cleared by a `-C` that was never written.
+#
+# These two match the flag only. Their offsets are used against the
+# normalised text, where a quoted span is blank, so a `-C` an agent wrote
+# inside a commit message is not a `-C` git will ever see. The value is
+# then read out of the original text at the offset the flag ended, which
+# is what keeps `git -C "C:/dinah scratch/wt" stash pop` working: the
+# token has to stand outside quotation marks, and its argument may be
+# inside them.
+GIT_C = re.compile(r"(?i:\bgit\b)\s+-C")
+ANY_C = re.compile(r"(?:^|\s)-C")
 
-# Every `-C` in the span, because git applies more than one cumulatively
-# and the last one wins. All of them have to qualify.
-ANY_C = re.compile(r"(?:^|\s)-C\s*(\"[^\"]*\"|'[^']*'|\S+)")
+# The argument a `-C` names, read from the original text.
+C_VALUE = re.compile(r"\s*(\"[^\"]*\"|'[^']*'|\S+)")
+
+# A `git` word, counted rather than located. Written to skip the shapes
+# that carry the letters without being the command: a path component
+# (`.git/config`), a hyphenated neighbour (`git-lfs`), an option
+# (`--git-dir`), and a remote (`git@host`, `git://host`).
+GIT_WORD = re.compile(r"(?<![\w./@:-])git(?![\w./@:-])", re.IGNORECASE)
 
 # Options naming a target the guard does not follow.
 UNFOLLOWED = re.compile(r"(?:^|\s)--(?:git-dir|work-tree)\b", re.IGNORECASE)
@@ -297,20 +360,44 @@ def worktree_kind(target):
     return "linked" if resolve(git_dir, target) != resolve(common_dir, target) else "main"
 
 
-def fault(segment):
+def named_directory(raw, position):
+    """The directory a `-C` names, read from the original text at `position`.
+
+    `position` is where the flag ended in the normalised text, and the
+    two texts share offsets by construction, so it is where the flag
+    ended in the original too. Returns None when the flag names nothing.
+    """
+    value = C_VALUE.match(raw, position)
+    return unquote(value.group(1)) if value else None
+
+
+def fault(raw, scan):
     """Why this invocation did not earn its permission, or None when it did.
 
-    `segment` is the original text of one simple command, starting at the
-    `git` word the pattern matched.
+    `raw` is the original text of one span of the command, starting at
+    the `git` word the pattern matched, and `scan` is the same span of
+    the normalised text. Detection and permission read the same
+    characters as data and the same characters as command, which is what
+    stops a `-C` written inside a quoted argument from vouching for an
+    invocation that carries none.
     """
-    unfollowed = UNFOLLOWED.search(segment)
+    unfollowed = UNFOLLOWED.search(scan)
     if unfollowed:
         return "%s names a target this guard does not follow" % unfollowed.group(0).strip()
-    anchored = GIT_C.search(segment)
+    # More than one `git` word in a span the guard reads as one command
+    # means it cannot say which invocation a `-C` belongs to, and a
+    # question the guard cannot answer is refused rather than guessed.
+    # The span crosses a parenthesis, a brace and a backtick, so this is
+    # what keeps `git -C <worktree> log $(git reset --hard)` refused.
+    if len(GIT_WORD.findall(scan)) > 1:
+        return "the span carries more than one git word, so no -C in it is readable"
+    anchored = GIT_C.search(scan)
     if not anchored:
         return "the invocation carries no -C"
-    for match in ANY_C.finditer(segment):
-        directory = unquote(match.group(1))
+    for match in ANY_C.finditer(scan):
+        directory = named_directory(raw, match.end())
+        if directory is None:
+            return "-C names no directory"
         if not os.path.isabs(directory):
             return "-C %s is relative, so it names no directory on its own" % directory
         kind = worktree_kind(directory)
@@ -332,7 +419,7 @@ def offender(command):
         for match in pattern.finditer(scannable):
             boundary = BOUNDARY.search(scannable, match.end())
             end = boundary.start() if boundary else len(scannable)
-            why = fault(command[match.start():end])
+            why = fault(command[match.start():end], scannable[match.start():end])
             if why:
                 return label, why
     return None

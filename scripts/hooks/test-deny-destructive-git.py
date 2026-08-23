@@ -402,6 +402,81 @@ def cases(root, main, linked, spaced, nested):
         ("a configuration override ahead of a real -C is still refused",
          'git -c core.pager=cat -C "%s" stash pop' % linked, main, DENY),
 
+        # Expansion and substitution written between `git` and its verb.
+        # The span the guard reads used to stop at a parenthesis, a brace
+        # and a backtick, and a shell keeps every one of those inside a
+        # single command, so the verb was simply not in the text the guard
+        # searched. The trunk had been refusing all five of these all
+        # along, which is what makes them a regression rather than a gap.
+        ("a parameter expansion between git and the verb",
+         "git ${OPTS} re" + "set --hard origin/main", main, DENY),
+        ("a command substitution between git and the verb",
+         "git $(echo --no-pager) re" + "set --hard origin/main", main, DENY),
+        ("a backtick substitution between git and the verb",
+         "git `echo --no-pager` re" + "set --hard origin/main", main, DENY),
+        ("IFS standing in for the space between git and the verb",
+         "git${IFS}re" + "set --hard origin/main", main, DENY),
+        ("the argument list written as a brace expansion",
+         "git {re" + "set,--hard}", main, DENY),
+        ("a brace expansion of a verb that takes no flag",
+         "git {stash,pop}", main, DENY),
+
+        # The same brace expansion one layer down. Eight of the rules
+        # decided a flag by requiring whitespace in front of it, and a
+        # brace expansion puts a comma there instead, so the verb was
+        # found and the flag that condemns it was not. A flag is
+        # delimited by what a word cannot contain, and these say so.
+        ("a brace-expanded clean -fdx", "git {clean,-fdx}", main, DENY),
+        ("a brace-expanded checkout --", "git {checkout,--,.}", main, DENY),
+        ("a brace-expanded checkout -f", "git {checkout,-f,main}", main, DENY),
+        ("a brace-expanded push --force",
+         "git {push,--force,origin,topic}", main, DENY),
+        ("a brace-expanded push --delete",
+         "git {push,origin,--delete,topic}", main, DENY),
+        ("a brace-expanded colon refspec", "git {push,origin,:topic}", main, DENY),
+        ("a brace-expanded switch -f", "git {switch,-f,main}", main, DENY),
+        ("a brace-expanded switch --discard-changes",
+         "git {switch,--discard-changes,main}", main, DENY),
+        ("a brace-expanded branch -D", "git {branch,-D,topic}", main, DENY),
+        ("a brace-expanded tag -d", "git {tag,-d,v1.0}", main, DENY),
+
+        # A `-C` written inside a quoted argument is text git never reads
+        # as an option, so it grants nothing. This one is reachable rather
+        # than theoretical: `git -C C:/dinah-scratch/...` is the string the
+        # agent definitions, four columns and this guard's own refusal text
+        # all tell an agent to write, so an agent quoting the board's own
+        # advice used to disarm the guard against itself.
+        ("a quoted -C does not vouch for a bare reset",
+         'git re' + 'set --hard "git -C %s x"' % linked, main, DENY),
+        ("a quoted -C does not vouch for a bare commit",
+         'git commit -m "dinah-9: run git -C %s log first"' % linked, main, DENY),
+        ("a quoted -C does not vouch for a bare stash pop",
+         'git stash pop "git -C %s ."' % linked, main, DENY),
+        ("a quoted -C with no git word in front of it vouches for nothing",
+         'git clean -fdx "-C %s"' % linked, main, DENY),
+        ("a single-quoted -C vouches for nothing either",
+         "git re" + "set --hard 'git -C %s x'" % linked, main, DENY),
+
+        # The other half of the same rule: the `-C` token has to stand
+        # outside quotation marks, and its argument may be inside them. A
+        # worktree whose path contains a space can be named no other way.
+        ("a qualifying invocation carrying a quoted mention of the idiom",
+         'git -C "%s" commit -m "see git -C %s log first"' % (linked, linked),
+         main, ALLOW),
+        ("a quoted path with a space still names its worktree",
+         'git -C "%s" stash pop' % spaced, main, ALLOW),
+        ("a single-quoted path with a space still names its worktree",
+         "git -C '%s' stash pop" % spaced, main, ALLOW),
+
+        # Two invocations inside one span. Crossing a parenthesis is what
+        # closed the regression above, and its price is that a span can
+        # hold two commands with no boundary character between them. The
+        # guard cannot say which one a `-C` belongs to, so it refuses.
+        ("a qualifying invocation with a bare one substituted into it",
+         'git -C "%s" log $(git re' % linked + 'set --hard)', main, DENY),
+        ("a qualifying invocation with a bare one in backticks",
+         'git -C "%s" log `git stash pop`' % linked, main, DENY),
+
         # A command mentioning no git at all never reaches the rule.
         ("no git in the command", "rm -rf build", main, ALLOW),
     ])
