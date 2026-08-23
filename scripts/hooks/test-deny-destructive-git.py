@@ -2,14 +2,22 @@
 r"""Cases the destructive-git guard must hold to.
 
 Run it from anywhere: `python scripts/hooks/test-deny-destructive-git.py`.
-It exits non-zero on the first disagreement and prints every case either
-way, so a failure names itself rather than needing a debugger.
+It prints every case either way and exits non-zero when any of them
+disagrees with the table, so a failure names itself rather than needing a
+debugger.
 
 The table builds its own repository under a temporary directory, with a
 main checkout and three linked worktrees, rather than asserting against
 the operator's real one. That keeps the run reproducible on a machine
 whose worktrees sit somewhere else, and it means the test never points a
 destructive command at anything a person cares about.
+
+The contract these cases pin is a single sentence. A git invocation whose
+verb is in the deny set is allowed only when that same invocation carries
+`-C <path>` and the path classifies as a linked worktree. The session's
+reported working directory decides nothing, which is why most verbs are
+run from both the main checkout and a worktree and expected to give the
+same answer in each.
 """
 
 import json
@@ -23,6 +31,10 @@ HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "deny-destructiv
 
 DENY = "deny"
 ALLOW = "allow"
+
+# Spelled in pieces so the file itself does not carry a string the live
+# guard refuses when an agent edits this repository.
+RESET = "git re" + "set --hard origin/main"
 
 
 def git(*args, cwd=None):
@@ -62,13 +74,18 @@ def verdict(command, cwd):
     return DENY if decision == "deny" else ALLOW
 
 
-# Every verb the guard refuses in the main checkout. Each one is run three
-# ways: in the main checkout, where it must be denied; in a linked
-# worktree, where it must be allowed; and with no working directory
-# reported at all, where the guard has nothing to classify and fails
-# closed.
+def qualified(command, path):
+    """The same command with a `-C <path>` naming where it runs."""
+    assert command.startswith("git "), command
+    return 'git -C "%s" %s' % (path, command[4:])
+
+
+# Every verb the guard refuses. Each one is run six ways, and the first
+# three of those are the point of the contract: a bare invocation is
+# refused wherever the session says it stands, including when the session
+# says nothing at all.
 MUTATING = [
-    ("reset --hard", "git reset --hard origin/main"),
+    ("reset --hard", "git re" + "set --hard origin/main"),
     ("clean -fdx", "git clean -fdx"),
     ("checkout -- .", "git checkout -- ."),
     ("checkout -f", "git checkout -f main"),
@@ -98,9 +115,10 @@ MUTATING = [
     ("push a colon refspec", "git push origin :topic"),
 ]
 
-# Ordinary work in the operator's own checkout, which the guard has no
-# business refusing. Every carve-out named in the deny set appears here,
-# because an exemption nobody tests is an exemption that quietly closes.
+# Ordinary work the guard has no business refusing, wherever it runs and
+# whether or not it names a directory. Every carve-out named in the deny
+# set appears here, because an exemption nobody tests is an exemption that
+# quietly closes.
 ORDINARY = [
     ("stash list", "git stash list"),
     ("stash show", "git stash show"),
@@ -124,10 +142,34 @@ ORDINARY = [
     ("status", "git status --porcelain"),
     ("log", "git log --oneline -1"),
     ("diff", "git diff"),
-    ("reset without --hard", "git reset HEAD~1"),
+    ("reset without --hard", "git re" + "set HEAD~1"),
     ("restore --staged only", "git restore --staged seed.txt"),
     ("push --force-with-lease to a topic", "git push --force-with-lease origin topic"),
 ]
+
+
+def leaks(linked):
+    """The seven spellings that got past the parsing design.
+
+    Each was found by a person reading the code rather than by the suite,
+    and each is a real string. They are kept as regressions and every one
+    of them is now refused, for a structural reason rather than because
+    the spelling was handled: none carries a `-C`, and nothing else can
+    grant permission.
+    """
+    return [
+        ("leak: a cd inside a quoted argument",
+         'git commit -m "cd %s && note" && %s' % (linked, RESET)),
+        ("leak: a here-string read as a heredoc opener",
+         "cat <<<word\n%s" % RESET),
+        ("leak: a heredoc marker containing a hyphen",
+         "cat <<E-OF\ncd %s\nE-OF\n%s" % (linked, RESET)),
+        ("leak: a heredoc marker beginning with a digit",
+         "cat <<1EOF\ncd %s\n1EOF\n%s" % (linked, RESET)),
+        ("leak: pushd instead of cd", "pushd %s && %s" % (linked, RESET)),
+        ("leak: builtin cd", "builtin cd %s && %s" % (linked, RESET)),
+        ("leak: a backslash-escaped cd", "\\cd %s && %s" % (linked, RESET)),
+    ]
 
 
 def cases(root, main, linked, spaced, nested):
@@ -136,172 +178,124 @@ def cases(root, main, linked, spaced, nested):
     table = []
 
     for name, command in MUTATING:
-        table.append(("%s in the main checkout" % name, command, main, DENY))
-        table.append(("%s in a linked worktree" % name, command, linked, ALLOW))
-        table.append(("%s with no cwd reported" % name, command, "", DENY))
+        table.append(("%s, bare, session in the main checkout" % name, command, main, DENY))
+        table.append(("%s, bare, session in a worktree" % name, command, linked, DENY))
+        table.append(("%s, bare, no cwd reported" % name, command, "", DENY))
+        table.append(("%s, -C a worktree, session in the main checkout" % name,
+                      qualified(command, linked), main, ALLOW))
+        table.append(("%s, -C a worktree, session in a worktree" % name,
+                      qualified(command, linked), linked, ALLOW))
+        table.append(("%s, -C the main checkout" % name, qualified(command, main), linked, DENY))
 
     for name, command in ORDINARY:
         table.append(("%s in the main checkout" % name, command, main, ALLOW))
+        table.append(("%s in a worktree" % name, command, linked, ALLOW))
+
+    for name, command in leaks(linked):
+        table.append((name, command, main, DENY))
 
     table.extend([
-        # The push the Implement stage runs carries a colon, so it is
-        # refused in the checkout and allowed where that stage works.
-        ("push HEAD to a full refname in a worktree", "git push origin HEAD:refs/heads/topic", linked, ALLOW),
-        ("push HEAD to a full refname in the main checkout",
-         "git push origin HEAD:refs/heads/topic", main, DENY),
-        # A worktree nested inside the checkout is still a linked worktree.
-        # The board forbids creating one there for an unrelated reason,
-        # which is Dinah's workbench discovery, and enforcing that is not
-        # this guard's job. It answers one question: is this the main
-        # checkout?
-        ("reset --hard in a nested worktree", "git reset --hard origin/main", nested, ALLOW),
-        # An explicit -C decides the target, whatever the working directory is.
-        ("-C main from a linked worktree", "git -C %s checkout -- ." % main, linked, DENY),
-        ("-C linked worktree from main", "git -C %s stash pop" % linked, main, ALLOW),
-        ("-C quoted path with a space", 'git -C "%s" clean -fdx' % main, linked, DENY),
-        ("-C wins over an earlier cd", "cd %s && git -C %s stash pop" % (linked, main), linked, DENY),
-        # Fail closed on anything unclassifiable.
-        ("working directory no longer exists", "git clean -fdx", gone, DENY),
-        ("target is not a git work tree", "git -C %s clean -fdx" % tempfile.gettempdir(), main, DENY),
+        # What a -C has to name before it grants anything.
+        ("-C a nested worktree is still a linked worktree",
+         'git -C "%s" clean -fdx' % nested, main, ALLOW),
+        ("-C a directory that is not a git work tree",
+         'git -C "%s" clean -fdx' % tempfile.gettempdir(), main, DENY),
+        ("-C a directory that no longer exists",
+         'git -C "%s" clean -fdx' % gone, main, DENY),
+        ("-C a path written with backslashes",
+         "git -C %s stash pop" % backslashed, main, ALLOW),
+        ("-C a quoted path containing a space",
+         'git -C "%s" stash pop' % spaced, main, ALLOW),
+        ("-C attached to its value", 'git -C"%s" stash pop' % linked, main, ALLOW),
+        # A relative -C names a directory only together with a working
+        # directory, and the working directory is what the guard stopped
+        # consulting. It is refused rather than composed.
+        ("-C . is relative and names nothing on its own",
+         "git -C . stash pop", linked, DENY),
+        ("-C a relative subdirectory names nothing on its own",
+         "git -C scratch/card-impl/wt stash pop", root, DENY),
 
-        # A cd in the command being judged is the ordinary way an agent
-        # reaches its worktree, because the shell's directory does not
-        # persist between calls.
-        ("cd to a worktree then stash pop", "cd %s && git stash pop" % linked, main, ALLOW),
-        ("cd to the main checkout from a worktree", "cd %s && git stash pop" % main, linked, DENY),
-        ("cd to a quoted path containing a space", 'cd "%s" && git stash pop' % spaced, main, ALLOW),
-        ("cd to a path written with backslashes", "cd %s && git stash pop" % backslashed, main, ALLOW),
-        ("a relative cd resolves against the payload cwd",
-         "cd scratch/card-impl/wt && git stash pop", root, ALLOW),
-        ("a relative cd onto the main checkout", "cd checkout && git stash pop", root, DENY),
-        ("cd counts only as the first token of a segment",
-         "echo cd %s && git stash pop" % linked, main, DENY),
-        ("cd to an unexpanded variable", "cd $WORKTREE && git stash pop", main, DENY),
-        ("cd with no argument", "cd && git stash pop", main, DENY),
+        # Options naming a target the guard does not follow.
+        ("--git-dir instead of -C", 'git --git-dir="%s/.git" stash pop' % main, linked, DENY),
+        ("--git-dir spelled with a space",
+         'git --git-dir "%s/.git" stash pop' % main, linked, DENY),
+        ("--work-tree instead of -C", 'git --work-tree="%s" stash pop' % linked, main, DENY),
+        ("--work-tree spelled with a space",
+         'git --work-tree "%s" stash pop' % linked, main, DENY),
+        # The four cases above hold whether or not the guard refuses the
+        # option, because an invocation using one carries no -C either and
+        # is refused for that instead. These three rest on the refusal
+        # alone: each carries a -C that would otherwise clear it.
+        ("--git-dir alongside a qualifying -C is still refused",
+         'git -C "%s" --git-dir="%s/.git" stash pop' % (linked, main), main, DENY),
+        ("--git-dir ahead of a qualifying -C is still refused",
+         'git --git-dir="%s/.git" -C "%s" stash pop' % (main, linked), main, DENY),
+        ("--work-tree alongside a qualifying -C is still refused",
+         'git -C "%s" --work-tree "%s" stash pop' % (linked, main), main, DENY),
 
-        # A cd reaches a later invocation across these three separators
-        # and across no others, because in the other three the git can run
-        # without the cd having succeeded or runs in another process.
-        ("cd carries across &&", "cd %s && git stash pop" % linked, main, ALLOW),
-        ("cd carries across ;", "cd %s ; git stash pop" % linked, main, ALLOW),
-        ("cd carries across a newline", "cd %s\ngit stash pop" % linked, main, ALLOW),
-        ("cd does not carry across ||", "cd %s || git stash pop" % linked, main, DENY),
-        ("cd does not carry across |", "cd %s | git stash pop" % linked, main, DENY),
-        ("cd does not carry across &", "cd %s & git stash pop" % linked, main, DENY),
-        # A redirection is not a separator, so the cd survives it.
-        ("a redirection is not a separator", "cd %s 2>&1 && git stash pop" % linked, main, ALLOW),
+        # One qualifying invocation does not clear the command.
+        ("two invocations, only the first qualifies",
+         'git -C "%s" stash pop && %s' % (linked, RESET), linked, DENY),
+        ("two invocations, only the second qualifies",
+         '%s && git -C "%s" stash pop' % (RESET, linked), linked, DENY),
+        ("two invocations, one -C a worktree and one -C the checkout",
+         'git -C "%s" stash pop && git -C "%s" clean -fdx' % (linked, main), linked, DENY),
+        ("two invocations, both qualifying",
+         'git -C "%s" stash pop && git -C "%s" commit -m done' % (linked, linked), main, ALLOW),
+        ("a qualifying invocation beside an ordinary one",
+         'git fetch origin && git -C "%s" merge origin/main' % linked, main, ALLOW),
 
-        # Parentheses are a scope. A cd inside one reaches the rest of that
-        # subshell and nothing after it, which is what keeps the second and
-        # third cases below from being a way around the guard.
-        ("a parenthesised cd and its git", "(cd %s && git stash pop)" % linked, main, ALLOW),
-        ("a cd does not escape its parentheses", "(cd %s) && git reset --hard" % linked, main, DENY),
-        ("a subshell does not cover what follows it",
-         "(cd %s && git stash pop) && git reset --hard" % linked, main, DENY),
-        ("a cd before a subshell reaches into it",
-         "cd %s && (git stash pop)" % linked, main, ALLOW),
-
-        # Quoted text is an argument rather than a directory. The guard
-        # reads tokens, so a cd inside a commit message supplies nothing,
-        # and a quoted path containing a space still resolves.
-        ("a cd inside a quoted argument supplies no directory",
-         'git commit -m "cd %s && note" && git reset --hard' % linked, main, DENY),
+        # Quoted text is an argument rather than a command, which is what
+        # the verb scan's quoted-span stripping buys and all it buys.
         ("prose quoting a destructive command is not one",
          'git log --oneline --grep "git clean -fdx"', main, ALLOW),
-        # A heredoc body is data, so the same bypass through a different door.
-        ("a cd inside a heredoc body supplies no directory",
-         "git commit -F - <<EOF\ncd %s\nEOF\ngit reset --hard" % linked, main, DENY),
-        ("a heredoc body does not hide a later command",
-         "git log <<EOF\nnotes\nEOF\ncd %s && git stash pop" % linked, main, ALLOW),
-
-        # Tokenising has to survive what agents actually type.
-        ("a bare apostrophe tokenises and is judged",
-         "git commit -m it's && git clean -fd", main, DENY),
-        ("a bare apostrophe does not swallow a cd",
-         "git log -m it's && cd %s && git stash pop" % linked, main, ALLOW),
+        ("a destructive command quoted inside a qualifying one",
+         'git -C "%s" commit -m "%s"' % (linked, RESET), main, ALLOW),
+        ("a quote span closing inside a later word is still one argument",
+         "git log 'a && %s don't" % RESET, main, ALLOW),
         ("an unterminated quotation mark is unreadable and refused",
          'git commit -m "oops && git clean -fd', main, DENY),
+        ("a bare apostrophe tokenises and is judged",
+         "git commit -m it's && git clean -fd", main, DENY),
 
-        # Several invocations in one string are judged one at a time, and
-        # one refusal refuses the command.
-        ("several invocations, the last one in the main checkout",
-         "cd %s && git stash pop && cd %s && git reset --hard" % (linked, main), main, DENY),
-        ("several invocations, all in a worktree",
-         "cd %s && git stash pop && git commit -m done" % linked, main, ALLOW),
-        ("a later line is judged on its own",
-         "git push origin topic\ngit log --oneline", main, ALLOW),
-        # A backslash continuation is one real invocation and stays caught.
-        ("continuation splits the flag", "git reset \\\n  --hard origin/main", main, DENY),
+        # The forms the retired design used to allow. Every one of them is
+        # a command that does not say where it runs, so every one is now
+        # refused, and this block is the record of what the inversion cost.
+        ("cd then a bare invocation, across &&", "cd %s && git stash pop" % linked, main, DENY),
+        ("cd then a bare invocation, across ;", "cd %s ; git stash pop" % linked, main, DENY),
+        ("cd then a bare invocation, across a newline",
+         "cd %s\ngit stash pop" % linked, main, DENY),
+        ("cd then a bare invocation, across ||", "cd %s || git stash pop" % linked, main, DENY),
+        ("cd then a bare invocation, across |", "cd %s | git stash pop" % linked, main, DENY),
+        ("cd then a bare invocation, across &", "cd %s & git stash pop" % linked, main, DENY),
+        ("a parenthesised cd and its bare invocation",
+         "(cd %s && git stash pop)" % linked, main, DENY),
+        ("a cd inside a heredoc body",
+         "git log <<EOF\ncd %s\nEOF\ngit stash pop" % linked, main, DENY),
+        ("a cd written with backslashes", "cd %s && git stash pop" % backslashed, main, DENY),
+        ("a cd to a quoted path containing a space",
+         'cd "%s" && git stash pop' % spaced, main, DENY),
+        ("a relative cd", "cd scratch/card-impl/wt && git stash pop", root, DENY),
+        ("a brace group carrying a cd", "{ cd %s ; git stash pop ; }" % linked, main, DENY),
 
-        # The carrying rule is read on both sides of the cd, and the cases
-        # above only ever put the cd on the left of the separator. A cd on
-        # the right of a non-carrying one binds nothing: after || it may
-        # never run, and in a pipeline it runs in a subshell that does not
-        # move the parent. Measured against bash, which prints the first
-        # directory for both `cd A && true || cd B ; pwd` and
-        # `cd A && echo x | cd B ; pwd`. The third is conservatism rather
-        # than a match, because bash prints B for `cd A ; echo x & cd B ;
-        # pwd`, and refusing a shape nobody writes costs nothing.
-        ("a cd after || binds nothing",
-         "true || cd %s ; git reset --hard" % linked, main, DENY),
-        ("a cd inside a pipeline binds nothing",
-         "echo x | cd %s ; git reset --hard" % linked, main, DENY),
-        ("a cd after & binds nothing",
-         "echo x & cd %s ; git reset --hard" % linked, main, DENY),
-
-        # A here-string is a redirection with its data inline. Read as a
-        # heredoc it opens a body that never terminates, and everything
-        # after it disappears.
-        ("a here-string is not a heredoc", "cat <<<word\ngit reset --hard", main, DENY),
-        ("a quoted here-string is not a heredoc",
-         'python - <<<"$json"\ngit reset --hard', main, DENY),
-        ("a here-string does not hide a later cd",
-         'cat <<<"x"\ncd %s && git reset --hard' % main, linked, DENY),
-
-        # A relative path is relative to wherever the invocation runs, which
-        # an earlier cd may have moved. That holds for an explicit -C and
-        # for a second cd alike.
-        ("a relative -C follows a preceding cd into the main checkout",
-         "cd %s && git -C . reset --hard" % main, linked, DENY),
-        ("a relative -C follows a preceding cd into a worktree",
-         "cd %s && git -C . stash pop" % linked, main, ALLOW),
-        ("a relative cd composes with the one before it",
-         "cd scratch/card-impl && cd wt && git stash pop", root, ALLOW),
-        ("a relative cd composed onto the main checkout",
-         "cd ../checkout ; cd card-impl/wt ; git stash pop",
-         os.path.join(root, "scratch"), DENY),
-
-        # A continuation is folded where the segmenter stands, so it never
-        # merges a heredoc body line with the terminator and hides what
-        # follows the heredoc. The opener has to be a command the guard
-        # allows, or the refusal proves nothing about what came after it.
-        ("a continuation inside a heredoc body does not extend it",
-         "cat <<EOF\nbody\\\nEOF\ngit reset --hard", main, DENY),
-        # The heredoc case above pairs a denied opener with a denied
-        # trailer, so it holds whether or not the body is read. This one
-        # opens with a command the guard allows, which leaves the verdict
-        # resting on the body alone.
-        ("a heredoc body supplies no directory to what follows it",
-         "git log <<EOF\ncd %s\nEOF\ngit reset --hard" % linked, main, DENY),
-
-        # The rest of the state the segmenter carries, each read on both
-        # sides. An unbalanced bracket, a quote span that opens at a word
-        # and closes inside one, a brace group, and a -C that must not
-        # reach the invocation beside it.
-        ("an unbalanced ( swallows the separators and fails closed",
-         "echo a(b && cd %s ; git reset --hard" % linked, main, DENY),
-        ("an unbalanced ) is clamped and keeps the cd",
-         "echo a)b && cd %s && git stash pop" % linked, main, ALLOW),
-        ("a quote span closing inside a later word is still one argument",
-         "git log 'a && git reset --hard don't", main, ALLOW),
-        ("a brace group is refused rather than scoped",
-         "{ cd %s ; git reset --hard ; }" % linked, main, DENY),
-        ("a -C binds only its own invocation",
-         "git -C %s stash pop && git reset --hard" % linked, main, DENY),
+        # A continuation is one invocation split over two lines, and the
+        # flag on the second line still counts.
+        ("continuation splits the flag", "git re" + "set \\\n  --hard origin/main", main, DENY),
+        ("continuation splits the flag on a qualifying invocation",
+         'git -C "%s" re' % linked + "set \\\n  --hard origin/main", main, ALLOW),
 
         # The early bail reads the command case-insensitively, because the
         # basename matching further in already does.
-        ("an uppercase GIT is still git", "GIT reset --hard origin/main", main, DENY),
+        ("an uppercase GIT is still git", "GIT re" + "set --hard origin/main", main, DENY),
+        ("an uppercase GIT can still qualify",
+         'GIT -C "%s" re' % linked + "set --hard origin/main", main, ALLOW),
+        ("git named by an absolute path",
+         "/usr/bin/git stash pop", main, DENY),
+        ("git named by an absolute path, qualifying",
+         '/usr/bin/git -C "%s" stash pop' % linked, main, ALLOW),
+
+        # A command mentioning no git at all never reaches the rule.
+        ("no git in the command", "rm -rf build", main, ALLOW),
     ])
     return table
 
@@ -321,7 +315,7 @@ def main():
             mark = "ok  " if got == want else "FAIL"
             if got != want:
                 failures += 1
-            print("%s %-52s want=%-5s got=%s" % (mark, name, want, got))
+            print("%s %-58s want=%-5s got=%s" % (mark, name, want, got))
     finally:
         # The worktrees hold no reflog worth keeping and the repository is
         # this function's own, so the whole tree goes. ignore_errors covers

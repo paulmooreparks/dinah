@@ -1,56 +1,76 @@
 #!/usr/bin/env python3
-r"""PreToolUse guard: deny repository-mutating git commands against the main checkout.
+r"""PreToolUse guard: a mutating git command has to name the worktree it runs in.
 
-Reads the Claude Code hook payload on stdin. Denies when a git invocation
-in the command carries a mutating verb AND the directory that invocation
-will run in is the operator's own checkout. Fail-closed: a directory this
-hook cannot classify counts as the main checkout.
+Reads the Claude Code hook payload on stdin. For each git invocation in
+the command whose verb is in the deny set, the invocation is allowed only
+when it carries `-C <path>` itself and that path classifies as a linked
+worktree. Everything else is refused.
 
-Two questions decide every verdict, and each is answered in one place.
+The guard does not work out where a command will run. An earlier version
+did, and it parsed separators, quoting, heredocs, subshells and the `cd`
+builtin to do it. Seven leaks were found in that design across two review
+cycles, every one by a person reading the code and none by a suite that
+reached 167 cases, and each was a spelling nobody had enumerated: a
+here-string, a heredoc marker containing a hyphen, a heredoc marker
+beginning with a digit, `pushd`, `builtin cd`, `\cd`, and the
+`--work-tree` and `--git-dir` options. Nothing in that design bounded how
+many spellings remained.
 
-Which directory will the command run in? The shell's working directory
-does not survive from one tool call to the next, so `cd <worktree> && git
-...` is the ordinary way an agent works, and judging it by the session's
-directory would refuse correct work. The guard reads a `cd` in the
-command it is judging, an explicit `git -C`, and the payload's `cwd`, in
-that order of authority per invocation. A relative path in either the
-`cd` or the `-C` is composed with the directory the sequence already
-stands in, because that is what the shell does with it. The guard runs
-as a PreToolUse hook, before the tool call it is judging, so a `cd`
-inside that command cannot yet be reflected in `cwd` whatever the
-harness does afterwards.
+So the question changed. The guard no longer asks where a command will
+run; it asks whether the command says where it runs. A spelling the guard
+has never heard of cannot help a command through, because nothing the
+command says can grant permission except the one thing the guard reads.
 
-Is that directory the operator's checkout? `git rev-parse --git-dir
+The payload's `cwd` is not consulted, and that is a choice rather than an
+oversight. A conditional form, requiring `-C` only when the session
+reports itself standing in the operator's checkout, reopens a leak this
+guard already had: a session reported as standing in a worktree would be
+allowed a bare command, and `cd <the checkout> && git reset --hard` from
+such a session runs the reset in the checkout.
+
+An invocation carrying `--git-dir` or `--work-tree` is refused rather
+than analysed. Both name a target the guard does not follow, so the
+honest answer is that the invocation has not said where it runs in the
+form the guard reads. A relative `-C` is refused for the same reason: it
+names a directory only in combination with a working directory, and the
+working directory is exactly what the guard has stopped consulting.
+
+Is a named directory a linked worktree? `git rev-parse --git-dir
 --git-common-dir` is the documented discriminator. The two answers differ
 in a linked worktree, where the per-worktree git dir sits under
 `<common>/worktrees/<name>`, and match in the main worktree. Nothing here
 depends on where a worktree is created, so the guard stays correct if the
 convention moves.
 
-The deny set is chosen rather than inherited. A guard that refuses too
-much stops every agent from doing ordinary work in the main checkout, and
-one that refuses too little leaves the hole it was written to fill. What
-is refused in the main checkout: reset --hard/--merge/--keep, clean with
--f/-d/-x, checkout -- / -f, restore of the working tree, push --force,
-push --force-with-lease at main or master, stash other than list and
-show, commit, merge, rebase, cherry-pick, revert, am, apply without
---check or --stat, rm without --cached, mv, bisect other than log and
-view, switch with -f/--force/--discard-changes, pull without --ff-only,
-worktree remove, branch -d/-D, tag -d, and push with --delete or a colon
-refspec. The ref deletions are refused because refs are shared across
-every worktree of the repository, so deleting one from the main checkout
-reaches into whatever another agent is standing on.
+The deny set is chosen rather than inherited. What is refused: reset
+--hard/--merge/--keep, clean with -f/-d/-x, checkout -- / -f, restore of
+the working tree, push --force, push --force-with-lease at main or
+master, stash other than list and show, commit, merge, rebase,
+cherry-pick, revert, am, apply without --check or --stat, rm without
+--cached, mv, bisect other than log and view, switch with
+-f/--force/--discard-changes, pull without --ff-only, worktree remove,
+branch -d/-D, tag -d, and push with --delete or a colon refspec. The ref
+deletions are refused because refs are shared across every worktree of
+the repository, so deleting one reaches into whatever another agent is
+standing on.
 
-What stays allowed in the main checkout: worktree add, list, and prune;
-plain checkout and switch of a branch; fetch; push of a branch; branch
-and tag used to create or list; stash list and show; and every read.
-`worktree prune` clears the administrative record for a directory that is
-already gone, skips a locked worktree, and destroys no commits, and it is
-the only way to finish the cleanup the board's safety document requires.
+Outside the deny set entirely, so a bare form of each is unaffected
+wherever it runs: worktree add, list, and prune; plain checkout and
+switch of a branch; fetch; push of a branch; branch and tag used to
+create or list; stash list and show; and every read. `worktree prune`
+clears the administrative record for a directory that is already gone,
+skips a locked worktree, and destroys no commits, and it is the only way
+to finish the cleanup the board's safety document requires.
 
-The board's own stages run several of the refused verbs. They are
-unaffected because each of those stages works in its own worktree, where
-the guard classifies the target as linked and allows the command.
+What this costs is stated rather than discovered. A bare `git commit`
+typed inside a worktree is refused, including by the operator in his own
+session. The board's own agents are unaffected, because the
+explicit-path discipline dinah-228 installs already requires `git -C
+<worktree>` on every git command from every stage.
+
+One thing this guard does not cover and never did: a command that
+changes directory and then runs something other than git. It reads git
+commands.
 """
 
 import json
@@ -63,39 +83,16 @@ import sys
 
 GIT_TIMEOUT = 5
 
-CONTINUATION = re.compile(r"\\[ \t]*\r?\n")
-
-# `<<WORD`, `<<-WORD`, `<<"WORD"` and `<<'WORD'`. The body that follows is
-# data rather than command text, so the segmenter drops it. The lookahead
-# keeps `<<<` out. A here-string carries its data inline and opens no
-# body, so reading one as a heredoc sends the scanner hunting for a
-# terminator that never arrives and swallows every command after it.
-HEREDOC = re.compile(r"<<(?!<)-?[ \t]*(?:\"([^\"]*)\"|'([^']*)'|([A-Za-z_][A-Za-z0-9_]*))")
-
-# A word carrying `git` at all, used only to decide whether a segment that
+# A word carrying `git` at all, used only to decide whether a command that
 # will not tokenise is worth refusing.
 GIT_WORD = re.compile(r"\bgit\b", re.IGNORECASE)
 
-# A separator across which a `cd` reaches a later invocation. The others
-# (`||`, `|`, `&`) either run their git without the `cd` having succeeded
-# or run it in a different process.
-CARRYING = ("&&", ";", "\n")
+# Options naming a target the guard does not follow.
+UNFOLLOWED = ("--git-dir", "--work-tree")
 
-# A quotation mark opens a span only at the start of a word. That is the
-# model `shlex` uses in non-POSIX mode, where `git commit -m it's`
-# tokenises with the apostrophe inside the word, and the segmenter has to
-# agree with the tokeniser or the two disagree about where a command ends.
-WORD_START = " \t\r\n(=&|;<>"
-
-UNRESOLVED = "\x00unresolved"
-
-# A `cd` target the shell expands before `cd` sees it. The guard cannot
-# know what it becomes, so it resolves to nothing and fails closed.
-EXPANDABLE = re.compile(r"[$`*?\[]|^~")
-
-
-def word_initial(text, index):
-    return index == 0 or text[index - 1] in WORD_START
+# Options consuming the token after them, skipped while hunting for the
+# subcommand. `-C` is read rather than skipped and so is not listed here.
+TAKES_VALUE = ("-c", "--namespace", "--exec-path", "--super-prefix") + UNFOLLOWED
 
 
 def unquote(token):
@@ -109,188 +106,15 @@ def unquote(token):
     return token
 
 
-def skip_heredoc_bodies(text, index, delimiters):
-    """Advance past the bodies of the heredocs opened on the line just ended."""
-    for delimiter in delimiters:
-        while index < len(text):
-            end = text.find("\n", index)
-            line = text[index:end if end != -1 else len(text)]
-            index = len(text) if end == -1 else end + 1
-            if line.strip() == delimiter:
-                break
-    return index
-
-
-def split_top_level(text):
-    """Split a command into `[(separator_before, segment)]`.
-
-    A separator inside quotation marks or inside parentheses is not top
-    level, and a heredoc body never reaches the output at all. The
-    separator each segment carries is the one that preceded it, which is
-    what decides whether a `cd` reaches it.
-    """
-    parts = []
-    separator = ""
-    buffer = []
-    depth = 0
-    pending = []
-    index = 0
-    length = len(text)
-
-    def flush(next_separator):
-        parts.append((separator, "".join(buffer)))
-        del buffer[:]
-        return next_separator
-
-    while index < length:
-        char = text[index]
-        if char in "\"'" and word_initial(text, index):
-            close = text.find(char, index + 1)
-            if close == -1:
-                buffer.append(text[index:])
-                index = length
-                break
-            buffer.append(text[index:close + 1])
-            index = close + 1
-            continue
-        continuation = CONTINUATION.match(text, index) if char == "\\" else None
-        if continuation:
-            # A newline separates commands exactly as `;` does, so a
-            # backslash continuation is the one case where a single
-            # invocation spans lines, and `git reset \\` followed by
-            # `--hard` has to read as one command. It is folded here
-            # rather than out of the whole command up front, because
-            # folding first reaches into heredoc bodies: a body line
-            # ending in a backslash would swallow the terminator, the
-            # heredoc would run to the end of the text, and every command
-            # after it would go unread. Where a shell lands on that is not
-            # worth depending on, so the segmenter never sees it.
-            buffer.append(" ")
-            index = continuation.end()
-            continue
-        if char == "(":
-            depth += 1
-            buffer.append(char)
-            index += 1
-            continue
-        if char == ")":
-            depth = max(0, depth - 1)
-            buffer.append(char)
-            index += 1
-            continue
-        if char == "<" and text.startswith("<<", index):
-            if text.startswith("<<<", index):
-                # A here-string. Its data is inline rather than in a body,
-                # so nothing is pending and nothing after it is swallowed.
-                buffer.append("<<<")
-                index += 3
-                continue
-            opening = HEREDOC.match(text, index)
-            if opening:
-                pending.append(opening.group(1) or opening.group(2) or opening.group(3) or "")
-                buffer.append(opening.group(0))
-                index = opening.end()
-                continue
-        if char == "\n":
-            index += 1
-            if pending:
-                index = skip_heredoc_bodies(text, index, pending)
-                pending = []
-            if depth == 0:
-                separator = flush("\n")
-            else:
-                buffer.append("\n")
-            continue
-        if depth == 0:
-            if text.startswith("&&", index):
-                separator = flush("&&")
-                index += 2
-                continue
-            if text.startswith("||", index):
-                separator = flush("||")
-                index += 2
-                continue
-            if char == ";":
-                separator = flush(";")
-                index += 1
-                continue
-            if char == "|":
-                separator = flush("|")
-                index += 1
-                continue
-            # `2>&1` and `&>log` spell a redirection rather than a
-            # separator, and splitting there would lose a `cd` that
-            # legitimately reaches the invocation after it.
-            if char == "&" and text[index - 1:index] != ">" and text[index + 1:index + 2] != ">":
-                separator = flush("&")
-                index += 1
-                continue
-        buffer.append(char)
-        index += 1
-
-    parts.append((separator, "".join(buffer)))
-    return parts
-
-
-def split_group(segment):
-    """Split `(inner) rest` into its interior and whatever follows it."""
-    depth = 0
-    index = 0
-    length = len(segment)
-    while index < length:
-        char = segment[index]
-        if char in "\"'" and word_initial(segment, index):
-            close = segment.find(char, index + 1)
-            if close == -1:
-                break
-            index = close + 1
-            continue
-        if char == "(":
-            depth += 1
-        elif char == ")":
-            depth -= 1
-            if depth == 0:
-                return segment[1:index], segment[index + 1:]
-        index += 1
-    return segment[1:], ""
-
-
-def cd_target(tokens):
-    """The directory a `cd` moves to, or UNRESOLVED when it cannot be known."""
-    arguments = [token for token in tokens[1:] if not token.startswith("-")]
-    if not arguments:
-        return UNRESOLVED
-    target = unquote(arguments[0])
-    if not target or EXPANDABLE.search(target):
-        return UNRESOLVED
-    return target
-
-
-def combine(directory, current):
-    """Where an invocation runs, given a named directory and where the sequence stands.
-
-    An absolute path answers on its own. A relative one is relative to
-    wherever the command actually runs, which an earlier `cd` may have
-    moved, so it is composed with that rather than handed straight to the
-    payload's working directory. `None` names nothing, and the sequence's
-    own directory answers. Anything composed onto an unresolved directory
-    is itself unresolved, which fails closed at the caller.
-    """
-    if directory is None:
-        return current
-    if directory == UNRESOLVED:
-        return UNRESOLVED
-    if os.path.isabs(directory):
-        return directory
-    if current is None:
-        return directory
-    if current == UNRESOLVED:
-        return UNRESOLVED
-    return os.path.join(current, directory)
-
-
 def git_slices(tokens):
-    """Each git invocation in a segment, as its own token list."""
+    """Each git invocation in the command, as its own token list.
+
+    A slice runs from one `git` word to the next, so an option belonging
+    to the second invocation cannot be read as part of the first. Quoted
+    text is one token and its interior is never a `git` word, which is
+    what keeps a commit message mentioning a command from being read as
+    one.
+    """
     starts = [position for position, token in enumerate(tokens)
               if os.path.basename(unquote(token)).lower() in ("git", "git.exe")]
     slices = []
@@ -300,15 +124,13 @@ def git_slices(tokens):
     return slices
 
 
-TAKES_VALUE = ("-c", "--namespace", "--work-tree", "--git-dir", "--exec-path", "--super-prefix")
-
-
 def read_invocation(invocation):
-    """The `-C` path, the subcommand, and the subcommand's arguments."""
+    """The `-C` path, any unfollowed option, the subcommand, and its arguments."""
     directory = None
+    unfollowed = None
     index = 1
     while index < len(invocation):
-        token = invocation[index]
+        token = unquote(invocation[index])
         if token == "-C" and index + 1 < len(invocation):
             directory = unquote(invocation[index + 1])
             index += 2
@@ -317,6 +139,11 @@ def read_invocation(invocation):
             directory = unquote(token[2:])
             index += 1
             continue
+        if unfollowed is None:
+            for option in UNFOLLOWED:
+                if token == option or token.startswith(option + "="):
+                    unfollowed = option
+                    break
         if token in TAKES_VALUE:
             index += 2
             continue
@@ -325,8 +152,10 @@ def read_invocation(invocation):
             continue
         break
     if index >= len(invocation):
-        return directory, None, []
-    return directory, unquote(invocation[index]), [unquote(token) for token in invocation[index + 1:]]
+        return directory, unfollowed, None, []
+    subcommand = unquote(invocation[index])
+    arguments = [unquote(token) for token in invocation[index + 1:]]
+    return directory, unfollowed, subcommand, arguments
 
 
 def has(arguments, *names):
@@ -397,78 +226,15 @@ def denied(subcommand, arguments):
     return None
 
 
-def scan(text, inherited, findings):
-    """Collect `(label, directory)` for every denied invocation in one sequence.
-
-    `inherited` is the directory this sequence starts in: None for the
-    payload's own working directory, a path, or UNRESOLVED. A `cd`
-    rebinds it for the segments that follow across a carrying separator,
-    and a parenthesised segment gets its own copy that does not escape.
-
-    The carrying rule is read on both sides of the `cd`, and reading it on
-    one side only is a hole. A `cd` reached across `||` may never have
-    run, and one standing in a pipeline ran in another process, so in
-    both the sequence keeps the directory it already had and a later
-    `git` is judged against that.
-
-    `&` is the one member of the set where refusing is conservatism
-    rather than a match. Bash runs the command after a `&` in the current
-    shell, so `echo x & cd <worktree> ; git reset --hard` really does
-    reach the worktree, and the guard refuses it anyway. Nobody writes
-    that shape, and one set read the same way in both directions is
-    easier to audit than two sets that differ in one entry.
-    """
-    current = inherited
-    for separator, segment in split_top_level(text):
-        reached = not separator or separator in CARRYING
-        if not reached:
-            current = inherited
-        stripped = segment.strip()
-        if not stripped:
-            continue
-        if stripped.startswith("("):
-            # A subshell that runs at all runs its own `cd` before its own
-            # commands, so the interior is read from where the sequence
-            # stands. A brace group is not matched here and falls through
-            # to tokenising, where `{` is a word, no `cd` is found, and
-            # the command is refused. That is the safe direction and it is
-            # deliberate rather than an oversight.
-            inner, rest = split_group(stripped)
-            scan(inner, current, findings)
-            if rest.strip():
-                scan(rest, current, findings)
-            continue
-        try:
-            tokens = shlex.split(stripped, posix=False)
-        except ValueError:
-            # An unterminated quotation mark leaves the segment
-            # unreadable, and a hook that cannot read a command cannot
-            # clear it.
-            if GIT_WORD.search(stripped):
-                findings.append(("unreadable command", UNRESOLVED))
-            continue
-        if not tokens:
-            continue
-        if unquote(tokens[0]) == "cd":
-            if reached:
-                current = combine(cd_target(tokens), current)
-            continue
-        for invocation in git_slices(tokens):
-            directory, subcommand, arguments = read_invocation(invocation)
-            label = denied(subcommand, arguments)
-            if label:
-                findings.append((label, combine(directory, current)))
-
-
 def resolve(path, base):
     """Absolute, symlink-resolved form of a path that may be relative."""
     if not os.path.isabs(path):
-        path = os.path.join(base or os.getcwd(), path)
+        path = os.path.join(base, path)
     return os.path.normcase(os.path.realpath(path))
 
 
-def worktree_kind(target, base):
-    """Classify a directory as "linked", "main", or "unknown".
+def worktree_kind(target):
+    """Classify an absolute directory as "linked", "main", or "unknown".
 
     Asks git for both the per-worktree git dir and the common one. They
     differ in a linked worktree and match in the main worktree, which is
@@ -476,10 +242,9 @@ def worktree_kind(target, base):
     directory that is not a work tree, a git that will not run, and any
     answer this cannot read; every one of those fails closed at the caller.
     """
-    where = target if os.path.isabs(target) else os.path.join(base or os.getcwd(), target)
     try:
         result = subprocess.run(
-            ["git", "-C", where, "rev-parse", "--git-dir", "--git-common-dir"],
+            ["git", "-C", target, "rev-parse", "--git-dir", "--git-common-dir"],
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT,
@@ -494,25 +259,39 @@ def worktree_kind(target, base):
     git_dir, common_dir = lines
     # git answers relative to the directory it was pointed at, so both are
     # resolved against that directory rather than against this process's.
-    return "linked" if resolve(git_dir, where) != resolve(common_dir, where) else "main"
+    return "linked" if resolve(git_dir, target) != resolve(common_dir, target) else "main"
 
 
-def offender(findings, cwd):
-    """The first finding the guard will not clear, or None when all are clear.
+def offender(command):
+    """The first invocation the guard will not clear, or None when all are clear.
 
-    An invocation whose directory cannot be resolved is refused, which is
-    the answer the guard has always given a payload carrying no working
-    directory.
+    Returns `(label, fault)`, where the label names the rule and the
+    fault says why the invocation did not earn its permission.
     """
-    for label, directory in findings:
-        if directory == UNRESOLVED:
-            return label, "<no directory resolved; failing closed>"
+    try:
+        tokens = shlex.split(command, posix=False)
+    except ValueError:
+        # An unterminated quotation mark leaves the command unreadable,
+        # and a hook that cannot read a command cannot clear it.
+        if GIT_WORD.search(command):
+            return "unreadable command", "the command does not tokenise"
+        return None
+    for invocation in git_slices(tokens):
+        directory, unfollowed, subcommand, arguments = read_invocation(invocation)
+        label = denied(subcommand, arguments)
+        if not label:
+            continue
+        if unfollowed:
+            return label, "%s names a target this guard does not follow" % unfollowed
         if directory is None:
-            if not cwd:
-                return label, "<cwd not reported; failing closed>"
-            directory = cwd
-        if worktree_kind(directory, cwd) != "linked":
-            return label, directory
+            return label, "the invocation carries no -C"
+        if not os.path.isabs(directory):
+            return label, "-C %s is relative, so it names no directory on its own" % directory
+        kind = worktree_kind(directory)
+        if kind == "main":
+            return label, "-C %s is the main checkout" % directory
+        if kind != "linked":
+            return label, "-C %s is not a git worktree" % directory
     return None
 
 
@@ -527,31 +306,25 @@ def main():
     if "git" not in command.lower():
         return
 
-    findings = []
-    scan(command, None, findings)
-    if not findings:
-        return
-
-    cwd = payload.get("cwd") or ""
-    refusal = offender(findings, cwd)
+    refusal = offender(command)
     if refusal is None:
         return
-    matched, named = refusal
+    matched, fault = refusal
 
     reason = (
-        "Blocked repository-mutating git ({0}) against the main checkout (target: {1}). "
-        "This class of command is allowed only in a linked worktree. Note that the "
-        "shell's working directory does not persist between calls: it resets to the "
-        "session's primary directory, which is the operator's checkout, so every "
-        "command has to carry its own directory, as either cd <worktree> && git ... or "
-        "git -C <worktree> ... . On this repository worktrees belong under "
+        "Blocked repository-mutating git ({0}), because {1}. A command running this "
+        "class of git verb has to name its worktree on the invocation itself, as "
+        "git -C <worktree> ... , and nothing else grants it permission. The shell's "
+        "working directory does not persist between calls: it resets to the session's "
+        "primary directory, which is the operator's checkout, so a command that does "
+        "not say where it runs runs there. On this repository worktrees belong under "
         "C:\\dinah-scratch\\, never inside the checkout, because Dinah's workbench "
         "discovery climbs to the drive root and a nested worktree reaches the "
         "operator's live data. Create one with git -C <repo> worktree add --detach "
-        "C:/dinah-scratch/<card>-<stage>/wt <ref>. In the main checkout this is "
-        "operator-only: ask the operator to run it, or the operator can disable this "
-        "guard via /hooks (.claude/settings.json)."
-    ).format(matched, named)
+        "C:/dinah-scratch/<card>-<stage>/wt <ref>. If this command really does belong "
+        "in the main checkout, it is the operator's to run, or the operator can "
+        "disable this guard via /hooks (.claude/settings.json)."
+    ).format(matched, fault)
 
     print(json.dumps({
         "hookSpecificOutput": {
