@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python scripts/hooks/deny-destructive-git.py",
+            "command": "python \"$CLAUDE_PROJECT_DIR/scripts/hooks/deny-destructive-git.py\"",
             "timeout": 10,
             "statusMessage": "Checking git command against the main-checkout guard (andon-650)"
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python scripts/hooks/andoneer-session-tokens.py",
+            "command": "python \"$CLAUDE_PROJECT_DIR/scripts/hooks/andoneer-session-tokens.py\"",
             "timeout": 10,
             "statusMessage": "Reporting this session's model tokens to Andoneer (andon-734)"
           }
