@@ -61,6 +61,12 @@ type Request struct {
 	Workstream string
 	// Value is what a write puts in that field.
 	Value string
+	// Severity and Priority are the levels a filing names, empty when the
+	// invocation named none. They are separate from Value because add names
+	// both axes at once through two flags where card names one axis by
+	// field.
+	Severity string
+	Priority string
 	// Holder is the owner a claim names as holder, which the pull discipline
 	// requires to be the owner asking.
 	Holder string

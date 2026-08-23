@@ -40,7 +40,14 @@ const (
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
 	FindingStrandedState      = "check.stranded-state"
-	FindingIgnoredAnchor      = "check.ignored-anchor"
+	// FindingUnknownLevel names a card whose stored severity or priority is
+	// no member of what this workbench declares for that axis, which covers
+	// a declaration that has since changed and one that was never made. It
+	// sits beside FindingUnknownState for the same reason: the write path is
+	// the only place a level is validated, because refusing on read would
+	// make a workbench unreadable the moment somebody edits its declaration.
+	FindingUnknownLevel  = "check.unknown-level"
+	FindingIgnoredAnchor = "check.ignored-anchor"
 	// FindingDanglingWorkstream names a card listing a workstream identifier
 	// that resolves in neither half of the workstreams collection, on the
 	// same terms FindingDanglingLink already reports a link's to.
@@ -171,6 +178,17 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	}
 	if b.State(card.State) == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownState, Detail: card.State})
+	}
+	// Each axis is asked about its own declaration and never about whether
+	// the workbench declares any levels at all, so a card carrying a
+	// severity this workbench declares and a priority it does not is
+	// reported once, over the priority.
+	for _, axis := range LevelAxes {
+		stored := card.LevelOf(axis)
+		if stored == "" || b.Level(axis, stored) != nil {
+			continue
+		}
+		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownLevel, Detail: axis + " " + stored})
 	}
 	if card.Number == 0 {
 		findings = append(findings, Finding{Path: anchor, Key: FindingOrdinalMissing, Detail: card.ID})

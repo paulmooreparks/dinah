@@ -1553,7 +1553,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:494", label: "the guide topics",
+			site: "commands.go:581", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {

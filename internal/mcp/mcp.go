@@ -449,6 +449,10 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Workstream = value
 	case "value":
 		req.Value = value
+	case "severity":
+		req.Severity = value
+	case "priority":
+		req.Priority = value
 	case "title":
 		req.Title = value
 	case "text":

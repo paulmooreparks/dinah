@@ -55,6 +55,15 @@ func (l *Library) Add(req *Request) *Response {
 		}
 		destination = named
 	}
+	// The levels are admitted before an identifier is claimed, so a refused
+	// filing leaves no card directory behind.
+	levels := map[string]string{
+		bench.SeverityField: strings.TrimSpace(req.Severity),
+		bench.PriorityField: strings.TrimSpace(req.Priority),
+	}
+	if refusal := l.admitLevels(levels); refusal != nil {
+		return l.refuseWith(req, nil, refusal.Name, refusal.Detail, refusal.Extra)
+	}
 	number := l.Bench.NextNumber()
 	id, err := bench.ClaimID(l.Bench.CardsRoot(), l.Bench.HasIdentifier)
 	if err != nil {
@@ -74,6 +83,15 @@ func (l *Library) Add(req *Request) *Response {
 	fm.Set("number", strconv.Itoa(number))
 	fm.Set("state", destination.ID)
 	fm.Set("substate", contract.SubstateReady)
+	// Set appends, and substate is the last key written above, so the pair
+	// lands under it in the order Card.Save places it. An axis the filing
+	// named no level for is written not at all, so absence stays absence
+	// rather than becoming an empty value.
+	for _, axis := range bench.LevelAxes {
+		if levels[axis] != "" {
+			fm.Set(axis, levels[axis])
+		}
+	}
 	if err := bench.WriteText(filepath.Join(dir, bench.CardAnchor), fm.Render(req.Text)); err != nil {
 		return l.FromError(req, err)
 	}
@@ -461,6 +479,163 @@ func (l *Library) SetWorkbench(req *Request) *Response {
 	response := l.ok(req, nil)
 	response.Detail = value
 	return response
+}
+
+// CardField reports one of a card's own fields. Reading one is open to
+// anybody, so no owner is required and no operator is asked for; every other
+// read in the tool is open the same way.
+//
+// It evaluates rows 1 and 2 of the check list and no more. A read validates
+// nothing, so a card carrying a level the workbench does not declare is
+// reported rather than refused, and a read on a workbench declaring no set for
+// the axis reports the stored value or the empty string.
+func (l *Library) CardField(req *Request) (string, error) {
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return "", err
+	}
+	if !bench.KnownCardField(req.Field) {
+		return "", unknownCardField(req.Field)
+	}
+	return found.Card.LevelOf(req.Field), nil
+}
+
+// SetCardField writes one of a card's own fields, and clears it when the
+// request carries no value. It evaluates in the order the check list fixes:
+// the reference names a card of this workbench, the field is one a card
+// records, the workbench declares levels for that field, the value is a level
+// that field declares, and the request names an owner. The two level rows run
+// only where a value is present, so a clear runs neither.
+//
+// Nobody has to hold the card. Severity and priority are a classification
+// rather than a claim, so the write follows join and comment rather than move,
+// and a triager stamping a card an implementer holds is the ordinary case.
+//
+// Writing the level a card already carries succeeds, writes nothing and
+// journals nothing, on the terms join already returns ok for a workstream the
+// card already belongs to.
+//
+// The write reloads the card under its own lock and sets the one field on the
+// reloaded value, because Save rewrites the whole anchor from the frontmatter
+// the caller is holding and a stale copy would revert whatever landed after it
+// was read.
+func (l *Library) SetCardField(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	card := found.Card
+	if !bench.KnownCardField(req.Field) {
+		return l.FromError(req, unknownCardField(req.Field))
+	}
+	value := strings.TrimSpace(req.Value)
+	if value != "" {
+		if refusal := l.admitLevels(map[string]string{req.Field: value}); refusal != nil {
+			return l.refuseWith(req, card, refusal.Name, refusal.Detail, refusal.Extra)
+		}
+	}
+	if req.Actor == "" {
+		return l.refuse(req, card, contract.NoOwner, "")
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(card.Dir, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
+	reloaded, err := bench.LoadCard(filepath.Dir(card.Dir), card.ID)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	was := reloaded.LevelOf(req.Field)
+	if was == value {
+		response := l.ok(req, nil)
+		response.Detail = value
+		return response
+	}
+	reloaded.SetLevel(req.Field, value)
+	if err := reloaded.Save(); err != nil {
+		return l.FromError(req, err)
+	}
+	ev := bench.Event{
+		TS:    now,
+		Event: contract.EventCardUpdated,
+		Actor: req.Actor,
+		Field: req.Field,
+		From:  was,
+		To:    value,
+	}
+	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
+		return l.FromError(req, err)
+	}
+	response := l.ok(req, nil)
+	response.Detail = value
+	return response
+}
+
+// unknownCardField raises row 2 of the card check list. It raises
+// dinah.unknown-field rather than dinah.unknown-key because that shape carries
+// its field set as a value the raise site fills, where unknown-key declares a
+// Listing the head resolves to the config settings for every raise site of the
+// name. The set is read off bench.CardFields rather than written into the
+// catalog, so a third card field reaches the sentence without a translator
+// being asked for anything.
+func unknownCardField(field string) error {
+	return contract.RefuseWith(contract.UnknownField, field, map[string]string{
+		"fields": strings.Join(bench.CardFields, ", "),
+	})
+}
+
+// admitLevels runs the two level checks over the axes a write named, in the
+// order the check lists fix: every named axis is asked whether this workbench
+// declares a set for it, and only then is every named value asked whether that
+// set carries it. It answers nil when every named axis passes both.
+//
+// Each question is about the named axis alone and never about whether the
+// workbench declares any levels at all. On a workbench declaring severity and
+// no priority a severity write passes and a priority write refuses
+// dinah.no-levels naming priority, which is what keeps the two axes
+// independent as the format declares them.
+func (l *Library) admitLevels(named map[string]string) *contract.Refusal {
+	for _, axis := range bench.LevelAxes {
+		if named[axis] == "" {
+			continue
+		}
+		if l.Bench.Levels(axis) != nil {
+			continue
+		}
+		return contract.RefuseWith(contract.NoLevels, axis, map[string]string{
+			"axis":   axis,
+			"anchor": filepath.Join(l.Bench.Root, bench.WorkbenchAnchor),
+		})
+	}
+	for _, axis := range bench.LevelAxes {
+		value := named[axis]
+		if value == "" || l.Bench.Level(axis, value) != nil {
+			continue
+		}
+		return contract.RefuseWith(contract.UnknownLevel, value, map[string]string{
+			"axis":   axis,
+			"levels": strings.Join(declaredLevelNames(l.Bench.Levels(axis)), ", "),
+		})
+	}
+	return nil
+}
+
+// declaredLevelNames is one axis's members in declaration order, which is the
+// order the refusal lists them in.
+func declaredLevelNames(levels []bench.Level) []string {
+	names := make([]string, 0, len(levels))
+	for _, level := range levels {
+		names = append(names, level.Name)
+	}
+	return names
 }
 
 // journalFor names the journal an event about an entity is recorded in, which
