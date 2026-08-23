@@ -585,7 +585,7 @@ func runGuide(s *session, parsed *arguments) int {
 	if err != nil {
 		return s.reportError(err)
 	}
-	s.write(text)
+	s.write(wrapGuideText(text, s.width))
 	return 0
 }
 
