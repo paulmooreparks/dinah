@@ -35,29 +35,40 @@ form the guard reads. A relative `-C` is refused for the same reason: it
 names a directory only in combination with a working directory, and the
 working directory is exactly what the guard has stopped consulting.
 
-Finding the invocations is a lexical job and the guard does it with a
-lexer of its own. `shlex` splits on whitespace and knows nothing about
-shell metacharacters, so a metacharacter glued to a word hides whatever
-is glued to it: `echo a;git reset --hard` tokenises to `a;git`, and the
-parenthesised, if-then and loop spellings hide the same way. The flag
-tests had the defect one layer down, since `--hard;` and
-`--hard>/dev/null` are not the string `--hard`. So `lex` splits on
-whitespace and on `; & | ( ) < >`, a backtick and a newline, emitting
-each metacharacter as a word of its own, which puts every hidden
-invocation and every glued flag back in plain sight. Quotation marks
-stay attached to the word that opens them, exactly as
-`shlex.split(posix=False)` left them, so a quoted span is still one word
-and a commit message mentioning a command is still an argument.
+Finding the verbs is a regular-expression job, and this file has now
+tried the alternative three times. Each attempt built a reader that split
+the command into words and then walked the words looking for a
+subcommand, and each one leaked somewhere its author had not imagined: a
+whitespace-only tokeniser hid `echo a;git reset --hard`, and the
+metacharacter-aware tokeniser that replaced it emitted `>` as a word of
+its own, whereupon the walker underneath stopped on that `>`, called it
+the subcommand, found it in no table, and cleared `git >/dev/null reset
+--hard`. A fix at one layer opened a hole at the next.
 
-Two matchers read the command and they disagree loudly. `lex` produces
-the invocations, and an independent regular expression counts the `git`
-words in the same command with its quoted spans blanked. A `git` the
-regular expression finds and the lexer did not place is a spelling the
-lexer cannot vouch for, so the command is refused rather than cleared.
-The comparison runs one way only: the lexer finding more is the
-conservative direction and needs no help. This is the check that would
-have caught the glued metacharacter, and it costs a refusal rather than
-a pass whenever the two readings drift apart.
+The patterns below are the shape that has never leaked. Each one runs
+from a `git` word, through a span of characters that cannot contain a
+command separator, to the verb and to whichever flag decides the verb.
+Robustness to punctuation is a property of the character class rather
+than of a rule somebody remembered to write: a separator cannot hide an
+invocation, because a separator ends the span, and a separator cannot
+hide a flag, because `\b` sits between a flag and whatever is glued to
+it. Nothing here tracks state, keeps a position, or infers a directory,
+so nothing here reopens what OQ-9 deleted.
+
+Three normalisations run before the patterns, and each one preserves the
+length of the command so that a match's offsets still index the original
+text. Line continuations are folded, because one invocation split over
+two lines is still one invocation. Quoted spans are blanked, so a commit
+message mentioning a command is an argument rather than a command.
+Redirection operators are blanked, because `>` and `<` and the `&` of
+`2>&1` are punctuation inside a single command rather than boundaries
+between two, and leaving them in the character class was how the last
+version cleared `git >/dev/null reset --hard`.
+
+Permission is then read off the original text of the matched span. The
+span reaches from the `git` word to the next character that could start
+another command, so a `-C` in one invocation cannot vouch for another,
+which is what `git -C <worktree> stash pop && git reset --hard` needs.
 
 Is a named directory a linked worktree? `git rev-parse --git-dir
 --git-common-dir` is the documented discriminator. The two answers differ
@@ -90,11 +101,19 @@ What this costs is stated rather than discovered. A bare `git commit`
 typed inside a worktree is refused, including by the operator in his own
 session. The board's own agents are unaffected, because the
 explicit-path discipline dinah-228 installs already requires `git -C
-<worktree>` on every git command from every stage.
+<worktree>` on every git command from every stage. A pattern reading a
+span rather than a parse tree also refuses a little more than a parser
+would: `git log --grep commit` carries the word `commit` outside quotes
+and is refused. Refusing too much is the direction this guard is allowed
+to be wrong in, and quoting the word is the fix.
 
-One thing this guard does not cover and never did: a command that
-changes directory and then runs something other than git. It reads git
-commands.
+Two things this guard does not cover and never did. A command that
+changes directory and then runs something other than git is outside it,
+because it reads git commands. And a git command assembled inside a
+quoted string that another program then executes, as `eval "git reset
+--hard"` does, is invisible to it, because blanking quoted spans is what
+keeps a commit message from being read as a command and the two cannot
+both be had.
 """
 
 import json
@@ -106,229 +125,140 @@ import sys
 
 GIT_TIMEOUT = 5
 
-# A `git` word, matched without the lexer's help. The word may carry a
-# directory in front of it and `.exe` behind it, and it may be glued to
-# any character that is not part of a name, which is the whole point:
-# `;git` and `(git` are occurrences and `--git-dir`, `.git/config`,
-# `git-lfs`, `git@host` and `git://host` are not.
-GIT_WORD = re.compile(r"(?<![\w.\-])git(?:\.exe)?(?![\w.\-@:])", re.IGNORECASE)
+# Characters that can end one command and begin another. A span of the
+# command that contains none of them is a single simple command, which is
+# the unit permission is decided over. Redirection operators are blanked
+# before the patterns run, so `>`, `<` and the `&` of `2>&1` never reach
+# this class and cannot be mistaken for a boundary.
+BOUNDARY_CHARACTERS = "|;&`(){}\n"
 
-# Characters that end a word wherever they appear, quoting aside. A shell
-# reads each of these as punctuation rather than as text, so a guard that
-# lets one sit inside a word reads a different command than the shell will.
-METACHARACTERS = ";&|()<>`\n"
+# The span between a `git` word and the verb it is running. Written once
+# and spliced into every pattern, because a rule that spells its own
+# character class is a rule that can spell it differently.
+GAP = "[^" + re.escape(BOUNDARY_CHARACTERS) + "]*"
+
+BOUNDARY = re.compile("[" + re.escape(BOUNDARY_CHARACTERS) + "]")
+
+GIT = r"\bgit\b"
+
+# A bundled short flag carrying a particular letter, as `-fdx` carries
+# `f`. The trailing `\b` is what makes `-fdx;` and `-fdx` the same flag.
+def short(letter):
+    return r"\s-[a-z]*" + letter + r"[a-z]*\b"
+
+
+def rule(*parts):
+    return re.compile("".join(parts), re.IGNORECASE)
+
+
+# A colon refspec, as in `git push origin :topic` or
+# `git push origin HEAD:refs/heads/x`. A remote spelled as a URL carries a
+# colon too, so `://` and a `user@host` prefix are both excluded.
+COLON_REFSPEC = r"\s(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
+
+DENIED = [
+    (rule(GIT, GAP, r"\breset\b", GAP, r"(?:--hard|--merge|--keep)\b"),
+     "git reset --hard/--merge/--keep"),
+    (rule(GIT, GAP, r"\bclean\b", GAP, "(?:", short("f"), "|", short("d"), "|",
+          short("x"), r"|\s--force\b)"),
+     "git clean -f/-d/-x"),
+    (rule(GIT, GAP, r"\bcheckout\b", GAP, r"(?:\s--(?![\w.=-])|", short("f"),
+          r"|\s--force\b)"),
+     "git checkout -- / -f"),
+    (rule(GIT, GAP, r"\brestore\b(?!", GAP, r"--staged\b(?!", GAP, r"--worktree\b))"),
+     "git restore (working tree)"),
+    (rule(GIT, GAP, r"\bswitch\b", GAP, "(?:", short("f"),
+          r"|\s--force\b|\s--discard-changes\b)"),
+     "git switch -f/--force/--discard-changes"),
+    (rule(GIT, GAP, r"\bpush\b", GAP, r"(?:\s--force(?!-with-lease)\b|", short("f"), ")"),
+     "git push --force"),
+    (rule(GIT, GAP, r"\bpush\b", GAP, r"--force-with-lease", GAP, r"\b(?:main|master)\b"),
+     "git push --force-with-lease to main/master"),
+    (rule(GIT, GAP, r"\bpush\b", GAP, r"(?:\s--delete\b|", short("d"), "|",
+          COLON_REFSPEC, ")"),
+     "git push --delete / colon refspec"),
+    (rule(GIT, GAP, r"\bstash\b(?!\s+(?:list|show)\b)"),
+     "git stash (mutating)"),
+    (rule(GIT, GAP, r"\bcommit\b"), "git commit"),
+    (rule(GIT, GAP, r"\bmerge\b(?!-)"), "git merge"),
+    (rule(GIT, GAP, r"\brebase\b(?!-)"), "git rebase"),
+    (rule(GIT, GAP, r"\bcherry-pick\b"), "git cherry-pick"),
+    (rule(GIT, GAP, r"\brevert\b"), "git revert"),
+    (rule(GIT, GAP, r"\bam\b"), "git am"),
+    (rule(GIT, GAP, r"\bapply\b(?!", GAP, r"--(?:check|stat)\b)"), "git apply"),
+    (rule(GIT, GAP, r"\brm\b(?!", GAP, r"--cached\b)"), "git rm"),
+    (rule(GIT, GAP, r"\bmv\b"), "git mv"),
+    (rule(GIT, GAP, r"\bbisect\b(?!\s+(?:log|view)\b)"), "git bisect"),
+    (rule(GIT, GAP, r"\bpull\b(?!", GAP, r"--ff-only\b)"), "git pull (may merge)"),
+    (rule(GIT, GAP, r"\bworktree\b", GAP, r"\bremove\b"), "git worktree remove"),
+    (rule(GIT, GAP, r"\bbranch\b", GAP, r"(?:\s--delete\b|", short("d"), ")"),
+     "git branch -d/-D"),
+    (rule(GIT, GAP, r"\btag\b", GAP, r"(?:\s--delete\b|", short("d"), ")"),
+     "git tag -d"),
+]
+
+# One real invocation split over two lines. Folded first so the flag on
+# the second line still counts, and folded to spaces so the fold costs no
+# characters and every offset below still indexes the original command.
+CONTINUATION = re.compile(r"\\[ \t]*\r?\n")
+
+# A quoted span. Blanked so prose cannot be read as a command. An
+# unterminated quotation mark matches nothing here, which leaves the rest
+# of the command in place and errs toward a refusal.
+QUOTED = re.compile("\"[^\"]*\"|'[^']*'")
+
+# A redirection operator, with the file descriptor in front of it and the
+# `&` and descriptor of `2>&1` behind it. Blanked because none of it
+# separates two commands, and because leaving `>` inside a word is how
+# `git >/dev/null reset --hard` cleared the last version of this guard.
+REDIRECTION = re.compile(r"\d*(?:>>|>&|>|<<<|<<|<&|<)\d*-?")
+
+# The `-C` that grants permission, and it grants it only where git reads
+# it: on the invocation itself, directly after the `git` word. A `-C`
+# anywhere else vouches for nothing, which refuses rather than clears, so
+# `git -c core.pager=cat -C <worktree> commit` is refused although git
+# would honour the directory. Refusing a spelling nobody on this board
+# writes is the safe direction, and the alternative is a walk over the
+# words ahead of the verb, which is the shape that has leaked three times.
+#
+# The case fold covers the `git` word and stops there. `-c` and `-C` are
+# different options, `-c` sets configuration and `-C` names a directory,
+# and folding the case of the flag was itself a fail-open: this harness's
+# first run caught `git -c core.pager=cat reset --hard` being cleared by
+# a `-C` that was never written.
+GIT_C = re.compile(r"(?i:\bgit\b)\s+-C\s*(\"[^\"]*\"|'[^']*'|\S+)")
+
+# Every `-C` in the span, because git applies more than one cumulatively
+# and the last one wins. All of them have to qualify.
+ANY_C = re.compile(r"(?:^|\s)-C\s*(\"[^\"]*\"|'[^']*'|\S+)")
 
 # Options naming a target the guard does not follow.
-UNFOLLOWED = ("--git-dir", "--work-tree")
-
-# Options consuming the token after them, skipped while hunting for the
-# subcommand. `-C` is read rather than skipped and so is not listed here.
-TAKES_VALUE = ("-c", "--namespace", "--exec-path", "--super-prefix") + UNFOLLOWED
+UNFOLLOWED = re.compile(r"(?:^|\s)--(?:git-dir|work-tree)\b", re.IGNORECASE)
 
 
-def lex(command):
-    """The command's words, with every metacharacter a word of its own.
+def blank(text, pattern):
+    """Replace every match of `pattern` with spaces of the same length.
 
-    Words break at whitespace and at each character in METACHARACTERS,
-    and the metacharacter is emitted as its own word so that nothing
-    stays glued to it. Quotation marks are kept attached to the word that
-    opens them, and a metacharacter inside a quoted span is text rather
-    than punctuation. A backslash is an ordinary character: Windows paths
-    are written with it, and treating it as an escape would join words
-    the shell keeps apart.
-
-    Raises ValueError when a quotation mark is never closed, because the
-    rest of that command is then anybody's guess.
+    Length is preserved so that an offset into the normalised text is an
+    offset into the original command. That is what lets the patterns read
+    a command with its quoted spans removed while permission is read off
+    the command as the agent wrote it.
     """
-    words = []
-    current = ""
-    quote = None
-    for character in command:
-        if quote:
-            current += character
-            if character == quote:
-                quote = None
-            continue
-        if character in "\"'":
-            quote = character
-            current += character
-            continue
-        if character in METACHARACTERS:
-            if current:
-                words.append(current)
-                current = ""
-            words.append(character)
-            continue
-        if character.isspace():
-            if current:
-                words.append(current)
-                current = ""
-            continue
-        current += character
-    if quote:
-        raise ValueError("no closing quotation")
-    if current:
-        words.append(current)
-    return words
+    return pattern.sub(lambda match: " " * len(match.group(0)), text)
 
 
-def unquoted_text(command):
-    """The command with every quoted span replaced by a space.
-
-    Written as its own walk rather than assembled from `lex`'s output on
-    purpose. It exists to disagree with the lexer, and a second reading
-    that borrows the first one's work cannot.
-    """
-    text = []
-    quote = None
-    for character in command:
-        if quote:
-            text.append(" ")
-            if character == quote:
-                quote = None
-            continue
-        if character in "\"'":
-            quote = character
-            text.append(" ")
-            continue
-        text.append(character)
-    return "".join(text)
+def normalise(command):
+    """The command as the patterns read it, character for character."""
+    folded = blank(command, CONTINUATION)
+    unquoted = blank(folded, QUOTED)
+    return blank(unquoted, REDIRECTION)
 
 
 def unquote(token):
-    """Strip one matched surrounding pair of quotation marks.
-
-    Non-POSIX tokenising leaves the marks attached to the token, and a
-    path is wanted rather than its spelling.
-    """
+    """Strip one matched surrounding pair of quotation marks."""
     if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'":
         return token[1:-1]
     return token
-
-
-def git_positions(tokens):
-    """Where the lexer places a `git` word, by index into `tokens`."""
-    return [position for position, token in enumerate(tokens)
-            if os.path.basename(unquote(token)).lower() in ("git", "git.exe")]
-
-
-def git_slices(tokens):
-    """Each git invocation in the command, as its own token list.
-
-    A slice runs from one `git` word to the next, so an option belonging
-    to the second invocation cannot be read as part of the first. Quoted
-    text is one token and its interior is never a `git` word, which is
-    what keeps a commit message mentioning a command from being read as
-    one.
-    """
-    starts = git_positions(tokens)
-    slices = []
-    for order, start in enumerate(starts):
-        end = starts[order + 1] if order + 1 < len(starts) else len(tokens)
-        slices.append(tokens[start:end])
-    return slices
-
-
-def read_invocation(invocation):
-    """The `-C` path, any unfollowed option, the subcommand, and its arguments."""
-    directory = None
-    unfollowed = None
-    index = 1
-    while index < len(invocation):
-        token = unquote(invocation[index])
-        if token == "-C" and index + 1 < len(invocation):
-            directory = unquote(invocation[index + 1])
-            index += 2
-            continue
-        if token.startswith("-C") and len(token) > 2:
-            directory = unquote(token[2:])
-            index += 1
-            continue
-        if unfollowed is None:
-            for option in UNFOLLOWED:
-                if token == option or token.startswith(option + "="):
-                    unfollowed = option
-                    break
-        if token in TAKES_VALUE:
-            index += 2
-            continue
-        if token.startswith("-"):
-            index += 1
-            continue
-        break
-    if index >= len(invocation):
-        return directory, unfollowed, None, []
-    subcommand = unquote(invocation[index])
-    arguments = [unquote(token) for token in invocation[index + 1:]]
-    return directory, unfollowed, subcommand, arguments
-
-
-def has(arguments, *names):
-    return any(argument in names for argument in arguments)
-
-
-def short(arguments, letters):
-    """True when a bundled short flag carries one of `letters`."""
-    for argument in arguments:
-        if argument.startswith("-") and not argument.startswith("--") and len(argument) > 1:
-            if any(letter in argument[1:] for letter in letters):
-                return True
-    return False
-
-
-def colon_refspec(argument):
-    if argument.startswith("-") or ":" not in argument:
-        return False
-    # A remote spelled as a URL carries a colon and is not a refspec.
-    return "://" not in argument and "@" not in argument
-
-
-def denied(subcommand, arguments):
-    """The label of the rule a git invocation breaks, or None."""
-    if subcommand is None:
-        return None
-    if subcommand == "reset" and has(arguments, "--hard", "--merge", "--keep"):
-        return "git reset --hard/--merge/--keep"
-    if subcommand == "clean" and (short(arguments, "fdxX") or has(arguments, "--force")):
-        return "git clean -f/-d/-x"
-    if subcommand == "checkout" and ("--" in arguments or short(arguments, "f") or has(arguments, "--force")):
-        return "git checkout -- / -f"
-    if subcommand == "restore" and not (has(arguments, "--staged") and not has(arguments, "--worktree")):
-        return "git restore (working tree)"
-    if subcommand == "switch" and (short(arguments, "f") or has(arguments, "--force", "--discard-changes")):
-        return "git switch -f/--force/--discard-changes"
-    if subcommand == "push":
-        if has(arguments, "--force") or short(arguments, "f"):
-            return "git push --force"
-        if any(argument.startswith("--force-with-lease") for argument in arguments):
-            if any(re.search(r"\b(main|master)\b", argument) for argument in arguments):
-                return "git push --force-with-lease to main/master"
-        if has(arguments, "--delete") or any(colon_refspec(argument) for argument in arguments):
-            return "git push --delete / colon refspec"
-        return None
-    if subcommand == "stash" and (not arguments or arguments[0] not in ("list", "show")):
-        return "git stash (mutating)"
-    if subcommand == "commit":
-        return "git commit"
-    if subcommand in ("merge", "rebase", "cherry-pick", "revert", "am"):
-        return "git " + subcommand
-    if subcommand == "apply" and not has(arguments, "--check", "--stat"):
-        return "git apply"
-    if subcommand == "rm" and not has(arguments, "--cached"):
-        return "git rm"
-    if subcommand == "mv":
-        return "git mv"
-    if subcommand == "bisect" and (not arguments or arguments[0] not in ("log", "view")):
-        return "git bisect"
-    if subcommand == "pull" and not has(arguments, "--ff-only"):
-        return "git pull (may merge)"
-    if subcommand == "worktree" and arguments and arguments[0] == "remove":
-        return "git worktree remove"
-    if subcommand == "branch" and (has(arguments, "--delete") or short(arguments, "dD")):
-        return "git branch -d/-D"
-    if subcommand == "tag" and (has(arguments, "--delete") or short(arguments, "d")):
-        return "git tag -d"
-    return None
 
 
 def resolve(path, base):
@@ -367,43 +297,57 @@ def worktree_kind(target):
     return "linked" if resolve(git_dir, target) != resolve(common_dir, target) else "main"
 
 
+def fault(segment):
+    """Why this invocation did not earn its permission, or None when it did.
+
+    `segment` is the original text of one simple command, starting at the
+    `git` word the pattern matched.
+    """
+    unfollowed = UNFOLLOWED.search(segment)
+    if unfollowed:
+        return "%s names a target this guard does not follow" % unfollowed.group(0).strip()
+    anchored = GIT_C.search(segment)
+    if not anchored:
+        return "the invocation carries no -C"
+    for match in ANY_C.finditer(segment):
+        directory = unquote(match.group(1))
+        if not os.path.isabs(directory):
+            return "-C %s is relative, so it names no directory on its own" % directory
+        kind = worktree_kind(directory)
+        if kind == "main":
+            return "-C %s is the main checkout" % directory
+        if kind != "linked":
+            return "-C %s is not a git worktree" % directory
+    return None
+
+
 def offender(command):
     """The first invocation the guard will not clear, or None when all are clear.
 
     Returns `(label, fault)`, where the label names the rule and the
     fault says why the invocation did not earn its permission.
     """
-    try:
-        tokens = lex(command)
-    except ValueError:
-        # An unterminated quotation mark leaves the command unreadable,
-        # and a hook that cannot read a command cannot clear it.
-        if GIT_WORD.search(command):
-            return "unreadable command", "the command does not tokenise"
-        return None
-    placed = len(git_positions(tokens))
-    found = len(GIT_WORD.findall(unquoted_text(command)))
-    if found > placed:
-        return ("unplaceable git word",
-                "the command carries %d git word(s) and the guard could read only %d "
-                "of them as invocations" % (found, placed))
-    for invocation in git_slices(tokens):
-        directory, unfollowed, subcommand, arguments = read_invocation(invocation)
-        label = denied(subcommand, arguments)
-        if not label:
-            continue
-        if unfollowed:
-            return label, "%s names a target this guard does not follow" % unfollowed
-        if directory is None:
-            return label, "the invocation carries no -C"
-        if not os.path.isabs(directory):
-            return label, "-C %s is relative, so it names no directory on its own" % directory
-        kind = worktree_kind(directory)
-        if kind == "main":
-            return label, "-C %s is the main checkout" % directory
-        if kind != "linked":
-            return label, "-C %s is not a git worktree" % directory
+    scannable = normalise(command)
+    for pattern, label in DENIED:
+        for match in pattern.finditer(scannable):
+            boundary = BOUNDARY.search(scannable, match.end())
+            end = boundary.start() if boundary else len(scannable)
+            why = fault(command[match.start():end])
+            if why:
+                return label, why
     return None
+
+
+def decide(command):
+    """The guard's verdict on a command, as `(label, fault)` or None.
+
+    Split out from `main` so that a harness comparing this guard with a
+    real shell reads the guard itself rather than a copy of its early
+    bail.
+    """
+    if "git" not in command.lower():
+        return None
+    return offender(command)
 
 
 def main():
@@ -414,13 +358,11 @@ def main():
 
     tool_input = payload.get("tool_input") or {}
     command = tool_input.get("command") or ""
-    if "git" not in command.lower():
-        return
 
-    refusal = offender(command)
+    refusal = decide(command)
     if refusal is None:
         return
-    matched, fault = refusal
+    matched, why = refusal
 
     reason = (
         "Blocked repository-mutating git ({0}), because {1}. A command running this "
@@ -435,7 +377,7 @@ def main():
         "C:/dinah-scratch/<card>-<stage>/wt <ref>. If this command really does belong "
         "in the main checkout, it is the operator's to run, or the operator can "
         "disable this guard via /hooks (.claude/settings.json)."
-    ).format(matched, fault)
+    ).format(matched, why)
 
     print(json.dumps({
         "hookSpecificOutput": {

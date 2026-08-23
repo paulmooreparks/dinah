@@ -379,6 +379,29 @@ def cases(root, main, linked, spaced, nested):
         ("a dot-git path beside a qualifying invocation",
          'cat .git/HEAD && git -C "%s" stash pop' % linked, main, ALLOW),
 
+        # Punctuation written between `git` and its subcommand. This is
+        # the position that cleared a denied verb in the fourth cycle, and
+        # neither of the two spellings below was reachable by any case in
+        # this file until the differential harness produced them.
+        ("a redirection between git and the verb",
+         "git >/dev/null re" + "set --hard origin/main", main, DENY),
+        ("a stderr redirection between git and the verb",
+         "git 2>/dev/null re" + "set --hard origin/main", main, DENY),
+        ("stderr folded onto stdout between git and the verb",
+         "git 2>&1 re" + "set --hard origin/main", main, DENY),
+        ("a continuation between git and the verb",
+         "git \\\n  re" + "set --hard origin/main", main, DENY),
+        ("a global option between git and the verb",
+         "git --no-pager re" + "set --hard origin/main", main, DENY),
+
+        # `-c` sets configuration and `-C` names a directory. Reading them
+        # as the same option cleared every deny-set verb, and no case in
+        # this file caught it; the harness did, on its first run.
+        ("a configuration override is not a directory",
+         "git -c core.pager=cat re" + "set --hard origin/main", main, DENY),
+        ("a configuration override ahead of a real -C is still refused",
+         'git -c core.pager=cat -C "%s" stash pop' % linked, main, DENY),
+
         # A command mentioning no git at all never reaches the rule.
         ("no git in the command", "rm -rf build", main, ALLOW),
     ])
