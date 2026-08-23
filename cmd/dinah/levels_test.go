@@ -667,9 +667,40 @@ func TestLsGainsSeverityAndPriorityColumnsBetweenStandingAndTitle(t *testing.T) 
 	if !(standingAt < severityAt && severityAt < priorityAt && priorityAt < titleAt) {
 		t.Errorf("the columns are not in Standing, Severity, Priority, Title order:\n%s", heading)
 	}
-	for _, want := range []string{"major", "now", "minor"} {
-		if !strings.Contains(got.out, want) {
-			t.Errorf("the listing does not carry %q:\n%s", want, got.out)
+
+	// The heading proves the columns exist and are ordered; it does not prove
+	// a value landed in its own column rather than merely somewhere in the
+	// row. Slice each data row at the heading's own offsets and check the
+	// Severity and Priority cells by identity, not by scanning the whole
+	// listing for a substring that could equally have printed in Title.
+	lines := strings.Split(strings.TrimRight(got.out, "\n"), "\n")
+	rows := lines[2:] // heading, rule, then one line per card
+	if len(rows) != 3 {
+		t.Fatalf("the listing carries %d data rows, wanted 3:\n%s", len(rows), got.out)
+	}
+	cellAt := func(row string, from, to int) string {
+		if from >= len(row) {
+			return ""
+		}
+		if to > len(row) {
+			to = len(row)
+		}
+		return strings.TrimSpace(row[from:to])
+	}
+	cases := []struct {
+		row                string
+		severity, priority string
+	}{
+		{rows[0], "major", "now"},
+		{rows[1], "", ""},
+		{rows[2], "minor", ""},
+	}
+	for _, c := range cases {
+		if got := cellAt(c.row, severityAt, priorityAt); got != c.severity {
+			t.Errorf("row %q: Severity cell is %q, wanted %q", c.row, got, c.severity)
+		}
+		if got := cellAt(c.row, priorityAt, titleAt); got != c.priority {
+			t.Errorf("row %q: Priority cell is %q, wanted %q", c.row, got, c.priority)
 		}
 	}
 }

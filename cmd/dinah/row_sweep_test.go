@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -1358,7 +1359,7 @@ func sweptBlocks() []sweptBlock {
 		},
 		{
 			site: "render.go:247", label: "dinah ls",
-			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.title"}, varies: lastCell,
+			keys: []string{"column.ls.card", "column.ls.standing", "column.ls.severity", "column.ls.priority", "column.ls.title"}, varies: lastCell,
 			expect: expectListing,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, w.healthy, tag, "ls")
@@ -1721,7 +1722,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 		}
 	}
 
-	sweptInit(t, benches.healthy)
+	sweptInitLeveled(t, benches.healthy)
 	benches.record.states = sweptInitStates()
 	benches.record.workbench = sweptWorkbenchRecord{title: filepath.Base(benches.healthy), slug: "fx", operator: "alka"}
 	sweptAddState(t, benches.healthy, reviewState, reviewTitle, "work", "operator_owned: true\n")
@@ -1731,6 +1732,9 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	for i := 0; i < 12; i++ {
 		sweptAdd(t, benches, sweptTitles[i%len(sweptTitles)])
 	}
+	sweptSetLevel(t, benches, "fx-1", "severity", "major")
+	sweptSetLevel(t, benches, "fx-1", "priority", "now")
+	sweptSetLevel(t, benches, "fx-3", "severity", "minor")
 	sweptClaim(t, benches, "fx-1", "")
 	sweptClaim(t, benches, "fx-11", "")
 	sweptClaim(t, benches, "fx-2", "bo")
@@ -2039,6 +2043,66 @@ func sweptStrandedTree(t *testing.T, w *sweptWorkbenches, name string) string {
 func sweptInit(t *testing.T, dir string) {
 	t.Helper()
 	sweptDo(t, dir, "init", "--slug", "fx", "--operator", "alka")
+}
+
+// sweptLeveledDefinition declares the same three states sweptInitStates
+// expects (Intake, Doing, Done) plus both level axes, so the healthy tree can
+// carry a severity and a priority the way an ordinary classified workbench
+// does. dinah-194's ls sweep entry is what needs a populated level to measure
+// its two new columns' cross-locale alignment; every other call site drawn
+// from the healthy tree is unaffected, since only the ls table draws these
+// two columns at all.
+const sweptLeveledDefinitionFormat = `{
+  "profile": "dinah-core/1.0",
+  "title": %q,
+  "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },
+  "states": [
+    { "id": "b00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "b00000000002", "title": "Doing", "kind": "work" },
+    { "id": "b00000000003", "title": "Done", "kind": "done" }
+  ]
+}`
+
+// sweptInitLeveled creates the healthy workbench from a definition matching
+// sweptLeveledDefinitionFormat rather than the bare default, so the fixture
+// can classify a card on both axes. The title is filled in from the target
+// directory's own base name, matching what defaultDefinition (Init's own
+// no-source path, internal/verb/beyond.go) would have given the workbench had
+// it been created bare, which is what "the workbench's own fields" sweep
+// entry expects.
+func sweptInitLeveled(t *testing.T, dir string) {
+	t.Helper()
+	source := filepath.Join(t.TempDir(), "definition.json")
+	definition := fmt.Sprintf(sweptLeveledDefinitionFormat, filepath.Base(dir))
+	if err := os.WriteFile(source, []byte(definition), 0o644); err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	sweptDo(t, dir, "init", "--from", source, "--slug", "fx", "--operator", "alka")
+}
+
+// sweptSetLevel classifies a card on one axis by writing the anchor
+// directly, the way handWrite (cmd/dinah/levels_test.go) puts a value onto a
+// card no command needs to put it there for. `card set` is deliberately not
+// used here: it journals a card_updated line and dinah log's own sweep entry
+// walks the fixture's recorded acts one for one, so a command that classifies
+// a card would have to grow a matching log expectation too, for a fixture
+// axis the log's own sweep entry has no use for. A direct write leaves every
+// other block's expectations exactly as they were. Callers must run this
+// before the ref is claimed, since it writes under the card's own
+// "substate: ready\n" line the way handWrite does.
+func sweptSetLevel(t *testing.T, w *sweptWorkbenches, ref, axis, value string) {
+	t.Helper()
+	handWrite(t, w.healthy, ref, axis+": "+value)
+	r := w.record
+	card := &r.cards[sweptCardAt(r, ref)]
+	switch axis {
+	case "severity":
+		card.severity = value
+	case "priority":
+		card.priority = value
+	default:
+		t.Fatalf("sweptSetLevel: unknown axis %q", axis)
+	}
 }
 
 // sweptDo runs a command that has to succeed while the fixture is being built.

@@ -90,6 +90,11 @@ type sweptCardRecord struct {
 	standing string
 	holder   string
 	reason   string
+	// severity and priority are the two level axes the fixture set on the
+	// card, empty when the fixture left the axis unset. dinah-194's ls sweep
+	// entry is the only reader of these two fields.
+	severity string
+	priority string
 }
 
 // sweptActRecord is one act the fixture ran against a card: which card, who
@@ -1000,7 +1005,7 @@ func expectListing(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for _, card := range r.cards {
-		rows = append(rows, sweptTexts(card.ref, sweptToken(tag, card.standing), card.title))
+		rows = append(rows, sweptTexts(card.ref, sweptToken(tag, card.standing), card.severity, card.priority, card.title))
 	}
 	return sweptExpectation{rows: rows, source: "the record's cards, since the entry runs ls with no state"}
 }
