@@ -281,11 +281,11 @@ SERVE
 Global flags:
   Option             What it does
   -----------------  --------------------------------------------------------------------
-  --workbench <dir>  use this workbench instead of the one discovered from here
-  --json             emit the canonical machine form
-  --quiet            suppress served instructions on claim and move
-  --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
-  --actor <name>     act as this owner
+  --workbench <dir>  Use this workbench instead of the one discovered from here
+  --json             Emit the canonical machine form
+  --quiet            Suppress served instructions on claim and move
+  --lang <tag>       Render in this language; run `dinah version --catalogs` for the tags
+  --actor <name>     Act as this owner
 
 Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 
