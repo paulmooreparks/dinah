@@ -93,13 +93,15 @@ type sweptBlock struct {
 	// fixed-indent continuation as a field that has drifted, or as the
 	// field after the capped column arriving early. A capsColumn block that
 	// also declares wrapsTail wraps its field after the capped column too,
-	// through the ordinary wrapsTail continuation below; the capped
-	// column's own continuation lines and the field after it wrapping are
-	// two independent axes, so a row can carry both, and the production
-	// renderer draws the capped column's lines before the wrapped field's,
-	// which reading them in the order they arrive reconstructs correctly
-	// without this reader needing to know which axis a given line belongs
-	// to before it sees the line's own lead.
+	// and since dinah-220 the two wraps run down the page together rather
+	// than one block after the other: a single physical line can carry the
+	// capped column's own continuation and the field's continuation at
+	// once, with the field's fragment starting ceilingContinuationIndent
+	// columns past the field's own heading column. A line carrying only the
+	// field's continuation starts there too, since every continuation line
+	// of a capped row renders at the continuation indent. readSweptRows
+	// splits a joint line at that second boundary and folds each fragment
+	// into the field it belongs to.
 	capsColumn bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
@@ -1018,24 +1020,46 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 	for i, line := range lines {
 		// A block that asks the renderer to break its last column between
 		// words draws continuation lines leading at that column's own
-		// position. Reading one without knowing that would report an
-		// aligned continuation as a first field in the wrong place.
-		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == columns[tail] {
+		// position, or, under a ceiling, ceilingContinuationIndent columns
+		// past it: every continuation line of a capped row renders at the
+		// continuation indent, the field's own included (dinah-220).
+		// Reading one without knowing that would report an aligned
+		// continuation as a first field in the wrong place.
+		tailContinuation := columns[tail]
+		if block.capsColumn {
+			tailContinuation += ceilingContinuationIndent
+		}
+		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == tailContinuation {
 			previous := rows[len(rows)-1]
-			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
+			previous[len(previous)-1] += " " + sweptField(line, tailContinuation, -1)
 			continue
 		}
 		// A capsColumn block draws every row's field after the capped
 		// column on the row's first line, whatever the capped column's own
 		// value needs, so the first line of such a row reads through the
 		// ordinary path below like any other two-column row. A capsColumn
-		// continuation line carries only more of the capped column's own
-		// value, at the fixed sweptCapContinuation indent, and is folded
-		// back into the row already closed for it rather than read as a
-		// field of its own.
+		// continuation line leads at the fixed sweptCapContinuation indent
+		// and is folded back into the row already closed for it rather than
+		// read as a field of its own.
+		//
+		// Since dinah-220 such a line can carry both continuations at once:
+		// the capped column's own wrapped text at sweptCapContinuation, and
+		// the wrapped field's own continuation ceilingContinuationIndent
+		// columns past the field's heading column. sweptNextFieldColumn
+		// finds that second boundary the same way deriveHeadinglessColumns
+		// finds every other one, and it cannot fire inside the capped
+		// fragment itself, since the renderer joins packed tokens with one
+		// space and a boundary needs a gutter's worth of blanks. When the
+		// line carries no such boundary, the whole remainder belongs to the
+		// capped field alone, as it did before.
 		if block.capsColumn && next == 0 && len(rows) > 0 && sweptLead(line) == sweptCapContinuation {
 			previous := rows[len(rows)-1]
-			previous[0] += " " + sweptField(line, sweptCapContinuation, -1)
+			if jointAt := sweptNextFieldColumn(line, sweptCapContinuation); jointAt == tailContinuation {
+				previous[0] += " " + sweptField(line, sweptCapContinuation, jointAt)
+				previous[tail] += " " + sweptField(line, jointAt, -1)
+			} else {
+				previous[0] += " " + sweptField(line, sweptCapContinuation, -1)
+			}
 			continue
 		}
 		if sweptLead(line) != columns[next] {
@@ -1532,7 +1556,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:122", label: "the command list of bare dinah",
+			site: "help.go:135", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
 			noHeadingRow: true, capsColumn: true, wrapsTail: true,
 			opensAt: "help.usage", sections: sweptHelpSections(), expect: expectCommands,
@@ -1541,7 +1565,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:130", label: "the global flag list",
+			site: "help.go:143", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			opensAt: "help.flags", expect: expectFlags,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1549,7 +1573,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:173", label: "dinah help <command>",
+			site: "help.go:192", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1557,7 +1581,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:210", label: "what you may write, on dinah help <command>",
+			site: "help.go:229", label: "what you may write, on dinah help <command>",
 			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
 			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1759,6 +1783,16 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
 	t.Setenv("COLUMNS", "")
+	// The editor row is fixed by the fixture, at the config rung
+	// sweptSetEditor writes. All three rungs above and beside it read the
+	// environment directly, so an enclosing test or an ambient shell that
+	// carries one draws a row no expectation predicts. Cleared here as well as
+	// in TestMain, because a later t.Setenv beats an earlier one and this is
+	// the level TestTheSweepsEditorRowIgnoresTheEnvironment asserts against.
+	// dinah-229.
+	t.Setenv("DINAH_EDITOR", "")
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", "")
 
 	benches := &sweptWorkbenches{
 		base:      base,
@@ -2302,4 +2336,102 @@ func sweptRewrite(t *testing.T, path string, change func(string) string) {
 	if err := os.WriteFile(path, []byte(change(string(source))), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+// TestReadSweptRowsSplitsAJointContinuation asserts the reader's own half of
+// dinah-220: a capped row can draw one physical line carrying the capped
+// column's continuation and the wrapped field's continuation at once, and
+// each fragment has to land in the field it came from. Before the split, the
+// whole line folded into the capped field, which put the description text on
+// the syntax column and raised nothing, so the reader agreed with itself
+// while reporting a row nobody drew.
+//
+// The lines are built here rather than harvested from a rendered command, so
+// the joint shape is exercised whether or not any command in the tool happens
+// to produce it at whatever width the sweep runs at today.
+func TestReadSweptRowsSplitsAJointContinuation(t *testing.T) {
+	columns := []int{sweptIndent, 57}
+	joint := sweptIndent + ceilingContinuationIndent
+	block := sweptBlock{site: "row_sweep_test.go", label: "a hand-built capped block", capsColumn: true, wrapsTail: true}
+	lines := []string{
+		strings.Repeat(" ", sweptIndent) + pad("workstream [new|get|set] [workstream|title] [field]", columns[1]-sweptIndent) + "Read this workbench's workstreams, create one, or",
+		strings.Repeat(" ", joint) + pad("[value] [--yes]", columns[1]+ceilingContinuationIndent-joint) + "write one's fields",
+		strings.Repeat(" ", sweptIndent) + pad("attach <ref> <file> [--description <text>]", columns[1]-sweptIndent) + "Attach a file, or replace its bytes",
+		strings.Repeat(" ", joint) + "[--replace]",
+	}
+	want := [][]string{
+		{"workstream [new|get|set] [workstream|title] [field] [value] [--yes]", "Read this workbench's workstreams, create one, or write one's fields"},
+		{"attach <ref> <file> [--description <text>] [--replace]", "Attach a file, or replace its bytes"},
+	}
+	got := readSweptRows(t, block, "en", lines, columns)
+	if len(got) != len(want) {
+		t.Fatalf("a block of two rows read back as %d: %q", len(got), got)
+	}
+	for i := range want {
+		if len(got[i]) != len(want[i]) {
+			t.Fatalf("row %d read back with %d fields, want %d: %q", i, len(got[i]), len(want[i]), got[i])
+		}
+		for f := range want[i] {
+			if got[i][f] != want[i][f] {
+				t.Errorf("row %d field %d read back as %q, want %q", i, f, got[i][f], want[i][f])
+			}
+		}
+	}
+}
+
+// sweptHostileEditorEnv is what TestTheSweepsEditorRowIgnoresTheEnvironment
+// exports before it builds the fixture: one value per environment rung of the
+// editor ladder, each distinct and each naming no editor that exists. The
+// values are distinct so that a failure can say which variable reached the
+// row rather than only that one did, and the source token the listing reports
+// says the same thing a second way.
+var sweptHostileEditorEnv = []struct {
+	name   string
+	value  string
+	source string
+}{
+	{name: "DINAH_EDITOR", value: "hostile-dinah-editor", source: bench.SourceEditorVar},
+	{name: "VISUAL", value: "hostile-visual", source: bench.SourceVisual},
+	{name: "EDITOR", value: "hostile-editor", source: bench.SourceEnvironment},
+}
+
+// TestTheSweepsEditorRowIgnoresTheEnvironment pins the cause the sweep's own
+// failure could only report as a symptom. dinah-229.
+//
+// The editor ladder reads DINAH_EDITOR, VISUAL and EDITOR through bare
+// os.Getenv calls inside ResolveEditorSource, and DINAH_EDITOR sits above the
+// config rung buildSweptWorkbenches writes through sweptSetEditor. On a
+// machine exporting any of the three, the sweep drew a row its expectation
+// table does not declare and reported it as an unpaired record, which reads
+// as an inventory that has fallen behind rather than as an environment leak.
+// Three people diagnosed it wrongly off that presentation in one day.
+//
+// This goes through buildSweptWorkbenches rather than settingsHome because
+// settingsHome already clears all seven of the isolated names, so a test built
+// on it would pass whether or not the fixture clearing exists. The clearing
+// inside the fixture is what this asserts, and a t.Setenv here beats
+// TestMain's clearing, so the assertion has something to bite on.
+func TestTheSweepsEditorRowIgnoresTheEnvironment(t *testing.T) {
+	for _, rung := range sweptHostileEditorEnv {
+		t.Setenv(rung.name, rung.value)
+	}
+
+	benches := buildSweptWorkbenches(t)
+	rows := settingRows(t, runCLI(t, benches.healthy, "--json", "config"))
+
+	editor, drawn := rows["editor"]
+	if !drawn {
+		t.Fatalf("dinah config drew no editor row at all: %v", rows)
+	}
+	if editor.Value == benches.record.editor && editor.Source == bench.SourceConfig {
+		return
+	}
+	for _, rung := range sweptHostileEditorEnv {
+		if editor.Value == rung.value || editor.Source == rung.source {
+			t.Fatalf("the editor row read %s from the environment: wanted %q at %s, got %q at %s",
+				rung.name, benches.record.editor, bench.SourceConfig, editor.Value, editor.Source)
+		}
+	}
+	t.Fatalf("the editor row answered at a rung the fixture did not write: wanted %q at %s, got %q at %s",
+		benches.record.editor, bench.SourceConfig, editor.Value, editor.Source)
 }

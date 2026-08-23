@@ -1,16 +1,24 @@
-// Package testenv isolates a test binary's temporary-directory location from
-// the developer's own home, so a package whose tests exercise an
-// ancestor-walking search cannot reach real data sitting above the fixture
-// tree those tests build.
+// Package testenv isolates a test binary from the machine the developer
+// happens to be running it on, so the same tree produces the same result
+// here, on a colleague's machine, and on every leg of CI. A test that passes
+// or fails for a reason nobody wrote down is worse than no test, and the
+// reason is usually something exported in the shell.
 //
-// The protection covers exactly what t.TempDir() builds. Every test in the
-// two packages that call IsolateTempDir constructs its fixtures exclusively
-// through that helper, so redirecting TMP, TEMP, and TMPDIR before any test
-// runs redirects every fixture tree along with it. A future test that
-// constructs a fixture path some other way, a literal path under the
-// profile for instance, sits outside this protection; wiring the same
-// TestMain into a new package only covers the tests in that package's own
-// binary.
+// The temporary directory is one case of that, and IsolateTempDir is the
+// helper for it: it moves t.TempDir() outside the developer's own home, so a
+// package whose tests exercise an ancestor-walking search cannot reach real
+// data sitting above the fixture tree those tests build. The other case is
+// any environment variable production code reads straight from the process,
+// which ClearVars unsets for the run.
+//
+// The temporary-directory protection covers exactly what t.TempDir() builds.
+// Every test in the two packages that call IsolateTempDir constructs its
+// fixtures exclusively through that helper, so redirecting TMP, TEMP, and
+// TMPDIR before any test runs redirects every fixture tree along with it. A
+// future test that constructs a fixture path some other way, a literal path
+// under the profile for instance, sits outside this protection; wiring the
+// same TestMain into a new package only covers the tests in that package's
+// own binary.
 package testenv
 
 import (
@@ -85,6 +93,38 @@ func IsolateTempDir() (restore func()) {
 		restoreEnv("TEMP", prevTEMP, hadTEMP)
 		restoreEnv("TMPDIR", prevTMPDIR, hadTMPDIR)
 		os.RemoveAll(created)
+	}
+}
+
+// ClearVars unsets each named variable for the rest of the process and
+// restores what the environment held once the caller's restore runs. Call it
+// from TestMain, before m.Run(), naming every variable production code in the
+// package under test reads straight from the environment.
+//
+// A resolver that reads os.Getenv inside itself has no injection point, so an
+// exported value reaches every test in the binary, not only the ones that set
+// it on purpose. Tests that do control such a variable keep working exactly
+// as before: t.Setenv overrides for the one test and restores automatically
+// when it ends, so it composes with an unset starting point the same way it
+// composes with any other. What clearing here buys is every test that never
+// mentions the variable at all, present or future, which is where the hazard
+// actually lives.
+//
+// It unsets rather than blanks, so a cleared name reports false from
+// os.LookupEnv rather than "" and true. The distinction matters to any test
+// asserting that the isolation happened, and to production code that reads
+// presence rather than value.
+func ClearVars(names ...string) (restore func()) {
+	prev := make([]string, len(names))
+	had := make([]bool, len(names))
+	for i, name := range names {
+		prev[i], had[i] = os.LookupEnv(name)
+		os.Unsetenv(name)
+	}
+	return func() {
+		for i, name := range names {
+			restoreEnv(name, prev[i], had[i])
+		}
 	}
 }
 
@@ -183,9 +223,11 @@ func failMessage(defaultTemp, home string, cause error) string {
 	)
 }
 
-// restoreEnv puts an environment variable back the way IsolateTempDir found
-// it: set to its prior value when it had one, or unset entirely when it did
-// not.
+// restoreEnv puts an environment variable back the way the helper that
+// changed it found it: set to its prior value when it had one, or unset
+// entirely when it did not. Shared by IsolateTempDir and ClearVars, which
+// both have to tell a variable that was set to something from one that was
+// never there.
 func restoreEnv(key, prev string, had bool) {
 	if had {
 		os.Setenv(key, prev)

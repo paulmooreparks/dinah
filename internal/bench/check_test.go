@@ -18,12 +18,86 @@ import (
 // package's Discover and Reachable tests exercise cannot climb out of its
 // own synthetic fixture tree and reach the real workbenches sitting above
 // it. See internal/testenv's package comment for what this does and does
-// not cover.
+// not cover. It also clears the variables isolatedEnv names, so a shell that
+// exports one does not reach a test that never asked to see it.
 func TestMain(m *testing.M) {
 	restore := testenv.IsolateTempDir()
+	restoreIsolated := testenv.ClearVars(isolatedEnv...)
 	code := m.Run()
+	restoreIsolated()
 	restore()
 	os.Exit(code)
+}
+
+// isolatedEnv names the variables this package's own resolvers read straight
+// from the environment and that no test here asked to see. dinah-229.
+//
+// It is a twin of cmd/dinah's list rather than a reference to it, since that
+// package is package main and nothing can import it. The two are kept in step
+// by each package asserting its own copy against the same written-out seven.
+//
+// ResolveEditorSource reads DINAH_EDITOR, VISUAL and EDITOR; osLocale reads
+// LC_ALL, LC_MESSAGES and LANG. COLUMNS is carried so both lists read the
+// same, and because a renderer moving into this package would inherit the
+// protection rather than have to remember it. DINAH_ACTOR and DINAH_LANG stay
+// out: fixtures set both deliberately.
+//
+// The ladder tests below clear the editor and locale variables per case as
+// well. Those loops state local intent, and t.Setenv composes with an
+// already-unset starting point exactly as it composes with any other, so they
+// stay.
+var isolatedEnv = []string{
+	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+	"LC_ALL", "LC_MESSAGES", "LANG",
+}
+
+// TestIsolatedEnvNamesEveryVariableTheBinaryClears is the twin of the test of
+// the same name in cmd/dinah, over this package's own list. dinah-229.
+//
+// Two copies rather than one shared list, because cmd/dinah is package main
+// and no package can import it. What keeps them in step is that each asserts
+// its own copy against the same seven names written out by hand, so a name
+// added to one list and not the other shows up here.
+//
+// The first half fails anywhere. The second half only fails on a machine that
+// exports the name, which is the developer's and no CI leg; see the cmd/dinah
+// twin's comment for why both halves are carried.
+func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
+	want := []string{
+		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+		"LC_ALL", "LC_MESSAGES", "LANG",
+	}
+	for _, name := range want {
+		if !namesVariable(isolatedEnv, name) {
+			t.Errorf("isolatedEnv no longer names %s, so this binary inherits it from whoever runs the tests", name)
+		}
+	}
+	for _, name := range isolatedEnv {
+		if !namesVariable(want, name) {
+			t.Errorf("isolatedEnv names %s, which this test does not expect: add it here with the reason, or take it out of the list", name)
+		}
+	}
+	if len(isolatedEnv) != len(want) {
+		t.Errorf("isolatedEnv carries %d names, wanted %d: %v", len(isolatedEnv), len(want), isolatedEnv)
+	}
+
+	for _, name := range want {
+		if value, set := os.LookupEnv(name); set {
+			t.Errorf("%s is still set to %q while tests run, so TestMain did not clear it", name, value)
+		}
+	}
+}
+
+// namesVariable reports whether a list of environment variable names carries
+// one, which is what lets the guard above name the variable that went missing
+// rather than print two slices and leave the reader to diff them.
+func namesVariable(names []string, want string) bool {
+	for _, name := range names {
+		if name == want {
+			return true
+		}
+	}
+	return false
 }
 
 // benchDefinition is the smallest bench check can be run against.

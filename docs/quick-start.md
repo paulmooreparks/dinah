@@ -368,15 +368,48 @@ rel-1  Write the release notes  [Intake / ready]
 $ dinah add "Draft the changelog"
 rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
-$ dinah add "Check the download links" --state doing
-rel-3  Check the download links  [Doing / ready]
+$ dinah add "Check the download links"
+rel-3  Check the download links  [Intake / ready]
 [exit 0]
 ```
 
-Dinah puts a new card in the first state of the flow, unless you name another
-state with `--state`. Your card arrives with the substate `ready`, and anybody
-may pull a ready card. You read where the card stands out of the bracket after
-its title: first the state it stands in, then its substate.
+Dinah puts a new card in the first state of the flow. Your card arrives with
+the substate `ready`, and anybody may pull a ready card. You read where the
+card stands out of the bracket after its title: first the state it stands in,
+then its substate.
+
+All three cards are standing in `Intake`, so nothing has gone anywhere yet and
+you have not yet seen a state as somewhere a card travels to. Send one of them
+on:
+
+```console
+$ dinah move rel-3 doing
+rel-3  Check the download links  [Doing / ready]
+
+Instructions, this workbench:
+Every card on this workbench ends with a line in the changelog.
+
+Instructions, this state:
+Work the card until it is finished or until something stops you.
+Leave a comment saying what you did before you carry it on.
+
+Moves this card may make:
+  State   Name    Direction
+  ------  ------  ---------
+  intake  Intake  backward
+  done    Done    forward
+[exit 0]
+```
+
+`move` carries a card to the state you name and changes nothing else about it.
+`rel-3` now stands in `Doing`, still waiting for somebody to pull it, and Dinah
+shows you the instructions that state serves along with the moves the card may
+make from there. You have met the first of the five commands that change where
+a card stands, and you meet the other four under "The five commands underneath"
+below. If you already know as you file a card that it belongs somewhere other
+than the first state, you can name that state with `--state`, as in `dinah add
+"Check the download links" --state doing`, and reach the same place in one
+command instead of two.
 
 You read the board back with three commands. `ls` lists cards, and takes an
 optional state and an optional `--ready` filter. `next` tells you what each
@@ -535,9 +568,11 @@ rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
 ```
 
-`move` carries a card to another state and changes nothing else. If you move a
-card you hold, you still hold it afterwards. `move` obeys the same capacity
-limit `pull` obeyed above, and the operator overrides it the same way.
+You already ran `move` once, to carry `rel-3` into `Doing`, so what follows is
+the fuller account rather than a first introduction. `move` carries a card to
+another state and changes nothing else. If you move a card you hold, you still
+hold it afterwards. `move` obeys the same capacity limit `pull` obeyed above,
+and the operator overrides it the same way.
 
 Say what you did while you are there:
 
@@ -1434,7 +1469,7 @@ out which of two possible errors you are looking at.
 $ dinah help claim
 claim <card> [--expires <duration>]
 
-take up a ready card
+Take up a ready card
 
 What you may write:
   As you write it         What it is

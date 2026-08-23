@@ -168,6 +168,53 @@ func TestVerifyIsolationAcceptsADirectoryOutsideHome(t *testing.T) {
 // real home and real default answer the same question IsolateTempDir itself
 // answers, so the skip below is the same no-op this function already
 // returns on a machine where nothing needs isolating.
+// TestClearVarsUnsetsAndRestores asserts the contract ClearVars sells to the
+// TestMain functions that call it, in the three parts a caller depends on.
+// dinah-229.
+//
+// It clears, rather than blanks: a caller asserting its own isolation reads
+// os.LookupEnv and needs false back, not "" and true, and production code
+// that tests presence rather than value would read a blanked variable as set.
+// It restores a variable that had a value to that value. It restores a
+// variable that had none to having none, rather than leaving an empty string
+// behind that outlives the run.
+//
+// The probe names are this test's own, set here and cleaned up by t.Setenv,
+// so nothing about the developer's environment reaches the assertions and the
+// test fails identically on every machine. It goes red against a stub, a
+// blank-instead-of-unset, and a restore that loses either case.
+func TestClearVarsUnsetsAndRestores(t *testing.T) {
+	const withValue = "DINAH_TESTENV_PROBE_SET"
+	const withoutValue = "DINAH_TESTENV_PROBE_UNSET"
+
+	t.Setenv(withValue, "the prior value")
+	// t.Setenv registers the cleanup that puts this name back however the
+	// machine had it; the Unsetenv right after establishes the was-unset
+	// precondition the second case needs, whatever the machine had.
+	t.Setenv(withoutValue, "")
+	os.Unsetenv(withoutValue)
+
+	restore := ClearVars(withValue, withoutValue)
+
+	for _, name := range []string{withValue, withoutValue} {
+		if value, set := os.LookupEnv(name); set {
+			t.Errorf("%s reads as set to %q after ClearVars, which unsets rather than blanks", name, value)
+		}
+	}
+
+	restore()
+
+	value, set := os.LookupEnv(withValue)
+	if !set {
+		t.Errorf("%s had a value before ClearVars and reads as unset after restore", withValue)
+	} else if value != "the prior value" {
+		t.Errorf("%s restored to %q, wanted %q", withValue, value, "the prior value")
+	}
+	if value, set := os.LookupEnv(withoutValue); set {
+		t.Errorf("%s was unset before ClearVars and reads as set to %q after restore", withoutValue, value)
+	}
+}
+
 func TestIsolateTempDirRedirectsAndRestores(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {

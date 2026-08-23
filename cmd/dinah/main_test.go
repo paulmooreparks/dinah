@@ -28,11 +28,12 @@ import (
 // package's tests exercise through the CLI cannot climb out of its own
 // synthetic fixture tree and reach the real workbenches sitting above it.
 // See internal/testenv's package comment for what this does and does not
-// cover. It also clears COLUMNS for the whole run, so a shell that exports
-// it does not reach a test that never asked to see it.
+// cover. It also clears the variables isolatedEnv names for the whole run,
+// so a shell that exports one does not reach a test that never asked to see
+// it.
 func TestMain(m *testing.M) {
 	restoreTemp := testenv.IsolateTempDir()
-	restoreColumns := isolateColumns()
+	restoreIsolated := testenv.ClearVars(isolatedEnv...)
 	tableSiteRecorder = recordReachedTableSite
 	code := m.Run()
 	tableSiteRecorder = nil
@@ -40,32 +41,85 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, complaint)
 		code = 1
 	}
-	restoreColumns()
+	restoreIsolated()
 	restoreTemp()
 	os.Exit(code)
 }
 
-// isolateColumns clears COLUMNS for the whole test binary before any test
-// runs, restoring whatever the environment held once every test has
-// finished. windowWidth (row.go) reads COLUMNS straight from the
-// environment, so an exported COLUMNS reaches every test in this package,
-// not only the ones that set it on purpose. A handful of tests already call
-// t.Setenv("COLUMNS", ...) to control the value they need, and that call
-// keeps working exactly as before: t.Setenv overrides for the one test and
-// restores automatically when it ends, so it composes with an unset starting
-// point the same way it composes with any other. What clearing it here buys
-// is every test that never mentions COLUMNS at all, present or future,
-// which is where the hazard actually lives.
-func isolateColumns() (restore func()) {
-	prev, had := os.LookupEnv("COLUMNS")
-	os.Unsetenv("COLUMNS")
-	return func() {
-		if had {
-			os.Setenv("COLUMNS", prev)
-			return
-		}
-		os.Unsetenv("COLUMNS")
+// isolatedEnv names the variables production code reads straight from the
+// environment and that no test in this binary asked to see. dinah-229.
+//
+// windowWidth (row.go) reads COLUMNS. ResolveEditorSource
+// (internal/bench/config.go) reads DINAH_EDITOR, VISUAL and EDITOR, with
+// DINAH_EDITOR sitting above the config rung a fixture can write, so a
+// developer who exports it draws an editor row no expectation predicts.
+// osLocale (internal/bench/config.go) reads LC_ALL, LC_MESSAGES and LANG and
+// feeds the lang ladder's fourth rung; the sweep does not fail on those only
+// because it always passes --lang, which is a fixture accident rather than
+// isolation.
+//
+// The list deliberately stops short of DINAH_ACTOR and DINAH_LANG. Fixtures
+// set both on purpose, and clearing them at the binary boundary would change
+// what currently-passing tests start from.
+//
+// It is a named variable rather than a literal at the call site so
+// TestIsolatedEnvNamesEveryVariableTheBinaryClears can read it back.
+var isolatedEnv = []string{
+	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+	"LC_ALL", "LC_MESSAGES", "LANG",
+}
+
+// TestIsolatedEnvNamesEveryVariableTheBinaryClears guards the isolation this
+// binary depends on, in the two halves that fail in different places.
+// dinah-229.
+//
+// The first half compares isolatedEnv against a copy written out here. That is
+// a golden list on purpose: reading the names off the list under test would
+// assert only that a slice equals itself. It catches a name dropped from
+// isolatedEnv later, and it fails on any machine, including a CI runner
+// exporting none of the seven.
+//
+// The second half asserts that TestMain actually made the call, by reading
+// each name back while tests run. That one can only fail where the name is
+// exported, so it is the developer's machine that arms it and no CI leg. Both
+// halves are needed: without the first, a dropped name is invisible on CI;
+// without the second, a list nothing acts on passes.
+func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
+	want := []string{
+		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+		"LC_ALL", "LC_MESSAGES", "LANG",
 	}
+	for _, name := range want {
+		if !namesVariable(isolatedEnv, name) {
+			t.Errorf("isolatedEnv no longer names %s, so this binary inherits it from whoever runs the tests", name)
+		}
+	}
+	for _, name := range isolatedEnv {
+		if !namesVariable(want, name) {
+			t.Errorf("isolatedEnv names %s, which this test does not expect: add it here with the reason, or take it out of the list", name)
+		}
+	}
+	if len(isolatedEnv) != len(want) {
+		t.Errorf("isolatedEnv carries %d names, wanted %d: %v", len(isolatedEnv), len(want), isolatedEnv)
+	}
+
+	for _, name := range want {
+		if value, set := os.LookupEnv(name); set {
+			t.Errorf("%s is still set to %q while tests run, so TestMain did not clear it", name, value)
+		}
+	}
+}
+
+// namesVariable reports whether a list of environment variable names carries
+// one, which is what lets the guard above name the variable that went missing
+// rather than print two slices and leave the reader to diff them.
+func namesVariable(names []string, want string) bool {
+	for _, name := range names {
+		if name == want {
+			return true
+		}
+	}
+	return false
 }
 
 // invocation is one run of the head with its streams captured.
@@ -213,25 +267,37 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 // reconstructs the same wrap the renderer draws and reads it back off the
 // block rather than looking for the usage as one contiguous run of text,
 // which a wrapped entry never is.
+//
+// Since dinah-220 a continuation line can carry the summary's own
+// continuation after the syntax fragment, so each chunk is matched as a
+// prefix of its line rather than as the whole of it, with the same
+// space-or-end-of-line rule that keeps one usage from matching another's
+// prefix.
 func blockLists(block, usage string) bool {
 	wrapIndent := 2 + ceilingContinuationIndent
 	room := halfWindow(assumedWindow)
 	chunks := strings.Split(firstChunk(usage, wrapIndent, room), "\n")
 	lines := strings.Split(block, "\n")
-	for i, line := range lines {
-		if !strings.HasPrefix(line, "  "+chunks[0]) {
-			continue
+	// carries reports that a line opens with a chunk and ends the chunk at a
+	// space or at the line's end. The character right after the chunk has to
+	// be a space (the padding before the summary, or before the summary's
+	// own continuation) or nothing at all (a line the summary has run out
+	// on), so a usage that is merely a prefix of a longer one is not read as
+	// a match.
+	carries := func(line, chunk string) bool {
+		if !strings.HasPrefix(line, chunk) {
+			return false
 		}
-		// The character right after the first chunk has to be a space (the
-		// padding before the summary) or the end of the line (a value the
-		// ceiling left whole), so a usage that is merely a prefix of a
-		// longer one is not read as a match.
-		if rest := line[len("  "+chunks[0]):]; rest != "" && rest[0] != ' ' {
+		rest := line[len(chunk):]
+		return rest == "" || rest[0] == ' '
+	}
+	for i, line := range lines {
+		if !carries(line, "  "+chunks[0]) {
 			continue
 		}
 		matched := true
 		for j := 1; j < len(chunks); j++ {
-			if i+j >= len(lines) || lines[i+j] != chunks[j] {
+			if i+j >= len(lines) || !carries(lines[i+j], chunks[j]) {
 				matched = false
 				break
 			}
@@ -628,7 +694,7 @@ func TestInitHelpKeepsItsRefusalList(t *testing.T) {
 		t.Fatalf("help init: %d %s", got.code, got.errw)
 	}
 	for _, carried := range []string{
-		"create a workbench here, optionally from a template",
+		"Create a workbench here, optionally from a template",
 		"no workbench.md file sits at this exact path",
 		contract.Exists,
 		"the source definition carries what the profile requires",
@@ -5208,7 +5274,7 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 // so it says the same thing wherever the command is run.
 const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
 
-read this workbench's own fields, or write one
+Read this workbench's own fields, or write one
 
 What you may write:
   As you write it  What it is
@@ -6709,11 +6775,11 @@ func TestEveryPlaceholderNamesSomethingDeclared(t *testing.T) {
 // table wraps at.
 const ratifiedGlobalFlagTable = `  Option             What it does
   -----------------  -----------------------------------------------------------
-  --workbench <dir>  use this workbench instead of the one discovered from here
-  --json             emit the canonical machine form
-  --quiet            suppress served instructions on claim and move
-  --lang <tag>       render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
-  --actor <name>     act as this owner`
+  --workbench <dir>  Use this workbench instead of the one discovered from here
+  --json             Emit the canonical machine form
+  --quiet            Suppress served instructions on claim and move
+  --lang <tag>       Render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
+  --actor <name>     Act as this owner`
 
 const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
   -----  --------------------------------------------------  -------------------
