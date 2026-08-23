@@ -72,10 +72,10 @@ var wantedTemplates = []string{
 // entries under the anchor's states sequence and under a card's links and
 // workstreams, and the head writes none of them as mappings today.
 var wantedKeys = map[string][]string{
-	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "states"},
+	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "states", "levels"},
 	"states/<id>/state.md":                              {"title", "slug", "kind", "operator_owned", "wip_limit"},
 	"archive/states/<id>/state.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "severity", "priority", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
 	"archive/cards/<id>/card.md":                        {"title", "number", "state", "substate"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
@@ -105,6 +105,7 @@ var wantedEvents = map[string][]string{
 	contract.EventDeleted:            {"ts", "event", "actor", "title", "note"},
 	contract.EventWorkbenchUpdated:   {"ts", "event", "actor", "field", "from", "to"},
 	contract.EventWorkstreamUpdated:  {"ts", "event", "actor", "field", "from", "to"},
+	contract.EventCardUpdated:        {"ts", "event", "actor", "field", "from", "to"},
 	contract.EventWorkstreamJoined:   {"ts", "event", "actor", "workstream"},
 	contract.EventWorkstreamLeft:     {"ts", "event", "actor", "workstream"},
 }

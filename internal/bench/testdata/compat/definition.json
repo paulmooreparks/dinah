@@ -2,6 +2,20 @@
   "profile": "dinah-core/1.0",
   "title": "Sample workbench",
   "instructions": "This workbench is a compatibility sample. Every command populate.txt replays runs against it.",
+  "levels": {
+    "severity": [
+      "trivial",
+      "minor",
+      "major",
+      "critical"
+    ],
+    "priority": [
+      "later",
+      "soon",
+      "next",
+      "now"
+    ]
+  },
   "states": [
     {
       "id": "004acda2c28a",

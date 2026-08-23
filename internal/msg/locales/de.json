@@ -30,11 +30,19 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.2": {
-      "text": "die Werkbank deklariert den genannten Zustand",
+      "text": "die Werkbank deklariert den Zustand",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.add.3": {
-      "text": "der Zustand liegt unter seiner Kapazitätsgrenze",
+      "text": "der Zustand liegt unter seiner Kapazität",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.4": {
+      "text": "die Werkbank deklariert Stufen je Feld",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.5": {
+      "text": "das Feld deklariert jede genannte Stufe",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.1": {
@@ -80,6 +88,26 @@
     "check.block.4": {
       "text": "die Karte ist frei oder vom Anfragenden gehalten",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.card.1": {
+      "text": "die Referenz nennt eine Karte der Werkbank",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.2": {
+      "text": "das Feld ist eines, das eine Karte führt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.3": {
+      "text": "die Werkbank deklariert Stufen zum Feld",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all."
+    },
+    "check.card.4": {
+      "text": "das Feld deklariert diesen Wert",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.5": {
+      "text": "die Anfrage nennt einen Eigner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.claim-without-active": {
       "text": "Karte {detail} trägt Anspruchsfelder ohne Unterzustand aktiv",
@@ -449,6 +477,10 @@
       "text": "der Unterzustand der Karte ist `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
+    "check.unknown-level": {
+      "text": "eine Karte nennt {detail}, was diese Werkbank nicht deklariert",
+      "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card."
+    },
     "check.unknown-state": {
       "text": "eine Karte nennt Zustand {detail}, den diese Werkbank nicht deklariert",
       "context": "A check finding: every card's state identifier resolves."
@@ -572,6 +604,10 @@
     "cmd.archive.summary": {
       "text": "eine Karte, einen Zustand oder etwas unterhalb einer Karte aus dem Live-Bestand nehmen",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
+    },
+    "cmd.card.summary": {
+      "text": "eines der eigenen Felder einer Karte lesen oder schreiben",
+      "context": "The one-line summary of the card command, shown beside its syntax in the help block."
     },
     "cmd.rename.summary": {
       "text": "einen Anhang umbenennen",
@@ -1173,6 +1209,14 @@
       "text": "die Frage konnte nicht gestellt werden: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
+    "param.add.priority.summary": {
+      "text": "mit welcher Prioritätsstufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
+      "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.add.severity.summary": {
+      "text": "mit welcher Schweregrad-Stufe die Karte angelegt wird, aus den Stufen, die diese Werkbank deklariert",
+      "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table."
+    },
     "param.add.state.summary": {
       "text": "in welchem Zustand die Karte angelegt wird; der erste Zustand, wenn Sie keinen nennen",
       "context": "The meaning of the state argument of `dinah add`, printed in that command's arguments table."
@@ -1209,9 +1253,21 @@
       "text": "warum sie blockiert ist, in einem Shell-Wort oder in Anführungszeichen",
       "context": "The meaning of the reason argument of `dinah block`, printed in that command's arguments table."
     },
+    "param.card.action.summary": {
+      "text": "welche der beiden Handlungen laufen soll: ein Feld lesen oder eines schreiben",
+      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.field.summary": {
+      "text": "welches Feld Sie lesen oder schreiben: severity oder priority",
+      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table."
+    },
     "param.card.summary": {
       "text": "die Karte, auf die Sie einwirken, geschrieben als ihre Referenz, etwa wb-1",
       "context": "The meaning of the card argument, shared by every command that takes a card and nothing else."
+    },
+    "param.card.value.summary": {
+      "text": "die Stufe, die geschrieben wird; lassen Sie sie weg, um das Feld zu leeren",
+      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table."
     },
     "param.check.finish.summary": {
       "text": "eine unterbrochene strukturelle Aktion abschließen oder zurücknehmen",
@@ -1509,6 +1565,14 @@
       "text": "; setzen Sie DINAH_EDITOR, oder installieren Sie einen von {detail}",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
     },
+    "refusal.dinah.no-levels": {
+      "text": "diese Werkbank deklariert keine {axis}-Stufen, also gibt es keine zu setzen",
+      "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one."
+    },
+    "refusal.dinah.no-levels.next": {
+      "text": "; deklarieren Sie sie unter levels: in {anchor}",
+      "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is."
+    },
     "refusal.dinah.no-workbench": {
       "text": "{detail} wurde mit --workbench genannt und trägt keine workbench.md",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH."
@@ -1625,6 +1689,14 @@
       "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Abfrage nennen darf, sind: {fields}.",
       "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names, read off the query language rather than written here, so a field name is machine vocabulary and is never translated. refusal.dinah.unknown-field.ordered and refusal.dinah.unknown-field.next are spliced on after this one."
     },
+    "refusal.dinah.unknown-field.card": {
+      "text": "Dinah hat kein Feld {detail}. Die Felder, die eine Karte führt, sind: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated."
+    },
+    "refusal.dinah.unknown-field.card.next": {
+      "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help card` aus, um zu sehen, was der Befehl prüft.",
+      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unknown-field.next": {
       "text": " Nennen Sie stattdessen eines davon, oder führen Sie `dinah help query` aus, um zu sehen, was der Befehl prüft.",
       "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
@@ -1648,6 +1720,14 @@
     "refusal.dinah.unknown-key.next": {
       "text": "nennen Sie stattdessen eines davon, oder führen Sie `dinah config` aus, um zu sehen, was jedes davon enthält",
       "context": "Printed under the settings refusal.dinah.unknown-key lists, on its own line and with no leading punctuation. It names no subcommand, because this refusal answers config get and config set alike."
+    },
+    "refusal.dinah.unknown-level": {
+      "text": "diese Werkbank deklariert keine {axis}-Stufe namens {detail}. Die {axis}-Stufen, die sie deklariert, sind: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-level.next": {
+      "text": " Nennen Sie stattdessen eine davon.",
+      "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels."
     },
     "refusal.dinah.unknown-path": {
       "text": "nichts in dieser Werkbank hört auf {detail}",
