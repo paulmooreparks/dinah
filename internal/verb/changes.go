@@ -93,6 +93,19 @@ const (
 	FateRemoved = "removed"
 )
 
+// archiveEvents are the only lines the archive half of the walk yields. An
+// archived entity's own acts are not a caller's to act on, so the half reports
+// the departure and nothing else. Nothing appends to an archived journal in
+// any case, since no verb takes an archived card as its subject.
+//
+// Both reads of that half use this set, the reporting one and the one a mint
+// makes to find the end of the total order, so a minted position can never sit
+// on a line no later call would deliver.
+var archiveEvents = map[string]bool{
+	contract.EventArchived: true,
+	contract.EventRestored: true,
+}
+
 // cursorVersion is the shape number the token carries, so a token minted by a
 // later shape is refused by an earlier binary rather than misread by it.
 const cursorVersion = 1
@@ -199,10 +212,6 @@ func (p position) after(c cursor) bool {
 // expired claim the way the other reads of the bench do: reporting a card as
 // stored is the honest answer from a call that is not allowed to change it.
 func (l *Library) Changes(req *Request) (*ChangeSet, error) {
-	wantedCard, wantedState, err := l.changeFilters(req)
-	if err != nil {
-		return nil, err
-	}
 	live, archive := l.Bench.WatchedEntities()
 	terms := cursor{
 		Version:   cursorVersion,
@@ -210,15 +219,28 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 		Live:      bench.Digest(live),
 		Archive:   bench.Digest(archive),
 	}
-	if strings.TrimSpace(req.Since) == "" {
-		return l.mintedChangeSet(terms, live, archive)
+	// The cursor is read before the two filters, which is the order the
+	// command's own check list declares: a call carrying a bad token is not a
+	// call about a card or a state yet. A call carrying no token is still a
+	// call about a card, so the filters are checked either way.
+	minting := strings.TrimSpace(req.Since) == ""
+	var held cursor
+	if !minting {
+		read, err := decodeCursor(req.Since)
+		if err != nil {
+			return nil, err
+		}
+		if read.Workbench != l.Bench.Slug {
+			return nil, contract.Refuse(contract.Malformed, req.Since)
+		}
+		held = read
 	}
-	held, err := decodeCursor(req.Since)
+	wantedCard, wantedState, err := l.changeFilters(req)
 	if err != nil {
 		return nil, err
 	}
-	if held.Workbench != l.Bench.Slug {
-		return nil, contract.Refuse(contract.Malformed, req.Since)
+	if minting {
+		return l.mintedChangeSet(terms, live, archive)
 	}
 	if held.Live == terms.Live && held.Archive == terms.Archive {
 		// The token comes back byte for byte rather than re-encoded, so a
@@ -242,8 +264,15 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (*ChangeSet, error) {
 	var last position
 	found := false
-	for _, half := range [][]bench.Watched{live, archive} {
-		delivered, _ := readHalf(half, cursor{}, nil)
+	halves := []struct {
+		entries []bench.Watched
+		only    map[string]bool
+	}{{live, nil}, {archive, archiveEvents}}
+	for _, half := range halves {
+		// The archive is read through the same filter a reporting call reads
+		// it through, so the position a mint records can never sit on a line
+		// no later call would deliver.
+		delivered, _ := readHalf(half.entries, cursor{}, half.only)
 		for _, at := range delivered {
 			if !found || last.before(at) {
 				last, found = at, true
@@ -266,11 +295,11 @@ func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (
 // "did my card leave the state I was watching" answerable at all.
 func (l *Library) changeFilters(req *Request) (card string, state *bench.State, err error) {
 	if req.Card != "" {
-		found, resolveErr := l.Bench.ResolveCard(req.Card)
+		found, resolveErr := l.watchedCard(req.Card)
 		if resolveErr != nil {
 			return "", nil, resolveErr
 		}
-		card = found.Card.ID
+		card = found
 	}
 	if req.State != "" {
 		state = l.Bench.StateByRef(req.State)
@@ -279,6 +308,34 @@ func (l *Library) changeFilters(req *Request) (card string, state *bench.State, 
 		}
 	}
 	return card, state, nil
+}
+
+// watchedCard resolves the card filter to the identifier the walk keys on,
+// which is a wider question than resolving a card to act on.
+//
+// A card the caller is watching is the card most likely to have left, and the
+// departure is the thing the caller was watching for, so a filter that refused
+// the moment its subject was archived or deleted would be closed exactly when
+// it was wanted. The resolution therefore reads the live half first, then the
+// archive mirror, which is anchorOf's own order, and then accepts a
+// well-formed identifier that resolves in neither, because a removed entry in
+// gone carries an identifier and nothing else and an identifier is all a
+// caller can match one by. Anything else still refuses UnknownCard, so a
+// mistyped reference is caught rather than answered with silence.
+//
+// The mirror is reached only by a reference the live half already failed, so a
+// call about a card that is still on the board never pays for it.
+func (l *Library) watchedCard(ref string) (string, error) {
+	if found, err := l.Bench.ResolveCard(ref); err == nil {
+		return found.Card.ID, nil
+	}
+	if found, err := l.Bench.ResolveArchivedCard(ref); err == nil {
+		return found.Card.ID, nil
+	}
+	if trimmed := strings.TrimSpace(ref); bench.IsID(trimmed) {
+		return trimmed, nil
+	}
+	return "", contract.Refuse(contract.UnknownCard, ref)
 }
 
 // changedSince builds the answer to a call whose board moved: the events after
@@ -293,14 +350,7 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 		unreadable = append(unreadable, unread...)
 	}
 	if held.Archive != terms.Archive {
-		// An archived entity's own acts are not a caller's to act on, so the
-		// archive half yields the two events that report the departure and
-		// nothing else. Nothing appends to an archived journal in any case,
-		// since no verb takes an archived card as its subject.
-		read, unread := readHalf(archive, held, map[string]bool{
-			contract.EventArchived: true,
-			contract.EventRestored: true,
-		})
+		read, unread := readHalf(archive, held, archiveEvents)
 		delivered = append(delivered, read...)
 		unreadable = append(unreadable, unread...)
 	}
@@ -324,7 +374,13 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 
 	answer := &ChangeSet{Cursor: token, Changed: true, Affordances: l.changeAffordances()}
 	answer.Gone = l.goneFrom(delivered, wantedCard, wantedState)
-	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live, wantedCard, wantedState)
+	// Evidence is counted across every entity the walk delivered, not only
+	// across cards. A workbench field rewrite, a workstream act, a deletion
+	// and a completed archiving each move the live term and each is a
+	// complete explanation of the movement, so none of them is a reason to
+	// resync the board.
+	explained := len(delivered) > 0 || len(unreadable) > 0
+	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedState)
 	answer.Events = l.eventsFrom(delivered, wantedCard, wantedState)
 	answer.Unreadable = filterKeys(unreadable, wantedCard)
 	return answer, nil
@@ -408,16 +464,21 @@ func (l *Library) inState(scope, id string, event bench.Event, wanted *bench.Sta
 // has no live state a caller would act on even on the interrupted path where
 // its directory has not moved yet.
 //
-// The third case has no per-card evidence anywhere. An anchor rewritten with
-// no journal line, which is what dinah edit produces, moves the live term and
+// The third case has no evidence anywhere. An anchor rewritten with no
+// journal line, which is what dinah edit produces, moves the live term and
 // leaves nothing behind that names which entity moved it, and the cursor
 // carries digests rather than per-entity state, so no comparison can single
-// the card out. When the live term moved and no entity gave a per-card
-// reason, the call reports every live card, which is a resync and is the
-// answer a caller can act on. Attributing that case exactly would need the
-// cursor to carry a term per entity, which is the token-growth tradeoff this
-// design rejected.
-func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, liveMoved bool, wantedCard string, wantedState *bench.State) []*CardView {
+// the card out. Only then, when the live term moved and the walk delivered
+// nothing at all to explain it, does the call report every live card, which is
+// a resync and is the answer a caller can act on. Attributing that case
+// exactly would need the cursor to carry a term per entity, which is the
+// token-growth tradeoff this design rejected.
+//
+// unexplained is that last case and nothing wider. It is decided by the
+// caller, over every entity the walk delivered rather than over cards alone,
+// because a workbench field rewrite, a workstream act, a deletion and a
+// completed archiving all move the live term and all explain it.
+func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedState *bench.State) []*CardView {
 	named := map[string]bool{}
 	departed := map[string]bool{}
 	for _, at := range delivered {
@@ -442,7 +503,7 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 			reported[id] = true
 		}
 	}
-	if len(reported) == 0 && liveMoved {
+	if unexplained {
 		for _, id := range ids {
 			reported[id] = true
 		}

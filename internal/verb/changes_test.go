@@ -176,6 +176,9 @@ func TestAnUnchangedBenchAnswersWithTheSameTokenCoversAC2(t *testing.T) {
 func TestAMoveIsReportedOnceAndThenNotAgain(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("A card that moves")
+	// A second card nothing touches, so "the card in cards" is an assertion
+	// about which card rather than about how many there are on the board.
+	h.add("A card that does not move")
 	minted := h.mint()
 
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
@@ -257,6 +260,13 @@ func TestTwoEventsInOneSecondAreBothDeliveredOnce(t *testing.T) {
 func TestAnAnchorEditedOutOfBandPutsTheCardInCards(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("A card somebody edits")
+	// A second card nothing touches. It is here to be reported: an anchor
+	// rewritten with no journal line is the one case the walk has no evidence
+	// for at all, so dinah-120 D-13 answers it with a whole-board resync, and
+	// this fixture says so out loud rather than hiding it behind a board of
+	// one card. The narrow rule the review asked for is pinned by
+	// TestAnActThatExplainsItselfDoesNotResyncTheWholeBoard.
+	bystander := h.add("A card nobody edits")
 	minted := h.mint()
 
 	anchor := filepath.Join(h.library.Bench.CardsRoot(), h.cardID(ref), bench.CardAnchor)
@@ -277,6 +287,9 @@ func TestAnAnchorEditedOutOfBandPutsTheCardInCards(t *testing.T) {
 	}
 	if !holds(cardIDs(set), h.cardID(ref)) {
 		t.Errorf("the edited card is not in cards: %v", cardIDs(set))
+	}
+	if !holds(cardIDs(set), h.cardID(bystander)) {
+		t.Errorf("the unattributable edit did not resync the board, and D-13 says it does: %v", cardIDs(set))
 	}
 }
 
@@ -634,10 +647,16 @@ func TestADeletedCardAndWorkstreamAreBothIdentifiersAndNeitherIsACard(t *testing
 	cardID := h.cardID(card)
 	cardTitle := h.card(card).Title
 	streamID, streamRef := h.workstream("A workstream somebody destroys")
+	// A card that survives the window and is acted on inside it, so the two
+	// destroyed identifiers are read against a cards array that has something
+	// in it. On a board emptied by the deletions, "neither is reported as a
+	// card" is a claim about an empty list and cannot fail.
+	bystander := h.add("A card that survives")
 	minted := h.mint()
 
 	h.remove(card)
 	h.remove(streamRef)
+	h.comment(bystander, "a line on the card that stays")
 
 	set := h.checkpoint(&Request{Since: minted})
 	found := map[string]GoneEntity{}
@@ -662,6 +681,9 @@ func TestADeletedCardAndWorkstreamAreBothIdentifiersAndNeitherIsACard(t *testing
 		if entry.Title != wantedTitle {
 			t.Errorf("%s: wanted the title as of deletion %q, got %q", id, wantedTitle, entry.Title)
 		}
+	}
+	if got := cardIDs(set); len(got) != 1 || got[0] != h.cardID(bystander) {
+		t.Errorf("wanted the surviving card alone in cards, got %v", got)
 	}
 	if holds(cardIDs(set), cardID) || holds(cardIDs(set), streamID) {
 		t.Errorf("a destroyed identifier was reported as a live card: %v", cardIDs(set))
@@ -830,4 +852,144 @@ func TestTheCursorIsOpaqueAndFixedInSize(t *testing.T) {
 	if large > small+len(bench.CardsDir+"/")+16 {
 		t.Errorf("the cursor grew from %d bytes to %d as the board did, and it is specified not to", small, large)
 	}
+}
+
+// TestAnActThatExplainsItselfDoesNotResyncTheWholeBoard is the test the
+// cycle-1 code review asked for, and it is the one that tells the narrow
+// fallback from the total one.
+//
+// dinah-120 D-13 bounds the whole-board resync at the case where the live term
+// moved and the walk delivered nothing at all to explain it. Every other
+// fixture that reaches the fallback has emptied the live half first, so an
+// implementation counting card evidence alone and one counting every entity's
+// evidence answer identically on all of them. Each case below leaves a card on
+// the board that nothing in the window touched, so the two answers differ: the
+// narrow rule leaves the bystander out and the total one hands it back.
+func TestAnActThatExplainsItselfDoesNotResyncTheWholeBoard(t *testing.T) {
+	t.Run("a workbench field rewrite", func(t *testing.T) {
+		h := newHarness(t)
+		first := h.add("A card nobody touches")
+		second := h.add("Another card nobody touches")
+		minted := h.mint()
+
+		response := h.library.SetWorkbench(&Request{Verb: "workbench", Actor: "alka", Action: "set", Field: "title", Value: "A renamed workbench"})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("workbench set title: %s %s", response.Outcome, response.Refusal)
+		}
+		h.reopen()
+
+		set := h.checkpoint(&Request{Since: minted})
+		if !set.Changed {
+			t.Fatal("a workbench field rewrite left the board reading unchanged")
+		}
+		if len(set.Cards) != 0 {
+			t.Errorf("a workbench act resynced cards that nothing touched: %v", cardIDs(set))
+		}
+		_, _ = first, second
+	})
+
+	t.Run("a workstream act", func(t *testing.T) {
+		h := newHarness(t)
+		h.add("A card nobody touches")
+		h.add("Another card nobody touches")
+		minted := h.mint()
+
+		h.workstream("A workstream filed after the cursor")
+
+		set := h.checkpoint(&Request{Since: minted})
+		if !set.Changed {
+			t.Fatal("a workstream act left the board reading unchanged")
+		}
+		if len(set.Cards) != 0 {
+			t.Errorf("a workstream act resynced cards that nothing touched: %v", cardIDs(set))
+		}
+	})
+
+	t.Run("a deleted card", func(t *testing.T) {
+		h := newHarness(t)
+		doomed := h.add("A card somebody destroys")
+		bystander := h.add("A card nobody touches")
+		minted := h.mint()
+
+		h.remove(doomed)
+
+		set := h.checkpoint(&Request{Since: minted})
+		if len(set.Gone) != 1 {
+			t.Fatalf("wanted the one departure, got %+v", set.Gone)
+		}
+		if holds(cardIDs(set), h.cardID(bystander)) {
+			t.Errorf("a deletion resynced a card nothing touched: %v", cardIDs(set))
+		}
+	})
+
+	t.Run("a completed archiving", func(t *testing.T) {
+		h := newHarness(t)
+		leaving := h.add("A card somebody archives")
+		bystander := h.add("A card nobody touches")
+		minted := h.mint()
+
+		h.archive(leaving)
+
+		set := h.checkpoint(&Request{Since: minted})
+		if len(set.Gone) != 1 {
+			t.Fatalf("wanted the one departure, got %+v", set.Gone)
+		}
+		if holds(cardIDs(set), h.cardID(bystander)) {
+			t.Errorf("an archiving resynced a card nothing touched: %v", cardIDs(set))
+		}
+	})
+}
+
+// TestAFilterNamingADepartedCardStillAnswers covers dinah-120 AC-16, which is
+// the criterion dinah-120 D-16 owes.
+//
+// The card an agent is parked on is the card most likely to leave, and the
+// departure is what it was watching for, so a filter that refused the moment
+// its subject left would close exactly when it was wanted. The refusal is kept
+// for a reference that names nothing and is no identifier, which is what
+// separates this ruling from dropping the check.
+func TestAFilterNamingADepartedCardStillAnswers(t *testing.T) {
+	t.Run("an archived card, named by the reference a person types", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("A card an agent is parked on")
+		id := h.cardID(ref)
+		h.add("A card the filter is not about")
+		minted := h.mint()
+
+		h.archive(ref)
+
+		set := h.checkpoint(&Request{Since: minted, Card: ref})
+		if len(set.Gone) != 1 || set.Gone[0].ID != id || set.Gone[0].Fate != FateArchived {
+			t.Fatalf("the filter did not report the departure it was pointed at: %+v", set.Gone)
+		}
+		if len(set.Cards) != 0 {
+			t.Errorf("an archived card was reported live to the filter naming it: %v", cardIDs(set))
+		}
+	})
+
+	t.Run("a deleted card, named by the identifier the caller holds", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("A card an agent is parked on")
+		id := h.cardID(ref)
+		h.add("A card the filter is not about")
+		minted := h.mint()
+
+		h.remove(ref)
+
+		set := h.checkpoint(&Request{Since: minted, Card: id})
+		if len(set.Gone) != 1 || set.Gone[0].ID != id || set.Gone[0].Fate != FateRemoved {
+			t.Fatalf("the filter did not report the destruction it was pointed at: %+v", set.Gone)
+		}
+	})
+
+	t.Run("a reference that names nothing and is no identifier still refuses", func(t *testing.T) {
+		h := newHarness(t)
+		h.add("A card")
+		minted := h.mint()
+
+		_, err := h.library.Changes(&Request{Verb: "changes", Since: minted, Card: "fx-404"})
+		if refusal, ok := err.(*contract.Refusal); !ok || refusal.Name != contract.UnknownCard {
+			t.Errorf("wanted %s, got %v", contract.UnknownCard, err)
+		}
+	})
 }

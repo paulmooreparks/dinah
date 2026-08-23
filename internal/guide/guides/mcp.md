@@ -164,6 +164,13 @@ kind the history does not record, so match it against the identifiers you are
 holding and ignore it where you do not know it. It does not mean a card you
 have not met.
 
+The `card` argument keeps working after the card it names has left, which is
+the moment you most want it: an archived card is still found by the reference
+you were using, and an identifier that resolves nowhere is accepted and matched
+against the departures. A reference that names nothing and is not an identifier
+is still refused, so a mistyped one comes back as `unknown-card` rather than as
+silence.
+
 ## When to act and when to read
 
 The loop is the whole method. Orient with `status` and `list_cards`, choose
