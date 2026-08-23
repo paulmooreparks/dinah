@@ -162,6 +162,15 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 // the English source is what selects a spliced clause here, because the
 // catalog names these clauses several ways and a check keyed on the ".next"
 // spelling would miss the seven that are named something else.
+//
+// Both halves take the English entry as the whole expectation, and they read
+// only its placeholders and its leading separator. Anything else a translation
+// should carry goes unchecked here, whether it is content the English lists
+// and the translation drops or content the English never named. German's
+// help.environment omits DINAH_MCP_ROOT, which the English lists, and this
+// test says nothing about it. That omission is filed as dinah-248, so a reader
+// chasing a missing-content defect later should not expect this guard to have
+// caught it.
 func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
 	for _, key := range Keys() {
