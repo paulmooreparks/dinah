@@ -1,6 +1,8 @@
 package msg
 
 import (
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -150,4 +152,109 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 	if !strings.Contains(one, "1") || !strings.Contains(many, "4") {
 		t.Errorf("the count did not fill: %q and %q", one, many)
 	}
+}
+
+// TestATranslationKeepsThePlaceholdersAndTheSplice asserts that a translated
+// string carries every placeholder its English source names, and that a
+// next-step clause still opens with the separator that splices it onto the
+// refusal it follows. A translator may move a placeholder within the sentence
+// and may not drop or respell one, and a next-step clause that loses its
+// leading separator runs into the sentence before it. The leading separator in
+// the English source is what selects a spliced clause here, because the
+// catalog names these clauses several ways and a check keyed on the ".next"
+// spelling would miss the seven that are named something else.
+//
+// Both halves take the English entry as the whole expectation, and they read
+// only its placeholders and its leading separator. Anything else a translation
+// should carry goes unchecked here, whether it is content the English lists
+// and the translation drops or content the English never named. German's
+// help.environment omitted DINAH_MCP_ROOT, which the English lists, and this
+// test said nothing about it; dinah-248 fixed the omission and added
+// TestEveryUntranslatableIdentifierSurvivesTranslation, which reads the
+// content of every entry declaring it untranslatable. A reader chasing a
+// missing-content defect elsewhere in the catalog should still not expect this
+// guard to have caught it.
+func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
+	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok {
+			continue
+		}
+		names := placeholder.FindAllString(entry.Text, -1)
+		splice := strings.HasPrefix(entry.Text, "; ")
+		if len(names) == 0 && !splice {
+			continue
+		}
+		for _, tag := range Complete {
+			rendered := For(tag).T(key)
+			for _, name := range names {
+				if !strings.Contains(rendered, name) {
+					t.Errorf("%s/%s: wanted the placeholder %s, got %q", tag, key, name, rendered)
+				}
+			}
+			if splice && !strings.HasPrefix(rendered, "; ") {
+				t.Errorf("%s/%s: wanted the leading separator that splices it onto the refusal, got %q", tag, key, rendered)
+			}
+		}
+	}
+}
+
+// TestEveryUntranslatableIdentifierSurvivesTranslation asserts that a
+// translation carries through, unchanged, every machine identifier its English
+// source names, for each entry whose context declares those identifiers are
+// never translated. The declaration is the selector, so an entry earns this
+// check by saying in its own context note that part of its text is machine
+// vocabulary. A check keyed on the help.environment key name would cover the
+// same ground today and would not notice the second such entry arriving, which
+// is how German lost DINAH_MCP_ROOT in the first place; a check keyed on the
+// identifier pattern alone would flag the four help.group headings, whose
+// ALL-CAPS words are section titles a translator is supposed to render (READ
+// becomes LESEN).
+//
+// Today the selector picks out help.environment alone, because it is the only
+// entry that both declares its content untranslatable and spells that content
+// in the identifier shape this guard reads. Twelve other entries carry a
+// "never translated" declaration about text held in a placeholder, which
+// TestATranslationKeepsThePlaceholdersAndTheSplice already guards.
+//
+// The comparison is between token sets rather than name by name, because
+// membership by substring cannot enforce a name another name contains:
+// DINAH_EDITOR satisfies a containment test for EDITOR, so a catalog dropping
+// the bare EDITOR passed the earlier form of this guard.
+func TestEveryUntranslatableIdentifierSurvivesTranslation(t *testing.T) {
+	identifier := regexp.MustCompile(`\b[A-Z][A-Z0-9_]{2,}\b`)
+	checked := 0
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok {
+			continue
+		}
+		if !strings.Contains(entry.Context, "never translated") {
+			continue
+		}
+		wanted := identifiers(identifier, entry.Text)
+		if wanted == "" {
+			continue
+		}
+		checked++
+		for _, tag := range Tags() {
+			rendered := For(tag).T(key)
+			if got := identifiers(identifier, rendered); got != wanted {
+				t.Errorf("%s/%s: wanted the identifiers %s, got %s in %q", tag, key, wanted, got, rendered)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no English entry both declares its content untranslatable and names an identifier, so this guard checks nothing")
+	}
+}
+
+// identifiers returns the identifiers pattern finds in text, sorted and joined,
+// so that two texts naming the same identifiers compare equal whatever order
+// each puts them in and however the sentence around them is worded.
+func identifiers(pattern *regexp.Regexp, text string) string {
+	found := pattern.FindAllString(text, -1)
+	sort.Strings(found)
+	return strings.Join(found, ", ")
 }

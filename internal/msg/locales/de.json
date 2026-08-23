@@ -758,7 +758,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "Diese Werkbank über MCP auf stdio bereitstellen",
+      "text": "Werkbänke über MCP auf stdio bereitstellen",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -1162,7 +1162,7 @@
       "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is."
     },
     "help.environment": {
-      "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
+      "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
