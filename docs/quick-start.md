@@ -1129,14 +1129,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        599/599
-  af        0/599
-  cs        0/599
-  de        599/599
-  es        0/599
-  fil       0/599
-  hi        599/599
-  id        0/599
+  en        603/603
+  af        0/603
+  cs        0/603
+  de        603/603
+  es        0/603
+  fil       0/603
+  hi        603/603
+  id        0/603
 [exit 0]
 ```
 
@@ -1380,10 +1380,11 @@ $ dinah guide
 The guides stand in the order Dinah recommends reading them.
 
   Topic             Title
-  ----------------  -----------------------------------
+  ----------------  ------------------------------------
   first-session     Your first session at a workbench
   getting-started   Getting started
   verbs             The five verbs
+  principles        Why a workbench has the rules it has
   references        References
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
