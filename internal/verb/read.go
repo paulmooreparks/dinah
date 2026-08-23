@@ -373,19 +373,32 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 }
 
 // displayOrdinal is the one-based position a read reports for an attachment,
-// and the single place the stored-ordinal fallback is decided. The number the
-// position column prints, the number the JSON view carries and the number the
-// printed ref is built from are all this one value, so a workbench nobody has
-// migrated cannot show one number and answer to another.
+// and the only number the position column, the JSON view and the printed ref
+// are built from.
 //
-// An attachment carrying no stored ordinal falls back to its directory-order
-// position, which is what resolve.go's pick serves on a collection with no
-// ordinals stamped.
+// It counts the attachment's place in the sorted collection and never reads
+// the anchor's stored ordinal, because a position and a stored ordinal are
+// different things. resolve.go's position arm answers a reference by indexing
+// SortByOrdinal(ListIDs(collection)), so a position is an index into that
+// sequence. The stored ordinal is the sort key that orders the sequence, and
+// NextOrdinal hands out highest-plus-one, so one delete leaves a permanent gap
+// after which the two stop coinciding. Counting the place here makes the
+// display, contents and the resolver agree by construction on a stamped
+// collection, on an unstamped one, and on a gapped one alike.
+//
+// Zero means the attachment is not a member of the collection its directory
+// sits in, which no caller can produce today, since Show's attachments come
+// out of that same listing. It is reported rather than smoothed over, so that
+// an unaddressable row shows up as one instead of pointing at the first file.
 func displayOrdinal(attachment *bench.Attachment) int {
-	if attachment.Ordinal > 0 {
-		return attachment.Ordinal
+	collection := filepath.Dir(attachment.Dir)
+	ids := bench.SortByOrdinal(collection, bench.AttachmentAnchor, bench.ListIDs(collection))
+	for n, id := range ids {
+		if id == attachment.ID {
+			return n + 1
+		}
 	}
-	return directoryOrdinal(attachment)
+	return 0
 }
 
 // attachmentRef composes the reference a person types to reach one attachment
@@ -393,22 +406,6 @@ func displayOrdinal(attachment *bench.Attachment) int {
 // the caller resolved through displayOrdinal.
 func attachmentRef(cardRef string, ordinal int) string {
 	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
-}
-
-// directoryOrdinal falls back to the attachment's directory-order position
-// when its anchor carries no stored ordinal. It mirrors what SortByOrdinal
-// does on a collection with no ordinals stamped, so the ref printed in show
-// is the same one path would answer to.
-func directoryOrdinal(attachment *bench.Attachment) int {
-	collection := filepath.Dir(attachment.Dir)
-	ids := bench.ListIDs(collection)
-	ids = bench.SortByOrdinal(collection, bench.AttachmentAnchor, ids)
-	for n, id := range ids {
-		if id == attachment.ID {
-			return n + 1
-		}
-	}
-	return 1
 }
 
 // linkRef resolves a link's stored card identifier to what a person types to
