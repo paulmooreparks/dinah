@@ -1203,6 +1203,31 @@ func expectHistory(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	}
 }
 
+// expectChanges is dinah changes narrowed to the held card: the acts
+// expectHistory already predicts for that card, with the card column the
+// merged form adds in front of them.
+//
+// The two blocks are pinned against one record deliberately. A checkpoint
+// reads the same journal log reads, so a detail column that read one way
+// under one command and another way under the other would fail here rather
+// than in front of a reader.
+func expectChanges(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	history := expectHistory(t, r, tag)
+	ref := r.cards[0].ref
+	rows := make([][]sweptCell, 0, len(history.rows))
+	for _, row := range history.rows {
+		widened := []sweptCell{row[0], {text: ref}}
+		rows = append(rows, append(widened, row[1:]...))
+	}
+	return sweptExpectation{
+		rows:         rows,
+		source:       "the record's acts against the held card, with the card column the merged form adds",
+		opaque:       history.opaque,
+		opaqueReason: history.opaqueReason,
+	}
+}
+
 // expectAssignedSlugs is the slugs a migration assigned, which it derives from
 // each state's own title through the same call the head makes.
 func expectAssignedSlugs(t *testing.T, r *sweptRecord, tag string) sweptExpectation {

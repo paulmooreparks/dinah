@@ -109,6 +109,9 @@ type Request struct {
 	Depth string
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
+	// Since is the opaque cursor a checkpoint hands back, empty on a first
+	// call, which mints one rather than replaying the board's history.
+	Since string
 	// Finish asks check to complete or roll back the interrupted structural
 	// acts it reports, rather than only reporting them.
 	Finish bool

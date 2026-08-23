@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-nine commands, and every command the binary
+	// The block lists forty commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 39 {
-		t.Errorf("wanted thirty-nine listed commands, got %d", listed)
+	if listed != 40 {
+		t.Errorf("wanted forty listed commands, got %d", listed)
 	}
 }
 
@@ -6415,9 +6415,9 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "depth", "description", "expires", "from", "group-by",
-		"kind", "lang", "operator", "priority", "root", "severity", "slug",
-		"state", "workbench",
+		"actor", "card", "depth", "description", "expires", "from",
+		"group-by", "kind", "lang", "operator", "priority", "root",
+		"severity", "since", "slug", "state", "workbench",
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "help", "json", "migrate-ordinals",

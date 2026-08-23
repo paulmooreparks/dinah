@@ -57,6 +57,10 @@ func init() {
 		{name: "contents", group: groupRead, run: runContents, bounded: 1},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		{name: "log", group: groupRead, run: runLog, bounded: 1},
+		// changes declares no bounded positional at all, so a stray word
+		// anywhere in the invocation is refused rather than silently
+		// ignored. Every argument it reads is a flag, the cursor included.
+		{name: "changes", group: groupRead, run: runChanges},
 		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
 		{name: "guide", group: groupRead, run: runGuide, bounded: 1},
 
@@ -547,6 +551,27 @@ func runLog(s *session, parsed *arguments) int {
 			return s.emitJSON(events)
 		}
 		s.renderHistory(events)
+		return 0
+	})
+}
+
+// runChanges reports what has happened on the workbench since a cursor, and
+// changes nothing. A call naming no cursor mints one and reports nothing,
+// which is the answer to "what happens from now" rather than to "what ever
+// happened", and the second question is what log answers.
+func runChanges(s *session, parsed *arguments) int {
+	req := s.request("changes", parsed)
+	req.Since = parsed.value("since")
+	req.Card = parsed.value("card")
+	return s.withBench(func(l *verb.Library) int {
+		set, err := l.Changes(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(set)
+		}
+		s.renderChanges(set)
 		return 0
 	})
 }

@@ -465,26 +465,69 @@ func (s *session) renderDetail(detail *verb.Detail) {
 func (s *session) renderHistory(events []bench.Event) {
 	t := table{indent: 2, columns: s.columns("log", "when", "action", "actor", "detail")}
 	for _, ev := range events {
-		var tail string
-		switch ev.Event {
-		case contract.EventMoved:
-			tail = s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
-			if ev.Override {
-				tail += " " + s.r.T("log.override")
-			}
-		case contract.EventBlocked:
-			tail = ev.Reason
-		case contract.EventCreated:
-			tail = ev.Title
-		case contract.EventAttached, contract.EventAttachmentReplaced, contract.EventAttachmentRemoved:
-			tail = ev.Filename
-		case contract.EventAttachmentRenamed:
-			tail = s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
-		}
-		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, tail}
+		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, s.eventDetail(ev)}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
+}
+
+// eventDetail composes what an act carried, which is what the detail column of
+// a journal line reads. Both blocks that draw journal lines read it, so one
+// act cannot say one thing under log and another under changes.
+func (s *session) eventDetail(ev bench.Event) string {
+	switch ev.Event {
+	case contract.EventMoved:
+		tail := s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
+		if ev.Override {
+			tail += " " + s.r.T("log.override")
+		}
+		return tail
+	case contract.EventBlocked:
+		return ev.Reason
+	case contract.EventCreated:
+		return ev.Title
+	case contract.EventAttached, contract.EventAttachmentReplaced, contract.EventAttachmentRemoved:
+		return ev.Filename
+	case contract.EventAttachmentRenamed:
+		return s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
+	}
+	return ""
+}
+
+// renderChanges prints what one checkpoint answered with: the journal lines
+// after the caller's cursor, in the order the merged walk imposes, and then
+// the cursor to hand back next time.
+//
+// The cursor is printed on every answer, including one reporting nothing, so
+// a reader always has the value the next call wants and never has to go and
+// find the previous run. The columns are log's, with the entity each line was
+// read from added, since a merged stream cannot say otherwise.
+func (s *session) renderChanges(set *verb.ChangeSet) {
+	t := table{indent: 2, columns: s.columns("changes", "when", "card", "action", "actor", "detail")}
+	for _, ev := range set.Events {
+		// ChangeEvent embeds bench.Event, so ev.Event is the whole line and
+		// ev.Event.Event is the act's own name. The two are spelled apart
+		// here rather than aliased, since the shape is the one the machine
+		// surface publishes.
+		fields := []string{ev.TS, changeSubject(ev), s.token(ev.Event.Event), ev.Actor, s.eventDetail(ev.Event)}
+		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+	s.line(s.r.T("changes.cursor", "cursor", set.Cursor))
+}
+
+// changeSubject is what the card column of a checkpoint reads: the reference
+// of the entity the line came from where one could be composed, the bare
+// identifier where the anchor that would name it is gone, and the scope word
+// for the workbench, which is what a person types to name it.
+func changeSubject(ev verb.ChangeEvent) string {
+	if ev.Ref != "" {
+		return ev.Ref
+	}
+	if ev.ID != "" {
+		return ev.ID
+	}
+	return ev.Scope
 }
 
 // renderCheck prints what a check answered with: the account of the repair it

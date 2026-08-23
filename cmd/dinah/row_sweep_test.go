@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -1475,7 +1477,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:487", label: "dinah log",
+			site: "render.go:471", label: "dinah log",
 			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
 			varies: lastCell, expect: expectHistory,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1483,7 +1485,16 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:503", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:515", label: "dinah changes",
+			keys: []string{"column.changes.when", "column.changes.card", "column.changes.action",
+				"column.changes.actor", "column.changes.detail"},
+			varies: lastCell, expect: expectChanges,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "changes", "--since", sweptAllCoveringCursor(t, w.healthy), "--card", w.held)
+			},
+		},
+		{
+			site: "render.go:546", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			expect: expectAssignedSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1491,28 +1502,28 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:532", label: "one removed stranded state", varies: noCell,
+			site: "render.go:575", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states")
 			},
 		},
 		{
-			site: "render.go:668", label: "the states a refusal lists", varies: noCell,
+			site: "render.go:711", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
-			site: "render.go:549", label: "one finding", varies: noCell,
+			site: "render.go:592", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
-			site: "render.go:574", label: "catalog coverage",
+			site: "render.go:617", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1553,7 +1564,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:581", label: "the guide topics",
+			site: "commands.go:606", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1561,7 +1572,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:787", label: "the workbench's own fields",
+			site: "render.go:830", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			expect: expectWorkbenchFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1569,7 +1580,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:515", label: "the workstream slugs check --migrate-slugs assigned",
+			site: "render.go:558", label: "the workstream slugs check --migrate-slugs assigned",
 			keys:   []string{"column.slugs.slug", "column.slugs.title"},
 			varies: lastCell, expect: expectAssignedWorkstreamSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1586,7 +1597,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:809", label: "dinah workstream",
+			site: "render.go:852", label: "dinah workstream",
 			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1594,7 +1605,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:830", label: "one workstream's own fields",
+			site: "render.go:873", label: "one workstream's own fields",
 			keys:   []string{"column.workstream.field", "column.workstream.value"},
 			varies: lastCell, expect: expectWorkstreamFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1603,7 +1614,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:843", label: "the cards belonging to one workstream",
+			site: "render.go:886", label: "the cards belonging to one workstream",
 			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.state"},
 			varies: lastCell, expect: expectWorkstreamMembers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1612,7 +1623,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:678", label: "a refusal that carries a list", varies: noCell,
+			site: "render.go:721", label: "a refusal that carries a list", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "pull")
@@ -1630,6 +1641,47 @@ func sweptRun(t *testing.T, dir, tag string, argv ...string) string {
 		t.Fatalf("%v in %s: exit %d\n%s", argv, tag, got.code, got.errw)
 	}
 	return got.out
+}
+
+// sweptAllCoveringCursor mints a cursor on a tree and blanks the position out
+// of it, which is the one token that makes a checkpoint report a history the
+// fixture finished writing before the checkpoint existed.
+//
+// A minted cursor names the end of the total order as it stands, so handing it
+// straight back reports nothing. Dropping its position makes every line fall
+// after it, and spoiling one digest term makes the call find the board moved,
+// which is what puts the fixture's own acts in front of the renderer. The
+// token is composed here rather than typed, so the shape stays the shape the
+// library mints.
+func sweptAllCoveringCursor(t *testing.T, dir string) string {
+	t.Helper()
+	got := runCLI(t, dir, "--json", "changes")
+	if got.code != 0 {
+		t.Fatalf("mint a cursor in %s: exit %d\n%s", dir, got.code, got.errw)
+	}
+	var minted struct {
+		Cursor string `json:"cursor"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &minted); err != nil {
+		t.Fatalf("read the minted cursor: %v\n%s", err, got.out)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(minted.Cursor)
+	if err != nil {
+		t.Fatalf("decode the minted cursor: %v", err)
+	}
+	token := map[string]any{}
+	if err := json.Unmarshal(raw, &token); err != nil {
+		t.Fatalf("read the minted cursor's members: %v", err)
+	}
+	delete(token, "ts")
+	delete(token, "entity")
+	delete(token, "index")
+	token["live"] = "sha256:0"
+	repacked, err := json.Marshal(token)
+	if err != nil {
+		t.Fatalf("compose the covering cursor: %v", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(repacked)
 }
 
 // sweptRefused runs a command expected to refuse and returns what it wrote,

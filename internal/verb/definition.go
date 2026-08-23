@@ -295,6 +295,16 @@ var params = map[string][]Param{
 	},
 	"show": {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
 	"log":  {{Name: "card", Required: true, Shared: "card"}},
+	// Every argument of changes is a flag, including the two a read usually
+	// takes positionally, because the cursor is the argument a caller reaches
+	// for and a positional slot ahead of it would be the one they type by
+	// accident. The card slot takes the shared sentence, since the argument
+	// means here what it means everywhere.
+	"changes": {
+		{Name: "since", Flag: true, Value: "cursor"},
+		{Name: "card", Flag: true, Value: "ref", Shared: "card"},
+		{Name: "state", Flag: true, Value: "state", Vocabulary: "state"},
+	},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
 	"instructions": {{Name: "card", Display: "card|state", Required: true, Guide: "references"}},

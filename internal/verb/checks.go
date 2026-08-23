@@ -219,6 +219,15 @@ var beyondChecks = map[string][]Check{
 	"log": {
 		{Refusal: contract.UnknownCard, Key: "check.log.1"},
 	},
+	// The cursor is asked first because a call carrying a bad one is not a
+	// call about a card or a state yet. A malformed token and a token minted
+	// against another workbench raise the one name, since both are the same
+	// finding: the value handed back is not a cursor this workbench issued.
+	"changes": {
+		{Refusal: contract.Malformed, Key: "check.changes.1"},
+		{Refusal: contract.UnknownCard, Key: "check.changes.2"},
+		{Refusal: contract.UnknownState, Key: "check.changes.3"},
+	},
 	"ls": {
 		{Refusal: contract.UnknownState, Key: "check.ls.1"},
 	},

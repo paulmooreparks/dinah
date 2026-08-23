@@ -51,6 +51,11 @@ READ
   show <ref>                                a card, or anything below it
   log <card>                                the recorded actions of a card,
                                             oldest first
+  changes                                   what has happened on this workbench
+    [--since <cursor>]
+    [--card <ref>]
+    [--state <state>]
+                                            since a cursor
   instructions <card|state>                 the instructions served at a
                                             position
   guide [topic]                             the embedded guides, or one of them
