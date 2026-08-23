@@ -496,8 +496,9 @@ and stores nothing.
 ## Checklist items
 
 A checklist item is a card-scoped entity recording a structured judgment:
-`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, timestamps, and
-a creation ordinal in frontmatter, the item's text as the body, a resolution
+`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, `citations`,
+timestamps, and a creation ordinal in frontmatter, the item's text as the
+body, a resolution
 note required to leave pending, and attachments for evidence per the
 universal rule. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision)
@@ -518,6 +519,192 @@ is fixed is only the shape when used, which is what lets shared method
 packs speak one vocabulary. Whether contract behavior ever attaches to
 items (gating a move on unresolved items) is a boundary-table ruling, not
 assumed here.
+
+### Citations
+
+A resolution note says what was checked and what the check showed, in
+whatever words fit, and nothing outside the card can resolve it. An item
+therefore carries its evidence in frontmatter as well, in a `citations`
+sequence whose entries each map a scheme to the target it names.
+
+```yaml
+citations:
+  - scheme: test
+    target: internal/verb/query_test.go#TestQueryNamesSeverity
+    observed:
+      before: fail
+      after: pass
+  - scheme: attachment
+    target: 4f2c19ab77e0
+```
+
+A citation is a declaration rather than an entity, by the reasoning that
+already keeps a link out of one. It has no identity of its own, nothing
+accumulates on it and it bears no journal, so it earns no directory, and
+the item carrying it is the only file that changes when a citation is
+added or removed.
+
+Putting the citation in frontmatter makes recognition free. A checker
+enumerating a field never has to decide whether a sentence naming a file
+was a citation or ordinary prose that mentioned one, and check's reference
+checks already run over frontmatter and never over journals. A marked span
+inside the note would put a parser in front of prose people write by hand,
+and it would leave recognition unsolved on a board writing its notes in
+another language.
+
+Where a workbench declares an `evidence:` block, an acceptance criterion
+leaving the pending state carries at least one `citations` entry. Each
+entry names a scheme drawn from that block, together with the target it
+points at.
+
+A workbench declaring no `evidence:` block imposes no citation obligation,
+on the terms severity and priority already work, where a card that omits
+the field is a card without one and absence is legal rather than an error.
+
+### What a workbench declares as evidence
+
+A workbench declares what counts as evidence on it, in an `evidence:`
+block in `workbench.md` frontmatter, and each name in the block is a
+scheme an item's `citations` entry may then use. The declaration adapts
+the freedom `levels:` grants, where an entry may be a bare name or a name
+carrying a one-line hint and the two forms mix freely. It adapts rather
+than reuses, because `levels:` grants that freedom to the members of a
+sequence and this block grants it to the values of a mapping.
+
+```yaml
+evidence:
+  test:
+    hint: A Go test, written as the file path, a hash, and the test function name.
+    observed: required
+  attachment:
+    hint: The 12-hex id of an attachment on this card.
+    resolves: attachments
+  record: The inspection record's reference number as the county issues it.
+```
+
+The declaration and the use carry different names on purpose, the way
+`levels:` declares the axes a card's `severity:` and `priority:` draw
+from. Every frontmatter key the format defines is a single word, so a
+two-word key would invent a convention, and naming both the block and the
+item's field `citations` would put two shapes under one name.
+
+`resolves:` tells a checker whether it can do anything. A scheme carrying
+one names a collection of the workbench, so its targets are ids the tool
+walks, and the legal values are the collections the format already
+defines, which are `cards`, `states`, `workstreams`, `comments`,
+`attachments`, and `checklist`. A scheme carrying no `resolves:` points
+outside the workbench and its targets are external, so the tool resolves
+nothing about them. Reading the answer off the declaration rather than off
+the scheme's name lets a workbench invent a scheme the format never heard
+of and still tell the checker what to do with it.
+
+Where the tool looks depends on how the named collection is scoped, and
+the six divide in two. `cards`, `states`, and `workstreams` are
+workbench-level, each one flat namespace, and that is what lets the
+existing dangling-link and dangling-workstream checks resolve an id by
+asking the workbench alone. `comments`, `attachments`, and `checklist` are
+card-scoped, and the Creation ordinals rule already fixes that scope,
+where a particular card's `comments/` is one sequence and the same id
+under two cards' collections is legal. A target naming a card-scoped
+collection resolves against the citing item's own card and nowhere else.
+Searching every card instead would ask the format for an identity it does
+not give, since an id in one card's collection says nothing about the same
+id in another's.
+
+Because the workbench declares the scheme, the format stays out of the
+target namespace. A board that runs no tests declares no `test` scheme and
+cites what its own method can resolve, so a renovation workbench declares
+a `record` scheme and closes a criterion against the inspection the work
+was done for.
+
+```yaml
+citations:
+  - scheme: record
+    target: BC-2026-04417
+```
+
+Naming a test in the format would travel to neither that board nor a
+wedding workbench whose criterion closes against a signed contract.
+
+### The observation a citation carries
+
+A citation that resolves proves the named thing exists. It proves nothing
+about whether the named thing asserts anything, so a check that has
+quietly stopped asserting passes a citation check cleanly. An entry may
+therefore carry an `observed` mapping recording what the check did before
+the work and after it, as the test citation above does, and a criterion
+leaves the pending state only where its citation observed the check
+failing against the unfixed state and passing against the fixed one.
+
+The pair covers both failures with one rule. A check nobody wrote cannot
+produce the failing observation, and a check that asserts nothing cannot
+fail, so one requirement catches the absent test and the test that has
+stopped meaning anything. The cost falls on whoever implements, who runs
+the check before writing the fix rather than after.
+
+Whether a scheme demands the observation is the workbench's to declare, on
+the same terms as everything else in the block. A scheme carrying
+`observed: required` obliges every citation using it to record the pair,
+and a scheme carrying nothing leaves the field optional. The declaration
+above shows both, since `test` demands the observation and `record` does
+not, and declaring it per scheme keeps the rule off the boards it makes no
+sense on. An inspection record does not fail before the inspection and
+pass after it, while a test does exactly that.
+
+What a checker verifies here is presence and shape, since nothing in the
+tool ran the check and nothing on disk proves it did. An entry whose
+scheme demands the observation and carries none is a structural defect the
+checker reports, and an entry claiming a failing before and a passing
+after is taken at its word.
+
+### What check resolves, and what it cannot
+
+The field produces two findings, and what separates them is what the tool
+can see.
+
+`check.unknown-scheme` names a citation whose scheme the workbench's
+`evidence:` block never declared. The name follows `check.unknown-level`,
+which reports a card carrying a severity or priority its workbench does
+not declare, because the two are one finding about different fields. The
+check is always possible, since both halves of the comparison live inside
+the workbench. The finding reports the item, the entry, and the scheme.
+
+`check.dangling-citation` names a citation whose scheme carries a
+`resolves:` collection and whose target names nothing in that collection,
+searched at the scope that collection carries. The name follows
+`check.dangling-link` and `check.dangling-workstream`, and the check is
+the walk those two already perform. The finding reports the item, the
+entry, and the collection the target failed to resolve against, so a
+reader has the reason resolution failed without opening the workbench.
+
+A scheme with no `resolves:` key produces neither finding beyond the
+first. Its target lies outside the workbench, past what the tool can see,
+so the checker says nothing about it rather than promising a check that
+never runs.
+
+Nothing creates a checklist item yet, so neither finding has anything to
+run against until the verbs that write items exist. Both are named here so
+that whatever eventually writes an item reports under these names rather
+than minting others.
+
+### Refusing a move on a citation
+
+Refusing a move because a criterion cites nothing resolvable is a change
+to the core profile rather than to this format. The section 10 boundary
+table rules out "Structured items on a card recording judgements", and its
+reopen condition reads "Such an item is used to refuse a move, which would
+put the refusal in the contract", which such a refusal satisfies as
+worded. The same refusal engages the row beside it, "Conditions that must
+be satisfied before a card may enter a state [gates]", whose reopen
+condition reads "A gate condition emerges that every workbench needs,
+rather than one each workbench defines."
+
+Either promotion carries new normative statements, a refusal name joining
+the closed set, the row moved with the table's own checker satisfied, a
+version increment, a changelog entry, and conformance coverage a second
+implementation must then pass. This format fixes where a citation is
+written, what an entry looks like, what it resolves to, and what
+observation it carries, and it stops there.
 
 ## Comments and attachments
 
