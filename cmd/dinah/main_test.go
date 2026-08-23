@@ -6072,8 +6072,8 @@ func TestQueryHelpIsGeneratedFromTheCheckList(t *testing.T) {
 		t.Fatalf("help query: %d %s", got.code, got.errw)
 	}
 	checks := verb.Checks("query")
-	if len(checks) != 6 {
-		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes six", len(checks))
+	if len(checks) != 7 {
+		t.Fatalf("the query command declares %d checks, and the spec's section 10 fixes seven", len(checks))
 	}
 	catalog := msg.For(msg.Base)
 	at := 0
