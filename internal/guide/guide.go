@@ -30,6 +30,7 @@ var reading = []string{
 	"first-session",
 	"getting-started",
 	"verbs",
+	"principles",
 	"references",
 	"query",
 	"workbench-layout",
