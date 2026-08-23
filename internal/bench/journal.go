@@ -23,8 +23,13 @@ type Event struct {
 	Actor string `json:"actor"`
 	// Title is the card's own title, carried by the created event.
 	Title string `json:"title,omitempty"`
-	// From and To are the state identifiers a move left and entered, and the
-	// values a workbench_updated event rewrote a field from and to.
+	// From and To are the state identifiers a move left and entered, the
+	// values a workbench_updated event rewrote a field from and to, and the
+	// previous filename an attachment_renamed event rewrote the anchor from.
+	// To is not carried by attachment_renamed, since the new name sits in
+	// Filename alongside the three sibling attachment events, so a reader
+	// resolving "what is the attachment called as of this line" reads
+	// Filename on every event in the family and From only on a rename.
 	From string `json:"from,omitempty"`
 	To   string `json:"to,omitempty"`
 	// FromTitle and ToTitle are those states' titles as of the move.
@@ -46,6 +51,10 @@ type Event struct {
 	// Field is the workbench field a workbench_updated event rewrote, with
 	// From and To carrying its value on either side of the write.
 	Field string `json:"field,omitempty"`
+	// Workstream is the identifier of the workstream a membership event
+	// concerns, carried by workstream_joined and workstream_left on the
+	// card's own journal.
+	Workstream string `json:"workstream,omitempty"`
 	// Note is the human's free prose, unparseable by design.
 	Note string `json:"note,omitempty"`
 }

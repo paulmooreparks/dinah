@@ -116,16 +116,17 @@ func formatRow(r row, window int) string {
 	return b.String()
 }
 
-// breakTail breaks a tail between words so that no line of it reaches past the
-// window, and indents every line after the first to the column the tail began
-// at.
+// breakWords breaks text between words so that no line of it draws wider
+// than room, indenting every line after the first to indent. It is the one
+// word-breaker the renderer owns; breakTail below and the ceiling-bearing
+// column both wrap through it rather than each carrying their own copy, so
+// the rule that a word is never split lives in one place.
 //
-// A word wider than the room left is written whole and overruns, which is the
-// rule the rest of the renderer follows and what keeps a reference inside a
-// summary copyable. A tail with no room at all is written whole for the same
+// A word wider than room is written whole and overruns, which is the rule
+// the rest of the renderer follows and what keeps a reference inside a
+// value copyable. Text with no room at all is written whole for the same
 // reason, since breaking it a character at a time would help nobody.
-func breakTail(text string, begins, window int) string {
-	room := window - begins
+func breakWords(text string, indent, room int) string {
 	if room < 1 {
 		return text
 	}
@@ -142,12 +143,118 @@ func breakTail(text string, begins, window int) string {
 			drawn += 1 + width
 		default:
 			b.WriteString("\n")
-			b.WriteString(strings.Repeat(" ", begins))
+			b.WriteString(strings.Repeat(" ", indent))
 			b.WriteString(word)
 			drawn = width
 		}
 	}
 	return b.String()
+}
+
+// breakTail breaks a tail between words so that no line of it reaches past
+// the window, and indents every line after the first to the column the tail
+// began at. It is breakWords with the room derived from where the tail
+// began and the window it draws in, rather than a room stated directly.
+func breakTail(text string, begins, window int) string {
+	return breakWords(text, begins, window-begins)
+}
+
+// breakOnOptions breaks text on option boundaries first and falls back to
+// word-wrap for the trailing piece when boundaries do not reach the window.
+// An "option boundary" is a space followed by `[--`, by `<`, or by a bare
+// `--`. Each option chunk is kept whole on its own line, indented to indent,
+// so a reader's eye sees one option group per line rather than a chunk
+// broken across the page.
+//
+// The first chunk is returned without a leading indent, so the caller can
+// lay it on the row's first line in place; every option chunk after it
+// carries indent spaces at its head. The trailing chunk after the last
+// option boundary is plain prose and is word-wrapped through breakWords at
+// indent, so a value whose option list runs out before its meaning does
+// falls back to the wrap behaviour the rest of the renderer already uses.
+// A value with no option boundary at all is word-wrapped whole, the same
+// shape breakTail already produces, so the rule degrades to today's
+// behaviour rather than silently changing it.
+func breakOnOptions(text string, indent, room int) string {
+	if room < 1 {
+		return text
+	}
+	pieces := splitOnOptionBoundaries(text)
+	if len(pieces) <= 1 {
+		return breakWords(text, indent, room)
+	}
+	// The first piece may itself exceed the room: the boundary rule keeps
+	// each later piece whole but the first is whatever sits before the first
+	// boundary, and a long command name followed by several short tokens
+	// runs wider than any one piece should. Word-wrap that piece so the
+	// row's first line still fits the column; the boundaries themselves
+	// stay intact for every piece after it.
+	var b strings.Builder
+	last := len(pieces) - 1
+	first := pieces[0]
+	if displayWidth(first) > room {
+		b.WriteString(breakWords(first, indent, room))
+	} else {
+		b.WriteString(first)
+	}
+	for _, piece := range pieces[1:last] {
+		b.WriteString("\n")
+		b.WriteString(strings.Repeat(" ", indent))
+		b.WriteString(piece)
+	}
+	tail := pieces[last]
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat(" ", indent))
+	b.WriteString(breakWords(tail, indent, room))
+	return b.String()
+}
+
+// splitOnOptionBoundaries splits text on option boundaries and returns the
+// pieces, with each piece kept whole. The boundary is the space character
+// itself, which is then dropped: a boundary at position k means pieces[k]
+// ends just before the space and pieces[k+1] starts with the option group
+// (`[--...`, `<...`, or `--...`). Text with no boundary returns the input
+// as a single piece, so callers can tell "no boundaries found" apart from
+// "one piece" by length.
+//
+// Boundaries that fall inside an open square-bracket group are skipped, so
+// `[--state <state>]` is one chunk rather than two. A bracket group opens
+// at the `[` of a `[--` boundary and closes at the matching `]`, which is
+// what keeps the rule's pieces readable: every option group sits on its own
+// line, with the bracket's own internal `<` left whole rather than treated
+// as the start of a fresh option.
+func splitOnOptionBoundaries(text string) []string {
+	var pieces []string
+	last := 0
+	depth := 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '[':
+			if i+2 < len(text) && text[i+1] == '-' && text[i+2] == '-' {
+				depth++
+			}
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case ' ':
+			if depth > 0 {
+				continue
+			}
+			j := i + 1
+			switch {
+			case j+2 < len(text) && text[j] == '[' && text[j+1] == '-' && text[j+2] == '-':
+			case j < len(text) && text[j] == '<':
+			case j+1 < len(text) && text[j] == '-' && text[j+1] == '-':
+			default:
+				continue
+			}
+			pieces = append(pieces, text[last:i])
+			last = i + 1
+		}
+	}
+	pieces = append(pieces, text[last:])
+	return pieces
 }
 
 // continuation clamps a continuation line's indent so the line keeps
@@ -210,6 +317,34 @@ func clampWindow(columns int) int {
 // rowLine renders a row at the width this session draws at.
 func (s *session) rowLine(r row) string {
 	return formatRow(r, s.width)
+}
+
+// renderSyntaxLine lays out a verb's syntax line for the help page: the line
+// drawn whole when it fits the window, and broken on option boundaries (a
+// space followed by `[--`, by `<`, or by a bare `--`) and indented under
+// itself when it does not. The break is structural rather than visual, so a
+// reader's eye sees one option group per line rather than a chunk of option
+// glyphs scattered down the page.
+//
+// The width check lives here rather than at the call site because the rule
+// that no caller outside the renderer and the table measures how wide text
+// draws is what TestNoRowIsLaidOutOutsideTheOneRenderer enforces, and a
+// syntax line that asks the renderer whether it fits is the same question
+// raised at a different layer. A line shorter than the window is written
+// whole, exactly as every help page draws one today; a longer line runs
+// through breakOnOptions at indent, which falls back to breakWords when the
+// syntax carries no option boundary, so the rule degrades to the word-wrap
+// the rest of the renderer already uses. An unknown window (s.width == 0)
+// renders the line whole, the same way every row does.
+//
+// The line is returned as one string with embedded newlines; the caller
+// writes it through the same path as every other line of the block, so the
+// page keeps its single-line-per-line shape.
+func (s *session) renderSyntaxLine(text string, indent int) string {
+	if s.width <= 0 || displayWidth(text) <= s.width {
+		return text
+	}
+	return breakOnOptions(text, indent, s.width)
 }
 
 // row renders a row and writes it to stdout.

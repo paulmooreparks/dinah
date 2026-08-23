@@ -618,6 +618,14 @@ without telling you that `--replace` did nothing, and you are left with two
 copies of the file. The paragraph below explains how a reference like
 `rel-1/attachments/1` is built.
 
+If you want to rename an attachment without rewriting its bytes, give
+`rename` the attachment's own reference and the new filename:
+`dinah rename rel-1/attachments/1 cert-notes.txt`. Dinah renames the file
+under `payload/` to match, rewrites the anchor's `filename` to match, and
+appends one `attachment_renamed` line to the journal. A rename to the name
+the attachment already carries exits 0 and appends no line, so replaying a
+script does not fill the journal with rows recording nothing.
+
 You address anything below a card with a path reference, which is the card's
 reference followed by slash-separated segments. You write `rel-1/attachments/1`
 for the attachment you just made. The segments you can use are `comments`,
@@ -635,9 +643,13 @@ keeps `rel-1/comments/1` pointing at the comment you wrote first as others
 arrive.
 
 ```console
+$ dinah rename rel-1/attachments/1 cert-notes.txt
+rel-1  Write the release notes  [Done / active]
+  held by ana
+[exit 0]
 $ dinah show rel-1/attachments/1
 ---
-filename: notes.txt
+filename: cert-notes.txt
 provenance: ana
 ordinal: 1
 ---
@@ -659,7 +671,7 @@ ordinal: 2
 Second half needs the signing certificate.
 [exit 0]
 $ dinah path rel-1/attachments/1/payload
-/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/payload/notes.txt
+/home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/payload/cert-notes.txt
 [exit 0]
 ```
 
@@ -679,23 +691,123 @@ $ dinah path rel-1/journal
 /home/ana/release-notes/.dinah/d0e41d414bb5/cards/73ca475d0aaa/journal.ndjson
 [exit 0]
 $ dinah log rel-1
-  When                  Action     Actor  Detail
-  --------------------  ---------  -----  --------------------------
-  2026-08-18T21:02:23Z  created    ana    Write the release notes
-  2026-08-18T21:02:23Z  claimed    ana
-  2026-08-18T21:02:23Z  moved      ana    Intake to Doing (override)
-  2026-08-18T21:02:23Z  commented  ana
-  2026-08-18T21:02:23Z  commented  ana
-  2026-08-18T21:02:23Z  released   ana
-  2026-08-18T21:02:23Z  claimed    ana
-  2026-08-18T21:02:23Z  moved      ana    Doing to Done
-  2026-08-18T21:02:23Z  attached   ana
+  When                  Action              Actor  Detail
+  --------------------  ------------------  -----  ---------------------------
+  2026-08-18T21:02:23Z  created             ana    Write the release notes
+  2026-08-18T21:02:23Z  claimed             ana
+  2026-08-18T21:02:23Z  moved               ana    Intake to Doing (override)
+  2026-08-18T21:02:23Z  commented           ana
+  2026-08-18T21:02:23Z  commented           ana
+  2026-08-18T21:02:23Z  released            ana
+  2026-08-18T21:02:23Z  claimed             ana
+  2026-08-18T21:02:23Z  moved               ana    Doing to Done
+  2026-08-18T21:02:23Z  attached            ana    notes.txt
+  2026-08-18T21:02:23Z  attachment renamed  ana    notes.txt to cert-notes.txt
 [exit 0]
 ```
 
 You can see the override on the move that used it. Dinah names each state in the
 log as it was titled at the time. If you rename a state later, your history
 still reads as it did.
+
+## Group cards into a workstream
+
+A workstream is a named grouping of cards inside one workbench, and you use it
+when several efforts run through the same flow at once. It has a title, a short
+handle called a slug, a status, and a body you write your own notes in. It does
+not change how a card moves: nothing Dinah refuses, orders, or counts depends
+on which workstream a card belongs to.
+
+You create one with `dinah workstream new`, and Dinah derives the slug from the
+title. Quote a title of more than one word, the way you quote a card title:
+
+```console
+$ dinah workstream new "Autumn release"
+autumn-release  Autumn release  [active]
+[exit 0]
+```
+
+The derived slug is the whole title, so this workstream answers to
+`autumn-release`. If you want a shorter handle, write one. A slug change needs
+`--yes`, because every reference to the workstream you have written down
+elsewhere names the old one:
+
+```console
+$ dinah workstream set autumn-release slug autumn --yes
+autumn  Autumn release  [active]
+[exit 0]
+```
+
+You add a card to a workstream with `dinah join`, and you take it out again
+with `dinah leave`. The card is what you name first, because the card's own
+file is what changes:
+
+```console
+$ dinah join rel-1 autumn
+rel-1  Write the release notes  [Done / active]  autumn
+  held by ana
+[exit 0]
+$ dinah join rel-2 autumn
+rel-2  Draft the changelog  [Intake / ready]  autumn
+[exit 0]
+```
+
+The workstreams a card belongs to print at the end of its line, and they print
+there after every command that draws one. `dinah workstream` with no argument
+lists what the workbench carries, with the number of live cards in each:
+
+```console
+$ dinah workstream
+  Slug    Name            Status  Cards
+  ------  --------------  ------  -----
+  autumn  Autumn release  active  2
+[exit 0]
+```
+
+Naming one reads its fields and the cards belonging to it:
+
+```console skip=the member listing orders by the stamp a card arrived in its state under, and the replay runs the whole narrative inside one second, so whether the two cards tie on that stamp and fall back to the creation ordinal is decided by where a second boundary falls
+$ dinah workstream get autumn
+  Field   Value
+  ------  --------------
+  slug    autumn
+  id      8c3b92a3c21a
+  title   Autumn release
+  status  active
+  cards   2
+
+  Card   Title                    State
+  -----  -----------------------  ------
+  rel-1  Write the release notes  Done
+  rel-2  Draft the changelog      Intake
+[exit 0]
+```
+
+Taking a card out again names the card first, for the same reason joining it
+does:
+
+```console
+$ dinah leave rel-2 autumn
+rel-2  Draft the changelog  [Intake / ready]
+[exit 0]
+```
+
+The status is yours to write and Dinah never reads it. It says `active` when
+Dinah creates the workstream, and you may put any word you like in its place:
+
+```console
+$ dinah workstream set autumn status finished
+autumn  Autumn release  [finished]
+[exit 0]
+```
+
+If you want the workstream out of your listings when the effort is over, run
+`dinah archive workstream/autumn`. That works while cards still belong to it,
+and those cards keep the membership. `dinah delete workstream/autumn --yes`
+destroys it instead, and Dinah refuses that while a live card still belongs to
+it. A workstream names its kind in both of those commands, and nothing else
+does, so a workstream and a state may share a name without either one hiding
+the other.
 
 ## Taking things out
 
@@ -970,14 +1082,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        423/423
-  af        0/423
-  cs        0/423
-  de        0/423
-  es        0/423
-  fil       0/423
-  hi        423/423
-  id        0/423
+  en        543/543
+  af        0/543
+  cs        0/543
+  de        543/543
+  es        0/543
+  fil       0/543
+  hi        543/543
+  id        0/543
 [exit 0]
 ```
 
@@ -1007,6 +1119,8 @@ substate: active
 claim_holder: ana
 claim_since: 2026-08-18T21:02:23Z
 claim_expires: 2026-08-19T05:02:23Z
+workstreams:
+  - 8c3b92a3c21a
 ---
 [exit 0]
 ```
@@ -1216,18 +1330,26 @@ repository checkout:
 
 ```console
 $ dinah guide
+The guides stand in the order Dinah recommends reading them.
+
   Topic             Title
   ----------------  -----------------------------------
+  first-session     Your first session at a workbench
   getting-started   Getting started
-  query             Asking questions of a workbench
-  references        References
   verbs             The five verbs
+  references        References
+  query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
+  mcp               Working over MCP
 [exit 0]
 ```
 
 Read `dinah guide workbench-layout` before you start editing files by hand,
 because it maps the whole directory for you.
+
+Read `dinah guide mcp` before you point an agent at the workbench, because
+it teaches the machine surface the way an agent reads it rather than the way
+a person types commands.
 
 ## Point an agent at the workbench
 

@@ -140,12 +140,63 @@ const (
 	// because an empty result is also the honest answer to a query that is
 	// exactly right, and a reader cannot tell a typo from a fact.
 	UnknownValue = LayerPrefix + "unknown-value"
+	// UnknownAxis is a group-by chain naming a word this tool does not
+	// group on. It is a distinct name from UnknownField because state is
+	// both a field and an axis and at is a field and not an axis, so one
+	// name covering both would tell a reader that at is not a field, which
+	// is false.
+	UnknownAxis = LayerPrefix + "unknown-axis"
+	// RepeatedAxis is a group-by chain naming one axis twice. Grouping twice
+	// on one axis puts every card of a group into a single child group,
+	// always, so it is a typing mistake rather than a query. It carries a
+	// name of its own because the sentence that lists the legal axes would
+	// name the repeated axis as not an axis and then list it as one.
+	RepeatedAxis = LayerPrefix + "repeated-axis"
+	// ChainTooLong is a group-by chain naming more axes than a tree nests
+	// along. It carries a name of its own because it has no offending word
+	// to name: every axis in the chain may be legal, and the length is the
+	// whole of the mistake.
+	ChainTooLong = LayerPrefix + "chain-too-long"
+	// UnknownDepth is a depth level neither tree ladder declares, or one the
+	// other command declares and this one does not. The sentence lists the
+	// levels of the command that refused rather than the union of both.
+	UnknownDepth = LayerPrefix + "unknown-depth"
 	// MultipleWords is an open-tail command's free-text slot (add's title,
 	// block's reason, comment's text, config set's value) getting more than
 	// one unquoted word. The sentence names the word count and rebuilds the
 	// command line with the free text quoted, since that is the whole cost
 	// of the rule and the fix a reader needs to see.
 	MultipleWords = LayerPrefix + "multiple-words"
+	// UnknownWorkstream is a reference naming no workstream of this
+	// workbench, in either half of the collection. It is separate from
+	// unknown-state because a workstream is not a station of the flow, and
+	// a reader told about a state they never named would go looking in the
+	// wrong listing.
+	UnknownWorkstream = LayerPrefix + "unknown-workstream"
+	// Referenced is deleting a workstream that live cards still belong to.
+	// It is separate from Occupied, whose sentence says cards still occupy
+	// a state, because a card belongs to a workstream and stands in a
+	// state, and one sentence cannot honestly say both.
+	Referenced = LayerPrefix + "referenced"
+	// UnknownRoot is a --root naming a directory the filesystem does not
+	// carry at startup. The mcp command raises it before serving, and the
+	// beyond check that names it carries the same wording.
+	UnknownRoot = LayerPrefix + "unknown-root"
+	// OutsideRoot is a workbench named by an MCP caller whose path lies
+	// outside the root the server was started with. The mcp command raises
+	// it at startup when --workbench named the contradiction, and the call
+	// dispatch raises it when the per-call workbench argument does.
+	OutsideRoot = LayerPrefix + "outside-root"
+	// AmbiguousName is a name selector matching more than one entity of a
+	// collection that declares a name field, raised before the resolver
+	// guesses which one the caller meant. The detail names the selector and
+	// the ordinal of every match, so the caller can pick one by ordinal and
+	// retry, since ordinal is tried ahead of name.
+	AmbiguousName = LayerPrefix + "ambiguous-name"
+	// NotRenamable is a rename aimed at something that is not an attachment.
+	// The detail names what the reference resolved to, so the caller sees
+	// what was misunderstood rather than what they tried to write.
+	NotRenamable = LayerPrefix + "not-renamable"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -154,7 +205,9 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
-	UnknownField, UnknownValue,
+	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
+	UnknownDepth, UnknownWorkstream, Referenced,
+	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -200,26 +253,53 @@ const (
 	EventAttached           = "attached"
 	EventAttachmentReplaced = "attachment_replaced"
 	EventAttachmentRemoved  = "attachment_removed"
-	EventArchived           = "archived"
-	EventRestored           = "restored"
-	EventDeleted            = "deleted"
-	EventManualCorrection   = "manual_correction"
+	// EventAttachmentRenamed carries the attachment's identifier in
+	// Attachment, the new filename in Filename, and the previous filename
+	// in From. The same shape as the three sibling attachment events uses,
+	// since the name the attachment has as of the line is the answer a
+	// reader of the journal wants by one rule across the family.
+	EventAttachmentRenamed = "attachment_renamed"
+	EventArchived          = "archived"
+	EventRestored          = "restored"
+	EventDeleted           = "deleted"
+	EventManualCorrection  = "manual_correction"
 	// EventWorkbenchUpdated records a write to one of the workbench's own
 	// fields, on the workbench journal. It covers a title change, a slug
 	// change and an operator change alike, which is why it is not named for a
 	// rename: an operator change is no rename, and the name lands in
 	// append-only history in every workbench that runs the command.
 	EventWorkbenchUpdated = "workbench_updated"
+	// EventWorkstreamUpdated records a write to one of a workstream's own
+	// fields, on that workstream's journal. It covers a title change, a slug
+	// change and a status change alike, and it carries Field, From and To
+	// exactly as EventWorkbenchUpdated does.
+	EventWorkstreamUpdated = "workstream_updated"
+	// EventWorkstreamJoined and EventWorkstreamLeft record a card entering
+	// and leaving a workstream, on the card's own journal, because membership
+	// is card-owned and the card is the file that changed. Each carries the
+	// workstream's identifier in Workstream.
+	EventWorkstreamJoined = "workstream_joined"
+	EventWorkstreamLeft   = "workstream_left"
 )
 
-// Events lists the fifteen journal event names in the order the constants
-// above declare them, so a caller checking a value against the closed set
-// reads one list rather than repeating it.
+// Events lists the eighteen event names a query over cards accepts in its
+// event field, in the order the constants above declare them, so a caller
+// checking a value against the closed set reads one list rather than repeating
+// it. Every event a card's own journal can carry has to be here, since an
+// event a card carries and this list omits is an event nobody can ask for. The
+// containment does not hold the other way. EventRestored is listed and no
+// command writes it, so a query naming it is accepted and selects nothing.
+//
+// EventWorkbenchUpdated and EventWorkstreamUpdated are the two declared names
+// this list holds out, and each is held out for the same reason: it lands on
+// the workbench's journal or on a workstream's, never on a card's, so no card
+// a query reads can ever carry it.
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
-	EventAttachmentReplaced, EventAttachmentRemoved, EventArchived,
-	EventRestored, EventDeleted, EventManualCorrection,
+	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
+	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
+	EventWorkstreamJoined, EventWorkstreamLeft,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

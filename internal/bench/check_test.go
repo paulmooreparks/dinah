@@ -200,6 +200,55 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			},
 			key: FindingWorkbenchSlugMissing,
 		},
+		{
+			name: "a card belonging to a workstream that resolves to nothing",
+			breakIt: func(t *testing.T, root string) {
+				edit(t, root, "substate: ready", "substate: ready\nworkstreams:\n  - f00000000009")
+			},
+			key: FindingDanglingWorkstream,
+		},
+		{
+			name: "a workstream directory carrying no anchor",
+			breakIt: func(t *testing.T, root string) {
+				if err := os.MkdirAll(filepath.Join(root, WorkstreamsDir, "f00000000001"), 0o755); err != nil {
+					t.Fatalf("mkdir: %v", err)
+				}
+			},
+			key: FindingMissingAnchor,
+		},
+		{
+			// A directory whose name is not an identifier is invisible to
+			// ListIDs, which is how the cards collection already treats one,
+			// so the empty key asserts that the whole workbench reports
+			// nothing at all about it.
+			name: "a workstream directory whose name is not an identifier",
+			breakIt: func(t *testing.T, root string) {
+				writeWorkstream(t, root, "notahex", "title: Bogus\nslug: bogus\nstatus: active\nordinal: 1\n")
+			},
+			key: "",
+		},
+		{
+			name: "a workstream carrying no slug",
+			breakIt: func(t *testing.T, root string) {
+				writeWorkstream(t, root, "f00000000001", "title: Portfolio work\nstatus: active\nordinal: 1\n")
+			},
+			key: FindingWorkstreamSlugMissing,
+		},
+		{
+			name: "a workstream carrying a slug the grammar refuses",
+			breakIt: func(t *testing.T, root string) {
+				writeWorkstream(t, root, "f00000000001", "title: Portfolio work\nslug: Portfolio Work\nstatus: active\nordinal: 1\n")
+			},
+			key: FindingWorkstreamSlugMalformed,
+		},
+		{
+			name: "two workstreams sharing a slug",
+			breakIt: func(t *testing.T, root string) {
+				writeWorkstream(t, root, "f00000000001", "title: Portfolio work\nslug: portfolio\nstatus: active\nordinal: 1\n")
+				writeWorkstream(t, root, "f00000000002", "title: Portfolio again\nslug: portfolio\nstatus: active\nordinal: 2\n")
+			},
+			key: FindingWorkstreamSlugDuplicate,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -231,6 +280,14 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			t.Errorf("wanted a %s finding, got %+v", c.key, findings)
 		})
 	}
+}
+
+// writeWorkstream writes a workstream anchor into the fixture by hand, which
+// is how a workbench written before the tool could read one is built and how a
+// slug the tool would never derive is planted.
+func writeWorkstream(t *testing.T, root, id, header string) {
+	t.Helper()
+	write(t, filepath.Join(root, WorkstreamsDir, id, WorkstreamAnchor), "---\n"+header+"---\nNotes.\n")
 }
 
 // edit rewrites the fixture card, replacing one line with another.

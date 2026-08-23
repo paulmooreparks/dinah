@@ -37,6 +37,8 @@ name of what you want:
     dinah path wb-1/checklist/1      one checklist item
     dinah path wb-1/attachments      every attachment
     dinah path wb-1/attachments/1    one attachment
+    dinah path wb-1/attachments/1/payload
+                                     the file the attachment carries
 
 You may write three shorter spellings that select one kind of checklist item:
 
@@ -44,31 +46,40 @@ You may write three shorter spellings that select one kind of checklist item:
     dinah path wb-1/ac               the acceptance criteria
     dinah path wb-1/d                the decisions
 
-You may write an entity's own identifier in place of its number. The number
-counts in the order the entities were created, which is not always the order a
-listing prints them in.
+You may write an entity's own identifier in place of its number, and you may
+write an attachment's filename in place of its number. Dinah tries the
+identifier first, then the position, then the filename, so an attachment
+named `1` or whose filename is twelve hex characters is reachable by ordinal
+and by identifier rather than by name. The number counts
+in the order the entities were created, which is not always the order a listing prints them in.
 
 If the collection you name holds nothing, Dinah tells you that nothing answers to the reference rather than telling you the collection is empty.
 
 ## Which command takes what
 
-Seven commands take a reference, and between them they accept five different
+Nine commands take a reference, and between them they accept four different
 sets of things. This table says what each one accepts:
 
 | Command      | This workbench | A state | A card | Below a card |
 |--------------|----------------|---------|--------|--------------|
-| path         | yes            | no      | yes    | yes          |
-| edit         | yes            | no      | yes    | yes          |
-| show         | no             | no      | yes    | yes          |
+| path         | yes            | yes     | yes    | yes          |
+| edit         | yes            | yes     | yes    | yes          |
+| show         | no             | yes     | yes    | yes          |
 | instructions | no             | yes     | yes    | no           |
 | attach       | yes            | yes     | yes    | yes          |
 | archive      | no             | yes     | yes    | yes          |
 | delete       | no             | yes     | yes    | yes          |
+| contents     | yes            | yes     | yes    | yes          |
+| rename       | no             | no      | no     | yes          |
 
-Two of those rows carry a detail the table is too coarse to hold. `attach`
+Four of those rows carry a detail the table is too coarse to hold. `attach`
 takes a comment or an attachment below a card and takes nothing else below one,
 so `dinah attach wb-1/journal notes.md` is refused. `instructions` takes a card
-or a state and nothing else at all.
+or a state and nothing else at all. `contents` takes a card by the card's own
+reference and never through what holds it, so `dinah contents wb/cards/1` is
+refused and `dinah contents wb-1` is what you write. `rename` takes an
+attachment below a card and nothing else below one, so `dinah rename
+wb-1/comments/1` is refused.
 
 Each command's own help page carries the same answer for that one command, so
 run `dinah help attach` when you want it beside the arguments rather than here.

@@ -2,6 +2,7 @@ package verb
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
@@ -222,10 +223,33 @@ type Detail struct {
 	Body string `json:"body"`
 	// Links are what the card records about other cards.
 	Links []LinkView `json:"links,omitempty"`
+	// Attachments are the card's attachments in creation order.
+	Attachments []AttachmentView `json:"attachments,omitempty"`
 	// Comments are the card's comments in timestamp order.
 	Comments []CommentView `json:"comments,omitempty"`
 	// Path is the file the card lives in.
 	Path string `json:"path"`
+}
+
+// AttachmentView is one attachment as a read reports it.
+type AttachmentView struct {
+	// ID is the attachment's identifier.
+	ID string `json:"id"`
+	// Ordinal is the attachment's one-based position among the attachments
+	// of the entity it hangs from.
+	Ordinal int `json:"ordinal"`
+	// Ref is what a person types to name the attachment: the card's own
+	// reference, then attachments and the attachment's ordinal. Resolved
+	// here so a ref printed after a rename still names the attachment the
+	// view describes.
+	Ref string `json:"ref"`
+	// Filename is the attachment's current filename.
+	Filename string `json:"filename"`
+	// Description is the optional prose describing the attachment, absent
+	// when the anchor carries none.
+	Description string `json:"description,omitempty"`
+	// Provenance says where the bytes came from.
+	Provenance string `json:"provenance"`
 }
 
 // LinkView is one link as a read reports it.
@@ -254,13 +278,30 @@ type CommentView struct {
 	Body string `json:"body"`
 }
 
-// Show reads a card, or the file anything below it names.
+// Show reads a card, or the file any other reference names.
+//
+// A card comes back as a Detail with an empty text. Every other reference
+// comes back the other way round, as a nil Detail beside the text of the file
+// it named, since nothing but a card has a view to build. A caller reads the
+// pair rather than assuming the Detail.
 func (l *Library) Show(req *Request) (*Detail, string, error) {
 	head, rest, _ := strings.Cut(req.Card, "/")
-	found, err := l.Bench.ResolveCard(head)
-	if err != nil {
-		return nil, "", err
+	// A state is an entity of the workbench, and the containment walk prints
+	// a reference for one, so show reads it the way path and edit do rather
+	// than refusing over a reference the tool told the reader to type.
+	if rest == "" {
+		if state := l.Bench.StateByRef(head); state != nil {
+			text, err := bench.ReadText(l.Bench.StateAnchorPath(state.ID))
+			if err != nil {
+				return nil, "", contract.Refuse(contract.UnknownPath, head)
+			}
+			return nil, text, nil
+		}
 	}
+	// A composed reference is whatever the resolver reaches, which is why the
+	// resolution comes before the card is loaded: the head may name the
+	// workbench or a state rather than a card, and every one of those forms is
+	// a reference the containment walk prints.
 	if rest != "" {
 		path, err := l.Bench.ResolvePath(req.Card)
 		if err != nil {
@@ -272,6 +313,10 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		}
 		return nil, text, nil
 	}
+	found, err := l.Bench.ResolveCard(head)
+	if err != nil {
+		return nil, "", err
+	}
 	card := found.Card
 	if err := l.lapseRead(card); err != nil {
 		return nil, "", err
@@ -279,6 +324,22 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}
 	for _, link := range card.Links {
 		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
+	}
+	attachments, err := bench.Attachments(card.Dir)
+	if err != nil {
+		return nil, "", err
+	}
+	cardRef := card.Ref(l.Bench.Slug)
+	for _, attachment := range attachments {
+		view := AttachmentView{
+			ID:          attachment.ID,
+			Ordinal:     attachment.Ordinal,
+			Ref:         attachmentRef(cardRef, attachment),
+			Filename:    attachment.Filename,
+			Description: attachment.Description,
+			Provenance:  attachment.Provenance,
+		}
+		detail.Attachments = append(detail.Attachments, view)
 	}
 	comments, err := bench.Comments(card.Dir)
 	if err != nil {
@@ -289,6 +350,39 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		detail.Comments = append(detail.Comments, view)
 	}
 	return detail, "", nil
+}
+
+// attachmentRef composes the reference a person types to reach one attachment
+// from its card: the card's own reference, then attachments and the
+// attachment's one-based ordinal.
+//
+// The ordinal is read off the anchor rather than taken from the attachment's
+// in-memory position, since an attachment carrying no stored ordinal still
+// needs a ref the resolver will answer: directory-order ordinal is what
+// resolve.go's pick already serves, so the ref printed here is what the
+// reader can type to land back on the same attachment.
+func attachmentRef(cardRef string, attachment *bench.Attachment) string {
+	ordinal := attachment.Ordinal
+	if ordinal == 0 {
+		ordinal = directoryOrdinal(attachment)
+	}
+	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
+}
+
+// directoryOrdinal falls back to the attachment's directory-order position
+// when its anchor carries no stored ordinal. It mirrors what SortByOrdinal
+// does on a collection with no ordinals stamped, so the ref printed in show
+// is the same one path would answer to.
+func directoryOrdinal(attachment *bench.Attachment) int {
+	collection := filepath.Dir(attachment.Dir)
+	ids := bench.ListIDs(collection)
+	ids = bench.SortByOrdinal(collection, bench.AttachmentAnchor, ids)
+	for n, id := range ids {
+		if id == attachment.ID {
+			return n + 1
+		}
+	}
+	return 1
 }
 
 // linkRef resolves a link's stored card identifier to what a person types to
@@ -417,6 +511,19 @@ type CheckReport struct {
 	// MigratedStates says the stranded-state migration ran, so a caller can
 	// tell an empty list of removals from a migration nobody asked for.
 	MigratedStates bool `json:"migrated_states,omitempty"`
+	// AssignedWorkstreamSlugs are the workstreams the slug migration
+	// repaired with the slug each one was given, on the terms AssignedSlugs
+	// carries the states.
+	AssignedWorkstreamSlugs []bench.WorkstreamSlugAssignment `json:"assigned_workstream_slugs,omitempty"`
+	// AdoptedWorkstreams are the identifiers the adoption repair created a
+	// workstream at, each one a membership the live cards already carried
+	// that named nothing. It is absent from a request that asked for no
+	// migration and from a request that asked and found nothing to adopt,
+	// which MigratedWorkstreams below is what separates.
+	AdoptedWorkstreams []string `json:"adopted_workstreams,omitempty"`
+	// MigratedWorkstreams says the adoption repair ran, so a caller can tell
+	// an empty list of adoptions from a migration nobody asked for.
+	MigratedWorkstreams bool `json:"migrated_workstreams,omitempty"`
 }
 
 // Check checks the bench for structural defects, and repairs nothing unless a
@@ -445,9 +552,20 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
+		streamAssigned, streamReported := l.Bench.BackfillWorkstreamSlugs()
+		report.AssignedWorkstreamSlugs = streamAssigned
+		report.Findings = append(report.Findings, streamReported...)
 		wsAssigned, wsReported, err := l.Bench.BackfillWorkbenchSlug()
 		report.AssignedWorkbenchSlug = wsAssigned
 		report.Findings = append(report.Findings, wsReported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	if req != nil && req.MigrateWorkstreams {
+		adopted, err := l.adoptWorkstreams(req)
+		report.MigratedWorkstreams = true
+		report.AdoptedWorkstreams = adopted
 		if err != nil {
 			return report, err
 		}
@@ -499,6 +617,46 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.Findings = append(report.Findings, finding)
 	}
 	return report, nil
+}
+
+// adoptWorkstreams creates a workstream at every identifier the live cards
+// list that names none, keeping the identifier so that no card file is touched
+// and every reference already written down still resolves.
+//
+// It is a repair somebody asks for rather than one that runs at open, because
+// a tool that mints entities nobody asked for is writing into a file it does
+// not understand, and a workbench opened by accident would gain directories
+// its owner never made.
+//
+// The workbench's own lock covers the run, which is what the writer of a new
+// entity of a workbench-level collection already takes.
+func (l *Library) adoptWorkstreams(req *Request) ([]string, error) {
+	dangling, err := l.Bench.DanglingWorkstreams()
+	if err != nil {
+		return nil, err
+	}
+	if len(dangling) == 0 {
+		return nil, nil
+	}
+	now := bench.Stamp(l.Now())
+	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	if err != nil {
+		return nil, err
+	}
+	defer lock.Release()
+	var adopted []string
+	for _, id := range dangling {
+		workstream, err := l.Bench.AdoptWorkstream(id)
+		if err != nil {
+			return adopted, err
+		}
+		ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Actor}
+		if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+			return adopted, err
+		}
+		adopted = append(adopted, id)
+	}
+	return adopted, nil
 }
 
 // Export writes the interchange form of the bench definition.

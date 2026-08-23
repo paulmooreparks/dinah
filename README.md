@@ -30,7 +30,7 @@ Dinah coordinates work. It knows which card is where, who holds it, what the ins
 
 Dinah works today. Clone the repository and build it with `go build -o dinah ./cmd/dinah`, and you get a single binary that creates workbenches, files cards, and carries them through the five contract verbs the design docs in `docs/design/` describe: claim, move, release, block, and unblock. `dinah help` lists every command, and each one runs end to end, including the read commands (`status`, `ls`, `show`, `log`), the workbench commands (`init`, `config`, `check`, `export`, and `extract`), and `dinah mcp`, which serves the same verb set to an agent over stdio.
 
-Dinah speaks English and Hindi in full. Run `dinah version --catalogs` and you will see every other listed language still sitting at zero translated strings.
+Dinah speaks English, Hindi, and German in full. Run `dinah version --catalogs` and you will see every other listed language still sitting at zero translated strings.
 
 ## Install
 

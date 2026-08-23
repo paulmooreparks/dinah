@@ -18,7 +18,7 @@ import (
 //
 // A guide's transcript is composed at run time and no scan of Go sources can
 // see it, which is why the load sits on the replay in quickstart_test.go.
-// These checks cover the places the replay does not reach: the three embedded
+// These checks cover the places the replay does not reach: the embedded
 // guides, which carry no transcript at all, and the blocks of the quick start
 // the replay is exempt from. Each one reads text against text, so each one is
 // a backstop rather than proof that the tool prints what the document shows.
@@ -35,9 +35,11 @@ type guardedDocument struct {
 	text string
 }
 
-// guardedDocuments reads every guide the binary ships plus the quick start,
-// which together are the documents that teach somebody how to use the tool.
-func guardedDocuments(t *testing.T) []guardedDocument {
+// embeddedGuides reads every guide the binary ships. The guides are read apart
+// from the quick start because two rules hold of a guide and not of that
+// document: a guide drives no transcript, and a guide is served to a reader who
+// cannot see the repository it was written in.
+func embeddedGuides(t *testing.T) []guardedDocument {
 	t.Helper()
 	var documents []guardedDocument
 	for _, topic := range guide.Topics() {
@@ -47,6 +49,17 @@ func guardedDocuments(t *testing.T) []guardedDocument {
 		}
 		documents = append(documents, guardedDocument{name: "internal/guide/guides/" + topic + ".md", text: text})
 	}
+	if len(documents) == 0 {
+		t.Fatal("the binary embeds no guide, so every check over the guides reads nothing")
+	}
+	return documents
+}
+
+// guardedDocuments reads every guide the binary ships plus the quick start,
+// which together are the documents that teach somebody how to use the tool.
+func guardedDocuments(t *testing.T) []guardedDocument {
+	t.Helper()
+	documents := embeddedGuides(t)
 	source, err := os.ReadFile(quickStartPath)
 	if err != nil {
 		t.Fatalf("read %s: %v", quickStartPath, err)
@@ -56,6 +69,85 @@ func guardedDocuments(t *testing.T) []guardedDocument {
 		t.Fatal("the corpus holds fewer documents than the guides and the quick start, so these checks read almost nothing")
 	}
 	return documents
+}
+
+// TestNoGuideCarriesATranscriptTheReplayDoesNotDrive asserts that no embedded
+// guide opens a fenced block with a command line, which is the shape the quick
+// start's replay selects on and the shape nothing drives inside a guide.
+//
+// A guide's fenced blocks show commands to type rather than sessions to
+// believe, and the quick start owns the transcripts the replay runs. A guide
+// that writes one in the replay's own shape gets neither treatment: no replay
+// reaches it, no exemption is demanded of it, and the output it shows stands
+// unheld from the day it was written. The check names the shape rather than the
+// intent, because the shape is what the replay's selection rule reads.
+func TestNoGuideCarriesATranscriptTheReplayDoesNotDrive(t *testing.T) {
+	read := 0
+	for _, document := range embeddedGuides(t) {
+		lines := strings.Split(document.text, "\n")
+		for at := 0; at < len(lines); at++ {
+			run := quickStartMarkerRun(lines[at])
+			if run == 0 {
+				continue
+			}
+			read++
+			if at+1 < len(lines) && strings.HasPrefix(lines[at+1], "$ ") {
+				t.Errorf("%s:%d: the block opens with a command line, which is the shape the quick start's replay drives and nothing drives here; write the command without its leading dollar sign", document.name, at+2)
+			}
+			for at++; at < len(lines) && quickStartMarkerRun(lines[at]) != run; at++ {
+			}
+		}
+	}
+	if read == 0 {
+		t.Error("no embedded guide carries a fenced block, so this check read nothing")
+	}
+}
+
+// bannedTypography is the character set the profile's style section rules out,
+// mapped to the name a finding calls each one by.
+//
+// The set is stated here as well as in TestHouseStyle, which holds the profile
+// itself in internal/profile. A test in one package cannot read a test in
+// another, and the alternative was to export the set from a shipped package so
+// that two tests could share it, which would put style vocabulary into the
+// binary to save a duplicated map.
+var bannedTypography = map[string]string{
+	"—": "em-dash",
+	"–": "en-dash",
+	"−": "minus sign",
+	"‘": "left single quotation mark",
+	"’": "right single quotation mark",
+	"“": "left double quotation mark",
+	"”": "right double quotation mark",
+}
+
+// TestTheDocumentationCarriesNoBannedTypography asserts the profile's
+// typographic rules over every guide and the quick start, which TestHouseStyle
+// asserts over the profile alone.
+//
+// The rule reaches these documents for the same reason it reaches the profile.
+// A reader meets a curly quotation mark as a character they cannot type back at
+// the tool, and an em-dash is house style rather than an accident, so both are
+// worth failing a build over rather than catching by eye in review.
+func TestTheDocumentationCarriesNoBannedTypography(t *testing.T) {
+	read := 0
+	for _, document := range guardedDocuments(t) {
+		for number, line := range strings.Split(document.text, "\n") {
+			read++
+			if strings.Contains(line, "\r") {
+				t.Errorf("%s:%d: the line carries a carriage return", document.name, number+1)
+			}
+			for character, name := range bannedTypography {
+				if !strings.Contains(line, character) {
+					continue
+				}
+				t.Errorf("%s:%d: the %s stands in the line: %q", document.name, number+1, name, line)
+			}
+		}
+	}
+	if read == 0 {
+		t.Error("no line of any guide or of the quick start was read, so this check proves nothing")
+	}
 }
 
 // mintedRefusal matches a refusal name Dinah coins, which carries the layer
@@ -132,6 +224,18 @@ var placeholder = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\}`)
 // but letters, digits, and spaces outside its placeholders.
 var wordyLiteral = regexp.MustCompile(`^[A-Za-z0-9 ]*$`)
 
+// separatorLiteral matches the literal text of a rendering whose placeholders
+// are joined by one punctuation mark and nothing else. Such an entry is two
+// wildcards with a separator between them, so every line carrying that mark
+// answers it and a line it finds is evidence of nothing.
+//
+// The narrowing above cannot reach this case, because a mark is not a letter,
+// a digit or a space, so the entry keeps the wide wildcard and matches most of
+// the document. tree.hidden.join, whose stored text is `{first}, {second}`, is
+// the entry that showed it: the rule found it in four blocks that print no
+// tree at all, one of them the installer transcript Dinah writes no line of.
+var separatorLiteral = regexp.MustCompile(`^ *[^A-Za-z0-9 ] *$`)
+
 // rendering is one catalog entry compiled for the discovery rule: the form
 // that matches at an anchor and ends at a boundary, and the form that matches
 // a whole field.
@@ -170,6 +274,9 @@ func renderingsOfTheCatalog(t *testing.T) []rendering {
 		if !ok || entry.Text == "" {
 			continue
 		}
+		if identifiesNothing(entry.Text) {
+			continue
+		}
 		pattern := renderingPattern(entry.Text)
 		compiled = append(compiled, rendering{
 			key:      key,
@@ -181,6 +288,17 @@ func renderingsOfTheCatalog(t *testing.T) []rendering {
 		t.Fatal("the base catalog compiled to no rendering, so the discovery rule reads nothing")
 	}
 	return compiled
+}
+
+// identifiesNothing reports whether an entry's stored text is placeholders
+// joined by a single punctuation mark, which recognises any line carrying that
+// mark and so cannot be evidence that the entry itself was rendered.
+func identifiesNothing(text string) bool {
+	literal := placeholder.ReplaceAllString(text, "")
+	if literal == text {
+		return false
+	}
+	return separatorLiteral.MatchString(literal)
 }
 
 // renderingPattern turns one entry's stored text into the expression that
@@ -550,6 +668,14 @@ const layoutGuide = "workbench-layout"
 // every path the tool writes is drawn: the guide leaves out .gitignore and the
 // lock files on purpose, and a check demanding completeness would force them
 // into a document that is better without them.
+//
+// It also puts a constraint on the guide that the guide itself does not say:
+// every fenced block in it is read as a directory tree, so an author who
+// fences a command there is told that the workbench carries no such path. An
+// author meeting that message is not looking at a broken workbench, they are
+// looking at a fence this check cannot tell from a tree. The check verifying
+// the shape it depends on, rather than depending on it silently, is dinah-144
+// work rather than a change to the guide.
 func TestTheLayoutGuideDrawsPathsTheToolWrites(t *testing.T) {
 	text, err := guide.Text(layoutGuide)
 	if err != nil {
@@ -665,6 +791,12 @@ func exercisedWorkbench(t *testing.T) string {
 		{"add", "A card to archive"},
 		{"archive", "fx-2"},
 		{"workbench", "set", "title", "Layout"},
+		// A workstream is created, written to and joined, because the guide's
+		// tree draws the collection, one workstream's anchor and its journal,
+		// and none of the three exists in a workbench that never held one.
+		{"workstream", "new", "Layout work"},
+		{"workstream", "set", "layout-work", "status", "finished"},
+		{"join", "fx-1", "layout-work"},
 	}
 	for _, argv := range steps {
 		if got := runCLI(t, container, argv...); got.code != 0 {

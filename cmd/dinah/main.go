@@ -51,6 +51,9 @@ type session struct {
 	// benchFlagSource names which of the two named it, SourceFlag or
 	// SourceEnvironment, empty when neither did.
 	benchFlagSource string
+	// mcpRoot is the directory the mcp command was bound to, empty when mcp
+	// was not the command that ran.
+	mcpRoot string
 	// cwd is where bench discovery starts.
 	cwd string
 	// workbenchSource names the rung that resolved the active workbench for
@@ -140,7 +143,9 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// workbench joins them: dinah-100's one-word rule bounds its value too,
 	// and it declares --yes, so a flag typed after the value would otherwise
 	// take the peeling branch, which nothing shipped exercises today.
-	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" {
+	// workstream sits with workbench for the same two reasons: dinah-100's
+	// one-word rule bounds its title and its value, and it declares --yes.
+	if command.name != "add" && command.name != "block" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}

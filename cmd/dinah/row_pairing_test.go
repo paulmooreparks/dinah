@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,9 +32,17 @@ type sweptRecord struct {
 	blocks   []sweptActRecord
 	moves    []sweptActRecord
 	releases []sweptActRecord
+	// joins are the memberships the fixture wrote, which land on the card's own
+	// journal and so draw a row of its history alongside the acts above.
+	joins []sweptActRecord
 	// comments and links are what the fixture wrote onto its first card.
-	comments []sweptCommentRecord
-	links    []sweptLinkRecord
+	comments    []sweptCommentRecord
+	links       []sweptLinkRecord
+	attachments []sweptAttachmentRecord
+	// renames are the attachment renames the fixture ran, each carrying the
+	// reference of the attachment that was renamed and the new filename it was
+	// carried under.
+	renames []sweptActRecord
 	// states are the states the healthy tree holds, in the order the workbench
 	// anchor lists them, which is the order every listing walks.
 	states []sweptStateRecord
@@ -51,6 +60,23 @@ type sweptRecord struct {
 	benches []sweptBenchRecord
 	// workbench is the healthy tree's own fields, as init wrote them.
 	workbench sweptWorkbenchRecord
+	// workstreams are the workstreams the healthy tree holds, in creation
+	// order, and strippedWorkstreams are the ones the tree a slug migration
+	// repairs holds, which that repair's third report draws one row per.
+	workstreams         []sweptWorkstreamRecord
+	strippedWorkstreams []sweptWorkstreamRecord
+}
+
+// sweptWorkstreamRecord is one workstream the fixture created: the title it was
+// filed under, the slug that title derives, the status it ended in, and the
+// cards the fixture joined to it. The identifier is not recorded, because
+// NewID mints it and the fixture never reads it back, so the row that draws it
+// carries a matcher instead.
+type sweptWorkstreamRecord struct {
+	title  string
+	slug   string
+	status string
+	cards  []string
 }
 
 // sweptCardRecord is one card the fixture filed, carrying what the fixture
@@ -93,6 +119,16 @@ type sweptLinkRecord struct {
 	card string
 	kind string
 	to   string
+}
+
+// sweptAttachmentRecord is one attachment the fixture wrote onto its first
+// card. The position is recorded because dinah show draws it; the description
+// is empty on a fixture that did not pass --description.
+type sweptAttachmentRecord struct {
+	card        string
+	actor       string
+	filename    string
+	description string
 }
 
 // sweptStateRecord is one state of a tree the fixture built. slug is empty on a
@@ -691,7 +727,7 @@ func readSweptStackedRecords(t *testing.T, block sweptBlock, tag string, lines [
 		t.Errorf("%s (%s), locale %s, pass %s: "+format, append([]any{block.site, block.label, tag, sweptPass}, args...)...)
 		return nil
 	}
-	labels := sweptLabels(block, tag)
+	labels := sweptLabels(block.keys, tag)
 	for i, label := range labels {
 		for j := i + 1; j < len(labels); j++ {
 			if labels[j] == label {
@@ -1064,6 +1100,33 @@ func expectComments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	}
 }
 
+// expectAttachments is a card's attachments, in the position order the
+// fixture wrote them. The position is the row's first column and the
+// description is what --description carried, empty when the fixture passed none.
+// A rename the fixture ran against one of these attachments rewrites its
+// filename to the new one, since the rendered block carries the post-rename
+// filename rather than the original.
+func expectAttachments(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	filenames := make([]string, len(r.attachments))
+	for i, attachment := range r.attachments {
+		filenames[i] = attachment.filename
+	}
+	for _, act := range r.renames {
+		_, posStr, _ := strings.Cut(act.card, "/attachments/")
+		pos, err := strconv.Atoi(posStr)
+		if err != nil || pos < 1 || pos > len(filenames) {
+			continue
+		}
+		filenames[pos-1] = act.reason
+	}
+	var rows [][]sweptCell
+	for i, attachment := range r.attachments {
+		rows = append(rows, sweptTexts(strconv.Itoa(i+1), filenames[i], attachment.description))
+	}
+	return sweptExpectation{rows: rows, source: "the record's attachments, with renames applied"}
+}
+
 // expectHistory is dinah log against the held card: the card's own creation
 // and every act the record carries against it, with the stamp column opaque
 // and the detail column drawn under the head's own rule for each act.
@@ -1101,6 +1164,35 @@ func expectHistory(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 			continue
 		}
 		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventCommented), comment.actor, ""))
+	}
+	for _, attachment := range r.attachments {
+		if attachment.card != card.ref {
+			continue
+		}
+		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventAttached), attachment.actor, attachment.filename))
+	}
+	for _, act := range r.renames {
+		cardRef, _, _ := strings.Cut(act.card, "/attachments/")
+		if cardRef != card.ref {
+			continue
+		}
+		// The act's reason carries the new filename; the previous one is
+		// read off the record by the position the reference names.
+		var previous string
+		_, posStr, _ := strings.Cut(act.card, "/attachments/")
+		if pos, err := strconv.Atoi(posStr); err == nil {
+			if pos-1 >= 0 && pos-1 < len(r.attachments) {
+				previous = r.attachments[pos-1].filename
+			}
+		}
+		carried := msg.For(tag).T("log.attachment-renamed", "from", previous, "to", act.reason)
+		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventAttachmentRenamed), act.actor, carried))
+	}
+	for _, act := range r.joins {
+		if act.card != card.ref {
+			continue
+		}
+		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventWorkstreamJoined), act.actor, ""))
 	}
 	opaque, why := sweptStampColumn(0, "an act's stamp is the moment the fixture ran, which the fixture cannot know before it runs")
 	return sweptExpectation{
@@ -1209,6 +1301,81 @@ func expectWorkbenchFields(t *testing.T, r *sweptRecord, tag string) sweptExpect
 		rows = append(rows, sweptTexts(name, value))
 	}
 	return sweptExpectation{rows: rows, source: "the fields workbench lists"}
+}
+
+// expectWorkstreams is dinah workstream, one row per workstream the fixture
+// created, with the member count derived from the joins the fixture ran rather
+// than read back off the workstream.
+func expectWorkstreams(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, workstream := range r.workstreams {
+		rows = append(rows, sweptTexts(
+			sweptSlugCell(tag, workstream.slug),
+			workstream.title,
+			workstream.status,
+			strconv.Itoa(len(workstream.cards)),
+		))
+	}
+	return sweptExpectation{rows: rows, source: "the record's workstreams"}
+}
+
+// expectWorkstreamFields is one workstream's own fields, which walks the rows
+// the detail draws and reads each one off the record.
+//
+// The identifier row carries a matcher rather than text, for the reason
+// sweptWorkstreamRecord gives, and it is a cell matcher rather than an opaque
+// column because the value that cannot be known is one row of the value column
+// rather than the column itself.
+func expectWorkstreamFields(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	workstream := sweptWorkstreamNamed(t, r, sweptWorkstream)
+	rows := [][]sweptCell{
+		sweptTexts("slug", sweptSlugCell(tag, workstream.slug)),
+		{{text: "id"}, {match: bench.IsID}},
+		sweptTexts("title", workstream.title),
+		sweptTexts("status", workstream.status),
+		sweptTexts("cards", strconv.Itoa(len(workstream.cards))),
+	}
+	return sweptExpectation{rows: rows, source: "the fields one workstream's detail lists"}
+}
+
+// expectWorkstreamMembers is the cards belonging to one workstream, read out of
+// the joins the fixture ran and carrying each card's own state title.
+func expectWorkstreamMembers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	workstream := sweptWorkstreamNamed(t, r, sweptWorkstream)
+	var rows [][]sweptCell
+	for _, ref := range workstream.cards {
+		card := r.cards[sweptCardAt(r, ref)]
+		rows = append(rows, sweptTexts(card.ref, card.title, r.states[card.state].title))
+	}
+	return sweptExpectation{rows: rows, source: "the cards the record joined to " + sweptWorkstream}
+}
+
+// expectAssignedWorkstreamSlugs is the third report of one slug migration,
+// which derives a slug from each workstream's own title through the same call
+// the head makes.
+func expectAssignedWorkstreamSlugs(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, workstream := range r.strippedWorkstreams {
+		rows = append(rows, sweptTexts(bench.SlugifyDashed(workstream.title), workstream.title))
+	}
+	return sweptExpectation{rows: rows, source: "the workstreams the stripped tree holds"}
+}
+
+// sweptWorkstreamNamed is the record of the workstream an entry reads, found by
+// the slug that entry names.
+func sweptWorkstreamNamed(t *testing.T, r *sweptRecord, slug string) sweptWorkstreamRecord {
+	t.Helper()
+	for _, workstream := range r.workstreams {
+		if workstream.slug == slug {
+			return workstream
+		}
+	}
+	t.Fatalf("the record holds no workstream under the slug %q, so the entry that reads one has nothing to compare", slug)
+	return sweptWorkstreamRecord{}
 }
 
 // The suite carries four controls, and each one perturbs something and
@@ -1428,6 +1595,196 @@ func sweptControlRecords(t *testing.T, block sweptBlock, tag string, lines []str
 		return nil
 	}
 	return readSweptRows(t, block, tag, recordLines[2:], columns)
+}
+
+// sweptTreeNode is one expected row of a tree block before its guide prefix is
+// composed: the four fields the row carries, and the rows nested under it. The
+// nesting is what decides the prefix, so the expectation is written as a shape
+// and flattened rather than written flat.
+type sweptTreeNode struct {
+	// ref is what the Reference column carries before the guide, which is the
+	// group's value on a group row and the entity's own reference elsewhere.
+	ref string
+	// entity is the Entity column: the axis on a group row and the kind on an
+	// entity row. Neither is translated, so both are the same in every locale.
+	entity string
+	// title is the Title column, empty on every group row.
+	title string
+	// count is the Count column, empty on a card of the grouped producer.
+	count string
+	// children are the rows drawn under this one.
+	children []sweptTreeNode
+}
+
+// sweptTreeRows flattens an expected tree, composing each row's guide prefix
+// out of its ancestors. A level whose node was the last of its siblings
+// contributes four spaces and every other contributes a trunk, and the node's
+// own piece is the corner where it is last and the tee where it is not. The
+// four pieces are the spec's own.
+func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
+	var rows [][]sweptCell
+	for at, node := range nodes {
+		piece, below := "|-- ", "|   "
+		if at == len(nodes)-1 {
+			piece, below = "`-- ", "    "
+		}
+		rows = append(rows, sweptTexts(ancestors+piece+node.ref, node.entity, node.title, node.count))
+		rows = append(rows, sweptTreeRows(node.children, ancestors+below)...)
+	}
+	return rows
+}
+
+// sweptSubstates are the three substates the grouped producer draws under a
+// state, in the order it draws them, which is the order the contract declares
+// them in rather than an order this fixture chose.
+var sweptSubstates = []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+
+// expectTree is dinah tree with no arguments: a group per declared state in
+// flow order, the three substates under each one whether or not a card stands
+// there, and the cards themselves at the third level.
+//
+// A group carries its value under Reference, its axis under Entity, nothing
+// under Title, and its own card count under Count. A card carries no count at
+// all, since the grouped producer counts cards rather than what a card holds.
+//
+// The cards of a group come in the order the fixture filed them. That is the
+// arrival order the producer draws here because no card of any group in this
+// fixture moved after another card of the same group was filed, and a fixture
+// that breaks that reddens this expectation rather than passing quietly.
+func expectTree(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var states []sweptTreeNode
+	for at, state := range r.states {
+		held := sweptCardsIn(r, at)
+		node := sweptTreeNode{ref: state.ref(), entity: bench.KindState, count: strconv.Itoa(len(held))}
+		for _, substate := range sweptSubstates {
+			var cards []sweptTreeNode
+			for _, card := range held {
+				if card.standing != substate {
+					continue
+				}
+				cards = append(cards, sweptTreeNode{ref: card.ref, entity: bench.KindCard, title: card.title})
+			}
+			group := sweptTreeNode{
+				ref:      substate,
+				entity:   verb.FieldSubstate,
+				count:    strconv.Itoa(len(cards)),
+				children: cards,
+			}
+			node.children = append(node.children, group)
+		}
+		states = append(states, node)
+	}
+	return sweptExpectation{
+		rows:   sweptTreeRows(states, ""),
+		source: "the record's states and cards, nested the way the default chain groups them",
+	}
+}
+
+// expectContents is dinah contents from the workbench root: the states in flow
+// order, then the cards in arrival order, then whatever each card holds.
+//
+// Every row carries a count here, including a card holding nothing, because
+// the containment producer counts what an entity contains rather than the
+// cards below a group.
+func expectContents(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var nodes []sweptTreeNode
+	for _, state := range r.states {
+		nodes = append(nodes, sweptTreeNode{
+			ref:    state.ref(),
+			entity: bench.KindState,
+			title:  state.title,
+			count:  "0",
+		})
+	}
+	for _, card := range sweptArrivalOrder(r) {
+		var comments []sweptTreeNode
+		for at, comment := range sweptCommentsOn(r, card.ref) {
+			comments = append(comments, sweptTreeNode{
+				ref:    card.ref + "/comments/" + strconv.Itoa(at+1),
+				entity: bench.KindComment,
+				title:  comment.body,
+				count:  "0",
+			})
+		}
+		var attachments []sweptTreeNode
+		for at, attachment := range sweptAttachmentsOn(r, card.ref) {
+			title := attachment.filename
+			if attachment.description != "" {
+				title = attachment.description
+			}
+			attachments = append(attachments, sweptTreeNode{
+				ref:    card.ref + "/attachments/" + strconv.Itoa(at+1),
+				entity: bench.KindAttachment,
+				title:  title,
+				count:  "0",
+			})
+		}
+		nodes = append(nodes, sweptTreeNode{
+			ref:      card.ref,
+			entity:   bench.KindCard,
+			title:    card.title,
+			count:    strconv.Itoa(len(comments) + len(attachments)),
+			children: append(comments, attachments...),
+		})
+	}
+	return sweptExpectation{
+		rows:   sweptTreeRows(nodes, ""),
+		source: "the record's states and cards, walked the way the containment grammar mounts them",
+	}
+}
+
+// sweptArrivalOrder is the record's cards in the order the containment walk
+// draws them, which is the order they arrived in the state they now stand in.
+//
+// A card the fixture never moved arrived when it was filed, and every move the
+// fixture ran happened after every card was filed, so the unmoved cards come
+// first in filing order and the moved ones follow in the order of their last
+// move. That reproduces the arrival rule against the record rather than
+// against a card read back out of a workbench.
+func sweptArrivalOrder(r *sweptRecord) []sweptCardRecord {
+	moved := map[string]int{}
+	for at, act := range r.moves {
+		moved[act.card] = at
+	}
+	var stayed, travelled []sweptCardRecord
+	for _, card := range r.cards {
+		if _, ok := moved[card.ref]; ok {
+			travelled = append(travelled, card)
+			continue
+		}
+		stayed = append(stayed, card)
+	}
+	sort.SliceStable(travelled, func(i, j int) bool {
+		return moved[travelled[i].ref] < moved[travelled[j].ref]
+	})
+	return append(stayed, travelled...)
+}
+
+// sweptCommentsOn is the comments the record wrote onto one card, in the order
+// it wrote them, which is the order a positional reference counts in.
+func sweptCommentsOn(r *sweptRecord, ref string) []sweptCommentRecord {
+	var kept []sweptCommentRecord
+	for _, comment := range r.comments {
+		if comment.card == ref {
+			kept = append(kept, comment)
+		}
+	}
+	return kept
+}
+
+// sweptAttachmentsOn is the attachments the record wrote onto one card, in
+// the order the fixture wrote them, which is the order a positional reference
+// counts in.
+func sweptAttachmentsOn(r *sweptRecord, ref string) []sweptAttachmentRecord {
+	var kept []sweptAttachmentRecord
+	for _, attachment := range r.attachments {
+		if attachment.card == ref {
+			kept = append(kept, attachment)
+		}
+	}
+	return kept
 }
 
 // sweptArgumentsCommand is the command dinah help <command> is asked about for

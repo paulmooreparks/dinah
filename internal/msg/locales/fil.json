@@ -16,6 +16,16 @@
       "context": "The one line printed about a card after an act.",
       "skeleton": true
     },
+    "card.line.workstreams": {
+      "text": "{ref}  {title}  [{state} / {substate}]  {workstreams}",
+      "context": "The one line printed about a card that belongs to at least one workstream, after an act. It is card.line with the memberships on the end, and the caller chooses between the two by whether the card lists any. {workstreams} holds the workstreams already joined by card.line.workstreams.separator.",
+      "skeleton": true
+    },
+    "card.line.workstreams.separator": {
+      "text": ", ",
+      "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it.",
+      "skeleton": true
+    },
     "check.active-without-claim": {
       "text": "card {detail} reads active and carries no holder",
       "context": "A check finding: the converse of the claim implication.",
@@ -59,6 +69,11 @@
     "check.attach.2": {
       "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.attachment-filename-drift": {
+      "text": "attachment {detail} payload file name disagrees with its anchor",
+      "context": "A check finding: an attachment's payload file and its anchor's filename field disagree, which is the residue of a crash between a rename's two writes or of a hand edit nobody noticed.",
       "skeleton": true
     },
     "check.block-without-reason": {
@@ -141,6 +156,16 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.contents.1": {
+      "text": "the reference names something in this workbench",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.contents.2": {
+      "text": "the depth level is one this command declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
     "check.count.one": {
       "text": "{count} defect.",
       "context": "The count line after check's findings, for exactly one finding.",
@@ -154,6 +179,11 @@
     "check.dangling-link": {
       "text": "a link names card {detail}, which resolves in neither half of the collection",
       "context": "A check finding: a links entry whose to resolves to no card.",
+      "skeleton": true
+    },
+    "check.dangling-workstream": {
+      "text": "a card belongs to workstream {detail}, which resolves in neither half of the collection",
+      "context": "A check finding: a card's workstreams list names an identifier no workstream answers to; `dinah check --migrate-workstreams` adopts it.",
       "skeleton": true
     },
     "check.delete.1": {
@@ -229,6 +259,36 @@
     "check.interrupted-act": {
       "text": "a structural action was interrupted here: {detail}",
       "context": "A check finding: a sibling lock standing beside an entity, with the identifier, the operation and the direction the finish would take.",
+      "skeleton": true
+    },
+    "check.join.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.join.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.join.3": {
+      "text": "the workstream exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.leave.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.leave.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.leave.3": {
+      "text": "the workstream exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.log.1": {
@@ -362,7 +422,7 @@
       "skeleton": true
     },
     "check.query.6": {
-      "text": "each workstream the query names is one a live card lists",
+      "text": "each named workstream is one the workbench carries or a live card lists",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
@@ -374,6 +434,26 @@
     "check.release.2": {
       "text": "whoever asks holds the card",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
+    "check.rename.1": {
+      "text": "the reference resolves to an attachment",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.3": {
+      "text": "the name is non-empty after trimming",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.4": {
+      "text": "the name carries no slash, back slash, or dot-dot",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.show.1": {
@@ -434,6 +514,26 @@
     "check.torn-journal": {
       "text": "the journal of card {detail} ends in a partial line",
       "context": "A check finding: a torn journal tail left by a crash.",
+      "skeleton": true
+    },
+    "check.tree.1": {
+      "text": "every axis named is one this tool groups on",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.tree.2": {
+      "text": "no axis is named twice",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.tree.3": {
+      "text": "the chain names at most four axes",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.tree.4": {
+      "text": "the depth level is one this command declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.unblock.1": {
@@ -521,6 +621,81 @@
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
       "skeleton": true
     },
+    "check.workstream-adopted.one": {
+      "text": "Adopted {count} workstream.",
+      "context": "The line the adoption repair prints for what it created, for exactly one workstream. Followed by one line per adopted identifier.",
+      "skeleton": true
+    },
+    "check.workstream-adopted.other": {
+      "text": "Adopted {count} workstreams.",
+      "context": "The line the adoption repair prints for what it created, for any other number. Followed by one line per adopted identifier.",
+      "skeleton": true
+    },
+    "check.workstream-field.1": {
+      "text": "the workstream exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.2": {
+      "text": "the field is one this workstream records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.3": {
+      "text": "the title or value is present and well formed",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.4": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.5": {
+      "text": "a write to a field is made by the operator",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-field.6": {
+      "text": "a slug change carries the confirmation flag",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.workstream-slug-assigned.one": {
+      "text": "Assigned {count} workstream slug.",
+      "context": "The line the slug migration prints for the workstreams it repaired, for exactly one workstream.",
+      "skeleton": true
+    },
+    "check.workstream-slug-assigned.other": {
+      "text": "Assigned {count} workstream slugs.",
+      "context": "The line the slug migration prints for the workstreams it repaired, for any other number.",
+      "skeleton": true
+    },
+    "check.workstream-slug-duplicate": {
+      "text": "workstream {detail} carries a slug another workstream of this workbench also carries, so a reference to it names both",
+      "context": "A check finding: two workstreams share a slug, which leaves a reference with two answers; a person picks which one changes.",
+      "skeleton": true
+    },
+    "check.workstream-slug-malformed": {
+      "text": "workstream {detail} carries a slug that is not a letter followed by letters, digits, and single interior dashes",
+      "context": "A check finding: a workstream's stored slug does not match the slug grammar, so nobody can rely on typing it.",
+      "skeleton": true
+    },
+    "check.workstream-slug-missing": {
+      "text": "workstream {detail} carries no slug, so it is reachable only by its identifier",
+      "context": "A check finding: a workstream carrying no slug, which is what an adopted workstream and a hand-written one both start as; `dinah check --migrate-slugs` derives one from the title.",
+      "skeleton": true
+    },
+    "check.workstream-slug-underivable": {
+      "text": "workstream {detail} carries a title no slug can be derived from, so the migration gave it none",
+      "context": "A check finding the slug migration raises: no letter of the workstream's title survives the derivation, or it carries no title at all, so a person names it and runs the migration again.",
+      "skeleton": true
+    },
+    "check.workstream-slug-unwritable": {
+      "text": "workstream {detail} could not be written to, so the migration gave it no slug and carried on",
+      "context": "A check finding the slug migration raises: the workstream's anchor could not be read or written, the walk stepped over it and carried on.",
+      "skeleton": true
+    },
     "cmd.add.summary": {
       "text": "file a new card in the first state",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block.",
@@ -529,6 +704,11 @@
     "cmd.archive.summary": {
       "text": "move a card, a state, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.rename.summary": {
+      "text": "rename an attachment",
+      "context": "The one-line summary of the rename command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.attach.summary": {
@@ -564,6 +744,11 @@
     "cmd.config.summary": {
       "text": "list your user settings, or read or write one",
       "context": "The one-line summary of the config command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.contents.summary": {
+      "text": "what an entity of the workbench contains",
+      "context": "The one-line summary of the contents command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.delete.summary": {
@@ -606,6 +791,16 @@
       "context": "The one-line summary of the instructions command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.join.summary": {
+      "text": "add a card to a workstream",
+      "context": "The one-line summary of the join command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.leave.summary": {
+      "text": "take a card out of a workstream",
+      "context": "The one-line summary of the leave command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.log.summary": {
       "text": "the recorded actions of a card, oldest first",
       "context": "The one-line summary of the log command, shown beside its syntax in the help block.",
@@ -617,7 +812,7 @@
       "skeleton": true
     },
     "cmd.mcp.summary": {
-      "text": "serve this workbench over MCP on stdio",
+      "text": "serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block.",
       "skeleton": true
     },
@@ -661,6 +856,11 @@
       "context": "The one-line summary of the status command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.tree.summary": {
+      "text": "the workbench's cards nested along a chain of axes",
+      "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "cmd.unblock.summary": {
       "text": "lift a block (operator only)",
       "context": "The one-line summary of the unblock command, shown beside its syntax in the help block.",
@@ -686,6 +886,11 @@
       "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
       "skeleton": true
     },
+    "cmd.workstream.summary": {
+      "text": "read this workbench's workstreams, create one, or write one's fields",
+      "context": "The one-line summary of the workstream command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "column.arguments.argument": {
       "text": "As you write it",
       "context": "Heading over how each argument is spelled, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
@@ -694,6 +899,21 @@
     "column.arguments.what": {
       "text": "What it is",
       "context": "Heading over what each argument means, in the arguments table one command's help page prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "skeleton": true
+    },
+    "column.attachments.position": {
+      "text": "#",
+      "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.attachments.filename": {
+      "text": "File",
+      "context": "Heading over the attachment's current filename, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.attachments.description": {
+      "text": "Description",
+      "context": "Heading over the optional prose the attachment carries, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.blocked.card": {
@@ -773,17 +993,17 @@
     },
     "column.help.check": {
       "text": "What can go wrong",
-      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over what has to hold before the command acts, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.help.order": {
       "text": "Order",
-      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over where the check sits in the order the checks run, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.help.refusal": {
       "text": "Refusal",
-      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help \u003ccommand\u003e` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the refusal name the command answers with when the check does not hold, in the precondition list `dinah help <command>` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.holding.card": {
@@ -926,6 +1146,31 @@
       "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
+    "column.tree.count": {
+      "text": "Count",
+      "context": "Heading over how many subjects a node accounts for. A card row under `dinah tree` carries nothing here, since a card is one card. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.entity": {
+      "text": "Entity",
+      "context": "Heading over what a node is: an entity kind on an entity row, and the axis the group gathered on a group row. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.hidden": {
+      "text": "Not shown",
+      "context": "Heading over what a node is holding back. The whole column is dropped when no row fills it. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.reference": {
+      "text": "Reference",
+      "context": "Heading over what a person types to reach a node, in the tree both `dinah tree` and `dinah contents` print. On a group row the cell carries the value the group gathered at, which nothing addresses, and the Entity cell beside it says so. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.tree.title": {
+      "text": "Title",
+      "context": "Heading over an entity's own title in the tree both tree commands print. A group row carries nothing here. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
     "column.workbench.field": {
       "text": "Field",
       "context": "Heading over the field's name, in the fields `dinah workbench` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
@@ -949,6 +1194,61 @@
     "column.workbenches.workbench": {
       "text": "Workbench",
       "context": "Heading over the workbench's title, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.card": {
+      "text": "Card",
+      "context": "Heading over the card's reference, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.field": {
+      "text": "Field",
+      "context": "Heading over the field's name, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.state": {
+      "text": "State",
+      "context": "Heading over the state the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.title": {
+      "text": "Title",
+      "context": "Heading over the card's title, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstream.value": {
+      "text": "Value",
+      "context": "Heading over the value stored under it, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.cards": {
+      "text": "Cards",
+      "context": "Heading over how many live cards belong to the workstream, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.name": {
+      "text": "Name",
+      "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.slug": {
+      "text": "Slug",
+      "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.workstreams.status": {
+      "text": "Status",
+      "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "contents.empty": {
+      "text": "{title} ({ref}) contains nothing.",
+      "context": "Printed when `dinah contents` is asked about an entity with nothing below it. No table follows, and the call succeeds: an entity that contains nothing is an answer rather than a mistake.",
+      "skeleton": true
+    },
+    "contents.header": {
+      "text": "{title} ({ref}) contains {count} entities.",
+      "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn.",
       "skeleton": true
     },
     "extract.done": {
@@ -981,13 +1281,18 @@
       "context": "The one-line summary of the global flag --workbench.",
       "skeleton": true
     },
+    "guide.reading": {
+      "text": "The guides stand in the order Dinah recommends reading them.",
+      "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language.",
+      "skeleton": true
+    },
     "help.arguments": {
       "text": "What you may write:",
       "context": "Heading over the arguments table of one command's help page, which says how each argument is spelled and what it is.",
       "skeleton": true
     },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR",
+      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
       "skeleton": true
     },
@@ -1002,7 +1307,7 @@
       "skeleton": true
     },
     "help.footer": {
-      "text": "Run 'dinah help \u003ccommand\u003e' for one command's arguments, what can go wrong, and its exit codes.",
+      "text": "Run 'dinah help <command>' for one command's arguments, what can go wrong, and its exit codes.",
       "context": "The last line of the help block, pointing at the per-command help.",
       "skeleton": true
     },
@@ -1047,7 +1352,7 @@
       "skeleton": true
     },
     "help.usage": {
-      "text": "Usage: dinah \u003ccommand\u003e [arguments]",
+      "text": "Usage: dinah <command> [arguments]",
       "context": "The usage line. The word dinah and the bracketed placeholders are syntax and stay as they are.",
       "skeleton": true
     },
@@ -1057,12 +1362,12 @@
       "skeleton": true
     },
     "init.actor.recorded": {
-      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor \u003cname\u003e` to change it, or `dinah config set actor` to clear it.",
+      "text": "Dinah recorded you as actor {actor} in {path}, and will record that name on everything you do. Run `dinah config set actor <name>` to change it, or `dinah config set actor` to clear it.",
       "context": "Printed after init records the actor in the person's own configuration. Dinah records it only when no flag, variable or setting already named an actor. {actor} is the name recorded and {path} is the file it was written to. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is.",
       "skeleton": true
     },
     "init.actor.unrecorded": {
-      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor \u003cname\u003e` to say who you are.",
+      "text": "Dinah created the workbench but could not record you as actor in {path} ({reason}). Run `dinah config set actor <name>` to say who you are.",
       "context": "Printed after init creates the workbench and then fails to write the person's own configuration. The workbench exists, so this is a report rather than a refusal and carries no refusal name. {path} is the file Dinah tried to write and {reason} is the cause, which arrives in English from the operating system. The word Dinah names the product and stays in Latin script; do not respell it. The command text is typed literally and stays as it is.",
       "skeleton": true
     },
@@ -1089,6 +1394,11 @@
     "instructions.state": {
       "text": "Instructions, this state:",
       "context": "The label above the state's own instructions.",
+      "skeleton": true
+    },
+    "log.attachment-renamed": {
+      "text": "{from} to {to}",
+      "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "skeleton": true
     },
     "log.moved": {
@@ -1191,6 +1501,11 @@
       "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.check.migrate-workstreams.summary": {
+      "text": "adopt every workstream a card names that this workbench does not carry",
+      "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.claim.card.summary": {
       "text": "the card you are taking up",
       "context": "The meaning of the card argument of `dinah claim`, printed in that command's arguments table.",
@@ -1221,8 +1536,18 @@
       "context": "The meaning of the value argument of `dinah config`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.contents.depth.summary": {
+      "text": "how far down to draw, written as root, cards, entities, or all; entities when you name none",
+      "context": "The meaning of the depth argument of `dinah contents`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.contents.ref.summary": {
+      "text": "this workbench written as `workbench` or `.`, a state, a card, or something below a card such as wb-1/comments/1",
+      "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
+      "skeleton": true
+    },
     "param.edit.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a state, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1272,7 +1597,7 @@
       "skeleton": true
     },
     "param.ls.state.summary": {
-      "text": "which state to list, also written --state \u003cstate\u003e; every state when you name none",
+      "text": "which state to list, also written --state <state>; every state when you name none",
       "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1282,17 +1607,17 @@
       "skeleton": true
     },
     "param.move.state.summary": {
-      "text": "which state to carry the card to, also written --state \u003cstate\u003e",
+      "text": "which state to carry the card to, also written --state <state>",
       "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.next.state.summary": {
-      "text": "which state to offer a card from, also written --state \u003cstate\u003e; every state when you name none",
+      "text": "which state to offer a card from, also written --state <state>; every state when you name none",
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.path.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a state, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1307,8 +1632,23 @@
       "skeleton": true
     },
     "param.show.card.summary": {
-      "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
+      "text": "a state, a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.tree.depth.summary": {
+      "text": "how far down to draw, written as root, groups, or cards; cards when you name none",
+      "context": "The meaning of the depth argument of `dinah tree`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.tree.group-by.summary": {
+      "text": "the axes to nest along, outermost first, up to four of them separated by commas; state,substate when you name none",
+      "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated.",
+      "skeleton": true
+    },
+    "param.tree.query.summary": {
+      "text": "which cards to nest, written as a query in one shell word or in quotation marks; every live card when you write none",
+      "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
       "skeleton": true
     },
     "param.version.catalogs.summary": {
@@ -1329,6 +1669,31 @@
     "param.workbench.value.summary": {
       "text": "what to store in it, on a set",
       "context": "The meaning of the value argument of `dinah workbench`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.action.summary": {
+      "text": "create a workstream, read one, or write one of its fields; every workstream when you name none",
+      "context": "The meaning of the action argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.field.summary": {
+      "text": "which field you are reading or writing",
+      "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.summary": {
+      "text": "the workstream you are naming, written as its slug or its identifier",
+      "context": "The meaning of the workstream argument, shared by the commands that name one.",
+      "skeleton": true
+    },
+    "param.workstream.value.summary": {
+      "text": "what to store in it, on a set",
+      "context": "The meaning of the value argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.workstream.workstream.summary": {
+      "text": "the workstream you are reading or writing, or the title of the one you are creating",
+      "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.yes.summary": {
@@ -1367,7 +1732,7 @@
       "skeleton": true
     },
     "refusal.dinah.add-needs-a-state.next": {
-      "text": "; hand-edit {detail} to add a state to the states list and create its states/\u003cid\u003e/state.md, then run `dinah check` to confirm before trying `dinah add` again",
+      "text": "; hand-edit {detail} to add a state to the states list and create its states/<id>/state.md, then run `dinah check` to confirm before trying `dinah add` again",
       "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
       "skeleton": true
     },
@@ -1377,8 +1742,28 @@
       "skeleton": true
     },
     "refusal.dinah.ambiguous-workbench.next": {
-      "text": "choose one with --workbench \u003cdir\u003e, or run from inside it",
+      "text": "choose one with --workbench <dir>, or run from inside it",
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
+      "skeleton": true
+    },
+    "refusal.dinah.ambiguous-name": {
+      "text": "{ordinals} on this card all answer to {selector}",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward.",
+      "skeleton": true
+    },
+    "refusal.dinah.ambiguous-name.next": {
+      "text": "name one as attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.chain-too-long": {
+      "text": "A group-by chain nests along at most {allowed} axes, and this one names {asked}.",
+      "context": "The sentence printed after the refusal name dinah.chain-too-long. {asked} is how many axes the reader named and {allowed} how many the command takes. This sentence names no axis at all, because every axis in the chain may be a legal one. refusal.dinah.chain-too-long.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.chain-too-long.next": {
+      "text": " Shorten the chain, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.chain-too-long. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
     "refusal.dinah.exists": {
@@ -1447,7 +1832,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-configured-workbench.next": {
-      "text": "; run `dinah config set workbench \u003cdir\u003e` to point it at one that exists, or `dinah config set workbench` to clear it",
+      "text": "; run `dinah config set workbench <dir>` to point it at one that exists, or `dinah config set workbench` to clear it",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -1463,22 +1848,32 @@
     },
     "refusal.dinah.no-workbench": {
       "text": "{detail} was named by --workbench, and it carries no workbench.md",
-      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH.",
+      "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found": {
       "text": "no workbench was found walking up from {detail}, or in the user base at {home}",
-      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from, and {home} is the user base it fell back to.",
+      "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from or the directory the MCP server started in, and {home} is the user base it fell back to.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; run `dinah init` here to create one, or pass --workbench \u003cdir\u003e to point at one that exists",
+      "text": "; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench.next": {
       "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-renamable": {
+      "text": "{kind} is not an attachment and rename will not change its name",
+      "context": "The sentence printed after the refusal name dinah.not-renamable. {kind} names what kind of entity the reference reached, so the sentence names the entity the caller meant rather than the word they typed.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-renamable.next": {
+      "text": "; pass an attachment ref such as <card>/attachments/<ordinal>",
+      "context": "Spliced onto refusal.dinah.not-renamable as the next step, naming the form the reference has to take to land on an attachment.",
       "skeleton": true
     },
     "refusal.dinah.occupied": {
@@ -1491,6 +1886,16 @@
       "context": "Spliced onto refusal.dinah.occupied as the next step.",
       "skeleton": true
     },
+    "refusal.dinah.referenced": {
+      "text": "cards still belong to workstream {detail}",
+      "context": "The sentence printed after the refusal name dinah.referenced. {detail} carries the workstream the caller named.",
+      "skeleton": true
+    },
+    "refusal.dinah.referenced.next": {
+      "text": "; take them out with `dinah leave` first, or archive the workstream instead",
+      "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal.",
+      "skeleton": true
+    },
     "refusal.dinah.repair-would-empty-states": {
       "text": "{detail} names every state left in the workbench, and each one's directory is missing. Removing them would leave the workbench with no state at all, so dinah check --migrate-states refuses.",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list.",
@@ -1499,6 +1904,16 @@
     "refusal.dinah.repair-would-empty-states.next": {
       "text": " Hand-edit the workbench's states list to add a state, or restore one of the missing directories, then run dinah check --migrate-states again.",
       "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.repeated-axis": {
+      "text": "A group-by chain names each axis once, and this one names {detail} twice.",
+      "context": "The sentence printed after the refusal name dinah.repeated-axis. {detail} is the axis the reader typed twice. This sentence lists no axes, because the one it names is already a legal one and listing them would say so twice. refusal.dinah.repeated-axis.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.repeated-axis.next": {
+      "text": " Remove the repeat, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
     "refusal.dinah.unconfirmed": {
@@ -1521,6 +1936,26 @@
       "context": "Spliced onto refusal.dinah.unconfirmed.workbench as its next step, carrying the sentence that base entry used to end with. The workbench command renders it; every other command renders refusal.dinah.unconfirmed.next.",
       "skeleton": true
     },
+    "refusal.dinah.unconfirmed.workstream": {
+      "text": "Every reference to this workstream that you have written down elsewhere names the old slug, and changing it to {detail} stops those references matching.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed when the workstream command raised it. {detail} carries the new slug the change would write. A command adding no key of its own renders refusal.dinah.unconfirmed instead.",
+      "skeleton": true
+    },
+    "refusal.dinah.unconfirmed.workstream.next": {
+      "text": " Run the command again with --yes.",
+      "context": "Spliced onto refusal.dinah.unconfirmed.workstream as its next step. The workstream command renders it; every other command renders refusal.dinah.unconfirmed.next.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-axis": {
+      "text": "Dinah does not group on {detail}. The axes a tree may nest along are: {axes}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-axis, which a group-by chain naming a word this tool does not group on carries. {detail} is the word the reader typed. {axes} is the list of legal axis names, read off the tool's own table rather than written here, so an axis name is machine vocabulary and is never translated. refusal.dinah.unknown-axis.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-axis.next": {
+      "text": " Name one of those instead, or run `dinah help tree` to see what the command checks.",
+      "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-command": {
       "text": "Dinah offers no command called {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
@@ -1529,6 +1964,16 @@
     "refusal.dinah.unknown-command.next": {
       "text": "; run `dinah help` for the list of commands, grouped by what they do",
       "context": "Spliced onto refusal.dinah.unknown-command as the next step. This refusal prints no listing, so the clause points at the grouped listing dinah help already prints.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-depth": {
+      "text": "Dinah has no depth level {detail} for this command. The levels it takes are: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-depth. {detail} is the level the reader typed. {levels} is the ladder of the command that refused rather than the union of both ladders, read off the tool's own table, so a level name is machine vocabulary and is never translated. refusal.dinah.unknown-depth.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-depth.next": {
+      "text": " Name one of those instead, or run `dinah help` on the command to see what it checks.",
+      "context": "The next step of refusal.dinah.unknown-depth. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
     "refusal.dinah.unknown-field": {
@@ -1542,7 +1987,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-field.ordered": {
-      "text": " Only {instantField} accepts \u003e=, \u003c=, \u003e and \u003c.",
+      "text": " Only {instantField} accepts >=, <=, > and <.",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are.",
       "skeleton": true
     },
@@ -1552,7 +1997,7 @@
       "skeleton": true
     },
     "refusal.dinah.unknown-guide.next": {
-      "text": "run `dinah guide \u003ctopic\u003e` with one of them",
+      "text": "run `dinah guide <topic>` with one of them",
       "context": "Printed under the topics refusal.dinah.unknown-guide lists, on its own line and with no leading punctuation.",
       "skeleton": true
     },
@@ -1574,6 +2019,11 @@
     "refusal.dinah.unknown-path.next": {
       "text": "; run `dinah ls` to see what this workbench carries",
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal names no file, which is the reader who typed something the workbench does not answer to.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-path.next-addressed": {
+      "text": "; a {addressed} is named by its own reference rather than through whatever holds it",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a state through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or state, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
       "skeleton": true
     },
     "refusal.dinah.unknown-path.next-file": {
@@ -1604,6 +2054,16 @@
     "refusal.dinah.unknown-value.none": {
       "text": " Nothing in this workbench carries a value for {field}.",
       "context": "Spliced onto refusal.dinah.unknown-value when the field's vocabulary is read from the cards and no card carries one. {field} is machine vocabulary and is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-workstream": {
+      "text": "this workbench carries no workstream {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-workstream. {detail} carries the reference the caller typed.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-workstream.next": {
+      "text": "; run `dinah workstream` to see the workstreams this workbench carries",
+      "context": "Spliced onto refusal.dinah.unknown-workstream as the next step.",
       "skeleton": true
     },
     "refusal.dinah.unreadable-workbench": {
@@ -1712,7 +2172,7 @@
       "skeleton": true
     },
     "refusal.no-owner.next": {
-      "text": "; run `dinah config set actor \u003cname\u003e` to say so",
+      "text": "; run `dinah config set actor <name>` to say so",
       "context": "Spliced onto refusal.no-owner as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -1831,6 +2291,11 @@
       "context": "The description of the basis property, which every generated machine schema carries and no command declares.",
       "skeleton": true
     },
+    "show.attachments": {
+      "text": "Attachments:",
+      "context": "The label above a card's attachments, printed between the links block and the comments block.",
+      "skeleton": true
+    },
     "show.comments": {
       "text": "Comments:",
       "context": "The label above a card's comments.",
@@ -1864,6 +2329,11 @@
     "slot.value": {
       "text": "the value",
       "context": "Names the free-text slot of `config set` and of `workbench set` inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "skeleton": true
+    },
+    "slot.name": {
+      "text": "the name",
+      "context": "Names rename's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
       "skeleton": true
     },
     "slug.missing": {
@@ -1924,6 +2394,11 @@
     "token.attachment_replaced": {
       "text": "attachment replaced",
       "context": "How the canonical token attachment_replaced is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
+    "token.attachment_renamed": {
+      "text": "attachment renamed",
+      "context": "How the canonical token attachment_renamed is rendered where a person reads it. The machine surface always carries the canonical spelling.",
       "skeleton": true
     },
     "token.backward": {
@@ -2071,6 +2546,56 @@
       "context": "The word a person reads for the workbench_updated journal event.",
       "skeleton": true
     },
+    "token.workstream_joined": {
+      "text": "joined",
+      "context": "The word a person reads for the workstream_joined journal event, which records a card entering a workstream.",
+      "skeleton": true
+    },
+    "token.workstream_left": {
+      "text": "left",
+      "context": "The word a person reads for the workstream_left journal event, which records a card leaving a workstream.",
+      "skeleton": true
+    },
+    "token.workstream_updated": {
+      "text": "workstream updated",
+      "context": "The word a person reads for the workstream_updated journal event.",
+      "skeleton": true
+    },
+    "tree.empty": {
+      "text": "No cards here.",
+      "context": "Printed when a tree has no card in it at all, so nothing is drawn beneath the sentence above it.",
+      "skeleton": true
+    },
+    "tree.header": {
+      "text": "{title} ({ref}) holds {count} cards.",
+      "context": "The sentence above the tree `dinah tree` prints, naming the workbench the tree was built from. {title} is the workbench's title, {ref} its slug, and {count} how many cards it holds. The table starts at this node's children, so no row repeats it.",
+      "skeleton": true
+    },
+    "tree.header.filtered": {
+      "text": "{title} ({ref}) holds {held} cards, of which {matched} match the query.",
+      "context": "The sentence above the tree `dinah tree` prints when a query narrowed it. {held} is how many cards the workbench holds and {matched} how many the query selected, so the two numbers are always the larger and then the smaller.",
+      "skeleton": true
+    },
+    "tree.hidden.depth": {
+      "text": "{count} not shown",
+      "context": "The Not shown cell on a node whose own children the depth did not draw. {count} is how many of its direct children were left out, which is not the same number as the subjects those children hold; the Count column beside it already carries those.",
+      "skeleton": true
+    },
+    "tree.hidden.filter": {
+      "text": "{count} filtered out",
+      "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out.",
+      "skeleton": true
+    },
+    "tree.hidden.join": {
+      "text": "{first}, {second}",
+      "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
+      "skeleton": true
+    },
+    "tree.unset": {
+      "text": "(no value)",
+      "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at.",
+      "skeleton": true
+    },
     "version.catalogs": {
       "text": "Catalogs:",
       "context": "The label above the shipped locales and their coverage.",
@@ -2114,6 +2639,81 @@
     "workbenches.empty": {
       "text": "no workbench is reachable from here",
       "context": "Printed by the workbenches command when the search reaches none.",
+      "skeleton": true
+    },
+    "workstream.line": {
+      "text": "{ref}  {title}  [{status}]",
+      "context": "The one line printed about a workstream after it is created or one of its fields is written. {ref} is what a person types to reach it, {status} is the value stored under status.",
+      "skeleton": true
+    },
+    "workstreams.empty": {
+      "text": "this workbench carries no workstream",
+      "context": "Printed by the workstream command when the workbench carries none, in place of an empty table.",
+      "skeleton": true
+    },
+    "check.mcp.1": {
+      "text": "the directory --root names is one the filesystem carries",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
+      "skeleton": true
+    },
+    "check.mcp.2": {
+      "text": "the workbench you name lies under the root",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root.",
+      "skeleton": true
+    },
+    "tool.workbenches.summary": {
+      "text": "the workbenches this server may serve",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root.",
+      "skeleton": true
+    },
+    "mcp.reach": {
+      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title.",
+      "skeleton": true
+    },
+    "mcp.reach.nodefault": {
+      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named.",
+      "skeleton": true
+    },
+    "mcp.no-default": {
+      "text": "no default workbench: {detail}",
+      "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer.",
+      "skeleton": true
+    },
+    "refusal.dinah.outside-root": {
+      "text": "{detail} lies outside {root}, the root the server was started with",
+      "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named.",
+      "skeleton": true
+    },
+    "refusal.dinah.outside-root.next": {
+      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-root": {
+      "text": "{detail} is not a directory the filesystem carries",
+      "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-root.next": {
+      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal.",
+      "skeleton": true
+    },
+    "schema.workbench.description": {
+      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
+      "skeleton": true
+    },
+    "param.mcp.root.summary": {
+      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.rename.name.summary": {
+      "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
+      "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table.",
       "skeleton": true
     }
   }

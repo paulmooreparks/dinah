@@ -3,47 +3,86 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>]          file a new card in the first state
-  claim <card> [--expires <duration>]    take up a ready card
-  move <card> <state> [--override]       carry a card to another state
-  release <card>                         give the card back to its queue
-  block <card> <reason> [--kind <kind>]  raise an obstacle and free the card
-  unblock <card>                         lift a block (operator only)
-  comment <card> <text|->                record a comment on a card
-  attach <ref> <file> [--description <text>] [--replace]
-                                         attach a file, or replace its bytes
-  archive <ref>                          move a card, a state, or anything below a card, out of the live set
-  delete <ref> --yes                     destroy a card, a state, or anything below a card, along with its history
+  add <title> [--state <state>]             file a new card in the first state
+  claim <card> [--expires <duration>]       take up a ready card
+  move <card> <state> [--override]          carry a card to another state
+  release <card>                            give the card back to its queue
+  block <card> <reason> [--kind <kind>]     raise an obstacle and free the card
+  unblock <card>                            lift a block (operator only)
+  comment <card> <text|->                   record a comment on a card
+  attach                                    attach a file, or replace its bytes
+    <ref>
+    <file>
+    [--description <text>]
+    [--replace]
+  join <card> <workstream>                  add a card to a workstream
+  leave <card> <workstream>                 take a card out of a workstream
+  archive <ref>                             move a card, a state, or anything
+                                            below a card, out of the live set
+  delete <ref> --yes                        destroy a card, a state, or anything
+                                            below a card, along with its history
+  rename <ref> <name>                       rename an attachment
 
 READ
-  status                                 where this workbench stands, and what you hold
-  states                                 the flow, in order
-  ls [state] [--ready]                   the cards of a state, in queue order
-  next [state]                           the card a state offers next
-  query [query]                          the cards of the workbench that match a query
-  show <ref>                             a card, or anything below it
-  log <card>                             the recorded actions of a card, oldest first
-  instructions <card|state>              the instructions served at a position
-  guide [topic]                          the embedded guides, or one of them
+  status                                    where this workbench stands, and
+                                            what you hold
+  states                                    the flow, in order
+  ls [state] [--ready]                      the cards of a state, in queue order
+  next [state]                              the card a state offers next
+  query [query]                             the cards of the workbench that
+                                            match a query
+  tree [query]                              the workbench's cards nested along a
+    [--group-by <axes>]
+    [--depth <level>]
+                                            chain of axes
+  contents <ref> [--depth <level>]          what an entity of the workbench
+                                            contains
+  show <ref>                                a card, or anything below it
+  log <card>                                the recorded actions of a card,
+                                            oldest first
+  instructions <card|state>                 the instructions served at a
+                                            position
+  guide [topic]                             the embedded guides, or one of them
 
 WORKBENCH
-  init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]
-                                         create a workbench here, optionally from a template
-  export                                 write this workbench's interchange form to stdout
-  extract <dir>                          copy this workbench's definition out as a template
-  path <ref>                             print the file path of this workbench, of a card, or of anything below a card
-  edit <ref>                             open this workbench, a card, or anything below a card in your editor
-  config [get|set] [key] [value]         list your user settings, or read or write one
-  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states]
-                                         look for structural defects in this workbench
-  whoami                                 the actor your actions carry, and whether it is the operator
-  workbench [get|set] [field] [value] [--yes]
-                                         read this workbench's own fields, or write one
-  workbenches                            the workbenches reachable from here
-  version [--catalogs]                   what Dinah is and what it conforms to
+  init [dir]                                create a workbench here, optionally
+    [--from <source>]
+    [--slug <slug>]
+    [--operator <actor>]
+                                            from a template
+  export                                    write this workbench's interchange
+                                            form to stdout
+  extract <dir>                             copy this workbench's definition out
+                                            as a template
+  path <ref>                                print the file path of this
+                                            workbench, of a card, or of anything
+                                            below a card
+  edit <ref>                                open this workbench, a card, or
+                                            anything below a card in your editor
+  config [get|set] [key] [value]            list your user settings, or read or
+                                            write one
+  check                                     look for structural defects in this
+    [--finish]
+    [--migrate-ordinals]
+    [--migrate-slugs]
+    [--migrate-states]
+    [--migrate-workstreams]
+                                            workbench
+  whoami                                    the actor your actions carry, and
+                                            whether it is the operator
+  workbench [get|set] [field] [value]       read this workbench's own fields, or
+    [--yes]
+                                            write one
+  workstream [new|get|set]                  read this workbench's workstreams,
+    [workstream|title] [field] [value]
+    [--yes]
+                                            create one, or write one's fields
+  workbenches                               the workbenches reachable from here
+  version [--catalogs]                      what Dinah is and what it conforms
+                                            to
 
 SERVE
-  mcp                                    serve this workbench over MCP on stdio
+  mcp [--root <dir>]                        serve workbenches over MCP on stdio
 
 Global flags:
   Option             What it does
@@ -54,7 +93,7 @@ Global flags:
   --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
   --actor <name>     act as this owner
 
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, VISUAL, EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 

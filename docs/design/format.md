@@ -124,7 +124,7 @@ asked.
         <12-hex>/
           attachment.md     # anchor: filename, description, provenance
           payload/
-            <payload file>  # the bytes, under their original filename
+            <payload file>  # the bytes, under their current filename
   archive/
     cards/<12-hex>/...      # archived cards, on-demand only
 ```
@@ -526,9 +526,9 @@ Ordering comes from the ordinal field, not from the timestamp and not from
 the directory name.
 
 An attachment is likewise an entity: a hex directory whose anchor,
-`attachment.md`, records the original filename, a description, provenance,
+`attachment.md`, records the current filename, a description, provenance,
 and a creation ordinal, beside a `payload/` directory holding exactly one
-file carrying the bytes under their original name. The payload directory is
+file carrying the bytes under their current name. The payload directory is
 what makes the payload structurally identified: a stray file beside the
 anchor is unambiguously garbage rather than a candidate payload, and the
 payload's namespace contains no reserved names, so filename collisions
@@ -538,12 +538,20 @@ entity around it is what makes the attachment referenceable, replaceable
 accountably, and archivable. Any entity may carry an `attachments/`
 collection: the workbench itself (reference documents that belong to the
 board rather than to any card), a state, a card, a comment. Replacing a
-payload is a journaled act (attached, attachment_replaced, and
-attachment_removed are registry members of the closed event set, carrying
-the attachment id and its filename as of the event), recorded in the
-nearest enclosing journal per the History section; prior payload versions
-are git's concern when the workbench is versioned, per the content plane's
-integrity assignment. A multi-file deliverable is multiple attachments.
+payload is a journaled act (attached, attachment_replaced,
+attachment_renamed, and attachment_removed are registry members of the
+closed event set, carrying the attachment id and its filename as of the
+event), recorded in the nearest enclosing journal per the History section;
+prior payload versions are git's concern when the workbench is versioned,
+per the content plane's integrity assignment. A multi-file deliverable is
+multiple attachments.
+
+The current filename a reader derives from the journal alone is the
+filename in the most recent attachment event for that attachment. The
+`attached` event holds the name the file arrived under, and a subsequent
+`attachment_renamed` event carries the new name in `filename` and the
+previous one in `from`, so reading the journal line by line gives one
+answer across the attachment family.
 
 Attachments may be organized into folders, and a folder is itself an
 entity, by the taxonomy's own tests: it has identity that survives
@@ -795,13 +803,46 @@ future "should this be configurable?" argument.
 
 ## Workstreams
 
-A workstream is an entity: `workstreams/<12-hex>/workstream.md`, with title
-and status in frontmatter and long-form notes as the body. Membership is
-card-owned, a `workstreams:` list of ids in card frontmatter, by the same
-single-writer logic as position: deleting a card removes its memberships
-with it, deleting a workstream that cards still reference is refused, and
-check catches danglers. Archiving a workstream moves its directory to
-`archive/workstreams/<id>/` like any other entity.
+A workstream is an entity: `workstreams/<12-hex>/workstream.md`, with title,
+slug, status, and the creation ordinal in frontmatter and long-form notes as
+the body. Membership is card-owned, a `workstreams:` list of ids in card
+frontmatter, by the same single-writer logic as position: deleting a card
+removes its memberships with it, deleting a workstream that cards still
+reference is refused, and check catches danglers. The cards that refusal
+counts are the live half of the collection, the half check itself walks, so a
+workstream only archived cards list is deleted and each of those cards keeps a
+membership that resolves to nothing. Archiving a workstream moves its
+directory to `archive/workstreams/<id>/` like any other entity, and it is
+allowed while cards still belong to it, because archiving a finished effort is
+the ordinary case and an archived workstream still resolves.
+
+The slug follows the state slug's grammar rather than the workbench slug's. A
+workbench slug excludes a final segment of digits alone, because a card
+reference splits at its last dash; nothing rides after a workstream reference,
+so a workstream may be slugged `phase-2`. A reference resolves against the
+identifier first and the slug second, and never against the title.
+
+A slug is not enforced unique on a write. Creating a workstream resolves a
+collision by counting up, and renaming one to a slug another workstream already
+carries is accepted, so a reference that either would answer to resolves to the
+earlier of the two. Check raises one finding over the pair, never two, and it
+names the later of the two by creation order, which is the workstream a
+reference no longer reaches. The sentence it prints says another workstream of
+this workbench carries the same slug, so a person is told which workstream
+stopped answering to the name, and that one is what a repair renames or leaves
+reachable by its identifier alone.
+
+The status is an open value by this document's own test. Dinah writes `active`
+at creation and accepts any non-empty value afterwards, and nothing in the
+tool refuses, orders, counts, or routes anything on one.
+
+A workstream is journal-bearing. Its own journal records `created` at birth,
+`workstream_updated` on a write to one of its fields, carrying `field`, `from`,
+and `to` as `workbench_updated` does, and `archived` when it is archived. A
+card's journal records the membership events, `workstream_joined` and
+`workstream_left`, each carrying the workstream's identifier in `workstream`.
+A deletion is recorded on the workbench's journal, because the act destroys
+the journal inside the directory it removes.
 
 The real use case is within-workbench grouping of concurrent efforts
 (several concepts flowing through one concept workbench at once), which is

@@ -9,7 +9,6 @@ package guide
 import (
 	"embed"
 	"path"
-	"sort"
 	"strings"
 
 	"dinah/internal/contract"
@@ -18,18 +17,43 @@ import (
 //go:embed guides/*.md
 var guides embed.FS
 
-// Topics lists the embedded guides by topic, sorted.
+// reading is the order Dinah recommends the guides be read in, and every
+// surface that offers a list of them offers this one. A reader who has opened
+// no guide yet learns which one answers the question they arrived with from
+// the order alone, which alphabetical order cannot tell them.
+//
+// A topic embedded and not named here is served by nothing, and a topic named
+// here and not embedded is offered by nothing. The test in this package holds
+// the two sets equal in both directions, so a card adding a guide is told to
+// place it rather than finding it silently appended.
+var reading = []string{
+	"first-session",
+	"getting-started",
+	"verbs",
+	"references",
+	"query",
+	"workbench-layout",
+	"mcp",
+}
+
+// Topics lists the embedded guides by topic, in the order Dinah recommends
+// reading them.
 func Topics() []string {
 	entries, err := guides.ReadDir("guides")
 	if err != nil {
 		return nil
 	}
-	var topics []string
+	embedded := map[string]bool{}
 	for _, entry := range entries {
-		topic := strings.TrimSuffix(entry.Name(), ".md")
+		embedded[strings.TrimSuffix(entry.Name(), ".md")] = true
+	}
+	var topics []string
+	for _, topic := range reading {
+		if !embedded[topic] {
+			continue
+		}
 		topics = append(topics, topic)
 	}
-	sort.Strings(topics)
 	return topics
 }
 

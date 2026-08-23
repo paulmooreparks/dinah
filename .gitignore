@@ -3,3 +3,4 @@
 /bin/
 __pycache__/
 .claude/isolation-audit.jsonl
+/.dinah-gh-token

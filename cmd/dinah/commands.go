@@ -33,14 +33,19 @@ func init() {
 		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
 		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true},
 		{name: "attach", group: groupWork, run: runAttach, bounded: 2},
+		{name: "join", group: groupWork, run: runJoin, bounded: 2},
+		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
+		{name: "rename", group: groupWork, run: runRename, bounded: 2},
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "states", group: groupRead, run: runStates},
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
+		{name: "tree", group: groupRead, run: runTree, openTail: true},
+		{name: "contents", group: groupRead, run: runContents, bounded: 1},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		{name: "log", group: groupRead, run: runLog, bounded: 1},
 		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
@@ -61,6 +66,10 @@ func init() {
 		// it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkbench).
 		{name: "workbench", group: groupBench, run: runWorkbench, openTail: true},
+		// workstream dispatches on its own first word the way workbench does,
+		// so it declares an open tail here and runs its own arity and
+		// mistyped-flag checks (see runWorkstream).
+		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true},
 		{name: "workbenches", group: groupBench, run: runWorkbenches},
 		{name: "version", group: groupBench, run: runVersion},
 
@@ -87,6 +96,8 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateOrdinals: parsed.has("migrate-ordinals"),
 		MigrateSlugs:    parsed.has("migrate-slugs"),
 		MigrateStates:   parsed.has("migrate-states"),
+
+		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 	}
 	return req
 }
@@ -218,6 +229,21 @@ func runDelete(s *session, parsed *arguments) int {
 	})
 }
 
+// runRename carries an attachment's payload under a new filename.
+func runRename(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request("rename", parsed)
+	req.Ref = at(words, 0)
+	name, refusal := s.freeText([]string{"rename", req.Ref}, words[min(1, len(words)):], "slot.name")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Value = name
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Rename(req))
+	})
+}
+
 // runStatus reports where the bench stands and what the reader holds.
 func runStatus(s *session, parsed *arguments) int {
 	req := s.request("status", parsed)
@@ -313,6 +339,60 @@ func runQuery(s *session, parsed *arguments) int {
 	})
 }
 
+// runTree presents the workbench's cards nested along a chain of axes.
+//
+// The query is the command's free-text slot rather than a flag, so a caller
+// who types the terms unquoted meets the same refusal `dinah query` gives them
+// with the quoted line rebuilt.
+func runTree(s *session, parsed *arguments) int {
+	req := s.request("tree", parsed)
+	text, refusal := s.freeText([]string{"query"}, parsed.rest(), "slot.query")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.Query = text
+	chain := verb.ParseChain(parsed.value("group-by"))
+	level := depthOr(parsed, verb.LevelCards)
+	return s.withBench(func(l *verb.Library) int {
+		tree, err := l.Tree(req, chain, level)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(tree)
+		}
+		s.renderTree(tree)
+		return 0
+	})
+}
+
+// runContents walks the containment grammar down from any entity.
+func runContents(s *session, parsed *arguments) int {
+	req := s.request("contents", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	level := depthOr(parsed, verb.LevelEntities)
+	return s.withBench(func(l *verb.Library) int {
+		tree, err := l.Contents(req, level)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.json {
+			return s.emitJSON(tree)
+		}
+		s.renderTree(tree)
+		return 0
+	})
+}
+
+// depthOr reads the depth flag, falling back to the command's own default when
+// the caller named none.
+func depthOr(parsed *arguments, fallback string) string {
+	if level := parsed.value("depth"); level != "" {
+		return level
+	}
+	return fallback
+}
+
 // runShow reads a card, or anything below it.
 //
 // A bare invocation where several workbenches are reachable lists them instead
@@ -384,6 +464,8 @@ func runInstructions(s *session, parsed *arguments) int {
 func runGuide(s *session, parsed *arguments) int {
 	topic := at(parsed.rest(), 0)
 	if topic == "" {
+		s.line(s.r.T("guide.reading"))
+		s.line("")
 		topics := table{indent: 2, columns: s.columns("guide", "topic", "title")}
 		for _, known := range guide.Topics() {
 			topics.rows = append(topics.rows, tableRow{fields: []string{known, guide.Title(known)}})
@@ -781,16 +863,95 @@ func runVersion(s *session, parsed *arguments) int {
 	return 0
 }
 
-// runMCP serves this bench over MCP on stdio.
+// runMCP serves workbenches over MCP on stdio. The four startup cases the
+// spec numbers decide whether the process exits before serving or serves and
+// what default it carries:
+//
+//  1. A root was named and no directory sits at the resolved path. The process
+//     writes dinah.unknown-root to stderr and exits 2 without serving.
+//  2. Discovery refuses with dinah.no-workbench and an explicit pointer
+//     (--workbench or DINAH_WORKBENCH) named the workbench. The process
+//     writes the refusal name to stderr and exits 2.
+//  3. Discovery resolved a workbench that lies outside the root and the
+//     pointer was explicit. The process writes dinah.outside-root to stderr
+//     and exits 2.
+//  4. Everything else, including the case where discovery resolved a
+//     workbench outside the root through the ancestor walk or the user
+//     config. The process serves with no default workbench, writes one line
+//     to stderr from mcp.no-default naming what was dropped when something
+//     was dropped, and answers every unqualified call with
+//     dinah.no-workbench-found.
+//
+// The root is resolved through the same ladder --workbench and DINAH_WORKBENCH
+// already climb, so the precedence is the board's own rather than one mcp
+// invented.
 func runMCP(s *session, parsed *arguments) int {
-	library, err := s.open()
-	if err != nil {
-		return s.reportError(err)
+	root, _ := bench.Resolve(
+		bench.Layer{Source: bench.SourceFlag, Value: parsed.value("root")},
+		bench.Layer{Source: bench.SourceEnvironment, Value: os.Getenv("DINAH_MCP_ROOT")},
+	)
+	if root != "" {
+		abs, err := filepath.Abs(root)
+		if err != nil || !bench.Exists(abs) {
+			path := root
+			if abs != "" {
+				path = abs
+			}
+			s.errLine(contract.UnknownRoot + " " + path)
+			return contract.ExitCode(contract.OutcomeRefused)
+		}
+		root = abs
 	}
-	if err := mcp.Serve(library, s.in, s.out); err != nil {
+	s.mcpRoot = root
+
+	explicit := s.benchFlag != ""
+	library, openErr := s.open()
+	switch {
+	case openErr != nil && isRefusalNamed(openErr, contract.NoWorkbench) && explicit:
+		s.errLine(openErr.Error())
+		return contract.ExitCode(contract.OutcomeRefused)
+	case openErr != nil:
+		if root == "" {
+			return s.reportError(openErr)
+		}
+		libraries := map[string]*verb.Library{}
+		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out); err != nil {
+			return s.reportError(err)
+		}
+		return 0
+	case library != nil && root != "":
+		abs, _ := filepath.Abs(library.Bench.Root)
+		contained, err := bench.PathUnderRoot(root, abs)
+		if err != nil || !contained {
+			if explicit {
+				s.errLine(contract.OutsideRoot + " " + abs)
+				return contract.ExitCode(contract.OutcomeRefused)
+			}
+			s.errLine(s.r.T("mcp.no-default", "detail", abs))
+			library = nil
+		}
+	case library != nil && root == "":
+		abs, _ := filepath.Abs(library.Bench.Root)
+		root = abs
+		s.mcpRoot = root
+	}
+	libraries := map[string]*verb.Library{}
+	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out); err != nil {
 		return s.reportError(err)
 	}
 	return 0
+}
+
+// serveMCPLoop's body is inlined inside runMCP, since the guard against hand-
+// laid rows only exempts runMCP from naming the stream.
+
+// isRefusalNamed reports whether err is a contract.Refusal with the given
+// name. It is the one check the startup path runs without dereferencing the
+// typed value, because FromError and Report already wrap the error and the
+// call site has no library to hand to them.
+func isRefusalNamed(err error, name string) bool {
+	refusal, ok := err.(*contract.Refusal)
+	return ok && refusal.Name == name
 }
 
 // runHelp prints one command's arguments, refusals and exit codes. It is the
@@ -806,5 +967,149 @@ func runHelp(s *session, parsed *arguments) int {
 		return s.fail(contract.UnknownVerb, name)
 	}
 	s.write(s.verbHelp(name))
+	return 0
+}
+
+// runJoin adds a card to a workstream. The card is the subject because the
+// card's frontmatter is the file that changes.
+func runJoin(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.Join, parsed)
+	req.Card = at(words, 0)
+	req.Workstream = at(words, 1)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Do(req))
+	})
+}
+
+// runLeave takes a card out of a workstream.
+func runLeave(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	req := s.request(verb.Leave, parsed)
+	req.Card = at(words, 0)
+	req.Workstream = at(words, 1)
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Do(req))
+	})
+}
+
+// runWorkstream lists the workbench's workstreams, creates one, or reads or
+// writes one's fields.
+//
+// The grammar is `workbench`'s with a `new` action added and a reference in
+// front of the field, because this command names one of many entities where
+// that one names the workbench it is already serving. The bare invocation
+// lists, `get` prints one workstream or one stored value alone so a script can
+// read it, and `set` writes one field.
+//
+// Like runWorkbench, this dispatches on its own first word rather than reading
+// fixed positions, so it runs its own arity and mistyped-flag checks: once on
+// the first word before the switch, once on the reference and the field inside
+// the branches that read them, and once on get's fourth word, which get never
+// reads.
+func runWorkstream(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	switch first {
+	case "":
+		return s.withBench(func(l *verb.Library) int {
+			listing, err := l.Workstreams()
+			if err != nil {
+				return s.reportError(err)
+			}
+			if s.json {
+				return s.emitJSON(listing)
+			}
+			s.renderWorkstreams(listing)
+			return 0
+		})
+	case "new":
+		title, refusal := s.freeText([]string{"workstream", "new"}, words[min(1, len(words)):], "slot.title")
+		if refusal != nil {
+			return s.reportError(refusal)
+		}
+		return s.withBench(func(l *verb.Library) int {
+			req := s.request("workstream", parsed)
+			req.Action, req.Workstream = first, title
+			return s.emitWorkstream(l.NewWorkstream(req))
+		})
+	case "get":
+		return s.runWorkstreamGet(parsed, words)
+	case "set":
+		return s.runWorkstreamSet(parsed, words)
+	}
+	return s.fail(contract.Usage, first)
+}
+
+// runWorkstreamGet reads one workstream, or one field of it alone.
+func (s *session) runWorkstreamGet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	if extra := at(words, 3); extra != "" {
+		return s.fail(contract.Usage, extra)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("workstream", parsed)
+		req.Action, req.Workstream, req.Field = "get", reference, field
+		detail, err := l.Workstream(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if field != "" {
+			s.line(detail.Workstream.Field(field))
+			return 0
+		}
+		if s.json {
+			return s.emitJSON(detail)
+		}
+		s.renderWorkstreamDetail(detail)
+		return 0
+	})
+}
+
+// runWorkstreamSet writes one field of one workstream.
+func (s *session) runWorkstreamSet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	lead := []string{"workstream", "set", reference, field}
+	value, refusal := s.freeText(lead, words[min(3, len(words)):], "slot.value")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("workstream", parsed)
+		req.Action, req.Workstream, req.Field, req.Value = "set", reference, field, value
+		return s.emitWorkstream(l.SetWorkstream(req))
+	})
+}
+
+// emitWorkstream reports a workstream act: the machine form under --json, the
+// one line a person reads otherwise, and on any non-zero outcome the refusal's
+// own composition, which is what emit already does for a card act.
+func (s *session) emitWorkstream(response *verb.Response) int {
+	if response.Outcome != contract.OutcomeOK {
+		s.reportOutcome(response)
+		if s.json {
+			s.emitJSON(response)
+		}
+		return contract.ExitCode(response.Outcome)
+	}
+	if s.json {
+		return s.emitJSON(response)
+	}
+	s.renderWorkstreamLine(response.Workstream)
 	return 0
 }

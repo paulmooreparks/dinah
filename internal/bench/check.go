@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"os"
 	"path/filepath"
 
 	"dinah/internal/contract"
@@ -40,10 +41,32 @@ const (
 	FindingSlugDuplicate      = "check.slug-duplicate"
 	FindingStrandedState      = "check.stranded-state"
 	FindingIgnoredAnchor      = "check.ignored-anchor"
+	// FindingDanglingWorkstream names a card listing a workstream identifier
+	// that resolves in neither half of the workstreams collection, on the
+	// same terms FindingDanglingLink already reports a link's to.
+	FindingDanglingWorkstream = "check.dangling-workstream"
+	// The three workstream slug findings mirror the state's own three. None
+	// of them turns on the profile revision the workbench declares, because
+	// the profile says nothing about a workstream at all.
+	FindingWorkstreamSlugMissing   = "check.workstream-slug-missing"
+	FindingWorkstreamSlugMalformed = "check.workstream-slug-malformed"
+	FindingWorkstreamSlugDuplicate = "check.workstream-slug-duplicate"
+	// The last two are raised by the slug migration rather than by the
+	// checker, on the terms FindingSlugUnderivable and FindingSlugUnwritable
+	// are raised for a state. They are separate names because the sentence
+	// names the entity, and a workstream reported as a state would send a
+	// reader to the wrong listing.
+	FindingWorkstreamSlugUnderivable = "check.workstream-slug-underivable"
+	FindingWorkstreamSlugUnwritable  = "check.workstream-slug-unwritable"
 	// FindingWorkbenchSlugMissing names a workbench written before the
 	// workbench-level slug field existed, on the same report-only terms
 	// FindingSlugMissing already reports a state's absence.
 	FindingWorkbenchSlugMissing = "check.workbench-slug-missing"
+	// FindingAttachmentFilenameDrift names an attachment whose payload
+	// file name differs from the filename the anchor records. A crash
+	// between the two writes of a rename lands here, and a hand-written
+	// anchor that nobody noticed is caught the same way.
+	FindingAttachmentFilenameDrift = "check.attachment-filename-drift"
 	// FindingWorkbenchSlugMalformed names a stored workbench slug that does
 	// not conform to the grammar. Open validates the stored slug at no major,
 	// so a slug written by hand reaches the checker rather than being
@@ -110,6 +133,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		findings = append(findings, b.checkCard(card)...)
 	}
+	findings = append(findings, b.checkWorkstreams()...)
 	findings = append(findings, b.checkStateSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, id := range b.StrandedStates {
@@ -157,7 +181,14 @@ func (b *Bench) checkCard(card *Card) []Finding {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingLink, Detail: link.To})
 	}
+	for _, id := range card.Workstreams {
+		if b.HasWorkstream(id) {
+			continue
+		}
+		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingWorkstream, Detail: id})
+	}
 	findings = append(findings, checkOrdinals(card.Dir)...)
+	findings = append(findings, checkAttachmentFilename(card.Dir)...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
 		return findings
@@ -200,6 +231,38 @@ func checkOrdinals(cardDir string) []Finding {
 			}
 			seen[ordinal] = true
 		}
+	}
+	return findings
+}
+
+// checkAttachmentFilename reports every attachment whose anchor's filename
+// disagrees with the name of the file in its payload directory. The two
+// names agree on every rename the verb completes, and on every payload the
+// attach verb lays down, so a drift is the residue of a crash between the
+// two writes, or of a hand edit nobody noticed.
+func checkAttachmentFilename(cardDir string) []Finding {
+	collection := filepath.Join(cardDir, AttachmentsDir)
+	var findings []Finding
+	for _, id := range ListIDs(collection) {
+		dir := filepath.Join(collection, id)
+		anchor := filepath.Join(dir, AttachmentAnchor)
+		if !Exists(anchor) {
+			continue
+		}
+		fm, _ := loadAnchor(anchor)
+		wanted := fm.Value("filename")
+		if wanted == "" {
+			continue
+		}
+		payload := filepath.Join(dir, PayloadDir)
+		entries, err := os.ReadDir(payload)
+		if err != nil || len(entries) == 0 {
+			continue
+		}
+		if entries[0].Name() == wanted {
+			continue
+		}
+		findings = append(findings, Finding{Path: anchor, Key: FindingAttachmentFilenameDrift, Detail: id})
 	}
 	return findings
 }

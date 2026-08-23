@@ -48,8 +48,9 @@ Ten fields, and no others. Five of them describe the card as it stands now:
 - `substate` is `ready`, `active`, or `blocked`.
 - `holder` is the owner holding the card.
 - `block_kind` is the class of obstacle a blocked card carries.
-- `workstream` is one of the workstreams the card's own list names, matched by
-  membership.
+- `workstream` is a workstream the card belongs to. You name it by its slug or
+  by its twelve-hex identifier, and never by its title. A workstream nobody has
+  joined yet is a name Dinah accepts and no card matches.
 
 The other five describe something that happened to the card, which Dinah reads
 from its journal:

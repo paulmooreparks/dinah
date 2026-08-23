@@ -61,6 +61,10 @@ var wantedTemplates = []string{
 	"cards/<id>/archive/attachments/<id>/payload/<file>",
 	"archive/cards/<id>/card.md",
 	"archive/cards/<id>/journal.ndjson",
+	"workstreams/<id>/workstream.md",
+	"workstreams/<id>/journal.ndjson",
+	"archive/workstreams/<id>/workstream.md",
+	"archive/workstreams/<id>/journal.ndjson",
 }
 
 // wantedKeys is the union of top-level frontmatter keys the sequence writes,
@@ -71,12 +75,14 @@ var wantedKeys = map[string][]string{
 	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "states"},
 	"states/<id>/state.md":                              {"title", "slug", "kind", "operator_owned", "wip_limit"},
 	"archive/states/<id>/state.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since"},
+	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
 	"archive/cards/<id>/card.md":                        {"title", "number", "state", "substate"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
 	"cards/<id>/attachments/<id>/attachment.md":         {"filename", "description", "provenance", "ordinal"},
 	"cards/<id>/archive/attachments/<id>/attachment.md": {"filename", "description", "provenance", "ordinal"},
+	"workstreams/<id>/workstream.md":                    {"title", "slug", "status", "ordinal"},
+	"archive/workstreams/<id>/workstream.md":            {"title", "slug", "status", "ordinal"},
 }
 
 // wantedEvents is the union of member names the sequence writes, per journal
@@ -94,9 +100,13 @@ var wantedEvents = map[string][]string{
 	contract.EventAttached:           {"ts", "event", "actor", "attachment", "filename"},
 	contract.EventAttachmentReplaced: {"ts", "event", "actor", "attachment", "filename"},
 	contract.EventAttachmentRemoved:  {"ts", "event", "actor", "attachment", "filename", "note"},
+	contract.EventAttachmentRenamed:  {"ts", "event", "actor", "attachment", "filename", "from"},
 	contract.EventArchived:           {"ts", "event", "actor", "note"},
 	contract.EventDeleted:            {"ts", "event", "actor", "title", "note"},
 	contract.EventWorkbenchUpdated:   {"ts", "event", "actor", "field", "from", "to"},
+	contract.EventWorkstreamUpdated:  {"ts", "event", "actor", "field", "from", "to"},
+	contract.EventWorkstreamJoined:   {"ts", "event", "actor", "workstream"},
+	contract.EventWorkstreamLeft:     {"ts", "event", "actor", "workstream"},
 }
 
 // unwrittenEvents are the event names internal/contract declares that this
@@ -211,6 +221,82 @@ func TestTheSampleFixtureCarriesEveryJournalEventTheContractDeclares(t *testing.
 			continue
 		}
 		t.Errorf("internal/contract declares the %s event, the sample fixture carries no line of it, and unwrittenEvents says nothing about why. Extend %s until the event lands in a capture, or add it to unwrittenEvents with the reason nothing writes it", event, populateName)
+	}
+}
+
+// cardJournalTemplates are the two path templates a card's own journal takes,
+// live and archived. The query reads a card's journal and no other, so these
+// are the journals whose event names have to be nameable.
+var cardJournalTemplates = map[string]bool{
+	"cards/<id>/journal.ndjson":         true,
+	"archive/cards/<id>/journal.ndjson": true,
+}
+
+// TestEveryEventACardJournalCarriesIsOneAQueryCanName pairs the two lists that
+// have to agree: the event names a card's journal carries, and contract.Events,
+// which query hands the event field as its closed vocabulary. An event on a
+// card journal that the vocabulary omits cannot be asked for, and the refusal a
+// person meets names it as an unknown value rather than as an omission.
+//
+// The pairing runs on the sample fixture rather than on a hand-written list,
+// and the coverage alarm above carries the other half. That alarm refuses a
+// declared event the fixture carries no line of, so a new event has to reach
+// the fixture, and once it reaches the fixture this test decides whether it
+// reached the vocabulary too. What the two together catch is an event added to
+// the tool and never exercised by the population sequence.
+//
+// The pair does not close every route, and the routes it leaves open are worth
+// naming so the next reader does not read a closure that is not there. An
+// event listed in unwrittenEvents is exempt from the alarm, which is a human
+// step carrying a written reason rather than a silent gap. An event that lands
+// on a card journal and on another journal as well can satisfy the alarm from
+// the other one, because readShape records members per event name and not per
+// path template, so a capture on a workstream or workbench journal is enough
+// and this test, which walks cardJournalTemplates alone, never sees it;
+// workstream_updated is the live illustration of an event the alarm accepts
+// from a journal this test does not walk. A name in contract.Events that
+// nothing writes to a card journal is caught in neither direction, because no
+// test asserts the containment that way, and EventRestored and
+// EventManualCorrection already sit in that position. The pairing therefore
+// holds for every event whose card-journal path the population sequence
+// exercises, and it does not reach every event the tool can declare.
+func TestEveryEventACardJournalCarriesIsOneAQueryCanName(t *testing.T) {
+	root := sampleFixture(t)
+	nameable := map[string]bool{}
+	for _, event := range contract.Events {
+		nameable[event] = true
+	}
+	seen := 0
+	walk := func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() || entry.Name() != bench.JournalName {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if !cardJournalTemplates[pathTemplate(filepath.ToSlash(relative))] {
+			return nil
+		}
+		events := map[string]map[string]bool{}
+		readJournalMembers(t, path, events)
+		for event := range events {
+			seen++
+			if nameable[event] {
+				continue
+			}
+			t.Errorf("the sample fixture's %s carries the %s event and contract.Events does not name it, so a card carries history dinah query 'event:%s' refuses as an unknown value. Add the name to contract.Events, or say in that list's doc comment which journal other than a card's it lands on", relative, event, event)
+		}
+		return nil
+	}
+	if err := filepath.WalkDir(root, walk); err != nil {
+		t.Fatalf("walk %s: %v", root, err)
+	}
+	if seen == 0 {
+		t.Fatalf("the sample fixture carries no card journal event at all, so this test proved nothing about %s", root)
 	}
 }
 

@@ -180,6 +180,8 @@ var guides = map[string][]string{
 	"attach":       {"references"},
 	"archive":      {"references"},
 	"delete":       {"references"},
+	"rename":       {"references"},
+	"contents":     {"references"},
 	"query":        {"query"},
 }
 
@@ -227,6 +229,14 @@ var params = map[string][]Param{
 		{Name: "kind", Flag: true, Value: "kind"},
 	},
 	Unblock: {{Name: "card", Required: true, Shared: "card"}},
+	Join: {
+		{Name: "card", Required: true, Shared: "card"},
+		{Name: "workstream", Required: true, Shared: "workstream"},
+	},
+	Leave: {
+		{Name: "card", Required: true, Shared: "card"},
+		{Name: "workstream", Required: true, Shared: "workstream"},
+	},
 	"comment": {
 		{Name: "card", Required: true, Shared: "card"},
 		{Name: "text", Display: "text|-", Required: true, Rest: true},
@@ -242,6 +252,10 @@ var params = map[string][]Param{
 		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes"},
 	},
+	"rename": {
+		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
+		{Name: "name", Required: true, Rest: true},
+	},
 	"status": {},
 	"states": {},
 	"ls": {
@@ -250,8 +264,20 @@ var params = map[string][]Param{
 	},
 	"next":  {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
 	"query": {{Name: "query", Rest: true}},
-	"show":  {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
-	"log":   {{Name: "card", Required: true, Shared: "card"}},
+	"tree": {
+		{Name: "query", Rest: true},
+		{Name: "group-by", Flag: true, Value: "axes"},
+		{Name: "depth", Flag: true, Value: "level"},
+	},
+	// contents writes its own sentence for ref rather than taking the shared
+	// one, because the shared sentence ends "not this workbench" and the
+	// workbench is the one reference contents is most often given.
+	"contents": {
+		{Name: "ref", Required: true, Guide: "references"},
+		{Name: "depth", Flag: true, Value: "level"},
+	},
+	"show": {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
+	"log":  {{Name: "card", Required: true, Shared: "card"}},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
 	"instructions": {{Name: "card", Display: "card|state", Required: true, Guide: "references"}},
@@ -286,18 +312,31 @@ var params = map[string][]Param{
 		{Name: "value"},
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes"},
 	},
+	// The bare invocation lists every live workstream, so neither the action
+	// nor the workstream is required; new, get and set still need one, which
+	// the command refuses over rather than the syntax line. The workstream
+	// slot carries a reference on get and set and the title on new, which is
+	// what its two-word display says.
+	"workstream": {
+		{Name: "action", Display: "new|get|set"},
+		{Name: "workstream", Display: "workstream|title"},
+		{Name: "field"},
+		{Name: "value"},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes"},
+	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true},
 		{Name: "migrate-ordinals", Flag: true, Marker: true},
 		{Name: "migrate-slugs", Flag: true, Marker: true},
 		{Name: "migrate-states", Flag: true, Marker: true},
+		{Name: "migrate-workstreams", Flag: true, Marker: true},
 	},
 	"whoami":      {},
 	"workbenches": {},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
-	"mcp":  {},
+	"mcp":  {{Name: "root", Flag: true, Value: "dir"}},
 	"help": {{Name: "command", Required: true}},
 }
 

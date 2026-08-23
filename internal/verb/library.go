@@ -52,8 +52,13 @@ type Request struct {
 	// Action is the word a command dispatching on its own first word was
 	// given: get, set, or empty for the bare invocation.
 	Action string
-	// Field is the workbench field a read or a write names.
+	// Field is the workbench or workstream field a read or a write names.
 	Field string
+	// Workstream is the workstream slot of the commands that name one. It
+	// carries the reference join, leave, get and set resolve, and it carries
+	// the title `workstream new` files, which is the one slot the parameter
+	// list spells workstream|title.
+	Workstream string
 	// Value is what a write puts in that field.
 	Value string
 	// Holder is the owner a claim names as holder, which the pull discipline
@@ -84,6 +89,12 @@ type Request struct {
 	// byte as the caller wrote it, since Matches echoes what it was given
 	// rather than what the parser made of it.
 	Query string
+	// GroupBy is the axis chain a tree nests along, as the caller wrote it:
+	// one comma-separated word, empty for the default chain.
+	GroupBy string
+	// Depth is the named level a tree projection stops at, empty for the
+	// command's own default.
+	Depth string
 	// ReadyOnly narrows a listing to the cards whose substate is ready.
 	ReadyOnly bool
 	// Finish asks check to complete or roll back the interrupted structural
@@ -98,6 +109,9 @@ type Request struct {
 	// MigrateStates asks check to remove every stranded identifier from the
 	// workbench's own states list, before it reports.
 	MigrateStates bool
+	// MigrateWorkstreams asks check to create a workstream at every
+	// identifier the live cards list that names none, before it reports.
+	MigrateWorkstreams bool
 	// WorkbenchSource names the rung that resolved the active workbench for
 	// this invocation (flag, environment, search, or config), set by the
 	// head once discovery has run, since that is the earliest point the
@@ -128,6 +142,10 @@ type CardView struct {
 	// BlockReason and BlockKind carry the obstacle.
 	BlockReason string `json:"block_reason,omitempty"`
 	BlockKind   string `json:"block_kind,omitempty"`
+	// Workstreams are the identifiers of the workstreams the card belongs
+	// to, reported as the card's frontmatter stores them. A reader wanting
+	// the slugs resolves them, the way a reader of a link's to already does.
+	Workstreams []string `json:"workstreams,omitempty"`
 	// Revision is the card's opaque current revision.
 	Revision string `json:"revision"`
 }
@@ -178,6 +196,9 @@ type Response struct {
 	Detail string `json:"detail,omitempty"`
 	// Card is the card as it now stands.
 	Card *CardView `json:"card,omitempty"`
+	// Workstream is the workstream as it now stands, on the responses of the
+	// two acts whose subject is a workstream rather than a card.
+	Workstream *WorkstreamView `json:"workstream,omitempty"`
 	// Basis is the revision the request was evaluated against.
 	Basis string `json:"basis,omitempty"`
 	// Instructions are the served layers, on a claim or a move that
@@ -214,6 +235,7 @@ func (l *Library) view(card *bench.Card) *CardView {
 		Expires:     card.Expires,
 		BlockReason: card.BlockReason,
 		BlockKind:   card.BlockKind,
+		Workstreams: card.Workstreams,
 		Revision:    card.Revision,
 	}
 	if state := l.Bench.State(card.State); state != nil {
@@ -330,7 +352,13 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 func (l *Library) FromError(req *Request, err error) *Response {
 	switch typed := err.(type) {
 	case *contract.Refusal:
-		return l.refuseWith(req, nil, typed.Name, typed.Detail, typed.Extra)
+		// A refusal always travels through ComposeRefusal, so a caller with a
+		// library and a caller without one compose the same shape. The
+		// affordances default to the no-card set and a card the library was
+		// holding never reaches this branch, so passing through ComposeRefusal
+		// rather than refuseWith drops the card the library might otherwise
+		// attach.
+		return ComposeRefusal(req, typed)
 	case *contract.Stale:
 		response := &Response{
 			Outcome:     contract.OutcomeStale,

@@ -28,6 +28,8 @@ const (
 	Release = "release"
 	Block   = "block"
 	Unblock = "unblock"
+	Join    = "join"
+	Leave   = "leave"
 )
 
 // ContractVerbs are the five verbs the profile specifies, in the order
@@ -132,6 +134,18 @@ var beyondChecks = map[string][]Check{
 	"show": {
 		{Refusal: contract.UnknownPath, Key: "check.show.1"},
 	},
+	// rename checks UnknownPath first so a reference that resolves to
+	// anything but an attachment fails on the resolution it tried rather
+	// than on the rename-specific name it did not try yet, then NoOwner
+	// for the same reason the workbench-level pair does, then Malformed
+	// for the name itself, then NotRenamable for the case the reference
+	// resolved to something the verb refuses.
+	"rename": {
+		{Refusal: contract.UnknownPath, Key: "check.rename.1"},
+		{Refusal: contract.NoOwner, Key: "check.rename.2"},
+		{Refusal: contract.Malformed, Key: "check.rename.3"},
+		{Refusal: contract.NotRenamable, Key: "check.rename.4"},
+	},
 	"log": {
 		{Refusal: contract.UnknownCard, Key: "check.log.1"},
 	},
@@ -149,11 +163,34 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownState, Key: "check.query.5"},
 		{Refusal: contract.UnknownValue, Key: "check.query.6"},
 	},
+	// The three axis checks run in this order, so a chain of five axes one
+	// of which is a word Dinah does not group on is refused for the unknown
+	// word rather than for its length.
+	"tree": {
+		{Refusal: contract.UnknownAxis, Key: "check.tree.1"},
+		{Refusal: contract.RepeatedAxis, Key: "check.tree.2"},
+		{Refusal: contract.ChainTooLong, Key: "check.tree.3"},
+		{Refusal: contract.UnknownDepth, Key: "check.tree.4"},
+	},
+	"contents": {
+		{Refusal: contract.UnknownPath, Key: "check.contents.1"},
+		{Refusal: contract.UnknownDepth, Key: "check.contents.2"},
+	},
 	"instructions": {
 		{Refusal: contract.UnknownPath, Key: "check.instructions.1"},
 	},
 	"whoami": {
 		{Refusal: contract.NoOwner, Key: "check.whoami.1"},
+	},
+	Join: {
+		{Refusal: contract.UnknownCard, Key: "check.join.1"},
+		{Refusal: contract.NoOwner, Key: "check.join.2"},
+		{Refusal: contract.UnknownWorkstream, Key: "check.join.3"},
+	},
+	Leave: {
+		{Refusal: contract.UnknownCard, Key: "check.leave.1"},
+		{Refusal: contract.NoOwner, Key: "check.leave.2"},
+		{Refusal: contract.UnknownWorkstream, Key: "check.leave.3"},
 	},
 	// The keys carry the workbench-field prefix rather than check.workbench.N,
 	// which check.workbench.1 and check.workbench.2 above already hold for the
@@ -166,12 +203,36 @@ var beyondChecks = map[string][]Check{
 	// contract verbs alone and every beyond-contract command lists only its
 	// own. Listing it here would name one of the workbench-level pair while
 	// leaving out the other, in the one command that does it.
+	// The keys carry the workstream-field prefix for the reason the workbench
+	// list gives: CheckKey composes check.<command>.<order>, and this list
+	// covers two acts rather than one, since `new` files a workstream and
+	// `set` writes a field of one. Row 1 belongs to get and set, row 3 to all
+	// three, and rows 5 and 6 to set alone.
+	"workstream": {
+		{Refusal: contract.UnknownWorkstream, Key: "check.workstream-field.1"},
+		{Refusal: contract.UnknownKey, Key: "check.workstream-field.2"},
+		{Refusal: contract.Malformed, Key: "check.workstream-field.3"},
+		{Refusal: contract.NoOwner, Key: "check.workstream-field.4"},
+		{Refusal: contract.NotOperator, Key: "check.workstream-field.5"},
+		{Refusal: contract.Unconfirmed, Key: "check.workstream-field.6"},
+	},
 	"workbench": {
 		{Refusal: contract.UnknownKey, Key: "check.workbench-field.1"},
 		{Refusal: contract.Malformed, Key: "check.workbench-field.2"},
 		{Refusal: contract.NoOwner, Key: "check.workbench-field.3"},
 		{Refusal: contract.NotOperator, Key: "check.workbench-field.4"},
 		{Refusal: contract.Unconfirmed, Key: "check.workbench-field.5"},
+	},
+	// mcp carries the two checks the startup path raises: the directory
+	// --root names has to exist, and any workbench the registration names
+	// has to lie under that root. The order is the one AC-20 and AC-21
+	// exercise: the unknown-root check trips first when both are true at
+	// once. The dinah.no-workbench refusal startup case 2 raises is not
+	// here because it belongs to workbench discovery rather than to mcp,
+	// and no other command's check list carries it either.
+	"mcp": {
+		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
+		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
 	},
 }
 

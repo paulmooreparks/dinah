@@ -71,17 +71,32 @@ func (s *session) emitJSON(value any) int {
 }
 
 // renderCard prints the one line a person needs after an act: where the card
-// is, what it is called and what state it is in.
+// is, what it is called, what state it is in, and which workstreams it belongs
+// to.
+//
+// A card belonging to at least one workstream draws from a sibling key
+// carrying the whole sentence with the trailing field in it, chosen here the
+// way check.count.one and check.count.other are chosen by their caller, so a
+// translator gets a whole sentence in each form rather than a fragment
+// concatenated onto one. This is the single site every act prints its card
+// line from, so the field appears after claim, move, release, block, unblock,
+// add and show as well as after join and leave.
 func (s *session) renderCard(card *verb.CardView) {
 	if card == nil {
 		return
 	}
-	s.line(s.r.T("card.line",
+	values := []string{
 		"ref", card.Ref,
 		"title", card.Title,
 		"state", card.StateTitle,
 		"substate", s.token(card.Substate),
-	))
+	}
+	key := "card.line"
+	if len(card.Workstreams) > 0 {
+		key = "card.line.workstreams"
+		values = append(values, "workstreams", s.workstreamsCell(card.Workstreams))
+	}
+	s.line(s.r.T(key, values...))
 	if card.Holder != "" {
 		s.line(s.r.T("card.holder", "holder", card.Holder))
 	}
@@ -219,6 +234,100 @@ func (s *session) renderMatches(matches *verb.Matches) {
 	s.table(t)
 }
 
+// renderTree prints a projected tree: one sentence naming the root, and then a
+// table starting at the root's children.
+//
+// The root is not a row. It is a given for the whole command rather than a
+// finding, so a row for it would indent every other row by one level to say
+// something the caller already typed, and the count it carries reads better in
+// words than as a bare number beside a title.
+func (s *session) renderTree(tree *verb.Tree) {
+	s.line(s.treeHeader(tree))
+	if len(tree.Root.Children) == 0 {
+		return
+	}
+	t := table{indent: 2, columns: s.columns("tree", "reference", "entity", "title", "count", "hidden")}
+	s.treeRows(&t, tree, tree.Root.Children, nil)
+	s.table(t)
+}
+
+// treeHeader is the sentence above the table. Under a filter it says what the
+// workbench holds and how much of that matched, so the first number is the
+// root's count added to what the filter removed and the second is the count
+// alone.
+func (s *session) treeHeader(tree *verb.Tree) string {
+	root := tree.Root
+	count := strconv.Itoa(root.Count)
+	if tree.Producer == verb.ProducerContainment {
+		if root.Count == 0 {
+			return s.r.T("contents.empty", "title", root.Title, "ref", root.Ref)
+		}
+		return s.r.T("contents.header", "title", root.Title, "ref", root.Ref, "count", count)
+	}
+	if root.Hidden == nil || root.Hidden.Filtered == 0 {
+		return s.r.T("tree.header", "title", root.Title, "ref", root.Ref, "count", count)
+	}
+	held := strconv.Itoa(root.Count + root.Hidden.Filtered)
+	return s.r.T("tree.header.filtered", "title", root.Title, "ref", root.Ref, "held", held, "matched", count)
+}
+
+// treeRows appends one row per node, depth first, carrying the guides that
+// place each row in the tree. The guides describe every level below the top
+// level the table draws, so the root contributes none.
+func (s *session) treeRows(t *table, tree *verb.Tree, nodes []verb.TreeNode, above []bool) {
+	for i, node := range nodes {
+		guides := append(append([]bool{}, above...), i == len(nodes)-1)
+		t.rows = append(t.rows, tableRow{fields: s.treeFields(tree, node), guides: guides})
+		s.treeRows(t, tree, node.Children, guides)
+	}
+}
+
+// treeFields is one node's cells, in column order.
+//
+// The Reference column carries two things and the Entity column beside it is
+// what says which: a row reading a value under Reference and an axis under
+// Entity is a group rather than an entity, so the cell to its left is a value
+// rather than an address. The Count cell is blank on a card under the grouped
+// producer, because a card is one card and the number would tell the reader
+// nothing.
+func (s *session) treeFields(tree *verb.Tree, node verb.TreeNode) []string {
+	if node.Kind == verb.NodeGroup {
+		value := node.Value
+		if value == "" {
+			value = s.r.T("tree.unset")
+		}
+		return []string{value, node.Axis, node.Title, strconv.Itoa(node.Count), s.hiddenCell(node.Hidden)}
+	}
+	count := strconv.Itoa(node.Count)
+	if tree.Subject == verb.SubjectCard {
+		count = ""
+	}
+	return []string{node.Ref, node.Kind, node.Title, count, s.hiddenCell(node.Hidden)}
+}
+
+// hiddenCell renders what a node is not showing. The depth sentence prints the
+// node's own direct children the depth did not draw, which is not the same
+// number as the subjects those children hold, and the Count column beside it
+// already carries the subjects.
+func (s *session) hiddenCell(hidden *verb.Hidden) string {
+	if hidden == nil {
+		return ""
+	}
+	var parts []string
+	for _, reason := range hidden.Reason {
+		switch reason {
+		case verb.ReasonDepth:
+			parts = append(parts, s.r.T("tree.hidden.depth", "count", strconv.Itoa(hidden.Children)))
+		case verb.ReasonFilter:
+			parts = append(parts, s.r.T("tree.hidden.filter", "count", strconv.Itoa(hidden.Filtered)))
+		}
+	}
+	if len(parts) < 2 {
+		return strings.Join(parts, "")
+	}
+	return s.r.T("tree.hidden.join", "first", parts[0], "second", parts[1])
+}
+
 // renderSettings prints each setting with the value in force and the rung of
 // its ladder that produced it. A setting no rung carried prints an empty
 // value beside the source that says so, because the row itself is the answer
@@ -285,7 +394,7 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	s.table(t)
 }
 
-// renderDetail prints a card, its links and its comments.
+// renderDetail prints a card, its links, its attachments and its comments.
 func (s *session) renderDetail(detail *verb.Detail) {
 	s.renderCard(&detail.Card)
 	if detail.Body != "" {
@@ -300,6 +409,19 @@ func (s *session) renderDetail(detail *verb.Detail) {
 			links.rows = append(links.rows, tableRow{fields: []string{link.Kind, link.Ref}})
 		}
 		s.table(links)
+	}
+	if len(detail.Attachments) > 0 {
+		s.line("")
+		s.line(s.r.T("show.attachments"))
+		attachments := table{indent: 2, columns: s.columns("attachments", "position", "filename", "description")}
+		for _, attachment := range detail.Attachments {
+			attachments.rows = append(attachments.rows, tableRow{fields: []string{
+				strconv.Itoa(attachment.Ordinal),
+				attachment.Filename,
+				attachment.Description,
+			}})
+		}
+		s.table(attachments)
 	}
 	if len(detail.Comments) > 0 {
 		s.line("")
@@ -330,6 +452,10 @@ func (s *session) renderHistory(events []bench.Event) {
 			tail = ev.Reason
 		case contract.EventCreated:
 			tail = ev.Title
+		case contract.EventAttached, contract.EventAttachmentReplaced, contract.EventAttachmentRemoved:
+			tail = ev.Filename
+		case contract.EventAttachmentRenamed:
+			tail = s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
 		}
 		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, tail}
 		t.rows = append(t.rows, tableRow{fields: fields})
@@ -354,9 +480,24 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		if report.AssignedWorkbenchSlug != nil {
 			s.line(s.r.T("check.workbench-slug-assigned", "slug", report.AssignedWorkbenchSlug.Slug))
 		}
+		// The workstream slugs are the third report of the one repair, so
+		// they stay with the other two rather than reading as a separate
+		// answer further down.
+		s.line(s.r.TN("check.workstream-slug-assigned", len(report.AssignedWorkstreamSlugs)))
+		workstreams := table{indent: 2, columns: s.columns("slugs", "slug", "title")}
+		for _, assignment := range report.AssignedWorkstreamSlugs {
+			workstreams.rows = append(workstreams.rows, tableRow{fields: []string{assignment.Slug, assignment.Title}})
+		}
+		s.table(workstreams)
 	}
 	if report.StampedOrdinals != nil {
 		s.line(s.r.TN("check.ordinal-stamped", *report.StampedOrdinals))
+	}
+	// The adopted identifiers are counted and not listed, because every
+	// workstream this repair creates carries no slug and so draws a finding
+	// naming that same identifier immediately below.
+	if report.MigratedWorkstreams {
+		s.line(s.r.TN("check.workstream-adopted", len(report.AdoptedWorkstreams)))
 	}
 	if report.MigratedStates {
 		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
@@ -609,4 +750,105 @@ func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 		t.rows = append(t.rows, tableRow{fields: []string{name, value}})
 	}
 	s.table(t)
+}
+
+// renderWorkstreams prints every live workstream of the workbench, and the
+// sentence that says so when the workbench carries none. The columns are the
+// shape dinah states already draws, and a workstream carrying no slug prints
+// through slugCell rather than as a blank.
+func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
+	if len(listing.Workstreams) == 0 {
+		s.line(s.r.T("workstreams.empty"))
+		return
+	}
+	t := table{indent: 2, columns: s.columns("workstreams", "slug", "name", "status", "cards")}
+	for _, workstream := range listing.Workstreams {
+		fields := []string{
+			s.slugCell(workstream.Slug),
+			workstream.Title,
+			workstream.Status,
+			strconv.Itoa(workstream.Cards),
+		}
+		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+}
+
+// renderWorkstreamDetail prints one workstream's own fields, its notes, and
+// the live cards belonging to it.
+//
+// The field names travel untranslated, the way the workbench listing's do,
+// because a field name is machine vocabulary a caller types back.
+func (s *session) renderWorkstreamDetail(detail *verb.WorkstreamDetail) {
+	workstream := detail.Workstream
+	fields := table{indent: 2, columns: s.columns("workstream", "field", "value")}
+	rows := [][]string{
+		{"slug", s.slugCell(workstream.Slug)},
+		{"id", workstream.ID},
+		{"title", workstream.Title},
+		{"status", workstream.Status},
+		{"cards", strconv.Itoa(workstream.Cards)},
+	}
+	for _, row := range rows {
+		fields.rows = append(fields.rows, tableRow{fields: row})
+	}
+	s.table(fields)
+	if detail.Body != "" {
+		s.line("")
+		s.write(detail.Body)
+	}
+	if len(detail.Cards) == 0 {
+		return
+	}
+	s.line("")
+	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "state")}
+	for _, card := range detail.Cards {
+		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.StateTitle}})
+	}
+	s.table(members)
+}
+
+// renderWorkstreamLine prints the one line a person needs after creating a
+// workstream or writing one of its fields, which reads the way the card line
+// reads after an act on a card.
+func (s *session) renderWorkstreamLine(workstream *verb.WorkstreamView) {
+	if workstream == nil {
+		return
+	}
+	s.line(s.r.T("workstream.line",
+		"ref", workstream.Ref,
+		"title", workstream.Title,
+		"status", workstream.Status,
+	))
+}
+
+// workstreamsCell renders a card's memberships for the trailing field of the
+// card line: each identifier as what a person could type to reach it, which is
+// the workstream's slug where it carries one and the identifier where it does
+// not, joined by the catalog's own separator.
+//
+// The resolution happens here rather than in the library because the machine
+// surface carries the identifiers the card's frontmatter stores, deliberately,
+// and a reader of the JSON resolves them the way a reader of a link's to
+// already does. The head reads the open workbench for the same reason the
+// composer reads its states to list them.
+func (s *session) workstreamsCell(ids []string) string {
+	refs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		refs = append(refs, s.workstreamRef(id))
+	}
+	return strings.Join(refs, s.r.T("card.line.workstreams.separator"))
+}
+
+// workstreamRef is what a person types to reach one workstream a card lists.
+// A membership naming nothing keeps the identifier the card carries, so the
+// line still shows the value a reader has to go and repair.
+func (s *session) workstreamRef(id string) string {
+	if s.library == nil {
+		return id
+	}
+	if workstream := s.library.Bench.Workstream(id); workstream != nil {
+		return workstream.Ref()
+	}
+	return id
 }

@@ -112,6 +112,9 @@ func (b columnarBlock) findings() []string {
 			break
 		}
 	}
+	if b.guided() {
+		return found
+	}
 	first := b.fields[0]
 	for _, fields := range b.fields[1:] {
 		for i, field := range fields {
@@ -121,6 +124,37 @@ func (b columnarBlock) findings() []string {
 		}
 	}
 	return found
+}
+
+// guided reports whether this block draws a tree, which is what takes the
+// column-alignment comparison off it. One guided line is enough, because a
+// tree's heading row and separator carry no guides and its stacked form
+// carries them only on the line holding the reference.
+//
+// A tree draws an empty cell in the middle of a row wherever a node has
+// nothing to say under a column: a group row carries no title, and a card row
+// under `dinah tree` carries no count. The visible fields of one row are
+// therefore a subset of the block's columns rather than all of them, so the
+// third visible field of one row is a title where the third of another is a
+// count, and every comparison this check can make between two rows of a tree
+// compares two different columns. What a tree gets instead is the
+// trailing-space check alone, and that is a limitation of this check rather
+// than a licence. Reading a ragged block takes the block's declared column
+// list, which is what the rendered-output sweep holds a tree against, empty
+// cell by empty cell.
+//
+// The exemption reads the drawn characters rather than naming the block, so a
+// block that is not a tree and happens to draw a guided line loses its column
+// comparison too. Keying it on the registered block would need a block
+// identity this check does not have, since it folds blocks out of whatever a
+// command printed.
+func (b columnarBlock) guided() bool {
+	for _, line := range b.lines {
+		if _, _, guided := guidedLead(line); guided {
+			return true
+		}
+	}
+	return false
 }
 
 // foldColumnarBlocks reads a stream into the columnar blocks it carries. A run
@@ -168,18 +202,36 @@ func columnarFields(line string) []columnarField {
 	runes := []rune(line)
 	var fields []columnarField
 	at := 0
-	column := 0
-	for at < len(runes) && runes[at] == ' ' {
-		at++
-		column++
-	}
 	for at < len(runes) {
+		// The column is recomputed from the whole prefix rather than carried
+		// forward one field at a time, per columnAt's own reasoning: a width
+		// is a property of a grapheme cluster rather than of a rune, and a
+		// running sum drifts the moment a wide-glyph field sits ahead of
+		// another.
+		column := columnAt(runes, at)
 		start := column
 		var text strings.Builder
+		// A tree's guides live inside the field they lead, and they open with
+		// blanks wherever an ancestor was the last of its siblings, so the
+		// field begins before its first visible glyph. guidedLead is asked at
+		// the head of every field rather than at the head of the line alone,
+		// since the stacked form draws that same field after a label.
+		if lead, prefix, guided := guidedLead(string(runes[at:])); guided {
+			start = column + lead
+			text.WriteString(prefix)
+			at += lead + len([]rune(prefix))
+		} else {
+			for at < len(runes) && runes[at] == ' ' {
+				at++
+			}
+			start = columnAt(runes, at)
+		}
+		if at >= len(runes) {
+			break
+		}
 		for at < len(runes) {
 			if runes[at] != ' ' {
 				text.WriteRune(runes[at])
-				column += displayWidth(string(runes[at]))
 				at++
 				continue
 			}
@@ -191,16 +243,101 @@ func columnarFields(line string) []columnarField {
 				break
 			}
 			text.WriteRune(' ')
-			column++
 			at++
 		}
 		fields = append(fields, columnarField{at: start, text: text.String()})
-		for at < len(runes) && runes[at] == ' ' {
-			at++
-			column++
-		}
+		// The gap after this field is left for the next iteration to
+		// consume, rather than skipped here. A stacked tree row's value can
+		// open with the guide's own run of blank continuation spaces, which
+		// is content rather than gutter, and only guidedLead's own search
+		// over how many of the leading spaces are gutter tells the two
+		// apart. Skipping every space here first, the way an ordinary table
+		// column would, feeds guidedLead a string that no longer carries the
+		// blanks it needs and reads a deeper row's guide as flush with its
+		// shallower sibling's.
 	}
 	return fields
+}
+
+// guidePieces are the four pieces a tree's guides are composed of, built from
+// the same glyphs table.go draws them with rather than written out here.
+func guidePieces() []string {
+	return []string{
+		guidePiece(guideTrunk, guideBlank),
+		guidePiece(guideBlank, guideBlank),
+		guidePiece(guideTrunk, guideRun),
+		guidePiece(guideElbow, guideRun),
+	}
+}
+
+// guidedLead reports where a tree row's first field begins, and the guide
+// prefix that field carries, for a line that is one.
+//
+// A tree writes its guides into the row's first field, so the field carries
+// spaces of its own and a scanner splitting on a run of two spaces would read
+// one field as several and one row's indent as deeper than its neighbour's. A
+// prefix always ends with the piece that joins the row to its parent, and no
+// ordinary field ever ends that way, so the join is what tells a guided line
+// from a line that merely begins with padding. The smallest lead that
+// decomposes wins, since a deeper row's own prefix opens with blanks that
+// would otherwise read as indent.
+func guidedLead(line string) (int, string, bool) {
+	runes := []rune(line)
+	raw := 0
+	for raw < len(runes) && runes[raw] == ' ' {
+		raw++
+	}
+	for lead := 0; lead <= raw; lead++ {
+		if prefix, ok := guideDecomposition(string(runes[lead:])); ok {
+			return lead, prefix, true
+		}
+	}
+	return 0, "", false
+}
+
+// guideDecomposition reads the run of whole guide pieces a string opens with,
+// and reports it only when the last of them joins a row to its parent.
+func guideDecomposition(text string) (string, bool) {
+	pieces := guidePieces()
+	joins := map[string]bool{
+		guidePiece(guideTrunk, guideRun): true,
+		guidePiece(guideElbow, guideRun): true,
+	}
+	runes := []rune(text)
+	at, last := 0, ""
+	for at+guideWidth <= len(runes) {
+		piece := string(runes[at : at+guideWidth])
+		matched := false
+		for _, known := range pieces {
+			if piece == known {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			break
+		}
+		at += guideWidth
+		last = piece
+	}
+	if at == 0 || !joins[last] {
+		return "", false
+	}
+	return string(runes[:at]), true
+}
+
+// columnAt is the display column a rune index begins in, measured over the
+// whole prefix in one call rather than by adding one rune's width at a time.
+//
+// The running sum this replaces reports a column no terminal puts the field
+// in, because a width is a property of a grapheme cluster rather than of a
+// rune: a joined emoji sequence draws one glyph nine columns wide out of five
+// runes measuring thirteen. It agreed with the renderer for as long as every
+// field ahead of another was Latin, Han or Devanagari, where the two measures
+// coincide, so a card title in any column but the last is what this measure
+// has to get right.
+func columnAt(runes []rune, index int) int {
+	return displayWidth(string(runes[:index]))
 }
 
 // TestTheOutputCheckReportsAMisalignedBlock arms the check above. A check that

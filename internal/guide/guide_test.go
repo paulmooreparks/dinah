@@ -1,0 +1,68 @@
+package guide
+
+import (
+	"strings"
+	"testing"
+)
+
+// TestTheReadingOrderPlacesEveryEmbeddedGuide asserts that the declared
+// reading order and the embedded guides directory name the same set of topics.
+//
+// The check runs in both directions, because each direction loses something
+// different. A topic embedded and left unplaced is served by no surface at
+// all, since Topics reads the order rather than the directory. A topic placed
+// and never embedded is offered in a listing that cannot answer it. Neither
+// failure is visible in a passing suite that reads one direction only.
+func TestTheReadingOrderPlacesEveryEmbeddedGuide(t *testing.T) {
+	entries, err := guides.ReadDir("guides")
+	if err != nil {
+		t.Fatalf("read the embedded guides: %v", err)
+	}
+	embedded := map[string]bool{}
+	for _, entry := range entries {
+		embedded[strings.TrimSuffix(entry.Name(), ".md")] = true
+	}
+	if len(embedded) == 0 {
+		t.Fatal("the binary embeds no guide, so this test reads nothing")
+	}
+	placed := map[string]bool{}
+	for _, topic := range reading {
+		placed[topic] = true
+	}
+	for topic := range embedded {
+		if placed[topic] {
+			continue
+		}
+		t.Errorf("internal/guide/guides/%s.md is embedded and the reading order does not place it, so no surface offers or serves it", topic)
+	}
+	for topic := range placed {
+		if embedded[topic] {
+			continue
+		}
+		t.Errorf("the reading order places %s and no internal/guide/guides/%s.md is embedded, so a listing offers a topic nothing can answer", topic, topic)
+	}
+}
+
+// TestTopicsAreOfferedInTheDeclaredReadingOrder asserts that Topics hands its
+// caller the reading order itself rather than any other arrangement of the
+// same names, which is what makes one list govern every surface that offers
+// the guides.
+//
+// This test holds Topics against the declared order and cannot hold the
+// declared order itself, since both sides read the same slice: reordering
+// `reading` moves the expectation with the code. What pins the approved order
+// is the replayed `dinah guide` block in docs/quick-start.md, which the quick
+// start's replay drives byte for byte, so a reordering that nobody approved
+// fails there. Read the two together.
+func TestTopicsAreOfferedInTheDeclaredReadingOrder(t *testing.T) {
+	got := Topics()
+	if len(got) != len(reading) {
+		t.Fatalf("Topics offered %d topics and the reading order places %d: %v", len(got), len(reading), got)
+	}
+	for at, topic := range reading {
+		if got[at] == topic {
+			continue
+		}
+		t.Errorf("Topics offered %q at position %d and the reading order places %q there", got[at], at, topic)
+	}
+}

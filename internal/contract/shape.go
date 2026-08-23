@@ -317,13 +317,15 @@ var Shapes = []Shape{
 		// workbench command carries its own sentence and its own next step
 		// rather than ending on advice written for delete.
 		Name:     Unconfirmed,
-		Variants: []string{"workbench"},
+		Variants: []string{"workbench", "workstream"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unconfirmed.workbench.next", WhenCommand: "workbench"},
+			{Key: "refusal.dinah.unconfirmed.workstream.next", WhenCommand: "workstream"},
 			{Key: "refusal.dinah.unconfirmed.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unconfirmed.workbench.next",
+			"refusal.dinah.unconfirmed.workstream.next",
 			"refusal.dinah.unconfirmed.next",
 		},
 	},
@@ -356,6 +358,41 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.unknown-field.next"},
 	},
 	{
+		// The axis list rides as a value read off the disposition table
+		// itself rather than written into the catalog, so an axis added to
+		// the vocabulary reaches this sentence without a translator being
+		// asked for anything.
+		Name:      UnknownAxis,
+		Values:    []string{"axes"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-axis.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-axis.next"},
+	},
+	{
+		// This sentence names the repeated axis and lists nothing, since the
+		// axis it names is already one of the legal ones and listing them
+		// would say so twice.
+		Name:      RepeatedAxis,
+		Fragments: []Fragment{{Key: "refusal.dinah.repeated-axis.next"}},
+		NextStep:  []string{"refusal.dinah.repeated-axis.next"},
+	},
+	{
+		// Two numbers and no axis name at all, because the chain that was
+		// refused may name nothing illegal.
+		Name:      ChainTooLong,
+		Values:    []string{"asked", "allowed"},
+		Fragments: []Fragment{{Key: "refusal.dinah.chain-too-long.next"}},
+		NextStep:  []string{"refusal.dinah.chain-too-long.next"},
+	},
+	{
+		// The levels ride as a value rather than as a Listing, because which
+		// ladder this refusal enumerates depends on the command that raised
+		// it and the head cannot resolve that without learning both.
+		Name:      UnknownDepth,
+		Values:    []string{"levels"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-depth.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-depth.next"},
+	},
+	{
 		Name:      UnknownGuide,
 		Listing:   "guides",
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-guide.next"}},
@@ -371,17 +408,22 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-key.next"},
 	},
 	{
-		// Two of the fifteen raise sites name a path on the filesystem and
-		// thirteen name something inside the workbench, so the next step
-		// splits on the value that separates the families.
+		// Two of the raise sites name a path on the filesystem and the rest
+		// name something inside the workbench, so the next step splits on the
+		// value that separates the families. A third family is a reader
+		// reaching a card or a state through whatever holds it, where the
+		// segment is a collection that plainly exists and the advice is to
+		// name the thing by its own reference instead.
 		Name:   UnknownPath,
-		Values: []string{"file"},
+		Values: []string{"file", "addressed"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-path.next-file", When: "file"},
+			{Key: "refusal.dinah.unknown-path.next-addressed", When: "addressed"},
 			{Key: "refusal.dinah.unknown-path.next"},
 		},
 		NextStep: []string{
 			"refusal.dinah.unknown-path.next-file",
+			"refusal.dinah.unknown-path.next-addressed",
 			"refusal.dinah.unknown-path.next",
 		},
 	},
@@ -425,10 +467,61 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.usage.next"},
 	},
 	{
+		// A workstream a live card still belongs to is not deleted, and the
+		// next step names the two ways past it: take the cards out, or
+		// archive the workstream, which is allowed while cards belong to it.
+		Name:      Referenced,
+		Fragments: []Fragment{{Key: "refusal.dinah.referenced.next"}},
+		NextStep:  []string{"refusal.dinah.referenced.next"},
+	},
+	{
+		// The next step names the listing rather than printing it, the way
+		// unknown-command names dinah help: a workbench can carry many
+		// workstreams, and a reader who mistyped one needs the command that
+		// shows them rather than the whole set under a refusal.
+		Name:      UnknownWorkstream,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-workstream.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-workstream.next"},
+	},
+	{
 		Name:      WorkbenchNotApplicable,
 		Values:    []string{"source"},
 		Fragments: []Fragment{{Key: "refusal.dinah.workbench-not-applicable.next"}},
 		NextStep:  []string{"refusal.dinah.workbench-not-applicable.next"},
+	},
+	{
+		// OutsideRoot carries the resolved path and the named root value the
+		// sentence and its context member both reference, so a reader
+		// looking at either side sees the same pair.
+		Name:      OutsideRoot,
+		Values:    []string{"root"},
+		Fragments: []Fragment{{Key: "refusal.dinah.outside-root.next"}},
+		NextStep:  []string{"refusal.dinah.outside-root.next"},
+	},
+	{
+		Name:      UnknownRoot,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-root.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-root.next"},
+	},
+	{
+		// A name selector against a collection that declares a name field
+		// matched more than one entity. The sentence names the selector and
+		// the ordinal of every match, so the caller can retry with one of
+		// them as attachments/<n>.
+		Name:      AmbiguousName,
+		Values:    []string{"selector", "ordinals"},
+		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-name.next"}},
+		NextStep:  []string{"refusal.dinah.ambiguous-name.next"},
+	},
+	{
+		// A rename aimed at something that is not an attachment. The
+		// detail names what the reference resolved to, so the sentence
+		// names the entity the caller meant rather than the word they
+		// typed.
+		Name:      NotRenamable,
+		Values:    []string{"kind"},
+		Fragments: []Fragment{{Key: "refusal.dinah.not-renamable.next"}},
+		NextStep:  []string{"refusal.dinah.not-renamable.next"},
 	},
 }
 
