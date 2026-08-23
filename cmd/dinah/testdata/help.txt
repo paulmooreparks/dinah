@@ -3,7 +3,11 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>]             file a new card in the first state
+  add                                       file a new card in the first state
+    <title>
+    [--state <state>]
+    [--severity <level>]
+    [--priority <level>]
   claim <card> [--expires <duration>]       take up a ready card
   move <card> <state> [--override]          carry a card to another state
   release <card>                            give the card back to its queue
@@ -22,6 +26,8 @@ WORK
   delete <ref> --yes                        destroy a card, a state, or anything
                                             below a card, along with its history
   rename <ref> <name>                       rename an attachment
+  card <get|set> <card> <field> [value]     read one of a card's own fields, or
+                                            write one
 
 READ
   status                                    where this workbench stands, and

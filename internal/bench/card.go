@@ -47,6 +47,11 @@ type Card struct {
 	BlockReason string
 	BlockKind   string
 	BlockSince  string
+	// Severity and Priority are the levels the card records on the two axes
+	// a workbench may declare. An empty value means the card carries no
+	// level for that axis, which the format declares legal.
+	Severity string
+	Priority string
 	// Links are what this card records about other cards.
 	Links []Link
 	// Workstreams are the identifiers of the workstreams the card belongs
@@ -86,6 +91,8 @@ func LoadCard(collection, id string) (*Card, error) {
 		BlockReason: fm.Value("block_reason"),
 		BlockKind:   fm.Value("block_kind"),
 		BlockSince:  fm.Value("block_since"),
+		Severity:    fm.Value(SeverityField),
+		Priority:    fm.Value(PriorityField),
 		Workstreams: fm.Seq("workstreams"),
 		Body:        body,
 		Revision:    revision,
@@ -170,6 +177,12 @@ func (c *Card) Save() error {
 	setOrDelete(c.FM, "block_reason", c.BlockReason)
 	setOrDelete(c.FM, "block_kind", c.BlockKind)
 	setOrDelete(c.FM, "block_since", c.BlockSince)
+	// SetAfter inserts directly after its anchor and leaves an existing key
+	// where it already sits, so writing priority after substate and then
+	// severity after substate lands severity, then priority, whichever of
+	// the two is present, and a key somebody placed by hand stays put.
+	setAfterOrDelete(c.FM, PriorityField, c.Priority, "substate")
+	setAfterOrDelete(c.FM, SeverityField, c.Severity, "substate")
 	c.FM.SetSeq("workstreams", c.Workstreams)
 	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {
 		return err
@@ -190,6 +203,67 @@ func setOrDelete(fm *Frontmatter, key, value string) {
 		return
 	}
 	fm.Set(key, value)
+}
+
+// setAfterOrDelete writes a value after a named key or removes the key when
+// the value is empty, which is setOrDelete over SetAfter rather than over Set:
+// a field the tool added to an anchor reads where a reader expects it when
+// every writer puts it in the same place.
+func setAfterOrDelete(fm *Frontmatter, key, value, after string) {
+	if value == "" {
+		fm.Delete(key)
+		return
+	}
+	fm.SetAfter(key, value, after)
+}
+
+// The frontmatter keys carrying a card's two levels, which are also the names
+// of the two axes a workbench declares them under.
+const (
+	SeverityField = "severity"
+	PriorityField = "priority"
+)
+
+// CardFields are the fields a card records that a person writes and may
+// rewrite, in the order a reader meets them. It is a variable in the source
+// rather than a sentence in a catalog, so a third card field reaches the
+// refusal that lists them without a translator being asked for anything.
+var CardFields = []string{SeverityField, PriorityField}
+
+// KnownCardField reports whether a name is one of the card's own fields,
+// which is what both a read of one and a write to one ask first.
+func KnownCardField(name string) bool {
+	for _, known := range CardFields {
+		if known == name {
+			return true
+		}
+	}
+	return false
+}
+
+// LevelOf reads the level a card records on one axis, and answers the empty
+// string for a name outside the set. The caller refuses over the name; this
+// reports what is stored under it.
+func (c *Card) LevelOf(field string) string {
+	switch field {
+	case SeverityField:
+		return c.Severity
+	case PriorityField:
+		return c.Priority
+	}
+	return ""
+}
+
+// SetLevel writes one of the card's own levels in memory, ready for Save. A
+// name outside the set writes nothing, since the caller has already refused
+// over it.
+func (c *Card) SetLevel(field, value string) {
+	switch field {
+	case SeverityField:
+		c.Severity = value
+	case PriorityField:
+		c.Priority = value
+	}
 }
 
 // Arrival returns when the card entered the state it now occupies, read from

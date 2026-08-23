@@ -193,6 +193,18 @@ const (
 	// the ordinal of every match, so the caller can pick one by ordinal and
 	// retry, since ordinal is tried ahead of name.
 	AmbiguousName = LayerPrefix + "ambiguous-name"
+	// NoLevels is a write naming an axis this workbench declares no set for.
+	// It is separate from UnknownLevel because no name is acceptable there,
+	// so a sentence calling the one the caller typed unknown would be false,
+	// and the repair is to declare the set rather than to correct a name.
+	// The sentence is written about the one axis the write named and never
+	// about the workbench as a whole, since the two axes are declared
+	// independently and a workbench declaring one of them is ordinary.
+	NoLevels = LayerPrefix + "no-levels"
+	// UnknownLevel is a write naming a level the workbench's declaration for
+	// that axis does not carry. The sentence lists the levels it does carry,
+	// and it too is written about one axis.
+	UnknownLevel = LayerPrefix + "unknown-level"
 	// NotRenamable is a rename aimed at something that is not an attachment.
 	// The detail names what the reference resolved to, so the caller sees
 	// what was misunderstood rather than what they tried to write.
@@ -208,6 +220,7 @@ var Introduced = []string{
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
+	NoLevels, UnknownLevel,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -280,9 +293,16 @@ const (
 	// workstream's identifier in Workstream.
 	EventWorkstreamJoined = "workstream_joined"
 	EventWorkstreamLeft   = "workstream_left"
+	// EventCardUpdated records a write to one of a card's own fields, on that
+	// card's journal. It covers a severity change and a priority change
+	// alike, and it carries Field, From and To exactly as
+	// EventWorkbenchUpdated does. Clearing a field writes the line with To
+	// absent, and a first write to a field carrying none writes it with From
+	// absent, since omitempty drops an empty value either way.
+	EventCardUpdated = "card_updated"
 )
 
-// Events lists the eighteen event names a query over cards accepts in its
+// Events lists the nineteen event names a query over cards accepts in its
 // event field, in the order the constants above declare them, so a caller
 // checking a value against the closed set reads one list rather than repeating
 // it. Every event a card's own journal can carry has to be here, since an
@@ -293,13 +313,16 @@ const (
 // EventWorkbenchUpdated and EventWorkstreamUpdated are the two declared names
 // this list holds out, and each is held out for the same reason: it lands on
 // the workbench's journal or on a workstream's, never on a card's, so no card
-// a query reads can ever carry it.
+// a query reads can ever carry it. EventCardUpdated is the third of the
+// *_updated family and is listed, because it lands on a card's own journal
+// and an event a card carries that nobody can ask for is exactly what the
+// containment above forbids.
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,
 	EventAttachmentReplaced, EventAttachmentRemoved, EventAttachmentRenamed,
 	EventArchived, EventRestored, EventDeleted, EventManualCorrection,
-	EventWorkstreamJoined, EventWorkstreamLeft,
+	EventWorkstreamJoined, EventWorkstreamLeft, EventCardUpdated,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

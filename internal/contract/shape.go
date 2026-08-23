@@ -345,17 +345,48 @@ var Shapes = []Shape{
 		// legal in its place, so the detail alone cannot carry it and the
 		// field list rides as a value read off the vocabulary itself.
 		//
-		// The ordered-operator clause is unconditional, because the two raise
-		// sites are indistinguishable to a reader who mistyped: one of them
-		// wrote an operator and the other did not, and the clause says which
-		// field takes the four ordered ones either way.
-		Name:   UnknownField,
-		Values: []string{"fields", "instantField"},
+		// The ordered-operator clause is unconditional within the query,
+		// because the two raise sites there are indistinguishable to a reader
+		// who mistyped: one of them wrote an operator and the other did not,
+		// and the clause says which field takes the four ordered ones either
+		// way.
+		//
+		// Two commands raise this name for two acts. A query names a field of
+		// the query language, and card names a field a card records, so the
+		// command word selects the sentence and the ordered-operator clause
+		// stops being unconditional: it is written about the query language's
+		// one ranking field and says nothing a card reader can use.
+		Name:     UnknownField,
+		Values:   []string{"fields", "instantField"},
+		Variants: []string{"card"},
 		Fragments: []Fragment{
-			{Key: "refusal.dinah.unknown-field.ordered"},
+			{Key: "refusal.dinah.unknown-field.ordered", WhenCommand: "query"},
+			{Key: "refusal.dinah.unknown-field.card.next", WhenCommand: "card"},
 			{Key: "refusal.dinah.unknown-field.next"},
 		},
-		NextStep: []string{"refusal.dinah.unknown-field.next"},
+		NextStep: []string{
+			"refusal.dinah.unknown-field.card.next",
+			"refusal.dinah.unknown-field.next",
+		},
+	},
+	{
+		// The declared set rides as a value rather than as a Listing, for the
+		// reason unknown-depth gives: which axis's set this refusal
+		// enumerates depends on the write that raised it, and a Listing name
+		// resolves from the session alone.
+		Name:      UnknownLevel,
+		Values:    []string{"axis", "levels"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-level.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-level.next"},
+	},
+	{
+		// The axis rides as a value even though the detail could carry it,
+		// because the sentence names the axis twice and the anchor path once,
+		// and a detail doing both jobs reads as one of them.
+		Name:      NoLevels,
+		Values:    []string{"axis", "anchor"},
+		Fragments: []Fragment{{Key: "refusal.dinah.no-levels.next"}},
+		NextStep:  []string{"refusal.dinah.no-levels.next"},
 	},
 	{
 		// The axis list rides as a value read off the disposition table

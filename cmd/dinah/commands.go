@@ -38,6 +38,14 @@ func init() {
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2},
+		// card dispatches on its own first word the way workbench does, so it
+		// declares an open tail here and runs its own arity and mistyped-flag
+		// checks (see runCard). It sits under groupWork rather than beside
+		// its grammar siblings because the groups split on what a command
+		// acts on: groupWork holds every command that acts on a card, and a
+		// reader scanning the block for how to change something about a card
+		// finds it beside the other twelve.
+		{name: "card", group: groupWork, run: runCard, openTail: true},
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "states", group: groupRead, run: runStates},
@@ -172,8 +180,87 @@ func runAdd(s *session, parsed *arguments) int {
 		return s.reportError(refusal)
 	}
 	req.Title = title
+	req.Severity = parsed.value("severity")
+	req.Priority = parsed.value("priority")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Add(req))
+	})
+}
+
+// runCard reads or writes one of a card's own fields.
+//
+// The grammar is `dinah workbench`'s over a card, so the third entity that
+// carries writable fields is reached the same way as the other two. There is
+// no bare invocation, since a card reference is needed before the command
+// means anything and `dinah show` already prints what a card holds.
+//
+// Like runWorkbench, this dispatches on its own first word rather than reading
+// fixed positions, so it runs its own arity and mistyped-flag checks: once on
+// the first word before the switch, once on the reference and the field inside
+// the branches that read them, and once on get's fourth word, which get never
+// reads. The parameter list's Required marks are read by the syntax line and
+// by the mcp head's schema and by nothing here.
+func runCard(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	switch first {
+	case "get":
+		return s.runCardGet(parsed, words)
+	case "set":
+		return s.runCardSet(parsed, words)
+	}
+	return s.fail(contract.Usage, first)
+}
+
+// runCardGet prints one field of one card on a line of its own, so a script
+// reads it, and prints an empty line for a card carrying no level.
+func (s *session) runCardGet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	if extra := at(words, 3); extra != "" {
+		return s.fail(contract.Usage, extra)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("card", parsed)
+		req.Action, req.Card, req.Field = "get", reference, field
+		value, err := l.CardField(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		s.line(value)
+		return 0
+	})
+}
+
+// runCardSet writes one field of one card, and clears it when the invocation
+// leaves the value off. Clearing is spelled that way because a card without a
+// level is a legal card, so the `config set` grammar applies where the
+// `workbench set` refusal of an empty value does not.
+func (s *session) runCardSet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	lead := []string{"card", "set", reference, field}
+	value, refusal := s.freeText(lead, words[min(3, len(words)):], "slot.value")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("card", parsed)
+		req.Action, req.Card, req.Field, req.Value = "set", reference, field, value
+		return s.emit(l.SetCardField(req))
 	})
 }
 

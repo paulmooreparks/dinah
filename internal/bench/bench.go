@@ -200,6 +200,10 @@ type Bench struct {
 	// hand. It plays no part in the flow; dinah check reports it and dinah
 	// check --migrate-states removes it from the definition.
 	StrandedStates []string
+	// levels are the declared level sets, keyed by axis, read out of the
+	// levels block at Open. It is unexported because every reader wants one
+	// axis rather than the map, and Levels and Level are how they ask.
+	levels map[string][]Level
 	// Passed is the workbench.md files the discovery walk found and did not
 	// claim on its way to resolving this bench, each one a directory holding
 	// somebody else's document rather than a Dinah workbench. It is set by
@@ -820,6 +824,7 @@ func Open(root string) (*Bench, error) {
 		Standing: body,
 		Profile:  fm.Value("profile"),
 		FM:       fm,
+		levels:   readLevels(fm),
 	}
 	if b.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)

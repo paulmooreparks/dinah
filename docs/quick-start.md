@@ -1082,14 +1082,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        543/543
-  af        0/543
-  cs        0/543
-  de        543/543
-  es        0/543
-  fil       0/543
-  hi        543/543
-  id        0/543
+  en        563/563
+  af        0/563
+  cs        0/563
+  de        563/563
+  es        0/563
+  fil       0/563
+  hi        563/563
+  id        0/563
 [exit 0]
 ```
 

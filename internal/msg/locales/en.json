@@ -37,6 +37,14 @@
       "text": "the named state is below its capacity limit",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.add.4": {
+      "text": "the workbench declares levels for each named field",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.5": {
+      "text": "each named level is one that field declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.archive.1": {
       "text": "the reference resolves to a card, a state, or something below a card",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -80,6 +88,26 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.card.1": {
+      "text": "the reference names a card of this workbench",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.2": {
+      "text": "the field is one a card records",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.3": {
+      "text": "the workbench declares levels for that field",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all."
+    },
+    "check.card.4": {
+      "text": "the value is a level that field declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.5": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.claim-without-active": {
       "text": "card {detail} carries claim fields without substate active",
@@ -425,6 +453,10 @@
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
+    "check.unknown-level": {
+      "text": "a card names {detail}, which this workbench does not declare",
+      "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card."
+    },
     "check.unknown-state": {
       "text": "a card names state {detail}, which this workbench does not declare",
       "context": "A check finding: every card's state identifier resolves."
@@ -549,6 +581,10 @@
       "text": "move a card, a state, or anything below a card, out of the live set",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
     },
+    "cmd.card.summary": {
+      "text": "read one of a card's own fields, or write one",
+      "context": "The one-line summary of the card command, shown beside its syntax in the help block."
+    },
     "cmd.rename.summary": {
       "text": "rename an attachment",
       "context": "The one-line summary of the rename command, shown beside its syntax in the help block."
@@ -628,6 +664,50 @@
     "cmd.mcp.summary": {
       "text": "serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
+    },
+    "param.add.priority.summary": {
+      "text": "which priority level to file the card with, from the levels this workbench declares",
+      "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.add.severity.summary": {
+      "text": "which severity level to file the card with, from the levels this workbench declares",
+      "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.card.action.summary": {
+      "text": "which of the two acts to run: read one field or write one",
+      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.field.summary": {
+      "text": "which field you are reading or writing: severity or priority",
+      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.value.summary": {
+      "text": "the level to write; leave it out to clear the field",
+      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table."
+    },
+    "refusal.dinah.no-levels": {
+      "text": "this workbench declares no {axis} levels, so there is none to set",
+      "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one."
+    },
+    "refusal.dinah.no-levels.next": {
+      "text": "; declare them under levels: in {anchor}",
+      "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is."
+    },
+    "refusal.dinah.unknown-field.card": {
+      "text": "Dinah has no field {detail}. The fields a card records are: {fields}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated."
+    },
+    "refusal.dinah.unknown-field.card.next": {
+      "text": " Name one of those instead, or run `dinah help card` to see what the command checks.",
+      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is."
+    },
+    "refusal.dinah.unknown-level": {
+      "text": "this workbench declares no {axis} level called {detail}. The {axis} levels it declares are: {levels}.",
+      "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-level.next": {
+      "text": " Name one of those instead.",
+      "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels."
     },
     "tool.workbenches.summary": {
       "text": "the workbenches this server may serve",
