@@ -2,6 +2,7 @@ package msg
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -169,9 +170,10 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 // and the translation drops or content the English never named. German's
 // help.environment omitted DINAH_MCP_ROOT, which the English lists, and this
 // test said nothing about it; dinah-248 fixed the omission and added
-// TestEveryLocaleNamesEveryEnvironmentVariable, which reads that entry's
-// content. A reader chasing a missing-content defect elsewhere in the catalog
-// should still not expect this guard to have caught it.
+// TestEveryUntranslatableIdentifierSurvivesTranslation, which reads the
+// content of every entry declaring it untranslatable. A reader chasing a
+// missing-content defect elsewhere in the catalog should still not expect this
+// guard to have caught it.
 func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
 	for _, key := range Keys() {
@@ -198,33 +200,61 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 	}
 }
 
-// TestEveryLocaleNamesEveryEnvironmentVariable asserts that help.environment
-// names, in every catalog, every environment variable the English entry names.
-// The variable names are identifiers rather than words, so a translation
-// rewrites the sentence around them and carries the names through unchanged.
-// German lost DINAH_MCP_ROOT when the MCP work added it to English and did not
-// come back for the other catalogs, and nothing caught that: the entry carries
-// no placeholder and splices onto nothing, so
-// TestATranslationKeepsThePlaceholdersAndTheSplice reads none of its content.
-// This guard reads the content, for the one entry whose content is a list of
-// identifiers that must appear everywhere.
-func TestEveryLocaleNamesEveryEnvironmentVariable(t *testing.T) {
-	const key = "help.environment"
-	entry, ok := BaseEntry(key)
-	if !ok {
-		t.Fatalf("%s: the English catalog carries no such key", key)
-	}
+// TestEveryUntranslatableIdentifierSurvivesTranslation asserts that a
+// translation carries through, unchanged, every machine identifier its English
+// source names, for each entry whose context declares those identifiers are
+// never translated. The declaration is the selector, so an entry earns this
+// check by saying in its own context note that part of its text is machine
+// vocabulary. A check keyed on the help.environment key name would cover the
+// same ground today and would not notice the second such entry arriving, which
+// is how German lost DINAH_MCP_ROOT in the first place; a check keyed on the
+// identifier pattern alone would flag the four help.group headings, whose
+// ALL-CAPS words are section titles a translator is supposed to render (READ
+// becomes LESEN).
+//
+// Today the selector picks out help.environment alone, because it is the only
+// entry that both declares its content untranslatable and spells that content
+// in the identifier shape this guard reads. Twelve other entries carry a
+// "never translated" declaration about text held in a placeholder, which
+// TestATranslationKeepsThePlaceholdersAndTheSplice already guards.
+//
+// The comparison is between token sets rather than name by name, because
+// membership by substring cannot enforce a name another name contains:
+// DINAH_EDITOR satisfies a containment test for EDITOR, so a catalog dropping
+// the bare EDITOR passed the earlier form of this guard.
+func TestEveryUntranslatableIdentifierSurvivesTranslation(t *testing.T) {
 	identifier := regexp.MustCompile(`\b[A-Z][A-Z0-9_]{2,}\b`)
-	names := identifier.FindAllString(entry.Text, -1)
-	if len(names) == 0 {
-		t.Fatalf("%s: the English entry names no environment variable, so this guard checks nothing: %q", key, entry.Text)
-	}
-	for _, tag := range Tags() {
-		rendered := For(tag).T(key)
-		for _, name := range names {
-			if !strings.Contains(rendered, name) {
-				t.Errorf("%s/%s: wanted the environment variable %s, got %q", tag, key, name, rendered)
+	checked := 0
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok {
+			continue
+		}
+		if !strings.Contains(entry.Context, "never translated") {
+			continue
+		}
+		wanted := identifiers(identifier, entry.Text)
+		if wanted == "" {
+			continue
+		}
+		checked++
+		for _, tag := range Tags() {
+			rendered := For(tag).T(key)
+			if got := identifiers(identifier, rendered); got != wanted {
+				t.Errorf("%s/%s: wanted the identifiers %s, got %s in %q", tag, key, wanted, got, rendered)
 			}
 		}
 	}
+	if checked == 0 {
+		t.Fatal("no English entry both declares its content untranslatable and names an identifier, so this guard checks nothing")
+	}
+}
+
+// identifiers returns the identifiers pattern finds in text, sorted and joined,
+// so that two texts naming the same identifiers compare equal whatever order
+// each puts them in and however the sentence around them is worded.
+func identifiers(pattern *regexp.Regexp, text string) string {
+	found := pattern.FindAllString(text, -1)
+	sort.Strings(found)
+	return strings.Join(found, ", ")
 }
