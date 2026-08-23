@@ -12,6 +12,8 @@ import (
 	"dinah/internal/contract"
 	"dinah/internal/guide"
 	"dinah/internal/msg"
+	"dinah/internal/profile"
+	"dinah/internal/verb"
 )
 
 // The source-level checks that back the replay up.
@@ -819,4 +821,215 @@ func exercisedWorkbench(t *testing.T) string {
 func workflowPublishes(workflow, artifact string) bool {
 	bounded := regexp.MustCompile(`(^|[^A-Za-z0-9._-])` + regexp.QuoteMeta(artifact) + `([^A-Za-z0-9._-]|$)`)
 	return bounded.MatchString(workflow)
+}
+
+// citedStatement matches a statement identifier as a document cites one. The
+// families are the three the profile declares, and the trailing segment is
+// digits because an identifier ends in its number: without that, the pattern
+// would read CORE-MOVE out of a sentence naming the family rather than a
+// statement.
+//
+// The middle segments are optional, and that is not decoration. A CORE or DOC
+// identifier carries a section name before its number, as CORE-CLAIM-6 does,
+// while the actor statements are numbered straight off the family, as ACTOR-1
+// is. A pattern demanding a middle segment reads none of the four actor
+// statements, which is most of what a working-agreement section has to cite.
+var citedStatement = regexp.MustCompile(`\b(?:CORE|ACTOR|DOC)(?:-[A-Z0-9]+)*-[0-9]+\b`)
+
+// TestTheDocumentationCitesOnlyStatementsTheProfileDeclares asserts that every
+// statement identifier any guide or the quick start cites is one that
+// docs/spec/core-profile.md declares.
+//
+// A citation is the one part of a rationale section a machine can check. The
+// prose around it says why a rule exists and no test holds that, but the
+// identifier under it either resolves or it does not, and a profile that
+// renumbers or retires a statement leaves every document citing the old name
+// reading plausibly and pointing at nothing. That has happened once already:
+// the profile's 2.0 development entry retires CORE-QUEUE-1 and CORE-QUEUE-2,
+// and DOC-VER-6 forbids republishing a retired identifier, so those two names
+// survive today only in a changelog.
+//
+// The assertion runs in one direction alone. Every identifier a document cites
+// must be declared, while a statement no document cites is not a fault, since
+// the profile carries far more statements than any guide has reason to name.
+//
+// The emptiness guard covers the whole corpus rather than each document. Most
+// of these documents cite nothing and are right not to, so a per-document floor
+// would fail on every one of them the day it landed.
+func TestTheDocumentationCitesOnlyStatementsTheProfileDeclares(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join(repositoryRoot, "docs", "spec", "core-profile.md"))
+	if err != nil {
+		t.Fatalf("read the profile: %v", err)
+	}
+	document, err := profile.Extract(strings.NewReader(string(source)))
+	if err != nil {
+		t.Fatalf("extract the profile: %v", err)
+	}
+	declared := map[string]bool{}
+	for _, statement := range document.Statements {
+		declared[statement.ID] = true
+	}
+	if len(declared) == 0 {
+		t.Fatal("the profile declared no statement, so every citation below would fail for the wrong reason")
+	}
+	cited := 0
+	for _, guarded := range guardedDocuments(t) {
+		for number, line := range strings.Split(guarded.text, "\n") {
+			for _, identifier := range citedStatement.FindAllString(line, -1) {
+				cited++
+				if declared[identifier] {
+					continue
+				}
+				t.Errorf("%s:%d: the document cites %s, which docs/spec/core-profile.md does not declare",
+					guarded.name, number+1, identifier)
+			}
+		}
+	}
+	if cited == 0 {
+		t.Error("no document cited any statement, so this check read nothing and would pass over a corpus citing nothing but stale names")
+	}
+}
+
+// contractVerbSentence matches the one line a guide uses to introduce the verbs
+// the coordination contract specifies. The phrase is the marker, so a rewrite
+// keeping it goes on being checked and a rewrite dropping it fails loudly
+// rather than quietly reading nothing.
+var contractVerbSentence = regexp.MustCompile(`(?m)^.*the contract's verbs.*$`)
+
+// quotedWord matches one backticked single word, which is how a guide spells a
+// verb name. Reading a single word is what keeps an invocation out of the set:
+// a guide writes one between backticks too, and it is more than one word.
+var quotedWord = regexp.MustCompile("`([a-z][a-z-]*)`")
+
+// TestThePrinciplesGuideNamesTheContractVerbs asserts that the verbs the
+// principles guide introduces as the contract's own are exactly
+// verb.ContractVerbs.
+//
+// How the set is read out of the guide, since that choice decides what this
+// check means. The guide carries one line containing the phrase "the contract's
+// verbs", and the set is every backticked single word on it. Collecting every
+// invocation the guide teaches would be the obvious rule and the wrong one: the
+// guide also teaches the log and states commands and points at another guide,
+// none of which the contract specifies, so that rule would fail on a guide that
+// is correct.
+//
+// A sixth contract verb, or a renamed one, then fails here rather than leaving
+// a served guide telling every reader there are five.
+func TestThePrinciplesGuideNamesTheContractVerbs(t *testing.T) {
+	text, err := guide.Text("principles")
+	if err != nil {
+		t.Fatalf("the principles guide: %v", err)
+	}
+	line := contractVerbSentence.FindString(text)
+	if line == "" {
+		t.Fatal("the principles guide carries no line naming the contract's verbs, so this check has nothing to read; if that wording moved, move this marker with it")
+	}
+	var named []string
+	for _, match := range quotedWord.FindAllStringSubmatch(line, -1) {
+		named = append(named, match[1])
+	}
+	got := append([]string{}, named...)
+	wanted := append([]string{}, verb.ContractVerbs...)
+	sort.Strings(got)
+	sort.Strings(wanted)
+	if strings.Join(got, " ") != strings.Join(wanted, " ") {
+		t.Errorf("the guide introduces %v as the contract's verbs and verb.ContractVerbs is %v", named, verb.ContractVerbs)
+	}
+}
+
+// TestNoSentenceStandsInTwoGuides asserts that no sentence of eight or more
+// words appears in two of the guides the binary embeds.
+//
+// The boundary between two guides is drawn by the question each answers rather
+// than by topic, and two prose documents left to a convention drift together.
+// This check is what holds that boundary after both have been edited a few
+// times by people who never read the card which drew it.
+//
+// How a sentence is found, since the rule is the check's meaning. Fenced blocks
+// are dropped whole, because a command line standing in two guides is the
+// tool's vocabulary rather than one guide copying another. Heading lines and
+// table rows are dropped, because a heading glued to the sentence beneath it is
+// not a sentence and a table row is a record. A list marker is stripped and
+// what follows it is read as prose. What remains is joined a paragraph at a
+// time, split on a full stop, a question mark or an exclamation mark, and
+// normalised for whitespace and case.
+//
+// Eight words is the threshold so that a shared short line does not trip it.
+// The corpus is guide.Topics() alone rather than guardedDocuments: the quick
+// start and getting-started.md already share a sentence, so a check over the
+// wider corpus would fail on arrival for a reason that is nobody's defect.
+func TestNoSentenceStandsInTwoGuides(t *testing.T) {
+	seen := map[string]string{}
+	compared := 0
+	for _, topic := range guide.Topics() {
+		text, err := guide.Text(topic)
+		if err != nil {
+			t.Fatalf("guide %s: %v", topic, err)
+		}
+		for _, sentence := range guideProse(text) {
+			if len(strings.Fields(sentence)) < 8 {
+				continue
+			}
+			compared++
+			where, already := seen[sentence]
+			if !already {
+				seen[sentence] = topic
+				continue
+			}
+			if where == topic {
+				continue
+			}
+			t.Errorf("the guides %s and %s both carry the sentence %q, so one of them is answering the other's question",
+				where, topic, sentence)
+		}
+	}
+	if compared == 0 {
+		t.Fatal("no guide yielded a sentence of eight words, so this check read nothing")
+	}
+}
+
+// guideProse reduces one guide to its sentences, dropping what is not prose.
+// The rule it applies is written out on the test that calls it, because the
+// rule is that check's meaning rather than a detail of how it is written.
+func guideProse(text string) []string {
+	var paragraphs []string
+	var current []string
+	inFence := false
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			paragraphs = append(paragraphs, strings.Join(current, " "))
+			current = nil
+			continue
+		}
+		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "|") {
+			continue
+		}
+		for _, marker := range []string{"- ", "* ", "> "} {
+			trimmed = strings.TrimPrefix(trimmed, marker)
+		}
+		current = append(current, trimmed)
+	}
+	paragraphs = append(paragraphs, strings.Join(current, " "))
+
+	var sentences []string
+	for _, paragraph := range paragraphs {
+		for _, sentence := range strings.FieldsFunc(paragraph, func(r rune) bool {
+			return r == '.' || r == '?' || r == '!'
+		}) {
+			normalised := strings.ToLower(strings.Join(strings.Fields(sentence), " "))
+			if normalised == "" {
+				continue
+			}
+			sentences = append(sentences, normalised)
+		}
+	}
+	return sentences
 }

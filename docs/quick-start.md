@@ -1380,10 +1380,11 @@ $ dinah guide
 The guides stand in the order Dinah recommends reading them.
 
   Topic             Title
-  ----------------  -----------------------------------
+  ----------------  ------------------------------------
   first-session     Your first session at a workbench
   getting-started   Getting started
   verbs             The five verbs
+  principles        Why a workbench has the rules it has
   references        References
   query             Asking questions of a workbench
   workbench-layout  What a workbench looks like on disk
