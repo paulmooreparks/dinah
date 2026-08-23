@@ -973,6 +973,10 @@
       "text": "इसी स्वामी के रूप में कार्य करें",
       "context": "The one-line summary of the global flag --actor."
     },
+    "flag.help.summary": {
+      "text": "यह सहायता दें, या किसी कमांड का नाम देने पर उसका पृष्ठ",
+      "context": "The one-line summary of the global flag --help. The flag also answers to -h, -help, -?, --? and /?, and the syntax beside this summary lists the three the column has room for."
+    },
     "flag.json.summary": {
       "text": "मानक मशीन रूप दें",
       "context": "The one-line summary of the global flag --json."
@@ -984,6 +988,10 @@
     "flag.quiet.summary": {
       "text": "claim और move पर परोसे गए निर्देश दबाएँ",
       "context": "The one-line summary of the global flag --quiet."
+    },
+    "flag.version.summary": {
+      "text": "संस्करण दें और रुक जाएँ",
+      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v and -version, and the syntax beside this summary lists the two the column has room for."
     },
     "flag.workbench.summary": {
       "text": "यहाँ से खोजी गई वर्कबेंच के बजाय यह वर्कबेंच लें",

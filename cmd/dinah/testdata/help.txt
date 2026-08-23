@@ -98,6 +98,8 @@ Global flags:
   --quiet            suppress served instructions on claim and move
   --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
   --actor <name>     act as this owner
+  --help, -h, -?     print this help, or one command's page when a command is named
+  --version, -V      print the version and stop
 
 Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 

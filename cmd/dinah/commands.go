@@ -1045,7 +1045,23 @@ func isRefusalNamed(err error, name string) bool {
 // command the help block's own last line names, and it is reachable without
 // being listed among the groups.
 func runHelp(s *session, parsed *arguments) int {
-	name := at(parsed.rest(), 0)
+	return s.helpFor(at(parsed.rest(), 0))
+}
+
+// helpFor prints the whole surface, or one command's page when a command was
+// named. It is what the help command runs and what a help flag written
+// anywhere on the line runs, so the two reach one composition rather than two
+// that can drift: `dinah ls --help` and `dinah help ls` print the same page,
+// and a first word naming no command refuses the same way whichever spelling
+// asked.
+//
+// The two doors part company past that first word, and only there. The command
+// goes through run()'s own arity walk, so `dinah help ls extra` refuses the
+// stray word; the flag is answered ahead of that walk, so `dinah ls -h extra`
+// prints the page. A caller who asks what a command takes is told what it
+// takes rather than told they asked wrongly, which is the whole point of the
+// card, so the flag is the door that gets this right.
+func (s *session) helpFor(name string) int {
 	if name == "" {
 		s.write(s.helpBlock())
 		return 0

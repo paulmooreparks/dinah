@@ -1053,6 +1053,10 @@
       "text": "als dieser Akteur handeln",
       "context": "The one-line summary of the global flag --actor."
     },
+    "flag.help.summary": {
+      "text": "diese Hilfe ausgeben, oder die Seite eines Befehls, wenn ein Befehl genannt wird",
+      "context": "The one-line summary of the global flag --help. The flag also answers to -h, -help, -?, --? and /?, and the syntax beside this summary lists the three the column has room for."
+    },
     "flag.json.summary": {
       "text": "die kanonische Maschinenform ausgeben",
       "context": "The one-line summary of the global flag --json."
@@ -1064,6 +1068,10 @@
     "flag.quiet.summary": {
       "text": "ausgelieferte Anweisungen bei claim und move unterdrücken",
       "context": "The one-line summary of the global flag --quiet."
+    },
+    "flag.version.summary": {
+      "text": "die Version ausgeben und anhalten",
+      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v and -version, and the syntax beside this summary lists the two the column has room for."
     },
     "flag.workbench.summary": {
       "text": "diese Werkbank statt der von hier aus gefundenen verwenden",
