@@ -491,6 +491,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateStates = value
 	case "migrate-workstreams":
 		req.MigrateWorkstreams = value
+	case "no-claim":
+		req.NoClaim = value
 	case "catalogs":
 		// The version tool always reports catalog coverage, so the marker
 		// carries nothing here.

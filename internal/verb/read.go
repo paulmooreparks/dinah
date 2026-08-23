@@ -199,20 +199,38 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 	}
 	offers := make([]Offer, 0, len(states))
 	for _, state := range states {
-		var ready []*bench.Card
-		for _, card := range cards {
-			if card.State == state.ID && card.Substate == contract.SubstateReady {
-				ready = append(ready, card)
-			}
-		}
-		sortByArrival(ready)
 		offer := Offer{State: state.ID, Title: state.Title}
-		if len(ready) > 0 {
-			offer.Card = l.view(ready[0])
+		if head := headOfReady(state.ID, cards); head != nil {
+			offer.Card = l.view(head)
 		}
 		offers = append(offers, offer)
 	}
 	return offers, nil
+}
+
+// headOfReady returns the next card pull (or next) would take from the given
+// state, or nil if the state holds no ready card. The order is the queue
+// order CORE-QUEUE-3 fixes, namely arrival into the current state first with
+// the lower card identifier breaking a tie, and only ready cards are eligible.
+//
+// Reading the cards out of the bench's own latch-free snapshot means the
+// returned card may have lapsed in between; both call sites re-read under the
+// card's lock inside their own transaction, so a held card here is filtered
+// again with `claim`'s substate test at the only moment it would matter. A
+// pull that reaches a held or blocked card re-reads it under its lock and
+// refuses accordingly.
+func headOfReady(stateID string, cards []*bench.Card) *bench.Card {
+	var ready []*bench.Card
+	for _, card := range cards {
+		if card.State == stateID && card.Substate == contract.SubstateReady {
+			ready = append(ready, card)
+		}
+	}
+	if len(ready) == 0 {
+		return nil
+	}
+	sortByArrival(ready)
+	return ready[0]
 }
 
 // Detail is a card and everything below it a reader asked to see.

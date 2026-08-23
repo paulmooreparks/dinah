@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -121,8 +122,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 30 {
-		t.Errorf("wanted thirty tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 31 {
+		t.Errorf("wanted thirty-one tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -144,7 +145,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
+	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
@@ -635,4 +636,170 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 	if beyond != 3*len(listed.Tools)-1 {
 		t.Errorf("read %d injected properties across %d tools, want 3 per tool minus the workbenches exception", beyond, len(listed.Tools))
 	}
+}
+
+// TestEveryDeclaredParameterReachesTheRequest asserts that every parameter a
+// tool advertises in its schema is one this head can actually put on a
+// request.
+//
+// The schema is generated from verb.Params, and request2Args reads the same
+// list, but the two switch statements it dispatches into are written by hand.
+// A parameter added to a command's table therefore appears in the schema, is
+// offered to every agent reading the surface, is looked up by name on the way
+// in, and then falls off the end of a switch that has no case for it. Nothing
+// fails: the call succeeds and the argument is discarded, so an agent asking
+// for one thing is silently given another. `no-claim` shipped that way and is
+// the reason this check exists.
+//
+// The check drives a value through request2Args and asserts the request came
+// back different from an empty one, which is what "reached the request"
+// means. A parameter that lands in the wrong field still passes, so the check
+// bounds one defect class and does not prove the assignment correct.
+func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
+	// A parameter the head deliberately reads and discards is named here with
+	// the reason, so that the deliberate case is visible rather than looking
+	// like the accident this check exists to find.
+	carriedNowhereOnPurpose := map[string]string{
+		"version.catalogs": "the version tool always reports catalog coverage, so the marker selects nothing",
+	}
+	// A parameter this check found landing nowhere, which is a defect rather
+	// than a decision and is tracked on its own card. An entry here does not
+	// skip the parameter. The check still builds the request and requires the
+	// defect to still be present, so repairing the defect reddens this test
+	// and the entry has to be deleted along with it.
+	knownDefect := map[string]string{
+		"attach.description": "dinah-222: assignValue has no case for it, so an attachment made over this head is created with no description",
+	}
+	checked := 0
+	for _, entry := range tools {
+		for _, param := range verb.Params(entry.command) {
+			named := entry.command + "." + param.Name
+			if _, deliberate := carriedNowhereOnPurpose[named]; deliberate {
+				continue
+			}
+			arguments := map[string]any{}
+			if param.Marker {
+				arguments[param.Name] = true
+			} else {
+				arguments[param.Name] = durationOrWord(param.Name)
+			}
+			built := request2Args(entry.command, arguments)
+			empty := request2Args(entry.command, map[string]any{})
+			reached := !reflect.DeepEqual(built, empty)
+			if tracked, defective := knownDefect[named]; defective {
+				if reached {
+					t.Errorf("%s: %q now reaches the request, so the exemption has outlived its defect and belongs deleted (%s)",
+						entry.name, param.Name, tracked)
+				}
+				continue
+			}
+			checked++
+			if !reached {
+				t.Errorf("%s: the schema offers %q and request2Args puts it nowhere on the request, so an agent sending it is silently ignored",
+					entry.name, param.Name)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no tool declared a parameter, so this check read nothing")
+	}
+}
+
+// durationOrWord returns a value the assignment will accept for one named
+// parameter. Most take any word; `expires` is parsed as a duration and a word
+// it cannot parse would be dropped for a reason this check is not about.
+func durationOrWord(name string) string {
+	if name == "expires" {
+		return "8h"
+	}
+	return "x"
+}
+
+// TestPullIsDrivenThroughTheHead asserts that the pull tool works over the
+// protocol rather than merely appearing on the surface.
+//
+// Taking work is the thing an agent does over this head rather than at a
+// terminal, so pull is the tool that most needs its arguments proved to cross
+// the boundary. The schema projection holds the shape of the call and says
+// nothing about what happens to it, which is how the `no-claim` marker came to
+// be advertised, accepted, and thrown away.
+//
+// The fixture's flow is Intake then Doing, with one ready card in Intake, so a
+// pull into Doing takes that card and a pull into Intake has nothing before it
+// to take from.
+func TestPullIsDrivenThroughTheHead(t *testing.T) {
+	t.Run("the named form takes the card and claims it", func(t *testing.T) {
+		library := newLibrary(t)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"doing"}}}`)
+		decoded := payload(t, answer)
+		if decoded["outcome"] != contract.OutcomeOK {
+			t.Fatalf("pull: %v", decoded)
+		}
+		card, ok := decoded["card"].(map[string]any)
+		if !ok {
+			t.Fatalf("wanted a card on the response, got %v", decoded["card"])
+		}
+		if card["holder"] != "alka" {
+			t.Errorf("a pull claims what it takes, got holder %v", card["holder"])
+		}
+		if card["substate"] != contract.SubstateActive {
+			t.Errorf("wanted the card active, got %v", card["substate"])
+		}
+		if _, carried := decoded["legal_moves"]; !carried {
+			t.Error("wanted the legal moves the canonical response carries")
+		}
+	})
+
+	t.Run("the bare form chooses the one state that qualifies", func(t *testing.T) {
+		library := newLibrary(t)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka"}}}`)
+		decoded := payload(t, answer)
+		if decoded["outcome"] != contract.OutcomeOK {
+			t.Fatalf("bare pull: %v", decoded)
+		}
+		card, ok := decoded["card"].(map[string]any)
+		if !ok {
+			t.Fatalf("the bare form should have taken the one card standing ready, got %v", decoded["card"])
+		}
+		// Naming the state is what ties the subtest to its title: the fixture
+		// declares Intake and Doing, and only Doing qualifies, so a head that
+		// pulled into whichever state it saw last would pass without it.
+		if card["state_title"] != "Doing" {
+			t.Errorf("the one state that qualifies is Doing, got %v", card["state_title"])
+		}
+	})
+
+	t.Run("the no-claim marker crosses the boundary", func(t *testing.T) {
+		library := newLibrary(t)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"doing","no-claim":true}}}`)
+		decoded := payload(t, answer)
+		if decoded["outcome"] != contract.OutcomeOK {
+			t.Fatalf("pull --no-claim: %v", decoded)
+		}
+		card, ok := decoded["card"].(map[string]any)
+		if !ok {
+			t.Fatalf("wanted a card on the response, got %v", decoded["card"])
+		}
+		// This is the assertion the marker was silently failing. Without the
+		// case in assignMarker the request reaches the library with NoClaim
+		// false, the pull claims the card, and the holder below is alka.
+		if card["holder"] != nil && card["holder"] != "" {
+			t.Errorf("--no-claim asked for no claim and the card came back held by %v", card["holder"])
+		}
+		if card["substate"] != contract.SubstateReady {
+			t.Errorf("wanted the card left ready, got %v", card["substate"])
+		}
+	})
+
+	t.Run("a refusal carries its name across", func(t *testing.T) {
+		library := newLibrary(t)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"intake"}}}`)
+		decoded := payload(t, answer)
+		if decoded["outcome"] != contract.OutcomeRefused {
+			t.Fatalf("a pull into the first state should refuse, got %v", decoded)
+		}
+		if decoded["refusal"] != contract.NoUpstream {
+			t.Errorf("wanted %s, got %v", contract.NoUpstream, decoded["refusal"])
+		}
+	})
 }

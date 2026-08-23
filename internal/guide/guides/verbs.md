@@ -26,6 +26,14 @@ slow.
 `unblock` lifts a block, and only the operator may do it. An obstacle raised
 is an obstacle handed to whoever answers for the workbench.
 
+`pull` is not a sixth verb. It is a claim and a move run as one act, over a
+card you did not have to name: `dinah pull <state>` takes whatever stands at
+the head of the queue in the state before the one you named, carries it in,
+and claims it for you. The card's history afterwards is the same claimed event
+and the same moved event the two commands write separately, so nothing about
+the record tells you which way the card was taken. Add `--no-claim` to move
+the card and leave it waiting for somebody else.
+
 Every verb reports one of four outcomes, and the tool keeps them apart because
 each calls for a different next move. `ok` means it happened. `refused` means
 a rule said no, and the refusal carries a name you can read with `cut -d' '

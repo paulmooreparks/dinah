@@ -684,10 +684,54 @@ func tailRoom(laid laidTable) int {
 	if len(laid.widths) == 0 {
 		return minTailColumns
 	}
-	if measured := laid.widths[len(laid.widths)-1]; measured < minTailColumns {
+	measured := laid.widths[len(laid.widths)-1]
+	if measured < minTailColumns {
+		return measured
+	}
+	// A tail the renderer can break between words gives up nothing to the flat
+	// reservation: whatever does not fit wraps onto the next line and the
+	// reader still reads it. A tail whose every value is one unbreakable token
+	// has no such give, so a reservation short of what it measured is a line
+	// that runs past the window rather than a line that wraps, which is the
+	// one case the flat reservation gets wrong.
+	//
+	// Such a tail asks for its whole width, and gets it wherever the columns
+	// ahead of it can still stand at their own headings, which is the floor
+	// the backstop refuses to narrow past anyway, so nothing is given up by
+	// asking. A token too wide for even that keeps the flat reservation, since
+	// reserving its measure would narrow every column ahead of it to its
+	// heading and still not fit.
+	if !tailIsUnbreakable(laid) {
+		return minTailColumns
+	}
+	lead := laid.indent
+	for c := 0; c < len(laid.widths)-1; c++ {
+		lead += displayWidth(laid.columns[c].heading) + tableGutter
+	}
+	if lead+measured <= laid.window {
 		return measured
 	}
 	return minTailColumns
+}
+
+// tailIsUnbreakable reports whether every value of the last column is a single
+// word, so that no line break inside one is available to the row renderer. A
+// column of refusal names is the shape this answers true for; a column of
+// prose or of paths with spaces in them is the shape it answers false for.
+func tailIsUnbreakable(laid laidTable) bool {
+	last := len(laid.widths) - 1
+	if last < 0 {
+		return false
+	}
+	for _, r := range laid.rows {
+		if last >= len(r.fields) {
+			continue
+		}
+		if strings.ContainsAny(r.fields[last], " 	") {
+			return false
+		}
+	}
+	return true
 }
 
 // stacks reports whether a column stands at its own heading and still cannot

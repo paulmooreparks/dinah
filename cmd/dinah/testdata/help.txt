@@ -10,6 +10,11 @@ WORK
     [--priority <level>]
   claim <card> [--expires <duration>]       take up a ready card
   move <card> <state> [--override]          carry a card to another state
+  pull [state]                              claim the head of a state's queue
+    [--no-claim]
+    [--expires <duration>]
+    [--override]
+                                            and move it there in one act
   release <card>                            give the card back to its queue
   block <card> <reason> [--kind <kind>]     raise an obstacle and free the card
   unblock <card>                            lift a block (operator only)
