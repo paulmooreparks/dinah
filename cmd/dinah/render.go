@@ -97,6 +97,12 @@ func (s *session) renderCard(card *verb.CardView) {
 		values = append(values, "workstreams", s.workstreamsCell(card.Workstreams))
 	}
 	s.line(s.r.T(key, values...))
+	if card.Severity != "" {
+		s.line(s.r.T("card.severity", "severity", card.Severity))
+	}
+	if card.Priority != "" {
+		s.line(s.r.T("card.priority", "priority", card.Priority))
+	}
 	if card.Holder != "" {
 		s.line(s.r.T("card.holder", "holder", card.Holder))
 	}
@@ -210,9 +216,9 @@ func (s *session) renderListing(listing *verb.Listing) {
 		s.line(s.r.T("ls.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "title")}
+	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "severity", "priority", "title")}
 	for _, card := range listing.Cards {
-		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.Substate), card.Title}})
+		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.Substate), card.Severity, card.Priority, card.Title}})
 	}
 	s.table(t)
 }

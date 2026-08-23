@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -555,6 +556,236 @@ func TestTheCardHelpPageIsTheBlockTheOperatorApproved(t *testing.T) {
 		at = found
 		if !strings.Contains(got.out[found:], row.refusal) {
 			t.Errorf("the check %q is not paired with %s:\n%s", row.check, row.refusal, got.out)
+		}
+	}
+}
+
+// TestShowPrintsIndependentlyConditionalSeverityAndPriorityLines asserts
+// dinah-194 AC-3: renderCard prints a severity line and a priority line
+// directly under the card's summary line, each independently conditional on
+// the field being non-empty, and ahead of the holder and blocked lines.
+func TestShowPrintsIndependentlyConditionalSeverityAndPriorityLines(t *testing.T) {
+	root := newBenchFromDefinition(t, bothAxesDefinition)
+	if got := runCLI(t, root, "add", "a card carrying neither level"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--severity", "major", "a card carrying only a severity"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--priority", "now", "a card carrying only a priority"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--severity", "critical", "--priority", "soon", "a card carrying both levels"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+
+	neither := runCLI(t, root, "show", "fx-1")
+	if strings.Contains(neither.out, "severity:") || strings.Contains(neither.out, "priority:") {
+		t.Errorf("a card carrying neither level printed a severity or priority line:\n%s", neither.out)
+	}
+
+	severityOnly := runCLI(t, root, "show", "fx-2")
+	if !strings.Contains(severityOnly.out, "\n  severity: major\n") {
+		t.Errorf("a card carrying only a severity did not print its severity line:\n%s", severityOnly.out)
+	}
+	if strings.Contains(severityOnly.out, "priority:") {
+		t.Errorf("a card carrying no priority printed a priority line:\n%s", severityOnly.out)
+	}
+
+	priorityOnly := runCLI(t, root, "show", "fx-3")
+	if !strings.Contains(priorityOnly.out, "\n  priority: now\n") {
+		t.Errorf("a card carrying only a priority did not print its priority line:\n%s", priorityOnly.out)
+	}
+	if strings.Contains(priorityOnly.out, "severity:") {
+		t.Errorf("a card carrying no severity printed a severity line:\n%s", priorityOnly.out)
+	}
+
+	both := runCLI(t, root, "show", "fx-4")
+	wantBoth := "a card carrying both levels  [Intake / ready]\n  severity: critical\n  priority: soon\n"
+	if !strings.HasSuffix(strings.TrimPrefix(both.out, "fx-4  "), wantBoth) {
+		t.Errorf("a card carrying both levels did not print severity then priority directly under the summary line:\n%s", both.out)
+	}
+
+	// Both plus holder plus blocked: the summary line, then severity, then
+	// priority, then holder, then blocked, in that order. block() itself
+	// clears a card's holder (mutate.go), so this combination is not
+	// reachable through the CLI's own verbs; renderCard is exercised
+	// directly against a CardView carrying all four fields instead, which is
+	// exactly what the UX sketch's own worked example draws.
+	buf := &bytes.Buffer{}
+	s := &session{out: buf, r: msg.For(msg.Base)}
+	s.renderCard(&verb.CardView{
+		Ref:         "fx-4",
+		Title:       "a card carrying both levels",
+		StateTitle:  "Intake",
+		Substate:    "active",
+		Severity:    "critical",
+		Priority:    "soon",
+		Holder:      "paul",
+		BlockReason: "waiting on a decision",
+	})
+	fullOut := buf.String()
+	severityAt := strings.Index(fullOut, "severity:")
+	priorityAt := strings.Index(fullOut, "priority:")
+	holderAt := strings.Index(fullOut, "held by")
+	blockedAt := strings.Index(fullOut, "blocked:")
+	if severityAt < 0 || priorityAt < 0 || holderAt < 0 || blockedAt < 0 {
+		t.Fatalf("a held, blocked card carrying both levels did not print all four lines:\n%s", fullOut)
+	}
+	if !(severityAt < priorityAt && priorityAt < holderAt && holderAt < blockedAt) {
+		t.Errorf("the four lines are not in severity, priority, holder, blocked order:\n%s", fullOut)
+	}
+}
+
+// TestLsGainsSeverityAndPriorityColumnsBetweenStandingAndTitle asserts
+// dinah-194 AC-4: dinah ls draws a Severity column and a Priority column, in
+// that order, between Standing and Title, against a listing carrying both,
+// one, and neither axis on its cards.
+func TestLsGainsSeverityAndPriorityColumnsBetweenStandingAndTitle(t *testing.T) {
+	root := newBenchFromDefinition(t, bothAxesDefinition)
+	if got := runCLI(t, root, "add", "--severity", "major", "--priority", "now", "a workbench states its default lane"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "a card carrying neither level"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--severity", "minor", "a card carrying only a severity"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	got := runCLI(t, root, "ls", "intake")
+	if got.code != 0 {
+		t.Fatalf("ls: %d %s", got.code, got.errw)
+	}
+	heading := strings.SplitN(got.out, "\n", 2)[0]
+	standingAt := strings.Index(heading, "Standing")
+	severityAt := strings.Index(heading, "Severity")
+	priorityAt := strings.Index(heading, "Priority")
+	titleAt := strings.Index(heading, "Title")
+	if standingAt < 0 || severityAt < 0 || priorityAt < 0 || titleAt < 0 {
+		t.Fatalf("the heading does not carry all four columns:\n%s", heading)
+	}
+	if !(standingAt < severityAt && severityAt < priorityAt && priorityAt < titleAt) {
+		t.Errorf("the columns are not in Standing, Severity, Priority, Title order:\n%s", heading)
+	}
+	for _, want := range []string{"major", "now", "minor"} {
+		if !strings.Contains(got.out, want) {
+			t.Errorf("the listing does not carry %q:\n%s", want, got.out)
+		}
+	}
+}
+
+// TestLsDropsAnAxisColumnNobodyPopulates asserts dinah-194 AC-5: on a listing
+// where no visible card carries a value for one axis, that axis's column,
+// heading included, is dropped by the table layer's existing
+// withoutEmptyColumns pass, with no new special-case code needed to produce
+// it.
+func TestLsDropsAnAxisColumnNobodyPopulates(t *testing.T) {
+	root := newBenchFromDefinition(t, bothAxesDefinition)
+	if got := runCLI(t, root, "add", "--severity", "minor", "a card carrying only a severity"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	if got := runCLI(t, root, "add", "--severity", "major", "another card carrying only a severity"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	got := runCLI(t, root, "ls", "intake")
+	if got.code != 0 {
+		t.Fatalf("ls: %d %s", got.code, got.errw)
+	}
+	heading := strings.SplitN(got.out, "\n", 2)[0]
+	if strings.Contains(heading, "Priority") {
+		t.Errorf("a listing where no card carries a priority still drew the Priority column:\n%s", heading)
+	}
+	if !strings.Contains(heading, "Severity") {
+		t.Errorf("a listing where a card carries a severity dropped the Severity column:\n%s", heading)
+	}
+}
+
+// TestUndeclaredLevelDisplaysUnmarkedOnAllThreeSurfaces asserts dinah-194
+// AC-6: a card whose stored severity names a level the workbench's current
+// declaration does not carry is shown exactly as stored, unmarked, on the ls
+// column, the show line and the machine form, carrying forward dinah-193
+// D-2's reader posture with no new validation on any read path.
+func TestUndeclaredLevelDisplaysUnmarkedOnAllThreeSurfaces(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "a card whose severity nobody declares any more"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	handWrite(t, root, "fx-1", "severity: urgent")
+
+	listing := runCLI(t, root, "ls", "intake")
+	if listing.code != 0 {
+		t.Fatalf("ls: %d %s", listing.code, listing.errw)
+	}
+	if !strings.Contains(listing.out, "urgent") {
+		t.Errorf("the listing does not show the undeclared severity as stored:\n%s", listing.out)
+	}
+
+	shown := runCLI(t, root, "show", "fx-1")
+	if shown.code != 0 {
+		t.Fatalf("show: %d %s", shown.code, shown.errw)
+	}
+	if !strings.Contains(shown.out, "\n  severity: urgent\n") {
+		t.Errorf("show does not print the undeclared severity as stored:\n%s", shown.out)
+	}
+
+	asJSON := runCLI(t, root, "show", "fx-1", "--json")
+	if asJSON.code != 0 {
+		t.Fatalf("show --json: %d %s", asJSON.code, asJSON.errw)
+	}
+	var decoded struct {
+		Card struct {
+			Severity string `json:"severity"`
+		} `json:"card"`
+	}
+	if err := json.Unmarshal([]byte(asJSON.out), &decoded); err != nil {
+		t.Fatalf("decode: %v\n%s", err, asJSON.out)
+	}
+	if decoded.Card.Severity != "urgent" {
+		t.Errorf("the machine form carries severity %q, wanted the undeclared value as stored", decoded.Card.Severity)
+	}
+}
+
+// TestLevelNamesNeverPassThroughTheTokenCatalog asserts dinah-194 AC-7:
+// severity and priority values render as the workbench declared them,
+// bypassing s.token() entirely, the same treatment workstreamsCell already
+// gives workbench-declared names. A level literally named "active" is used
+// because the German catalog translates the fixed token "active" to "aktiv";
+// if the display path ran the value through s.token(), the German rendering
+// would read "aktiv" instead of "active".
+func TestLevelNamesNeverPassThroughTheTokenCatalog(t *testing.T) {
+	const collidingDefinition = `{
+  "profile": "dinah-core/1.0",
+  "title": "Colliding level",
+  "levels": { "severity": ["active"] },
+  "states": [
+    { "id": "b00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "b00000000002", "title": "Done", "kind": "done" }
+  ]
+}`
+	root := newBenchFromDefinition(t, collidingDefinition)
+	if got := runCLI(t, root, "add", "--severity", "active", "a card whose severity collides with a fixed token"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	for _, tag := range []string{"en", "de"} {
+		shown := runCLI(t, root, "show", "fx-1", "--lang", tag)
+		if shown.code != 0 {
+			t.Fatalf("%s: show: %d %s", tag, shown.code, shown.errw)
+		}
+		if !strings.Contains(shown.out, "active") {
+			t.Errorf("%s: show did not print the level name unchanged:\n%s", tag, shown.out)
+		}
+		if strings.Contains(shown.out, "aktiv") {
+			t.Errorf("%s: the level name reached the German token catalog:\n%s", tag, shown.out)
+		}
+		listing := runCLI(t, root, "ls", "intake", "--lang", tag)
+		if listing.code != 0 {
+			t.Fatalf("%s: ls: %d %s", tag, listing.code, listing.errw)
+		}
+		if !strings.Contains(listing.out, "active") {
+			t.Errorf("%s: ls did not print the level name unchanged:\n%s", tag, listing.out)
+		}
+		if strings.Contains(listing.out, "aktiv") {
+			t.Errorf("%s: the level name reached the German token catalog on ls:\n%s", tag, listing.out)
 		}
 	}
 }

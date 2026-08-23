@@ -26,6 +26,16 @@
       "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it.",
       "skeleton": true
     },
+    "card.priority": {
+      "text": "  priority: {priority}",
+      "context": "Printed under the card line when the card carries a priority.",
+      "skeleton": true
+    },
+    "card.severity": {
+      "text": "  severity: {severity}",
+      "context": "Printed under the card line when the card carries a severity.",
+      "skeleton": true
+    },
     "check.active-without-claim": {
       "text": "card {detail} reads active and carries no holder",
       "context": "A check finding: the converse of the claim implication.",
@@ -1094,6 +1104,16 @@
     "column.ls.card": {
       "text": "Card",
       "context": "Heading over the reference a person types to name the card, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.ls.priority": {
+      "text": "Priority",
+      "context": "Heading over the card's priority, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.ls.severity": {
+      "text": "Severity",
+      "context": "Heading over the card's severity, in the card listing `dinah ls` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "skeleton": true
     },
     "column.ls.standing": {
