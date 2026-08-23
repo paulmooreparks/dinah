@@ -46,8 +46,8 @@ const (
 	// sits beside FindingUnknownState for the same reason: the write path is
 	// the only place a level is validated, because refusing on read would
 	// make a workbench unreadable the moment somebody edits its declaration.
-	FindingUnknownLevel = "check.unknown-level"
-	FindingIgnoredAnchor      = "check.ignored-anchor"
+	FindingUnknownLevel  = "check.unknown-level"
+	FindingIgnoredAnchor = "check.ignored-anchor"
 	// FindingDanglingWorkstream names a card listing a workstream identifier
 	// that resolves in neither half of the workstreams collection, on the
 	// same terms FindingDanglingLink already reports a link's to.
