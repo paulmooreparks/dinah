@@ -1783,6 +1783,16 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
 	t.Setenv("COLUMNS", "")
+	// The editor row is fixed by the fixture, at the config rung
+	// sweptSetEditor writes. All three rungs above and beside it read the
+	// environment directly, so an enclosing test or an ambient shell that
+	// carries one draws a row no expectation predicts. Cleared here as well as
+	// in TestMain, because a later t.Setenv beats an earlier one and this is
+	// the level TestTheSweepsEditorRowIgnoresTheEnvironment asserts against.
+	// dinah-229.
+	t.Setenv("DINAH_EDITOR", "")
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", "")
 
 	benches := &sweptWorkbenches{
 		base:      base,
@@ -2367,4 +2377,61 @@ func TestReadSweptRowsSplitsAJointContinuation(t *testing.T) {
 			}
 		}
 	}
+}
+
+// sweptHostileEditorEnv is what TestTheSweepsEditorRowIgnoresTheEnvironment
+// exports before it builds the fixture: one value per environment rung of the
+// editor ladder, each distinct and each naming no editor that exists. The
+// values are distinct so that a failure can say which variable reached the
+// row rather than only that one did, and the source token the listing reports
+// says the same thing a second way.
+var sweptHostileEditorEnv = []struct {
+	name   string
+	value  string
+	source string
+}{
+	{name: "DINAH_EDITOR", value: "hostile-dinah-editor", source: bench.SourceEditorVar},
+	{name: "VISUAL", value: "hostile-visual", source: bench.SourceVisual},
+	{name: "EDITOR", value: "hostile-editor", source: bench.SourceEnvironment},
+}
+
+// TestTheSweepsEditorRowIgnoresTheEnvironment pins the cause the sweep's own
+// failure could only report as a symptom. dinah-229.
+//
+// The editor ladder reads DINAH_EDITOR, VISUAL and EDITOR through bare
+// os.Getenv calls inside ResolveEditorSource, and DINAH_EDITOR sits above the
+// config rung buildSweptWorkbenches writes through sweptSetEditor. On a
+// machine exporting any of the three, the sweep drew a row its expectation
+// table does not declare and reported it as an unpaired record, which reads
+// as an inventory that has fallen behind rather than as an environment leak.
+// Three people diagnosed it wrongly off that presentation in one day.
+//
+// This goes through buildSweptWorkbenches rather than settingsHome because
+// settingsHome already clears all seven of the isolated names, so a test built
+// on it would pass whether or not the fixture clearing exists. The clearing
+// inside the fixture is what this asserts, and a t.Setenv here beats
+// TestMain's clearing, so the assertion has something to bite on.
+func TestTheSweepsEditorRowIgnoresTheEnvironment(t *testing.T) {
+	for _, rung := range sweptHostileEditorEnv {
+		t.Setenv(rung.name, rung.value)
+	}
+
+	benches := buildSweptWorkbenches(t)
+	rows := settingRows(t, runCLI(t, benches.healthy, "--json", "config"))
+
+	editor, drawn := rows["editor"]
+	if !drawn {
+		t.Fatalf("dinah config drew no editor row at all: %v", rows)
+	}
+	if editor.Value == benches.record.editor && editor.Source == bench.SourceConfig {
+		return
+	}
+	for _, rung := range sweptHostileEditorEnv {
+		if editor.Value == rung.value || editor.Source == rung.source {
+			t.Fatalf("the editor row read %s from the environment: wanted %q at %s, got %q at %s",
+				rung.name, benches.record.editor, bench.SourceConfig, editor.Value, editor.Source)
+		}
+	}
+	t.Fatalf("the editor row answered at a rung the fixture did not write: wanted %q at %s, got %q at %s",
+		benches.record.editor, bench.SourceConfig, editor.Value, editor.Source)
 }
