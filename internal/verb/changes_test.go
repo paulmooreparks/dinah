@@ -198,6 +198,18 @@ func TestAMoveIsReportedOnceAndThenNotAgain(t *testing.T) {
 	if again.Changed || len(again.Events) != 0 {
 		t.Errorf("the same move was reported twice: changed=%v, %v", again.Changed, eventNames(again))
 	}
+
+	// The board has to move again before the cursor's position is load
+	// bearing. Until it does, an answer that reports nothing is the digest
+	// terms agreeing, and a cursor that never advanced its position would
+	// pass on that alone.
+	h.advance(time.Minute)
+	h.reopen()
+	h.comment(ref, "a second act, so the terms move again")
+	later := h.checkpoint(&Request{Since: again.Cursor})
+	if names := eventNames(later); len(names) != 1 || names[0] != contract.EventCommented {
+		t.Errorf("the cursor did not advance past the move, so it is delivered again: %v", names)
+	}
 }
 
 // TestTwoEventsInOneSecondAreBothDeliveredOnce covers dinah-120 AC-4. The
@@ -226,9 +238,16 @@ func TestTwoEventsInOneSecondAreBothDeliveredOnce(t *testing.T) {
 	if len(repeat.Events) != 2 || repeat.Events[0].ID != order[0] || repeat.Events[1].ID != order[1] {
 		t.Errorf("the order of a shared second is not stable across calls: %v then %v", order, []string{repeat.Events[0].ID, repeat.Events[1].ID})
 	}
+	// A third line moves the terms again, so the call below is answered from
+	// the cursor's position rather than from the digest terms agreeing. The
+	// clock steps past the hour the pair above was stamped at, since a line
+	// written before the cursor's own position is not a line after it.
+	h.advance(2 * time.Hour)
+	h.reopen()
+	h.comment(first, "a later act on the first card")
 	after := h.checkpoint(&Request{Since: set.Cursor})
-	if len(after.Events) != 0 {
-		t.Errorf("a line of the shared second was delivered twice: %v", eventNames(after))
+	if names := eventNames(after); len(names) != 1 || names[0] != contract.EventCommented {
+		t.Errorf("a line of the shared second was delivered twice: %v", names)
 	}
 }
 
@@ -355,9 +374,23 @@ func TestAFilteredCallStillAdvancesPastWhatItDidNotReport(t *testing.T) {
 		t.Errorf("a filter let through a change outside it: %d events, %d cards, %d gone", len(set.Events), len(set.Cards), len(set.Gone))
 	}
 
-	after := h.checkpoint(&Request{Since: set.Cursor, State: aftercareSlug})
-	if after.Changed {
-		t.Error("the filtered call did not advance its cursor, so the same change is reported forever")
+	// The board moves again, so the call below reads the cursor's position
+	// rather than two digest terms that happen to agree. The filter comes off
+	// for that call, which is what makes the assertion about the cursor rather
+	// than about the filter: a cursor that had not advanced would deliver the
+	// move it declined to report the moment somebody asked without a filter.
+	h.advance(time.Minute)
+	h.reopen()
+	inside := h.add("A card filed after the filtered call")
+
+	after := h.checkpoint(&Request{Since: set.Cursor})
+	for _, ev := range after.Events {
+		if ev.ID == h.cardID(ref) {
+			t.Errorf("the filtered call did not advance past what it did not report: %+v", ev)
+		}
+	}
+	if !holds(cardIDs(after), h.cardID(inside)) {
+		t.Errorf("the call after the filtered one lost the change that followed it: %v", cardIDs(after))
 	}
 }
 
@@ -576,6 +609,16 @@ func TestAnUnreadableJournalDegradesOneEntityAndNotTheCall(t *testing.T) {
 	if after.Changed {
 		t.Error("the cursor did not advance past the corruption, so it is reported forever")
 	}
+
+	// And once the board moves again, the sound card's earlier line stays
+	// delivered rather than coming back with the new one.
+	h.advance(time.Minute)
+	h.reopen()
+	h.comment(sound, "a later line on the sound card")
+	later := h.checkpoint(&Request{Since: after.Cursor})
+	if names := eventNames(later); len(names) != 1 {
+		t.Errorf("the cursor did not advance past what it delivered: %v", names)
+	}
 }
 
 // TestADeletedCardAndWorkstreamAreBothIdentifiersAndNeitherIsACard covers
@@ -656,7 +699,18 @@ func TestTheArchiveIsSkippedUntilTheArchiveItselfMoves(t *testing.T) {
 		t.Errorf("the corrupted archived journal is not reported: %v", reported.Unreadable)
 	}
 
+	// The live half moves and the archive does not, which is the call that
+	// tells the two implementations apart: one that opens the archive on
+	// every changed call reports the same corruption again here, and a gated
+	// one says nothing about a half it did not read.
+	h.advance(time.Minute)
+	h.reopen()
+	h.comment(live, "a line that moves the live term alone")
+
 	after := h.checkpoint(&Request{Since: reported.Cursor})
+	if !after.Changed {
+		t.Fatal("the live act left the board reading unchanged, so this proves nothing")
+	}
 	if len(after.Unreadable) != 0 {
 		t.Errorf("the archive was parsed again on a call whose archive term had not moved: %v", after.Unreadable)
 	}
