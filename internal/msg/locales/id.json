@@ -2,12 +2,12 @@
   "tag": "id",
   "entries": {
     "answer.pull.empty.bare": {
-      "text": "no state on this workbench has a card ready to pull",
+      "text": "Dinah found no state you can pull into right now",
       "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders.",
       "skeleton": true
     },
     "answer.pull.empty.named": {
-      "text": "no card is ready in {upstream}, the state ahead of {destination}",
+      "text": "Dinah found nothing ready in {upstream} to move into {destination}",
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in.",
       "skeleton": true
     },
@@ -1692,12 +1692,12 @@
       "skeleton": true
     },
     "param.pull.no-claim.summary": {
-      "text": "land the card at the destination without taking its lease; ownership stays with whoever held it before",
+      "text": "land the card at the destination without claiming it; it stays ready there for whoever takes it next",
       "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.pull.expires.summary": {
-      "text": "how long the claim's lease runs before it lapses, like 30m or 1d; the workbench's default when you write none",
+      "text": "how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d; it holds until you release the card when you write none",
       "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1837,7 +1837,7 @@
       "skeleton": true
     },
     "refusal.dinah.ambiguous-state": {
-      "text": "more than one state on this workbench qualifies for a bare pull",
+      "text": "you can pull into more than one state right now",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-state, raised when the bare form of pull has more than one state in its qualifying set. The candidate rows print beneath it, one per qualifying state, and refusal.dinah.ambiguous-state.next follows as the closing line naming the way forward.",
       "skeleton": true
     },
@@ -1947,7 +1947,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-upstream": {
-      "text": "the state {state} stands first in the flow, so nothing precedes it for a pull to take from",
+      "text": "you cannot pull into {state}, because it stands first in the flow and nothing precedes it",
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward.",
       "skeleton": true
     },

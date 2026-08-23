@@ -1,6 +1,8 @@
 package verb
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -535,34 +537,30 @@ func TestADoneUpstreamRefusesTerminal(t *testing.T) {
 	}
 }
 
-// TestAPullWithHeldSiblingRefusesLocked asserts the race window the
-// qualifier cannot catch. A sibling planted after the qualifier runs but
-// before the inner pull takes its lock refuses locked, and the journal
-// records no claim or move because the inner pull never reached its
-// journal step.
+// TestAPullWithHeldSiblingRefusesLocked asserts that a structural act
+// standing on the card refuses the pull, and that the refused pull writes
+// neither claimed nor moved.
 //
-// The sibling is planted by the Interleave hook so the qualifier has
-// already run by the time it stands up, and the refused pull records
-// neither claimed nor moved because the inner pull's journal step lives
-// after the precondition checks.
+// The refusal is bench.Acquire's own: the acquisition reads for a sibling and
+// gives the lock straight back when it finds one, which is why no card verb
+// carries a second copy of that read and why pull no longer carries one
+// either. The sibling therefore stands before the pull is asked for, which is
+// also the state a real archive in flight leaves on disk.
 func TestAPullWithHeldSiblingRefusesLocked(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("racy")
 	card := h.card(ref)
 
-	h.library.Interleave = func() {
-		// Plant the sibling as if the other process had archived the card
-		// out from under the pull. The race is structural: any Op that
-		// plants a sibling where the card's lockfile expects none suffices.
-		h.plant(bench.SiblingPath(card.Dir), bench.LockRecord{
-			Actor: "bob",
-			PID:   1234,
-			TS:    bench.Stamp(h.clock),
-			Op:    bench.OpArchive,
-		})
-	}
+	// Plant the sibling as if another process were archiving the card. The
+	// obstruction is structural: any Op that plants a sibling beside the
+	// card's directory suffices.
+	h.plant(bench.SiblingPath(card.Dir), bench.LockRecord{
+		Actor: "bob",
+		PID:   1234,
+		TS:    bench.Stamp(h.clock),
+		Op:    bench.OpArchive,
+	})
 	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: "doing"})
-	h.library.Interleave = nil
 	h.reopen()
 
 	if response.Outcome != contract.OutcomeRefused {
@@ -664,6 +662,158 @@ func TestAPulledCardsJournalMatchesTheThreeCommandRoute(t *testing.T) {
 	}
 }
 
+// hashCardDirectory sums a card directory's contents by path and by bytes,
+// skipping the lock file, which stands only for the length of the
+// transaction and so differs between a reading taken under the lock and one
+// taken after it was given back. What remains is the card itself: its anchor,
+// its journal, and anything filed beneath it.
+func hashCardDirectory(t *testing.T, dir string) string {
+	t.Helper()
+	sum := sha256.New()
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		if entry.Name() == bench.LockName {
+			return nil
+		}
+		relative, relErr := filepath.Rel(dir, path)
+		if relErr != nil {
+			return relErr
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		sum.Write([]byte(filepath.ToSlash(relative)))
+		sum.Write(data)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("hash %s: %v", dir, err)
+	}
+	return hex.EncodeToString(sum.Sum(nil))
+}
+
+// TestACardThatStopsBeingReadyUnderTheLockRefusesInTheClaimsWords asserts the
+// race the refusal table describes: the selection reads a ready card, another
+// process takes or blocks it before the lock closes, and the pull refuses
+// held or blocked in the sentence claim raises for the same condition rather
+// than choosing a different card or reporting a stale read.
+//
+// The Interleave hook stands for the other process. It fires after the lock
+// is taken and before the card is read, which is the window the selection
+// leaves open. The hook records what it left on disk, and the assertion holds
+// the card directory against that reading afterwards, so the refusal is shown
+// to have written nothing at all rather than merely to have written no event.
+func TestACardThatStopsBeingReadyUnderTheLockRefusesInTheClaimsWords(t *testing.T) {
+	cases := []struct {
+		name    string
+		mutate  func(card *bench.Card)
+		refusal string
+		detail  string
+	}{
+		{
+			name: "taken by somebody else",
+			mutate: func(card *bench.Card) {
+				card.Substate = contract.SubstateActive
+				card.Holder = "bob"
+			},
+			refusal: contract.Held,
+			detail:  "bob",
+		},
+		{
+			name: "blocked by somebody else",
+			mutate: func(card *bench.Card) {
+				card.Substate = contract.SubstateBlocked
+				card.BlockReason = "the printer is on fire"
+			},
+			refusal: contract.Blocked,
+			detail:  "the printer is on fire",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			ref := h.add("overtaken")
+			dir := h.card(ref).Dir
+
+			var left string
+			h.library.Interleave = func() {
+				card, err := bench.LoadCard(h.library.Bench.CardsRoot(), h.card(ref).ID)
+				if err != nil {
+					t.Fatalf("load the card mid-transaction: %v", err)
+				}
+				tc.mutate(card)
+				if err := card.Save(); err != nil {
+					t.Fatalf("overtake the card mid-transaction: %v", err)
+				}
+				left = hashCardDirectory(t, dir)
+			}
+			response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: "doing"})
+			h.library.Interleave = nil
+			h.reopen()
+
+			if response.Outcome != contract.OutcomeRefused || response.Refusal != tc.refusal {
+				t.Fatalf("wanted %s, got %s %s", tc.refusal, response.Outcome, response.Refusal)
+			}
+			if response.Detail != tc.detail {
+				t.Errorf("the refusal should name %q, got %q", tc.detail, response.Detail)
+			}
+			if after := hashCardDirectory(t, dir); after != left {
+				t.Errorf("the refused pull wrote to the card: %s became %s", left, after)
+			}
+			for _, ev := range h.events(ref) {
+				if ev.Event == contract.EventClaimed || ev.Event == contract.EventMoved {
+					t.Errorf("the refused pull wrote %s", ev.Event)
+				}
+			}
+		})
+	}
+}
+
+// TestPullReadsTheCardRowsBeforeTheDestinationRows asserts the half of the
+// merged order the departure case cannot reach: row 10 reads the card, rows
+// 11 to 13 read the destination, and the card decides first.
+//
+// The card is claimed under the lock by the owner asking for the pull, and
+// the destination stands at its capacity. That pair is the only one that
+// separates the two orders. The move's own held row admits a card its asker
+// holds, so a pull running the move's list whole before the claim's substate
+// pair reaches the capacity row and answers at-capacity. The table says the
+// answer is held, because row 10 takes the claim's stricter test and a claim
+// cannot take a card that is already active.
+func TestPullReadsTheCardRowsBeforeTheDestinationRows(t *testing.T) {
+	h := newHarness(t)
+	// The fixture's doing state holds one card, so one card standing in it
+	// puts it at its limit.
+	occupying := h.add("occupying doing")
+	h.mustDo(&Request{Verb: Move, Card: occupying, Actor: "alka", State: "doing"})
+	ref := h.add("claimed under the lock")
+
+	h.library.Interleave = func() {
+		card, err := bench.LoadCard(h.library.Bench.CardsRoot(), h.card(ref).ID)
+		if err != nil {
+			t.Fatalf("load the card mid-transaction: %v", err)
+		}
+		card.Substate = contract.SubstateActive
+		card.Holder = "alka"
+		if err := card.Save(); err != nil {
+			t.Fatalf("claim the card mid-transaction: %v", err)
+		}
+	}
+	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: "doing"})
+	h.library.Interleave = nil
+	h.reopen()
+
+	if response.Refusal != contract.Held {
+		t.Fatalf("wanted %s, got %s %s", contract.Held, response.Outcome, response.Refusal)
+	}
+	if response.Detail != "alka" {
+		t.Errorf("the refusal should name the holder alka, got %q", response.Detail)
+	}
+}
+
 // TestPullAndMoveRefuseOneCardInTheSameWords asserts the merged refusal order
 // on the case that motivated it: a card standing in an operator-owned state,
 // asked for by an owner who is not the operator. Both commands read the
@@ -671,11 +821,12 @@ func TestAPulledCardsJournalMatchesTheThreeCommandRoute(t *testing.T) {
 // not-operator, and a lifted sequence that reordered either list would show up
 // here as two different answers to one question.
 //
-// The Interleave hook blocks the card in the window the lock protects, which
-// is the arrival the review was worried about. The card the transaction
-// already re-read stays ready, so the blocked row cannot fire, and the point
-// of the assertion is that neither command reaches that row in the first
-// place: the departure decides it first.
+// The Interleave hook blocks the card in the window the lock protects, and
+// the card each command reads under its lock is therefore blocked. Row 9
+// would answer blocked and row 8 answers not-operator, so the assertion is a
+// statement about which of the two each command reaches first. Run pull's
+// rows 9 and 10 ahead of row 8, as calling the claim's list before the
+// move's does, and the pull half of this test answers blocked and fails.
 func TestPullAndMoveRefuseOneCardInTheSameWords(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("standing in review")

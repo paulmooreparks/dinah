@@ -2,11 +2,11 @@
   "tag": "de",
   "entries": {
     "answer.pull.empty.bare": {
-      "text": "kein Zustand dieser Werkbank hat eine bereite Karte zum Ziehen",
+      "text": "Dinah hat keinen Zustand gefunden, in den Sie gerade ziehen können",
       "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders."
     },
     "answer.pull.empty.named": {
-      "text": "keine Karte ist bereit in {upstream}, dem Zustand vor {destination}",
+      "text": "Dinah hat in {upstream} nichts Bereites gefunden, das nach {destination} verschoben werden könnte",
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in."
     },
     "card.blocked": {
@@ -1378,11 +1378,11 @@
       "context": "The meaning of the state argument of `dinah pull`, printed in that command's arguments table."
     },
     "param.pull.no-claim.summary": {
-      "text": "die Karte verschieben, ohne sie zu beanspruchen; der Eigentümer bleibt der vorherige Halter",
+      "text": "die Karte verschieben, ohne sie zu beanspruchen; sie bleibt dort bereit für den Nächsten, der sie nimmt",
       "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table."
     },
     "param.pull.expires.summary": {
-      "text": "wie lange die Beanspruchung läuft, geschrieben als 30m, 2h oder 1d; Standard ist die Gültigkeit der Werkbank",
+      "text": "wie lange Ihr Anspruch hält, bevor er veraltet, geschrieben als Zahl und Einheit: 30m, 2h, 7d; ohne Angabe hält er, bis Sie die Karte freigeben",
       "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table."
     },
     "param.pull.override.summary": {
@@ -1494,7 +1494,7 @@
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward."
     },
     "refusal.dinah.ambiguous-state": {
-      "text": "mehr als ein Zustand dieser Werkbank qualifiziert sich für ein nacktes Ziehen",
+      "text": "Sie können gerade in mehr als einen Zustand ziehen",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-state, raised when the bare form of pull has more than one state in its qualifying set. The candidate rows print beneath it, one per qualifying state, and refusal.dinah.ambiguous-state.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.ambiguous-state.next": {
@@ -1598,7 +1598,7 @@
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.no-upstream": {
-      "text": "der Zustand {state} steht im Fluss an erster Stelle, sodass ihm nichts vorangeht, aus dem ein Ziehen nehmen könnte",
+      "text": "Sie können nicht nach {state} ziehen, denn dieser Zustand steht im Fluss an erster Stelle und ihm geht nichts voran",
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {

@@ -131,6 +131,22 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	if req.Holder != "" && req.Holder != req.Actor {
 		return l.refuse(req, card, contract.NotRequester, req.Holder)
 	}
+	return l.claimableSubstate(req, card)
+}
+
+// claimableSubstate runs the last two rows of the claim's list, blocked then
+// held, against the substate the card carries. It stands apart from canClaim
+// because pull evaluates these two rows at rows 9 and 10 of its own longer
+// list, between the move's departure row and the move's destination rows, and
+// a caller reaching them through canClaim would have to run the whole claim
+// list at that point. Splitting the tail off changes neither list's order:
+// canClaim still evaluates no-owner, not-requester, blocked, held.
+//
+// The held row here is the stricter of the tool's two: it refuses a card
+// whose substate is active whoever holds it, where the move's row admits a
+// card the owner asking already holds. A claim cannot take a card somebody is
+// already working, its own asker included.
+func (l *Library) claimableSubstate(req *Request, card *bench.Card) *Response {
 	if card.Substate == contract.SubstateBlocked {
 		return l.refuse(req, card, contract.Blocked, card.BlockReason)
 	}
@@ -183,43 +199,83 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 // transaction opens, so it calls into here knowing req.Actor is non-empty and
 // the operator has been confirmed. The returned destination and departure
 // are what pull writes into its moved event.
+//
+// The list is split across canRoute and canLand so that pull can run the
+// claim's two substate rows between them, which is where pull's own table
+// puts them. Reading the two halves in this order is reading CORE-MOVE's
+// list in CORE-MOVE's order, and neither half is called anywhere in an order
+// this function does not also produce.
 func (l *Library) canMove(req *Request, card *bench.Card) (*bench.State, *bench.State, bool, *Response, error) {
-	if req.Actor == "" {
-		return nil, nil, false, l.refuse(req, card, contract.NoOwner, ""), nil
+	destination, departure, refusal := l.canRoute(req, card)
+	if refusal != nil {
+		return nil, nil, false, refusal, nil
 	}
-	destination := l.Bench.StateByRef(req.State)
-	if destination == nil {
-		return nil, nil, false, l.refuse(req, card, contract.UnknownState, req.State), nil
-	}
-	operator := req.Actor == l.Bench.Operator
-	if req.Override && !operator {
-		return nil, nil, false, l.refuse(req, card, contract.NotOperator, req.Actor), nil
-	}
-	departure := l.Bench.State(card.State)
-	if departure != nil && departure.OperatorOwned && !operator {
-		return nil, nil, false, l.refuse(req, card, contract.NotOperator, req.Actor), nil
-	}
-	if card.Substate == contract.SubstateBlocked {
-		return nil, nil, false, l.refuse(req, card, contract.Blocked, card.BlockReason), nil
-	}
-	if card.Holder != "" && card.Holder != req.Actor {
-		return nil, nil, false, l.refuse(req, card, contract.Held, card.Holder), nil
-	}
-	forward := departure != nil && destination.Position > departure.Position
-	if forward && departure.Kind == contract.KindDone {
-		return nil, nil, false, l.refuse(req, card, contract.Terminal, stateRef(departure)), nil
-	}
-	reached, err := l.atCapacity(destination)
+	override, refusal, err := l.canLand(req, card, destination, departure)
 	if err != nil {
 		return nil, nil, false, nil, err
 	}
+	if refusal != nil {
+		return nil, nil, false, refusal, nil
+	}
+	return destination, departure, override, nil, nil
+}
+
+// canRoute runs the rows of CORE-MOVE's list that read the request and the
+// two states, in that list's order: the request names an owner, the named
+// destination is declared, an override marker is the operator's, and the
+// departure is one the owner asking may move work out of. It returns the
+// resolved destination and departure so its caller resolves neither twice.
+//
+// The departure can be nil, when the card stands in a state the workbench no
+// longer declares, and the rows below carry that possibility rather than
+// refusing it here, exactly as the single list did.
+func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.State, *bench.State, *Response) {
+	if req.Actor == "" {
+		return nil, nil, l.refuse(req, card, contract.NoOwner, "")
+	}
+	destination := l.Bench.StateByRef(req.State)
+	if destination == nil {
+		return nil, nil, l.refuse(req, card, contract.UnknownState, req.State)
+	}
+	operator := req.Actor == l.Bench.Operator
+	if req.Override && !operator {
+		return nil, nil, l.refuse(req, card, contract.NotOperator, req.Actor)
+	}
+	departure := l.Bench.State(card.State)
+	if departure != nil && departure.OperatorOwned && !operator {
+		return nil, nil, l.refuse(req, card, contract.NotOperator, req.Actor)
+	}
+	return destination, departure, nil
+}
+
+// canLand runs the rows of CORE-MOVE's list that read the card and the
+// destination, in that list's order: the card is not blocked, the card is
+// not held by somebody else, the move is not a forward move out of a done
+// state, the destination stands below its capacity, and the destination is
+// not being retired. It reports whether the capacity limit was reached and
+// overridden, which is the flag the moved event carries.
+func (l *Library) canLand(req *Request, card *bench.Card, destination, departure *bench.State) (bool, *Response, error) {
+	if card.Substate == contract.SubstateBlocked {
+		return false, l.refuse(req, card, contract.Blocked, card.BlockReason), nil
+	}
+	if card.Holder != "" && card.Holder != req.Actor {
+		return false, l.refuse(req, card, contract.Held, card.Holder), nil
+	}
+	forward := departure != nil && destination.Position > departure.Position
+	if forward && departure.Kind == contract.KindDone {
+		return false, l.refuse(req, card, contract.Terminal, stateRef(departure)), nil
+	}
+	reached, err := l.atCapacity(destination)
+	if err != nil {
+		return false, nil, err
+	}
 	if reached && !req.Override {
-		return nil, nil, false, l.refuse(req, card, contract.AtCapacity, stateRef(destination)), nil
+		return false, l.refuse(req, card, contract.AtCapacity, stateRef(destination)), nil
 	}
 	if holder, retiring := l.retiring(destination.ID); retiring {
-		return nil, nil, false, l.refuse(req, card, contract.Locked, holder), nil
+		return false, l.refuse(req, card, contract.Locked, holder), nil
 	}
-	return destination, departure, reached && req.Override, nil, nil
+	return reached && req.Override, nil, nil
 }
 
 // move carries a card from one state to another. The list is CORE-MOVE's, in

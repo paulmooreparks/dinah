@@ -73,9 +73,11 @@ func (l *Library) Pull(req *Request) *Response {
 	}
 	req.Card = head.Ref(l.Bench.Slug)
 	req.State = stateRef(destination)
-	if req.Basis == "" {
-		req.Basis = head.Revision
-	}
+	// Pull fills in no basis of its own. The revision read during selection
+	// is not a revision the caller read, and standing it in as one turns
+	// losing the race for a card into `stale`, which tells a person the card
+	// moved since they read it about a card they never read. Losing the race
+	// is what rows 9 and 10 answer, under the lock, in the words claim uses.
 	return l.pullTransaction(req, head)
 }
 
@@ -183,25 +185,31 @@ func (l *Library) okEmpty(req *Request, destination *bench.State) *Response {
 }
 
 // pullTransaction runs the under-lock half of a pull: take the card's lock,
-// re-read the card under it, lapse an expired claim, fire the Interleave
-// hook, compare the basis, and hand the fresh card to the inner pull. It is
-// Do's shape, with the one difference that the caller chose the card rather
-// than the request naming it.
+// fire the Interleave hook, re-read the card under the lock, lapse an expired
+// claim, compare a basis the caller supplied, and hand the fresh card to the
+// inner pull. It is Do's shape, with the one difference that the caller chose
+// the card rather than the request naming it.
+//
+// The hook fires before the card is read rather than after, because the
+// window it stands in for is the window between the selection and the lock,
+// and a card mutated after the read is a mutation this transaction has
+// already looked past. Firing it here is what makes the race the refusal
+// table describes reachable from a test.
 func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 	lock, err := bench.Acquire(head.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
+	if l.Interleave != nil {
+		l.Interleave()
+	}
 	card, err := bench.LoadCard(l.Bench.CardsRoot(), head.ID)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	if err := l.lapse(card); err != nil {
 		return l.FromError(req, err)
-	}
-	if l.Interleave != nil {
-		l.Interleave()
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
 		return &Response{
@@ -216,26 +224,35 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 }
 
 // pull is the inner write, reached once the card has been chosen and locked.
-// canClaim runs the claim's own rows and canMove runs the move's, which is
-// what keeps a pull refusing in the words a claim and a move already refuse
-// in. canClaim runs whether or not the caller passed --no-claim, because the
-// option changes what pull writes and not what pull allows, and the claim's
-// substate row is the stricter of the two: it refuses a card held by anybody,
-// the caller included, where the move's row admits a card the caller holds.
+// It evaluates rows 8 to 13 of pull's table in the order the table declares,
+// out of the same two functions move and claim run, so a pull refuses in the
+// words a move and a claim already refuse in.
+//
+// canRoute is the move's own list up to and including the departure row,
+// which is row 8. claimableSubstate is the claim's own substate pair, rows 9
+// and 10, and it stands between the halves because row 10 takes claim's
+// stricter test: a pull that claims cannot take a card already active
+// whoever holds it, where the move's row admits a card the owner asking
+// holds. canLand is the rest of the move's list, rows 11 to 13. Its own
+// blocked and held rows are reached with the substate already settled by the
+// pair above, so neither can decide a pull.
+//
+// claimableSubstate runs whether or not the caller passed --no-claim, because
+// the option changes what pull writes and not what pull allows.
 //
 // Pull's caller has already fixed req.State to the destination's reference,
-// so canMove resolves the destination exactly as the named form of a move
-// would.
+// so canRoute resolves the destination exactly as the named form of a move
+// would. Rows 3 to 5 run again here, harmlessly, because they are the front
+// of the move's list and answering them twice cannot change an answer.
 func (l *Library) pull(req *Request, card *bench.Card) *Response {
-	if path := bench.SiblingPath(card.Dir); path != "" {
-		if record, present := bench.ReadLockRecord(path); present {
-			return l.refuse(req, card, contract.Locked, record.Actor)
-		}
-	}
-	if refusal := l.canClaim(req, card); refusal != nil {
+	destination, departure, refusal := l.canRoute(req, card)
+	if refusal != nil {
 		return refusal
 	}
-	destination, departure, override, refusal, err := l.canMove(req, card)
+	if refusal := l.claimableSubstate(req, card); refusal != nil {
+		return refusal
+	}
+	override, refusal, err := l.canLand(req, card, destination, departure)
 	if err != nil {
 		return l.FromError(req, err)
 	}

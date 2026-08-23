@@ -6779,12 +6779,18 @@ func TestPullOnTheCommandLine(t *testing.T) {
 		if len(rows) != len(verb.Checks(verb.Pull)) {
 			t.Fatalf("wanted %d numbered check rows, got %d", len(verb.Checks(verb.Pull)), len(rows))
 		}
+		// The refusal names are read off the page in one forward walk, so
+		// the assertion is about their order and not only about their
+		// presence. A name that wraps onto a continuation line still lands
+		// after the row above it, which is why the walk reads the page
+		// rather than the numbered row it started on.
+		rest := got.out
 		for i, check := range verb.Checks(verb.Pull) {
-			line := rows[i][0]
-			_ = line
-			if !strings.Contains(got.out, check.Refusal) {
-				t.Errorf("row %d: the help should carry the refusal name %s", i+1, check.Refusal)
+			at := strings.Index(rest, check.Refusal)
+			if at < 0 {
+				t.Fatalf("row %d: the help does not carry %s after the row above it; the page from there:\n%s", i+1, check.Refusal, rest)
 			}
+			rest = rest[at+len(check.Refusal):]
 		}
 	})
 }

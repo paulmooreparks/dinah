@@ -311,7 +311,7 @@ func (l *Library) affordances(card *bench.Card) []string {
 	}
 	switch card.Substate {
 	case contract.SubstateReady:
-		return []string{Pull, Claim, Move, Block, "comment", "show", "log"}
+		return []string{Claim, Move, Block, "comment", "show", "log"}
 	case contract.SubstateActive:
 		return []string{Move, Release, Block, "comment", "show", "log"}
 	case contract.SubstateBlocked:
