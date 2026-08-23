@@ -3,7 +3,7 @@ add "first card"
 add "second card"
 add "third card"
 add "fourth card"
-add "fifth card"
+add "fifth card" --severity trivial --priority later
 add "sixth card"
 add "seventh card"
 comment sample-1 "a first comment"
@@ -37,6 +37,11 @@ archive done
 workbench set title "Sample workbench, renamed"
 workbench set title "Sample workbench"
 workbench set operator sam
+card set sample-1 severity minor
+card set sample-1 severity major
+card set sample-1 priority now
+card set sample-2 severity trivial
+card set sample-2 severity
 workstream new "Portfolio work"
 workstream new "Console redesign"
 workstream set portfolio-work status paused

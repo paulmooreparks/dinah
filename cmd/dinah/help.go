@@ -72,6 +72,13 @@ var globalFlags = []struct {
 	{name: "quiet", usage: "--quiet", marker: true},
 	{name: "lang", usage: "--lang <tag>", value: "tag"},
 	{name: "actor", usage: "--actor <name>", value: "name"},
+	// The usage of these two names the whole family the parser answers to
+	// rather than the canonical spelling alone, because the spelling a
+	// reader already typed is the one they will look for in this column.
+	// The rest of the family is declared in askedFor (args.go); what is
+	// listed here is what a row has room for.
+	{name: "help", usage: "--help, -h, -?", marker: true},
+	{name: "version", usage: "--version, -V", marker: true},
 }
 
 // lookup finds a command by name.

@@ -172,8 +172,8 @@ func startColumnOf(line, marker string) int {
 }
 
 // TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn asserts the case this
-// card was filed over. dinah help add --lang hi draws three rows, each an
-// ordinal, a check sentence and the refusal name after them. Devanagari writes
+// card was filed over. dinah help add --lang hi draws one row per check, each
+// an ordinal, a check sentence and the refusal name after them. Devanagari writes
 // its vowels as combining marks and half of them take no column of their own,
 // so a padder counting characters pays for every mark and comes up short: the
 // three names began at display columns 52, 52 and 53 before dinah-101.
@@ -194,8 +194,8 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	order := displayWidth(hindi.T("column.help.order"))
 	check := displayWidth(hindi.T("column.help.check"))
 	checks := verb.Checks("add")
-	if len(checks) != 3 {
-		t.Fatalf("add declares %d checks, and this test is written for the three the profile carries", len(checks))
+	if len(checks) != 5 {
+		t.Fatalf("add declares %d checks, and this test is written for the five it carries", len(checks))
 	}
 	for i, one := range checks {
 		if drawn := displayWidth(strconv.Itoa(i + 1)); drawn > order {
@@ -206,7 +206,10 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 		}
 	}
 	want := 2 + order + 2 + check + 2
-	names := []string{contract.Malformed, contract.UnknownState, contract.AtCapacity}
+	names := []string{
+		contract.Malformed, contract.UnknownState, contract.AtCapacity,
+		contract.NoLevels, contract.UnknownLevel,
+	}
 	found := 0
 	for _, line := range strings.Split(got.out, "\n") {
 		for _, name := range names {
@@ -238,7 +241,7 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 // typed in: the indent, half of the window the block draws at (assumedWindow,
 // since bare dinah draws with no width stated), and the gutter. A command
 // whose usage is wider than that half needs more than one line for it, and
-// this asserts the count of those against the six the fixture is known to
+// this asserts the count of those against the seven the fixture is known to
 // carry, so a change to the command list that stops exercising the wrap is
 // caught here rather than by a coincidence elsewhere. It separately counts
 // how many summaries wrap, against no fixed number, since which summaries
@@ -285,11 +288,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
-	if summaries != 37 {
-		t.Errorf("read %d command entries out of the block, want 37", summaries)
+	if summaries != 39 {
+		t.Errorf("read %d command entries out of the block, want 39", summaries)
 	}
-	if wrapped != 6 {
-		t.Errorf("%d entries wrapped across more than one line, want the six whose syntax is wider than half the window", wrapped)
+	if wrapped != 8 {
+		t.Errorf("%d entries wrapped across more than one line, want the eight whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")

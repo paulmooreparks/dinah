@@ -36,6 +36,13 @@ const (
 // section 6 states them.
 var ContractVerbs = []string{Claim, Move, Release, Block, Unblock}
 
+// Pull is the verb name reserved for the one-command route that combines a
+// claim and a move. It is not in ContractVerbs because section 6.1's refusal
+// table names the five, and a sixth would contradict the profile's shape.
+// runsWorkbenchChecks names it all the same, so the workbench's two refusals
+// still head its list.
+const Pull = "pull"
+
 // WorkbenchChecks are the two refusals that belong to the workbench rather
 // than to any verb. Section 6.1 evaluates them ahead of every verb's own
 // list, which is what CORE-OUT-6 makes observable.
@@ -82,14 +89,77 @@ var checkLists = map[string][]Check{
 	},
 }
 
+// pullChecks is pull's own precondition list, kept apart from checkLists so
+// IsContractVerb continues to answer false for pull while Checks still returns
+// the full list for the help and the refusal-set tests.
+//
+// These are rows 3 to 13 of pull's thirteen-row list, in order; rows 1 and 2
+// are the workbench pair Checks prefixes. Two of them are pull's own names:
+// ambiguous-state is what the bare form answers when more than one state
+// qualifies, and no-upstream is what the named form answers for a state
+// standing first in the flow. Pull raises both before any lock is taken,
+// which is why neither reaches a generic precondition walker.
+var pullChecks = []Check{
+	{Refusal: contract.NoOwner, Key: "check.pull.1"},
+	{Refusal: contract.UnknownState, Key: "check.pull.2"},
+	{Refusal: contract.NotOperator, Key: "check.pull.3"},
+	{Refusal: contract.AmbiguousState, Key: "check.pull.4"},
+	{Refusal: contract.NoUpstream, Key: "check.pull.5"},
+	{Refusal: contract.NotOperator, Key: "check.pull.6"},
+	{Refusal: contract.Blocked, Key: "check.pull.7"},
+	{Refusal: contract.Held, Key: "check.pull.8"},
+	{Refusal: contract.Terminal, Key: "check.pull.9"},
+	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
+	{Refusal: contract.Locked, Key: "check.pull.11"},
+}
+
 // beyondChecks are the refusals the commands outside the five contract verbs
 // report. They are not the profile's lists, so each name here is either one
 // the profile already declares and fits, or one carrying Dinah's own prefix.
 var beyondChecks = map[string][]Check{
+	// Rows 4 and 5 run whenever the corresponding flag is present, since a
+	// flag that is present always carries a value and add has no clearing
+	// case. Each is evaluated against the axis its own flag names rather than
+	// against the workbench, so on a workbench declaring severity and no
+	// priority a --severity is filed and only a --priority refuses.
 	"add": {
 		{Refusal: contract.Malformed, Key: "check.add.1"},
 		{Refusal: contract.UnknownState, Key: "check.add.2"},
 		{Refusal: contract.AtCapacity, Key: "check.add.3"},
+		{Refusal: contract.NoLevels, Key: "check.add.4"},
+		{Refusal: contract.UnknownLevel, Key: "check.add.5"},
+	},
+	// The command covers two acts and a clear is a third case within one of
+	// them, so this list carries the mapping the workstream list below
+	// carries in its own comment. Rows 1 and 2 belong to get and set alike.
+	// Rows 3 and 4 run only where a value is present, so a clear evaluates
+	// rows 1, 2 and 5, and get evaluates rows 1 and 2 alone, since a read
+	// validates nothing. Row 5 runs on every write, a clear included, because
+	// a clear rewrites the anchor and journals a line and both need an actor.
+	//
+	// Rows 3 and 4 take the named field's own axis as their subject, never
+	// the workbench. check.card.3's sentence is bound by its last three
+	// words: it asks whether this workbench declares a set for that one axis,
+	// and reading it as a single workbench-wide test for whether any
+	// declaration exists would break the format's posture that the two axes
+	// are declared independently.
+	//
+	// The rows-3-and-4 rule is not merely a convenience. A stored level the
+	// workbench does not declare is tolerated everywhere and reported by
+	// check, and the only workbench where somebody wants to clear one is a
+	// workbench whose declaration has since changed or gone. A clear running
+	// row 3 would refuse there, leaving the one card that needs clearing as
+	// the one card that cannot be cleared.
+	//
+	// The keys are check.card.N rather than the card-field prefix the two
+	// commands below need, because nothing else holds check.card.N and
+	// CheckKey composes it.
+	"card": {
+		{Refusal: contract.UnknownCard, Key: "check.card.1"},
+		{Refusal: contract.UnknownField, Key: "check.card.2"},
+		{Refusal: contract.NoLevels, Key: "check.card.3"},
+		{Refusal: contract.UnknownLevel, Key: "check.card.4"},
+		{Refusal: contract.NoOwner, Key: "check.card.5"},
 	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},
@@ -237,16 +307,42 @@ var beyondChecks = map[string][]Check{
 }
 
 // Checks returns the ordered precondition list of a command, prefixed by the
-// two workbench-level checks for the five contract verbs. It is what per-verb
-// help is generated from, so the help text and the behaviour move together.
+// two workbench-level checks for the five contract verbs and for any other
+// command whose transaction runs them. It is what per-verb help is generated
+// from, so the help text and the behaviour move together.
 func Checks(name string) []Check {
+	own, found := ownChecks(name)
+	if !found {
+		return nil
+	}
+	if !runsWorkbenchChecks(name) {
+		return append([]Check{}, own...)
+	}
+	return append(append([]Check{}, WorkbenchChecks...), own...)
+}
+
+// ownChecks returns a command's own precondition list, without the workbench
+// pair, and reports whether the command declares one at all. Pull's list is
+// held apart from checkLists so that IsContractVerb goes on answering false
+// for it while Checks still returns the whole list the help is generated
+// from.
+func ownChecks(name string) ([]Check, bool) {
 	if list, ok := checkLists[name]; ok {
-		return append(append([]Check{}, WorkbenchChecks...), list...)
+		return list, true
 	}
-	if list, ok := beyondChecks[name]; ok {
-		return append([]Check{}, list...)
+	if name == Pull {
+		return pullChecks, true
 	}
-	return nil
+	list, ok := beyondChecks[name]
+	return list, ok
+}
+
+// runsWorkbenchChecks reports whether a command's transaction evaluates the
+// workbench pair ahead of its own list. The five contract verbs do, and so
+// does pull, whose transaction is a claim and a move and whose refusals
+// therefore begin where theirs begin.
+func runsWorkbenchChecks(name string) bool {
+	return IsContractVerb(name) || name == Pull
 }
 
 // IsContractVerb reports whether a name is one of the five the profile

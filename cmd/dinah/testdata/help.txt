@@ -3,9 +3,18 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>]             file a new card in the first state
+  add                                       file a new card in the first state
+    <title>
+    [--state <state>]
+    [--severity <level>]
+    [--priority <level>]
   claim <card> [--expires <duration>]       take up a ready card
   move <card> <state> [--override]          carry a card to another state
+  pull [state]                              claim the head of a state's queue
+    [--no-claim]
+    [--expires <duration>]
+    [--override]
+                                            and move it there in one act
   release <card>                            give the card back to its queue
   block <card> <reason> [--kind <kind>]     raise an obstacle and free the card
   unblock <card>                            lift a block (operator only)
@@ -22,6 +31,8 @@ WORK
   delete <ref> --yes                        destroy a card, a state, or anything
                                             below a card, along with its history
   rename <ref> <name>                       rename an attachment
+  card <get|set> <card> <field> [value]     read one of a card's own fields, or
+                                            write one
 
 READ
   status                                    where this workbench stands, and
@@ -92,6 +103,8 @@ Global flags:
   --quiet            suppress served instructions on claim and move
   --lang <tag>       render in this language; run `dinah version --catalogs` for the tags
   --actor <name>     act as this owner
+  --help, -h, -?     print this help, or one command's page when a command is named
+  --version, -V      print the version and stop
 
 Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 

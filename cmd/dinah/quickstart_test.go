@@ -1678,3 +1678,51 @@ func separatorRow(indent int, widths []int) string {
 	}
 	return built.String()
 }
+
+// TestTheQuickStartCountsTheCommandsTheBinaryOffers holds one sentence of the
+// quick start against the binary it describes.
+//
+// The replay drives the transcript blocks and reads none of the prose around
+// them, so a command added to the binary moves the number in this sentence
+// and nothing notices. It has been wrong twice: once when dinah-213 corrected
+// it, and once when this card added the command that made the correction
+// stale again.
+func TestTheQuickStartCountsTheCommandsTheBinaryOffers(t *testing.T) {
+	listed := 0
+	for _, c := range commands {
+		if c.group != "" {
+			listed++
+		}
+	}
+	if listed == 0 {
+		t.Fatal("the binary offers no grouped command, so this check read nothing")
+	}
+	body, err := os.ReadFile(quickStartPath)
+	if err != nil {
+		t.Fatalf("reading the quick start: %v", err)
+	}
+	found := regexp.MustCompile("lists all ([a-z-]+) commands").FindSubmatch(body)
+	if found == nil {
+		t.Fatal("the quick start no longer says how many commands `dinah help` lists, so this check has lost its subject")
+	}
+	if want := numberWord(listed); string(found[1]) != want {
+		t.Errorf("the quick start says `dinah help` lists all %s commands and the binary offers %s", found[1], want)
+	}
+}
+
+// numberWord spells a whole number from twenty to ninety-nine the way the
+// guides spell one. The range is the range a command count can occupy in a
+// document a reader would notice, and a number outside it returns the digits
+// so a caller sees the miss rather than a plausible wrong word.
+func numberWord(n int) string {
+	tens := map[int]string{2: "twenty", 3: "thirty", 4: "forty", 5: "fifty", 6: "sixty", 7: "seventy", 8: "eighty", 9: "ninety"}
+	units := []string{"", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
+	ten, ok := tens[n/10]
+	if !ok {
+		return strconv.Itoa(n)
+	}
+	if n%10 == 0 {
+		return ten
+	}
+	return ten + "-" + units[n%10]
+}

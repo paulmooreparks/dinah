@@ -28,6 +28,7 @@ func init() {
 		{name: "add", group: groupWork, run: runAdd, openTail: true},
 		{name: "claim", group: groupWork, run: runClaim, bounded: 1},
 		{name: "move", group: groupWork, run: runMove, bounded: 2},
+		{name: "pull", group: groupWork, run: runPull, bounded: 1},
 		{name: "release", group: groupWork, run: runRelease, bounded: 1},
 		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true},
 		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1},
@@ -38,6 +39,14 @@ func init() {
 		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2},
+		// card dispatches on its own first word the way workbench does, so it
+		// declares an open tail here and runs its own arity and mistyped-flag
+		// checks (see runCard). It sits under groupWork rather than beside
+		// its grammar siblings because the groups split on what a command
+		// acts on: groupWork holds every command that acts on a card, and a
+		// reader scanning the block for how to change something about a card
+		// finds it beside the other twelve.
+		{name: "card", group: groupWork, run: runCard, openTail: true},
 
 		{name: "status", group: groupRead, run: runStatus},
 		{name: "states", group: groupRead, run: runStates},
@@ -98,6 +107,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateStates:   parsed.has("migrate-states"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
+		NoClaim:            parsed.has("no-claim"),
 	}
 	return req
 }
@@ -172,8 +182,87 @@ func runAdd(s *session, parsed *arguments) int {
 		return s.reportError(refusal)
 	}
 	req.Title = title
+	req.Severity = parsed.value("severity")
+	req.Priority = parsed.value("priority")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Add(req))
+	})
+}
+
+// runCard reads or writes one of a card's own fields.
+//
+// The grammar is `dinah workbench`'s over a card, so the third entity that
+// carries writable fields is reached the same way as the other two. There is
+// no bare invocation, since a card reference is needed before the command
+// means anything and `dinah show` already prints what a card holds.
+//
+// Like runWorkbench, this dispatches on its own first word rather than reading
+// fixed positions, so it runs its own arity and mistyped-flag checks: once on
+// the first word before the switch, once on the reference and the field inside
+// the branches that read them, and once on get's fourth word, which get never
+// reads. The parameter list's Required marks are read by the syntax line and
+// by the mcp head's schema and by nothing here.
+func runCard(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	switch first {
+	case "get":
+		return s.runCardGet(parsed, words)
+	case "set":
+		return s.runCardSet(parsed, words)
+	}
+	return s.fail(contract.Usage, first)
+}
+
+// runCardGet prints one field of one card on a line of its own, so a script
+// reads it, and prints an empty line for a card carrying no level.
+func (s *session) runCardGet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	if extra := at(words, 3); extra != "" {
+		return s.fail(contract.Usage, extra)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("card", parsed)
+		req.Action, req.Card, req.Field = "get", reference, field
+		value, err := l.CardField(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		s.line(value)
+		return 0
+	})
+}
+
+// runCardSet writes one field of one card, and clears it when the invocation
+// leaves the value off. Clearing is spelled that way because a card without a
+// level is a legal card, so the `config set` grammar applies where the
+// `workbench set` refusal of an empty value does not.
+func (s *session) runCardSet(parsed *arguments, words []string) int {
+	reference := at(words, 1)
+	field := at(words, 2)
+	for _, word := range []string{reference, field} {
+		if looksLikeMistypedFlag(word) {
+			return s.fail(contract.Usage, word)
+		}
+	}
+	lead := []string{"card", "set", reference, field}
+	value, refusal := s.freeText(lead, words[min(3, len(words)):], "slot.value")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("card", parsed)
+		req.Action, req.Card, req.Field, req.Value = "set", reference, field, value
+		return s.emit(l.SetCardField(req))
 	})
 }
 
@@ -311,6 +400,25 @@ func runNext(s *session, parsed *arguments) int {
 		}
 		s.renderOffers(offers)
 		return 0
+	})
+}
+
+// runPull picks the destination, claims a card from its upstream, and moves
+// it there in one transaction. The named form names the destination; the bare
+// form chooses the one state that qualifies and refuses when more than one
+// does. --no-claim weakens what pull writes, not what pull allows.
+func runPull(s *session, parsed *arguments) int {
+	req := s.request(verb.Pull, parsed)
+	if req.State == "" {
+		req.State = at(parsed.rest(), 0)
+	}
+	expires, err := verb.ParseDuration(parsed.value("expires"))
+	if err != nil {
+		return s.reportError(err)
+	}
+	req.Expires = expires
+	return s.withBench(func(l *verb.Library) int {
+		return s.emit(l.Pull(req))
 	})
 }
 
@@ -958,7 +1066,23 @@ func isRefusalNamed(err error, name string) bool {
 // command the help block's own last line names, and it is reachable without
 // being listed among the groups.
 func runHelp(s *session, parsed *arguments) int {
-	name := at(parsed.rest(), 0)
+	return s.helpFor(at(parsed.rest(), 0))
+}
+
+// helpFor prints the whole surface, or one command's page when a command was
+// named. It is what the help command runs and what a help flag written
+// anywhere on the line runs, so the two reach one composition rather than two
+// that can drift: `dinah ls --help` and `dinah help ls` print the same page,
+// and a first word naming no command refuses the same way whichever spelling
+// asked.
+//
+// The two doors part company past that first word, and only there. The command
+// goes through run()'s own arity walk, so `dinah help ls extra` refuses the
+// stray word; the flag is answered ahead of that walk, so `dinah ls -h extra`
+// prints the page. A caller who asks what a command takes is told what it
+// takes rather than told they asked wrongly, which is the whole point of the
+// card, so the flag is the door that gets this right.
+func (s *session) helpFor(name string) int {
 	if name == "" {
 		s.write(s.helpBlock())
 		return 0

@@ -1,6 +1,14 @@
 {
   "tag": "hi",
   "entries": {
+    "answer.pull.empty.bare": {
+      "text": "Dinah को अभी ऐसी कोई स्थिति नहीं मिली जिसमें आप pull कर सकें",
+      "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders."
+    },
+    "answer.pull.empty.named": {
+      "text": "Dinah को {upstream} में ऐसा कुछ तैयार नहीं मिला जिसे {destination} में ले जाया जा सके",
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in."
+    },
     "card.blocked": {
       "text": "  बाधित: {reason}",
       "context": "Printed under the card line when the card is blocked."
@@ -35,6 +43,14 @@
     },
     "check.add.3": {
       "text": "नामित स्थिति अपनी सीमा से नीचे है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.4": {
+      "text": "वर्कबेंच हर नामित फ़ील्ड के लिए स्तर घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.5": {
+      "text": "हर स्तर वह है जिसे वह फ़ील्ड घोषित करता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.archive.1": {
@@ -80,6 +96,26 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.card.1": {
+      "text": "संदर्भ इस वर्कबेंच के एक कार्ड को नाम देता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.2": {
+      "text": "फ़ील्ड वह है जो एक कार्ड रखता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.3": {
+      "text": "वर्कबेंच उस फ़ील्ड के लिए स्तर घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all."
+    },
+    "check.card.4": {
+      "text": "मान वह स्तर है जिसे वह फ़ील्ड घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.5": {
+      "text": "अनुरोध एक स्वामी का नाम लेता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.claim-without-active": {
       "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
@@ -273,6 +309,50 @@
       "text": "नामित स्थिति वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.pull.1": {
+      "text": "अनुरोध एक स्वामी का नाम देता है",
+      "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event."
+    },
+    "check.pull.2": {
+      "text": "नामित गंतव्य वह राज्य है जिसे वर्कबेंच घोषित करती है",
+      "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no state to be unknown."
+    },
+    "check.pull.3": {
+      "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह ऑपरेटर का है",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any state is considered."
+    },
+    "check.pull.4": {
+      "text": "जब कोई गंतव्य नामित नहीं है, तब ठीक एक राज्य अर्ह होता है",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one state qualifies."
+    },
+    "check.pull.5": {
+      "text": "प्रवाह में गंतव्य से पहले एक राज्य है",
+      "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only."
+    },
+    "check.pull.6": {
+      "text": "पूछने वाले के लिए प्रस्थान वैध है",
+      "context": "One row of the ordered precondition list of pull: an operator-owned upstream is the operator's to move work out of, which is move's own departure test read under the lock."
+    },
+    "check.pull.7": {
+      "text": "कार्ड का उप-राज्य `blocked` नहीं है",
+      "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it."
+    },
+    "check.pull.8": {
+      "text": "कार्ड का उप-राज्य `active` नहीं है",
+      "context": "One row of the ordered precondition list of pull: pull takes claim's stricter test, refusing a card already active whoever holds it."
+    },
+    "check.pull.9": {
+      "text": "यह `done` राज्य से बाहर आगे की चाल नहीं है",
+      "context": "One row of the ordered precondition list of pull: a forward move out of a done state refuses, and the race between the queue read and the lock can surface that here."
+    },
+    "check.pull.10": {
+      "text": "गंतव्य अपनी क्षमता सीमा से नीचे है",
+      "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
+    },
+    "check.pull.11": {
+      "text": "गंतव्य को सेवामुक्त नहीं किया जा रहा है",
+      "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
+    },
     "check.ordinal-duplicate": {
       "text": "{detail} का रचना-क्रमांक उसी संग्रह के किसी और सदस्य के क्रमांक जैसा है, इसलिए एक ही स्थान दो को नामित करता है",
       "context": "A check finding: two entities of one collection share an ordinal, which leaves a positional reference with two answers."
@@ -417,6 +497,10 @@
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
+    "check.unknown-level": {
+      "text": "एक कार्ड {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
+      "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card."
+    },
     "check.unknown-state": {
       "text": "एक कार्ड स्थिति {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
       "context": "A check finding: every card's state identifier resolves."
@@ -541,6 +625,10 @@
       "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
     },
+    "cmd.card.summary": {
+      "text": "किसी कार्ड का अपना कोई एक फ़ील्ड पढ़ें, या कोई एक लिखें",
+      "context": "The one-line summary of the card command, shown beside its syntax in the help block."
+    },
     "cmd.rename.summary": {
       "text": "संलग्नक का नाम बदलें",
       "context": "The one-line summary of the rename command, shown beside its syntax in the help block."
@@ -628,6 +716,10 @@
     "cmd.next.summary": {
       "text": "स्थिति आगे जो कार्ड देती है",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block."
+    },
+    "cmd.pull.summary": {
+      "text": "एक ही कार्रवाई में किसी स्थिति की कतार के शीर्ष कार्ड का दावा करें और उसे वहाँ ले जाएँ",
+      "context": "The one-line summary of the pull command, shown beside its syntax in the help block. Pull is not a sixth verb: it combines a claim and a move into one transaction."
     },
     "cmd.path.summary": {
       "text": "इस वर्कबेंच, किसी कार्ड, या कार्ड के नीचे की किसी वस्तु का फ़ाइल पथ छापें",
@@ -937,6 +1029,10 @@
       "text": "इसी स्वामी के रूप में कार्य करें",
       "context": "The one-line summary of the global flag --actor."
     },
+    "flag.help.summary": {
+      "text": "यह सहायता दें, या किसी कमांड का नाम देने पर उसका पृष्ठ",
+      "context": "The one-line summary of the global flag --help. The flag also answers to -h, -help, -?, --? and /?, and the syntax beside this summary lists the three the column has room for."
+    },
     "flag.json.summary": {
       "text": "मानक मशीन रूप दें",
       "context": "The one-line summary of the global flag --json."
@@ -948,6 +1044,10 @@
     "flag.quiet.summary": {
       "text": "claim और move पर परोसे गए निर्देश दबाएँ",
       "context": "The one-line summary of the global flag --quiet."
+    },
+    "flag.version.summary": {
+      "text": "संस्करण दें और रुक जाएँ",
+      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v and -version, and the syntax beside this summary lists the two the column has room for."
     },
     "flag.workbench.summary": {
       "text": "यहाँ से खोजी गई वर्कबेंच के बजाय यह वर्कबेंच लें",
@@ -1061,6 +1161,26 @@
       "text": "प्रश्न पूछा नहीं जा सका: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
+    "param.add.priority.summary": {
+      "text": "कार्ड किस प्राथमिकता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
+      "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.add.severity.summary": {
+      "text": "कार्ड किस गंभीरता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
+      "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.card.action.summary": {
+      "text": "दो कार्यों में से कौन-सा चलाना है: एक फ़ील्ड पढ़ना या एक लिखना",
+      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं: severity या priority",
+      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.value.summary": {
+      "text": "जो स्तर लिखना है; फ़ील्ड खाली करने के लिए इसे छोड़ दें",
+      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table."
+    },
     "query.empty": {
       "text": "उस क्वेरी से कोई कार्ड मेल नहीं खाता।",
       "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal."
@@ -1096,6 +1216,14 @@
     "refusal.dinah.ambiguous-name.next": {
       "text": "; किसी एक को attachments/<ordinal> के रूप में नाम दें",
       "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with."
+    },
+    "refusal.dinah.ambiguous-state": {
+      "text": "आप अभी एक से अधिक स्थितियों में pull कर सकते हैं",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-state. The candidate rows print beneath it, in the same shape the states listing renders, and refusal.dinah.ambiguous-state.next follows as the closing line naming the ways forward."
+    },
+    "refusal.dinah.ambiguous-state.next": {
+      "text": "`dinah pull <state>` के रूप में किसी एक को नाम दें, या --state <state> पास करें",
+      "context": "The line printed after dinah.ambiguous-state's candidate rows, naming the ways forward."
     },
     "refusal.dinah.exists": {
       "text": "{detail} में पहले से एक workbench.md है",
@@ -1141,6 +1269,14 @@
       "text": "; `dinah config set workbench <dir>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with."
     },
+    "refusal.dinah.no-levels": {
+      "text": "यह वर्कबेंच कोई {axis} स्तर घोषित नहीं करती, इसलिए सेट करने को कोई स्तर नहीं है",
+      "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one."
+    },
+    "refusal.dinah.no-levels.next": {
+      "text": "; उन्हें {anchor} में levels: के नीचे घोषित करें",
+      "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is."
+    },
     "refusal.dinah.no-workbench": {
       "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property."
@@ -1164,6 +1300,14 @@
     "refusal.dinah.no-editor.next": {
       "text": "; DINAH_EDITOR नियत करें, या {detail} में से एक स्थापित करें",
       "context": "Spliced onto refusal.dinah.no-editor as the next step, carrying the clause that base entry used to end with. {detail} is the built-in list of editors to install one of."
+    },
+    "refusal.dinah.no-upstream": {
+      "text": "आप {state} में pull नहीं कर सकते, क्योंकि वह प्रवाह में पहले स्थान पर है और उससे पहले कुछ नहीं है",
+      "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
+    },
+    "refusal.dinah.no-upstream.next": {
+      "text": "प्रवाह में बाद की किसी स्थिति को name करें, या उसके बजाय `dinah move` से एक कार्ड {state} में भेजें",
+      "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
       "text": "{kind} कोई संलग्नक नहीं है, और rename उसका नाम नहीं बदलेगा",
@@ -1225,6 +1369,14 @@
       "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। क्वेरी जिन क्षेत्रों का नाम ले सकती है वे हैं: {fields}।",
       "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names, read off the query language rather than written here, so a field name is machine vocabulary and is never translated. refusal.dinah.unknown-field.ordered and refusal.dinah.unknown-field.next are spliced on after this one."
     },
+    "refusal.dinah.unknown-field.card": {
+      "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। एक कार्ड जिन क्षेत्रों को रखता है वे हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated."
+    },
+    "refusal.dinah.unknown-field.card.next": {
+      "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या जाँचता है `dinah help card` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unknown-field.next": {
       "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या जाँचता है `dinah help query` चलाएँ।",
       "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
@@ -1248,6 +1400,14 @@
     "refusal.dinah.unknown-key.next": {
       "text": "इनमें से किसी एक का नाम दें, या हर सेटिंग का मान देखने के लिए `dinah config` चलाएँ",
       "context": "Printed under the settings refusal.dinah.unknown-key lists, on its own line and with no leading punctuation. It names no subcommand, because this refusal answers config get and config set alike."
+    },
+    "refusal.dinah.unknown-level": {
+      "text": "यह वर्कबेंच {detail} नाम का कोई {axis} स्तर घोषित नहीं करती। यह जिन {axis} स्तरों को घोषित करती है, वे हैं: {levels}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-level.next": {
+      "text": " इनमें से किसी एक का नाम लें।",
+      "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels."
     },
     "refusal.dinah.unknown-path": {
       "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
@@ -1928,6 +2088,22 @@
     "param.next.state.summary": {
       "text": "किस स्थिति से कार्ड देना है, इसे --state <state> भी लिखा जाता है; कुछ न लिखने पर हर स्थिति",
       "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table."
+    },
+    "param.pull.state.summary": {
+      "text": "किस स्थिति में कार्ड खींचना है; कुछ न लिखने पर एकमात्र योग्य स्थिति, एक से अधिक योग्य होने पर मना",
+      "context": "The meaning of the state argument of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.no-claim.summary": {
+      "text": "कार्ड को गंतव्य पर बिना दावा किए उतारें; वह वहाँ तैयार रहता है और अगला जो चाहे उसे ले सकता है",
+      "context": "The meaning of the --no-claim flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.expires.summary": {
+      "text": "आपका दावा कब तक टिकेगा, संख्या और इकाई के रूप में लिखा गया: 30m, 2h, 7d; कुछ न लिखने पर वह तब तक टिकता है जब तक आप कार्ड छोड़ न दें",
+      "context": "The meaning of the --expires flag of `dinah pull`, printed in that command's arguments table."
+    },
+    "param.pull.override.summary": {
+      "text": "संचालक को अपनी क्षमता पर पहुँची स्थिति में खींचने दें; अन्य किसी के लिए मना",
+      "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table."
     },
     "param.path.card.summary": {
       "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",

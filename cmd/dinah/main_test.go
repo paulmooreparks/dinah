@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-six commands, and every command the binary
+	// The block lists thirty-nine commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 37 {
-		t.Errorf("wanted thirty-seven listed commands, got %d", listed)
+	if listed != 39 {
+		t.Errorf("wanted thirty-nine listed commands, got %d", listed)
 	}
 }
 
@@ -6309,6 +6309,105 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 	}
 }
 
+// TestEveryHelpSpellingReachesTheSamePage asserts dinah-213: each spelling in
+// askedFor prints help rather than refusing, whether it is written alone,
+// before a command or after one, and the page it prints is byte for byte the
+// page `dinah help` and `dinah help <command>` already print.
+//
+// The comparison is against the existing command rather than against a fixture
+// because the point of the card is that the flag is a second door onto one
+// room. A fixture would let the two drift apart and still pass.
+func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
+	tree := t.TempDir()
+	surface := runCLI(t, tree, "help")
+	if surface.code != 0 {
+		t.Fatalf("dinah help: %d %s", surface.code, surface.errw)
+	}
+	page := runCLI(t, tree, "help", "ls")
+	if page.code != 0 {
+		t.Fatalf("dinah help ls: %d %s", page.code, page.errw)
+	}
+	version := runCLI(t, tree, "version")
+	if version.code != 0 {
+		t.Fatalf("dinah version: %d %s", version.code, version.errw)
+	}
+	for spelling, asked := range askedFor {
+		want := surface
+		if asked == "version" {
+			want = version
+		}
+		// Alone, the spelling reaches the whole surface (or the version
+		// report, for the version family).
+		if got := runCLI(t, tree, spelling); got.code != 0 || got.out != want.out {
+			t.Errorf("dinah %s: wanted exit 0 and the %s output, got %d\n%s", spelling, asked, got.code, got.out)
+		}
+		if asked != "help" {
+			continue
+		}
+		// After a command and before one, the spelling reaches that
+		// command's own page. Both orders are asserted because a caller who
+		// has already typed the command name adds the flag on the end, and
+		// one who has not writes it first.
+		after := runCLI(t, tree, "ls", spelling)
+		if after.code != 0 || after.out != page.out {
+			t.Errorf("dinah ls %s: wanted ls's page, got %d\n%s", spelling, after.code, after.out)
+		}
+		before := runCLI(t, tree, spelling, "ls")
+		if before.code != 0 || before.out != page.out {
+			t.Errorf("dinah %s ls: wanted ls's page, got %d\n%s", spelling, before.code, before.out)
+		}
+		// A word that is not a command still refuses, so the flag opens no
+		// route around the unknown-command check.
+		unknown := runCLI(t, tree, spelling, "bogus")
+		if unknown.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("dinah %s bogus: wanted the unknown-command refusal, got %d", spelling, unknown.code)
+		}
+		if !strings.HasPrefix(unknown.errw, contract.UnknownVerb+" ") {
+			t.Errorf("dinah %s bogus: wanted %s to lead stderr, got %q", spelling, contract.UnknownVerb, unknown.errw)
+		}
+	}
+	// A command that would otherwise refuse for want of its arguments prints
+	// its page instead, which is the case the card was filed for: a caller
+	// asking what a command takes must not be told they used it wrongly.
+	move := runCLI(t, tree, "move", "--help")
+	if move.code != 0 {
+		t.Errorf("dinah move --help: wanted 0, got %d %s", move.code, move.errw)
+	}
+	if want := runCLI(t, tree, "help", "move"); move.out != want.out {
+		t.Errorf("dinah move --help differs from dinah help move:\n%s", move.out)
+	}
+	// The POSIX marker still shields every spelling as literal text, so a
+	// caller who means the word writes it after `--`.
+	shielded := runCLI(t, tree, "--", "-h")
+	if shielded.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Errorf("dinah -- -h: wanted the unknown-command refusal, got %d %s", shielded.code, shielded.out)
+	}
+	// Help outranks version when a caller wrote both, in either order.
+	for _, argv := range [][]string{{"--help", "--version"}, {"--version", "--help"}} {
+		got := runCLI(t, tree, argv...)
+		if got.code != 0 || got.out != surface.out {
+			t.Errorf("dinah %s: wanted exit 0 and the surface, got %d\n%s", strings.Join(argv, " "), got.code, got.out)
+		}
+	}
+	// Both flags refuse a first word naming no command, so neither opens a
+	// route around the check the other closes. `dinah bogus --version` used
+	// to print the version while `dinah --help bogus` refused.
+	for _, argv := range [][]string{{"bogus", "--version"}, {"--version", "bogus"}} {
+		got := runCLI(t, tree, argv...)
+		if got.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("dinah %s: wanted the unknown-command refusal, got %d\n%s", strings.Join(argv, " "), got.code, got.out)
+		}
+		if !strings.HasPrefix(got.errw, contract.UnknownVerb+" ") {
+			t.Errorf("dinah %s: wanted %s to lead stderr, got %q", strings.Join(argv, " "), contract.UnknownVerb, got.errw)
+		}
+	}
+	// A command name in front of the version flag is read and still prints
+	// the version, since no command carries a version page of its own.
+	if got := runCLI(t, tree, "ls", "--version"); got.code != 0 || got.out != version.out {
+		t.Errorf("dinah ls --version: wanted the version report, got %d\n%s", got.code, got.out)
+	}
+}
+
 // TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable asserts
 // dinah-172 AC-13: the sets args.go derives equal the sets it used to carry by
 // hand, named literally here so the derivation is checked against something
@@ -6317,12 +6416,13 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
 		"actor", "depth", "description", "expires", "from", "group-by",
-		"kind", "lang", "operator", "root", "slug", "state", "workbench",
+		"kind", "lang", "operator", "priority", "root", "severity", "slug",
+		"state", "workbench",
 	}
 	wantMarkers := []string{
-		"catalogs", "finish", "json", "migrate-ordinals", "migrate-slugs",
-		"migrate-states", "migrate-workstreams", "override", "quiet", "ready",
-		"replace", "yes",
+		"catalogs", "finish", "help", "json", "migrate-ordinals",
+		"migrate-slugs", "migrate-states", "migrate-workstreams", "no-claim",
+		"override", "quiet", "ready", "replace", "version", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
@@ -6689,4 +6789,108 @@ func TestEveryVocabularySourceHasAListingThatAnswersIt(t *testing.T) {
 			t.Errorf("a vocabulary names the source %q and refusalListings carries no listing for it", source)
 		}
 	}
+}
+
+// TestPullOnTheCommandLine asserts the head's half of the pull command: the
+// named form takes the card at the head of the upstream queue and claims it,
+// both forms answer at exit 0 with a sentence when nothing is waiting, and a
+// bare form with more than one qualifying state refuses and prints the states
+// it could not choose between.
+//
+// The refusal's rows are the reason this lives here rather than in
+// internal/verb. The qualifying set is computed at the raise site and carried
+// on the response, so the library test can assert the set and only the head
+// can assert that a reader sees it drawn.
+func TestPullOnTheCommandLine(t *testing.T) {
+	t.Run("nothing waiting answers at exit 0", func(t *testing.T) {
+		root := newBench(t)
+		bare := runCLI(t, root, "pull")
+		if bare.code != 0 {
+			t.Fatalf("a bare pull with nothing waiting: wanted exit 0, got %d %s", bare.code, bare.errw)
+		}
+		if strings.TrimSpace(bare.out) == "" {
+			t.Error("the bare form should print a sentence saying it found nothing to pull")
+		}
+		named := runCLI(t, root, "pull", "doing")
+		if named.code != 0 {
+			t.Fatalf("a named pull with nothing waiting: wanted exit 0, got %d %s", named.code, named.errw)
+		}
+		if strings.TrimSpace(named.out) == "" {
+			t.Error("the named form should print a sentence naming the upstream state it found empty")
+		}
+		if named.out == bare.out {
+			t.Error("the two forms answer different questions and should not print the same sentence")
+		}
+	})
+
+	t.Run("the named form takes the head of the upstream queue", func(t *testing.T) {
+		root := newBench(t)
+		runCLI(t, root, "add", "First in")
+		runCLI(t, root, "add", "Second in")
+		offered := runCLI(t, root, "next", "intake")
+		got := runCLI(t, root, "pull", "doing", "--quiet")
+		if got.code != 0 {
+			t.Fatalf("pull: %d %s", got.code, got.errw)
+		}
+		if !strings.Contains(got.out, "First in") {
+			t.Errorf("pull should take the head of the queue, got %q", got.out)
+		}
+		if !strings.Contains(offered.out, "First in") {
+			t.Errorf("next should have offered the same card, got %q", offered.out)
+		}
+		if !strings.Contains(got.out, "held by") {
+			t.Errorf("a pull claims the card it takes, got %q", got.out)
+		}
+	})
+
+	t.Run("a bare form with two qualifying states refuses and lists them", func(t *testing.T) {
+		root := newBench(t)
+		// intake holds a ready card, so doing qualifies, and doing holds a
+		// ready card of its own, so done qualifies too. The default flow
+		// declares no capacity limit, so neither is filtered out.
+		runCLI(t, root, "add", "Waiting in intake")
+		runCLI(t, root, "add", "Waiting in doing", "--state", "doing")
+		got := runCLI(t, root, "pull")
+		if got.code != 2 {
+			t.Fatalf("an ambiguous bare pull: wanted exit 2, got %d %q %q", got.code, got.out, got.errw)
+		}
+		if !strings.HasPrefix(got.errw, contract.AmbiguousState+" ") {
+			t.Errorf("wanted the refusal name first on stderr, got %q", got.errw)
+		}
+		for _, slug := range []string{"doing", "done"} {
+			if !regexp.MustCompile(`(?m)^\s+` + slug + `\s*$`).MatchString(got.errw) {
+				t.Errorf("the refusal should draw %s as a row of its own, got %q", slug, got.errw)
+			}
+		}
+	})
+
+	t.Run("help pull prints the arguments and the thirteen checks in order", func(t *testing.T) {
+		root := newBench(t)
+		got := runCLI(t, root, "help", "pull")
+		if got.code != 0 {
+			t.Fatalf("help pull: %d %s", got.code, got.errw)
+		}
+		for _, argument := range []string{"state", "no-claim", "expires", "override"} {
+			if !strings.Contains(got.out, argument) {
+				t.Errorf("the help should name the %s argument, got %q", argument, got.out)
+			}
+		}
+		rows := regexp.MustCompile(`(?m)^  (\d+) `).FindAllStringSubmatch(got.out, -1)
+		if len(rows) != len(verb.Checks(verb.Pull)) {
+			t.Fatalf("wanted %d numbered check rows, got %d", len(verb.Checks(verb.Pull)), len(rows))
+		}
+		// The refusal names are read off the page in one forward walk, so
+		// the assertion is about their order and not only about their
+		// presence. A name that wraps onto a continuation line still lands
+		// after the row above it, which is why the walk reads the page
+		// rather than the numbered row it started on.
+		rest := got.out
+		for i, check := range verb.Checks(verb.Pull) {
+			at := strings.Index(rest, check.Refusal)
+			if at < 0 {
+				t.Fatalf("row %d: the help does not carry %s after the row above it; the page from there:\n%s", i+1, check.Refusal, rest)
+			}
+			rest = rest[at+len(check.Refusal):]
+		}
+	})
 }

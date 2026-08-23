@@ -209,9 +209,14 @@ func Guides(name string) []string {
 
 // params is every command's argument list.
 var params = map[string][]Param{
+	// Neither level flag declares a Vocabulary. The two vocabularies fixed in
+	// this source are sets the source itself holds, and a level set is per
+	// workbench, so the refusal is what tells a reader the set.
 	"add": {
 		{Name: "title", Required: true, Rest: true},
 		{Name: "state", Flag: true, Value: "state", Vocabulary: "state"},
+		{Name: "severity", Flag: true, Value: "level"},
+		{Name: "priority", Flag: true, Value: "level"},
 	},
 	Claim: {
 		{Name: "card", Required: true},
@@ -262,7 +267,19 @@ var params = map[string][]Param{
 		{Name: "state", Vocabulary: "state", AlsoFlag: true},
 		{Name: "ready", Flag: true, Marker: true},
 	},
-	"next":  {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
+	"next": {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
+	// Pull combines a claim and a move into one atomic act. The state is
+	// the destination; the named form names it, the bare form chooses the
+	// one state that qualifies and refuses when more than one does. The
+	// three flags sit on the move's own shape: --no-claim drops the
+	// claim half, --override lets the operator pick a state at its limit,
+	// and --expires sets the claim's lease exactly as it does on claim.
+	Pull: {
+		{Name: "state", Vocabulary: "state", AlsoFlag: true},
+		{Name: "no-claim", Flag: true, Marker: true},
+		{Name: "expires", Flag: true, Value: "duration"},
+		{Name: "override", Flag: true, Marker: true},
+	},
 	"query": {{Name: "query", Rest: true}},
 	"tree": {
 		{Name: "query", Rest: true},
@@ -323,6 +340,21 @@ var params = map[string][]Param{
 		{Name: "field"},
 		{Name: "value"},
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes"},
+	},
+	// Three of the four slots are required, which is where card departs from
+	// its three grammar siblings. Each of those has a bare invocation that
+	// lists something, so neither the action nor the entity can be required
+	// there; card has no bare form, since a card reference is needed before
+	// the command means anything and `dinah show` already prints what a card
+	// holds. Required is read by Param.Token and by the mcp head's schema
+	// generator and by nothing in the cli parser, so runCard still runs its
+	// own arity check; what the declaration buys is a schema that refuses a
+	// call naming no action, no card or no field before the tool runs.
+	"card": {
+		{Name: "action", Display: "get|set", Required: true},
+		{Name: "card", Required: true, Shared: "card"},
+		{Name: "field", Required: true},
+		{Name: "value"},
 	},
 	"check": {
 		{Name: "finish", Flag: true, Marker: true},

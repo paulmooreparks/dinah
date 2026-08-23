@@ -49,6 +49,14 @@ type Shape struct {
 	// NoNext is why this refusal offers no next step, empty on every
 	// refusal that offers one.
 	NoNext string
+	// Carried names the named value whose content this refusal prints as
+	// rows, for a set the raise site computed and no enumerable Listing can
+	// name. The value holds one member per line, and the composer splits on
+	// newlines when it prints it. A shape declares Carried or a Listing and
+	// never both, since the two ways to print rows serve the one purpose
+	// from two sides and using both would leave the order between them
+	// unstated.
+	Carried string
 }
 
 // Fragment is one catalog fragment spliced onto a refusal's sentence.
@@ -345,17 +353,48 @@ var Shapes = []Shape{
 		// legal in its place, so the detail alone cannot carry it and the
 		// field list rides as a value read off the vocabulary itself.
 		//
-		// The ordered-operator clause is unconditional, because the two raise
-		// sites are indistinguishable to a reader who mistyped: one of them
-		// wrote an operator and the other did not, and the clause says which
-		// field takes the four ordered ones either way.
-		Name:   UnknownField,
-		Values: []string{"fields", "instantField"},
+		// The ordered-operator clause is unconditional within the query,
+		// because the two raise sites there are indistinguishable to a reader
+		// who mistyped: one of them wrote an operator and the other did not,
+		// and the clause says which field takes the four ordered ones either
+		// way.
+		//
+		// Two commands raise this name for two acts. A query names a field of
+		// the query language, and card names a field a card records, so the
+		// command word selects the sentence and the ordered-operator clause
+		// stops being unconditional: it is written about the query language's
+		// one ranking field and says nothing a card reader can use.
+		Name:     UnknownField,
+		Values:   []string{"fields", "instantField"},
+		Variants: []string{"card"},
 		Fragments: []Fragment{
-			{Key: "refusal.dinah.unknown-field.ordered"},
+			{Key: "refusal.dinah.unknown-field.ordered", WhenCommand: "query"},
+			{Key: "refusal.dinah.unknown-field.card.next", WhenCommand: "card"},
 			{Key: "refusal.dinah.unknown-field.next"},
 		},
-		NextStep: []string{"refusal.dinah.unknown-field.next"},
+		NextStep: []string{
+			"refusal.dinah.unknown-field.card.next",
+			"refusal.dinah.unknown-field.next",
+		},
+	},
+	{
+		// The declared set rides as a value rather than as a Listing, for the
+		// reason unknown-depth gives: which axis's set this refusal
+		// enumerates depends on the write that raised it, and a Listing name
+		// resolves from the session alone.
+		Name:      UnknownLevel,
+		Values:    []string{"axis", "levels"},
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-level.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-level.next"},
+	},
+	{
+		// The axis rides as a value even though the detail could carry it,
+		// because the sentence names the axis twice and the anchor path once,
+		// and a detail doing both jobs reads as one of them.
+		Name:      NoLevels,
+		Values:    []string{"axis", "anchor"},
+		Fragments: []Fragment{{Key: "refusal.dinah.no-levels.next"}},
+		NextStep:  []string{"refusal.dinah.no-levels.next"},
 	},
 	{
 		// The axis list rides as a value read off the disposition table
@@ -522,6 +561,25 @@ var Shapes = []Shape{
 		Values:    []string{"kind"},
 		Fragments: []Fragment{{Key: "refusal.dinah.not-renamable.next"}},
 		NextStep:  []string{"refusal.dinah.not-renamable.next"},
+	},
+	{
+		// A bare pull found more than one state it could pull into, and
+		// the qualifying states ride as a Carried set rather than a Listing
+		// since the value depends on the invocation. The next step names
+		// the syntax the reader should type to pick one.
+		Name:      AmbiguousState,
+		Carried:   "states",
+		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-state.next"}},
+		NextStep:  []string{"refusal.dinah.ambiguous-state.next"},
+	},
+	{
+		// A state standing first in the flow refuses at the named form,
+		// because no upstream state precedes it. The detail names the
+		// state, which a reader needs to see alongside the rule.
+		Name:      NoUpstream,
+		Values:    []string{"state"},
+		Fragments: []Fragment{{Key: "refusal.dinah.no-upstream.next"}},
+		NextStep:  []string{"refusal.dinah.no-upstream.next"},
 	},
 }
 
