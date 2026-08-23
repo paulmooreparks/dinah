@@ -325,7 +325,7 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	answer := &ChangeSet{Cursor: token, Changed: true, Affordances: l.changeAffordances()}
 	answer.Gone = l.goneFrom(delivered, wantedCard, wantedState)
 	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live, wantedCard, wantedState)
-	answer.Events = l.eventsFrom(delivered, wantedCard)
+	answer.Events = l.eventsFrom(delivered, wantedCard, wantedState)
 	answer.Unreadable = filterKeys(unreadable, wantedCard)
 	return answer, nil
 }
@@ -360,19 +360,42 @@ func readHalf(entries []bench.Watched, held cursor, only map[string]bool) (deliv
 	return delivered, unreadable
 }
 
-// eventsFrom renders the delivered lines for the answer, narrowed by the card
-// filter. The state filter does not reach an event, because a line records
-// where a card went rather than where it is.
-func (l *Library) eventsFrom(delivered []position, wantedCard string) []ChangeEvent {
+// eventsFrom renders the delivered lines for the answer, narrowed by whichever
+// filters the caller named.
+func (l *Library) eventsFrom(delivered []position, wantedCard string, wantedState *bench.State) []ChangeEvent {
 	var events []ChangeEvent
 	for _, at := range delivered {
 		scope, id := splitKey(at.key)
 		if wantedCard != "" && (scope != ScopeCard || id != wantedCard) {
 			continue
 		}
+		if wantedState != nil && !l.inState(scope, id, at.event, wantedState) {
+			continue
+		}
 		events = append(events, ChangeEvent{Scope: scope, ID: id, Ref: l.entityRef(scope, id), Event: at.event})
 	}
 	return events
+}
+
+// inState decides whether a state filter admits one line.
+//
+// A card the filter admits is one that sits in the named state now, or one
+// whose own line names that state on either side of a move. The second half is
+// what makes "did my card leave the state I was watching" answerable at all: a
+// card that left is no longer in the state, so a rule reading only where the
+// card sits now would filter out the very departure the caller asked about.
+//
+// Nothing outside a card carries a state, so a workbench-scoped or
+// workstream-scoped line is not admitted by a filter that asks about one.
+func (l *Library) inState(scope, id string, event bench.Event, wanted *bench.State) bool {
+	if scope != ScopeCard {
+		return false
+	}
+	if event.From == wanted.ID || event.To == wanted.ID {
+		return true
+	}
+	card, err := bench.LoadCard(l.Bench.CardsRoot(), id)
+	return err == nil && card.State == wanted.ID
 }
 
 // changedCards reports the live cards this call has a per-card reason to

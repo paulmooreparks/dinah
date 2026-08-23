@@ -25,7 +25,6 @@ render.go:70.16,73.3  the branch where the machine form will not marshal, which 
 render.go:137.19,139.3  a token the catalog carries no rendering for, and every token the head prints has one.
 render.go:233.29,236.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
 render.go:424.23,427.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
-render.go:475.30,476.20  the blocked branch in the history renderer, which the held card never exercises because the swept fixture claims and walks it without blocking it.
 render.go:643.23,645.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
 render.go:686.18,688.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
 render.go:739.23,741.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
