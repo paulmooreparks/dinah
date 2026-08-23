@@ -498,17 +498,16 @@ and stores nothing.
 A checklist item is a card-scoped entity recording a structured judgment:
 `checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, `citations`,
 timestamps, and a creation ordinal in frontmatter, the item's text as the
-body, a resolution
-note required to leave pending, and attachments for evidence per the
-universal rule. Kinds are a closed set of three
-(acceptance_criterion, open_question, decision)
-and states a closed set (pending, resolved, verified, failed), closed
-because method text travels between boards and "file it with owner
-operator" must mean the same thing everywhere. Items are per-item entities
-rather than a list in the card anchor for the same reason comments are:
-different actors add items concurrently, and per-item directories are the
-conflict-free shape. Item lifecycle events land in the card's journal per
-the nearest-enclosing rule.
+body, a resolution note required to leave pending, and attachments for
+evidence per the universal rule. Kinds are a closed set of three
+(acceptance_criterion, open_question, decision) and states a closed set
+(pending, resolved, verified, failed), closed because method text travels
+between boards and "file it with owner operator" must mean the same thing
+everywhere. Items are per-item entities rather than a list in the card
+anchor for the same reason comments are: different actors add items
+concurrently, and per-item directories are the conflict-free shape. Item
+lifecycle events land in the card's journal per the nearest-enclosing
+rule.
 
 Checklist items are not in the spec-and-notes category of imposed card
 fields, and the distinction is the field-versus-collection line: a field
@@ -633,8 +632,11 @@ about whether the named thing asserts anything, so a check that has
 quietly stopped asserting passes a citation check cleanly. An entry may
 therefore carry an `observed` mapping recording what the check did before
 the work and after it, as the test citation above does, and a criterion
-leaves the pending state only where its citation observed the check
-failing against the unfixed state and passing against the fixed one.
+whose citation uses a scheme demanding the observation leaves the pending
+state only where that citation recorded the check failing against the
+unfixed state and passing against the fixed one. A criterion whose cited
+schemes demand no observation leaves the pending state on the citation
+alone.
 
 The pair covers both failures with one rule. A check nobody wrote cannot
 produce the failing observation, and a check that asserts nothing cannot
@@ -651,16 +653,26 @@ not, and declaring it per scheme keeps the rule off the boards it makes no
 sense on. An inspection record does not fail before the inspection and
 pass after it, while a test does exactly that.
 
+The `observed` values are a closed set of two, `fail` and `pass`, closed
+by the rule that settles the question, since contract behavior hangs on
+the members. A criterion leaves the pending state on a `fail` before and
+a `pass` after, so a value the tool has never heard of cannot be weighed
+against that rule, and a board spelling the pair its own way would put
+the rule out of reach of any tool reading the item. Both values join the
+token registry, stored canonically and never translated, on the terms the
+Language independence tiers already set for the members of a closed enum.
+
 What a checker verifies here is presence and shape, since nothing in the
 tool ran the check and nothing on disk proves it did. An entry whose
-scheme demands the observation and carries none is a structural defect the
-checker reports, and an entry claiming a failing before and a passing
-after is taken at its word.
+scheme demands the observation and carries none is a structural defect
+the checker reports under `check.citation-without-observation`, and an
+entry claiming a failing before and a passing after is taken at its word.
 
 ### What check resolves, and what it cannot
 
-The field produces two findings, and what separates them is what the tool
-can see.
+The field produces three findings. Two of them turn on what the tool can
+see of the workbench, and the third turns on what the entry itself
+carries.
 
 `check.unknown-scheme` names a citation whose scheme the workbench's
 `evidence:` block never declared. The name follows `check.unknown-level`,
@@ -677,15 +689,25 @@ the walk those two already perform. The finding reports the item, the
 entry, and the collection the target failed to resolve against, so a
 reader has the reason resolution failed without opening the workbench.
 
-A scheme with no `resolves:` key produces neither finding beyond the
-first. Its target lies outside the workbench, past what the tool can see,
-so the checker says nothing about it rather than promising a check that
-never runs.
+A scheme with no `resolves:` key produces neither of those two findings
+beyond the first. Its target lies outside the workbench, past what the
+tool can see, so the checker says nothing about it rather than promising
+a check that never runs.
 
-Nothing creates a checklist item yet, so neither finding has anything to
-run against until the verbs that write items exist. Both are named here so
-that whatever eventually writes an item reports under these names rather
-than minting others.
+`check.citation-without-observation` names an entry whose scheme carries
+`observed: required` and which records no observation, or which records a
+pair that is incomplete or carries a value outside the closed set. The
+name follows `check.block-without-reason` and `check.claim-without-active`,
+which report the same shape of failure, a record missing the part that
+gives it meaning. The finding reports the item, the entry, and which half
+of the pair is missing or unrecognized. It reaches no further than that,
+since an entry claiming a failing before and a passing after is taken at
+its word.
+
+Nothing creates a checklist item yet, so none of the three has anything to
+run against until the verbs that write items exist. All three are named
+here so that whatever eventually writes an item reports under these names
+rather than minting others.
 
 ### Refusing a move on a citation
 
