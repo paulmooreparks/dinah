@@ -482,8 +482,8 @@ person to pull that state's own queue takes it from there.
 
 ## The five commands underneath
 
-A pull is not a sixth kind of act. It is a claim and a move, run together, and
-the card's own history says so:
+Under that one command Dinah did two things, and the card's own history shows
+both of them:
 
 ```console
 $ dinah log rel-1
@@ -527,8 +527,8 @@ held ana holds this card; wait for ana to release it
 [exit 2]
 ```
 
-`release` gives a card back. Release one as soon as you stop working it, so the
-queue tells the truth about what is free:
+`release` gives a card back. Give one back the moment you stop working it,
+because a card you are still holding is a card nobody else will pull:
 
 ```console
 $ dinah release rel-2

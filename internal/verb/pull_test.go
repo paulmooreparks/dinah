@@ -619,3 +619,113 @@ func TestPullChecksAgainstTheFullThirteenRowTable(t *testing.T) {
 // TestTheQuickStartReplayMentionsPull was retired. The quick-start replay
 // guard lives at cmd/dinah/quickstart_test.go, not here; asserting it here
 // would duplicate that test's contract.
+
+// TestAPulledCardsJournalMatchesTheThreeCommandRoute asserts that a pull
+// leaves the history a person would have written by hand. The two events a
+// pull appends carry the same names, actors and details, in the same order,
+// as the events a claim and a move append separately, so a reader who has
+// never used the command cannot tell which route a card took.
+//
+// Timestamps are excluded because the two routes are two acts at two moments
+// on one route and one act on the other, which is the difference the card is
+// about rather than a difference in what was recorded.
+func TestAPulledCardsJournalMatchesTheThreeCommandRoute(t *testing.T) {
+	h := newHarness(t)
+	pulled := h.add("taken by pull")
+	byHand := h.add("taken by hand")
+
+	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: "doing"})
+	h.reopen()
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("pull: %s %s", response.Outcome, response.Refusal)
+	}
+	if response.Card == nil || response.Card.Ref != pulled {
+		t.Fatalf("pull took %+v, wanted %s", response.Card, pulled)
+	}
+	// The fixture's doing state holds one card, so the pulled card is carried
+	// on before the second card takes the same route. That carrying leaves a
+	// fourth event on the pulled card, and the comparison reads the three
+	// events both routes wrote rather than the whole journal.
+	h.mustDo(&Request{Verb: Move, Card: pulled, Actor: "alka", State: review})
+	h.mustDo(&Request{Verb: Claim, Card: byHand, Actor: "alka"})
+	h.mustDo(&Request{Verb: Move, Card: byHand, Actor: "alka", State: "doing"})
+
+	right := h.events(byHand)
+	left := h.events(pulled)
+	if len(left) < len(right) {
+		t.Fatalf("the pulled card wrote %d events and the hand route wrote %d: %+v against %+v", len(left), len(right), left, right)
+	}
+	left = left[:len(right)]
+	for i := range left {
+		a, b := left[i], right[i]
+		if a.Event != b.Event || a.Actor != b.Actor || a.From != b.From || a.To != b.To || a.Override != b.Override {
+			t.Errorf("event %d differs between the routes: %+v against %+v", i+1, a, b)
+		}
+	}
+}
+
+// TestPullAndMoveRefuseOneCardInTheSameWords asserts the merged refusal order
+// on the case that motivated it: a card standing in an operator-owned state,
+// asked for by an owner who is not the operator. Both commands read the
+// departure state before they read anything about the card, so both answer
+// not-operator, and a lifted sequence that reordered either list would show up
+// here as two different answers to one question.
+//
+// The Interleave hook blocks the card in the window the lock protects, which
+// is the arrival the review was worried about. The card the transaction
+// already re-read stays ready, so the blocked row cannot fire, and the point
+// of the assertion is that neither command reaches that row in the first
+// place: the departure decides it first.
+func TestPullAndMoveRefuseOneCardInTheSameWords(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("standing in review")
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
+
+	blockDuringTheLock := func() {
+		card := h.card(ref)
+		card.Substate = contract.SubstateBlocked
+		card.BlockReason = "raised by another process"
+		if err := card.Save(); err != nil {
+			t.Fatalf("block the card mid-transaction: %v", err)
+		}
+	}
+
+	h.library.Interleave = blockDuringTheLock
+	pulled := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: finished})
+	h.library.Interleave = nil
+	h.reopen()
+
+	h.library.Interleave = blockDuringTheLock
+	moved := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "bob", State: finished})
+	h.library.Interleave = nil
+	h.reopen()
+
+	if pulled.Refusal != contract.NotOperator {
+		t.Errorf("pull answered %s %s, wanted %s", pulled.Outcome, pulled.Refusal, contract.NotOperator)
+	}
+	if moved.Refusal != contract.NotOperator {
+		t.Errorf("move answered %s %s, wanted %s", moved.Outcome, moved.Refusal, contract.NotOperator)
+	}
+	if pulled.Refusal != moved.Refusal {
+		t.Errorf("one card, two answers: pull said %s and move said %s", pulled.Refusal, moved.Refusal)
+	}
+}
+
+// TestANamedPullRefusesAStateTheWorkbenchDoesNotDeclare asserts the row that
+// belongs to the argument rather than to any state: a destination the
+// workbench does not declare is refused in the words move refuses it, and the
+// refusal names back what the caller typed.
+//
+// The bare form cannot reach this row, because it names no state to be
+// unknown, which is why the assertion drives the named form alone.
+func TestANamedPullRefusesAStateTheWorkbenchDoesNotDeclare(t *testing.T) {
+	h := newHarness(t)
+	h.add("waiting")
+	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: "nowhere"})
+	if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.UnknownState {
+		t.Fatalf("wanted %s, got %s %s", contract.UnknownState, response.Outcome, response.Refusal)
+	}
+	if response.Detail != "nowhere" {
+		t.Errorf("the refusal should name what the caller typed, got %q", response.Detail)
+	}
+}
