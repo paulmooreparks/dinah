@@ -102,6 +102,7 @@ func TestASecondExportMatchesTheFirst(t *testing.T) {
 		{"a mapping two deep", "contacts:\n  oncall:\n    rota: [ana, bo]\n"},
 		{"a plain sequence", "rituals:\n  - standup\n  - retro\n"},
 		{"a scalar", "owner: ana\n"},
+		{"a duplicated member name", "dup: {\"a\":1,\"a\":2}\n"},
 	} {
 		t.Run(declaration.name, func(t *testing.T) {
 			source := benchDeclaring(t, declaration.block)
@@ -184,6 +185,8 @@ func TestTheRendererRefusesWhatTheReaderWouldMisread(t *testing.T) {
 		`[{"major":"fix it"},"minor"]`,
 		`[{"major":"fix it"},1]`,
 		`{"one":["a"],"two":{"three":"four"}}`,
+		`{"a":1,"a":2}`,
+		`{"one":"x","two":{"n":1,"n":2}}`,
 		`{}`,
 		`[]`,
 		`12`,
@@ -193,12 +196,66 @@ func TestTheRendererRefusesWhatTheReaderWouldMisread(t *testing.T) {
 		raw := json.RawMessage(value)
 		lines, renderable := renderBlock("key", 0, raw)
 		if !renderable {
+			// A refusal owes the same fidelity by the other route, so
+			// the walk follows the fallback rather than skipping the
+			// value it refused.
+			refused := NewFrontmatter()
+			writeMember(refused, "key", raw)
+			if got := blockValue(refused, "key"); !sameJSON(got, raw) {
+				t.Errorf("%s was refused and its raw line read back as %s", value, got)
+			}
 			continue
 		}
 		fm, _ := ParseAnchor("---\n" + strings.Join(lines, "\n") + "\n---\n")
 		if got := blockValue(fm, "key"); !sameJSON(got, raw) {
 			t.Errorf("%s rendered as\n%s\nand read back as %s", value, strings.Join(lines, "\n"), got)
 		}
+	}
+}
+
+// TestADuplicatedMemberNameIsPreservedRatherThanHalfWritten asserts dinah-196
+// AC-15 at the level the defect lived at. A JSON object carrying the same
+// member name twice has no frontmatter spelling, because a block of `name:`
+// lines reads back keeping the first occurrence alone. The renderer therefore
+// refuses it and the caller writes the one raw JSON line, which reads back as
+// the value it was handed.
+//
+// This is the case the object arm shipped wrong: jsonMembers dropped the
+// second member and reported success, so the clone carried `dup:` with one
+// child and the second export differed from the first.
+func TestADuplicatedMemberNameIsPreservedRatherThanHalfWritten(t *testing.T) {
+	for _, value := range []string{
+		`{"a":1,"a":2}`,
+		`{"one":"x","two":{"n":1,"n":2}}`,
+		`{"levels":{"severity":["minor"],"severity":["major"]}}`,
+	} {
+		raw := json.RawMessage(value)
+		if lines, renderable := renderBlock("dup", 0, raw); renderable {
+			t.Errorf("%s rendered as a block:\n%s", value, strings.Join(lines, "\n"))
+		}
+		fm := NewFrontmatter()
+		writeMember(fm, "dup", raw)
+		if lines := fm.Raw("dup"); len(lines) != 1 {
+			t.Errorf("%s drew %d lines, wanted the one raw line: %v", value, len(lines), lines)
+		}
+		if got := blockValue(fm, "dup"); !sameJSON(got, raw) {
+			t.Errorf("%s came back as %s", value, got)
+		}
+	}
+}
+
+// TestADuplicatedLevelsAxisIsPreservedRatherThanHalfWritten asserts dinah-196
+// AC-15 on the one path that does not go through renderBlock. A definition
+// hand-written with the same axis declared twice reaches renderLevelsMember,
+// which orders the axes itself, so the same rule has to hold there: refuse,
+// and let the raw JSON line preserve the member.
+func TestADuplicatedLevelsAxisIsPreservedRatherThanHalfWritten(t *testing.T) {
+	raw := json.RawMessage(`{"severity":["minor"],"severity":["major"]}`)
+	if lines, renderable := renderLevelsMember(raw); renderable {
+		t.Errorf("the duplicated axis rendered as a block:\n%s", strings.Join(lines, "\n"))
+	}
+	if got := orderedLevels(raw); !sameJSON(got, raw) {
+		t.Errorf("export reordered the duplicated axis into %s, wanted it carried unchanged", got)
 	}
 }
 

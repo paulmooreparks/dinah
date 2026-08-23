@@ -247,7 +247,51 @@ func blockPad(indent int) string {
 // renderBlock renders a JSON value as the frontmatter lines of the same shape,
 // beneath a key at the given indent, and reports whether it could. A caller
 // given false writes the one raw JSON line instead, which loses nothing.
+//
+// The invariant is checked here rather than argued shape by shape. Each arm of
+// renderShape below states the reader rule that keeps its own case stable, and
+// then this function reads the lines it produced back through the reader and
+// refuses anything that did not come back as the value it was given. An arm
+// whose reasoning is incomplete therefore loses nothing: it falls back to the
+// raw JSON line instead of writing a block a reader would read differently.
+// The object arm shipped without such a check and dropped a duplicated member
+// name silently, which is the hole this closes for the class rather than for
+// that one input.
 func renderBlock(key string, indent int, raw json.RawMessage) ([]string, bool) {
+	lines, rendered := renderShape(key, indent, raw)
+	if !rendered {
+		return nil, false
+	}
+	read, readable := renderedValue(lines)
+	if !readable || !sameJSON(read, raw) {
+		return nil, false
+	}
+	return lines, true
+}
+
+// renderedValue reads the lines renderBlock just produced back as the JSON
+// value a reader will find in them, by the same rules blockValue applies to a
+// key's raw lines. The rules are indent-blind, since childValue measures its
+// children against the shallowest indent present, so one function answers for
+// a block at the top of an anchor and for one nested inside another.
+func renderedValue(lines []string) (json.RawMessage, bool) {
+	if len(lines) == 0 {
+		return nil, false
+	}
+	m := blockMember.FindStringSubmatch(strings.TrimLeft(lines[0], " "))
+	if m == nil {
+		return nil, false
+	}
+	if len(lines) == 1 {
+		return scalarValue(unquote(strings.TrimSpace(m[2]))), true
+	}
+	return childValue(readChildren(lines[1:])), true
+}
+
+// renderShape renders a JSON value as the lines of its own shape, without
+// checking what those lines read back as. Only renderBlock calls it, and only
+// through the read-back guard above.
+func renderShape(key string, indent int, raw json.RawMessage) ([]string, bool) {
 	if !blockName.MatchString(key) {
 		return nil, false
 	}
@@ -376,14 +420,17 @@ func dashedText(entry json.RawMessage) (string, bool) {
 	return quote(members[0].name) + ": " + quote(hint), true
 }
 
-// renderScalar renders a JSON string, number or boolean as the text after a
-// key's colon, and reports whether it could.
+// renderScalar renders a JSON string, number, boolean or null as the text
+// after a key's colon, and reports whether it could.
 //
 // A string is refused when reading the rendered scalar back would give
 // something other than that string, which is a string that parses as JSON and
 // a string that opens with a bracket and closes with one. Either would drift
-// in type on every hop through the interchange. Anything that is not a string,
-// a number or a boolean has no scalar spelling.
+// in type on every hop through the interchange. A null renders as the literal
+// null, which rule 1 of the reader reads back as null, so it is stable and the
+// line is the same bytes the raw-JSON fallback would have written; the spec's
+// section 4 lists only string, number and boolean, and this comment is the
+// alignment. Anything else has no scalar spelling.
 func renderScalar(raw json.RawMessage) (string, bool) {
 	literal := strings.TrimSpace(string(raw))
 	if strings.HasPrefix(literal, `"`) {
@@ -420,8 +467,17 @@ func jsonNumber(literal string) bool {
 }
 
 // jsonMembers decodes a JSON object into its members in the order the text
-// carries them, which json.Unmarshal into a Go map cannot do. A duplicated
-// name keeps its first occurrence.
+// carries them, which json.Unmarshal into a Go map cannot do.
+//
+// A duplicated name reports false rather than keeping one occurrence. An
+// ordered member list has no way to carry the same name twice, so a caller
+// handed one would write a block short of a member and call it complete, and
+// every caller of this function is a writer: renderShape's object arm,
+// dashedText, orderedLevels and renderLevelsMember. Each of them falls back to
+// preserving the value it was given, which is what CORE-JSON-7 asks for and
+// what keeps a second export identical to the first. Reading a FILE is the
+// other posture and stays as it was: objectFromChildren keeps a duplicated
+// name's first occurrence, as a duplicated level name does.
 func jsonMembers(raw json.RawMessage) ([]jsonMember, bool) {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	token, err := decoder.Token()
@@ -444,7 +500,7 @@ func jsonMembers(raw json.RawMessage) ([]jsonMember, bool) {
 			return nil, false
 		}
 		if seen[name] {
-			continue
+			return nil, false
 		}
 		seen[name] = true
 		members = append(members, jsonMember{name: name, value: value})
