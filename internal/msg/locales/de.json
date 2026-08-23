@@ -286,11 +286,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.mcp.1": {
-      "text": "the directory --root names is one the filesystem carries",
+      "text": "das Dateisystem trägt das --root-Verzeichnis",
       "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist."
     },
     "check.mcp.2": {
-      "text": "the workbench you name lies under the root",
+      "text": "die genannte Werkbank liegt unter --root",
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root."
     },
     "check.missing-anchor": {
@@ -1262,15 +1262,15 @@
       "context": "Printed when a listing has nothing in it."
     },
     "mcp.no-default": {
-      "text": "no default workbench: {detail}",
+      "text": "keine Standardwerkbank: {detail}",
       "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer."
     },
     "mcp.reach": {
-      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "text": "Sie können jede Werkbank unterhalb von {root} erreichen; dieser Server stellt standardmäßig {title} bereit. Das Werkzeug workbenches listet die Werkbänke unterhalb des Wurzelverzeichnisses auf, und die Eigenschaft workbench jedes anderen Werkzeugs nennt eine.",
       "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title."
     },
     "mcp.reach.nodefault": {
-      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "text": "Sie können jede Werkbank unterhalb von {root} erreichen; dieser Server stellt standardmäßig keine bereit. Das Werkzeug workbenches listet die Werkbänke unterhalb des Wurzelverzeichnisses auf, und die Eigenschaft workbench jedes anderen Werkzeugs nennt eine.",
       "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named."
     },
     "next.none": {
@@ -1442,7 +1442,7 @@
       "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table."
     },
     "param.mcp.root.summary": {
-      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "text": "Verzeichnis, unterhalb dessen jede Werkbank liegt, die dieser Server bereitstellt; die beim Start entdeckte Werkbank, wenn Sie kein Verzeichnis nennen",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table."
     },
     "param.move.override.summary": {
@@ -1714,11 +1714,11 @@
       "context": "Spliced onto refusal.dinah.occupied as the next step."
     },
     "refusal.dinah.outside-root": {
-      "text": "{detail} lies outside {root}, the root the server was started with",
+      "text": "{detail} liegt außerhalb von {root}, dem Wurzelverzeichnis, mit dem der Server gestartet wurde",
       "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named."
     },
     "refusal.dinah.outside-root.next": {
-      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "text": "; setzen Sie beim Start des Servers --root auf ein Verzeichnis, das die gewünschte Werkbank enthält",
       "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded."
     },
     "refusal.dinah.referenced": {
@@ -1854,11 +1854,11 @@
       "context": "Spliced onto refusal.dinah.unknown-path as the next step when the refusal carries a file: a path on the filesystem the reader named."
     },
     "refusal.dinah.unknown-root": {
-      "text": "{detail} is not a directory the filesystem carries",
+      "text": "{detail} ist kein Verzeichnis, das das Dateisystem trägt",
       "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named."
     },
     "refusal.dinah.unknown-root.next": {
-      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "text": "; richten Sie --root auf ein vorhandenes Verzeichnis, oder lassen Sie die Option weg, um von hier aus eines zu entdecken",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal."
     },
     "refusal.dinah.unknown-value": {
@@ -2070,7 +2070,7 @@
       "context": "The description of the basis property, which every generated machine schema carries and no command declares."
     },
     "schema.workbench.description": {
-      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "text": "der absolute Pfad der Werkbank, auf die dieser Aufruf einwirkt, etwa C:\\Users\\you\\projects\\plans; weggelassen, um auf die Werkbank einzuwirken, mit der der Server gestartet wurde",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
     },
     "show.attachments": {
@@ -2290,7 +2290,7 @@
       "context": "The word a person reads for the workstream_updated journal event."
     },
     "tool.workbenches.summary": {
-      "text": "the workbenches this server may serve",
+      "text": "die Werkbänke, die dieser Server bereitstellen darf",
       "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root."
     },
     "tree.empty": {
