@@ -1177,9 +1177,15 @@ func IsWorkbenchRef(ref string) bool {
 
 // Cards reads every live card of the bench, in ascending identifier order.
 func (b *Bench) Cards() ([]*Card, error) {
+	return cardsIn(b.CardsRoot())
+}
+
+// cardsIn reads every card of one half of the collection, in ascending
+// identifier order.
+func cardsIn(root string) ([]*Card, error) {
 	var cards []*Card
-	for _, id := range ListIDs(b.CardsRoot()) {
-		card, err := LoadCard(b.CardsRoot(), id)
+	for _, id := range ListIDs(root) {
+		card, err := LoadCard(root, id)
 		if err != nil {
 			return nil, err
 		}

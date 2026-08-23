@@ -288,11 +288,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
-	if summaries != 39 {
-		t.Errorf("read %d command entries out of the block, want 39", summaries)
+	if summaries != 40 {
+		t.Errorf("read %d command entries out of the block, want 40", summaries)
 	}
-	if wrapped != 8 {
-		t.Errorf("%d entries wrapped across more than one line, want the eight whose syntax is wider than half the window", wrapped)
+	if wrapped != 9 {
+		t.Errorf("%d entries wrapped across more than one line, want the nine whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")
@@ -319,37 +319,12 @@ func firstChunk(value string, indent, room int) string {
 }
 
 // hasOptionBoundary is true when value carries at least one boundary the
-// breakOnOptions rule recognises. The check is structural and exists to match
-// splitOnOptionBoundaries's own view, so the two never disagree on what the
-// rule applies to.
+// breakOnOptions rule recognises. It asks splitOnOptionBoundaries itself
+// rather than carrying a second copy of the rule, so the two cannot disagree
+// on what the rule applies to: the splitter returns the whole input as one
+// piece when it finds no boundary, which is exactly the question asked here.
 func hasOptionBoundary(value string) bool {
-	depth := 0
-	for i := 0; i < len(value); i++ {
-		switch value[i] {
-		case '[':
-			if i+2 < len(value) && value[i+1] == '-' && value[i+2] == '-' {
-				depth++
-			}
-		case ']':
-			if depth > 0 {
-				depth--
-			}
-		case ' ':
-			if depth > 0 {
-				continue
-			}
-			j := i + 1
-			switch {
-			case j+2 < len(value) && value[j] == '[' && value[j+1] == '-' && value[j+2] == '-':
-				return true
-			case j < len(value) && value[j] == '<':
-				return true
-			case j+1 < len(value) && value[j] == '-' && value[j+1] == '-':
-				return true
-			}
-		}
-	}
-	return false
+	return len(splitOnOptionBoundaries(value)) > 1
 }
 
 // TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong asserts that a

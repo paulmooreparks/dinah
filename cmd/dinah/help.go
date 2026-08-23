@@ -91,19 +91,23 @@ func lookup(name string) (*command, bool) {
 	return nil, false
 }
 
-// helpBlock composes the whole surface, which is what `dinah` with no
-// arguments prints. A command absent from this block does not ship.
-func (s *session) helpBlock() string {
-	var b strings.Builder
-	b.WriteString(s.r.T("help.tagline") + "\n\n")
-	b.WriteString(s.r.T("help.usage") + "\n")
-	// hasCeiling caps the syntax column at half the window: the top-level
-	// listing is the one table this tool draws with values wide enough to
-	// swallow the whole line on their own (check's flags run past ninety
-	// display columns), and no other table opts into this. wrapTail is the
-	// same opt-in the arguments table already uses, so a long summary wraps
-	// at the right edge rather than running past it into whatever the
-	// terminal does with the overrun.
+// commandListing is the table of every command the tool ships, grouped and
+// summarized, which is the body of the help block.
+//
+// hasCeiling caps the syntax column at half the window: this listing is the
+// one table this tool draws with values wide enough to swallow the whole
+// line on their own (check's flags run past ninety display columns), and no
+// other table opts into this. wrapTail is the same opt-in the arguments
+// table already uses, so a long summary wraps at the right edge rather than
+// running past it into whatever the terminal does with the overrun.
+//
+// It is built here rather than inside helpBlock so that a test can lay the
+// same table out and read the columns the measure chose. A width assertion
+// over the drawn page has to know where the summary column begins before it
+// can say which axis a line ran past the window on, and reading that off the
+// laid-out table is what keeps the assertion from guessing it back out of
+// the ink.
+func (s *session) commandListing() table {
 	list := table{indent: 2, columns: s.columns("commands", "command", "what"), labels: labelInTheStack, ceilingColumn: 0, hasCeiling: true, wrapTail: true, wrapOptions: true}
 	for _, group := range groups {
 		opening := true
@@ -119,7 +123,16 @@ func (s *session) helpBlock() string {
 			list.rows = append(list.rows, entry)
 		}
 	}
-	for _, line := range s.tableLines(list) {
+	return list
+}
+
+// helpBlock composes the whole surface, which is what `dinah` with no
+// arguments prints. A command absent from this block does not ship.
+func (s *session) helpBlock() string {
+	var b strings.Builder
+	b.WriteString(s.r.T("help.tagline") + "\n\n")
+	b.WriteString(s.r.T("help.usage") + "\n")
+	for _, line := range s.tableLines(s.commandListing()) {
 		b.WriteString(line + "\n")
 	}
 	b.WriteString("\n" + s.r.T("help.flags") + "\n")
@@ -136,6 +149,12 @@ func (s *session) helpBlock() string {
 	b.WriteString(s.r.T("help.reading") + "\n")
 	return b.String()
 }
+
+// syntaxContinuationIndent is how far a command page's syntax line indents
+// its own continuations under itself. It is named rather than written at the
+// call site so that a test can draw the same line the page draws, without a
+// second copy of the number to drift from this one.
+const syntaxContinuationIndent = 2
 
 // verbHelp composes the help of one command: what it takes, then its checks
 // in the profile's order with each check's refusal name beside it.

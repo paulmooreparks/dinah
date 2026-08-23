@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,13 +93,15 @@ type sweptBlock struct {
 	// fixed-indent continuation as a field that has drifted, or as the
 	// field after the capped column arriving early. A capsColumn block that
 	// also declares wrapsTail wraps its field after the capped column too,
-	// through the ordinary wrapsTail continuation below; the capped
-	// column's own continuation lines and the field after it wrapping are
-	// two independent axes, so a row can carry both, and the production
-	// renderer draws the capped column's lines before the wrapped field's,
-	// which reading them in the order they arrive reconstructs correctly
-	// without this reader needing to know which axis a given line belongs
-	// to before it sees the line's own lead.
+	// and since dinah-220 the two wraps run down the page together rather
+	// than one block after the other: a single physical line can carry the
+	// capped column's own continuation and the field's continuation at
+	// once, with the field's fragment starting ceilingContinuationIndent
+	// columns past the field's own heading column. A line carrying only the
+	// field's continuation starts there too, since every continuation line
+	// of a capped row renders at the continuation indent. readSweptRows
+	// splits a joint line at that second boundary and folds each fragment
+	// into the field it belongs to.
 	capsColumn bool
 	// shape is an extra assertion about the rows this entry exists for, on a
 	// block two entries share. It is nil on every block whose entry asserts
@@ -1016,24 +1020,46 @@ func readSweptRows(t *testing.T, block sweptBlock, tag string, lines []string, c
 	for i, line := range lines {
 		// A block that asks the renderer to break its last column between
 		// words draws continuation lines leading at that column's own
-		// position. Reading one without knowing that would report an
-		// aligned continuation as a first field in the wrong place.
-		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == columns[tail] {
+		// position, or, under a ceiling, ceilingContinuationIndent columns
+		// past it: every continuation line of a capped row renders at the
+		// continuation indent, the field's own included (dinah-220).
+		// Reading one without knowing that would report an aligned
+		// continuation as a first field in the wrong place.
+		tailContinuation := columns[tail]
+		if block.capsColumn {
+			tailContinuation += ceilingContinuationIndent
+		}
+		if block.wrapsTail && next == 0 && len(rows) > 0 && sweptLead(line) == tailContinuation {
 			previous := rows[len(rows)-1]
-			previous[len(previous)-1] += " " + sweptField(line, columns[tail], -1)
+			previous[len(previous)-1] += " " + sweptField(line, tailContinuation, -1)
 			continue
 		}
 		// A capsColumn block draws every row's field after the capped
 		// column on the row's first line, whatever the capped column's own
 		// value needs, so the first line of such a row reads through the
 		// ordinary path below like any other two-column row. A capsColumn
-		// continuation line carries only more of the capped column's own
-		// value, at the fixed sweptCapContinuation indent, and is folded
-		// back into the row already closed for it rather than read as a
-		// field of its own.
+		// continuation line leads at the fixed sweptCapContinuation indent
+		// and is folded back into the row already closed for it rather than
+		// read as a field of its own.
+		//
+		// Since dinah-220 such a line can carry both continuations at once:
+		// the capped column's own wrapped text at sweptCapContinuation, and
+		// the wrapped field's own continuation ceilingContinuationIndent
+		// columns past the field's heading column. sweptNextFieldColumn
+		// finds that second boundary the same way deriveHeadinglessColumns
+		// finds every other one, and it cannot fire inside the capped
+		// fragment itself, since the renderer joins packed tokens with one
+		// space and a boundary needs a gutter's worth of blanks. When the
+		// line carries no such boundary, the whole remainder belongs to the
+		// capped field alone, as it did before.
 		if block.capsColumn && next == 0 && len(rows) > 0 && sweptLead(line) == sweptCapContinuation {
 			previous := rows[len(rows)-1]
-			previous[0] += " " + sweptField(line, sweptCapContinuation, -1)
+			if jointAt := sweptNextFieldColumn(line, sweptCapContinuation); jointAt == tailContinuation {
+				previous[0] += " " + sweptField(line, sweptCapContinuation, jointAt)
+				previous[tail] += " " + sweptField(line, jointAt, -1)
+			} else {
+				previous[0] += " " + sweptField(line, sweptCapContinuation, -1)
+			}
 			continue
 		}
 		if sweptLead(line) != columns[next] {
@@ -1476,7 +1502,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:493", label: "dinah log",
+			site: "render.go:477", label: "dinah log",
 			keys:   []string{"column.log.when", "column.log.action", "column.log.actor", "column.log.detail"},
 			varies: lastCell, expect: expectHistory,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1484,7 +1510,16 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:509", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:521", label: "dinah changes",
+			keys: []string{"column.changes.when", "column.changes.card", "column.changes.action",
+				"column.changes.actor", "column.changes.detail"},
+			varies: lastCell, expect: expectChanges,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.healthy, tag, "changes", "--since", sweptAllCoveringCursor(t, w.healthy), "--card", w.held)
+			},
+		},
+		{
+			site: "render.go:552", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			expect: expectAssignedSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1492,28 +1527,28 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:538", label: "one removed stranded state", varies: noCell,
+			site: "render.go:581", label: "one removed stranded state", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-states")
 			},
 		},
 		{
-			site: "render.go:674", label: "the states a refusal lists", varies: noCell,
+			site: "render.go:717", label: "the states a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
-			site: "render.go:555", label: "one finding", varies: noCell,
+			site: "render.go:598", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
-			site: "render.go:580", label: "catalog coverage",
+			site: "render.go:623", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1521,7 +1556,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:122", label: "the command list of bare dinah",
+			site: "help.go:135", label: "the command list of bare dinah",
 			keys: []string{"column.commands.command", "column.commands.what"}, varies: lastCell,
 			noHeadingRow: true, capsColumn: true, wrapsTail: true,
 			opensAt: "help.usage", sections: sweptHelpSections(), expect: expectCommands,
@@ -1530,7 +1565,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:130", label: "the global flag list",
+			site: "help.go:143", label: "the global flag list",
 			keys: []string{"column.flags.option", "column.flags.what"}, varies: lastCell,
 			opensAt: "help.flags", expect: expectFlags,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1538,7 +1573,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:173", label: "dinah help <command>",
+			site: "help.go:192", label: "dinah help <command>",
 			keys: []string{"column.help.order", "column.help.check", "column.help.refusal"}, varies: lastCell,
 			opensAt: "help.refusals", expect: expectRefusals,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1546,7 +1581,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "help.go:210", label: "what you may write, on dinah help <command>",
+			site: "help.go:229", label: "what you may write, on dinah help <command>",
 			keys: []string{"column.arguments.argument", "column.arguments.what"}, varies: lastCell,
 			opensAt: "help.arguments", expect: expectArguments, wrapsTail: true,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1554,7 +1589,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:581", label: "the guide topics",
+			site: "commands.go:606", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1562,7 +1597,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:793", label: "the workbench's own fields",
+			site: "render.go:836", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			expect: expectWorkbenchFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1570,7 +1605,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:521", label: "the workstream slugs check --migrate-slugs assigned",
+			site: "render.go:564", label: "the workstream slugs check --migrate-slugs assigned",
 			keys:   []string{"column.slugs.slug", "column.slugs.title"},
 			varies: lastCell, expect: expectAssignedWorkstreamSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1587,7 +1622,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:815", label: "dinah workstream",
+			site: "render.go:858", label: "dinah workstream",
 			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1595,7 +1630,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:836", label: "one workstream's own fields",
+			site: "render.go:879", label: "one workstream's own fields",
 			keys:   []string{"column.workstream.field", "column.workstream.value"},
 			varies: lastCell, expect: expectWorkstreamFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1604,7 +1639,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:849", label: "the cards belonging to one workstream",
+			site: "render.go:892", label: "the cards belonging to one workstream",
 			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.state"},
 			varies: lastCell, expect: expectWorkstreamMembers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1613,7 +1648,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:684", label: "a refusal that carries a list", varies: noCell,
+			site: "render.go:727", label: "a refusal that carries a list", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "pull")
@@ -1631,6 +1666,47 @@ func sweptRun(t *testing.T, dir, tag string, argv ...string) string {
 		t.Fatalf("%v in %s: exit %d\n%s", argv, tag, got.code, got.errw)
 	}
 	return got.out
+}
+
+// sweptAllCoveringCursor mints a cursor on a tree and blanks the position out
+// of it, which is the one token that makes a checkpoint report a history the
+// fixture finished writing before the checkpoint existed.
+//
+// A minted cursor names the end of the total order as it stands, so handing it
+// straight back reports nothing. Dropping its position makes every line fall
+// after it, and spoiling one digest term makes the call find the board moved,
+// which is what puts the fixture's own acts in front of the renderer. The
+// token is composed here rather than typed, so the shape stays the shape the
+// library mints.
+func sweptAllCoveringCursor(t *testing.T, dir string) string {
+	t.Helper()
+	got := runCLI(t, dir, "--json", "changes")
+	if got.code != 0 {
+		t.Fatalf("mint a cursor in %s: exit %d\n%s", dir, got.code, got.errw)
+	}
+	var minted struct {
+		Cursor string `json:"cursor"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &minted); err != nil {
+		t.Fatalf("read the minted cursor: %v\n%s", err, got.out)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(minted.Cursor)
+	if err != nil {
+		t.Fatalf("decode the minted cursor: %v", err)
+	}
+	token := map[string]any{}
+	if err := json.Unmarshal(raw, &token); err != nil {
+		t.Fatalf("read the minted cursor's members: %v", err)
+	}
+	delete(token, "ts")
+	delete(token, "entity")
+	delete(token, "index")
+	token["live"] = "sha256:0"
+	repacked, err := json.Marshal(token)
+	if err != nil {
+		t.Fatalf("compose the covering cursor: %v", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(repacked)
 }
 
 // sweptRefused runs a command expected to refuse and returns what it wrote,
@@ -2249,5 +2325,46 @@ func sweptRewrite(t *testing.T, path string, change func(string) string) {
 	}
 	if err := os.WriteFile(path, []byte(change(string(source))), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+// TestReadSweptRowsSplitsAJointContinuation asserts the reader's own half of
+// dinah-220: a capped row can draw one physical line carrying the capped
+// column's continuation and the wrapped field's continuation at once, and
+// each fragment has to land in the field it came from. Before the split, the
+// whole line folded into the capped field, which put the description text on
+// the syntax column and raised nothing, so the reader agreed with itself
+// while reporting a row nobody drew.
+//
+// The lines are built here rather than harvested from a rendered command, so
+// the joint shape is exercised whether or not any command in the tool happens
+// to produce it at whatever width the sweep runs at today.
+func TestReadSweptRowsSplitsAJointContinuation(t *testing.T) {
+	columns := []int{sweptIndent, 57}
+	joint := sweptIndent + ceilingContinuationIndent
+	block := sweptBlock{site: "row_sweep_test.go", label: "a hand-built capped block", capsColumn: true, wrapsTail: true}
+	lines := []string{
+		strings.Repeat(" ", sweptIndent) + pad("workstream [new|get|set] [workstream|title] [field]", columns[1]-sweptIndent) + "Read this workbench's workstreams, create one, or",
+		strings.Repeat(" ", joint) + pad("[value] [--yes]", columns[1]+ceilingContinuationIndent-joint) + "write one's fields",
+		strings.Repeat(" ", sweptIndent) + pad("attach <ref> <file> [--description <text>]", columns[1]-sweptIndent) + "Attach a file, or replace its bytes",
+		strings.Repeat(" ", joint) + "[--replace]",
+	}
+	want := [][]string{
+		{"workstream [new|get|set] [workstream|title] [field] [value] [--yes]", "Read this workbench's workstreams, create one, or write one's fields"},
+		{"attach <ref> <file> [--description <text>] [--replace]", "Attach a file, or replace its bytes"},
+	}
+	got := readSweptRows(t, block, "en", lines, columns)
+	if len(got) != len(want) {
+		t.Fatalf("a block of two rows read back as %d: %q", len(got), got)
+	}
+	for i := range want {
+		if len(got[i]) != len(want[i]) {
+			t.Fatalf("row %d read back with %d fields, want %d: %q", i, len(got[i]), len(want[i]), got[i])
+		}
+		for f := range want[i] {
+			if got[i][f] != want[i][f] {
+				t.Errorf("row %d field %d read back as %q, want %q", i, f, got[i][f], want[i][f])
+			}
+		}
 	}
 }

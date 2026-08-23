@@ -9,9 +9,11 @@ import (
 )
 
 // tableSession is a session that renders in the base language at a stated
-// window, which is all a table needs to lay itself out.
+// window, which is all a table needs to lay itself out. It is helpSession in
+// the one language a table case cares about, so the two share a constructor
+// rather than each building a session literal of its own.
 func tableSession(window int) *session {
-	return &session{r: msg.For(msg.Base), width: window}
+	return helpSession(window, msg.Base)
 }
 
 // headed builds the columns of a table from the heading words themselves,
@@ -426,20 +428,40 @@ func TestARuleKeepsOneColumnWhereTheWindowLeavesNone(t *testing.T) {
 	}
 }
 
-// TestTheCeilingSetsAColumnToHalfTheWindow asserts what a table opts into by
-// declaring hasCeiling: the column measures half the window it draws in
-// whatever the values in it are, rather than shrinking to a short value's
-// own width. That is what lines every row's field after it up in one place,
-// including a row whose own value is nowhere near the ceiling.
-func TestTheCeilingSetsAColumnToHalfTheWindow(t *testing.T) {
-	laid := tableSession(100).layOut(table{
-		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
-		hasCeiling: true, ceilingColumn: 0,
-		rows: rowsOf([]string{"add", "file a new card"}),
+// TestTheCeilingBoundsAColumnWithoutWideningIt asserts what a table opts into
+// by declaring hasCeiling, as dinah-220 restated it: half the window is a
+// bound on the column, not the column's width. A column whose own values
+// already measure under that bound keeps its measured width, so the field
+// after it sits beside the widest value rather than across a river of blank
+// space; a column measuring wider is capped at half the window, which is
+// what lines a narrow window's rows up in one place.
+//
+// What the test guards against is a return to the unconditional assignment,
+// which spent the whole left half of a wide terminal on a column nothing in
+// it filled. The two cases share one window so the only thing that differs
+// between them is the width of the values.
+func TestTheCeilingBoundsAColumnWithoutWideningIt(t *testing.T) {
+	t.Run("a column under the bound keeps its own width", func(t *testing.T) {
+		value := "add <title>"
+		laid := tableSession(100).layOut(table{
+			indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+			hasCeiling: true, ceilingColumn: 0,
+			rows: rowsOf([]string{value, "file a new card"}),
+		})
+		if want := displayWidth(value); laid.widths[0] != want {
+			t.Errorf("a ceiling-bearing column whose widest value measures %d drew at %d, so the bound widened the column instead of bounding it", want, laid.widths[0])
+		}
 	})
-	if want := halfWindow(100); laid.widths[0] != want {
-		t.Errorf("a ceiling-bearing column measures %d and half the window is %d, so a short value left the column at its own width rather than the declared ceiling", laid.widths[0], want)
-	}
+	t.Run("a column over the bound is capped at half the window", func(t *testing.T) {
+		laid := tableSession(100).layOut(table{
+			indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+			hasCeiling: true, ceilingColumn: 0,
+			rows: rowsOf([]string{strings.Repeat("x", 70), "file a new card"}),
+		})
+		if want := halfWindow(100); laid.widths[0] != want {
+			t.Errorf("a ceiling-bearing column whose widest value measures 70 drew at %d, and half the window is %d", laid.widths[0], want)
+		}
+	})
 }
 
 // TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine asserts the
@@ -474,47 +496,87 @@ func TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine(t *testing.T) 
 	}
 }
 
-// TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryDrawsSyntaxThenSummary
-// checks the one interaction dinah-200's tail-wrapping opt-in creates: a row
-// whose capped column needs three lines and whose summary, wrapping through
-// the same breakTail the arguments table already uses, needs two lines of
-// its own.
+// TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryInterleavesTheTwo
+// checks the one interaction the tail-wrapping opt-in creates: a row whose
+// capped column needs three lines and whose summary needs three of its own.
 //
-// The two wraps are independent axes and this asserts they do not get
-// folded into one interleaved run: every line of the capped column's own
-// continuation comes before every line of the summary's, so a reader sees
-// the whole option list first and the whole description after, rather than
-// a description line landing between two option-list lines it has nothing
-// to do with.
-func TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryDrawsSyntaxThenSummary(t *testing.T) {
+// dinah-220 retired the ordering this test used to assert (every line of the
+// capped column's continuation before every line of the summary's), because
+// it strands a description below an option list it belongs beside and the
+// operator's own sketch draws the two together. The rule now is that
+// physical line N carries the capped column's Nth line beside the summary's
+// Nth line, so each column reads straight down its own track. Line 0 sits at
+// the row's own indent and every line after it at the continuation indent,
+// which puts the summary's continuation two columns past where the summary
+// itself began.
+//
+// What the test guards against is a merge that appends one block after the
+// other again, or one that drops a line from whichever list ran shorter. The
+// want is built line by line from the same primitives the renderer uses,
+// with the interleave written out here rather than inherited from the code
+// under test, and the fixture carries a second row so the column measures
+// wide enough for the continuation lines to sit inside it.
+func TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryInterleavesTheTwo(t *testing.T) {
 	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
 	summary := "look for structural defects in this workbench and repair what can be repaired automatically"
 	laid := tableSession(80).layOut(table{
 		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
 		hasCeiling: true, ceilingColumn: 0, wrapTail: true,
-		rows: rowsOf([]string{value, summary}),
+		rows: rowsOf([]string{value, summary}, []string{strings.Repeat("y", 40), "a second row, so the column measures wide"}),
 	})
 	room := laid.widths[0]
 	wrapIndent := laid.indent + ceilingContinuationIndent
-	syntaxLines := strings.Split(breakWords(value, wrapIndent, room), "\n")
+	syntaxLines := strings.Split(breakWords(value, 0, room), "\n")
 	if len(syntaxLines) < 3 {
 		t.Fatalf("this fixture is meant to need at least three lines for its syntax at a window of 80, got %d: %q", len(syntaxLines), syntaxLines)
 	}
 	begins := laid.indent + room + tableGutter
-	summaryLines := strings.Split(breakTail(summary, begins, laid.window), "\n")
-	if len(summaryLines) < 2 {
-		t.Fatalf("this fixture is meant to need at least two lines for its summary at a window of 80, got %d: %q", len(summaryLines), summaryLines)
+	summaryLines := strings.Split(breakWords(summary, 0, laid.window-begins), "\n")
+	if len(summaryLines) < 3 {
+		t.Fatalf("this fixture is meant to need at least three lines for its summary at a window of 80, got %d: %q", len(summaryLines), summaryLines)
+	}
+	if len(syntaxLines) != len(summaryLines) {
+		t.Fatalf("this fixture is meant to wrap both axes to the same number of lines, got %d syntax and %d summary", len(syntaxLines), len(summaryLines))
 	}
 
-	want := strings.Repeat(" ", laid.indent) + pad(syntaxLines[0], room+tableGutter) + summaryLines[0]
-	for _, line := range syntaxLines[1:] {
-		want += "\n" + line
+	var lines []string
+	for i, syntax := range syntaxLines {
+		indent := laid.indent
+		if i > 0 {
+			indent = wrapIndent
+		}
+		lines = append(lines, strings.Repeat(" ", indent)+pad(syntax, room+tableGutter)+summaryLines[i])
 	}
-	for _, line := range summaryLines[1:] {
-		want += "\n" + line
-	}
+	want := strings.Join(lines, "\n")
 	if got := laid.rowLine(laid.rows[0]); got != want {
 		t.Errorf("a row whose syntax wraps three lines and whose summary also wraps drew:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// TestACappedRowWhoseSummaryRunsOutLeavesNoTrailingPad asserts the other half
+// of the interleave: a physical line whose summary has already finished
+// wrapping carries the syntax continuation alone, with nothing padded after
+// it. The sketch's `attach` row is exactly this shape, and a golden block
+// compared byte for byte fails on invisible trailing spaces, so the rule is
+// worth its own assertion rather than being left to the golden tests to
+// catch second-hand.
+func TestACappedRowWhoseSummaryRunsOutLeavesNoTrailingPad(t *testing.T) {
+	laid := tableSession(80).layOut(table{
+		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
+		hasCeiling: true, ceilingColumn: 0, wrapTail: true, wrapOptions: true,
+		rows: rowsOf(
+			[]string{"attach <ref> <file> [--description <text>] [--replace]", "attach a file"},
+			[]string{strings.Repeat("y", 40), "a second row, so the column measures wide"},
+		),
+	})
+	got := laid.rowLine(laid.rows[0])
+	for i, line := range strings.Split(got, "\n") {
+		if strings.TrimRight(line, " ") != line {
+			t.Errorf("line %d of a capped row carries trailing spaces: %q", i, line)
+		}
+	}
+	if lines := strings.Split(got, "\n"); len(lines) < 2 {
+		t.Fatalf("this fixture is meant to wrap its syntax, got one line: %q", got)
 	}
 }
 

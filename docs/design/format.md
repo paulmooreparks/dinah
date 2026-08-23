@@ -318,12 +318,15 @@ concept as attachments.
 ### Lifecycle defaults
 
 A new card enters the first state of the ordered list, substate `ready`, and
-its journal opens with the created event. Pull order is deterministic so two
-implementations agree on "the next card": highest declared priority first,
-cards without a priority after all cards with one, ties broken by ascending
-creation ordinal, which for a card is the `number` it was born with. A pull
-honors the destination's WIP limit and never takes a card out of an
-operator-owned state.
+its journal opens with the created event. Pull order is deterministic, so two
+implementations agree on what "the next card" is. CORE-QUEUE-3 in the profile
+fixes that order: the card that entered the state earliest, ties broken by
+ascending creation ordinal, which for a card is the `number` it was born
+with. Severity and priority are declared, visible, and filterable, but
+neither takes part in that order. CORE-QUEUE-4 lets a tool offer another
+order alongside the fixed one, and a priority-ordered pull would be such an
+order, not a replacement for it. A pull honors the destination's WIP limit
+and never takes a card out of an operator-owned state.
 
 Removal has two shapes with different promises. Archiving moves the card's
 whole directory to `archive/cards/<id>/`, history and all; see Archive
