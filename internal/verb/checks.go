@@ -36,6 +36,13 @@ const (
 // section 6 states them.
 var ContractVerbs = []string{Claim, Move, Release, Block, Unblock}
 
+// Pull is the verb name reserved for the one-command route that combines a
+// claim and a move. It is not in ContractVerbs because section 6.1's refusal
+// table names the five, and a sixth would contradict the profile's shape.
+// runsWorkbenchChecks names it all the same, so the workbench's two refusals
+// still head its list.
+const Pull = "pull"
+
 // WorkbenchChecks are the two refusals that belong to the workbench rather
 // than to any verb. Section 6.1 evaluates them ahead of every verb's own
 // list, which is what CORE-OUT-6 makes observable.
@@ -80,6 +87,30 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.NotOperator, Key: "check.unblock.2"},
 		{Refusal: contract.NotBlocked, Key: "check.unblock.3"},
 	},
+}
+
+// pullChecks is pull's own precondition list, kept apart from checkLists so
+// IsContractVerb continues to answer false for pull while Checks still returns
+// the full list for the help and the refusal-set tests.
+//
+// These are rows 3 to 13 of pull's thirteen-row list, in order; rows 1 and 2
+// are the workbench pair Checks prefixes. Two of them are pull's own names:
+// ambiguous-state is what the bare form answers when more than one state
+// qualifies, and no-upstream is what the named form answers for a state
+// standing first in the flow. Pull raises both before any lock is taken,
+// which is why neither reaches a generic precondition walker.
+var pullChecks = []Check{
+	{Refusal: contract.NoOwner, Key: "check.pull.1"},
+	{Refusal: contract.UnknownState, Key: "check.pull.2"},
+	{Refusal: contract.NotOperator, Key: "check.pull.3"},
+	{Refusal: contract.AmbiguousState, Key: "check.pull.4"},
+	{Refusal: contract.NoUpstream, Key: "check.pull.5"},
+	{Refusal: contract.NotOperator, Key: "check.pull.6"},
+	{Refusal: contract.Blocked, Key: "check.pull.7"},
+	{Refusal: contract.Held, Key: "check.pull.8"},
+	{Refusal: contract.Terminal, Key: "check.pull.9"},
+	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
+	{Refusal: contract.Locked, Key: "check.pull.11"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -276,16 +307,42 @@ var beyondChecks = map[string][]Check{
 }
 
 // Checks returns the ordered precondition list of a command, prefixed by the
-// two workbench-level checks for the five contract verbs. It is what per-verb
-// help is generated from, so the help text and the behaviour move together.
+// two workbench-level checks for the five contract verbs and for any other
+// command whose transaction runs them. It is what per-verb help is generated
+// from, so the help text and the behaviour move together.
 func Checks(name string) []Check {
+	own, found := ownChecks(name)
+	if !found {
+		return nil
+	}
+	if !runsWorkbenchChecks(name) {
+		return append([]Check{}, own...)
+	}
+	return append(append([]Check{}, WorkbenchChecks...), own...)
+}
+
+// ownChecks returns a command's own precondition list, without the workbench
+// pair, and reports whether the command declares one at all. Pull's list is
+// held apart from checkLists so that IsContractVerb goes on answering false
+// for it while Checks still returns the whole list the help is generated
+// from.
+func ownChecks(name string) ([]Check, bool) {
 	if list, ok := checkLists[name]; ok {
-		return append(append([]Check{}, WorkbenchChecks...), list...)
+		return list, true
 	}
-	if list, ok := beyondChecks[name]; ok {
-		return append([]Check{}, list...)
+	if name == Pull {
+		return pullChecks, true
 	}
-	return nil
+	list, ok := beyondChecks[name]
+	return list, ok
+}
+
+// runsWorkbenchChecks reports whether a command's transaction evaluates the
+// workbench pair ahead of its own list. The five contract verbs do, and so
+// does pull, whose transaction is a claim and a move and whose refusals
+// therefore begin where theirs begin.
+func runsWorkbenchChecks(name string) bool {
+	return IsContractVerb(name) || name == Pull
 }
 
 // IsContractVerb reports whether a name is one of the five the profile

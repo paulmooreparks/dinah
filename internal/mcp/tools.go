@@ -66,6 +66,7 @@ var tools = []tool{
 	{name: "states", command: "states", run: readStates},
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
+	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
 	{name: "query", command: "query", run: readQuery},
 	{name: "tree", command: "tree", run: readTree},
 	{name: "contents", command: "contents", run: readContents},

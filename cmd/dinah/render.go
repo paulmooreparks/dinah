@@ -30,6 +30,11 @@ func (s *session) emit(response *verb.Response) int {
 	if response.Warning != "" {
 		io.WriteString(s.errw, s.r.T(response.Warning, "detail", response.WarningDetail)+"\n")
 	}
+	if response.Card == nil && response.Message != "" {
+		values := flattenMessageValues(response.MessageValues)
+		s.line(s.r.T(response.Message, values...))
+		return 0
+	}
 	s.renderCard(response.Card)
 	if response.Instructions != nil && !s.quiet {
 		s.renderInstructions(response.Instructions, response.LegalMoves)
@@ -103,6 +108,25 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.BlockReason != "" {
 		s.line(s.r.T("card.blocked", "reason", card.BlockReason))
 	}
+}
+
+// flattenMessageValues turns a Message's named values into the variadic pair
+// list Renderer.T takes. The keys are sorted so that one map produces one
+// argument list however the runtime happens to walk it.
+func flattenMessageValues(values map[string]string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]string, 0, 2*len(values))
+	for _, k := range keys {
+		out = append(out, k, values[k])
+	}
+	return out
 }
 
 // token renders a machine token for a person, which CORE-TEXT-4 permits where
@@ -642,6 +666,17 @@ func (s *session) composeRefusal(r *contract.Refusal) []string {
 			t.rows = append(t.rows, tableRow{fields: []string{member}})
 		}
 		rows = s.tableLines(t)
+	} else if shape.Carried != "" {
+		carried := values[shape.Carried]
+		if carried != "" {
+			// The raise site joins references that are never empty, so
+			// every field of the split is a row and none is skipped.
+			t := table{indent: 2, columns: listColumn()}
+			for _, member := range strings.Split(carried, "\n") {
+				t.rows = append(t.rows, tableRow{fields: []string{member}})
+			}
+			rows = s.tableLines(t)
+		}
 	}
 	lines = append(lines, rows...)
 

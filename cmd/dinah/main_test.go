@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-eight commands, and every command the binary
+	// The block lists thirty-nine commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +201,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 38 {
-		t.Errorf("wanted thirty-eight listed commands, got %d", listed)
+	if listed != 39 {
+		t.Errorf("wanted thirty-nine listed commands, got %d", listed)
 	}
 }
 
@@ -6421,8 +6421,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "help", "json", "migrate-ordinals",
-		"migrate-slugs", "migrate-states", "migrate-workstreams", "override",
-		"quiet", "ready", "replace", "version", "yes",
+		"migrate-slugs", "migrate-states", "migrate-workstreams", "no-claim",
+		"override", "quiet", "ready", "replace", "version", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
@@ -6789,4 +6789,108 @@ func TestEveryVocabularySourceHasAListingThatAnswersIt(t *testing.T) {
 			t.Errorf("a vocabulary names the source %q and refusalListings carries no listing for it", source)
 		}
 	}
+}
+
+// TestPullOnTheCommandLine asserts the head's half of the pull command: the
+// named form takes the card at the head of the upstream queue and claims it,
+// both forms answer at exit 0 with a sentence when nothing is waiting, and a
+// bare form with more than one qualifying state refuses and prints the states
+// it could not choose between.
+//
+// The refusal's rows are the reason this lives here rather than in
+// internal/verb. The qualifying set is computed at the raise site and carried
+// on the response, so the library test can assert the set and only the head
+// can assert that a reader sees it drawn.
+func TestPullOnTheCommandLine(t *testing.T) {
+	t.Run("nothing waiting answers at exit 0", func(t *testing.T) {
+		root := newBench(t)
+		bare := runCLI(t, root, "pull")
+		if bare.code != 0 {
+			t.Fatalf("a bare pull with nothing waiting: wanted exit 0, got %d %s", bare.code, bare.errw)
+		}
+		if strings.TrimSpace(bare.out) == "" {
+			t.Error("the bare form should print a sentence saying it found nothing to pull")
+		}
+		named := runCLI(t, root, "pull", "doing")
+		if named.code != 0 {
+			t.Fatalf("a named pull with nothing waiting: wanted exit 0, got %d %s", named.code, named.errw)
+		}
+		if strings.TrimSpace(named.out) == "" {
+			t.Error("the named form should print a sentence naming the upstream state it found empty")
+		}
+		if named.out == bare.out {
+			t.Error("the two forms answer different questions and should not print the same sentence")
+		}
+	})
+
+	t.Run("the named form takes the head of the upstream queue", func(t *testing.T) {
+		root := newBench(t)
+		runCLI(t, root, "add", "First in")
+		runCLI(t, root, "add", "Second in")
+		offered := runCLI(t, root, "next", "intake")
+		got := runCLI(t, root, "pull", "doing", "--quiet")
+		if got.code != 0 {
+			t.Fatalf("pull: %d %s", got.code, got.errw)
+		}
+		if !strings.Contains(got.out, "First in") {
+			t.Errorf("pull should take the head of the queue, got %q", got.out)
+		}
+		if !strings.Contains(offered.out, "First in") {
+			t.Errorf("next should have offered the same card, got %q", offered.out)
+		}
+		if !strings.Contains(got.out, "held by") {
+			t.Errorf("a pull claims the card it takes, got %q", got.out)
+		}
+	})
+
+	t.Run("a bare form with two qualifying states refuses and lists them", func(t *testing.T) {
+		root := newBench(t)
+		// intake holds a ready card, so doing qualifies, and doing holds a
+		// ready card of its own, so done qualifies too. The default flow
+		// declares no capacity limit, so neither is filtered out.
+		runCLI(t, root, "add", "Waiting in intake")
+		runCLI(t, root, "add", "Waiting in doing", "--state", "doing")
+		got := runCLI(t, root, "pull")
+		if got.code != 2 {
+			t.Fatalf("an ambiguous bare pull: wanted exit 2, got %d %q %q", got.code, got.out, got.errw)
+		}
+		if !strings.HasPrefix(got.errw, contract.AmbiguousState+" ") {
+			t.Errorf("wanted the refusal name first on stderr, got %q", got.errw)
+		}
+		for _, slug := range []string{"doing", "done"} {
+			if !regexp.MustCompile(`(?m)^\s+` + slug + `\s*$`).MatchString(got.errw) {
+				t.Errorf("the refusal should draw %s as a row of its own, got %q", slug, got.errw)
+			}
+		}
+	})
+
+	t.Run("help pull prints the arguments and the thirteen checks in order", func(t *testing.T) {
+		root := newBench(t)
+		got := runCLI(t, root, "help", "pull")
+		if got.code != 0 {
+			t.Fatalf("help pull: %d %s", got.code, got.errw)
+		}
+		for _, argument := range []string{"state", "no-claim", "expires", "override"} {
+			if !strings.Contains(got.out, argument) {
+				t.Errorf("the help should name the %s argument, got %q", argument, got.out)
+			}
+		}
+		rows := regexp.MustCompile(`(?m)^  (\d+) `).FindAllStringSubmatch(got.out, -1)
+		if len(rows) != len(verb.Checks(verb.Pull)) {
+			t.Fatalf("wanted %d numbered check rows, got %d", len(verb.Checks(verb.Pull)), len(rows))
+		}
+		// The refusal names are read off the page in one forward walk, so
+		// the assertion is about their order and not only about their
+		// presence. A name that wraps onto a continuation line still lands
+		// after the row above it, which is why the walk reads the page
+		// rather than the numbered row it started on.
+		rest := got.out
+		for i, check := range verb.Checks(verb.Pull) {
+			at := strings.Index(rest, check.Refusal)
+			if at < 0 {
+				t.Fatalf("row %d: the help does not carry %s after the row above it; the page from there:\n%s", i+1, check.Refusal, rest)
+			}
+			rest = rest[at+len(check.Refusal):]
+		}
+	})
 }
