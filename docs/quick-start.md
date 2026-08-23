@@ -1129,14 +1129,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        591/591
-  af        0/591
-  cs        0/591
-  de        591/591
-  es        0/591
-  fil       0/591
-  hi        591/591
-  id        0/591
+  en        592/592
+  af        0/592
+  cs        0/592
+  de        592/592
+  es        0/592
+  fil       0/592
+  hi        592/592
+  id        0/592
 [exit 0]
 ```
 
