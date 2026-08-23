@@ -253,6 +253,24 @@ func TestTwoEventsInOneSecondAreBothDeliveredOnce(t *testing.T) {
 	if names := eventNames(after); len(names) != 1 || names[0] != contract.EventCommented {
 		t.Errorf("a line of the shared second was delivered twice: %v", names)
 	}
+
+	// And a cursor inside the shared second, which the pair above does not
+	// reach because both of its lines fall on the same side of the cursor.
+	// The later act goes to whichever card's key sorts lower, which is the
+	// side a rank comparison reads as already delivered.
+	h.advance(3 * time.Hour)
+	h.reopen()
+	lower, higher := first, second
+	if h.cardID(second) < h.cardID(first) {
+		lower, higher = second, first
+	}
+	h.comment(higher, "the act the cursor is taken after")
+	between := h.mint()
+	h.comment(lower, "the act the cursor was taken before")
+	inside := h.checkpoint(&Request{Since: between})
+	if names := eventNames(inside); len(names) != 1 {
+		t.Errorf("the act written into the cursor's own second was lost: %v", names)
+	}
 }
 
 // TestAnAnchorEditedOutOfBandPutsTheCardInCards covers dinah-120 AC-5, the
@@ -375,7 +393,14 @@ func TestAWorkbenchScopedEventCarriesNoIdentifier(t *testing.T) {
 // the caller would be told about that change on every call forever.
 func TestAFilteredCallStillAdvancesPastWhatItDidNotReport(t *testing.T) {
 	h := newHarness(t)
-	ref := h.add("A card outside the filter")
+	ref, higher := h.sameSecondPair()
+	// An act on the higher-sorting card just before the cursor, so the move
+	// below is not the newest line of its own second. Without it, the move is
+	// the only line there is and the fixture cannot tell a cursor that
+	// advanced past what it declined to report from a move that was never
+	// delivered to anybody at all: the second assertion below reads the same
+	// either way.
+	h.comment(higher, "an act before the cursor")
 	minted := h.mint()
 
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
@@ -386,6 +411,15 @@ func TestAFilteredCallStillAdvancesPastWhatItDidNotReport(t *testing.T) {
 	}
 	if len(set.Events) != 0 || len(set.Cards) != 0 || len(set.Gone) != 0 {
 		t.Errorf("a filter let through a change outside it: %d events, %d cards, %d gone", len(set.Events), len(set.Cards), len(set.Gone))
+	}
+
+	// A control from the same cursor with the filter off. It is what makes
+	// the empty arrays above mean "the filter narrowed it" rather than "the
+	// walk never saw it", and those two read identically without it. Nothing
+	// this verb does writes, so the two calls are independent.
+	control := h.checkpoint(&Request{Since: minted})
+	if names := eventNames(control); len(names) != 1 || names[0] != contract.EventMoved {
+		t.Fatalf("the move was never delivered to anybody, so the filtered answer above proves nothing: %v", names)
 	}
 
 	// The board moves again, so the call below reads the cursor's position
@@ -859,7 +893,7 @@ func TestAFilterRefusesOverTheNameItCannotResolve(t *testing.T) {
 }
 
 // TestTheCursorIsBoundedByOneSecondRatherThanByTheBoard covers dinah-120
-// AC-18, which is the property the token's whole shape was chosen for, stated
+// AC-17, which is the property the token's whole shape was chosen for, stated
 // as what the shape actually delivers.
 //
 // The cursor carries a boundary second and a frontier within that second, and
@@ -1061,7 +1095,7 @@ func (h *harness) sameSecondPair() (lower, higher string) {
 	return second, first
 }
 
-// TestAnActInTheCursorsOwnSecondIsStillDelivered covers dinah-120 AC-17, which
+// TestAnActInTheCursorsOwnSecondIsStillDelivered covers dinah-120 AC-20, which
 // is the case the merged order cannot decide and the cursor therefore must
 // not decide with it.
 //
@@ -1153,7 +1187,7 @@ func TestAnActInTheCursorsOwnSecondIsStillDelivered(t *testing.T) {
 	})
 }
 
-// TestAFilteredCallIsToldTheDeletionJournalWentUnread covers dinah-120 AC-19.
+// TestAFilteredCallIsToldTheDeletionJournalWentUnread covers dinah-120 AC-18.
 //
 // Deleted events are written to the workbench journal, so an unparseable one
 // means gone cannot report a removal in that window. gone already exempts a
@@ -1186,7 +1220,7 @@ func TestAFilteredCallIsToldTheDeletionJournalWentUnread(t *testing.T) {
 	}
 }
 
-// TestACorruptedArchiveDoesNotExplainAMovedLiveTerm covers dinah-120 AC-20.
+// TestACorruptedArchiveDoesNotExplainAMovedLiveTerm covers dinah-120 AC-19.
 //
 // Evidence is counted before the board is resynced, and the two halves are
 // not interchangeable evidence. A delivered archive line is a complete
