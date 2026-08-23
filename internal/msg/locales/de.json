@@ -2368,6 +2368,54 @@
     "param.rename.name.summary": {
       "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
+    },
+    "cmd.changes.summary": {
+      "text": "was auf dieser Werkbank seit einem Cursor geschehen ist",
+      "context": "The one-line summary of the changes command, shown beside its syntax in the help block."
+    },
+    "param.changes.since.summary": {
+      "text": "der Cursor, den ein früherer Aufruf ausgegeben hat; ohne ihn wird einer geprägt und nichts gemeldet",
+      "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table."
+    },
+    "param.changes.state.summary": {
+      "text": "über welchen Zustand berichtet wird; jeder Zustand, wenn Sie keinen nennen",
+      "context": "The meaning of the state argument of `dinah changes`, printed in that command's arguments table."
+    },
+    "check.changes.1": {
+      "text": "der Cursor ist einer, den diese Werkbank ausgegeben hat",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.changes.2": {
+      "text": "die genannte Karte existiert",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.changes.3": {
+      "text": "der genannte Zustand ist einer, den die Werkbank erklärt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "column.changes.when": {
+      "text": "Wann",
+      "context": "Heading over when the act was recorded, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.card": {
+      "text": "Karte",
+      "context": "Heading over the entity the line was read from, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.action": {
+      "text": "Aktion",
+      "context": "Heading over what was done, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.actor": {
+      "text": "Akteur",
+      "context": "Heading over who did it, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.changes.detail": {
+      "text": "Detail",
+      "context": "Heading over what the act carried, such as the states a move ran between, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "changes.cursor": {
+      "text": "Cursor: {cursor}",
+      "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque."
     }
   }
 }

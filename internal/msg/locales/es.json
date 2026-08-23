@@ -2960,6 +2960,66 @@
       "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table.",
       "skeleton": true
+    },
+    "cmd.changes.summary": {
+      "text": "what has happened on this workbench since a cursor",
+      "context": "The one-line summary of the changes command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "param.changes.since.summary": {
+      "text": "the cursor a previous run printed; a run naming none mints one and reports nothing",
+      "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.changes.state.summary": {
+      "text": "which state to report about, also written --state <state>; every state when you name none",
+      "context": "The meaning of the state argument of `dinah changes`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "check.changes.1": {
+      "text": "the cursor is one this workbench issued",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.changes.2": {
+      "text": "the named card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.changes.3": {
+      "text": "the named state is one the workbench declares",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "column.changes.when": {
+      "text": "When",
+      "context": "Heading over when the act was recorded, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.changes.card": {
+      "text": "Card",
+      "context": "Heading over the entity the line was read from, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.changes.action": {
+      "text": "Action",
+      "context": "Heading over what was done, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.changes.actor": {
+      "text": "Actor",
+      "context": "Heading over who did it, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "column.changes.detail": {
+      "text": "Detail",
+      "context": "Heading over what the act carried, such as the states a move ran between, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "skeleton": true
+    },
+    "changes.cursor": {
+      "text": "cursor: {cursor}",
+      "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque.",
+      "skeleton": true
     }
   }
 }

@@ -136,6 +136,41 @@ values to pass here.
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status","arguments":{"workbench":"/srv/dinah/incident"}}}
 ```
 
+## Checkpoint before you act on what you remember
+
+The board moves while you are working, and nothing on this surface can tell
+you so on its own initiative: every message you get is an answer to a call you
+made. `changes` is how you ask. Call it with no cursor at the start of a
+session and keep the token it answers with. That first call reports nothing on
+purpose, because you are asking what happens from now rather than what ever
+happened, and `log` is the call for the second question.
+
+```json
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"changes","arguments":{"since":"the token the previous call answered with"}}}
+```
+
+Call it again with that token whenever you are about to act on something you
+believe about the board rather than something you just read. The answer
+carries `changed`, which is a fact about the whole workbench, the lines that
+landed since your token, the cards that moved with their new state, and a
+fresh token to carry forward. A `changed` of true is a reason to re-read
+before you act, even where the arrays are empty, which is what a narrowed call
+answers when the board moved somewhere you did not ask about.
+
+Read `kind` on a `gone` entry before you conclude anything from it. An entry
+whose kind is `card` is a card that was archived, and the workbench can prove
+it. An entry whose kind is empty is an identifier that was destroyed, of a
+kind the history does not record, so match it against the identifiers you are
+holding and ignore it where you do not know it. It does not mean a card you
+have not met.
+
+The `card` argument keeps working after the card it names has left, which is
+the moment you most want it: an archived card is still found by the reference
+you were using, and an identifier that resolves nowhere is accepted and matched
+against the departures. A reference that names nothing and is not an identifier
+is still refused, so a mistyped one comes back as `unknown-card` rather than as
+silence.
+
 ## When to act and when to read
 
 The loop is the whole method. Orient with `status` and `list_cards`, choose
