@@ -13,9 +13,18 @@ import (
 // knownBenchKeys are the workbench frontmatter keys the interchange form
 // carries under a name of its own. Every other key is an unrecognized member
 // travelling through, which CORE-JSON-7 requires a tool to preserve.
+// levels is recognized on the way in so that Instantiate can render it as the
+// nested block the level model reads, rather than as the one line of raw JSON
+// the unrecognized-member loop below writes. Export is the asymmetric half and
+// stays as it is: it reads an unrecognized key through FM.Value, which returns
+// the empty string for a nested block, so exporting a workbench that declares
+// levels loses the block. The export side is dinah-196's, which owns the
+// interchange for this slice, and the same gap runs through the anchor-clone
+// path dinah init --from <directory> takes.
 var knownBenchKeys = map[string]bool{
 	"profile": true, "title": true, "states": true,
 	"format": true, "slug": true, "operator": true,
+	LevelsKey: true,
 }
 
 // knownStateKeys are the state frontmatter keys the interchange form carries
@@ -223,6 +232,13 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 		ids = append(ids, id)
 	}
 	fm.SetSeq("states", ids)
+	if raw, ok := definition.Object[LevelsKey]; ok {
+		if lines, readable := renderLevelsMember(raw); readable {
+			fm.SetRaw(LevelsKey, lines)
+		} else {
+			fm.Set(LevelsKey, string(raw))
+		}
+	}
 	for member, raw := range definition.Object {
 		if knownBenchKeys[member] {
 			continue

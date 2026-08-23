@@ -73,6 +73,7 @@ var tools = []tool{
 	{name: "log", command: "log", run: readLog},
 	{name: "instructions", command: "instructions", run: readInstructions},
 	{name: "whoami", command: "whoami", run: readWhoami},
+	{name: "card", command: "card", run: doCard},
 	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "workstream", command: "workstream", run: doWorkstream},
 	{name: "version", command: "version", run: readVersion},
@@ -288,6 +289,21 @@ func readWhoami(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"identity": identity}, readAffordances)
+}
+
+// doCard answers the card tool, which reads one of a card's own fields or
+// writes one, exactly as the command does. A call naming the set action takes
+// the write, and every other call is the read, so an agent reaches the same
+// two acts a person reaches from a terminal.
+func doCard(l *verb.Library, r *verb.Request) any {
+	if r.Action == "set" {
+		return l.SetCardField(r)
+	}
+	value, err := l.CardField(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"value": value}, []string{"show", "log", "card"})
 }
 
 // doWorkbench answers the workbench tool, which reads the workbench's own

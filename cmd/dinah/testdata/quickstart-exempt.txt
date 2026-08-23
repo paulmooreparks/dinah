@@ -32,7 +32,7 @@
 
 768 reason=the member listing orders by the stamp a card arrived in its state under, and the replay runs the whole narrative inside one second, so whether the two cards tie on that stamp and fall back to the creation ordinal is decided by where a second boundary falls quotes=column.blocked.card,column.config.value,column.guide.title,column.holding.card,column.holding.title,column.links.card,column.ls.card,column.ls.title,column.moves.state,column.next.card,column.next.state,column.next.title,column.query.card,column.query.state,column.query.title,column.slugs.title,column.tree.title,column.workbench.field,column.workbench.value,column.workstream.card,column.workstream.field,column.workstream.state,column.workstream.title,column.workstream.value,token.active
 
-845 reason=the transcript answers from a workbench damaged on purpose, which the narrative never builds quotes=check.count.other,check.position-diverges,check.unknown-state
+845 reason=the transcript answers from a workbench damaged on purpose, which the narrative never builds quotes=check.count.other,check.position-diverges,check.unknown-level,check.unknown-state
 
 871 reason=the transcript answers from a legacy workbench, which the narrative never builds quotes=check.clean,check.count.one,check.count.other,check.ordinal-missing,check.ordinal-stamped.other,check.slug-assigned.other,check.slug-missing,check.states-removed.one,check.stranded-state,column.guide.title,column.holding.title,column.ls.title,column.next.title,column.query.title,column.slugs.slug,column.slugs.title,column.states.slug,column.tree.title,column.workbenches.slug,column.workstream.title,column.workstreams.slug,token.done,token.intake
 

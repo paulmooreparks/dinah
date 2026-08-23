@@ -86,10 +86,49 @@ var checkLists = map[string][]Check{
 // report. They are not the profile's lists, so each name here is either one
 // the profile already declares and fits, or one carrying Dinah's own prefix.
 var beyondChecks = map[string][]Check{
+	// Rows 4 and 5 run whenever the corresponding flag is present, since a
+	// flag that is present always carries a value and add has no clearing
+	// case. Each is evaluated against the axis its own flag names rather than
+	// against the workbench, so on a workbench declaring severity and no
+	// priority a --severity is filed and only a --priority refuses.
 	"add": {
 		{Refusal: contract.Malformed, Key: "check.add.1"},
 		{Refusal: contract.UnknownState, Key: "check.add.2"},
 		{Refusal: contract.AtCapacity, Key: "check.add.3"},
+		{Refusal: contract.NoLevels, Key: "check.add.4"},
+		{Refusal: contract.UnknownLevel, Key: "check.add.5"},
+	},
+	// The command covers two acts and a clear is a third case within one of
+	// them, so this list carries the mapping the workstream list below
+	// carries in its own comment. Rows 1 and 2 belong to get and set alike.
+	// Rows 3 and 4 run only where a value is present, so a clear evaluates
+	// rows 1, 2 and 5, and get evaluates rows 1 and 2 alone, since a read
+	// validates nothing. Row 5 runs on every write, a clear included, because
+	// a clear rewrites the anchor and journals a line and both need an actor.
+	//
+	// Rows 3 and 4 take the named field's own axis as their subject, never
+	// the workbench. check.card.3's sentence is bound by its last three
+	// words: it asks whether this workbench declares a set for that one axis,
+	// and reading it as a single workbench-wide test for whether any
+	// declaration exists would break the format's posture that the two axes
+	// are declared independently.
+	//
+	// The rows-3-and-4 rule is not merely a convenience. A stored level the
+	// workbench does not declare is tolerated everywhere and reported by
+	// check, and the only workbench where somebody wants to clear one is a
+	// workbench whose declaration has since changed or gone. A clear running
+	// row 3 would refuse there, leaving the one card that needs clearing as
+	// the one card that cannot be cleared.
+	//
+	// The keys are check.card.N rather than the card-field prefix the two
+	// commands below need, because nothing else holds check.card.N and
+	// CheckKey composes it.
+	"card": {
+		{Refusal: contract.UnknownCard, Key: "check.card.1"},
+		{Refusal: contract.UnknownField, Key: "check.card.2"},
+		{Refusal: contract.NoLevels, Key: "check.card.3"},
+		{Refusal: contract.UnknownLevel, Key: "check.card.4"},
+		{Refusal: contract.NoOwner, Key: "check.card.5"},
 	},
 	"comment": {
 		{Refusal: contract.UnknownCard, Key: "check.comment.1"},

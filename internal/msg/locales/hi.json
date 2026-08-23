@@ -37,6 +37,14 @@
       "text": "नामित स्थिति अपनी सीमा से नीचे है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.add.4": {
+      "text": "वर्कबेंच हर नामित फ़ील्ड के लिए स्तर घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.add.5": {
+      "text": "हर स्तर वह है जिसे वह फ़ील्ड घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
     "check.archive.1": {
       "text": "संदर्भ किसी कार्ड, किसी स्थिति, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
@@ -80,6 +88,26 @@
     "check.block.4": {
       "text": "the card is unheld or held by whoever asks",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
+    },
+    "check.card.1": {
+      "text": "संदर्भ इस वर्कबेंच के एक कार्ड को नाम देता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.2": {
+      "text": "फ़ील्ड वह है जो एक कार्ड रखता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.3": {
+      "text": "वर्कबेंच उस फ़ील्ड के लिए स्तर घोषित करती है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The last three words bind it to the field being written: the question is whether this workbench declares a set for that one axis, never whether it declares any levels at all."
+    },
+    "check.card.4": {
+      "text": "मान वह स्तर है जिसे वह फ़ील्ड घोषित करता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.card.5": {
+      "text": "अनुरोध एक स्वामी का नाम लेता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.claim-without-active": {
       "text": "कार्ड {detail} पर दावा क्षेत्र हैं पर उपस्थिति active नहीं",
@@ -417,6 +445,10 @@
       "text": "the card's substate is `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
+    "check.unknown-level": {
+      "text": "एक कार्ड {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
+      "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card."
+    },
     "check.unknown-state": {
       "text": "एक कार्ड स्थिति {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
       "context": "A check finding: every card's state identifier resolves."
@@ -540,6 +572,10 @@
     "cmd.archive.summary": {
       "text": "कार्ड, स्थिति, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block."
+    },
+    "cmd.card.summary": {
+      "text": "किसी कार्ड का अपना कोई एक फ़ील्ड पढ़ें, या कोई एक लिखें",
+      "context": "The one-line summary of the card command, shown beside its syntax in the help block."
     },
     "cmd.rename.summary": {
       "text": "संलग्नक का नाम बदलें",
@@ -1069,6 +1105,26 @@
       "text": "प्रश्न पूछा नहीं जा सका: {detail}",
       "context": "The sentence after the unreachable outcome name."
     },
+    "param.add.priority.summary": {
+      "text": "कार्ड किस प्राथमिकता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
+      "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.add.severity.summary": {
+      "text": "कार्ड किस गंभीरता स्तर के साथ दर्ज करना है, उन स्तरों में से जो यह वर्कबेंच घोषित करती है",
+      "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table."
+    },
+    "param.card.action.summary": {
+      "text": "दो कार्यों में से कौन-सा चलाना है: एक फ़ील्ड पढ़ना या एक लिखना",
+      "context": "The meaning of the action argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.field.summary": {
+      "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं: severity या priority",
+      "context": "The meaning of the field argument of `dinah card`, printed in that command's arguments table."
+    },
+    "param.card.value.summary": {
+      "text": "जो स्तर लिखना है; फ़ील्ड खाली करने के लिए इसे छोड़ दें",
+      "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table."
+    },
     "query.empty": {
       "text": "उस क्वेरी से कोई कार्ड मेल नहीं खाता।",
       "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal."
@@ -1148,6 +1204,14 @@
     "refusal.dinah.no-configured-workbench.next": {
       "text": "; `dinah config set workbench <dir>` से उसे किसी मौजूदा वर्कबेंच पर सेट करें, या `dinah config set workbench` से हटा दें",
       "context": "Spliced onto refusal.dinah.no-configured-workbench as the next step, carrying the clause that base entry used to end with."
+    },
+    "refusal.dinah.no-levels": {
+      "text": "यह वर्कबेंच कोई {axis} स्तर घोषित नहीं करती, इसलिए सेट करने को कोई स्तर नहीं है",
+      "context": "The sentence printed after the refusal name dinah.no-levels, which a write naming an axis this workbench declares no set for carries. {axis} is that field, and it is machine vocabulary that is never translated; {detail} carries the same word. The reader is not told their level name is unknown, because every name would be. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.no-levels.next is spliced on after this one."
+    },
+    "refusal.dinah.no-levels.next": {
+      "text": "; उन्हें {anchor} में levels: के नीचे घोषित करें",
+      "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is."
     },
     "refusal.dinah.no-workbench": {
       "text": "{detail} को --workbench के साथ दिया गया था, और उसमें कोई workbench.md नहीं है",
@@ -1233,6 +1297,14 @@
       "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। क्वेरी जिन क्षेत्रों का नाम ले सकती है वे हैं: {fields}।",
       "context": "The sentence printed after the refusal name dinah.unknown-field, which a query naming a field this tool does not have and a query giving a field an operator it does not take both carry. {detail} is the field token the reader typed, or that token with the operator after it. {fields} is the list of legal field names, read off the query language rather than written here, so a field name is machine vocabulary and is never translated. refusal.dinah.unknown-field.ordered and refusal.dinah.unknown-field.next are spliced on after this one."
     },
+    "refusal.dinah.unknown-field.card": {
+      "text": "Dinah के पास {detail} नाम का कोई क्षेत्र नहीं है। एक कार्ड जिन क्षेत्रों को रखता है वे हैं: {fields}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-field when the card command raised it, which is a write naming a field a card does not record. It is refusal.dinah.unknown-field with the query's own clause replaced, and the command word selects between the two. {detail} is the field the reader typed. {fields} is the set of fields a card records, read off the tool rather than written here, so a field name is machine vocabulary and is never translated."
+    },
+    "refusal.dinah.unknown-field.card.next": {
+      "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या जाँचता है `dinah help card` चलाएँ।",
+      "context": "The next step of refusal.dinah.unknown-field when the card command raised it. It points at that command's own help page where the shared one points at the query's. The command line inside it is syntax and stays as it is."
+    },
     "refusal.dinah.unknown-field.next": {
       "text": " उनमें से किसी एक का नाम लें, या यह देखने के लिए कि यह आदेश क्या जाँचता है `dinah help query` चलाएँ।",
       "context": "The next step of refusal.dinah.unknown-field, spliced on after the ordered-operator clause. The command line inside it is syntax and stays as it is."
@@ -1256,6 +1328,14 @@
     "refusal.dinah.unknown-key.next": {
       "text": "इनमें से किसी एक का नाम दें, या हर सेटिंग का मान देखने के लिए `dinah config` चलाएँ",
       "context": "Printed under the settings refusal.dinah.unknown-key lists, on its own line and with no leading punctuation. It names no subcommand, because this refusal answers config get and config set alike."
+    },
+    "refusal.dinah.unknown-level": {
+      "text": "यह वर्कबेंच {detail} नाम का कोई {axis} स्तर घोषित नहीं करती। यह जिन {axis} स्तरों को घोषित करती है, वे हैं: {levels}।",
+      "context": "The sentence printed after the refusal name dinah.unknown-level, which a write naming a level the workbench does not declare for that axis carries. {detail} is the level the reader typed. {axis} is the field the write named, and it is machine vocabulary that is never translated. {levels} is that one axis's declared members in declaration order, read off the workbench rather than written here, so a level name is never translated either. The sentence is about one axis and must not be worded as a report about the workbench as a whole. refusal.dinah.unknown-level.next is spliced on after this one."
+    },
+    "refusal.dinah.unknown-level.next": {
+      "text": " इनमें से किसी एक का नाम लें।",
+      "context": "The next step of refusal.dinah.unknown-level, spliced onto the sentence that just listed the declared levels."
     },
     "refusal.dinah.unknown-path": {
       "text": "इस वर्कबेंच में {detail} के नाम से कुछ नहीं मिला",
