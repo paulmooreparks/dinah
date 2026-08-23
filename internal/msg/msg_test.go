@@ -158,7 +158,10 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 // next-step clause still opens with the separator that splices it onto the
 // refusal it follows. A translator may move a placeholder within the sentence
 // and may not drop or respell one, and a next-step clause that loses its
-// leading separator runs into the sentence before it.
+// leading separator runs into the sentence before it. The leading separator in
+// the English source is what selects a spliced clause here, because the
+// catalog names these clauses several ways and a check keyed on the ".next"
+// spelling would miss the seven that are named something else.
 func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
 	for _, key := range Keys() {
@@ -167,7 +170,7 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 			continue
 		}
 		names := placeholder.FindAllString(entry.Text, -1)
-		splice := strings.HasSuffix(key, ".next") && strings.HasPrefix(entry.Text, "; ")
+		splice := strings.HasPrefix(entry.Text, "; ")
 		if len(names) == 0 && !splice {
 			continue
 		}
