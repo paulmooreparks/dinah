@@ -47,7 +47,7 @@ that person, and the states of the flow with each one's occupancy. The
 to move cards out of, and it repeats the rule in `initialize`.
 
 `list_cards` returns the cards of a state, in the order the workbench
-fixes. `next_card` offers the highest-priority ready card, and it is the
+fixes. `next_card` offers that same first card on its own, and it is the
 cheapest way to learn what is pullable without enumerating everything.
 `states` lists the states of the workbench alone.
 
