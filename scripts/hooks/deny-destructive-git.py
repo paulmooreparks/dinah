@@ -13,9 +13,12 @@ does not survive from one tool call to the next, so `cd <worktree> && git
 ...` is the ordinary way an agent works, and judging it by the session's
 directory would refuse correct work. The guard reads a `cd` in the
 command it is judging, an explicit `git -C`, and the payload's `cwd`, in
-that order of authority per invocation. It runs as a PreToolUse hook,
-before the tool call it is judging, so a `cd` inside that command cannot
-yet be reflected in `cwd` whatever the harness does afterwards.
+that order of authority per invocation. A relative path in either the
+`cd` or the `-C` is composed with the directory the sequence already
+stands in, because that is what the shell does with it. The guard runs
+as a PreToolUse hook, before the tool call it is judging, so a `cd`
+inside that command cannot yet be reflected in `cwd` whatever the
+harness does afterwards.
 
 Is that directory the operator's checkout? `git rev-parse --git-dir
 --git-common-dir` is the documented discriminator. The two answers differ
@@ -63,12 +66,15 @@ GIT_TIMEOUT = 5
 CONTINUATION = re.compile(r"\\[ \t]*\r?\n")
 
 # `<<WORD`, `<<-WORD`, `<<"WORD"` and `<<'WORD'`. The body that follows is
-# data rather than command text, so the segmenter drops it.
-HEREDOC = re.compile(r"<<-?[ \t]*(?:\"([^\"]*)\"|'([^']*)'|([A-Za-z_][A-Za-z0-9_]*))")
+# data rather than command text, so the segmenter drops it. The lookahead
+# keeps `<<<` out. A here-string carries its data inline and opens no
+# body, so reading one as a heredoc sends the scanner hunting for a
+# terminator that never arrives and swallows every command after it.
+HEREDOC = re.compile(r"<<(?!<)-?[ \t]*(?:\"([^\"]*)\"|'([^']*)'|([A-Za-z_][A-Za-z0-9_]*))")
 
 # A word carrying `git` at all, used only to decide whether a segment that
 # will not tokenise is worth refusing.
-GIT_WORD = re.compile(r"\bgit\b")
+GIT_WORD = re.compile(r"\bgit\b", re.IGNORECASE)
 
 # A separator across which a `cd` reaches a later invocation. The others
 # (`||`, `|`, `&`) either run their git without the `cd` having succeeded
@@ -86,17 +92,6 @@ UNRESOLVED = "\x00unresolved"
 # A `cd` target the shell expands before `cd` sees it. The guard cannot
 # know what it becomes, so it resolves to nothing and fails closed.
 EXPANDABLE = re.compile(r"[$`*?\[]|^~")
-
-
-def join_continuations(command):
-    r"""Fold shell line-continuations back onto one line.
-
-    A newline separates commands exactly as `;` does, so a backslash
-    continuation is the one case where a single invocation spans lines.
-    Rejoining it first keeps `git reset \` followed by `--hard` readable
-    as `git reset --hard`.
-    """
-    return CONTINUATION.sub(" ", command)
 
 
 def word_initial(text, index):
@@ -158,6 +153,21 @@ def split_top_level(text):
             buffer.append(text[index:close + 1])
             index = close + 1
             continue
+        continuation = CONTINUATION.match(text, index) if char == "\\" else None
+        if continuation:
+            # A newline separates commands exactly as `;` does, so a
+            # backslash continuation is the one case where a single
+            # invocation spans lines, and `git reset \\` followed by
+            # `--hard` has to read as one command. It is folded here
+            # rather than out of the whole command up front, because
+            # folding first reaches into heredoc bodies: a body line
+            # ending in a backslash would swallow the terminator, the
+            # heredoc would run to the end of the text, and every command
+            # after it would go unread. Where a shell lands on that is not
+            # worth depending on, so the segmenter never sees it.
+            buffer.append(" ")
+            index = continuation.end()
+            continue
         if char == "(":
             depth += 1
             buffer.append(char)
@@ -169,6 +179,12 @@ def split_top_level(text):
             index += 1
             continue
         if char == "<" and text.startswith("<<", index):
+            if text.startswith("<<<", index):
+                # A here-string. Its data is inline rather than in a body,
+                # so nothing is pending and nothing after it is swallowed.
+                buffer.append("<<<")
+                index += 3
+                continue
             opening = HEREDOC.match(text, index)
             if opening:
                 pending.append(opening.group(1) or opening.group(2) or opening.group(3) or "")
@@ -248,6 +264,29 @@ def cd_target(tokens):
     if not target or EXPANDABLE.search(target):
         return UNRESOLVED
     return target
+
+
+def combine(directory, current):
+    """Where an invocation runs, given a named directory and where the sequence stands.
+
+    An absolute path answers on its own. A relative one is relative to
+    wherever the command actually runs, which an earlier `cd` may have
+    moved, so it is composed with that rather than handed straight to the
+    payload's working directory. `None` names nothing, and the sequence's
+    own directory answers. Anything composed onto an unresolved directory
+    is itself unresolved, which fails closed at the caller.
+    """
+    if directory is None:
+        return current
+    if directory == UNRESOLVED:
+        return UNRESOLVED
+    if os.path.isabs(directory):
+        return directory
+    if current is None:
+        return directory
+    if current == UNRESOLVED:
+        return UNRESOLVED
+    return os.path.join(current, directory)
 
 
 def git_slices(tokens):
@@ -365,15 +404,35 @@ def scan(text, inherited, findings):
     payload's own working directory, a path, or UNRESOLVED. A `cd`
     rebinds it for the segments that follow across a carrying separator,
     and a parenthesised segment gets its own copy that does not escape.
+
+    The carrying rule is read on both sides of the `cd`, and reading it on
+    one side only is a hole. A `cd` reached across `||` may never have
+    run, and one standing in a pipeline ran in another process, so in
+    both the sequence keeps the directory it already had and a later
+    `git` is judged against that.
+
+    `&` is the one member of the set where refusing is conservatism
+    rather than a match. Bash runs the command after a `&` in the current
+    shell, so `echo x & cd <worktree> ; git reset --hard` really does
+    reach the worktree, and the guard refuses it anyway. Nobody writes
+    that shape, and one set read the same way in both directions is
+    easier to audit than two sets that differ in one entry.
     """
     current = inherited
     for separator, segment in split_top_level(text):
-        if separator and separator not in CARRYING:
+        reached = not separator or separator in CARRYING
+        if not reached:
             current = inherited
         stripped = segment.strip()
         if not stripped:
             continue
         if stripped.startswith("("):
+            # A subshell that runs at all runs its own `cd` before its own
+            # commands, so the interior is read from where the sequence
+            # stands. A brace group is not matched here and falls through
+            # to tokenising, where `{` is a word, no `cd` is found, and
+            # the command is refused. That is the safe direction and it is
+            # deliberate rather than an oversight.
             inner, rest = split_group(stripped)
             scan(inner, current, findings)
             if rest.strip():
@@ -391,13 +450,14 @@ def scan(text, inherited, findings):
         if not tokens:
             continue
         if unquote(tokens[0]) == "cd":
-            current = cd_target(tokens)
+            if reached:
+                current = combine(cd_target(tokens), current)
             continue
         for invocation in git_slices(tokens):
             directory, subcommand, arguments = read_invocation(invocation)
             label = denied(subcommand, arguments)
             if label:
-                findings.append((label, directory if directory is not None else current))
+                findings.append((label, combine(directory, current)))
 
 
 def resolve(path, base):
@@ -464,11 +524,11 @@ def main():
 
     tool_input = payload.get("tool_input") or {}
     command = tool_input.get("command") or ""
-    if "git" not in command:
+    if "git" not in command.lower():
         return
 
     findings = []
-    scan(join_continuations(command), None, findings)
+    scan(command, None, findings)
     if not findings:
         return
 

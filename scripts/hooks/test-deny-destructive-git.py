@@ -232,6 +232,76 @@ def cases(root, main, linked, spaced, nested):
          "git push origin topic\ngit log --oneline", main, ALLOW),
         # A backslash continuation is one real invocation and stays caught.
         ("continuation splits the flag", "git reset \\\n  --hard origin/main", main, DENY),
+
+        # The carrying rule is read on both sides of the cd, and the cases
+        # above only ever put the cd on the left of the separator. A cd on
+        # the right of a non-carrying one binds nothing: after || it may
+        # never run, and in a pipeline it runs in a subshell that does not
+        # move the parent. Measured against bash, which prints the first
+        # directory for both `cd A && true || cd B ; pwd` and
+        # `cd A && echo x | cd B ; pwd`. The third is conservatism rather
+        # than a match, because bash prints B for `cd A ; echo x & cd B ;
+        # pwd`, and refusing a shape nobody writes costs nothing.
+        ("a cd after || binds nothing",
+         "true || cd %s ; git reset --hard" % linked, main, DENY),
+        ("a cd inside a pipeline binds nothing",
+         "echo x | cd %s ; git reset --hard" % linked, main, DENY),
+        ("a cd after & binds nothing",
+         "echo x & cd %s ; git reset --hard" % linked, main, DENY),
+
+        # A here-string is a redirection with its data inline. Read as a
+        # heredoc it opens a body that never terminates, and everything
+        # after it disappears.
+        ("a here-string is not a heredoc", "cat <<<word\ngit reset --hard", main, DENY),
+        ("a quoted here-string is not a heredoc",
+         'python - <<<"$json"\ngit reset --hard', main, DENY),
+        ("a here-string does not hide a later cd",
+         'cat <<<"x"\ncd %s && git reset --hard' % main, linked, DENY),
+
+        # A relative path is relative to wherever the invocation runs, which
+        # an earlier cd may have moved. That holds for an explicit -C and
+        # for a second cd alike.
+        ("a relative -C follows a preceding cd into the main checkout",
+         "cd %s && git -C . reset --hard" % main, linked, DENY),
+        ("a relative -C follows a preceding cd into a worktree",
+         "cd %s && git -C . stash pop" % linked, main, ALLOW),
+        ("a relative cd composes with the one before it",
+         "cd scratch/card-impl && cd wt && git stash pop", root, ALLOW),
+        ("a relative cd composed onto the main checkout",
+         "cd ../checkout ; cd card-impl/wt ; git stash pop",
+         os.path.join(root, "scratch"), DENY),
+
+        # A continuation is folded where the segmenter stands, so it never
+        # merges a heredoc body line with the terminator and hides what
+        # follows the heredoc. The opener has to be a command the guard
+        # allows, or the refusal proves nothing about what came after it.
+        ("a continuation inside a heredoc body does not extend it",
+         "cat <<EOF\nbody\\\nEOF\ngit reset --hard", main, DENY),
+        # The heredoc case above pairs a denied opener with a denied
+        # trailer, so it holds whether or not the body is read. This one
+        # opens with a command the guard allows, which leaves the verdict
+        # resting on the body alone.
+        ("a heredoc body supplies no directory to what follows it",
+         "git log <<EOF\ncd %s\nEOF\ngit reset --hard" % linked, main, DENY),
+
+        # The rest of the state the segmenter carries, each read on both
+        # sides. An unbalanced bracket, a quote span that opens at a word
+        # and closes inside one, a brace group, and a -C that must not
+        # reach the invocation beside it.
+        ("an unbalanced ( swallows the separators and fails closed",
+         "echo a(b && cd %s ; git reset --hard" % linked, main, DENY),
+        ("an unbalanced ) is clamped and keeps the cd",
+         "echo a)b && cd %s && git stash pop" % linked, main, ALLOW),
+        ("a quote span closing inside a later word is still one argument",
+         "git log 'a && git reset --hard don't", main, ALLOW),
+        ("a brace group is refused rather than scoped",
+         "{ cd %s ; git reset --hard ; }" % linked, main, DENY),
+        ("a -C binds only its own invocation",
+         "git -C %s stash pop && git reset --hard" % linked, main, DENY),
+
+        # The early bail reads the command case-insensitively, because the
+        # basename matching further in already does.
+        ("an uppercase GIT is still git", "GIT reset --hard origin/main", main, DENY),
     ])
     return table
 
