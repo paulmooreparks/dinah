@@ -652,8 +652,9 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 // the reason this check exists.
 //
 // The check drives a value through request2Args and asserts the request came
-// back different from an empty one, which is what "reached the request" means
-// and is the only thing a caller can observe.
+// back different from an empty one, which is what "reached the request"
+// means. A parameter that lands in the wrong field still passes, so the check
+// bounds one defect class and does not prove the assignment correct.
 func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 	// A parameter the head deliberately reads and discards is named here with
 	// the reason, so that the deliberate case is visible rather than looking
@@ -662,8 +663,10 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 		"version.catalogs": "the version tool always reports catalog coverage, so the marker selects nothing",
 	}
 	// A parameter this check found landing nowhere, which is a defect rather
-	// than a decision and is tracked on its own card. The entry goes when the
-	// defect does, and the check failing here afterwards is the check working.
+	// than a decision and is tracked on its own card. An entry here does not
+	// skip the parameter. The check still builds the request and requires the
+	// defect to still be present, so repairing the defect reddens this test
+	// and the entry has to be deleted along with it.
 	knownDefect := map[string]string{
 		"attach.description": "dinah-222: assignValue has no case for it, so an attachment made over this head is created with no description",
 	}
@@ -674,9 +677,6 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 			if _, deliberate := carriedNowhereOnPurpose[named]; deliberate {
 				continue
 			}
-			if _, tracked := knownDefect[named]; tracked {
-				continue
-			}
 			arguments := map[string]any{}
 			if param.Marker {
 				arguments[param.Name] = true
@@ -685,8 +685,16 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 			}
 			built := request2Args(entry.command, arguments)
 			empty := request2Args(entry.command, map[string]any{})
+			reached := !reflect.DeepEqual(built, empty)
+			if tracked, defective := knownDefect[named]; defective {
+				if reached {
+					t.Errorf("%s: %q now reaches the request, so the exemption has outlived its defect and belongs deleted (%s)",
+						entry.name, param.Name, tracked)
+				}
+				continue
+			}
 			checked++
-			if reflect.DeepEqual(built, empty) {
+			if !reached {
 				t.Errorf("%s: the schema offers %q and request2Args puts it nowhere on the request, so an agent sending it is silently ignored",
 					entry.name, param.Name)
 			}
@@ -749,8 +757,15 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if decoded["outcome"] != contract.OutcomeOK {
 			t.Fatalf("bare pull: %v", decoded)
 		}
-		if decoded["card"] == nil {
-			t.Fatal("the bare form should have taken the one card standing ready")
+		card, ok := decoded["card"].(map[string]any)
+		if !ok {
+			t.Fatalf("the bare form should have taken the one card standing ready, got %v", decoded["card"])
+		}
+		// Naming the state is what ties the subtest to its title: the fixture
+		// declares Intake and Doing, and only Doing qualifies, so a head that
+		// pulled into whichever state it saw last would pass without it.
+		if card["state_title"] != "Doing" {
+			t.Errorf("the one state that qualifies is Doing, got %v", card["state_title"])
 		}
 	})
 

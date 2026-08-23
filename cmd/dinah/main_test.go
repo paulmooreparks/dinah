@@ -185,7 +185,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-six commands, and every command the binary
+	// The block lists thirty-eight commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
