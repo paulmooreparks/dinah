@@ -160,44 +160,95 @@ func addLevel(axes map[string][]Level, axis, name, hint string) {
 	axes[axis] = append(axes[axis], Level{Name: name, Hint: hint, Rank: len(axes[axis])})
 }
 
-// renderLevelsMember renders an interchange definition's levels member as the
-// block the reader above parses, and reports whether it could read it.
+// orderLevelAxes puts a levels member's axes in the one order Dinah publishes
+// them in: the axes this model reads first, in LevelAxes order, then any
+// further axis in sorted order after them. The ordering ranges over the axes
+// actually declared, so a member declaring one axis yields one axis and no
+// placeholder for the absent one, and an axis the model does not read is
+// carried rather than dropped.
 //
-// Three rules bind. Axes are written in LevelAxes order first and any further
-// axis in sorted order after them, so the render is deterministic whatever
-// order the JSON object carried and an axis this model does not read is
-// preserved rather than dropped. That ordering ranges over the axes the member
-// actually declares, so a definition declaring one axis writes one line and no
-// placeholder for the absent one. Only the flow form is rendered, since a
-// definition has no need of the hint form and CORE-JSON-7 asks for
-// preservation rather than for expressiveness.
-//
-// A member this cannot read, meaning any axis whose value is not an array of
-// strings, reports false, and the caller falls back to the raw JSON line every
-// unrecognized member travels as, so nothing is lost.
-func renderLevelsMember(raw json.RawMessage) ([]string, bool) {
-	declared := map[string][]string{}
-	if err := json.Unmarshal(raw, &declared); err != nil {
-		return nil, false
+// Both sides of the interchange call this. Export orders the member it prints
+// and the renderer below orders the block it writes, so a workbench declaring
+// priority above severity exports one order and gets that same order back,
+// and a second export matches the first. Two call sites that happen to agree
+// today is what having one function avoids.
+func orderLevelAxes(axes []string) []string {
+	declared := map[string]bool{}
+	for _, axis := range axes {
+		declared[axis] = true
 	}
 	var further []string
-	for axis := range declared {
-		if KnownLevelAxis(axis) {
-			continue
+	for _, axis := range axes {
+		if !KnownLevelAxis(axis) {
+			further = append(further, axis)
 		}
-		further = append(further, axis)
 	}
 	sort.Strings(further)
 	var ordered []string
 	for _, axis := range LevelAxes {
-		if _, ok := declared[axis]; ok {
+		if declared[axis] {
 			ordered = append(ordered, axis)
 		}
 	}
-	ordered = append(ordered, further...)
+	return append(ordered, further...)
+}
+
+// orderedLevels reorders a levels member's axes by the rule above and re-emits
+// the object, which is what makes the first export canonical before a clone is
+// written from it.
+//
+// The member is re-emitted rather than round-tripped through a Go map, because
+// a map sorts its keys and would quietly beat the rule. A member this cannot
+// read, including the empty string a block with no readable child gives,
+// travels on unchanged.
+func orderedLevels(raw json.RawMessage) json.RawMessage {
+	members, read := jsonMembers(raw)
+	if !read {
+		return raw
+	}
+	byAxis := map[string]json.RawMessage{}
+	var axes []string
+	for _, member := range members {
+		byAxis[member.name] = member.value
+		axes = append(axes, member.name)
+	}
+	var ordered []jsonMember
+	for _, axis := range orderLevelAxes(axes) {
+		ordered = append(ordered, jsonMember{name: axis, value: byAxis[axis]})
+	}
+	return jsonObject(ordered)
+}
+
+// renderLevelsMember renders an interchange definition's levels member as the
+// block the reader above parses, and reports whether it could read it.
+//
+// Two rules bind. The axes are written in the order orderLevelAxes settles, so
+// the render is deterministic whatever order the JSON object carried. Each
+// axis's value is handed to renderBlock, which takes the flow form for an axis
+// of bare names and the dashed form for one carrying a hint, since a flow
+// entry has no spelling for a hint.
+//
+// A member this cannot read, meaning any axis renderBlock refuses, reports
+// false, and the caller falls back to the raw JSON line every unrecognized
+// member travels as, so nothing is lost.
+func renderLevelsMember(raw json.RawMessage) ([]string, bool) {
+	members, read := jsonMembers(raw)
+	if !read {
+		return nil, false
+	}
+	declared := map[string]json.RawMessage{}
+	var axes []string
+	for _, member := range members {
+		declared[member.name] = member.value
+		axes = append(axes, member.name)
+	}
 	lines := []string{LevelsKey + ":"}
-	for _, axis := range ordered {
-		lines = append(lines, "  "+axis+": ["+strings.Join(declared[axis], ", ")+"]")
+	for _, axis := range orderLevelAxes(axes) {
+		rendered, ok := renderBlock(axis, 2, declared[axis])
+		if !ok {
+			return nil, false
+		}
+		lines = append(lines, rendered...)
 	}
 	return lines, true
 }
