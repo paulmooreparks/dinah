@@ -98,11 +98,11 @@
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
     },
     "check.block.3": {
-      "text": "the request carries a reason",
+      "text": "निवेदन में कारण है",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
     },
     "check.block.4": {
-      "text": "the card is unheld or held by whoever asks",
+      "text": "कार्ड किसी के पास नहीं है, या माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of block, quoted from section 6 of the core profile."
     },
     "check.card.1": {
@@ -138,15 +138,15 @@
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
     "check.claim.3": {
-      "text": "the owner named as holder is the owner asking",
+      "text": "धारक बताया गया स्वामी वही स्वामी है जो माँग रहा है",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
     "check.claim.4": {
-      "text": "the card's substate is not `blocked`",
+      "text": "कार्ड की उपस्थिति `blocked` नहीं है",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
     "check.claim.5": {
-      "text": "the card's substate is not `active`",
+      "text": "कार्ड की उपस्थिति `active` नहीं है",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
     "check.clean": {
@@ -286,31 +286,31 @@
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.2": {
-      "text": "the destination is a state the workbench declares",
+      "text": "गंतव्य वह स्थिति है जिसे वर्कबेंच घोषित करती है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.3": {
-      "text": "an override marker, if carried, is the operator's",
+      "text": "यदि कोई अधिभावी चिह्न साथ है, तो वह संचालक का है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.4": {
-      "text": "the departure is legal for whoever asks",
+      "text": "माँगने वाले के लिए प्रस्थान वैध है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.5": {
-      "text": "the card's substate is not `blocked`",
+      "text": "कार्ड की उपस्थिति `blocked` नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.6": {
-      "text": "the card is unheld or held by whoever asks",
+      "text": "कार्ड किसी के पास नहीं है, या माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.7": {
-      "text": "the move is not a forward move out of a `done` state",
+      "text": "यह `done` स्थिति से बाहर आगे की चाल नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.move.8": {
-      "text": "the destination is below its capacity limit",
+      "text": "गंतव्य अपनी क्षमता सीमा से नीचे है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile."
     },
     "check.next.1": {
@@ -430,7 +430,7 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.release.2": {
-      "text": "whoever asks holds the card",
+      "text": "कार्ड माँगने वाले के पास है",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
@@ -502,11 +502,11 @@
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
     "check.unblock.2": {
-      "text": "whoever asks is the operator",
+      "text": "माँगने वाला ही संचालक है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
     "check.unblock.3": {
-      "text": "the card's substate is `blocked`",
+      "text": "कार्ड की उपस्थिति `blocked` है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
     },
     "check.unknown-level": {
@@ -542,11 +542,11 @@
       "context": "A check finding the workbench-slug migration raises: no letter of the workbench's title survives the derivation, so a person retitles the workbench or writes a slug onto its anchor by hand."
     },
     "check.workbench.1": {
-      "text": "the workbench declares a major number the tool implements",
+      "text": "उपकरण वर्कबेंच का मुख्य संस्करण-अंक लागू करता है",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
     },
     "check.workbench.2": {
-      "text": "the workbench designates an operator",
+      "text": "वर्कबेंच एक संचालक नियत करती है",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
     },
     "check.workbench-field.1": {
@@ -718,7 +718,7 @@
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block."
     },
     "cmd.mcp.summary": {
-      "text": "serve workbenches over MCP on stdio",
+      "text": "MCP पर stdio से वर्कबेंच परोसें",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
     "cmd.move.summary": {
@@ -1078,7 +1078,7 @@
       "context": "Printed above the guide topics `dinah guide` lists, so a reader knows the rows are arranged as a reading order rather than alphabetically. Each catalog decides for itself how to say that in its own language."
     },
     "help.environment": {
-      "text": "Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
+      "text": "परिवेश: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated."
     },
     "help.exitcodes": {
@@ -2174,51 +2174,51 @@
       "context": "The meaning of the workstream argument of `dinah workstream`, printed in that command's arguments table."
     },
     "check.mcp.1": {
-      "text": "the directory --root names is one the filesystem carries",
+      "text": "--root जिस डायरेक्टरी को नामता है वह फ़ाइल सिस्टम रखता है",
       "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist."
     },
     "check.mcp.2": {
-      "text": "the workbench you name lies under the root",
+      "text": "आप जिस वर्कबेंच को नामते हैं वह रूट के नीचे है",
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root."
     },
     "tool.workbenches.summary": {
-      "text": "the workbenches this server may serve",
+      "text": "वे वर्कबेंच जिन्हें यह सर्वर परोस सकता है",
       "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root."
     },
     "mcp.reach": {
-      "text": "You may reach any workbench under {root}; this server is serving {title} by default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "text": "आप {root} के नीचे की किसी भी वर्कबेंच तक पहुँच सकते हैं; यह सर्वर तयशुदा रूप से {title} परोस रहा है। workbenches उपकरण रूट के नीचे की वर्कबेंच सूचीबद्ध करता है, और किसी भी दूसरे उपकरण की workbench property किसी एक को नामती है।",
       "context": "The third paragraph of the working agreement when the server has a default workbench. {root} is the directory --root or DINAH_MCP_ROOT named, and {title} is the default workbench's own title."
     },
     "mcp.reach.nodefault": {
-      "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
+      "text": "आप {root} के नीचे की किसी भी वर्कबेंच तक पहुँच सकते हैं; यह सर्वर कोई तयशुदा वर्कबेंच नहीं परोस रहा। workbenches उपकरण रूट के नीचे की वर्कबेंच सूचीबद्ध करता है, और किसी भी दूसरे उपकरण की workbench property किसी एक को नामती है।",
       "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named."
     },
     "mcp.no-default": {
-      "text": "no default workbench: {detail}",
+      "text": "कोई तयशुदा वर्कबेंच नहीं: {detail}",
       "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer."
     },
     "refusal.dinah.outside-root": {
-      "text": "{detail} lies outside {root}, the root the server was started with",
+      "text": "{detail} उस रूट {root} के बाहर है जिसके साथ सर्वर शुरू हुआ",
       "context": "The sentence printed after the refusal name dinah.outside-root. {detail} is the path the caller named with --workbench or in the MCP call's workbench property, and {root} is the directory --root or DINAH_MCP_ROOT named."
     },
     "refusal.dinah.outside-root.next": {
-      "text": "; start the server with --root set to a directory that does contain the workbench you want",
+      "text": "; सर्वर शुरू करते समय --root को ऐसी डायरेक्टरी पर सेट करें जिसमें आपकी चाही वर्कबेंच हो",
       "context": "Spliced onto refusal.dinah.outside-root as the next step, naming the action the caller has to take to reach a workbench the bound excluded."
     },
     "refusal.dinah.unknown-root": {
-      "text": "{detail} is not a directory the filesystem carries",
+      "text": "{detail} ऐसी कोई डायरेक्टरी नहीं जिसे फ़ाइल सिस्टम रखता हो",
       "context": "The sentence printed after the refusal name dinah.unknown-root. {detail} is the path --root or DINAH_MCP_ROOT named."
     },
     "refusal.dinah.unknown-root.next": {
-      "text": "; point --root at a directory that does exist, or remove the option to discover one from here",
+      "text": "; --root को किसी मौजूदा डायरेक्टरी पर सेट करें, या यहाँ से एक खोजने के लिए विकल्प हटा दें",
       "context": "Spliced onto refusal.dinah.unknown-root as the next step, naming the two ways past the refusal."
     },
     "schema.workbench.description": {
-      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "text": "यह कॉल जिस वर्कबेंच पर काम करती है उसका पूर्ण पथ, जैसे C:\\Users\\you\\projects\\plans; सर्वर जिस वर्कबेंच के साथ शुरू हुआ उसी पर काम करने के लिए इसे छोड़ दें",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
     },
     "param.mcp.root.summary": {
-      "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
+      "text": "वह डायरेक्टरी जिसके नीचे यह सर्वर की परोसी हर वर्कबेंच पड़ती है; आप कोई न नामें, तो शुरुआत में मिली वर्कबेंच",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table."
     },
     "refusal.dinah.unknown-axis.next": {

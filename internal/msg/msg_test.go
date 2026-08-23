@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -149,5 +150,49 @@ func TestPluralsFollowTheCategories(t *testing.T) {
 	}
 	if !strings.Contains(one, "1") || !strings.Contains(many, "4") {
 		t.Errorf("the count did not fill: %q and %q", one, many)
+	}
+}
+
+// TestATranslationKeepsThePlaceholdersAndTheSplice asserts that a translated
+// string carries every placeholder its English source names, and that a
+// next-step clause still opens with the separator that splices it onto the
+// refusal it follows. A translator may move a placeholder within the sentence
+// and may not drop or respell one, and a next-step clause that loses its
+// leading separator runs into the sentence before it. The leading separator in
+// the English source is what selects a spliced clause here, because the
+// catalog names these clauses several ways and a check keyed on the ".next"
+// spelling would miss the seven that are named something else.
+//
+// Both halves take the English entry as the whole expectation, and they read
+// only its placeholders and its leading separator. Anything else a translation
+// should carry goes unchecked here, whether it is content the English lists
+// and the translation drops or content the English never named. German's
+// help.environment omits DINAH_MCP_ROOT, which the English lists, and this
+// test says nothing about it. That omission is filed as dinah-248, so a reader
+// chasing a missing-content defect later should not expect this guard to have
+// caught it.
+func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
+	placeholder := regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
+	for _, key := range Keys() {
+		entry, ok := BaseEntry(key)
+		if !ok {
+			continue
+		}
+		names := placeholder.FindAllString(entry.Text, -1)
+		splice := strings.HasPrefix(entry.Text, "; ")
+		if len(names) == 0 && !splice {
+			continue
+		}
+		for _, tag := range Complete {
+			rendered := For(tag).T(key)
+			for _, name := range names {
+				if !strings.Contains(rendered, name) {
+					t.Errorf("%s/%s: wanted the placeholder %s, got %q", tag, key, name, rendered)
+				}
+			}
+			if splice && !strings.HasPrefix(rendered, "; ") {
+				t.Errorf("%s/%s: wanted the leading separator that splices it onto the refusal, got %q", tag, key, rendered)
+			}
+		}
 	}
 }
