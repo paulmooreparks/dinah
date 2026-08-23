@@ -1,7 +1,8 @@
 # dinah-196 UX sketch: what `dinah export` prints, and what comes back
 
 Every block headed **Today** is what this build prints, derived by reading
-`Bench.Export` and `Frontmatter.Value` rather than by running the binary, because the spec
+the export path in `internal/bench/interchange.go` and `Frontmatter.Value` rather than by
+running the binary, because the spec
 stage does not build. Every block headed **Proposed** is drawn by hand against this card's
 spec. Indentation of the JSON follows `json.MarshalIndent(object, "", "  ")`, which is what
 `Export` already calls, so an array member takes one line per element. Treat the drawings
@@ -284,8 +285,9 @@ $ dinah export
 Proposed. A board that names its priority levels with numbers keeps the set. Dinah prints a
 one-line list whose entries are all numbers as JSON numbers, since the line you wrote is
 itself JSON, and it writes that same line back into the clone. The level model reads the
-four names as text at both ends, so `1` is a name in the way `later` is a name, and
-`dinah tree --group-by priority` groups by it.
+four names as text at both ends, so `1` is a name in the way `later` is a name. In the
+clone, `dinah add "probe" --priority 3` is accepted and `--priority 9` refuses with
+`dinah.unknown-level`, listing 1, 2, 3, 4 in that order.
 
 ```yaml
 levels:
