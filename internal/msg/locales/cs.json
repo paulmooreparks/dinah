@@ -1283,7 +1283,7 @@
     },
     "flag.version.summary": {
       "text": "print the version and stop",
-      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v, -version and /version, and the syntax beside this summary lists the two the column has room for.",
+      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v and -version, and the syntax beside this summary lists the two the column has room for.",
       "skeleton": true
     },
     "flag.workbench.summary": {

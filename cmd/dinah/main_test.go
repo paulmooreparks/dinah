@@ -6384,9 +6384,27 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 	}
 	// Help outranks version when a caller wrote both, in either order.
 	for _, argv := range [][]string{{"--help", "--version"}, {"--version", "--help"}} {
-		if got := runCLI(t, tree, argv...); got.out != surface.out {
-			t.Errorf("dinah %s: wanted the surface, got\n%s", strings.Join(argv, " "), got.out)
+		got := runCLI(t, tree, argv...)
+		if got.code != 0 || got.out != surface.out {
+			t.Errorf("dinah %s: wanted exit 0 and the surface, got %d\n%s", strings.Join(argv, " "), got.code, got.out)
 		}
+	}
+	// Both flags refuse a first word naming no command, so neither opens a
+	// route around the check the other closes. `dinah bogus --version` used
+	// to print the version while `dinah --help bogus` refused.
+	for _, argv := range [][]string{{"bogus", "--version"}, {"--version", "bogus"}} {
+		got := runCLI(t, tree, argv...)
+		if got.code != contract.ExitCode(contract.OutcomeRefused) {
+			t.Errorf("dinah %s: wanted the unknown-command refusal, got %d\n%s", strings.Join(argv, " "), got.code, got.out)
+		}
+		if !strings.HasPrefix(got.errw, contract.UnknownVerb+" ") {
+			t.Errorf("dinah %s: wanted %s to lead stderr, got %q", strings.Join(argv, " "), contract.UnknownVerb, got.errw)
+		}
+	}
+	// A command name in front of the version flag is read and still prints
+	// the version, since no command carries a version page of its own.
+	if got := runCLI(t, tree, "ls", "--version"); got.code != 0 || got.out != version.out {
+		t.Errorf("dinah ls --version: wanted the version report, got %d\n%s", got.code, got.out)
 	}
 }
 

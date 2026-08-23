@@ -1035,7 +1035,7 @@
     },
     "flag.version.summary": {
       "text": "die Version ausgeben und anhalten",
-      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v, -version and /version, and the syntax beside this summary lists the two the column has room for."
+      "context": "The one-line summary of the global flag --version. The flag also answers to -V, -v and -version, and the syntax beside this summary lists the two the column has room for."
     },
     "flag.workbench.summary": {
       "text": "diese Werkbank statt der von hier aus gefundenen verwenden",

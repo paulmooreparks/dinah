@@ -131,6 +131,15 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		return s.helpFor(at(parsed.positional, 0))
 	}
 	if parsed.has("version") {
+		// A first word naming no command refuses here exactly as it does on
+		// the help path. The two flags are answered before the command walk
+		// and would otherwise disagree about a word neither of them reads:
+		// `dinah --help bogus` refused and `dinah bogus --version` did not.
+		if word := at(parsed.positional, 0); word != "" {
+			if _, ok := lookup(word); !ok {
+				return s.fail(contract.UnknownVerb, word)
+			}
+		}
 		s.command = "version"
 		return runVersion(s, parsed)
 	}
