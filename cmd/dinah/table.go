@@ -938,12 +938,11 @@ func (laid laidTable) ceilingRowLine(r tableRow) string {
 			indent = wrapIndent
 		}
 		if summary == "" {
-			// Nothing follows on this line, so the syntax continuation is
-			// written raw rather than through a padded cell, which is what
+			// Nothing follows on this line, so the syntax continuation goes
+			// through as a tail rather than as a padded cell, which is what
 			// keeps a line whose field has already run out free of trailing
-			// spaces.
-			b.WriteString(strings.Repeat(" ", indent))
-			b.WriteString(syntax)
+			// spaces. It is still the row renderer that draws it.
+			b.WriteString(formatRow(row{indent: indent, tail: syntax}, laid.window))
 			continue
 		}
 		b.WriteString(formatRow(row{indent: indent, cells: []cell{{text: syntax, width: room + tableGutter}}, tail: summary}, laid.window))
