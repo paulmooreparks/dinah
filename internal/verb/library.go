@@ -145,6 +145,13 @@ type CardView struct {
 	StateTitle string `json:"state_title,omitempty"`
 	// Substate is one of ready, active and blocked.
 	Substate string `json:"substate,omitempty"`
+	// Severity and Priority are the levels the card records on the two axes
+	// a workbench may declare, empty when the card carries none. Displayed
+	// verbatim: no lookup against Bench.Levels or Bench.Level runs here, so
+	// an undeclared level is shown exactly as stored (dinah-193 D-2) and no
+	// hint or rank ever reaches this surface.
+	Severity string `json:"severity,omitempty"`
+	Priority string `json:"priority,omitempty"`
 	// Holder is the owner holding the card.
 	Holder string `json:"holder,omitempty"`
 	// ClaimSince is when the claim began.
@@ -250,6 +257,8 @@ func (l *Library) view(card *bench.Card) *CardView {
 		Title:       card.Title,
 		State:       card.State,
 		Substate:    card.Substate,
+		Severity:    card.Severity,
+		Priority:    card.Priority,
 		Holder:      card.Holder,
 		ClaimSince:  card.ClaimSince,
 		Expires:     card.Expires,
