@@ -222,9 +222,27 @@ func TestTheProductSaysWorkbenchEverywhereItIsRead(t *testing.T) {
 }
 
 // skippedTrees are the directories this guard does not walk: git's own
-// storage, the workbench this repository carries as data, and the binary
-// assets that hold no prose.
-var skippedTrees = map[string]bool{".git": true, ".dinah": true, "logo": true, "__pycache__": true}
+// storage, the workbench this repository carries as data, the binary assets
+// that hold no prose, and the four trees the VS Code extension's toolchain
+// materialises.
+//
+// Those four are not this repository's prose and are not ours to rewrite.
+// node_modules holds several hundred third-party packages, .vscode-test holds
+// a whole downloaded VS Code including its third-party notices, and dist and
+// out hold generated JavaScript. A dependency that ships a benchmark suite
+// would otherwise fail this guard for a word written by somebody who has
+// never heard of Dinah, which is the same hazard that took ci.yml's gofmt
+// step from `gofmt -l .` to `gofmt -l cmd internal`.
+var skippedTrees = map[string]bool{
+	".git":         true,
+	".dinah":       true,
+	"logo":         true,
+	"__pycache__":  true,
+	"node_modules": true,
+	".vscode-test": true,
+	"dist":         true,
+	"out":          true,
+}
 
 // report fails the test when a subject still carries the short word, naming
 // the file and the line so that whoever trips the guard reads an answer. A

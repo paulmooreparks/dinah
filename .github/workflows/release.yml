@@ -106,8 +106,15 @@ jobs:
             -f sha="$SHA"
 
   # Publish nothing until CI has passed on this same commit. ci.yml produces
-  # four check runs: three legs of the test matrix, named test (ubuntu-latest)
-  # and its siblings, plus the single gofmt job.
+  # six check runs: three legs of the test matrix, named test (ubuntu-latest)
+  # and its siblings, the single gofmt job, and two legs of the extension
+  # matrix, named extension (ubuntu-latest) and extension (windows-latest).
+  #
+  # The count is written in the jq select below, in the threshold, and in the
+  # three lines this job prints. All of them have to agree, and the unit test
+  # at editors/vscode/test/unit/workflows.test.ts is what notices when they
+  # stop agreeing. Without the extension legs named here, a release publishes
+  # on a commit whose extension build failed.
   wait-for-ci:
     runs-on: ubuntu-latest
     permissions:
@@ -120,14 +127,14 @@ jobs:
           SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Waiting for ci.yml's four check runs on $SHA"
+          echo "Waiting for ci.yml's six check runs on $SHA"
           for attempt in $(seq 1 60); do
             # A failing API call prints its own error and stops the run. Hiding
             # it here would turn a 403 or a rate limit into the same five-minute
             # timeout a commit with no CI produces, and those need different
             # answers from whoever reads the log.
             if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test"))) | .status + ":" + (.conclusion // "none")'); then
+              --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test")) or (.name | startswith("extension"))) | .status + ":" + (.conclusion // "none")'); then
               echo "::error::could not read the check runs for $SHA; the API error is above"
               exit 1
             fi
@@ -138,11 +145,11 @@ jobs:
               exit 1
             fi
             GOOD=$(printf '%s\n' "$RUNS" | grep -c '^completed:success$' || true)
-            if [ "$GOOD" -ge 4 ]; then
-              echo "All four CI checks passed."
+            if [ "$GOOD" -ge 6 ]; then
+              echo "All six CI checks passed."
               exit 0
             fi
-            echo "  $GOOD of 4 checks done (attempt $attempt of 60)"
+            echo "  $GOOD of 6 checks done (attempt $attempt of 60)"
             sleep 5
           done
           echo "::error::timed out after five minutes waiting for ci.yml on $SHA"
