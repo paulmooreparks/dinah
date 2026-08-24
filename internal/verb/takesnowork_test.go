@@ -576,6 +576,14 @@ func onlyOffer(t *testing.T, h *harness, state string) Offer {
 // asking, and an absence is invisible to a scan. What catches it is running the
 // act: for a card standing at each kind of state, what the list offers and what
 // the act does are held against each other here.
+//
+// Both acts are run on every case, and that is the point rather than
+// thoroughness. An affordance list is only ever wrong by offering too much, so
+// a case that runs one act and stops as soon as the list offered it is silent
+// in the one direction where the defect lives. An earlier shape of this test
+// returned as soon as the list offered a pull, which is the intake state and
+// the buffer, and those are the two states the defect it was written for stood
+// at: the claim could be put back beside the pull and the suite stayed green.
 func TestTheAffordancesAgreeWithWhatTheActsPermit(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -598,26 +606,29 @@ func TestTheAffordancesAgreeWithWhatTheActsPermit(t *testing.T) {
 			h.at(ref, c.state)
 			offered := h.affordances(ref)
 
-			// The pull is run first, because a claim that succeeds takes the
-			// card up and there would be nothing left for a pull to take.
-			if contains(offered, Pull) {
-				response := h.library.Pull(&Request{Verb: Pull, Actor: "bo", State: "doing"})
-				h.reopen()
-				if response.Outcome != contract.OutcomeOK || response.Card == nil || response.Card.Ref != ref {
-					t.Fatalf("the list offered %s and the pull answered %s %s carrying %+v",
-						Pull, response.Outcome, response.Refusal, response.Card)
-				}
-				return
+			// The claim runs first and it runs on every case. A refused claim
+			// consumes nothing, so at the states where the pull is the act
+			// this costs the pull below nothing, and it is what makes the
+			// intake state and the buffer answer for their claim at all.
+			claim := h.do(&Request{Verb: Claim, Card: ref, Actor: "alka"})
+			claimable := claim.Outcome == contract.OutcomeOK
+			if contains(offered, Claim) != claimable {
+				t.Fatalf("the list %v offers claim: %t, and the claim answered %s %s",
+					offered, contains(offered, Claim), claim.Outcome, claim.Refusal)
+			}
+			if claimable {
+				// A claim that succeeded took the card up, so hand it back.
+				// Otherwise the pull below would be answering what the claim
+				// did rather than what the list said.
+				h.mustDo(&Request{Verb: Release, Card: ref, Actor: "alka"})
 			}
 
-			response := h.do(&Request{Verb: Claim, Card: ref, Actor: "alka"})
-			permitted := response.Outcome == contract.OutcomeOK
-			if contains(offered, Claim) != permitted {
-				t.Fatalf("the list %v offers claim: %t, and the claim answered %s %s",
-					offered, contains(offered, Claim), response.Outcome, response.Refusal)
-			}
-			if !permitted && contains(offered, Pull) {
-				t.Fatalf("the list %v offers neither act and the card is stranded", offered)
+			pull := h.library.Pull(&Request{Verb: Pull, Actor: "bo", State: "doing"})
+			h.reopen()
+			took := pull.Outcome == contract.OutcomeOK && pull.Card != nil && pull.Card.Ref == ref
+			if contains(offered, Pull) != took {
+				t.Fatalf("the list %v offers pull: %t, and a pull into Doing answered %s %s carrying %+v",
+					offered, contains(offered, Pull), pull.Outcome, pull.Refusal, pull.Card)
 			}
 		})
 	}

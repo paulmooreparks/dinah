@@ -491,9 +491,18 @@ type Served struct {
 	State string `json:"state"`
 }
 
+// instructionState answers the state a request names directly, and nil when
+// the reference names a card standing in one instead. It is the one place the
+// two branches of an instruction request are told apart: the chain is served
+// from it and the affordances are chosen from it, so the chain and the list
+// can never disagree about which of the two the caller asked for.
+func (l *Library) instructionState(req *Request) *bench.State {
+	return l.Bench.StateByRef(req.Card)
+}
+
 // Instructions serves the chain at a position named by a card or by a state.
 func (l *Library) Instructions(req *Request) (*Served, error) {
-	if state := l.Bench.StateByRef(req.Card); state != nil {
+	if state := l.instructionState(req); state != nil {
 		served := &Served{
 			State: state.ID,
 			Instructions: Instructions{

@@ -259,6 +259,17 @@ func readContents(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"tree": tree}, readAffordances)
 }
 
+// cardAffordances asks the library what a caller may do with the card a
+// request names, and puts the answer into this surface's vocabulary before it
+// is published. A read never returns a *verb.Response, so nothing else
+// translates it, and the library's no-card fallback spells two of its reads
+// as the commands ls and next, which name no tool here. Translating at the
+// boundary keeps that fallback from dead-ending a reader whichever head
+// reaches it.
+func cardAffordances(l *verb.Library, r *verb.Request) []string {
+	return surfaceAffordances(l.CardAffordances(r))
+}
+
 // readShow answers the show tool. The card branch asks the library what a
 // caller may do with the card it just read, rather than carrying a list of its
 // own that would go on naming claim at a state where a claim is refused.
@@ -270,7 +281,7 @@ func readShow(l *verb.Library, r *verb.Request) any {
 	if detail == nil {
 		return wrap(map[string]any{"text": text}, readAffordances)
 	}
-	return wrap(map[string]any{"detail": detail}, l.CardAffordances(r))
+	return wrap(map[string]any{"detail": detail}, cardAffordances(l, r))
 }
 
 // readLog answers the log tool, and asks for its affordances for the same
@@ -280,7 +291,7 @@ func readLog(l *verb.Library, r *verb.Request) any {
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return journalView{Events: events, Affordances: l.CardAffordances(r)}
+	return journalView{Events: events, Affordances: cardAffordances(l, r)}
 }
 
 // readChanges answers the changes tool. It carries the same ChangeSet the cli
@@ -297,13 +308,21 @@ func readChanges(l *verb.Library, r *verb.Request) any {
 	return changes
 }
 
-// readInstructions answers the instructions tool.
+// readInstructions answers the instructions tool, and asks the library what
+// the caller may do where the chain was served rather than carrying a list of
+// its own.
+//
+// This is the tool an agent calls precisely to learn what it may do where the
+// card is standing, so it is the worst place on the surface to name an act the
+// tool refuses. A written-out claim told a caller at a buffer, at an intake
+// state or at a done state to claim, and the claim then answered
+// dinah.takes-no-work.
 func readInstructions(l *verb.Library, r *verb.Request) any {
 	served, err := l.Instructions(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"served": served}, []string{"claim", "move", "show"})
+	return wrap(map[string]any{"served": served}, surfaceAffordances(l.ServedAffordances(r, served)))
 }
 
 // readWhoami answers the whoami tool.

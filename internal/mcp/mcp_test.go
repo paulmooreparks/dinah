@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -226,6 +227,61 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTheInstructionsListAgreesWithWhereTheCardIsStanding is dinah-273 AC-42.
+// The instructions tool is the one a caller reaches for precisely to learn
+// what it may do where the card is standing, so a written-out list here sends
+// the reader into the refusal it came to avoid. The list is read off the real
+// tool answer and held against the act, for a card at a station, for a card at
+// an intake state, and for the bare state itself.
+func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
+	cases := []struct {
+		name      string
+		arguments string
+		wantClaim bool
+		wantPull  bool
+	}{
+		{name: "a card at a station", arguments: `{"actor":"alka","card":"fx-1"}`, wantClaim: true},
+		{name: "a card at an intake state", arguments: `{"actor":"alka","card":"fx-2"}`, wantPull: true},
+		{name: "the intake state itself", arguments: `{"actor":"alka","card":"intake"}`, wantPull: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			library := newLibrary(t)
+			answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"instructions","arguments":`+c.arguments+`}}`))
+			offered := stringsOf(t, answer["affordances"])
+			if got := slices.Contains(offered, verb.Claim); got != c.wantClaim {
+				t.Errorf("the list %v offers claim: %t, wanted %t", offered, got, c.wantClaim)
+			}
+			if got := slices.Contains(offered, verb.Pull); got != c.wantPull {
+				t.Errorf("the list %v offers pull: %t, wanted %t", offered, got, c.wantPull)
+			}
+			for _, name := range offered {
+				if _, served := commandTool[name]; served {
+					t.Errorf("the list %v names %s, which is a command here and not a tool", offered, name)
+				}
+			}
+		})
+	}
+}
+
+// stringsOf reads a decoded affordances member as the list of names it is.
+func stringsOf(t *testing.T, member any) []string {
+	t.Helper()
+	raw, ok := member.([]any)
+	if !ok {
+		t.Fatalf("wanted a list of affordances, got %v", member)
+	}
+	names := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		name, ok := entry.(string)
+		if !ok {
+			t.Fatalf("wanted an affordance name, got %v", entry)
+		}
+		names = append(names, name)
+	}
+	return names
 }
 
 // TestClaimCarriesStructuredInstructions asserts that a successful claim
