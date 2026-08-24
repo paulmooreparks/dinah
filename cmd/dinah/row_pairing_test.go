@@ -146,6 +146,11 @@ type sweptStateRecord struct {
 	slug          string
 	kind          string
 	operatorOwned bool
+	// awaitingOutside is dinah-201's flag: the station waits on somebody
+	// outside the workbench, so the Work column reads waiting rather than
+	// taken and dinah next answers with its own sentence instead of the
+	// nothing-ready one.
+	awaitingOutside bool
 }
 
 // ref is what a person types to reach a state, which is its slug where it has
@@ -991,10 +996,14 @@ func expectStates(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 		if state.operatorOwned {
 			owner = msg.For(tag).T("states.moved-by.operator")
 		}
+		work := msg.For(tag).T("states.work.taken")
+		if state.awaitingOutside {
+			work = msg.For(tag).T("states.work.waiting")
+		}
 		count := strconv.Itoa(len(sweptCardsIn(r, at)))
 		slug := sweptSlugCell(tag, state.slug)
 		kind := sweptToken(tag, state.kind)
-		rows = append(rows, sweptTexts(slug, state.title, kind, count, owner))
+		rows = append(rows, sweptTexts(slug, state.title, kind, count, work, owner))
 	}
 	return sweptExpectation{rows: rows, source: "the record's states"}
 }
@@ -1061,6 +1070,13 @@ func expectOffers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for at, state := range r.states {
+		if state.awaitingOutside {
+			// A waiting state offers nothing whatever stands there, and it
+			// says so in its own words rather than in the nothing-ready
+			// ones, which is dinah-201 AC-2 read off the rendering.
+			rows = append(rows, sweptTexts(state.title, msg.For(tag).T("next.awaiting-outside"), ""))
+			continue
+		}
 		offered := sweptCardRecord{}
 		for _, card := range sweptCardsIn(r, at) {
 			if card.standing != contract.SubstateReady {

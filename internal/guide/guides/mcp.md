@@ -44,7 +44,12 @@ Three reads give you the workbench you have been handed.
 `status` reports the workbench itself: who its operator is, whether you are
 that person, and the states of the flow with each one's occupancy. The
 `operator_owned` flag on a state is the answer to whether that state is yours
-to move cards out of, and it repeats the rule in `initialize`.
+to move cards out of, and it repeats the rule in `initialize`. Read the
+`awaiting_outside` flag beside it, which answers a different question: a state
+carrying it waits on somebody outside the workbench, so no claim of yours will
+be taken there and no pull will take a card out of it or land one in it. What
+you can still do at such a state is move a card on from it once the answer
+comes, which needs no claim.
 
 `list_cards` returns the cards of a state, in the order the workbench
 fixes. `next_card` offers the first ready card in that order, and it is the

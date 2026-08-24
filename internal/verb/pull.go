@@ -115,13 +115,16 @@ func (l *Library) pullDestination(req *Request, named *bench.State) (*bench.Stat
 // pull into, in flow order, so the sentence the ambiguous refusal prints
 // reads as the workbench reads.
 //
-// The six conditions are the state-scoped rows of the precondition list, and
+// The conditions are the state-scoped rows of the precondition list, and
 // each one names the row it stands for. The state has an upstream state, or
 // it stands first in the flow and nothing precedes it. That upstream holds at
 // least one ready card, which is the one condition with no row behind it,
 // because nothing waiting is an answer rather than a refusal. The upstream's
 // kind is not done, since a forward move out of a done state refuses. The
-// upstream is not operator-owned unless the owner asking is the operator. The
+// upstream is not operator-owned unless the owner asking is the operator.
+// Neither the upstream nor the destination waits on somebody outside the
+// workbench, since a pull would take a card up at the first and land one at
+// the second, and no owner takes work up at such a state. The
 // destination stands below its capacity limit, or the invocation carries the
 // override marker, whose legality Pull has already settled. The destination is
 // not being retired.
@@ -143,6 +146,12 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
 			continue
 		}
 		if upstream.OperatorOwned && !operator {
+			continue
+		}
+		// The two waiting rows, which narrow the qualifying set rather than
+		// refusing, exactly as every other state-scoped row here does. The
+		// named form reaches the refusal instead.
+		if upstream.AwaitingOutside || state.AwaitingOutside {
 			continue
 		}
 		if headOfReady(upstream.ID, cards) == nil {
@@ -238,7 +247,14 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // pair above, so neither can decide a pull.
 //
 // claimableSubstate runs whether or not the caller passed --no-claim, because
-// the option changes what pull writes and not what pull allows.
+// the option changes what pull writes and not what pull allows, and
+// claimableState behind it is the claim's last row for the same reason.
+//
+// canLand is told this act takes the card up, which is what refuses a pull
+// landing a card in a state that waits on somebody outside the workbench.
+// The two directions are one rule: a pull is a claim bundled with a move,
+// and the claim is the thing the flag forbids, so neither the upstream nor
+// the destination may declare it.
 //
 // Pull's caller has already fixed req.State to the destination's reference,
 // so canRoute resolves the destination exactly as the named form of a move
@@ -252,7 +268,10 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal := l.claimableSubstate(req, card); refusal != nil {
 		return refusal
 	}
-	override, refusal, err := l.canLand(req, card, destination, departure)
+	if refusal := l.claimableState(req, card); refusal != nil {
+		return refusal
+	}
+	override, refusal, err := l.canLand(req, card, destination, departure, true)
 	if err != nil {
 		return l.FromError(req, err)
 	}

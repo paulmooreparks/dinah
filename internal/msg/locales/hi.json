@@ -2424,6 +2424,30 @@
     "changes.cursor": {
       "text": "कर्सर: {cursor}",
       "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque."
+    },
+    "column.states.work": {
+      "text": "कार्य",
+      "context": "Heading over whether work is taken up at the state, reading taken or waiting, in the states listing, which `dinah states` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "states.work.taken": {
+      "text": "लिया जाता है",
+      "context": "The value under the states listing's Work column on an ordinary state, where an owner takes work up."
+    },
+    "states.work.waiting": {
+      "text": "प्रतीक्षारत",
+      "context": "The value under the states listing's Work column on a state that waits on somebody outside the workbench, where no owner takes work up."
+    },
+    "next.awaiting-outside": {
+      "text": "बाहर के किसी व्यक्ति की प्रतीक्षा में",
+      "context": "Printed beside a state that offers no card because it waits on somebody outside the workbench, in place of next.none, which says only that nothing is ready."
+    },
+    "refusal.dinah.awaiting-outside": {
+      "text": "स्थिति {detail} कार्यपीठ के बाहर के किसी व्यक्ति की प्रतीक्षा में है, और वहाँ कोई कार्ड रखा या लिया नहीं जाता",
+      "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the state the refusal is about."
+    },
+    "refusal.dinah.awaiting-outside.next": {
+      "text": "; यदि आप कार्ड रखते हैं तो पहले उसे छोड़ें, या उत्तर आने पर उसे आगे बढ़ाएँ",
+      "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused."
     }
   }
 }
