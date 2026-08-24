@@ -478,6 +478,13 @@ def between_git_and_verb():
         ("IFS after a global option", " --no-pager${IFS}"),
         ("substitution then redirection", " $(echo --no-pager) >/dev/null "),
         ("a single-element brace group", " {--no-pager} "),
+        # A substitution carrying a boundary character. The separator
+        # belongs to the commands inside the substitution and does not
+        # end the command outside it, so a guard that reads it as a
+        # boundary stops before the verb. Arming put these here: blanking
+        # them was a fix nothing in this file could redden.
+        ("a substitution carrying a semicolon", " $(echo;) "),
+        ("a substitution carrying a pipe", " $(echo|cat) "),
     ]
 
 
