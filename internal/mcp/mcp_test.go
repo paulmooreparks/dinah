@@ -47,6 +47,17 @@ func newLibrary(t *testing.T) *verb.Library {
 	if response := library.Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A card"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("add: %s %s", response.Outcome, response.Refusal)
 	}
+	// The card is carried to the doing station, because no owner takes work up
+	// at an intake state and the claims below would be refused there.
+	moved := library.Do(&verb.Request{Verb: verb.Move, Actor: "alka", Card: "fx-1", State: "doing"})
+	if moved.Outcome != contract.OutcomeOK {
+		t.Fatalf("move: %s %s", moved.Outcome, moved.Refusal)
+	}
+	// A second card stands ready in the intake state, which is what the pull
+	// tests take and what leaves the first card claimable where it stands.
+	if response := library.Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A waiting card"}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("add the waiting card: %s %s", response.Outcome, response.Refusal)
+	}
 	reopened, err := bench.Open(root)
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
@@ -234,7 +245,7 @@ func TestClaimCarriesStructuredInstructions(t *testing.T) {
 	if instructions["standing"] != "Standing text.\n" {
 		t.Errorf("standing layer: got %v", instructions["standing"])
 	}
-	if instructions["state"] != "Intake text.\n" {
+	if instructions["state"] != "Doing text.\n" {
 		t.Errorf("state layer: got %v", instructions["state"])
 	}
 	if _, carried := decoded["legal_moves"]; !carried {
@@ -732,9 +743,9 @@ func durationOrWord(name string) string {
 // nothing about what happens to it, which is how the `no-claim` marker came to
 // be advertised, accepted, and thrown away.
 //
-// The fixture's flow is Intake then Doing, with one ready card in Intake, so a
-// pull into Doing takes that card and a pull into Intake has nothing before it
-// to take from.
+// The fixture's flow is Intake then Doing, with one ready card standing in
+// Intake and one already carried to Doing, so a pull into Doing takes the
+// waiting card and a pull into Intake has nothing before it to take from.
 func TestPullIsDrivenThroughTheHead(t *testing.T) {
 	t.Run("the named form takes the card and claims it", func(t *testing.T) {
 		library := newLibrary(t)

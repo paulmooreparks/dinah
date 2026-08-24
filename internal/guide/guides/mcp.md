@@ -51,6 +51,13 @@ be taken there and no pull will take a card out of it or land one in it. What
 you can still do at such a state is move a card on from it once the answer
 comes, which needs no claim.
 
+Read `takes_work_up` beside both of them. A state answering false is one where
+nobody works a card: the card waits there until a pull carries it into the
+state beyond, so `pull` rather than `claim` is the act to reach for, and a
+claim there is refused with `dinah.takes-no-work`. An intake state, a done
+state and a state a workbench uses to buffer for the station after it all
+answer false.
+
 `list_cards` returns the cards of a state, in the order the workbench
 fixes. `next_card` offers the first ready card in that order, and it is the
 cheapest way to learn what is pullable without enumerating everything.

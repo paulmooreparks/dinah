@@ -206,12 +206,17 @@ func readList(l *verb.Library, r *verb.Request) any {
 
 // readNext answers the next_card tool, which changes nothing: offering a card
 // is not assigning it.
+//
+// The affordances carry pull beside claim, because an offer from a state where
+// no owner takes work up is taken by a pull into the state beyond and a claim
+// there is refused. An agent reading only claim would meet that refusal with
+// nothing telling it what to reach for instead.
 func readNext(l *verb.Library, r *verb.Request) any {
 	offers, err := l.Next(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"offers": offers}, []string{"claim", "show", "log"})
+	return wrap(map[string]any{"offers": offers}, []string{"claim", "pull", "show", "log"})
 }
 
 // readQuery answers the query tool. It carries the same Matches object the

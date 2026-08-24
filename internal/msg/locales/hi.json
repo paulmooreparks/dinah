@@ -2450,7 +2450,7 @@
       "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused."
     },
     "states.work.none": {
-      "text": "कोई कार्य नहीं लिया जाता",
+      "text": "कोई कार्य नहीं",
       "context": "The value under the states listing's Work column on a state where no owner takes work up, which is an intake state, a done state and a dinah.buffer. A state that waits on somebody outside reads states.work.waiting instead, because that value also says who is being waited on."
     },
     "next.no-taker": {

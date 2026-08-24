@@ -164,6 +164,37 @@ func (s sweptStateRecord) ref() string {
 	return s.id
 }
 
+// state builds the bench state this record stands for, so the expected side
+// asks the head's own predicates what a state does rather than restating them.
+func (s sweptStateRecord) state() *bench.State {
+	return &bench.State{ID: s.id, Title: s.title, Slug: s.slug, Kind: s.kind, OperatorOwned: s.operatorOwned, AwaitingOutside: s.awaitingOutside}
+}
+
+// carriesInto returns the index of the state a pull would carry a card
+// standing at the given one into, or -1 when no pull could carry it anywhere.
+// It reproduces the walk of the same name in the pull machinery, which is
+// unexported and in another package, over the fixture's own ordered record.
+func carriesInto(states []sweptStateRecord, at int) int {
+	if !states[at].state().PullCanTakeFrom() {
+		return -1
+	}
+	if states[at].state().TakesWorkUp() {
+		if at+1 < len(states) && states[at+1].state().TakesWorkUp() {
+			return at + 1
+		}
+		return -1
+	}
+	for beyond := at + 1; beyond < len(states); beyond++ {
+		if states[beyond].state().TakesWorkUp() {
+			return beyond
+		}
+		if !states[beyond].state().PullCanTakeFrom() || states[beyond].operatorOwned {
+			return -1
+		}
+	}
+	return -1
+}
+
 // sweptSettingRecord is one row of dinah config as the fixture caused it: the
 // key, the rung of the ladder that answers for it, and the value that rung
 // carries. A setting whose value is the language the invocation asked for
@@ -997,6 +1028,9 @@ func expectStates(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 			owner = msg.For(tag).T("states.moved-by.operator")
 		}
 		work := msg.For(tag).T("states.work.taken")
+		if !state.state().TakesWorkUp() {
+			work = msg.For(tag).T("states.work.none")
+		}
 		if state.awaitingOutside {
 			work = msg.For(tag).T("states.work.waiting")
 		}
@@ -1070,11 +1104,18 @@ func expectOffers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for at, state := range r.states {
-		if state.awaitingOutside {
-			// A waiting state offers nothing whatever stands there, and it
-			// says so in its own words rather than in the nothing-ready
-			// ones, which is dinah-201 AC-2 read off the rendering.
-			rows = append(rows, sweptTexts(state.title, msg.For(tag).T("next.awaiting-outside"), ""))
+		// A state offers its head card when some act could take it up. A
+		// claim could where the state takes work up, and a pull could where
+		// the walk names a station to carry the card into. Where neither
+		// could, the state says so in its own words rather than in the
+		// nothing-ready ones.
+		byPull := !state.state().TakesWorkUp() && carriesInto(r.states, at) >= 0
+		if !state.state().TakesWorkUp() && !byPull {
+			absent := msg.For(tag).T("next.no-taker")
+			if state.awaitingOutside {
+				absent = msg.For(tag).T("next.awaiting-outside")
+			}
+			rows = append(rows, sweptTexts(state.title, absent, "", ""))
 			continue
 		}
 		offered := sweptCardRecord{}
@@ -1086,10 +1127,14 @@ func expectOffers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 			break
 		}
 		if offered.ref == "" {
-			rows = append(rows, sweptTexts(state.title, msg.For(tag).T("next.none"), ""))
+			rows = append(rows, sweptTexts(state.title, msg.For(tag).T("next.none"), "", ""))
 			continue
 		}
-		rows = append(rows, sweptTexts(state.title, offered.ref, offered.title))
+		take := msg.For(tag).T("next.take.claim")
+		if byPull {
+			take = msg.For(tag).T("next.take.pull")
+		}
+		rows = append(rows, sweptTexts(state.title, offered.ref, offered.title, take))
 	}
 	return sweptExpectation{rows: rows, source: "the record's states, each under the head's own ready-card condition"}
 }
