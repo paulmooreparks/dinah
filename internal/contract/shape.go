@@ -323,6 +323,16 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.occupied.next"},
 	},
 	{
+		// One next step covers every raise site, because the two ways
+		// forward at a state that takes no work up, releasing the card and
+		// pulling it into the state beyond, are the same whichever act was
+		// refused. It reads as awaiting-outside's does, since the two names
+		// carry one rule and differ only in whether a person can be named.
+		Name:      TakesNoWork,
+		Fragments: []Fragment{{Key: "refusal.dinah.takes-no-work.next"}},
+		NextStep:  []string{"refusal.dinah.takes-no-work.next"},
+	},
+	{
 		Name:      RepairWouldEmptyStates,
 		Fragments: []Fragment{{Key: "refusal.dinah.repair-would-empty-states.next"}},
 		NextStep:  []string{"refusal.dinah.repair-would-empty-states.next"},

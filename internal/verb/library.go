@@ -306,7 +306,7 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		if state.Position > current.Position {
 			direction = Forward
 		}
-		if direction == Forward && current.Kind == contract.KindDone {
+		if direction == Forward && current.Terminal() {
 			continue
 		}
 		moves = append(moves, LegalMove{State: state.ID, Ref: stateRef(state), Title: state.Title, Direction: direction})

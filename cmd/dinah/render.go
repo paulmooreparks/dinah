@@ -228,11 +228,19 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.OperatorOwned {
 			owner = s.r.T("states.moved-by.operator")
 		}
-		// The Work cell answers whether work is taken up at the station and
+		// The Work cell answers whether work is taken up at the state and
 		// the Owner cell answers who may move a card out of it. They are two
-		// questions, so they are two cells, and a waiting state that nobody
-		// owner-owns still reads agent under Owner.
+		// questions, so they are two cells, and a state where nobody takes
+		// work up and nobody owner-owns still reads agent under Owner.
+		//
+		// The three values run most specific first. A state declaring the
+		// flag reads waiting, because a reader is told the workbench is
+		// waiting on somebody; a state where no owner takes work up for any
+		// other reason reads none taken; every other state reads taken.
 		work := s.r.T("states.work.taken")
+		if !state.TakesWorkUp {
+			work = s.r.T("states.work.none")
+		}
 		if state.AwaitingOutside {
 			work = s.r.T("states.work.waiting")
 		}
@@ -420,21 +428,32 @@ func (s *session) slugCell(slug string) string {
 
 // renderOffers prints what each state offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
-	t := table{indent: 2, columns: s.columns("next", "state", "card", "title")}
+	t := table{indent: 2, columns: s.columns("next", "state", "card", "title", "take")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			// A state that waits on somebody outside reads differently from
-			// one that merely has nothing ready, because the two are
-			// different facts and only one of them changes when a card
-			// arrives.
+			// Three empty answers, most specific first. A state that waits on
+			// somebody outside says who it waits on. A state where no act
+			// could take a card up says so, which is a different fact from
+			// nothing ready, because a done state holding four ready cards
+			// offers none of them. Everything else has nothing ready.
 			absent := s.r.T("next.none")
+			if offer.NoTaker {
+				absent = s.r.T("next.no-taker")
+			}
 			if offer.AwaitingOutside {
 				absent = s.r.T("next.awaiting-outside")
 			}
 			t.rows = append(t.rows, tableRow{fields: []string{offer.Title, absent}})
 			continue
 		}
-		fields := []string{offer.Title, offer.Card.Ref, offer.Card.Title}
+		// The Take cell names the act that takes the offered card, since a
+		// claim is refused where nobody takes work up and a pull into the
+		// state beyond is what moves the card instead.
+		take := s.r.T("next.take.claim")
+		if offer.TakenByPull {
+			take = s.r.T("next.take.pull")
+		}
+		fields := []string{offer.Title, offer.Card.Ref, offer.Card.Title, take}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)

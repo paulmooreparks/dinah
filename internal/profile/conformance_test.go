@@ -47,7 +47,6 @@ var outOfReach = map[string]string{
 	"CORE-BENCH-3": "the same surface: a definition with no declared profile version is refused when the workbench is opened",
 	"CORE-STATE-1": "a duplicate state identifier is refused when the workbench is opened, on a definition v0 writes rather than accepts from a caller",
 	"CORE-STATE-2": "a state with no title is refused when the workbench is opened",
-	"CORE-STATE-3": "a state whose kind is outside the three is refused when the workbench is opened",
 	"CORE-CARD-5":  "every card the tool reports carries one of the three substates by construction, since the reader defaults an absent one to ready",
 	"CORE-OWNER-1": "every act names its owner by construction, since the journal writer takes the actor from a request the ladder resolved",
 	"CORE-TEXT-1":  "every text the tool writes is UTF-8 by construction, since Go strings are and nothing transcodes",

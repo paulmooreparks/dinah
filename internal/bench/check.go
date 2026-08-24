@@ -48,6 +48,22 @@ const (
 	// make a workbench unreadable the moment somebody edits its declaration.
 	FindingUnknownLevel  = "check.unknown-level"
 	FindingIgnoredAnchor = "check.ignored-anchor"
+	// FindingClaimWhereNoWorkIsTaken names a card held at a state where no
+	// owner takes work up, which the acts are refused from the day this
+	// build ships and which a board written before that day can still carry.
+	// It sits beside FindingUnknownLevel on the same posture: refusing such
+	// a workbench on read would leave it unopenable with no route back.
+	FindingClaimWhereNoWorkIsTaken = "check.claim-where-no-work-is-taken"
+	// FindingKindOutOfPosition names a state whose kind is not allowed to
+	// stand where it stands in the flow, and is reported rather than
+	// refused for the reason above. The repair is an edit to workbench.md or
+	// to a state.md, so no flag offers to make it.
+	FindingKindOutOfPosition = "check.kind-out-of-position"
+	// FindingUnknownKind names a state carrying a layer's kind this build
+	// does not implement. CORE-STATE-12 says such a state is read as though
+	// its kind were work, and the sentence says so, because a reader
+	// otherwise has no way to know what the tool did with it.
+	FindingUnknownKind = "check.unknown-kind"
 	// FindingDanglingWorkstream names a card listing a workstream identifier
 	// that resolves in neither half of the workstreams collection, on the
 	// same terms FindingDanglingLink already reports a link's to.
@@ -140,6 +156,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		findings = append(findings, b.checkCard(card)...)
 	}
+	findings = append(findings, b.checkStateKinds()...)
 	findings = append(findings, b.checkWorkstreams()...)
 	findings = append(findings, b.checkStateSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
@@ -176,8 +193,17 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	default:
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownSubstate, Detail: card.Substate})
 	}
-	if b.State(card.State) == nil {
+	state := b.State(card.State)
+	if state == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownState, Detail: card.State})
+	}
+	// A claim standing where no owner takes work up is history rather than
+	// something a card acquires afresh, since claim, move and pull all refuse
+	// to put one there. The finding names the state, because that is what an
+	// operator edits or moves the card out of.
+	held := claimed || card.Substate == contract.SubstateActive
+	if state != nil && held && !state.TakesWorkUp() {
+		findings = append(findings, Finding{Path: anchor, Key: FindingClaimWhereNoWorkIsTaken, Detail: state.Ref()})
 	}
 	// Each axis is asked about its own declaration and never about whether
 	// the workbench declares any levels at all, so a card carrying a

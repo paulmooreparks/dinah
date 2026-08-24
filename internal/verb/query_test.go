@@ -93,8 +93,8 @@ func (h *harness) setWorkstreams(ref string, names ...string) {
 func TestAQueryOverActsFindsTheCardsAnOwnerTouched(t *testing.T) {
 	h := newHarness(t)
 	first := h.add("first")
-	second := h.add("second")
-	third := h.add("third")
+	second := h.ready("second")
+	third := h.ready("third")
 	h.mustDo(&Request{Verb: Claim, Actor: "bo", Card: second, Holder: "bo"})
 	h.mustDo(&Request{Verb: Move, Actor: "bo", Card: second, State: doing})
 	h.mustDo(&Request{Verb: Claim, Actor: "bo", Card: third, Holder: "bo"})
@@ -113,7 +113,7 @@ func TestOneActWitnessesEveryActPlaneTerm(t *testing.T) {
 	h := newHarness(t)
 	h.clock = time.Date(2026, 6, 15, 9, 0, 0, 0, time.UTC)
 	h.reopen()
-	early := h.add("entered in June")
+	early := h.ready("entered in June")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: early, Holder: "alka"})
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: early, State: doing})
 	// Doing holds one card, so the June card leaves before the August card
@@ -122,7 +122,7 @@ func TestOneActWitnessesEveryActPlaneTerm(t *testing.T) {
 
 	h.clock = time.Date(2026, 8, 10, 9, 0, 0, 0, time.UTC)
 	h.reopen()
-	inside := h.add("entered in August")
+	inside := h.ready("entered in August")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: inside, Holder: "alka"})
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: inside, State: doing})
 	// The August card moves on, so the query has to find the entry in the
@@ -291,11 +291,11 @@ func TestAnAtValueIsReadByTheQueryRatherThanByParseStamp(t *testing.T) {
 // does, and what a repeated field does.
 func TestTheParseRulesOfTheQueryLanguageHold(t *testing.T) {
 	h := newHarness(t)
-	first := h.add("first")
-	second := h.add("second")
+	first := h.ready("first")
+	second := h.ready("second")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: first, Holder: "alka"})
 	h.mustDo(&Request{Verb: Claim, Actor: "bo", Card: second, Holder: "bo"})
-	third := h.add("third")
+	third := h.ready("third")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: third, Holder: "alka"})
 	h.mustDo(&Request{Verb: Block, Actor: "alka", Card: third, Reason: "waiting on a ruling"})
 
@@ -367,7 +367,7 @@ func TestAFieldTokenCarryingAQuotationMarkIsMalformed(t *testing.T) {
 // empty value at all, because every recorded act carries a stamp.
 func TestTheEmptyValueAsksForAbsenceOnEveryFieldButAt(t *testing.T) {
 	h := newHarness(t)
-	held := h.add("held")
+	held := h.ready("held")
 	free := h.add("free")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: held, Holder: "alka"})
 	h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: free, Text: "a note"})
@@ -401,7 +401,7 @@ func TestTheEmptyValueAsksForAbsenceOnEveryFieldButAt(t *testing.T) {
 func TestWorkstreamMatchesByItsRegistryAsWellAsTheLiveCards(t *testing.T) {
 	h := newHarness(t)
 	both := h.add("in a and b")
-	sole := h.add("in c")
+	sole := h.ready("in c")
 	none := h.add("in nothing")
 	h.setWorkstreams(both, "a", "b")
 	h.setWorkstreams(sole, "c")
@@ -514,7 +514,7 @@ func TestAnArchivedCardIsOutOfReachOfAQuery(t *testing.T) {
 // is reported as ready rather than as active.
 func TestAQueryReadsALapsedClaimAsLapsed(t *testing.T) {
 	h := newHarness(t)
-	card := h.add("leased")
+	card := h.ready("leased")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: card, Holder: "alka", Expires: time.Hour})
 	wantRefs(t, "substate:active", h.ask("substate:active"), card)
 
@@ -529,7 +529,7 @@ func TestAQueryReadsALapsedClaimAsLapsed(t *testing.T) {
 // over an unchanged workbench return an identical sequence.
 func TestAQueryReturnsTheArrivalOrderAndRepeats(t *testing.T) {
 	h := newHarness(t)
-	first := h.add("first")
+	first := h.ready("first")
 	second := h.add("second")
 	third := h.add("third")
 	// A card's arrival is when it reached the state it stands in, so moving
@@ -586,7 +586,7 @@ func TestAQueryMatchingNothingCarriesAnEmptyArray(t *testing.T) {
 // query written against a slug keeps working when the state is renamed.
 func TestTheStateFieldsCompareOnTheResolvedIdentifier(t *testing.T) {
 	h := newHarness(t)
-	card := h.add("moving")
+	card := h.ready("moving")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: card, Holder: "alka"})
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: card, State: aftercareSlug})
 

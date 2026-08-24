@@ -19,7 +19,9 @@ type StateView struct {
 	Slug string `json:"slug,omitempty"`
 	// Title is the state's title.
 	Title string `json:"title"`
-	// Kind is one of intake, work and done.
+	// Kind is one the profile declares, which is intake, work or done, or
+	// one carrying a layer's prefix. TakesWorkUp answers the question a
+	// reader of this field usually means.
 	Kind string `json:"kind"`
 	// OperatorOwned marks a state only the operator moves a card out of.
 	OperatorOwned bool `json:"operator_owned"`
@@ -28,6 +30,10 @@ type StateView struct {
 	// answers a different question from OperatorOwned, which is about
 	// departure alone, and a state may carry both.
 	AwaitingOutside bool `json:"awaiting_outside"`
+	// TakesWorkUp says an owner takes work up at this state. A reader that
+	// wants the fact reads it here rather than deriving it from Kind, which is
+	// the whole point of publishing it.
+	TakesWorkUp bool `json:"takes_work_up"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
 	// Count is the number of live cards the state holds.
@@ -119,6 +125,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 			Kind:            state.Kind,
 			OperatorOwned:   state.OperatorOwned,
 			AwaitingOutside: state.AwaitingOutside,
+			TakesWorkUp:     state.TakesWorkUp(),
 			Capacity:        state.Capacity,
 			Count:           counts[state.ID],
 		}
@@ -184,6 +191,15 @@ type Offer struct {
 	// workbench, so it offers nothing whatever is standing there. It tells a
 	// reader an empty offer here means waiting rather than nothing ready.
 	AwaitingOutside bool `json:"awaiting_outside,omitempty"`
+	// NoTaker says no act can take a card up from this state, so it offers
+	// nothing whatever is standing there. AwaitingOutside beside it says the
+	// same thing and says who the workbench is waiting on, so a state carrying
+	// the flag sets both.
+	NoTaker bool `json:"no_taker,omitempty"`
+	// TakenByPull says the card offered leaves by a pull into the state beyond
+	// rather than by a claim here, because nobody takes work up where it
+	// stands. A reader that acts on an offer needs to know which act to use.
+	TakenByPull bool `json:"taken_by_pull,omitempty"`
 }
 
 // Next reports the card a state offers, and changes nothing. Offering a card
@@ -210,13 +226,22 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 	offers := make([]Offer, 0, len(states))
 	for _, state := range states {
 		offer := Offer{State: state.ID, Title: state.Title}
-		// A waiting state offers nothing whatever is ready there, because a
-		// claim would be refused, and an offer a claim refuses is an offer
-		// nobody can take.
-		if state.AwaitingOutside {
-			offer.AwaitingOutside = true
+		// A state offers its head card when some act could take that card up,
+		// and offers nothing when none could. A claim could take it where the
+		// state takes work up. A pull could take it where carriesInto names a
+		// state to carry it to, which is the function the pull itself reads,
+		// so the offer and the act cannot disagree.
+		//
+		// The lookup reads the whole flow rather than the states this request
+		// reports, since a named state's downstream is a fact about the
+		// workbench rather than about the request.
+		byPull := !state.TakesWorkUp() && carriesInto(state, l.Bench.States) != nil
+		if !state.TakesWorkUp() && !byPull {
+			offer.NoTaker = true
+			offer.AwaitingOutside = state.AwaitingOutside
 		} else if head := headOfReady(state.ID, cards); head != nil {
 			offer.Card = l.view(head)
+			offer.TakenByPull = byPull
 		}
 		offers = append(offers, offer)
 	}

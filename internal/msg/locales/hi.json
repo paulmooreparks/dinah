@@ -2448,6 +2448,46 @@
     "refusal.dinah.awaiting-outside.next": {
       "text": "; यदि आप कार्ड रखते हैं तो पहले उसे छोड़ें, या उत्तर आने पर उसे आगे बढ़ाएँ",
       "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused."
+    },
+    "states.work.none": {
+      "text": "कोई कार्य नहीं लिया जाता",
+      "context": "The value under the states listing's Work column on a state where no owner takes work up, which is an intake state, a done state and a dinah.buffer. A state that waits on somebody outside reads states.work.waiting instead, because that value also says who is being waited on."
+    },
+    "next.no-taker": {
+      "text": "यहाँ से कुछ नहीं लिया जाता",
+      "context": "Printed beside a state that offers no card because no act could take one up from there, in place of next.none, which says only that nothing is ready. A done state holding four ready cards prints this one."
+    },
+    "next.take.claim": {
+      "text": "लें",
+      "context": "The value under the offers listing's Take column on a card an owner takes up where it stands. It names the command a reader types, so it reads as the act rather than as a sentence about it."
+    },
+    "next.take.pull": {
+      "text": "खींचें",
+      "context": "The value under the offers listing's Take column on a card that leaves by a pull into the state beyond, because nobody takes work up where it stands. It names the command a reader types."
+    },
+    "column.next.take": {
+      "text": "लेना",
+      "context": "Heading over the act that takes the offered card, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "refusal.dinah.takes-no-work": {
+      "text": "स्थिति {detail} में कोई भी कार्य नहीं लेता, और कार्ड वहाँ तब तक प्रतीक्षा करता है जब तक कोई खींच उसे आगे की स्थिति में नहीं ले जाता",
+      "context": "The sentence printed after the refusal name dinah.takes-no-work. {detail} carries the state the refusal is about. A state that waits on somebody outside answers refusal.dinah.awaiting-outside instead, because that sentence also says who is being waited on."
+    },
+    "refusal.dinah.takes-no-work.next": {
+      "text": "; यदि आप कार्ड रखते हैं तो पहले उसे छोड़ें, और जब उस पर कार्य होना हो तो उसे आगे की स्थिति में खींचें",
+      "context": "Spliced onto refusal.dinah.takes-no-work as the next step. The two ways forward are the same whichever act was refused."
+    },
+    "check.claim-where-no-work-is-taken": {
+      "text": "एक कार्ड स्थिति {detail} में रखा गया है, जहाँ कोई कार्य नहीं लेता",
+      "context": "A check finding: no card is held at a state where no owner takes work up. {detail} carries the state, and the finding's own path names the card. The acts that would create the condition afresh are refused, so a card reported here was written before this build."
+    },
+    "check.kind-out-of-position": {
+      "text": "स्थिति {detail} एक ऐसा प्रकार रखती है जिसकी अनुमति प्रवाह में उसका स्थान नहीं देता",
+      "context": "A check finding: an intake state stands first, a done state stands in the run of done states at the end of the flow, and a dinah.buffer stands in neither place. {detail} carries the state, and the repair is an edit to workbench.md or to the state's own state.md."
+    },
+    "check.unknown-kind": {
+      "text": "स्थिति {detail} एक ऐसा प्रकार रखती है जिसे यह उपकरण लागू नहीं करता, और उसे work स्थिति के रूप में पढ़ा जाता है",
+      "context": "A check finding: a state carries a kind under a layer's prefix that this build does not implement. {detail} carries the state. CORE-STATE-12 requires such a state to be read as though its kind were work, and the sentence says so because nothing else tells a reader what happened."
     }
   }
 }

@@ -247,7 +247,7 @@ func TestAMoveIntoAWaitingStateNeedsAnUnheldCard(t *testing.T) {
 		t.Fatalf("the unheld move did not land, the card stands at %q", card.State)
 	}
 
-	held := h.add("still being worked")
+	held := h.readyAt("still being worked", doing)
 	h.mustDo(&Request{Verb: Claim, Card: held, Actor: "brin"})
 	response := h.do(&Request{Verb: Move, Card: held, Actor: "brin", State: aftercareSlug})
 	if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.AwaitingOutside {
@@ -324,7 +324,7 @@ func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
 		h.declare(doing, "awaiting_outside", "true")
 		occupant := h.add("already there")
 		h.at(occupant, doing)
-		arriving := h.add("arriving held")
+		arriving := h.readyAt("arriving held", aftercare)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
 
 		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: doing})
@@ -341,7 +341,7 @@ func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
 		// being absent.
 		h := newHarness(t)
 		h.declare(doing, "awaiting_outside", "true")
-		arriving := h.add("arriving held")
+		arriving := h.readyAt("arriving held", aftercare)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
 		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: doing})
 		if response.Refusal != contract.AwaitingOutside {
@@ -353,7 +353,7 @@ func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
 		h := newHarness(t)
 		h.declare(aftercare, "awaiting_outside", "true")
 		h.retire(aftercare)
-		arriving := h.add("arriving held")
+		arriving := h.readyAt("arriving held", doing)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
 
 		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: aftercareSlug})
@@ -368,7 +368,7 @@ func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
 		// passing because the retiring row stopped working.
 		h := newHarness(t)
 		h.retire(aftercare)
-		arriving := h.add("arriving held")
+		arriving := h.readyAt("arriving held", doing)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
 		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: aftercareSlug})
 		if response.Refusal != contract.Locked {

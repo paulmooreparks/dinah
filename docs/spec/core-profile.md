@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.4`, maturity channel `dev`.
+Version identity: `dinah-core 0.5`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -43,7 +43,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.4 of the profile whose identity string is
+This document is version 0.5 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -437,6 +437,11 @@ kind `intake`. Work happens at a state of kind `work`. A card that has
 finished its journey comes to rest at a state of kind `done`, and such a
 state is terminal.
 
+Those are the three kinds this profile declares, and a tool may mint another
+under a layer's prefix, as section 9 describes. A tool that meets a kind it
+does not implement reads the state as an ordinary `work` state, so a
+workbench carrying one still opens and its cards still move.
+
 A state may be operator-owned, which reserves departure from it to the
 operator. A workbench uses this where a person has to look at the work before
 it goes on, and it is the mechanism behind ACTOR-4.
@@ -452,7 +457,9 @@ resolving to two states resolves to neither.
 
 [CORE-STATE-2] Each state MUST carry a title.
 
-[CORE-STATE-3] Each state MUST carry exactly one kind from `intake`, `work` and `done`.
+[CORE-STATE-11] Each state MUST carry exactly one kind, either one this profile declares or one carrying a layer's prefix.
+
+[CORE-STATE-12] A tool that does not implement a kind carrying a layer's prefix MUST treat the state carrying it as though its kind were `work`.
 
 [CORE-STATE-4] A state MAY declare itself operator-owned.
 
@@ -1092,7 +1099,7 @@ quietly.
 | The owner and operator identity model | in | Every act names who took it, and several rules turn on whether that owner is the operator, so the concept cannot be deferred, and a workbench that designates none has reserved acts nobody can take. Whether a name is proved is left to deployment, which is what lets one tool serve one person and another serve many. | | CORE-OWNER-1, CORE-OWNER-2, CORE-OWNER-3 |
 | Recorded history | in | A workbench that cannot say who did what is not answerable, and the append-only rule is what makes the record worth reading. | | CORE-HIST-1, CORE-HIST-3, CORE-HIST-5 |
 | Self-contained references in history | in | History that resolved its names against the present would turn ordinary renaming into apparent corruption. | | CORE-HIST-4, CORE-HIST-6 |
-| State kinds | in | Where cards enter, where they are worked and where they come to rest are three different situations, and a tool has to tell them apart to know what to offer. | | CORE-STATE-3 |
+| State kinds | in | Where cards enter, where they are worked and where they come to rest are three different situations, and a tool has to tell them apart to know what to offer. A tool meeting a kind it does not implement has to keep the card movable rather than refuse the board, and reading such a state as an ordinary work state is the reading that constrains nothing. | | CORE-STATE-11, CORE-STATE-12 |
 | Terminal states | in | Somewhere the journey ends, and a tool that offered a forward move out of the end would be inviting a card into nowhere. | | CORE-STATE-9, CORE-MOVE-7 |
 | States a workbench reserves to its operator | in | Some positions exist so that a person looks at the work before it goes on, and a flow that could not express one would push that check outside the tool where nothing records it. | | CORE-STATE-4, CORE-MOVE-6 |
 | The capacity limit on a state | in | This is the capacity layer of the discipline, and it is what stops a state accepting more work than it can hold. It is optional per workbench, which is why the pull invariant above is stated separately rather than resting on it. | | CORE-STATE-5, CORE-MOVE-4, CORE-MOVE-5 |
@@ -1128,9 +1135,9 @@ quietly.
 | The link a card carries to another card | in | Owners record that one card repeats, follows from or bears on another whether or not the contract has a place for it, and a reference kept in prose is text to the second tool rather than a reference. The kind stays open on the same ground as a block's kind, since nothing in the core consults it, and the card a link names stays inside the workbench because the profile is scoped to one throughout. The behaviour such a reference might carry is a separate concept and is ruled out in the row below. | | CORE-LINK-1, CORE-LINK-2, CORE-LINK-3, CORE-LINK-4, CORE-LINK-5, CORE-LINK-6 |
 | Behaviour attached to a reference between cards [dependency ordering, ready-work listing] | out | The core would gain enforcement whose meaning each workbench sets differently, and what a workbench should do about a reference is exactly the judgement that differs between them. A tool that wants one card to hold another back declares a layer and refuses under that layer's own name, which CORE-LINK-5 leaves it free to do. | A relationship must refuse an act, such as one card holding another back. | |
 | Documents belonging to a workbench rather than a card | out | Standing prose already has a home in the workbench's instructions, so a second one would be a slot with no rule attached. | A document must be served differently from the standing instructions. | |
-| A state that buffers for a downstream state | out | The core already has capacity limits and arrival order, which is what a buffer is made of, and the extra kind would add a name without adding a rule. | A buffer needs a rule that a plain state cannot express. | |
+| A state that buffers for a downstream state | out | The core already has capacity limits and arrival order, which is what a buffer is made of, and the extra kind would add a name without adding a rule. One implementation now carries a buffer in a layer of its own, where the kind does carry a rule a plain state cannot express: no owner takes work up there, and a pull carries the card through into the station beyond. The reopen condition this row used to carry has therefore fired, and the row records the firing rather than acting on it, because the promotion path outranks a reopen condition and nothing joins the core vocabulary that did not work somewhere first. The condition now standing beside this row is the one its neighbour already uses. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
 | Charging a downstream state's budget at the moment a card is taken from a buffer | out | The core has no notion of a budget, so there is nothing yet to charge. | A budget enters the core, at which point the moment it is charged matters. | |
-| A state where the workbench waits on somebody outside it | out | The core has no rule for this, and the convention that stood in for one, a state whose cards nobody claims, holds only while every owner is a person who knows the convention. An automated owner takes up whatever is waiting, so a workbench reaches for the block instead, which records a routine handoff as an impediment and hands the ordinary way onward to whoever answers for the workbench. That is the block verb failing to express a routine handoff, which is what the reopen condition this row used to carry named, so the trigger has fired and is being recorded rather than acted on: the promotion path, under which nothing joins the core vocabulary that did not work somewhere first, is an independent constraint that outranks a reopen condition, and the honest answer to a trigger a standing rule forbids acting on is a better-specified condition, which is the one now standing beside this row. The earlier reason's second clause survives untouched, since a distinct kind would still add machinery for the same result, and that is the argument against a fourth state kind. One implementation now carries the concept outside the core, as a property of a state rather than a kind of state, and the core waits on that rather than naming it first. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
+| A state where the workbench waits on somebody outside it | out | The core has no rule for this, and the convention that stood in for one, a state whose cards nobody claims, holds only while every owner is a person who knows the convention. An automated owner takes up whatever is waiting, so a workbench reaches for the block instead, which records a routine handoff as an impediment and hands the ordinary way onward to whoever answers for the workbench. That is the block verb failing to express a routine handoff, which is what the reopen condition this row used to carry named, so the trigger has fired and is being recorded rather than acted on: the promotion path, under which nothing joins the core vocabulary that did not work somewhere first, is an independent constraint that outranks a reopen condition, and the honest answer to a trigger a standing rule forbids acting on is a better-specified condition, which is the one now standing beside this row. The earlier reason's second clause survives, narrowed to the concept this row rules on: a distinct kind would still add machinery for the same result, and that is the argument against a fourth state kind for waiting on somebody outside. It does not reach a kind carrying a rule no flag expresses, such as a state a pull carries cards through, since the flag stops a pull taking a card out and that kind exists so that a pull can. One implementation now carries the concept outside the core, as a property of a state rather than a kind of state, and the core waits on that rather than naming it first. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
@@ -1271,7 +1278,8 @@ themselves carry meaning.
 | CORE-BENCH-4 | must | tool | A definition declaring a major number the tool does not implement is refused with `unsupported-version`. |
 | CORE-STATE-1 | must | tool | A definition carrying two states under one identifier is refused with `malformed`. |
 | CORE-STATE-2 | must | tool | A definition carrying a state with no title is refused with `malformed`. |
-| CORE-STATE-3 | must | tool | A definition carrying a state whose kind is outside the three is refused with `malformed`. |
+| CORE-STATE-11 | must | tool | A definition carrying a state whose kind is neither one this profile declares nor one carrying a layer's prefix is refused with `malformed`. |
+| CORE-STATE-12 | must | tool | A workbench carrying a state whose kind the tool does not implement opens, and that state behaves as a `work` state. |
 | CORE-STATE-4 | may | tool | A definition marking a state operator-owned is accepted. |
 | CORE-STATE-5 | may | tool | A definition declaring a capacity limit is accepted. |
 | CORE-STATE-6 | must | tool | Reordering the state list reorders the flow the tool reports, with nothing else changed. |
@@ -1539,3 +1547,32 @@ DOC-VER-3, DOC-VER-5, and DOC-ORDER-1, so while the major number is 0, a
 retirement, a reorder, or a change the other rules cannot classify moves the
 minor number and leaves the major number where it is. The document sits on the `dev` channel, so nothing
 here binds a caller who has not already opted into `dinah-core 0.4`.
+### 0.5, channel `dev`, 2026-08-24
+
+Identifiers affected: CORE-STATE-3, retired. CORE-STATE-11, introduced,
+carrying CORE-STATE-3's demand that a state carry exactly one kind, with the
+vocabulary widened from the three this profile declares to those three and
+any kind carrying a layer's prefix. CORE-STATE-12, introduced: a tool that
+does not implement a kind carrying a layer's prefix reads the state carrying
+it as a `work` state. No other identifier in the section 11 index is
+affected.
+
+CORE-STATE-3 is retired because it fixed the vocabulary of kinds at three and
+left a tool with a fourth situation to express no way to say so. Section 9
+already lets a tool declare a layer and mint a name under its prefix, and a
+refusal name is minted that way today, so the ground CORE-STATE-11 opens for
+a kind is ground the profile had already given for a name. CORE-STATE-12 is
+what makes such a kind safe for a second tool to meet: `work` is the kind
+that constrains nothing, so a tool reading a board it does not fully
+understand permits what it permits today rather than refusing a card its
+owner can still move.
+
+Consequence for a caller. A tool may now carry a state whose kind is neither
+`intake`, `work` nor `done`, provided the kind carries its layer's prefix, and
+a definition carrying a bare fourth word is still refused with `malformed` as
+it was before. A tool that meets a prefixed kind it does not implement opens
+the workbench and treats that state as a `work` state, so no board becomes
+unreadable and no card becomes unmovable on account of a kind. A tool that
+mints no kind of its own sees no change at all. The document sits on the
+`dev` channel, so nothing here binds a caller who has not already opted into
+`dinah-core 0.5`.

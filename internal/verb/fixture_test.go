@@ -22,6 +22,7 @@ const (
 	review    = "a00000000003"
 	finished  = "a00000000004"
 	aftercare = "a00000000005"
+	closed    = "a00000000006"
 
 	// aftercareSlug is what a person types for the aftercare state, derived
 	// from its fixture title the same way Instantiate derives it at
@@ -32,8 +33,13 @@ const (
 
 // fixtureDefinition is the interchange form of the bench every test starts
 // from: an intake station, a working station limited to one card, an
-// operator-owned review station, a done station, and one station past the
-// done station, so that a forward move out of a done state is reachable.
+// operator-owned review station, a fourth station, and two done states, so
+// that a forward move out of a done state is reachable.
+//
+// The two done states stand together at the end because a done state stands
+// in the terminal region of the flow and nothing that is not done stands
+// after one. A fixture that reached a forward move out of a done state by
+// putting an ordinary station past it would be a board dinah check reports.
 const fixtureDefinition = `{
   "profile": "dinah-core/1.0",
   "title": "Fixture",
@@ -45,10 +51,12 @@ const fixtureDefinition = `{
       "instructions": "Doing instructions.\n" },
     { "id": "a00000000003", "title": "Review", "kind": "work",
       "operator_owned": true, "instructions": "Review instructions.\n" },
+    { "id": "a00000000005", "title": "Aftercare", "kind": "work",
+      "instructions": "Aftercare instructions.\n" },
     { "id": "a00000000004", "title": "Finished", "kind": "done",
       "instructions": "Finished instructions.\n" },
-    { "id": "a00000000005", "title": "Aftercare", "kind": "work",
-      "instructions": "Aftercare instructions.\n" }
+    { "id": "a00000000006", "title": "Closed", "kind": "done",
+      "instructions": "Closed instructions.\n" }
   ]
 }`
 
@@ -117,6 +125,26 @@ func (h *harness) add(title string) string {
 	}
 	h.reopen()
 	return response.Card.Ref
+}
+
+// ready files a card and leaves it standing ready at the aftercare station,
+// which is where a test that goes on to claim it needs the card: no owner
+// takes work up at an intake state, so a claim there is refused. Aftercare is
+// the fixture's one plain station with no capacity limit and no operator
+// owner, so a card parked there meets no other row of the move's list on the
+// way.
+func (h *harness) ready(title string) string {
+	h.t.Helper()
+	return h.readyAt(title, aftercare)
+}
+
+// readyAt is ready with the station named, for a test whose own subject is
+// the station ready would otherwise have parked the card at.
+func (h *harness) readyAt(title, state string) string {
+	h.t.Helper()
+	ref := h.add(title)
+	h.at(ref, state)
+	return ref
 }
 
 // comment writes a comment on a card and fails the test unless it was written.

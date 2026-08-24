@@ -355,7 +355,7 @@ func TestRetiringTheLastStateIsRefused(t *testing.T) {
 	}
 
 	h := newHarness(t)
-	for _, id := range []string{doing, review, finished, aftercare} {
+	for _, id := range []string{doing, review, finished, aftercare, closed} {
 		response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: id})
 		if response.Outcome != contract.OutcomeOK {
 			t.Fatalf("archive %s: %s %s", id, response.Outcome, response.Refusal)
@@ -453,7 +453,7 @@ func TestInterchangeRoundTrip(t *testing.T) {
 	}
 
 	// A field the profile does not define survives on a card too.
-	ref := h.add("extended")
+	ref := h.ready("extended")
 	card := h.card(ref)
 	card.FM.Set("acme.table", "seven")
 	if err := card.Save(); err != nil {
@@ -475,7 +475,7 @@ func TestInterchangeRoundTrip(t *testing.T) {
 // form of the property waits on the card that settles it.
 func TestExtractReproducesTheDefinition(t *testing.T) {
 	h := newHarness(t)
-	ref := h.add("work that stays behind")
+	ref := h.ready("work that stays behind")
 	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
 
 	target := filepath.Join(t.TempDir(), "template")
@@ -749,7 +749,7 @@ func TestGuidesAreServedAndNeverSeeded(t *testing.T) {
 	}
 
 	h := newHarness(t)
-	ref := h.add("ordinary work")
+	ref := h.ready("ordinary work")
 	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
 	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: doing})
 	needle := strings.SplitN(strings.TrimPrefix(first, "# "), "\n", 2)[0]
@@ -856,7 +856,7 @@ func TestOutcomesAndExitCodes(t *testing.T) {
 // accepted with a warning.
 func TestStalePrefixWarnsRatherThanRefuses(t *testing.T) {
 	h := newHarness(t)
-	ref := h.add("renamed workbench")
+	ref := h.ready("renamed workbench")
 	number := strings.TrimPrefix(ref, "fx-")
 	response := h.do(&Request{Verb: Claim, Card: "yokoten-" + number, Actor: "alka"})
 	if response.Outcome != contract.OutcomeOK {
@@ -2058,7 +2058,7 @@ func TestSetWorkbenchWritesUnderOneLockAndJournalsWhatChanged(t *testing.T) {
 		}
 	}
 	// The structural keys and the standing text the command never names.
-	if h.library.Bench.Profile == "" || h.library.Bench.Format == 0 || len(h.library.Bench.States) != 5 {
+	if h.library.Bench.Profile == "" || h.library.Bench.Format == 0 || len(h.library.Bench.States) != 6 {
 		t.Errorf("a write disturbed the structural keys: profile %q, format %d, %d states",
 			h.library.Bench.Profile, h.library.Bench.Format, len(h.library.Bench.States))
 	}

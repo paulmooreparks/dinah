@@ -139,7 +139,7 @@ func holds(values []string, wanted string) bool {
 // "reports nothing" from "there was nothing".
 func TestAFirstCheckpointMintsACursorAndReportsNothing(t *testing.T) {
 	h := newHarness(t)
-	first := h.add("A card")
+	first := h.ready("A card")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: first, Holder: "alka"})
 	h.comment(first, "a note the history carries")
 
@@ -554,7 +554,7 @@ func TestATornOrShrunkenJournalDoesNotFailTheCall(t *testing.T) {
 // fingerprinted on either side of a call.
 func TestACheckpointWritesNothing(t *testing.T) {
 	h := newHarness(t)
-	ref := h.add("A card somebody is holding")
+	ref := h.ready("A card somebody is holding")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref, Holder: "alka", Expires: time.Minute})
 	h.add("A second card")
 	minted := h.mint()

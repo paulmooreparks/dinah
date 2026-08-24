@@ -58,7 +58,7 @@ const StorageFormat = 1
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 4
+	ProfileMinor = 5
 )
 
 // The oldest profile revision this build opens. Every workbench any build of
@@ -112,7 +112,10 @@ type State struct {
 	// It is empty on a state written before the field existed, which is what
 	// the slug migration fills in.
 	Slug string
-	// Kind is one of intake, work and done.
+	// Kind is one the profile declares, which is intake, work or done, or
+	// one a layer mints under its own prefix. TakesWorkUp answers the
+	// question a reader of this field usually means, and a reader that wants
+	// that answer reads it there rather than comparing this value.
 	Kind string
 	// OperatorOwned marks a state an owner other than the operator may not
 	// move a card out of.
@@ -141,6 +144,64 @@ func (s *State) Ref() string {
 		return s.Slug
 	}
 	return s.ID
+}
+
+// TakesWorkUp reports whether an owner takes work up at this state. A card
+// standing where no work is taken up waits there and is carried on by a
+// pull, so no claim is taken and no card is held.
+func (s *State) TakesWorkUp() bool {
+	if s.AwaitingOutside {
+		return false
+	}
+	switch s.Kind {
+	case contract.KindIntake, contract.KindDone, contract.KindBuffer:
+		return false
+	}
+	return true
+}
+
+// Terminal reports whether a card's journey ends at this state, which is
+// the question CORE-STATE-9 and CORE-MOVE-7 turn on when they refuse a
+// forward move out of one.
+func (s *State) Terminal() bool {
+	return s.Kind == contract.KindDone
+}
+
+// PullCanTakeFrom reports whether a pull may carry a card out of this state
+// into the state beyond it. It is false at a terminal state, because a pull
+// makes a forward move and CORE-STATE-9 refuses one there, and false where
+// the workbench waits on somebody outside, because the card leaves when
+// that person answers rather than when somebody pulls. It is true at a
+// buffer, which is what a buffer is for.
+func (s *State) PullCanTakeFrom() bool {
+	return !s.Terminal() && !s.AwaitingOutside
+}
+
+// Substates returns the substates a card standing at this state may carry,
+// in the order ready, active, blocked. A state that takes work up holds all
+// three; a state that does not holds ready and blocked, because a block is
+// a statement about the card rather than about a worker and stays
+// meaningful wherever the card stands.
+//
+// The slice is fresh on each call, so a caller may sort or trim it without
+// reaching the next caller.
+func (s *State) Substates() []string {
+	if s.TakesWorkUp() {
+		return []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+	}
+	return []string{contract.SubstateReady, contract.SubstateBlocked}
+}
+
+// HoldsSubstate reports whether a card standing at this state may carry the
+// named substate. It is Substates read for one member, which is the question
+// a caller with a card in hand asks.
+func (s *State) HoldsSubstate(substate string) bool {
+	for _, held := range s.Substates() {
+		if held == substate {
+			return true
+		}
+	}
+	return false
 }
 
 // ErrAborted is what a test's step hook returns to stand for a process that
@@ -1036,8 +1097,14 @@ func readState(root, id string, position int) (*State, error) {
 	if state.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 	}
-	switch state.Kind {
-	case contract.KindIntake, contract.KindWork, contract.KindDone:
+	// CORE-STATE-11 admits a kind the profile declares and a kind carrying a
+	// layer's prefix, and nothing else, so a bare fourth word is malformed
+	// where a dotted one is read. A kind this build does not implement reads
+	// as a work state under CORE-STATE-12, which is what TakesWorkUp answers
+	// for it.
+	switch {
+	case state.Kind == contract.KindIntake, state.Kind == contract.KindWork, state.Kind == contract.KindDone:
+	case strings.Contains(state.Kind, "."):
 	default:
 		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 	}
