@@ -87,7 +87,7 @@
     "check-types": "npm run generate && tsc --noEmit",
     "lint": "eslint src test",
     "compile-tests": "npm run generate && tsc --project tsconfig.test.json",
-    "test:unit": "npm run compile-tests && node --test \"out/test/unit/*.test.js\"",
+    "test:unit": "npm run compile-tests && node scripts/run-unit-tests.mjs",
     "test:integration": "npm run compile-tests && npm run compile && node out/test/integration/runTest.js",
     "package": "npm run check-types && npm run lint && npm run compile && node scripts/package.mjs",
     "verify-package": "node scripts/verify-package.mjs",

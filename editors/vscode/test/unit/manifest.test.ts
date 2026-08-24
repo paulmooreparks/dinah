@@ -101,6 +101,24 @@ test("the extension version is major.minor.patch, which is all the marketplace a
 	assert.match(String(manifest.version), /^\d+\.\d+\.\d+$/);
 });
 
+test("the unit layer runs through the guard that refuses an empty run", () => {
+	// The script this replaced handed a quoted glob to `node --test`, which
+	// the pinned CI version could not expand, so the whole layer matched no
+	// files on a runner. The guard enumerates the compiled files itself and
+	// reads the run's own count back. A revert to any form that describes the
+	// files by pattern brings the silent-empty-run failure back with it, and
+	// this is the only thing that would notice.
+	const scripts = manifest.scripts as Record<string, string>;
+	assert.ok(
+		scripts["test:unit"].includes("scripts/run-unit-tests.mjs"),
+		`test:unit no longer runs through the guard: ${scripts["test:unit"]}`,
+	);
+	assert.ok(
+		!scripts["test:unit"].includes("*"),
+		`test:unit describes its files with a pattern again: ${scripts["test:unit"]}`,
+	);
+});
+
 test("the version's major and minor come from the repository's VERSION file", () => {
 	const base = readFileSync(join(extensionRoot, "..", "..", "VERSION"), "utf8").trim();
 	assert.ok(
