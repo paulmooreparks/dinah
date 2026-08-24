@@ -49,16 +49,27 @@
       },
       {
         "view": "dinah.workbenchView",
-        "when": "dinah.workbench == 'none'",
+        "when": "dinah.binary == 'ok' && dinah.workbench == 'none'",
         "contents": "No workbench was found from this folder. Run `dinah init` in a terminal to create one, or set `dinah.workbench` to the directory of one you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
       },
       {
         "view": "dinah.workbenchView",
-        "when": "dinah.workbench == 'ambiguous'",
+        "when": "dinah.binary == 'ok' && dinah.workbench == 'ambiguous'",
         "contents": "Several workbenches are reachable from here. Set `dinah.workbench` to the one you mean.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
       },
       {
         "view": "dinah.workbenchView",
+        "when": "dinah.binary == 'ok' && dinah.workbench == 'ok'",
+        "contents": "Dinah found a workbench for this folder. The status bar names it, and its tooltip says where the workbench is and which `dinah` binary this window is driving.\n\nThis release does not draw the board in this view yet. Run `dinah` in a terminal to work the board until it does."
+      },
+      {
+        "view": "dinah.workbenchView",
+        "when": "dinah.binary == 'ok' && dinah.workbench == 'unknown'",
+        "contents": "Dinah has a binary for this window but no workbench to go with it. Open a folder to work from, or open the Dinah output channel to read what `dinah` reported.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+      },
+      {
+        "view": "dinah.workbenchView",
+        "when": "dinah.binary != 'missing' && dinah.binary != 'ok'",
         "contents": "Looking for a dinah binary and a workbench.\n\nThis text is replaced as soon as the extension has an answer. If it stays, open the Dinah output channel to see what happened."
       }
     ],

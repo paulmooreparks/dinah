@@ -108,9 +108,16 @@ test("the paired release is displayed", () => {
 	assert.ok(view.tooltip.includes("extension paired with dinah v0.1.0-dev.42"));
 });
 
-test("the context keys drive the three welcome cases", () => {
+test("the context keys drive every welcome case", () => {
 	assert.deepEqual(composeContextKeys({ state: "no-binary" }, undefined), {
 		binary: "missing",
+		workbench: "unknown",
+	});
+	// A window with a usable binary and no folder to resolve from. The
+	// manifest gives this state a block of its own, so it is composed here
+	// rather than left to fall through to the pre-activation text.
+	assert.deepEqual(composeContextKeys(GOOD_BINARY, undefined), {
+		binary: "ok",
 		workbench: "unknown",
 	});
 	assert.deepEqual(

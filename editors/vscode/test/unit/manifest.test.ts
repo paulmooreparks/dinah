@@ -20,6 +20,7 @@ import {
 	VIEW_CONTAINER_ID,
 	VIEW_ID,
 } from "../../src/identity";
+import { BINARY_KEY_VALUES, WORKBENCH_KEY_VALUES } from "../../src/status";
 
 // This file is compiled to out/test/unit/, so the extension root is three up.
 const extensionRoot = join(__dirname, "..", "..", "..");
@@ -28,6 +29,64 @@ const manifest = JSON.parse(
 ) as Record<string, unknown>;
 
 const contributes = manifest.contributes as Record<string, unknown>;
+
+interface WelcomeBlock {
+	readonly view: string;
+	readonly when?: string;
+	readonly contents: string;
+}
+
+/** The context key values a window can be in, with undefined meaning unset. */
+interface KeyState {
+	readonly binary?: string;
+	readonly workbench?: string;
+}
+
+function welcomeBlocks(): WelcomeBlock[] {
+	return (contributes.viewsWelcome as WelcomeBlock[]).filter(
+		(block) => block.view === VIEW_ID,
+	);
+}
+
+// The `when` grammar these blocks are held to. Restricting it is what makes
+// the exclusivity proof below a proof rather than a sampling: every clause is
+// an equality or an inequality against a literal, joined by `and`, so a state
+// decides every clause with no evaluation order and no truthiness of an unset
+// key involved.
+const TERM = /^(\S+) (==|!=) '([^']*)'$/;
+
+function evaluate(when: string | undefined, state: KeyState): boolean {
+	if (when === undefined) {
+		return true;
+	}
+	return when.split("&&").every((raw) => {
+		const term = TERM.exec(raw.trim());
+		assert.ok(term, `welcome clause outside the supported grammar: ${raw.trim()}`);
+		const [, key, operator, literal] = term;
+		const held =
+			key === "dinah.binary"
+				? state.binary
+				: key === "dinah.workbench"
+					? state.workbench
+					: assert.fail(`welcome clause reads an unknown context key: ${key}`);
+		return operator === "==" ? held === literal : held !== literal;
+	});
+}
+
+/** Every state a window can be in, unset keys first. */
+function everyState(): KeyState[] {
+	const states: KeyState[] = [{}];
+	for (const binary of BINARY_KEY_VALUES) {
+		for (const workbench of WORKBENCH_KEY_VALUES) {
+			states.push({ binary, workbench });
+		}
+	}
+	return states;
+}
+
+function describeState(state: KeyState): string {
+	return `binary=${state.binary ?? "(unset)"} workbench=${state.workbench ?? "(unset)"}`;
+}
 
 test("the manifest and identity.ts spell the same extension identifier", () => {
 	assert.equal(manifest.publisher, PUBLISHER);
@@ -58,28 +117,76 @@ test("the view container and its single view carry the declared ids", () => {
 	assert.equal(views[VIEW_CONTAINER_ID][0].id, VIEW_ID);
 });
 
-test("a welcome block with no when clause covers the interval before activate() returns", () => {
-	// All three case-specific blocks are gated on a context key the extension
-	// sets after it has activated. Between onView firing and activate()
-	// returning, no case matches, and without this block the view is blank in
-	// exactly the window the welcome text exists for.
-	const welcome = contributes.viewsWelcome as { view: string; when?: string }[];
-	const unconditional = welcome.filter(
-		(block) => block.view === VIEW_ID && block.when === undefined,
-	);
-	assert.equal(unconditional.length, 1);
+test("exactly one welcome block matches in every state a window can be in", () => {
+	// The defect this pins is a state with no block of its own. A window that
+	// resolved a binary and a workbench matched none of the case-specific
+	// blocks, fell through to an unconditional block, and told a reader whose
+	// extension was working perfectly that it was still looking. Nothing
+	// noticed, because three of the four states were specified and the fourth
+	// was the one that shipped.
+	//
+	// Exactly one, rather than at least one, is the load-bearing half. The
+	// contribution-points documentation does not say whether VS Code renders
+	// the first matching block or concatenates every match, so a repair that
+	// overlapped two blocks would be correct only by undocumented behaviour.
+	// Blocks that cannot overlap never ask the question.
+	const blocks = welcomeBlocks();
+	for (const state of everyState()) {
+		const matched = blocks.filter((block) => evaluate(block.when, state));
+		assert.equal(
+			matched.length,
+			1,
+			`${matched.length} welcome blocks match ${describeState(state)}, wanted 1`,
+		);
+	}
 });
 
-test("every conditional welcome block is gated on a key the extension actually sets", () => {
-	const welcome = contributes.viewsWelcome as { view: string; when?: string }[];
-	const clauses = welcome
-		.map((block) => block.when)
-		.filter((when): when is string => when !== undefined);
-	assert.deepEqual(clauses, [
-		"dinah.binary == 'missing'",
-		"dinah.workbench == 'none'",
-		"dinah.workbench == 'ambiguous'",
-	]);
+test("each resolved state renders its own text, and none renders the still-looking text", () => {
+	// The four states the spec names, plus the interval before activate() has
+	// set either key. Each of the five reaches different contents, so no
+	// resolved window can be shown the text written for a window that has not
+	// answered yet.
+	const blocks = welcomeBlocks();
+	const contentsFor = (state: KeyState): string => {
+		const matched = blocks.filter((block) => evaluate(block.when, state));
+		assert.equal(matched.length, 1, `no single block for ${describeState(state)}`);
+		return matched[0].contents;
+	};
+
+	const stillLooking = contentsFor({});
+	const named: [string, KeyState][] = [
+		["no usable binary", { binary: "missing", workbench: "unknown" }],
+		["no workbench found", { binary: "ok", workbench: "none" }],
+		["several workbenches", { binary: "ok", workbench: "ambiguous" }],
+		["workbench-resolved", { binary: "ok", workbench: "ok" }],
+	];
+
+	const seen = new Map<string, string>();
+	for (const [label, state] of named) {
+		const contents = contentsFor(state);
+		assert.notEqual(
+			contents,
+			stillLooking,
+			`the ${label} state still renders the pre-activation text`,
+		);
+		const earlier = seen.get(contents);
+		assert.equal(
+			earlier,
+			undefined,
+			`the ${label} state renders the same text as the ${String(earlier)} state`,
+		);
+		seen.set(contents, label);
+	}
+});
+
+test("every welcome clause reads only the two keys the extension sets", () => {
+	// evaluate() fails on a clause outside the grammar or on an unknown key,
+	// so running one state through every block is what checks them.
+	const blocks = welcomeBlocks();
+	for (const block of blocks) {
+		evaluate(block.when, { binary: "ok", workbench: "ok" });
+	}
+	assert.ok(blocks.length > 0);
 });
 
 test("the two settings are contributed with the scopes their subjects need", () => {

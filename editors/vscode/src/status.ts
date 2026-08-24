@@ -20,12 +20,28 @@ export interface StatusView {
 	readonly tooltip: string;
 }
 
+/**
+ * Every value the `dinah.binary` context key can hold. It reads "missing" when
+ * no usable binary was found and "ok" otherwise.
+ *
+ * The welcome blocks in package.json partition the product of this set and the
+ * one below, and the manifest test enumerates that product from these two
+ * arrays rather than from a list somebody typed out again. A value added here
+ * with no welcome block to receive it turns that test red, because the state it
+ * names would match no block at all.
+ */
+export const BINARY_KEY_VALUES = ["missing", "ok"] as const;
+
+/** Every value the `dinah.workbench` context key can hold. */
+export const WORKBENCH_KEY_VALUES = ["none", "ambiguous", "ok", "unknown"] as const;
+
+export type BinaryKey = (typeof BINARY_KEY_VALUES)[number];
+export type WorkbenchKey = (typeof WORKBENCH_KEY_VALUES)[number];
+
 /** The context key values the welcome view's `when` clauses read. */
 export interface ContextKeys {
-	/** "missing" when no usable binary was found, "ok" otherwise. */
-	readonly binary: string;
-	/** "none", "ambiguous", "ok" or "unknown". */
-	readonly workbench: string;
+	readonly binary: BinaryKey;
+	readonly workbench: WorkbenchKey;
 }
 
 const HIDDEN: StatusView = { hidden: true, text: "", tooltip: "" };
