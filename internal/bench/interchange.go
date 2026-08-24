@@ -28,7 +28,7 @@ var knownBenchKeys = map[string]bool{
 // under a name of its own.
 var knownStateKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
-	"slug": true,
+	"slug": true, "awaiting_outside": true,
 }
 
 // Export writes the interchange form of a bench definition.
@@ -84,6 +84,12 @@ func exportState(state *State) map[string]json.RawMessage {
 	}
 	if state.OperatorOwned {
 		element["operator_owned"] = mustMarshal(true)
+	}
+	// The member is written only where the flag is set, so a state that does
+	// not declare it exports as a state that never heard of it, which is the
+	// same shape operator_owned carries above.
+	if state.AwaitingOutside {
+		element["awaiting_outside"] = mustMarshal(true)
 	}
 	if state.Capacity > 0 {
 		element["capacity"] = mustMarshal(state.Capacity)
@@ -309,6 +315,12 @@ func writeStateFromMember(root, id, slug string, element map[string]json.RawMess
 	if raw, ok := element["operator_owned"]; ok {
 		if err := json.Unmarshal(raw, &operatorOwned); err == nil && operatorOwned {
 			fm.Set("operator_owned", "true")
+		}
+	}
+	var awaitingOutside bool
+	if raw, ok := element["awaiting_outside"]; ok {
+		if err := json.Unmarshal(raw, &awaitingOutside); err == nil && awaitingOutside {
+			fm.Set("awaiting_outside", "true")
 		}
 	}
 	var capacity int

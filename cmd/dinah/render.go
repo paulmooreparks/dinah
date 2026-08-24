@@ -218,7 +218,7 @@ func (s *session) yesNo(value bool) string {
 
 // renderStates prints the flow in order with each station's occupancy.
 func (s *session) renderStates(states []verb.StateView) {
-	t := table{indent: 2, columns: s.columns("states", "slug", "name", "kind", "cards", "owner")}
+	t := table{indent: 2, columns: s.columns("states", "slug", "name", "kind", "cards", "work", "owner")}
 	for _, state := range states {
 		count := strconv.Itoa(state.Count)
 		if state.Capacity > 0 {
@@ -228,7 +228,15 @@ func (s *session) renderStates(states []verb.StateView) {
 		if state.OperatorOwned {
 			owner = s.r.T("states.moved-by.operator")
 		}
-		fields := []string{s.slugCell(state.Slug), state.Title, s.token(state.Kind), count, owner}
+		// The Work cell answers whether work is taken up at the station and
+		// the Owner cell answers who may move a card out of it. They are two
+		// questions, so they are two cells, and a waiting state that nobody
+		// owner-owns still reads agent under Owner.
+		work := s.r.T("states.work.taken")
+		if state.AwaitingOutside {
+			work = s.r.T("states.work.waiting")
+		}
+		fields := []string{s.slugCell(state.Slug), state.Title, s.token(state.Kind), count, work, owner}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -415,7 +423,15 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	t := table{indent: 2, columns: s.columns("next", "state", "card", "title")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			t.rows = append(t.rows, tableRow{fields: []string{offer.Title, s.r.T("next.none")}})
+			// A state that waits on somebody outside reads differently from
+			// one that merely has nothing ready, because the two are
+			// different facts and only one of them changes when a card
+			// arrives.
+			absent := s.r.T("next.none")
+			if offer.AwaitingOutside {
+				absent = s.r.T("next.awaiting-outside")
+			}
+			t.rows = append(t.rows, tableRow{fields: []string{offer.Title, absent}})
 			continue
 		}
 		fields := []string{offer.Title, offer.Card.Ref, offer.Card.Title}

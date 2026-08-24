@@ -325,8 +325,9 @@ ascending creation ordinal, which for a card is the `number` it was born
 with. Severity and priority are declared, visible, and filterable, but
 neither takes part in that order. CORE-QUEUE-4 lets a tool offer another
 order alongside the fixed one, and a priority-ordered pull would be such an
-order, not a replacement for it. A pull honors the destination's WIP limit
-and never takes a card out of an operator-owned state.
+order, not a replacement for it. A pull honors the destination's WIP limit,
+never takes a card out of an operator-owned state, and neither takes a card
+out of nor lands one in a state that waits on somebody outside the workbench.
 
 Removal has two shapes with different promises. Archiving moves the card's
 whole directory to `archive/cards/<id>/`, history and all; see Archive
@@ -369,6 +370,33 @@ Each `states/<id>/state.md` carries the state's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
 of `intake`, `work`, `done`. A state marked operator-owned is one an agent
 never moves a card out of; only the operator does.
+
+A state may declare `awaiting_outside: true`, which says the workbench waits
+at that state on somebody who is not an owner of it: a reviewer, a customer, a
+supplier. No owner takes work up there, so a claim is refused, `dinah next`
+offers nothing from the state, and a pull neither takes a card out of it nor
+lands one in it. A card standing there is `ready` in the ordinary way and
+carries no block, and departure stays an ordinary move open to any owner, which
+is what separates this flag from `operator_owned` beside it: one answers whether
+work is taken up at the station, the other answers who may move a card on from
+it. A state may declare both, and then the workbench waits there and only the
+operator moves the card onward. Absent means false, and the value is exactly
+`true` or `false`, following `wip_limit` below rather than `operator_owned`,
+whose lenient reading takes anything else for false and says nothing about it.
+
+Andoneer, the other implementation of the shared contract, carries the same idea
+as `external_wait`, one of its eight column kinds. The spellings differ on
+purpose: that one is a kind of station and this one is a property of one, so an
+identical name would claim an identity the two structures do not have. The
+divergence is recorded here rather than left for somebody to discover.
+
+`awaiting_outside` travels through interchange as a member of its own on the
+state element, written only where the flag is set. CORE-JSON-9 lists the state
+members the profile blesses and does not list this one, which is correct rather
+than a defect: to another tool it is an unrecognized member, and CORE-JSON-7
+obliges that tool to preserve it. The concept's boundary-table row in section 10
+of the profile is ruled out, with the reason and the reopen condition that go
+with staying out.
 
 A state may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the state regardless of substate, because a blocked

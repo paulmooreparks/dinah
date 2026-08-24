@@ -241,11 +241,11 @@ where you put it.
 
 ```console
 $ dinah states
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0      agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work   Owner
+  ------  ------  ------  -----  -----  -----
+  intake  Intake  intake  0      taken  agent
+  doing   Doing   work    0      taken  agent
+  done    Done    done    0      taken  agent
 [exit 0]
 ```
 
@@ -255,10 +255,28 @@ count is how many cards stand there. Dinah runs the flow in the order
 `workbench.md` lists the states. When you move a card to a later state you move
 it forward, and when you move it to an earlier state you move it backward.
 
-That last column says who may move a card out of the state. It reads `agent` for
+The last column says who may move a card out of the state. It reads `agent` for
 a state anybody can work and `operator` for one where the departure is the
 operator's alone, and you choose the second by writing `operator_owned: true`
 into the state's own file. Every state starts out an agent's.
+
+The column before it says whether work is taken up at the state at all. It reads
+`taken` for an ordinary state, and `waiting` for one where the workbench is
+waiting on somebody outside it: a reviewer, a customer, a supplier. You choose
+the second by writing `awaiting_outside: true` into the state's own file. Nobody
+claims a card there, `dinah next` offers nothing from it, and `dinah pull`
+neither takes a card out of it nor lands one in it, but a card standing there is
+ready in the ordinary way, carries no block, and anybody may move it on when the
+answer comes. The two columns answer different questions, so a state can be
+either, both, or neither.
+
+If you have been keeping such cards out of the queue by blocking them, the way
+across is short and there is no migration command, because nothing can tell a
+workaround block from a real one. Write `awaiting_outside: true` into the
+state's file, then run `dinah unblock <card>` as the operator once for each card
+you had blocked to keep it out of the way. Each card returns to `ready`, the
+unblock is journaled so the record says when the workaround ended, and the flag
+keeps the cards out of the ready queue from that moment.
 
 Dinah also gives each state a twelve-hex identifier, which you will meet in
 `workbench.md`, in `export`, and in the card files themselves, though no listing
@@ -276,11 +294,11 @@ $ dinah status
 release-notes  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0      agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work   Owner
+  ------  ------  ------  -----  -----  -----
+  intake  Intake  intake  0      taken  agent
+  doing   Doing   work    0      taken  agent
+  done    Done    done    0      taken  agent
 [exit 0]
 ```
 
@@ -333,11 +351,11 @@ $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0/1    agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work   Owner
+  ------  ------  ------  -----  -----  -----
+  intake  Intake  intake  0      taken  agent
+  doing   Doing   work    0/1    taken  agent
+  done    Done    done    0      taken  agent
 [exit 0]
 ```
 
@@ -611,11 +629,11 @@ $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  1      agent
-  doing   Doing   work    2/1    agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work   Owner
+  ------  ------  ------  -----  -----  -----
+  intake  Intake  intake  1      taken  agent
+  doing   Doing   work    2/1    taken  agent
+  done    Done    done    0      taken  agent
 
 You are holding:
   Card   Title
@@ -1138,11 +1156,11 @@ $ dinah --lang hi status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [खोज]
 ana के रूप में, संचालक: हाँ
 
-  उपनाम   नाम     प्रकार  कार्ड  स्वामी
-  ------  ------  -----  ----  -----
-  intake  Intake  आवक    1     एजेंट
-  doing   Doing   काम    0/1   एजेंट
-  done    Done    समाप्त  1     एजेंट
+  उपनाम   नाम     प्रकार  कार्ड  कार्य         स्वामी
+  ------  ------  -----  ----  -----------  -----
+  intake  Intake  आवक    1     लिया जाता है  एजेंट
+  doing   Doing   काम    0/1   लिया जाता है  एजेंट
+  done    Done    समाप्त  1     लिया जाता है  एजेंट
 
 आपके पास:
   कार्ड   शीर्षक
@@ -1164,14 +1182,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        604/604
-  af        0/604
-  cs        0/604
-  de        604/604
-  es        0/604
-  fil       0/604
-  hi        604/604
-  id        0/604
+  en        610/610
+  af        0/610
+  cs        0/610
+  de        610/610
+  es        0/610
+  fil       0/610
+  hi        610/610
+  id        0/610
 [exit 0]
 ```
 
@@ -1251,11 +1269,11 @@ $ dinah --workbench release-notes/.dinah/d0e41d414bb5 status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [flag]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  1      agent
-  doing   Doing   work    0/1    agent
-  done    Done    done    1      agent
+  Slug    Name    Kind    Cards  Work   Owner
+  ------  ------  ------  -----  -----  -----
+  intake  Intake  intake  1      taken  agent
+  doing   Doing   work    0/1    taken  agent
+  done    Done    done    1      taken  agent
 
 You are holding:
   Card   Title
@@ -1385,11 +1403,11 @@ $ dinah init --from ../release-template --slug rel3 --operator ana
 Workbench created at /home/ana/release-0.3/.dinah/e65a73e02874.
 [exit 0]
 $ dinah states
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0/1    agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work   Owner
+  ------  ------  ------  -----  -----  -----
+  intake  Intake  intake  0      taken  agent
+  doing   Doing   work    0/1    taken  agent
+  done    Done    done    0      taken  agent
 [exit 0]
 $ dinah instructions doing
 
