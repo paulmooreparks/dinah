@@ -565,3 +565,76 @@ func onlyOffer(t *testing.T, h *harness, state string) Offer {
 	}
 	return offers[0]
 }
+
+// TestTheAffordancesAgreeWithWhatTheActsPermit is dinah-273 AC-40. Every
+// card-shaped response carries a list of what a caller may do next, and a list
+// naming an act the tool refuses is worse than no list at all, because the
+// reader most likely to act on it is an agent that cannot see the board.
+//
+// The kind guard cannot catch this class and no source scan can. A list holding
+// the literal "claim" compares nothing and names no kind; it fails by not
+// asking, and an absence is invisible to a scan. What catches it is running the
+// act: for a card standing at each kind of state, what the list offers and what
+// the act does are held against each other here.
+func TestTheAffordancesAgreeWithWhatTheActsPermit(t *testing.T) {
+	cases := []struct {
+		name    string
+		state   string
+		waiting bool
+	}{
+		{name: "an intake state", state: bufferIntake},
+		{name: "a buffer", state: bufferQueue},
+		{name: "a working station", state: bufferDoing},
+		{name: "a done state", state: bufferDone},
+		{name: "a state waiting on somebody outside", state: bufferDoing, waiting: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newBufferHarness(t)
+			if c.waiting {
+				h.declare(c.state, "awaiting_outside", "true")
+			}
+			ref := h.add("standing where the list is read")
+			h.at(ref, c.state)
+			offered := h.affordances(ref)
+
+			// The pull is run first, because a claim that succeeds takes the
+			// card up and there would be nothing left for a pull to take.
+			if contains(offered, Pull) {
+				response := h.library.Pull(&Request{Verb: Pull, Actor: "bo", State: "doing"})
+				h.reopen()
+				if response.Outcome != contract.OutcomeOK || response.Card == nil || response.Card.Ref != ref {
+					t.Fatalf("the list offered %s and the pull answered %s %s carrying %+v",
+						Pull, response.Outcome, response.Refusal, response.Card)
+				}
+				return
+			}
+
+			response := h.do(&Request{Verb: Claim, Card: ref, Actor: "alka"})
+			permitted := response.Outcome == contract.OutcomeOK
+			if contains(offered, Claim) != permitted {
+				t.Fatalf("the list %v offers claim: %t, and the claim answered %s %s",
+					offered, contains(offered, Claim), response.Outcome, response.Refusal)
+			}
+			if !permitted && contains(offered, Pull) {
+				t.Fatalf("the list %v offers neither act and the card is stranded", offered)
+			}
+		})
+	}
+}
+
+// TestTheAffordancesOfferThePullWhereverAPullCouldTakeTheCard is dinah-273
+// AC-41. It is the other half of the agreement above, which proves the list
+// never offers what the acts refuse but would also pass if the list offered
+// nothing anywhere. A state that takes no work up loses the claim, so a reader
+// left with neither act has been told the card is stuck when it is not.
+func TestTheAffordancesOfferThePullWhereverAPullCouldTakeTheCard(t *testing.T) {
+	for _, state := range []string{bufferIntake, bufferQueue} {
+		h := newBufferHarness(t)
+		ref := h.add("waiting for somebody downstream")
+		h.at(ref, state)
+		if offered := h.affordances(ref); !contains(offered, Pull) {
+			t.Errorf("a card at %s is taken by a pull into Doing and its list reads %v", state, offered)
+		}
+	}
+}

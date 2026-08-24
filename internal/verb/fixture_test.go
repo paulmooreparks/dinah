@@ -372,3 +372,18 @@ func (h *harness) events(ref string) []bench.Event {
 	}
 	return list
 }
+
+// affordances reads the list a response carries for a card. It reads a real
+// response rather than the function behind it, because the defect this helper
+// exists for was a response carrying a list that had asked the bench nothing.
+// The comment leaves the card where it stands, so the list read is the one a
+// caller sees before acting.
+func (h *harness) affordances(ref string) []string {
+	h.t.Helper()
+	response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: ref, Text: "reading the list"})
+	if response.Outcome != contract.OutcomeOK {
+		h.t.Fatalf("comment on %s: %s %s", ref, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	return response.Affordances
+}

@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -200,23 +199,50 @@ type kindExemption struct {
 // question State.TakesWorkUp already answers, which is the defect this guard
 // exists to catch; add the reader to the predicate rather than the file to this
 // list.
-var kindAllowlist = []kindExemption{
-	{path: "internal/contract/contract.go", lines: 5, reason: "declares the four constants and the list of the kinds Dinah mints"},
-	{path: ownPackage + "/" + ownPackageName + ".go", lines: 3, reason: "holds the predicates every reader asks, and holds readState's vocabulary switch"},
-	{path: ownPackage + "/check.go", lines: 5, reason: "asks where a kind stands in the flow, which is a different question from whether work is taken up"},
-	{path: "internal/verb/beyond.go", lines: 3, reason: "declares the kinds of the three states dinah init writes"},
+// Only one of the four entries composes its path. The product's word is
+// workbench, and a separate guard fails any Go string literal carrying the
+// short one, so the entry naming this package's principal file cannot spell
+// that file out. The other three can: the vocabulary guard strips this
+// package's directory from a line before it reads it, which leaves check.go's
+// literal carrying no hit at all.
+func kindAllowlist(t *testing.T, root string) []kindExemption {
+	t.Helper()
+	return []kindExemption{
+		{path: "internal/contract/contract.go", lines: 5, reason: "declares the four constants and the list of the kinds Dinah mints"},
+		{path: ownPrincipalFile(t, root), lines: 3, reason: "holds the predicates every reader asks, and holds readState's vocabulary switch"},
+		{path: "internal/bench/check.go", lines: 5, reason: "asks where a kind stands in the flow, which is a different question from whether work is taken up"},
+		{path: "internal/verb/beyond.go", lines: 3, reason: "declares the kinds of the three states dinah init writes"},
+	}
 }
 
-// ownPackage and ownPackageName are this package's directory under the
-// repository root and its last segment, read off the package path Go itself
-// reports rather than spelled out. The product's word is workbench, and the
-// short one survives only as a Go identifier and a package path, so the two
-// entries above that name files in this package compose their paths instead of
-// writing the short word into a string literal.
-var (
-	ownPackage     = strings.TrimPrefix(reflect.TypeOf(State{}).PkgPath(), "dinah/")
-	ownPackageName = path.Base(ownPackage)
-)
+// ownPrincipalFile is the path, relative to the repository root, of the file
+// in this package that holds the predicates. It is composed from two facts the
+// test already has: the root, and the working directory, which go test sets to
+// the package's own directory. Neither the module path nor the package name is
+// written out, so a module rename and a package move both leave it correct.
+//
+// The composition does assume the principal file is named after its directory,
+// which is true today and written down nowhere else. The stat below is what
+// keeps a rename that breaks the assumption honest: it fails naming the file
+// that is missing, rather than letting the guard report a stale entry and send
+// the next reader after the wrong problem.
+func ownPrincipalFile(t *testing.T, root string) string {
+	t.Helper()
+	working, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("working directory: %v", err)
+	}
+	relative, err := filepath.Rel(root, working)
+	if err != nil {
+		t.Fatalf("locate the package under %s: %v", root, err)
+	}
+	directory := filepath.ToSlash(relative)
+	composed := directory + "/" + path.Base(directory) + ".go"
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(composed))); err != nil {
+		t.Fatalf("the allow-list composed %s and no such file exists, so this package's principal file is no longer named after its directory: %v", composed, err)
+	}
+	return composed
+}
 
 // TestNoSecondAnswerAboutStateKind asserts that nothing outside the allow-list
 // decides for itself what a state's kind means. One predicate answers that
@@ -227,6 +253,7 @@ var (
 // root, so an untracked worktree inside the tree never reaches it.
 func TestNoSecondAnswerAboutStateKind(t *testing.T) {
 	root := repositoryRoot(t)
+	allowed := kindAllowlist(t, root)
 	counted := map[string]int{}
 	for _, directory := range []string{"cmd", "internal"} {
 		found, err := scanForKindAnswers(filepath.Join(root, directory))
@@ -235,7 +262,7 @@ func TestNoSecondAnswerAboutStateKind(t *testing.T) {
 		}
 		for _, answer := range found {
 			path := directory + "/" + answer.Path
-			if exemptionFor(path) == nil {
+			if exemptionFor(allowed, path) == nil {
 				t.Errorf("%s:%d answers a question about a state's kind for itself, and no entry of kindAllowlist names it: %s",
 					path, answer.Line, answer.Text)
 				continue
@@ -243,7 +270,7 @@ func TestNoSecondAnswerAboutStateKind(t *testing.T) {
 			counted[path]++
 		}
 	}
-	for _, entry := range kindAllowlist {
+	for _, entry := range allowed {
 		if counted[entry.path] > entry.lines {
 			t.Errorf("%s carries %d kind-answering lines and its entry allows %d, so the file has grown a second answer behind its exemption",
 				entry.path, counted[entry.path], entry.lines)
@@ -257,10 +284,10 @@ func TestNoSecondAnswerAboutStateKind(t *testing.T) {
 
 // exemptionFor returns the allow-list entry naming a path, or nil for a path no
 // entry names.
-func exemptionFor(path string) *kindExemption {
-	for i := range kindAllowlist {
-		if kindAllowlist[i].path == path {
-			return &kindAllowlist[i]
+func exemptionFor(allowed []kindExemption, path string) *kindExemption {
+	for i := range allowed {
+		if allowed[i].path == path {
+			return &allowed[i]
 		}
 	}
 	return nil

@@ -323,19 +323,60 @@ func stateRef(state *bench.State) string {
 
 // affordances names what a caller may do next with a card, which is the same
 // question every response answers whatever its outcome.
+//
+// The ready list asks where the card is standing rather than deciding from the
+// substate alone. A claim is refused at a state that takes no work up, so a
+// list naming claim there advertises an act the tool refuses, and the reader
+// most likely to act on it is an agent that cannot see the board.
 func (l *Library) affordances(card *bench.Card) []string {
 	if card == nil {
 		return []string{"status", "states", "ls", "next"}
 	}
 	switch card.Substate {
 	case contract.SubstateReady:
-		return []string{Claim, Move, Block, "comment", "show", "log"}
+		return append(l.takeUpActs(card), Move, Block, "comment", "show", "log")
 	case contract.SubstateActive:
 		return []string{Move, Release, Block, "comment", "show", "log"}
 	case contract.SubstateBlocked:
 		return []string{Unblock, "comment", "show", "log"}
 	}
 	return []string{"show", "log"}
+}
+
+// takeUpActs names the act that would take a ready card up where it stands.
+// It asks the two predicates the acts themselves ask rather than repeating
+// either rule: claimableState admits a claim exactly where the state holds an
+// active card, and carriesInto answers where a pull would put a card standing
+// at this one, which is nil when no pull can reach it.
+//
+// A state taking no work up loses the claim and gains a pull, because an agent
+// reading a list with the claim simply missing would meet the refusal with
+// nothing telling it what to reach for instead. That is the same reason the
+// next_card tool's list carries pull beside claim.
+func (l *Library) takeUpActs(card *bench.Card) []string {
+	state := l.Bench.State(card.State)
+	if state == nil || state.HoldsSubstate(contract.SubstateActive) {
+		return []string{Claim}
+	}
+	if carriesInto(state, l.Bench.States) != nil {
+		return []string{Pull}
+	}
+	return nil
+}
+
+// CardAffordances answers, for the card a request names, the list every
+// card-shaped response already carries. A head that assembles its own payload
+// instead of returning a Response reaches this rather than writing out a list
+// of its own, since a written-out list is a second answer to the question
+// affordances answers and goes stale the moment an act's rules change. A
+// reference naming no card falls back to the list a response with no card
+// carries.
+func (l *Library) CardAffordances(req *Request) []string {
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil || found == nil {
+		return l.affordances(nil)
+	}
+	return l.affordances(found.Card)
 }
 
 // refuse builds a refused response. It keeps its signature and delegates to

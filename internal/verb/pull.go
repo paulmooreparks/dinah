@@ -342,14 +342,38 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 //
 // A departure where no owner takes work up by kind is not refused here. That
 // is what a buffer and an intake state are for: nobody works the card where
-// it stands, so a pull is the act that carries it on. The departure's other
-// refusal, a forward move out of a terminal state, is canLand's terminal row
-// and is not repeated here.
+// it stands, so a pull is the act that carries it on.
+//
+// The row decides on PullCanTakeFrom and reads the flags only to pick the
+// name, on the pattern takesNoWorkName sets for the claim path. Reading
+// AwaitingOutside to decide would leave any later reason for a pull not to
+// take from a state sitting in the predicate and never reaching this row,
+// which is the second-answer defect this card exists to close.
 func (l *Library) pullableDeparture(req *Request, card *bench.Card, departure *bench.State) *Response {
-	if departure == nil || !departure.AwaitingOutside {
+	if departure == nil || departure.PullCanTakeFrom() {
 		return nil
 	}
-	return l.refuse(req, card, contract.AwaitingOutside, stateRef(departure))
+	name := pullDepartureName(departure)
+	if name == "" {
+		return nil
+	}
+	return l.refuse(req, card, name, stateRef(departure))
+}
+
+// pullDepartureName picks the refusal name for a state a pull may not take a
+// card out of, and returns the empty string for a departure another row of the
+// pull's list answers.
+//
+// A terminal departure is one of those: canLand's terminal row refuses the
+// forward move a pull makes and names it after CORE-STATE-9, so repeating that
+// refusal here would put the same rule in two places and could answer it by
+// the wrong name. Every other reason names the flag, which is what lets the
+// sentence say who is being waited on.
+func pullDepartureName(state *bench.State) string {
+	if state.Terminal() {
+		return ""
+	}
+	return contract.AwaitingOutside
 }
 
 // headOfFurtherSource returns the card a pull takes when the destination's

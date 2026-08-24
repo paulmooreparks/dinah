@@ -586,7 +586,11 @@ func TestAQueryMatchingNothingCarriesAnEmptyArray(t *testing.T) {
 // query written against a slug keeps working when the state is renamed.
 func TestTheStateFieldsCompareOnTheResolvedIdentifier(t *testing.T) {
 	h := newHarness(t)
-	card := h.ready("moving")
+	// The card is parked at the working station rather than by ready, which
+	// parks at aftercare. The move below is this test's own subject, and a
+	// card already standing at aftercare would be moved to the state it
+	// stands in, which nothing refuses and which asserts nothing.
+	card := h.readyAt("moving", doing)
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: card, Holder: "alka"})
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: card, State: aftercareSlug})
 

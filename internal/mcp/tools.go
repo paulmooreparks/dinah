@@ -259,7 +259,9 @@ func readContents(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"tree": tree}, readAffordances)
 }
 
-// readShow answers the show tool.
+// readShow answers the show tool. The card branch asks the library what a
+// caller may do with the card it just read, rather than carrying a list of its
+// own that would go on naming claim at a state where a claim is refused.
 func readShow(l *verb.Library, r *verb.Request) any {
 	detail, text, err := l.Show(r)
 	if err != nil {
@@ -268,16 +270,17 @@ func readShow(l *verb.Library, r *verb.Request) any {
 	if detail == nil {
 		return wrap(map[string]any{"text": text}, readAffordances)
 	}
-	return wrap(map[string]any{"detail": detail}, []string{"claim", "move", "comment", "log"})
+	return wrap(map[string]any{"detail": detail}, l.CardAffordances(r))
 }
 
-// readLog answers the log tool.
+// readLog answers the log tool, and asks for its affordances for the same
+// reason readShow does.
 func readLog(l *verb.Library, r *verb.Request) any {
 	events, err := l.History(r)
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return journalView{Events: events, Affordances: []string{"show", "claim"}}
+	return journalView{Events: events, Affordances: l.CardAffordances(r)}
 }
 
 // readChanges answers the changes tool. It carries the same ChangeSet the cli

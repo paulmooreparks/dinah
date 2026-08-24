@@ -1547,6 +1547,7 @@ DOC-VER-3, DOC-VER-5, and DOC-ORDER-1, so while the major number is 0, a
 retirement, a reorder, or a change the other rules cannot classify moves the
 minor number and leaves the major number where it is. The document sits on the `dev` channel, so nothing
 here binds a caller who has not already opted into `dinah-core 0.4`.
+
 ### 0.5, channel `dev`, 2026-08-24
 
 Identifiers affected: CORE-STATE-3, retired. CORE-STATE-11, introduced,
