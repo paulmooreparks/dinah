@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -7075,6 +7076,354 @@ func TestTheGuideListingIsUnchangedByTheBodyWrap(t *testing.T) {
 			line := rest[:strings.IndexByte(rest, '\n')]
 			if !strings.HasSuffix(line, guide.Title(topic)) {
 				t.Errorf("at %s columns the listing wrapped the title of %q: %q", width, topic, line)
+			}
+		}
+	}
+}
+
+// TestAnAttachmentCarryingNoOrdinalStillNumbersFromOne asserts dinah-186 AC-1,
+// AC-2 and AC-21 on the branch that shipped broken: a workbench written before
+// the ordinal field existed carries attachments whose anchor declares none, and
+// both read surfaces numbered every one of them 0. A position column reading 0
+// twice tells a reader the collection has no first member, and the ref built
+// from that number answers to nothing, so the fallback has to run everywhere
+// the number is printed rather than only where the ref is composed.
+//
+// The rows are checked as a set rather than in a fixed order, because the
+// fallback's order is the directory listing's and a hex identifier is random.
+// What the test holds is that the positions are 1 and 2, that they name
+// different attachments, and that each printed ref resolves to the attachment
+// whose row printed it.
+func TestAnAttachmentCarryingNoOrdinalStillNumbersFromOne(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	sources := t.TempDir()
+	for _, name := range []string{"a.txt", "b.txt"} {
+		file := filepath.Join(sources, name)
+		if err := os.WriteFile(file, []byte(name), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		if got := runCLI(t, root, "attach", "fx-1", file); got.code != 0 {
+			t.Fatalf("attach %s: %d %s", name, got.code, got.errw)
+		}
+	}
+	located := runCLI(t, root, "path", "fx-1")
+	if located.code != 0 {
+		t.Fatalf("path: %d %s", located.code, located.errw)
+	}
+	stripOrdinals(t, filepath.Join(filepath.Dir(strings.TrimSpace(located.out)), "attachments"))
+
+	machine := runCLI(t, root, "--json", "show", "fx-1")
+	if machine.code != 0 {
+		t.Fatalf("show --json: %d %s", machine.code, machine.errw)
+	}
+	var detail struct {
+		Attachments []verb.AttachmentView `json:"attachments"`
+	}
+	if err := json.Unmarshal([]byte(machine.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if len(detail.Attachments) != 2 {
+		t.Fatalf("wanted both attachments, got %d:\n%s", len(detail.Attachments), machine.out)
+	}
+	seen := map[int]string{}
+	for _, attachment := range detail.Attachments {
+		if attachment.Ordinal < 1 {
+			t.Errorf("the attachment %s carries the position %d, and a position counts from one", attachment.Filename, attachment.Ordinal)
+			continue
+		}
+		if held, taken := seen[attachment.Ordinal]; taken {
+			t.Errorf("the position %d names both %s and %s", attachment.Ordinal, held, attachment.Filename)
+		}
+		seen[attachment.Ordinal] = attachment.Filename
+		resolved := runCLI(t, root, "path", attachment.Ref)
+		if resolved.code != 0 {
+			t.Errorf("the printed ref %s resolves to nothing: %d %s", attachment.Ref, resolved.code, resolved.errw)
+			continue
+		}
+		payload := runCLI(t, root, "path", attachment.Ref+"/payload")
+		if payload.code != 0 {
+			t.Errorf("the payload of %s resolves to nothing: %d %s", attachment.Ref, payload.code, payload.errw)
+			continue
+		}
+		if got := filepath.Base(strings.TrimSpace(payload.out)); got != attachment.Filename {
+			t.Errorf("the ref %s reaches the payload %s, and its row printed %s", attachment.Ref, got, attachment.Filename)
+		}
+	}
+	if seen[1] == "" || seen[2] == "" {
+		t.Errorf("wanted the positions 1 and 2, got %v", seen)
+	}
+
+	human := runCLI(t, root, "show", "fx-1")
+	if human.code != 0 {
+		t.Fatalf("show: %d %s", human.code, human.errw)
+	}
+	for position, filename := range seen {
+		row := strconv.Itoa(position) + "  " + filename
+		if !strings.Contains(human.out, row) {
+			t.Errorf("the attachments block draws no row %q:\n%s", row, human.out)
+		}
+	}
+	if strings.Contains(human.out, "0  ") {
+		t.Errorf("the attachments block still numbers from zero:\n%s", human.out)
+	}
+}
+
+// stripOrdinals removes the ordinal line from every anchor of an attachments
+// collection, which is the shape a workbench written before the field existed
+// has on disk. The rest of each anchor is left byte-identical, so what the
+// read path meets is the legacy anchor rather than a rewritten one.
+func stripOrdinals(t *testing.T, collection string) {
+	t.Helper()
+	for _, id := range bench.ListIDs(collection) {
+		anchor := filepath.Join(collection, id, bench.AttachmentAnchor)
+		text, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read %s: %v", anchor, err)
+		}
+		var kept []string
+		for _, line := range strings.Split(string(text), "\n") {
+			if strings.HasPrefix(line, bench.OrdinalField+":") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		if err := os.WriteFile(anchor, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+			t.Fatalf("write %s: %v", anchor, err)
+		}
+	}
+}
+
+// attachOne writes a file of the given name under its own directory and
+// attaches it to fx-1, so that two attachments can carry one filename without
+// the second write clobbering the first.
+func attachOne(t *testing.T, root, name string, nth int) {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), strconv.Itoa(nth))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	file := filepath.Join(dir, name)
+	if err := os.WriteFile(file, []byte(name), 0o644); err != nil {
+		t.Fatalf("write %s: %v", file, err)
+	}
+	if got := runCLI(t, root, "attach", "fx-1", file); got.code != 0 {
+		t.Fatalf("attach %s: %d %s", name, got.code, got.errw)
+	}
+}
+
+// attachmentsCollection is the directory holding fx-1's attachments.
+func attachmentsCollection(t *testing.T, root string) string {
+	t.Helper()
+	located := runCLI(t, root, "path", "fx-1")
+	if located.code != 0 {
+		t.Fatalf("path: %d %s", located.code, located.errw)
+	}
+	return filepath.Join(filepath.Dir(strings.TrimSpace(located.out)), "attachments")
+}
+
+// shownAttachments decodes the attachments block of show --json for fx-1.
+func shownAttachments(t *testing.T, root string) []verb.AttachmentView {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "show", "fx-1")
+	if machine.code != 0 {
+		t.Fatalf("show --json: %d %s", machine.code, machine.errw)
+	}
+	var detail struct {
+		Attachments []verb.AttachmentView `json:"attachments"`
+	}
+	if err := json.Unmarshal([]byte(machine.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	return detail.Attachments
+}
+
+// TestAGappedAttachmentCollectionAgreesAcrossEveryReadSurface asserts dinah-186
+// AC-1 and AC-2 on the collection the earlier rounds never built: one a delete
+// has left with a hole in its stored ordinals.
+//
+// The two tests that came before this one attach and never delete, so their
+// stored ordinals run 1, 2, 3 with no gaps, and on such a collection a stored
+// ordinal and a position happen to be the same number. NextOrdinal hands out
+// highest-plus-one, so the hole a delete leaves is permanent, and from then on
+// the two disagree for every member after it. A display reading the stored
+// field then labels a row with a number the resolver answers to some other
+// file, or to no file, which is how following show into rename renamed the
+// wrong attachment.
+//
+// So the collection here is gapped on purpose, and what the test holds is that
+// show, contents and path name one file per position: the positions run 1 and
+// 2 with no hole in them, each ref show prints reaches the payload its own row
+// named, and contents draws the same refs show does.
+func TestAGappedAttachmentCollectionAgreesAcrossEveryReadSurface(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	for nth, name := range []string{"one.txt", "two.txt", "three.txt"} {
+		attachOne(t, root, name, nth)
+	}
+	if got := runCLI(t, root, "delete", "fx-1/attachments/1", "--yes"); got.code != 0 {
+		t.Fatalf("delete: %d %s", got.code, got.errw)
+	}
+
+	shown := shownAttachments(t, root)
+	if len(shown) != 2 {
+		t.Fatalf("wanted the two surviving attachments, got %d", len(shown))
+	}
+	seen := map[int]string{}
+	for _, attachment := range shown {
+		if held, taken := seen[attachment.Ordinal]; taken {
+			t.Errorf("the position %d names both %s and %s", attachment.Ordinal, held, attachment.Filename)
+		}
+		seen[attachment.Ordinal] = attachment.Filename
+		if attachment.Ref != "fx-1/attachments/"+strconv.Itoa(attachment.Ordinal) {
+			t.Errorf("the row at position %d prints the ref %s", attachment.Ordinal, attachment.Ref)
+		}
+		payload := runCLI(t, root, "path", attachment.Ref+"/payload")
+		if payload.code != 0 {
+			t.Errorf("the printed ref %s reaches no payload: %d %s", attachment.Ref, payload.code, payload.errw)
+			continue
+		}
+		if got := filepath.Base(strings.TrimSpace(payload.out)); got != attachment.Filename {
+			t.Errorf("the ref %s reaches the payload %s, and its row printed %s", attachment.Ref, got, attachment.Filename)
+		}
+	}
+	if seen[1] == "" || seen[2] == "" {
+		t.Errorf("a delete left a hole in the positions: wanted 1 and 2, got %v", seen)
+	}
+	if gone := runCLI(t, root, "path", "fx-1/attachments/3"); gone.code == 0 {
+		t.Errorf("the collection holds two attachments and answers to a third position: %s", gone.out)
+	}
+
+	human := runCLI(t, root, "show", "fx-1")
+	if human.code != 0 {
+		t.Fatalf("show: %d %s", human.code, human.errw)
+	}
+	listed := runCLI(t, root, "contents", "fx-1")
+	if listed.code != 0 {
+		t.Fatalf("contents: %d %s", listed.code, listed.errw)
+	}
+	for position, filename := range seen {
+		row := strconv.Itoa(position) + "  " + filename
+		if !strings.Contains(human.out, row) {
+			t.Errorf("the attachments block draws no row %q:\n%s", row, human.out)
+		}
+		ref := "fx-1/attachments/" + strconv.Itoa(position)
+		if !strings.Contains(listed.out, ref) {
+			t.Errorf("contents draws no %s, which is the ref show printed for %s:\n%s", ref, filename, listed.out)
+		}
+	}
+	if strings.Contains(listed.out, "fx-1/attachments/3") {
+		t.Errorf("contents draws a third position the collection has no member at:\n%s", listed.out)
+	}
+}
+
+// TestTheAmbiguousNameRefusalNamesPositionsThatResolve asserts dinah-186 AC-5
+// on the two collections where a stored ordinal is not a position: the
+// unstamped one this card exists to repair, and the gapped one a delete makes.
+//
+// The refusal tells the caller to retry as attachments/<n>, so the numbers it
+// prints have to be numbers that arm answers. Reading them off the anchor gave
+// "0,0" on an unstamped collection, where attachments/0 reaches nothing at all,
+// and gave a number past the end of a gapped one. Both boards drew a table
+// saying 1 and 2 in the same session as a sentence saying something else.
+func TestTheAmbiguousNameRefusalNamesPositionsThatResolve(t *testing.T) {
+	for _, shape := range []struct {
+		name  string
+		build func(t *testing.T, root string)
+	}{
+		{
+			name: "an unstamped collection",
+			build: func(t *testing.T, root string) {
+				for nth, name := range []string{"dup.txt", "dup.txt"} {
+					attachOne(t, root, name, nth)
+				}
+				stripOrdinals(t, attachmentsCollection(t, root))
+			},
+		},
+		{
+			name: "a collection a delete has gapped",
+			build: func(t *testing.T, root string) {
+				for nth, name := range []string{"first.txt", "dup.txt", "dup.txt"} {
+					attachOne(t, root, name, nth)
+				}
+				if got := runCLI(t, root, "delete", "fx-1/attachments/1", "--yes"); got.code != 0 {
+					t.Fatalf("delete: %d %s", got.code, got.errw)
+				}
+			},
+		},
+	} {
+		t.Run(shape.name, func(t *testing.T) {
+			root := newBench(t)
+			if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+				t.Fatalf("add: %d %s", got.code, got.errw)
+			}
+			shape.build(t, root)
+
+			var wanted []string
+			for _, attachment := range shownAttachments(t, root) {
+				if attachment.Filename == "dup.txt" {
+					wanted = append(wanted, strconv.Itoa(attachment.Ordinal))
+				}
+			}
+			sort.Strings(wanted)
+			if len(wanted) != 2 {
+				t.Fatalf("wanted two rows named dup.txt, got %v", wanted)
+			}
+
+			refused := runCLI(t, root, "path", "fx-1/attachments/dup.txt")
+			if refused.code == 0 {
+				t.Fatalf("two attachments answer to dup.txt and the path resolved: %s", refused.out)
+			}
+			if !strings.Contains(refused.errw, contract.AmbiguousName) {
+				t.Fatalf("wanted %s, got: %s", contract.AmbiguousName, refused.errw)
+			}
+			if joined := strings.Join(wanted, ","); !strings.Contains(refused.errw, joined) {
+				t.Errorf("the table draws the positions %s and the refusal says something else: %s", joined, refused.errw)
+			}
+			for _, position := range wanted {
+				ref := "fx-1/attachments/" + position
+				resolved := runCLI(t, root, "path", ref+"/payload")
+				if resolved.code != 0 {
+					t.Errorf("the refusal names %s and it reaches nothing: %d %s", ref, resolved.code, resolved.errw)
+					continue
+				}
+				if got := filepath.Base(strings.TrimSpace(resolved.out)); got != "dup.txt" {
+					t.Errorf("the refusal names %s and it reaches %s rather than a dup.txt", ref, got)
+				}
+			}
+		})
+	}
+}
+
+// TestEverySplicedFragmentCarriesItsOwnSeparator asserts dinah-186 AC-5's
+// rule at the catalog rather than at one refusal: a fragment that renders
+// onto the end of the refusal's own sentence has to begin with the
+// punctuation that joins it there, because renderRefusal concatenates the two
+// with nothing between them.
+//
+// The shipped ambiguous-name refusal read "sketch.txtname one as
+// attachments/<ordinal>", and the catalog test that holds a translation to
+// its base entry's splice could not catch it, since the base entry was the
+// one at fault. A shape drawing a listing or a carried set is exempt: its
+// fragment renders as a line of its own, where a leading separator would be
+// the mistake.
+func TestEverySplicedFragmentCarriesItsOwnSeparator(t *testing.T) {
+	catalog := msg.For(msg.Base)
+	for _, shape := range contract.Shapes {
+		if shape.Listing != "" || shape.Carried != "" {
+			continue
+		}
+		for _, fragment := range shape.Fragments {
+			text := catalog.T(fragment.Key)
+			if text == "" {
+				continue
+			}
+			if !strings.ContainsRune(";,. ", rune(text[0])) {
+				t.Errorf("%s begins %q, and it is spliced onto the end of a sentence with nothing between them", fragment.Key, text)
 			}
 		}
 	}

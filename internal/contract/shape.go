@@ -250,6 +250,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.ambiguous-workbench.next"},
 	},
 	{
+		// One next step covers every raise site, because the two ways
+		// forward at a waiting state, releasing the card and moving it on
+		// once the answer comes, are the same whichever act was refused.
+		Name:      AwaitingOutside,
+		Fragments: []Fragment{{Key: "refusal.dinah.awaiting-outside.next"}},
+		NextStep:  []string{"refusal.dinah.awaiting-outside.next"},
+	},
+	{
 		Name:      Exists,
 		Fragments: []Fragment{{Key: "refusal.dinah.exists.next"}},
 		NextStep:  []string{"refusal.dinah.exists.next"},

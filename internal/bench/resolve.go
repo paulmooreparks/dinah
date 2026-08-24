@@ -328,8 +328,9 @@ func filterByKind(collection, anchor string, ids []string, kind string) []string
 //
 // Two attachments may carry the same filename, since attach permits it now
 // and this card does not narrow attach. A name selector matching more than
-// one entity refuses ambiguous-name and carries the ordinal of every match
-// alongside the selector, so the caller retries with attachments/<n>.
+// one entity refuses ambiguous-name and carries the position of every match
+// alongside the selector, so the caller retries with attachments/<n> and the
+// number it retries with is one this same function's position arm answers.
 func pick(collection string, mount Mount, ids []string, selector string) (string, error) {
 	if IsID(selector) {
 		for _, id := range ids {
@@ -350,13 +351,13 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 		matches := matchByName(collection, mount, ids, selector)
 		switch len(matches) {
 		case 1:
-			return matches[0], nil
+			return ids[matches[0]], nil
 		case 0:
 			return "", contract.Refuse(contract.UnknownPath, selector)
 		default:
 			ordinals := make([]string, 0, len(matches))
-			for _, id := range matches {
-				ordinals = append(ordinals, strconv.Itoa(EntityOrdinal(collection, id, mount.Anchor)))
+			for _, index := range matches {
+				ordinals = append(ordinals, strconv.Itoa(index+1))
 			}
 			return "", contract.RefuseWith(contract.AmbiguousName, selector, map[string]string{
 				"selector": selector,
@@ -367,15 +368,23 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 	return "", contract.Refuse(contract.UnknownPath, selector)
 }
 
-// matchByName returns the identifiers of the entities whose anchor declares
-// the collection's name field with the selector as its value. Order matches
-// ids, so a single match returns that match's id in its place.
-func matchByName(collection string, mount Mount, ids []string, selector string) []string {
-	var matches []string
-	for _, id := range ids {
+// matchByName returns the positions within ids of the entities whose anchor
+// declares the collection's name field with the selector as its value.
+//
+// It answers positions rather than identifiers because a position is what the
+// refusal has to report: the sentence tells the caller to retry as
+// attachments/<n>, and the arm that answers that retry is the one above, which
+// indexes this same ids sequence. Reading the anchor's stored ordinal instead
+// names a number the retry cannot resolve, since an unstamped anchor carries
+// no ordinal at all and a gapped collection carries ordinals that have drifted
+// off their positions. The caller reaches the identifier of a single match as
+// ids[position].
+func matchByName(collection string, mount Mount, ids []string, selector string) []int {
+	var matches []int
+	for index, id := range ids {
 		fm, _ := loadAnchor(filepath.Join(collection, id, mount.Anchor))
 		if fm.Value(mount.NameField) == selector {
-			matches = append(matches, id)
+			matches = append(matches, index)
 		}
 	}
 	return matches

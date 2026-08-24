@@ -442,18 +442,22 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
-      "text": "the reference resolves to an attachment",
+      "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.2": {
-      "text": "the request names an owner",
+      "text": "the reference resolves to an attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.3": {
-      "text": "the name is non-empty after trimming",
+      "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.4": {
+      "text": "the name is non-empty after trimming",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.5": {
       "text": "the name carries no slash, back slash, or dot-dot",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
@@ -1290,7 +1294,7 @@
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-name, carrying the ordinal of every attachment matching the selector. refusal.dinah.ambiguous-name.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.ambiguous-name.next": {
-      "text": "name one as attachments/<ordinal>",
+      "text": "; name one as attachments/<ordinal>",
       "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.exists": {
@@ -1366,7 +1370,7 @@
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "name a state later in the flow, or move a card into {state} with `dinah move` instead",
+      "text": "; name a state later in the flow, or move a card into {state} with `dinah move` instead",
       "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.occupied": {
@@ -2365,6 +2369,10 @@
       "text": "(no value)",
       "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at."
     },
+    "param.rename.ref.summary": {
+      "text": "the attachment to rename, such as wb-1/attachments/1 or wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
+    },
     "param.rename.name.summary": {
       "text": "the filename the attachment is to carry, in one shell word or in quotation marks",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
@@ -2416,6 +2424,30 @@
     "changes.cursor": {
       "text": "cursor: {cursor}",
       "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque."
+    },
+    "column.states.work": {
+      "text": "Work",
+      "context": "Heading over whether work is taken up at the state, reading taken or waiting, in the states listing, which `dinah states` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "states.work.taken": {
+      "text": "taken",
+      "context": "The value under the states listing's Work column on an ordinary state, where an owner takes work up."
+    },
+    "states.work.waiting": {
+      "text": "waiting",
+      "context": "The value under the states listing's Work column on a state that waits on somebody outside the workbench, where no owner takes work up."
+    },
+    "next.awaiting-outside": {
+      "text": "waiting on somebody outside",
+      "context": "Printed beside a state that offers no card because it waits on somebody outside the workbench, in place of next.none, which says only that nothing is ready."
+    },
+    "refusal.dinah.awaiting-outside": {
+      "text": "state {detail} waits on somebody outside the workbench, and no card is held or taken up there",
+      "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the state the refusal is about."
+    },
+    "refusal.dinah.awaiting-outside.next": {
+      "text": "; release the card first if you hold it, or move it on when the answer comes",
+      "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused."
     }
   }
 }

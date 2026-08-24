@@ -450,18 +450,22 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
-      "text": "die Referenz löst sich zu einem Anhang auf",
+      "text": "die Referenz löst sich zu einem Pfad auf",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.2": {
-      "text": "die Anfrage nennt einen Akteur",
+      "text": "die Referenz löst sich zu einem Anhang auf",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.3": {
-      "text": "der Name ist nach dem Trimmen nicht leer",
+      "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.4": {
+      "text": "der Name ist nach dem Trimmen nicht leer",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.5": {
       "text": "der Name trägt keinen Schrägstrich, Rückstrich oder Punkt-Punkt",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
@@ -1694,7 +1698,7 @@
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "nennen Sie einen weiter hinten im Fluss liegenden Zustand, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {state}",
+      "text": "; nennen Sie einen weiter hinten im Fluss liegenden Zustand, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {state}",
       "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
@@ -2365,6 +2369,10 @@
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
     },
+    "param.rename.ref.summary": {
+      "text": "der Anhang, der umbenannt werden soll, etwa wb-1/attachments/1 oder wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
+    },
     "param.rename.name.summary": {
       "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
@@ -2416,6 +2424,30 @@
     "changes.cursor": {
       "text": "Cursor: {cursor}",
       "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque."
+    },
+    "column.states.work": {
+      "text": "Arbeit",
+      "context": "Heading over whether work is taken up at the state, reading taken or waiting, in the states listing, which `dinah states` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "states.work.taken": {
+      "text": "wird bearbeitet",
+      "context": "The value under the states listing's Work column on an ordinary state, where an owner takes work up."
+    },
+    "states.work.waiting": {
+      "text": "wartet",
+      "context": "The value under the states listing's Work column on a state that waits on somebody outside the workbench, where no owner takes work up."
+    },
+    "next.awaiting-outside": {
+      "text": "wartet auf jemanden außerhalb",
+      "context": "Printed beside a state that offers no card because it waits on somebody outside the workbench, in place of next.none, which says only that nothing is ready."
+    },
+    "refusal.dinah.awaiting-outside": {
+      "text": "Zustand {detail} wartet auf jemanden außerhalb der Werkbank, und dort wird keine Karte gehalten oder aufgenommen",
+      "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the state the refusal is about."
+    },
+    "refusal.dinah.awaiting-outside.next": {
+      "text": "; gib die Karte zuerst frei, falls du sie hältst, oder schiebe sie weiter, sobald die Antwort da ist",
+      "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused."
     }
   }
 }

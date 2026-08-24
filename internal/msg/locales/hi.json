@@ -434,18 +434,22 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
-      "text": "संदर्भ किसी संलग्नक तक पहुँचता है",
+      "text": "संदर्भ किसी पथ तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.2": {
-      "text": "निवेदन किसी स्वामी को नामता है",
+      "text": "संदर्भ किसी संलग्नक तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.3": {
-      "text": "नाम छँटाई के बाद खाली नहीं है",
+      "text": "निवेदन किसी स्वामी को नामता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.4": {
+      "text": "नाम छँटाई के बाद खाली नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.5": {
       "text": "नाम में स्लैश, बैकस्लैश, या डॉट-डॉट नहीं है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
@@ -1326,7 +1330,7 @@
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "प्रवाह में बाद की किसी स्थिति को name करें, या उसके बजाय `dinah move` से एक कार्ड {state} में भेजें",
+      "text": "; प्रवाह में बाद की किसी स्थिति को name करें, या उसके बजाय `dinah move` से एक कार्ड {state} में भेजें",
       "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
@@ -2365,6 +2369,10 @@
       "text": "{count} छानकर हटाए गए",
       "context": "The Not shown cell on a node the query removed cards from. {count} is how many cards at or below this node the query left out."
     },
+    "param.rename.ref.summary": {
+      "text": "जिस संलग्नक का नाम बदलना है, जैसे wb-1/attachments/1 या wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
+    },
     "param.rename.name.summary": {
       "text": "वह फ़ाइल-नाम जो संलग्नक को धारण करना है, एक शेल-शब्द में या उद्धरण-चिह्नों में",
       "context": "The meaning of the name argument of `dinah rename`, printed in that command's arguments table."
@@ -2416,6 +2424,30 @@
     "changes.cursor": {
       "text": "कर्सर: {cursor}",
       "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque."
+    },
+    "column.states.work": {
+      "text": "कार्य",
+      "context": "Heading over whether work is taken up at the state, reading taken or waiting, in the states listing, which `dinah states` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "states.work.taken": {
+      "text": "लिया जाता है",
+      "context": "The value under the states listing's Work column on an ordinary state, where an owner takes work up."
+    },
+    "states.work.waiting": {
+      "text": "प्रतीक्षारत",
+      "context": "The value under the states listing's Work column on a state that waits on somebody outside the workbench, where no owner takes work up."
+    },
+    "next.awaiting-outside": {
+      "text": "बाहर के किसी व्यक्ति की प्रतीक्षा में",
+      "context": "Printed beside a state that offers no card because it waits on somebody outside the workbench, in place of next.none, which says only that nothing is ready."
+    },
+    "refusal.dinah.awaiting-outside": {
+      "text": "स्थिति {detail} कार्यपीठ के बाहर के किसी व्यक्ति की प्रतीक्षा में है, और वहाँ कोई कार्ड रखा या लिया नहीं जाता",
+      "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the state the refusal is about."
+    },
+    "refusal.dinah.awaiting-outside.next": {
+      "text": "; यदि आप कार्ड रखते हैं तो पहले उसे छोड़ें, या उत्तर आने पर उसे आगे बढ़ाएँ",
+      "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused."
     }
   }
 }

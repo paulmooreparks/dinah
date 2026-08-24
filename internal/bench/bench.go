@@ -117,6 +117,11 @@ type State struct {
 	// OperatorOwned marks a state an owner other than the operator may not
 	// move a card out of.
 	OperatorOwned bool
+	// AwaitingOutside marks a state where the workbench waits on somebody
+	// who is not an owner of it, so no owner takes work up there. It is
+	// orthogonal to OperatorOwned, which answers who may move a card out
+	// and which this field never touches.
+	AwaitingOutside bool
 	// Capacity is the state's declared limit, or zero for unlimited.
 	Capacity int
 	// Instructions is the state's own body, the last layer of the chain.
@@ -1042,6 +1047,17 @@ func readState(root, id string, position int) (*State, error) {
 			return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 		}
 		state.Capacity = n
+	}
+	// The value is exactly true or false, which is wip_limit's discipline
+	// above and deliberately not operator_owned's == "true" leniency, under
+	// which a value of yes reads as false and tells nobody.
+	switch fm.Value("awaiting_outside") {
+	case "":
+	case "true":
+		state.AwaitingOutside = true
+	case "false":
+	default:
+		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
 	}
 	return state, nil
 }

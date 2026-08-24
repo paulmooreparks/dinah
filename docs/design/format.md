@@ -325,8 +325,9 @@ ascending creation ordinal, which for a card is the `number` it was born
 with. Severity and priority are declared, visible, and filterable, but
 neither takes part in that order. CORE-QUEUE-4 lets a tool offer another
 order alongside the fixed one, and a priority-ordered pull would be such an
-order, not a replacement for it. A pull honors the destination's WIP limit
-and never takes a card out of an operator-owned state.
+order, not a replacement for it. A pull honors the destination's WIP limit,
+never takes a card out of an operator-owned state, and neither takes a card
+out of nor lands one in a state that waits on somebody outside the workbench.
 
 Removal has two shapes with different promises. Archiving moves the card's
 whole directory to `archive/cards/<id>/`, history and all; see Archive
@@ -369,6 +370,33 @@ Each `states/<id>/state.md` carries the state's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
 of `intake`, `work`, `done`. A state marked operator-owned is one an agent
 never moves a card out of; only the operator does.
+
+A state may declare `awaiting_outside: true`, which says the workbench waits
+at that state on somebody who is not an owner of it: a reviewer, a customer, a
+supplier. No owner takes work up there, so a claim is refused, `dinah next`
+offers nothing from the state, and a pull neither takes a card out of it nor
+lands one in it. A card standing there is `ready` in the ordinary way and
+carries no block, and departure stays an ordinary move open to any owner, which
+is what separates this flag from `operator_owned` beside it: one answers whether
+work is taken up at the station, the other answers who may move a card on from
+it. A state may declare both, and then the workbench waits there and only the
+operator moves the card onward. Absent means false, and the value is exactly
+`true` or `false`, following `wip_limit` below rather than `operator_owned`,
+whose lenient reading takes anything else for false and says nothing about it.
+
+Andoneer, the other implementation of the shared contract, carries the same idea
+as `external_wait`, one of its eight column kinds. The spellings differ on
+purpose: that one is a kind of station and this one is a property of one, so an
+identical name would claim an identity the two structures do not have. The
+divergence is recorded here rather than left for somebody to discover.
+
+`awaiting_outside` travels through interchange as a member of its own on the
+state element, written only where the flag is set. CORE-JSON-9 lists the state
+members the profile blesses and does not list this one, which is correct rather
+than a defect: to another tool it is an unrecognized member, and CORE-JSON-7
+obliges that tool to preserve it. The concept's boundary-table row in section 10
+of the profile is ruled out, with the reason and the reopen condition that go
+with staying out.
 
 A state may declare `wip_limit: <n>`; absent means unlimited. The limit
 counts every card in the state regardless of substate, because a blocked
@@ -496,18 +524,18 @@ and stores nothing.
 ## Checklist items
 
 A checklist item is a card-scoped entity recording a structured judgment:
-`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, timestamps, and
-a creation ordinal in frontmatter, the item's text as the body, a resolution
-note required to leave pending, and attachments for evidence per the
-universal rule. Kinds are a closed set of three
-(acceptance_criterion, open_question, decision)
-and states a closed set (pending, resolved, verified, failed), closed
-because method text travels between boards and "file it with owner
-operator" must mean the same thing everywhere. Items are per-item entities
-rather than a list in the card anchor for the same reason comments are:
-different actors add items concurrently, and per-item directories are the
-conflict-free shape. Item lifecycle events land in the card's journal per
-the nearest-enclosing rule.
+`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, `citations`,
+timestamps, and a creation ordinal in frontmatter, the item's text as the
+body, a resolution note required to leave pending, and attachments for
+evidence per the universal rule. Kinds are a closed set of three
+(acceptance_criterion, open_question, decision) and states a closed set
+(pending, resolved, verified, failed), closed because method text travels
+between boards and "file it with owner operator" must mean the same thing
+everywhere. Items are per-item entities rather than a list in the card
+anchor for the same reason comments are: different actors add items
+concurrently, and per-item directories are the conflict-free shape. Item
+lifecycle events land in the card's journal per the nearest-enclosing
+rule.
 
 Checklist items are not in the spec-and-notes category of imposed card
 fields, and the distinction is the field-versus-collection line: a field
@@ -518,6 +546,216 @@ is fixed is only the shape when used, which is what lets shared method
 packs speak one vocabulary. Whether contract behavior ever attaches to
 items (gating a move on unresolved items) is a boundary-table ruling, not
 assumed here.
+
+### Citations
+
+A resolution note says what was checked and what the check showed, in
+whatever words fit, and nothing outside the card can resolve it. An item
+therefore carries its evidence in frontmatter as well, in a `citations`
+sequence whose entries each map a scheme to the target it names.
+
+```yaml
+citations:
+  - scheme: test
+    target: internal/verb/query_test.go#TestQueryNamesSeverity
+    observed:
+      before: fail
+      after: pass
+  - scheme: attachment
+    target: 4f2c19ab77e0
+```
+
+A citation is a declaration rather than an entity, by the reasoning that
+already keeps a link out of one. It has no identity of its own, nothing
+accumulates on it and it bears no journal, so it earns no directory, and
+the item carrying it is the only file that changes when a citation is
+added or removed.
+
+Putting the citation in frontmatter makes recognition free. A checker
+enumerating a field never has to decide whether a sentence naming a file
+was a citation or ordinary prose that mentioned one, and check's reference
+checks already run over frontmatter and never over journals. A marked span
+inside the note would put a parser in front of prose people write by hand,
+and it would leave recognition unsolved on a board writing its notes in
+another language.
+
+Where a workbench declares an `evidence:` block, an acceptance criterion
+leaving the pending state carries at least one `citations` entry. Each
+entry names a scheme drawn from that block, together with the target it
+points at.
+
+A workbench declaring no `evidence:` block imposes no citation obligation,
+on the terms severity and priority already work, where a card that omits
+the field is a card without one and absence is legal rather than an error.
+
+### What a workbench declares as evidence
+
+A workbench declares what counts as evidence on it, in an `evidence:`
+block in `workbench.md` frontmatter, and each name in the block is a
+scheme an item's `citations` entry may then use. The declaration adapts
+the freedom `levels:` grants, where an entry may be a bare name or a name
+carrying a one-line hint and the two forms mix freely. It adapts rather
+than reuses, because `levels:` grants that freedom to the members of a
+sequence and this block grants it to the values of a mapping.
+
+```yaml
+evidence:
+  test:
+    hint: A Go test, written as the file path, a hash, and the test function name.
+    observed: required
+  attachment:
+    hint: The 12-hex id of an attachment on this card.
+    resolves: attachments
+  record: The inspection record's reference number as the county issues it.
+```
+
+The declaration and the use carry different names on purpose, the way
+`levels:` declares the axes a card's `severity:` and `priority:` draw
+from. Every frontmatter key the format defines is a single word, so a
+two-word key would invent a convention, and naming both the block and the
+item's field `citations` would put two shapes under one name.
+
+`resolves:` tells a checker whether it can do anything. A scheme carrying
+one names a collection of the workbench, so its targets are ids the tool
+walks, and the legal values are the collections the format already
+defines, which are `cards`, `states`, `workstreams`, `comments`,
+`attachments`, and `checklist`. A scheme carrying no `resolves:` points
+outside the workbench and its targets are external, so the tool resolves
+nothing about them. Reading the answer off the declaration rather than off
+the scheme's name lets a workbench invent a scheme the format never heard
+of and still tell the checker what to do with it.
+
+Where the tool looks depends on how the named collection is scoped, and
+the six divide in two. `cards`, `states`, and `workstreams` are
+workbench-level, each one flat namespace, and that is what lets the
+existing dangling-link and dangling-workstream checks resolve an id by
+asking the workbench alone. `comments`, `attachments`, and `checklist` are
+card-scoped, and the Creation ordinals rule already fixes that scope,
+where a particular card's `comments/` is one sequence and the same id
+under two cards' collections is legal. A target naming a card-scoped
+collection resolves against the citing item's own card and nowhere else.
+Searching every card instead would ask the format for an identity it does
+not give, since an id in one card's collection says nothing about the same
+id in another's.
+
+Because the workbench declares the scheme, the format stays out of the
+target namespace. A board that runs no tests declares no `test` scheme and
+cites what its own method can resolve, so a renovation workbench declares
+a `record` scheme and closes a criterion against the inspection the work
+was done for.
+
+```yaml
+citations:
+  - scheme: record
+    target: BC-2026-04417
+```
+
+Naming a test in the format would travel to neither that board nor a
+wedding workbench whose criterion closes against a signed contract.
+
+### The observation a citation carries
+
+A citation that resolves proves the named thing exists. It proves nothing
+about whether the named thing asserts anything, so a check that has
+quietly stopped asserting passes a citation check cleanly. An entry may
+therefore carry an `observed` mapping recording what the check did before
+the work and after it, as the test citation above does, and a criterion
+whose citation uses a scheme demanding the observation leaves the pending
+state only where that citation recorded the check failing against the
+unfixed state and passing against the fixed one. A criterion whose cited
+schemes demand no observation leaves the pending state on the citation
+alone.
+
+The pair covers both failures with one rule. A check nobody wrote cannot
+produce the failing observation, and a check that asserts nothing cannot
+fail, so one requirement catches the absent test and the test that has
+stopped meaning anything. The cost falls on whoever implements, who runs
+the check before writing the fix rather than after.
+
+Whether a scheme demands the observation is the workbench's to declare, on
+the same terms as everything else in the block. A scheme carrying
+`observed: required` obliges every citation using it to record the pair,
+and a scheme carrying nothing leaves the field optional. The declaration
+above shows both, since `test` demands the observation and `record` does
+not, and declaring it per scheme keeps the rule off the boards it makes no
+sense on. An inspection record does not fail before the inspection and
+pass after it, while a test does exactly that.
+
+The `observed` values are a closed set of two, `fail` and `pass`, closed
+by the rule that settles the question, since contract behavior hangs on
+the members. A criterion whose citation uses a scheme demanding the
+observation leaves the pending state on a `fail` before and a `pass`
+after, so a value the tool has never heard of cannot be weighed against
+that rule, and a board spelling the pair its own way would put the rule
+out of reach of any tool reading the item. Both values join the
+token registry, stored canonically and never translated, on the terms the
+Language independence tiers already set for the members of a closed enum.
+
+What a checker verifies here is presence and shape, since nothing in the
+tool ran the check and nothing on disk proves it did. An entry whose
+scheme demands the observation and carries none is a structural defect
+the checker reports under `check.citation-without-observation`, and an
+entry claiming a failing before and a passing after is taken at its word.
+
+### What check resolves, and what it cannot
+
+The field produces three findings. Two of them turn on what the tool can
+see of the workbench, and the third turns on what the entry itself
+carries.
+
+`check.unknown-scheme` names a citation whose scheme the workbench's
+`evidence:` block never declared. The name follows `check.unknown-level`,
+which reports a card carrying a severity or priority its workbench does
+not declare, because the two are one finding about different fields. The
+check is always possible, since both halves of the comparison live inside
+the workbench. The finding reports the item, the entry, and the scheme.
+
+`check.dangling-citation` names a citation whose scheme carries a
+`resolves:` collection and whose target names nothing in that collection,
+searched at the scope that collection carries. The name follows
+`check.dangling-link` and `check.dangling-workstream`, and the check is
+the walk those two already perform. The finding reports the item, the
+entry, and the collection the target failed to resolve against, so a
+reader has the reason resolution failed without opening the workbench.
+
+A scheme with no `resolves:` key produces neither of those two findings
+beyond the first. Its target lies outside the workbench, past what the
+tool can see, so the checker says nothing about it rather than promising
+a check that never runs.
+
+`check.citation-without-observation` names an entry whose scheme carries
+`observed: required` and which records no observation, or which records a
+pair that is incomplete or carries a value outside the closed set. The
+name follows `check.block-without-reason` and `check.claim-without-active`,
+which report the same shape of failure, a record missing the part that
+gives it meaning. The finding reports the item, the entry, and which half
+of the pair is missing or unrecognized. It reaches no further than that,
+since an entry claiming a failing before and a passing after is taken at
+its word.
+
+Nothing creates a checklist item yet, so none of the three has anything to
+run against until the verbs that write items exist. All three are named
+here so that whatever eventually writes an item reports under these names
+rather than minting others.
+
+### Refusing a move on a citation
+
+Refusing a move because a criterion cites nothing resolvable is a change
+to the core profile rather than to this format. The section 10 boundary
+table rules out "Structured items on a card recording judgements", and its
+reopen condition reads "Such an item is used to refuse a move, which would
+put the refusal in the contract", which such a refusal satisfies as
+worded. The same refusal engages the row beside it, "Conditions that must
+be satisfied before a card may enter a state [gates]", whose reopen
+condition reads "A gate condition emerges that every workbench needs,
+rather than one each workbench defines."
+
+Either promotion carries new normative statements, a refusal name joining
+the closed set, the row moved with the table's own checker satisfied, a
+version increment, a changelog entry, and conformance coverage a second
+implementation must then pass. This format fixes where a citation is
+written, what an entry looks like, what it resolves to, and what
+observation it carries, and it stops there.
 
 ## Comments and attachments
 

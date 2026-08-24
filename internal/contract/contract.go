@@ -218,6 +218,13 @@ const (
 	// nothing precedes it for a card to come from. It is a fact about the
 	// flow rather than about what is on the workbench today.
 	NoUpstream = LayerPrefix + "no-upstream"
+	// AwaitingOutside is an act that would take work up at a state whose
+	// definition says the workbench waits there on somebody who is not an
+	// owner of it. One name covers all four raise sites, the claim, the
+	// named pull in either direction and the move that arrives holding the
+	// card, because a caller cannot act differently on four names for one
+	// fact and the sentence carries the fix.
+	AwaitingOutside = LayerPrefix + "awaiting-outside"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -229,7 +236,7 @@ var Introduced = []string{
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
-	AmbiguousState, NoUpstream,
+	AmbiguousState, NoUpstream, AwaitingOutside,
 	NoLevels, UnknownLevel,
 }
 
