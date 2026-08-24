@@ -279,6 +279,12 @@ const (
 // CORE-STATE-11 admits a kind of a layer's minting and no other.
 const KindBuffer = LayerPrefix + "buffer"
 
+// MintedKinds lists every state kind Dinah introduces beyond the three the
+// profile declares. It sits beside Introduced, which does the same for the
+// refusal names, because the layer prefix carries both and a reader meeting a
+// dotted token in a document needs one place to ask what it is.
+var MintedKinds = []string{KindBuffer}
+
 // The journal event names. The set is closed, and an extension kind's own
 // events carry a dotted name of their own rather than joining this list.
 const (

@@ -63,6 +63,7 @@ func TestAFilteredHeaderNamesBothNumbers(t *testing.T) {
 	for range 3 {
 		runCLI(t, root, "add", "a card of the intake")
 	}
+	carryToDoing(t, root, "fx-1")
 	runCLI(t, root, "claim", "fx-1")
 
 	got := runCLI(t, root, "tree", "substate:ready")
@@ -294,6 +295,7 @@ func TestTheNoValueGroupCarriesItsOwnLabel(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "a card somebody holds")
 	runCLI(t, root, "add", "a card nobody holds")
+	carryToDoing(t, root, "fx-1")
 	runCLI(t, root, "claim", "fx-1")
 
 	got := runCLI(t, root, "tree", "--group-by", "holder")
@@ -337,7 +339,13 @@ func TestTheNoValueGroupCarriesItsOwnLabel(t *testing.T) {
 func TestANodeHoldingBackBothKindsJoinsTheTwoSentences(t *testing.T) {
 	root := newBench(t)
 	for range 3 {
-		runCLI(t, root, "add", "a card of the intake")
+		runCLI(t, root, "add", "a card of the doing station")
+	}
+	// Every card is carried to one station, because the node this test reads
+	// is the one holding cards back for both reasons at once, and a claim is
+	// refused where no owner takes work up.
+	for _, ref := range []string{"fx-1", "fx-2", "fx-3"} {
+		carryToDoing(t, root, ref)
 	}
 	runCLI(t, root, "claim", "fx-1")
 
@@ -360,7 +368,7 @@ func TestANodeHoldingBackBothKindsJoinsTheTwoSentences(t *testing.T) {
 	if carrying == "" {
 		t.Fatalf("the tree does not carry %q:\n%s", want, got.out)
 	}
-	if !strings.Contains(carrying, "intake") {
-		t.Errorf("the joined account sits on %q, and the node holding both back is the intake group:\n%s", carrying, got.out)
+	if !strings.Contains(carrying, "doing") {
+		t.Errorf("the joined account sits on %q, and the node holding both back is the doing group:\n%s", carrying, got.out)
 	}
 }
