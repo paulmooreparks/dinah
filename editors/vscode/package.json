@@ -1,0 +1,110 @@
+{
+  "name": "dinah",
+  "displayName": "Dinah",
+  "description": "Dinah in VS Code: see which workbench this folder resolves to and which dinah binary the editor is talking to.",
+  "version": "0.1.0",
+  "publisher": "paulmooreparks",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paulmooreparks/dinah.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paulmooreparks/dinah/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/workbench.md",
+    "onView:dinah.workbenchView"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dinah",
+          "title": "Dinah",
+          "icon": "media/dinah.svg"
+        }
+      ]
+    },
+    "views": {
+      "dinah": [
+        {
+          "id": "dinah.workbenchView",
+          "name": "Workbench"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "dinah.workbenchView",
+        "when": "dinah.binary == 'missing'",
+        "contents": "Dinah is not installed on this machine, and this build of the extension does not carry a binary for your platform. Install it from [github.com/paulmooreparks/dinah](https://github.com/paulmooreparks/dinah), or set `dinah.path` to a binary you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+      },
+      {
+        "view": "dinah.workbenchView",
+        "when": "dinah.workbench == 'none'",
+        "contents": "No workbench was found from this folder. Run `dinah init` in a terminal to create one, or set `dinah.workbench` to the directory of one you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+      },
+      {
+        "view": "dinah.workbenchView",
+        "when": "dinah.workbench == 'ambiguous'",
+        "contents": "Several workbenches are reachable from here. Set `dinah.workbench` to the one you mean.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+      },
+      {
+        "view": "dinah.workbenchView",
+        "contents": "Looking for a dinah binary and a workbench.\n\nThis text is replaced as soon as the extension has an answer. If it stays, open the Dinah output channel to see what happened."
+      }
+    ],
+    "configuration": {
+      "title": "Dinah",
+      "properties": {
+        "dinah.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH, or the one carried inside this extension. A binary path is a property of the machine, so this setting does not travel through settings sync."
+        },
+        "dinah.workbench": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "markdownDescription": "Directory of the workbench to use for this folder, passed to `dinah` as `--workbench`. Leave empty to let `dinah` discover one by walking up from the folder. Set it when several workbenches are reachable, or when the walk reaches one you did not mean."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "generate": "node esbuild.mjs --generate-only",
+    "compile": "npm run generate && node esbuild.mjs",
+    "watch": "npm run generate && node esbuild.mjs --watch",
+    "check-types": "npm run generate && tsc --noEmit",
+    "lint": "eslint src test",
+    "compile-tests": "npm run generate && tsc --project tsconfig.test.json",
+    "test:unit": "npm run compile-tests && node --test \"out/test/unit/*.test.js\"",
+    "test:integration": "npm run compile-tests && npm run compile && node out/test/integration/runTest.js",
+    "package": "npm run check-types && npm run lint && npm run compile && node scripts/package.mjs",
+    "verify-package": "node scripts/verify-package.mjs",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "eslint": "^9.17.0",
+    "glob": "^11.0.0",
+    "mocha": "^11.0.1",
+    "typescript": "^5.7.2"
+  }
+}

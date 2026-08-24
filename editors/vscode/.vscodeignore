@@ -1,0 +1,23 @@
+# Everything the running extension does not need. bin/ is deliberately absent
+# from this list: it is where the packaging script stages exactly one platform
+# binary, and it is the whole point of a platform-specific vsix.
+.vscode/**
+.vscode-test/**
+out/**
+vsix/**
+*.vsix
+# Where the six release binaries are collected before one of them is staged
+# into bin/. Without this line vsce packages all six into every artifact,
+# which is one of the two failures scripts/verify-package.mjs exists to catch.
+.binaries/**
+.release-binaries/**
+src/**
+test/**
+scripts/**
+node_modules/**
+esbuild.mjs
+eslint.config.mjs
+tsconfig.json
+tsconfig.test.json
+**/*.ts
+**/*.map
