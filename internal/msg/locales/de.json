@@ -450,18 +450,22 @@
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
     },
     "check.rename.1": {
-      "text": "die Referenz löst sich zu einem Anhang auf",
+      "text": "die Referenz löst sich zu einem Pfad auf",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.2": {
-      "text": "die Anfrage nennt einen Akteur",
+      "text": "die Referenz löst sich zu einem Anhang auf",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.3": {
-      "text": "der Name ist nach dem Trimmen nicht leer",
+      "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.rename.4": {
+      "text": "der Name ist nach dem Trimmen nicht leer",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.rename.5": {
       "text": "der Name trägt keinen Schrägstrich, Rückstrich oder Punkt-Punkt",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
@@ -1694,7 +1698,7 @@
       "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward."
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "nennen Sie einen weiter hinten im Fluss liegenden Zustand, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {state}",
+      "text": "; nennen Sie einen weiter hinten im Fluss liegenden Zustand, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {state}",
       "context": "The line printed after dinah.no-upstream, naming the ways forward."
     },
     "refusal.dinah.not-renamable": {
@@ -2364,6 +2368,10 @@
     "workstreams.empty": {
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
       "context": "Printed by the workstream command when the workbench carries none, in place of an empty table."
+    },
+    "param.rename.ref.summary": {
+      "text": "der Anhang, der umbenannt werden soll, etwa wb-1/attachments/1 oder wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table."
     },
     "param.rename.name.summary": {
       "text": "der Dateiname, den der Anhang tragen soll, in einem Shell-Wort oder in Anführungszeichen",

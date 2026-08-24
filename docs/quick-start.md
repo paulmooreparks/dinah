@@ -1182,14 +1182,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        610/610
-  af        0/610
-  cs        0/610
-  de        610/610
-  es        0/610
-  fil       0/610
-  hi        610/610
-  id        0/610
+  en        612/612
+  af        0/612
+  cs        0/612
+  de        612/612
+  es        0/612
+  fil       0/612
+  hi        612/612
+  id        0/612
 [exit 0]
 ```
 

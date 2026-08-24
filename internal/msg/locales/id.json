@@ -552,21 +552,26 @@
       "skeleton": true
     },
     "check.rename.1": {
-      "text": "the reference resolves to an attachment",
+      "text": "the reference resolves to a path",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.rename.2": {
-      "text": "the request names an owner",
+      "text": "the reference resolves to an attachment",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.rename.3": {
-      "text": "the name is non-empty after trimming",
+      "text": "the request names an owner",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
     "check.rename.4": {
+      "text": "the name is non-empty after trimming",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "skeleton": true
+    },
+    "check.rename.5": {
       "text": "the name carries no slash, back slash, or dot-dot",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
@@ -1957,7 +1962,7 @@
       "skeleton": true
     },
     "refusal.dinah.ambiguous-name.next": {
-      "text": "name one as attachments/<ordinal>",
+      "text": "; name one as attachments/<ordinal>",
       "context": "Spliced onto refusal.dinah.ambiguous-name as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
@@ -2067,7 +2072,7 @@
       "skeleton": true
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "name a state later in the flow, or move a card into {state} with `dinah move` instead",
+      "text": "; name a state later in the flow, or move a card into {state} with `dinah move` instead",
       "context": "The line printed after dinah.no-upstream, naming the ways forward.",
       "skeleton": true
     },
@@ -2954,6 +2959,11 @@
     "param.mcp.root.summary": {
       "text": "directory every workbench this server serves lies under; the workbench discovered at startup when you name none",
       "context": "The meaning of the --root argument of `dinah mcp`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.rename.ref.summary": {
+      "text": "the attachment to rename, such as wb-1/attachments/1 or wb-1/attachments/sketch.txt",
+      "context": "The meaning of the ref argument of `dinah rename`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.rename.name.summary": {

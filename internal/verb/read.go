@@ -269,7 +269,8 @@ type AttachmentView struct {
 	// ID is the attachment's identifier.
 	ID string `json:"id"`
 	// Ordinal is the attachment's one-based position among the attachments
-	// of the entity it hangs from.
+	// of the entity it hangs from: the stored ordinal, or the
+	// directory-order position on an attachment whose anchor carries none.
 	Ordinal int `json:"ordinal"`
 	// Ref is what a person types to name the attachment: the card's own
 	// reference, then attachments and the attachment's ordinal. Resolved
@@ -364,10 +365,11 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	cardRef := card.Ref(l.Bench.Slug)
 	for _, attachment := range attachments {
+		ordinal := displayOrdinal(attachment)
 		view := AttachmentView{
 			ID:          attachment.ID,
-			Ordinal:     attachment.Ordinal,
-			Ref:         attachmentRef(cardRef, attachment),
+			Ordinal:     ordinal,
+			Ref:         attachmentRef(cardRef, ordinal),
 			Filename:    attachment.Filename,
 			Description: attachment.Description,
 			Provenance:  attachment.Provenance,
@@ -385,37 +387,40 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	return detail, "", nil
 }
 
-// attachmentRef composes the reference a person types to reach one attachment
-// from its card: the card's own reference, then attachments and the
-// attachment's one-based ordinal.
+// displayOrdinal is the one-based position a read reports for an attachment,
+// and the only number the position column, the JSON view and the printed ref
+// are built from.
 //
-// The ordinal is read off the anchor rather than taken from the attachment's
-// in-memory position, since an attachment carrying no stored ordinal still
-// needs a ref the resolver will answer: directory-order ordinal is what
-// resolve.go's pick already serves, so the ref printed here is what the
-// reader can type to land back on the same attachment.
-func attachmentRef(cardRef string, attachment *bench.Attachment) string {
-	ordinal := attachment.Ordinal
-	if ordinal == 0 {
-		ordinal = directoryOrdinal(attachment)
-	}
-	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
-}
-
-// directoryOrdinal falls back to the attachment's directory-order position
-// when its anchor carries no stored ordinal. It mirrors what SortByOrdinal
-// does on a collection with no ordinals stamped, so the ref printed in show
-// is the same one path would answer to.
-func directoryOrdinal(attachment *bench.Attachment) int {
+// It counts the attachment's place in the sorted collection and never reads
+// the anchor's stored ordinal, because a position and a stored ordinal are
+// different things. resolve.go's position arm answers a reference by indexing
+// SortByOrdinal(ListIDs(collection)), so a position is an index into that
+// sequence. The stored ordinal is the sort key that orders the sequence, and
+// NextOrdinal hands out highest-plus-one, so one delete leaves a permanent gap
+// after which the two stop coinciding. Counting the place here makes the
+// display, contents and the resolver agree by construction on a stamped
+// collection, on an unstamped one, and on a gapped one alike.
+//
+// Zero means the attachment is not a member of the collection its directory
+// sits in, which no caller can produce today, since Show's attachments come
+// out of that same listing. It is reported rather than smoothed over, so that
+// an unaddressable row shows up as one instead of pointing at the first file.
+func displayOrdinal(attachment *bench.Attachment) int {
 	collection := filepath.Dir(attachment.Dir)
-	ids := bench.ListIDs(collection)
-	ids = bench.SortByOrdinal(collection, bench.AttachmentAnchor, ids)
+	ids := bench.SortByOrdinal(collection, bench.AttachmentAnchor, bench.ListIDs(collection))
 	for n, id := range ids {
 		if id == attachment.ID {
 			return n + 1
 		}
 	}
-	return 1
+	return 0
+}
+
+// attachmentRef composes the reference a person types to reach one attachment
+// from its card: the card's own reference, then attachments and the position
+// the caller resolved through displayOrdinal.
+func attachmentRef(cardRef string, ordinal int) string {
+	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
 }
 
 // linkRef resolves a link's stored card identifier to what a person types to
