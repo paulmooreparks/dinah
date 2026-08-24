@@ -73,9 +73,24 @@ function evaluate(when: string | undefined, state: KeyState): boolean {
 	});
 }
 
-/** Every state a window can be in, unset keys first. */
+/**
+ * Every state a window can be in, unset keys first.
+ *
+ * The half-set states are the point of this function rather than an edge of
+ * it. activate() writes the two keys in two separately awaited commands, so a
+ * window holds one key and not the other across an extension-host round trip
+ * on every healthy startup, and that interval is where a state with no block
+ * of its own hides. The product alone cannot express it, which is how the
+ * first repair passed a proof it did not satisfy.
+ */
 function everyState(): KeyState[] {
 	const states: KeyState[] = [{}];
+	for (const binary of BINARY_KEY_VALUES) {
+		states.push({ binary });
+	}
+	for (const workbench of WORKBENCH_KEY_VALUES) {
+		states.push({ workbench });
+	}
 	for (const binary of BINARY_KEY_VALUES) {
 		for (const workbench of WORKBENCH_KEY_VALUES) {
 			states.push({ binary, workbench });
@@ -145,7 +160,10 @@ test("each resolved state renders its own text, and none renders the still-looki
 	// The four states the spec names, plus the interval before activate() has
 	// set either key. Each of the five reaches different contents, so no
 	// resolved window can be shown the text written for a window that has not
-	// answered yet.
+	// answered yet. The half-set state where a binary resolved and the
+	// workbench key is not written yet is named here too: it is still looking,
+	// but it is looking for less than a window that has answered nothing, and
+	// telling a reader otherwise is the same lie one degree smaller.
 	const blocks = welcomeBlocks();
 	const contentsFor = (state: KeyState): string => {
 		const matched = blocks.filter((block) => evaluate(block.when, state));
@@ -159,6 +177,7 @@ test("each resolved state renders its own text, and none renders the still-looki
 		["no workbench found", { binary: "ok", workbench: "none" }],
 		["several workbenches", { binary: "ok", workbench: "ambiguous" }],
 		["workbench-resolved", { binary: "ok", workbench: "ok" }],
+		["binary resolved, workbench not written yet", { binary: "ok" }],
 	];
 
 	const seen = new Map<string, string>();
