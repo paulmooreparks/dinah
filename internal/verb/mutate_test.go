@@ -144,6 +144,17 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 			refusal: contract.NotOperator,
 			why:     "not-operator precedes not-blocked, per section 6.7",
 		},
+		{
+			name: "claim reports the block before the operator-owned state",
+			build: func(h *harness) *Request {
+				ref := h.add("ordering")
+				h.at(ref, review)
+				h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "stopped"})
+				return &Request{Verb: Claim, Card: ref, Actor: "bob"}
+			},
+			refusal: contract.Blocked,
+			why:     "blocked precedes the operator-owned row, because claimableSubstate runs ahead of claimableState",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -192,6 +203,49 @@ func TestClaimTakesUpACard(t *testing.T) {
 	if card.ClaimSince == "" {
 		t.Error("claim time: wanted one, got none")
 	}
+}
+
+// TestClaimAtAnOperatorOwnedStateIsReservedToTheOperator drives CORE-CLAIM-8.
+// A state reserved to the operator refuses the claim to every other owner
+// under the name the move already reports for the departure side of the same
+// reservation, so nobody takes a card up somewhere they could never carry it
+// out of.
+//
+// The admitted half is doing real work here. An implementation refusing every
+// claim at the state would pass the refused half on its own, and the operator's
+// own claim is what tells a reservation apart from a closed door.
+func TestClaimAtAnOperatorOwnedStateIsReservedToTheOperator(t *testing.T) {
+	t.Run("a non-operator is refused", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("waiting in review")
+		h.at(ref, review)
+
+		response := h.do(&Request{Verb: Claim, Card: ref, Actor: "bob"})
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
+			t.Fatalf("the claim at an operator-owned state: wanted %s, got %s %s",
+				contract.NotOperator, response.Outcome, response.Refusal)
+		}
+		if response.Detail != "bob" {
+			t.Errorf("the refusal should name the owner asking, got %q", response.Detail)
+		}
+		if card := h.card(ref); card.Substate != contract.SubstateReady || card.Holder != "" {
+			t.Errorf("the refused claim wrote to the card: substate %q holder %q", card.Substate, card.Holder)
+		}
+	})
+
+	t.Run("the operator is admitted", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("waiting in review")
+		h.at(ref, review)
+
+		response := h.do(&Request{Verb: Claim, Card: ref, Actor: "alka"})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the operator's own claim: wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.Substate != contract.SubstateActive || card.Holder != "alka" {
+			t.Errorf("the admitted claim: substate %q holder %q", card.Substate, card.Holder)
+		}
+	})
 }
 
 // TestExpiryLapsesTheClaim asserts CORE-CLAIM-5 and CORE-HIST-2: after a

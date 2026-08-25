@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.5
+conforms to dinah-core/0.6
 storage format 1
 [exit 0]
 ```
@@ -1193,20 +1193,20 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.5
+conforms to dinah-core/0.6
 storage format 1
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        622/622
-  af        0/622
-  cs        0/622
-  de        622/622
-  es        0/622
-  fil       0/622
-  hi        622/622
-  id        0/622
+  en        624/624
+  af        0/624
+  cs        0/624
+  de        624/624
+  es        0/624
+  fil       0/624
+  hi        624/624
+  id        0/624
 [exit 0]
 ```
 
@@ -1514,6 +1514,7 @@ What can go wrong, in the order each is checked:
   5      the owner named as holder is the owner asking              not-requester
   6      the card's substate is not `blocked`                       blocked
   7      the card's substate is not `active`                        held
+  8      taking the card up is legal for whoever asks               not-operator
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

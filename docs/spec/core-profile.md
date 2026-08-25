@@ -43,7 +43,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.5 of the profile whose identity string is
+This document is version 0.6 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -442,9 +442,10 @@ under a layer's prefix, as section 9 describes. A tool that meets a kind it
 does not implement reads the state as an ordinary `work` state, so a
 workbench carrying one still opens and its cards still move.
 
-A state may be operator-owned, which reserves departure from it to the
-operator. A workbench uses this where a person has to look at the work before
-it goes on, and it is the mechanism behind ACTOR-4.
+A state may be operator-owned. That reserves two things to the operator:
+departure from the state, and the claim that would let anybody else act on a
+card standing there. A workbench uses this where a person has to look at the
+work before it goes on, and it is the mechanism behind ACTOR-4.
 
 A state also carries a slug, which is the short handle somebody types in
 place of a title. An identifier is exact and nobody remembers one, and a
@@ -775,6 +776,7 @@ card, and the owner claims it or does not.
 3  the owner named as holder is the owner asking    not-requester
 4  the card's substate is not `blocked`             blocked
 5  the card's substate is not `active`              held
+6  taking the card up is legal for whoever asks     not-operator
 ```
 
 Effect: the substate becomes `active`, and the card carries its holder and
@@ -793,6 +795,8 @@ the time.
 [CORE-CLAIM-6] A tool MUST NOT change a card's holder except through release, expiry or block.
 
 [CORE-CLAIM-7] A tool MUST refuse a claim naming as holder an owner other than the one asking for it, reporting the refusal name `not-requester`.
+
+[CORE-CLAIM-8] A tool MUST refuse a claim on a card standing at an operator-owned state, asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
 
 ### 6.4 Move
 
@@ -1101,7 +1105,7 @@ quietly.
 | Self-contained references in history | in | History that resolved its names against the present would turn ordinary renaming into apparent corruption. | | CORE-HIST-4, CORE-HIST-6 |
 | State kinds | in | Where cards enter, where they are worked and where they come to rest are three different situations, and a tool has to tell them apart to know what to offer. A tool meeting a kind it does not implement has to keep the card movable rather than refuse the board, and reading such a state as an ordinary work state is the reading that constrains nothing. | | CORE-STATE-11, CORE-STATE-12 |
 | Terminal states | in | Somewhere the journey ends, and a tool that offered a forward move out of the end would be inviting a card into nowhere. | | CORE-STATE-9, CORE-MOVE-7 |
-| States a workbench reserves to its operator | in | Some positions exist so that a person looks at the work before it goes on, and a flow that could not express one would push that check outside the tool where nothing records it. | | CORE-STATE-4, CORE-MOVE-6 |
+| States a workbench reserves to its operator | in | Some positions exist so that a person looks at the work before it goes on, and a flow that could not express one would push that check outside the tool where nothing records it. | | CORE-STATE-4, CORE-MOVE-6, CORE-CLAIM-8 |
 | The capacity limit on a state | in | This is the capacity layer of the discipline, and it is what stops a state accepting more work than it can hold. It is optional per workbench, which is why the pull invariant above is stated separately rather than resting on it. | | CORE-STATE-5, CORE-MOVE-4, CORE-MOVE-5 |
 | The operator's override of a capacity limit, recorded as an override | in | A limit nobody can ever set aside gets worked around outside the tool, where nothing sees it. Requiring an explicit marker from the operator, and recording the resulting act as an override, keeps the exception inside the record. | | CORE-MOVE-9, CORE-MOVE-10, CORE-MOVE-11 |
 | The closed set of refusal names | in | A caller that cannot tell one refusal from another cannot decide what to do next, and a refusal reported as prose is a refusal nobody can act on. | | CORE-OUT-2, CORE-OUT-3, CORE-OUT-5 |
@@ -1341,6 +1345,7 @@ themselves carry meaning.
 | CORE-CLAIM-5 | must | tool | After an expiry, the card reads `ready` and the history carries the expiry. |
 | CORE-CLAIM-6 | must not | tool | No sequence other than release, expiry or block changes a card's holder. |
 | CORE-CLAIM-7 | must | tool | A claim naming as holder an owner other than the one asking is refused with `not-requester`. |
+| CORE-CLAIM-8 | must | tool | A claim on a card standing at an operator-owned state is refused with `not-operator` when the owner asking is not the operator. |
 | CORE-MOVE-1 | must | tool | A move to a state the workbench does not declare is refused with `unknown-state`. |
 | CORE-MOVE-2 | must | tool | A move of a `blocked` card is refused with `blocked`. |
 | CORE-MOVE-3 | must | tool | A move asked for by an owner other than the holder is refused with `held`. |
@@ -1577,3 +1582,19 @@ unreadable and no card becomes unmovable on account of a kind. A tool that
 mints no kind of its own sees no change at all. The document sits on the
 `dev` channel, so nothing here binds a caller who has not already opted into
 `dinah-core 0.5`.
+
+### 0.6, channel `dev`, 2026-08-25
+
+Identifiers affected: CORE-CLAIM-8, introduced, extending the claim
+precondition list with the reservation CORE-MOVE-6 already states for
+departure. No other identifier in the section 11 index is affected.
+
+Consequence for a caller. A tool claiming this revision now refuses a claim
+on a card standing at an operator-owned state when the owner asking is not
+the operator, reporting `not-operator`, the same name CORE-MOVE-6 already
+reports for the departure side of the same reservation. A tool that has not
+opted into 0.6 keeps admitting such a claim and discovers the reservation
+only when it tries to move the card out, which leaves an owner holding a card
+they cannot carry anywhere. A workbench with no operator-owned state sees no
+behaviour change. The document sits on the `dev` channel, so nothing here
+binds a caller who has not already opted into `dinah-core 0.6`.

@@ -61,6 +61,7 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.NotRequester, Key: "check.claim.3"},
 		{Refusal: contract.Blocked, Key: "check.claim.4"},
 		{Refusal: contract.Held, Key: "check.claim.5"},
+		{Refusal: contract.NotOperator, Key: "check.claim.6"},
 	},
 	Move: {
 		{Refusal: contract.UnknownCard, Key: "check.move.1"},
@@ -93,12 +94,17 @@ var checkLists = map[string][]Check{
 // IsContractVerb continues to answer false for pull while Checks still returns
 // the full list for the help and the refusal-set tests.
 //
-// These are rows 3 to 13 of pull's thirteen-row list, in order; rows 1 and 2
+// These are rows 3 to 14 of pull's fourteen-row list, in order; rows 1 and 2
 // are the workbench pair Checks prefixes. Two of them are pull's own names:
 // ambiguous-state is what the bare form answers when more than one state
 // qualifies, and no-upstream is what the named form answers for a state
 // standing first in the flow. Pull raises both before any lock is taken,
 // which is why neither reaches a generic precondition walker.
+//
+// Two rows carry not-operator for the operator-owned reservation, one at each
+// end of the pull. Row 6 reads the state the card is leaving, which is
+// CORE-MOVE-6, and row 11 reads the state it would land in and be claimed at,
+// which is CORE-CLAIM-8.
 var pullChecks = []Check{
 	{Refusal: contract.NoOwner, Key: "check.pull.1"},
 	{Refusal: contract.UnknownState, Key: "check.pull.2"},
@@ -110,7 +116,8 @@ var pullChecks = []Check{
 	{Refusal: contract.Held, Key: "check.pull.8"},
 	{Refusal: contract.Terminal, Key: "check.pull.9"},
 	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
-	{Refusal: contract.Locked, Key: "check.pull.11"},
+	{Refusal: contract.NotOperator, Key: "check.pull.11"},
+	{Refusal: contract.Locked, Key: "check.pull.12"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs

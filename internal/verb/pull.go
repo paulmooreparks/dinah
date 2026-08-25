@@ -135,7 +135,11 @@ func (l *Library) pullDestination(req *Request, named *bench.State) (*bench.Stat
 // one the caller cannot reach makes a worse answer than a shorter list. The
 // destination stands below its capacity limit, or the invocation carries the
 // override marker, whose legality Pull has already settled. The destination is
-// not being retired.
+// not operator-owned unless the owner asking is the operator, which is the
+// same reservation read at the other end of the pull: a pull lands holding
+// the card, so a destination reserved to the operator is one this caller
+// cannot reach, and it is narrowed away for the same reason the source is.
+// The destination is not being retired.
 //
 // The predicate reads the workbench without holding any lock, so the set it
 // returns is a prediction about what a pull would do. The authoritative
@@ -151,6 +155,9 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
 		}
 		reached, err := l.atCapacity(state)
 		if err == nil && reached && !req.Override {
+			continue
+		}
+		if operatorReservesClaim(state, req.Actor, l.Bench.Operator) {
 			continue
 		}
 		if _, retiring := l.retiring(state.ID); retiring {
@@ -239,7 +246,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 }
 
 // pull is the inner write, reached once the card has been chosen and locked.
-// It evaluates rows 8 to 13 of pull's table in the order the table declares,
+// It evaluates rows 8 to 14 of pull's table in the order the table declares,
 // out of the same two functions move and claim run, so a pull refuses in the
 // words a move and a claim already refuse in.
 //
@@ -248,7 +255,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // and 10, and it stands between the halves because row 10 takes claim's
 // stricter test: a pull that claims cannot take a card already active
 // whoever holds it, where the move's row admits a card the owner asking
-// holds. canLand is the rest of the move's list, rows 11 to 13. Its own
+// holds. canLand is the rest of the move's list, rows 11 to 14. Its own
 // blocked and held rows are reached with the substate already settled by the
 // pair above, so neither can decide a pull.
 //
@@ -258,9 +265,11 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // same reason.
 //
 // canLand is told this act takes the card up, which is what refuses a pull
-// landing a card where no owner takes work up. The claim a pull writes is
-// taken at the destination, so the departure is asked the narrower question
-// pullableDeparture asks: whether a pull may take a card out of it at all.
+// landing a card where no owner takes work up and what refuses a pull landing
+// a card at a state that reserves the claim to the operator. The claim a pull
+// writes is taken at the destination, so the departure is asked the narrower
+// question pullableDeparture asks: whether a pull may take a card out of it
+// at all.
 //
 // Pull's caller has already fixed req.State to the destination's reference,
 // so canRoute resolves the destination exactly as the named form of a move

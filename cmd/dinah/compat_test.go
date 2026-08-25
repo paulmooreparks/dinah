@@ -558,8 +558,8 @@ func readJournalMembers(t *testing.T, path string, into map[string]map[string]bo
 // through the head, one declared string at a time, which is what a person meets
 // when their own workbench declares one of them.
 func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
-	opens := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/1.0"}
-	refuses := []string{"dinah-core/0.0", "dinah-core/0.6", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
+	opens := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/0.6", "dinah-core/1.0"}
+	refuses := []string{"dinah-core/0.0", "dinah-core/0.7", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
 	for _, declared := range opens {
 		root := newBench(t)
 		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: "+declared)
@@ -589,7 +589,7 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	root := newBench(t)
 	editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
 	got := runCLI(t, root, "status")
-	wanted := "; this build reads dinah-core 0.1 through dinah-core 0.5"
+	wanted := "; this build reads dinah-core 0.1 through dinah-core 0.6"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}

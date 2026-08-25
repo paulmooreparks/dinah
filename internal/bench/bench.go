@@ -58,7 +58,7 @@ const StorageFormat = 1
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 5
+	ProfileMinor = 6
 )
 
 // The oldest profile revision this build opens. Every workbench any build of

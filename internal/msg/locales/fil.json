@@ -186,6 +186,11 @@
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "skeleton": true
     },
+    "check.claim.6": {
+      "text": "taking the card up is legal for whoever asks",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
     "check.clean": {
       "text": "No structural defects found.",
       "context": "Printed when check finds nothing.",
@@ -457,6 +462,11 @@
       "skeleton": true
     },
     "check.pull.11": {
+      "text": "taking the card up at the destination is legal for whoever asks",
+      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the state the card would land in and be claimed at.",
+      "skeleton": true
+    },
+    "check.pull.12": {
       "text": "the destination is not being retired",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "skeleton": true

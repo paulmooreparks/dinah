@@ -149,6 +149,10 @@
       "text": "der Unterzustand der Karte ist nicht `active`",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
     },
+    "check.claim.6": {
+      "text": "das Aufnehmen der Karte ist für die anfragende Person zulässig",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile."
+    },
     "check.clean": {
       "text": "Keine strukturellen Mängel gefunden.",
       "context": "Printed when check finds nothing."
@@ -374,6 +378,10 @@
       "context": "One row of the ordered precondition list of pull: a destination at its limit refuses the move, except when the operator carries the marker."
     },
     "check.pull.11": {
+      "text": "das Aufnehmen der Karte am Ziel ist für die anfragende Person zulässig",
+      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the state the card would land in and be claimed at."
+    },
+    "check.pull.12": {
       "text": "das Ziel wird nicht gerade stillgelegt",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it."
     },
