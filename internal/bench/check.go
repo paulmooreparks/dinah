@@ -3,6 +3,7 @@ package bench
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"dinah/internal/contract"
 )
@@ -48,6 +49,22 @@ const (
 	// make a workbench unreadable the moment somebody edits its declaration.
 	FindingUnknownLevel  = "check.unknown-level"
 	FindingIgnoredAnchor = "check.ignored-anchor"
+	// FindingClaimWhereNoWorkIsTaken names a card held at a state where no
+	// owner takes work up, which the acts are refused from the day this
+	// build ships and which a board written before that day can still carry.
+	// It sits beside FindingUnknownLevel on the same posture: refusing such
+	// a workbench on read would leave it unopenable with no route back.
+	FindingClaimWhereNoWorkIsTaken = "check.claim-where-no-work-is-taken"
+	// FindingKindOutOfPosition names a state whose kind is not allowed to
+	// stand where it stands in the flow, and is reported rather than
+	// refused for the reason above. The repair is an edit to workbench.md or
+	// to a state.md, so no flag offers to make it.
+	FindingKindOutOfPosition = "check.kind-out-of-position"
+	// FindingUnknownKind names a state carrying a layer's kind this build
+	// does not implement. CORE-STATE-12 says such a state is read as though
+	// its kind were work, and the sentence says so, because a reader
+	// otherwise has no way to know what the tool did with it.
+	FindingUnknownKind = "check.unknown-kind"
 	// FindingDanglingWorkstream names a card listing a workstream identifier
 	// that resolves in neither half of the workstreams collection, on the
 	// same terms FindingDanglingLink already reports a link's to.
@@ -140,6 +157,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		findings = append(findings, b.checkCard(card)...)
 	}
+	findings = append(findings, b.checkStateKinds()...)
 	findings = append(findings, b.checkWorkstreams()...)
 	findings = append(findings, b.checkStateSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
@@ -150,6 +168,64 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, standing.finding())
 	}
 	return findings, nil
+}
+
+// checkStateKinds applies the position rules to the flow and reports a state
+// carrying a kind this build does not implement.
+//
+// The rules are three. An intake state stands first, so at most one state is
+// of that kind. A done state stands in the terminal region, which is the run
+// of states at the end of the list every member of which is of kind done, and
+// no state that is not done stands after a state that is. A buffer stands
+// neither first nor in the terminal region.
+//
+// Every rule is reported rather than refused. A board whose kinds sit outside
+// these positions opens and is read as it stands, because refusing it on read
+// would leave it unopenable the moment somebody reorders a flow, and the acts
+// that would create the condition afresh are refused on their own.
+func (b *Bench) checkStateKinds() []Finding {
+	var findings []Finding
+	start := b.terminalRegionStart()
+	for _, state := range b.States {
+		path := b.StateAnchorPath(state.ID)
+		if strings.Contains(state.Kind, ".") && state.Kind != contract.KindBuffer {
+			findings = append(findings, Finding{Path: path, Key: FindingUnknownKind, Detail: state.Ref()})
+			continue
+		}
+		if b.kindStandsWrong(state, start) {
+			findings = append(findings, Finding{Path: path, Key: FindingKindOutOfPosition, Detail: state.Ref()})
+		}
+	}
+	return findings
+}
+
+// kindStandsWrong reports whether one state's kind is disallowed at the
+// position the state stands in, given where the terminal region starts.
+func (b *Bench) kindStandsWrong(state *State, terminalStart int) bool {
+	switch state.Kind {
+	case contract.KindIntake:
+		return state.Position != 0
+	case contract.KindDone:
+		return state.Position < terminalStart
+	case contract.KindBuffer:
+		return state.Position == 0 || state.Position >= terminalStart
+	}
+	return false
+}
+
+// terminalRegionStart returns the position the terminal region begins at,
+// which is the length of the flow when the flow ends in a state that is not
+// done. Walking back from the end is what makes the region a run rather than
+// a set: a done state with anything but done states after it lies outside it.
+func (b *Bench) terminalRegionStart() int {
+	start := len(b.States)
+	for i := len(b.States) - 1; i >= 0; i-- {
+		if b.States[i].Kind != contract.KindDone {
+			break
+		}
+		start = i
+	}
+	return start
 }
 
 // checkCard applies every card-level invariant to one card.
@@ -176,8 +252,17 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	default:
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownSubstate, Detail: card.Substate})
 	}
-	if b.State(card.State) == nil {
+	state := b.State(card.State)
+	if state == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownState, Detail: card.State})
+	}
+	// A claim standing where no owner takes work up is history rather than
+	// something a card acquires afresh, since claim, move and pull all refuse
+	// to put one there. The finding names the state, because that is what an
+	// operator edits or moves the card out of.
+	held := claimed || card.Substate == contract.SubstateActive
+	if state != nil && held && !state.TakesWorkUp() {
+		findings = append(findings, Finding{Path: anchor, Key: FindingClaimWhereNoWorkIsTaken, Detail: state.Ref()})
 	}
 	// Each axis is asked about its own declaration and never about whether
 	// the workbench declares any levels at all, so a card carrying a

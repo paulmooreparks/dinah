@@ -306,7 +306,7 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		if state.Position > current.Position {
 			direction = Forward
 		}
-		if direction == Forward && current.Kind == contract.KindDone {
+		if direction == Forward && current.Terminal() {
 			continue
 		}
 		moves = append(moves, LegalMove{State: state.ID, Ref: stateRef(state), Title: state.Title, Direction: direction})
@@ -323,19 +323,89 @@ func stateRef(state *bench.State) string {
 
 // affordances names what a caller may do next with a card, which is the same
 // question every response answers whatever its outcome.
+//
+// The ready list asks where the card is standing rather than deciding from the
+// substate alone. A claim is refused at a state that takes no work up, so a
+// list naming claim there advertises an act the tool refuses, and the reader
+// most likely to act on it is an agent that cannot see the board.
 func (l *Library) affordances(card *bench.Card) []string {
 	if card == nil {
 		return []string{"status", "states", "ls", "next"}
 	}
 	switch card.Substate {
 	case contract.SubstateReady:
-		return []string{Claim, Move, Block, "comment", "show", "log"}
+		return append(l.takeUpActs(l.Bench.State(card.State)), Move, Block, "comment", "show", "log")
 	case contract.SubstateActive:
 		return []string{Move, Release, Block, "comment", "show", "log"}
 	case contract.SubstateBlocked:
 		return []string{Unblock, "comment", "show", "log"}
 	}
 	return []string{"show", "log"}
+}
+
+// takeUpActs names the act that would take a ready card up at a state. It
+// asks the two predicates the acts themselves ask rather than repeating
+// either rule: claimableState admits a claim exactly where the state holds an
+// active card, and carriesInto answers where a pull would put a card standing
+// at this one, which is nil when no pull can reach it.
+//
+// It takes the state rather than a card because the question is the state's
+// alone, and because the instructions chain is served for a bare state as
+// often as for a card. A caller holding either one reaches the same rule.
+//
+// A state taking no work up loses the claim and gains a pull, because an agent
+// reading a list with the claim simply missing would meet the refusal with
+// nothing telling it what to reach for instead. That is the same reason the
+// next_card tool's list carries pull beside claim.
+func (l *Library) takeUpActs(state *bench.State) []string {
+	if state == nil || state.HoldsSubstate(contract.SubstateActive) {
+		return []string{Claim}
+	}
+	if carriesInto(state, l.Bench.States) != nil {
+		return []string{Pull}
+	}
+	return nil
+}
+
+// CardAffordances answers, for the card a request names, the list every
+// card-shaped response already carries. A head that assembles its own payload
+// instead of returning a Response reaches this rather than writing out a list
+// of its own, since a written-out list is a second answer to the question
+// affordances answers and goes stale the moment an act's rules change. A
+// reference naming no card falls back to the list a response with no card
+// carries, which spells two of its reads as library commands. A head serving
+// a vocabulary of its own translates what it publishes; the mcp head does
+// that in surfaceAffordances.
+func (l *Library) CardAffordances(req *Request) []string {
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil || found == nil {
+		return l.affordances(nil)
+	}
+	return l.affordances(found.Card)
+}
+
+// ServedAffordances answers what a caller may do where an instruction chain
+// was served. Instructions answers for a card or for a bare state, and this
+// answers for whichever of the two the request reached, from the one rule the
+// card list already reads.
+//
+// A written-out list here is worse than a written-out list anywhere else,
+// because instructions is the tool a caller reaches for precisely to learn
+// what it may do where the card is standing. A list naming claim at a state
+// that takes no work up walks the reader into the refusal it came here to
+// avoid, and it does so in the answer that was supposed to prevent that.
+//
+// The bare-state branch carries no card acts, since there is no card to move,
+// comment on or read. What it carries is the act that would take work up here
+// and the two reads that find a card to take it with.
+func (l *Library) ServedAffordances(req *Request, served *Served) []string {
+	if served == nil {
+		return nil
+	}
+	if l.instructionState(req) != nil {
+		return append(l.takeUpActs(l.Bench.State(served.State)), "ls", "next", "show")
+	}
+	return l.CardAffordances(req)
 }
 
 // refuse builds a refused response. It keeps its signature and delegates to

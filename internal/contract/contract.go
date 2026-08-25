@@ -225,6 +225,11 @@ const (
 	// card, because a caller cannot act differently on four names for one
 	// fact and the sentence carries the fix.
 	AwaitingOutside = LayerPrefix + "awaiting-outside"
+	// TakesNoWork is an act that would take work up at a state where no
+	// owner does, when the state does not declare awaiting_outside and so
+	// has nobody to name. A card stands at such a state until a pull carries
+	// it into the station beyond, and the sentence says so.
+	TakesNoWork = LayerPrefix + "takes-no-work"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -236,7 +241,7 @@ var Introduced = []string{
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
-	AmbiguousState, NoUpstream, AwaitingOutside,
+	AmbiguousState, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel,
 }
 
@@ -262,12 +267,23 @@ const (
 	SubstateBlocked = "blocked"
 )
 
-// The three state kinds of the flow.
+// The three state kinds the profile declares.
 const (
 	KindIntake = "intake"
 	KindWork   = "work"
 	KindDone   = "done"
 )
+
+// KindBuffer is a state where no owner takes work up and a pull carries a
+// card through into the station beyond. It carries LayerPrefix because
+// CORE-STATE-11 admits a kind of a layer's minting and no other.
+const KindBuffer = LayerPrefix + "buffer"
+
+// MintedKinds lists every state kind Dinah introduces beyond the three the
+// profile declares. It sits beside Introduced, which does the same for the
+// refusal names, because the layer prefix carries both and a reader meeting a
+// dotted token in a document needs one place to ask what it is.
+var MintedKinds = []string{KindBuffer}
 
 // The journal event names. The set is closed, and an extension kind's own
 // events carry a dotted name of their own rather than joining this list.

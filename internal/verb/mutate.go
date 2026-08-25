@@ -139,9 +139,14 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 
 // claimableState is the last row of the claim's list, and the first row the
 // claim has that reads the state a card stands in rather than the card. A
-// state declaring awaiting_outside is one no owner takes work up at, so the
-// claim is refused there whoever asks, the operator included, because the
-// flag is a fact about the station and not a permission.
+// state where no owner takes work up refuses the claim whoever asks, the
+// operator included, because taking work up is a fact about the state and not
+// a permission.
+//
+// Two names answer that one rule. A state declaring awaiting_outside tells a
+// reader who the workbench is waiting on, so that name wins wherever the flag
+// is set. A state that takes no work up by kind has nobody to name, so it
+// answers dinah.takes-no-work instead.
 //
 // It stands after claimableSubstate rather than before it so that a card
 // which is both blocked and standing at such a state answers the profile's
@@ -149,10 +154,20 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 // answer CORE-OUT-6 makes observable.
 func (l *Library) claimableState(req *Request, card *bench.Card) *Response {
 	state := l.Bench.State(card.State)
-	if state == nil || !state.AwaitingOutside {
+	if state == nil || state.HoldsSubstate(contract.SubstateActive) {
 		return nil
 	}
-	return l.refuse(req, card, contract.AwaitingOutside, stateRef(state))
+	return l.refuse(req, card, takesNoWorkName(state), stateRef(state))
+}
+
+// takesNoWorkName picks the refusal name for a state where no owner takes
+// work up. Both the claim path and the move's destination row choose between
+// the two names this way, so the choice is written once.
+func takesNoWorkName(state *bench.State) string {
+	if state.AwaitingOutside {
+		return contract.AwaitingOutside
+	}
+	return contract.TakesNoWork
 }
 
 // claimableSubstate runs the last two rows of the claim's list, blocked then
@@ -290,7 +305,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 		return false, l.refuse(req, card, contract.Held, card.Holder), nil
 	}
 	forward := departure != nil && destination.Position > departure.Position
-	if forward && departure.Kind == contract.KindDone {
+	if forward && departure.Terminal() {
 		return false, l.refuse(req, card, contract.Terminal, stateRef(departure)), nil
 	}
 	reached, err := l.atCapacity(destination)
@@ -300,20 +315,21 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if reached && !req.Override {
 		return false, l.refuse(req, card, contract.AtCapacity, stateRef(destination)), nil
 	}
-	// A waiting state takes a card that arrives unheld, which is the ordinary
-	// handoff, and refuses one that arrives held, because a held card at such
-	// a state is work taken up where nobody takes work up. The claim is not
-	// cleared here on the holder's behalf: CORE-MOVE-8 says a move MUST NOT
-	// change a card's substate or its holder, so the holder releases and then
-	// moves. A pull is refused whichever substate the card it carries is in,
-	// because a pull takes the card up where a move does not.
+	// A state where no owner takes work up receives a card that arrives
+	// unheld, which is the ordinary handoff, and refuses one that arrives
+	// held, because a held card at such a state is work taken up where
+	// nobody takes work up. The claim is not cleared here on the holder's
+	// behalf: CORE-MOVE-8 says a move MUST NOT change a card's substate or
+	// its holder, so the holder releases and then moves. A pull is refused
+	// whichever substate the card it carries is in, because a pull takes the
+	// card up where a move does not.
 	//
 	// The row stands after the capacity row and before the retiring one, so a
-	// full waiting state answers at-capacity and a retiring waiting state
-	// answers this name. The retiring check stays last for the concurrency
-	// reason its own comment gives.
-	if destination.AwaitingOutside && (card.Holder != "" || takesUp) {
-		return false, l.refuse(req, card, contract.AwaitingOutside, stateRef(destination)), nil
+	// full such state answers at-capacity and a retiring one answers this
+	// name. The retiring check stays last for the concurrency reason its own
+	// comment gives.
+	if !destination.TakesWorkUp() && (card.Holder != "" || takesUp) {
+		return false, l.refuse(req, card, takesNoWorkName(destination), stateRef(destination)), nil
 	}
 	if holder, retiring := l.retiring(destination.ID); retiring {
 		return false, l.refuse(req, card, contract.Locked, holder), nil

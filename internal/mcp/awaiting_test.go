@@ -71,3 +71,68 @@ func declareWaiting(t *testing.T, library *verb.Library, id string) {
 	}
 	library.Bench = reopened
 }
+
+// TestTheStatesToolCarriesTakesWorkUp is dinah-273 AC-26, on the pattern the
+// test above establishes. A member an agent parses is a member it depends on,
+// so the spelling on the wire is asserted by name rather than through the Go
+// field, and the false answer is the one that matters: an agent reading it is
+// told to reach for a pull rather than meet a refusal it was not warned about.
+func TestTheStatesToolCarriesTakesWorkUp(t *testing.T) {
+	library := newLibrary(t)
+
+	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"states","arguments":{"actor":"alka"}}}`)
+	decoded := payload(t, answer)
+	raw, err := json.Marshal(decoded["states"])
+	if err != nil {
+		t.Fatalf("re-encode the states member: %v", err)
+	}
+	if !strings.Contains(string(raw), `"takes_work_up"`) {
+		t.Errorf("the member is not spelled takes_work_up on the wire: %s", raw)
+	}
+	var states []verb.StateView
+	if err := json.Unmarshal(raw, &states); err != nil {
+		t.Fatalf("decode the states member: %v", err)
+	}
+	if len(states) != 2 {
+		t.Fatalf("wanted the fixture's two states, got %d", len(states))
+	}
+	if states[0].TakesWorkUp {
+		t.Error("no owner takes work up at an intake state, and the intake state came back true")
+	}
+	if !states[1].TakesWorkUp {
+		t.Error("an owner takes work up at a work state, and the work state came back false")
+	}
+	// The member carries no omitempty, so the false answer survives the
+	// encoding rather than being dropped as a zero value.
+	if !strings.Contains(string(raw), `"takes_work_up":false`) {
+		t.Errorf("the false answer was dropped from the wire form: %s", raw)
+	}
+}
+
+// TestTheNextCardToolOffersAPull is dinah-273 AC-37's affordance half. An agent
+// offered a card from a state where no owner takes work up cannot claim it, so
+// the tool that would take it has to be among the acts the answer names.
+func TestTheNextCardToolOffersAPull(t *testing.T) {
+	library := newLibrary(t)
+	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"next_card","arguments":{"actor":"alka"}}}`)
+	decoded := payload(t, answer)
+	raw, err := json.Marshal(decoded["affordances"])
+	if err != nil {
+		t.Fatalf("re-encode the affordances member: %v", err)
+	}
+	var affordances []string
+	if err := json.Unmarshal(raw, &affordances); err != nil {
+		t.Fatalf("decode the affordances member: %v", err)
+	}
+	for _, name := range []string{"claim", "pull", "show", "log"} {
+		found := false
+		for _, offered := range affordances {
+			if offered == name {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("the affordances are %v and %s is not among them", affordances, name)
+		}
+	}
+}

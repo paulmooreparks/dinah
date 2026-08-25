@@ -79,11 +79,12 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 		"dinah-core/0.2",
 		"dinah-core/0.3",
 		"dinah-core/0.4",
+		"dinah-core/0.5",
 		"dinah-core/1.0",
 	}
 	refused := []string{
 		"dinah-core/0.0",
-		"dinah-core/0.5",
+		"dinah-core/0.6",
 		"dinah-core/1.1",
 		"dinah-core/2.0",
 		"dinah-core/3.0",

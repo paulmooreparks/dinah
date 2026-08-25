@@ -2,8 +2,7 @@
   "fixtures": [
     {
       "directory": "dinah-core-0.4",
-      "digest": "860d53b265056916d37ef015aaa3382a806a2c27b57cbf1f6d503dc6e6828c80",
-      "sample": true
+      "digest": "860d53b265056916d37ef015aaa3382a806a2c27b57cbf1f6d503dc6e6828c80"
     },
     {
       "directory": "dinah-core-1.0",
@@ -12,6 +11,11 @@
     {
       "directory": "dinah-core-1.0-pre-slug",
       "digest": "b37652771397fb5f99b68016a82ede6f2906602bcdfa84cc90d049fc7b42dab2"
+    },
+    {
+      "directory": "dinah-core-0.5",
+      "digest": "9e48b8539aad101adad89015a49937c0c6508227c791237d8442d0fc625438eb",
+      "sample": true
     }
   ]
 }

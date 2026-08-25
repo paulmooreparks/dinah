@@ -238,12 +238,12 @@ func newAmbiguousHarness(t *testing.T) *harness {
 	clock := time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
 	h := &harness{home: home, root: root, clock: clock, t: t}
 	h.reopen()
-	// Seed one ready card in intake and one ready card in doing.
+	// Seed one ready card in intake and one ready card in doing. The second
+	// is carried by a move rather than claimed and released, because no owner
+	// takes work up at an intake state.
 	h.add("ready in intake")
 	ref := h.add("moves into doing")
-	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
 	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: "doing"})
-	h.mustDo(&Request{Verb: Release, Card: ref, Actor: "alka"})
 	return h
 }
 
@@ -331,7 +331,7 @@ func TestNotOperatorAdmitsTheOperatorCarryingOverrideOnly(t *testing.T) {
 	// already reached its capacity (the workbench owns alka as operator).
 	t.Run("the operator carrying override is admitted", func(t *testing.T) {
 		h := newHarness(t)
-		first := h.add("first")
+		first := h.ready("first")
 		h.mustDo(&Request{Verb: Claim, Card: first, Actor: "alka"})
 		h.mustDo(&Request{Verb: Move, Card: first, Actor: "alka", State: "doing"})
 		second := h.add("second")
@@ -354,7 +354,7 @@ func TestNotOperatorAdmitsTheOperatorCarryingOverrideOnly(t *testing.T) {
 func TestCapacityAndRetiringRefuseUnderEachForm(t *testing.T) {
 	t.Run("at-capacity refuses both forms", func(t *testing.T) {
 		h := newHarness(t)
-		first := h.add("first")
+		first := h.ready("first")
 		h.mustDo(&Request{Verb: Claim, Card: first, Actor: "alka"})
 		h.mustDo(&Request{Verb: Move, Card: first, Actor: "alka", State: "doing"})
 		h.add("second")
@@ -453,14 +453,14 @@ func TestNoUpstreamRefusesNamedPullsToTheFirstState(t *testing.T) {
 func TestOperatorOwnedUpstreamFiltersAndAdmitsTheOperator(t *testing.T) {
 	t.Run("a non-operator pulling out of an operator-owned upstream is refused", func(t *testing.T) {
 		h := newHarness(t)
-		// The destination is finished, whose upstream is the fixture's
+		// The destination is aftercare, whose upstream is the fixture's
 		// operator-owned review state, because the row reads the state the
 		// card departs rather than the state it arrives in: a state is
 		// operator-owned to say who may take work out of it, so pulling
 		// into one is as legal for anybody as moving into one.
 		ref := h.add("waiting in review")
 		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
-		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: finished})
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: aftercareSlug})
 		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
 			t.Fatalf("wanted %s, got %s %s", contract.NotOperator, response.Outcome, response.Refusal)
 		}
@@ -470,13 +470,13 @@ func TestOperatorOwnedUpstreamFiltersAndAdmitsTheOperator(t *testing.T) {
 		h := newHarness(t)
 		ref := h.add("waiting in review")
 		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
-		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: finished})
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: aftercareSlug})
 		h.reopen()
 		if response.Outcome != contract.OutcomeOK {
 			t.Fatalf("the operator should be admitted, got %s %s", response.Outcome, response.Refusal)
 		}
-		if response.Card == nil || response.Card.State != finished {
-			t.Errorf("expected the card in finished, got %+v", response.Card)
+		if response.Card == nil || response.Card.State != aftercare {
+			t.Errorf("expected the card in aftercare, got %+v", response.Card)
 		}
 	})
 
@@ -496,9 +496,7 @@ func TestOperatorOwnedUpstreamFiltersAndAdmitsTheOperator(t *testing.T) {
 	t.Run("the operator into an operator-owned state is admitted", func(t *testing.T) {
 		h := newHarness(t)
 		seeded := h.add("seeded into doing")
-		h.mustDo(&Request{Verb: Claim, Card: seeded, Actor: "alka"})
 		h.mustDo(&Request{Verb: Move, Card: seeded, Actor: "alka", State: "doing"})
-		h.mustDo(&Request{Verb: Release, Card: seeded, Actor: "alka"})
 		h.add("review me")
 		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: review})
 		h.reopen()
@@ -518,13 +516,13 @@ func TestADoneUpstreamRefusesTerminal(t *testing.T) {
 	h := newHarness(t)
 	h.add("anywhere")
 	// Walk a card into finished (without claiming it, so it stays ready in
-	// the done state) and then try to pull forward into aftercare, where
-	// finished is the upstream and KindDone filters the destination out of
-	// the qualifier, while the named form lands on terminal.
+	// the done state) and then try to pull forward into closed, where
+	// finished is the upstream and a done state carries no card into the
+	// state beyond it, while the named form lands on terminal.
 	ref := h.add("finished")
 	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: finished})
 
-	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: aftercare})
+	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: closed})
 	h.reopen()
 	if response.Outcome != contract.OutcomeRefused {
 		t.Fatalf("named pull into a state whose upstream is done: wanted refused, got %s", response.Outcome)
@@ -629,10 +627,10 @@ func TestPullChecksAgainstTheFullThirteenRowTable(t *testing.T) {
 // about rather than a difference in what was recorded.
 func TestAPulledCardsJournalMatchesTheThreeCommandRoute(t *testing.T) {
 	h := newHarness(t)
-	pulled := h.add("taken by pull")
-	byHand := h.add("taken by hand")
+	pulled := h.readyAt("taken by pull", review)
+	byHand := h.readyAt("taken by hand", review)
 
-	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: "doing"})
+	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: aftercareSlug})
 	h.reopen()
 	if response.Outcome != contract.OutcomeOK {
 		t.Fatalf("pull: %s %s", response.Outcome, response.Refusal)
@@ -640,13 +638,12 @@ func TestAPulledCardsJournalMatchesTheThreeCommandRoute(t *testing.T) {
 	if response.Card == nil || response.Card.Ref != pulled {
 		t.Fatalf("pull took %+v, wanted %s", response.Card, pulled)
 	}
-	// The fixture's doing state holds one card, so the pulled card is carried
-	// on before the second card takes the same route. That carrying leaves a
-	// fourth event on the pulled card, and the comparison reads the three
-	// events both routes wrote rather than the whole journal.
-	h.mustDo(&Request{Verb: Move, Card: pulled, Actor: "alka", State: review})
+	// Both cards start at the review station, because a claim is refused
+	// where no owner takes work up and the hand route claims before it
+	// moves. The comparison reads the events both routes wrote rather than
+	// the whole journal.
 	h.mustDo(&Request{Verb: Claim, Card: byHand, Actor: "alka"})
-	h.mustDo(&Request{Verb: Move, Card: byHand, Actor: "alka", State: "doing"})
+	h.mustDo(&Request{Verb: Move, Card: byHand, Actor: "alka", State: aftercareSlug})
 
 	right := h.events(byHand)
 	left := h.events(pulled)
@@ -842,12 +839,12 @@ func TestPullAndMoveRefuseOneCardInTheSameWords(t *testing.T) {
 	}
 
 	h.library.Interleave = blockDuringTheLock
-	pulled := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: finished})
+	pulled := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: aftercareSlug})
 	h.library.Interleave = nil
 	h.reopen()
 
 	h.library.Interleave = blockDuringTheLock
-	moved := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "bob", State: finished})
+	moved := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "bob", State: aftercareSlug})
 	h.library.Interleave = nil
 	h.reopen()
 

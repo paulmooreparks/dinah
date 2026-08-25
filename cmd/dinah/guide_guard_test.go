@@ -187,6 +187,12 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 	for _, name := range contract.Introduced {
 		legal[name] = true
 	}
+	// A kind Dinah mints carries the same prefix as a refusal Dinah mints and
+	// is quoted in the same documents, so the shape this guard reads is a name
+	// under the layer's prefix rather than a refusal name alone.
+	for _, name := range contract.MintedKinds {
+		legal[name] = true
+	}
 	checked := 0
 	recognised := 0
 	for _, document := range guardedDocuments(t) {

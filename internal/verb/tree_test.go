@@ -128,8 +128,8 @@ func TestAGroupCountsItsOwnCardsRatherThanItsChildren(t *testing.T) {
 // group holding the cards that carry no value last.
 func TestTheNoValueGroupComesLast(t *testing.T) {
 	h := newHarness(t)
-	first := h.add("held by one")
-	second := h.add("held by another")
+	first := h.ready("held by one")
+	second := h.ready("held by another")
 	for range 4 {
 		h.add("unheld")
 	}
@@ -238,7 +238,7 @@ func writeItem(t *testing.T, cardDir, text string, ordinal int) {
 // readings, so the axis here is open-valued.
 func TestAnOpenValuedGroupSurvivesAFilterThatEmptiesIt(t *testing.T) {
 	h := newHarness(t)
-	held := h.add("the card the holder is working")
+	held := h.ready("the card the holder is working")
 	h.add("a card nobody holds")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: held, Holder: "zoya"})
 
@@ -261,13 +261,13 @@ func TestAnOpenValuedGroupSurvivesAFilterThatEmptiesIt(t *testing.T) {
 func TestBothReasonsAreReportedSeparately(t *testing.T) {
 	h := newHarness(t)
 	for range 3 {
-		h.add("a ready card of the intake")
+		h.ready("a ready card of the aftercare station")
 	}
-	held := h.add("the card the holder is working")
+	held := h.ready("the card the holder is working")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: held, Holder: "zoya"})
 
 	built := treeOf(t, h, "substate:ready", nil, LevelGroups)
-	state := groupAt(t, built.Root, "intake")
+	state := groupAt(t, built.Root, aftercareSlug)
 	if state.Hidden == nil {
 		t.Fatalf("the state reports nothing and the filter removed a card below it")
 	}
@@ -300,13 +300,13 @@ func TestBothReasonsAreReportedSeparately(t *testing.T) {
 func TestReasonsAreNamedInTheFixedOrder(t *testing.T) {
 	h := newHarness(t)
 	for range 3 {
-		h.add("a ready card")
+		h.ready("a ready card")
 	}
-	held := h.add("the card the holder is working")
+	held := h.ready("the card the holder is working")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: held, Holder: "zoya"})
 
 	built := treeOf(t, h, "substate:ready", []string{FieldState}, LevelGroups)
-	state := groupAt(t, built.Root, "intake")
+	state := groupAt(t, built.Root, aftercareSlug)
 	if state.Hidden == nil {
 		t.Fatalf("the state reports nothing and it is holding two kinds of thing back")
 	}
@@ -371,7 +371,7 @@ func assertNothingIsHidden(t *testing.T, what string, root TreeNode) {
 // and does not claim to.
 func TestTheTreeAndTheQuerySelectTheSameCards(t *testing.T) {
 	h := newHarness(t)
-	split := h.add("moved into doing by one owner and claimed later by another")
+	split := h.ready("moved into doing by one owner and claimed later by another")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: split, Holder: "zoya"})
 	h.mustDo(&Request{Verb: Move, Actor: "zoya", Card: split, State: doing})
 	h.mustDo(&Request{Verb: Move, Actor: "zoya", Card: split, State: review})
@@ -379,7 +379,7 @@ func TestTheTreeAndTheQuerySelectTheSameCards(t *testing.T) {
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: split, Holder: "alka"})
 	h.add("a card nobody has moved")
 
-	witnessed := h.add("moved into doing by the same owner who claimed it")
+	witnessed := h.ready("moved into doing by the same owner who claimed it")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: witnessed, Holder: "alka"})
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: witnessed, State: doing})
 
@@ -453,8 +453,8 @@ func TestTheDispositionTablePairsWithTheQueryFields(t *testing.T) {
 // group the filter emptied.
 func TestAFilteredTreeAccountsForEveryCardItRemoved(t *testing.T) {
 	h := newHarness(t)
-	first := h.add("the first active card")
-	second := h.add("the second active card")
+	first := h.ready("the first active card")
+	second := h.ready("the second active card")
 	h.add("a ready card of the intake")
 	for _, ref := range []string{first, second} {
 		h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref, Holder: "alka"})
@@ -498,7 +498,7 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	for _, child := range built.Root.Children {
 		states = append(states, child.Value)
 	}
-	want := []string{"intake", "doing", "review", "finished", aftercareSlug}
+	want := []string{"intake", "doing", "review", aftercareSlug, "finished", "closed"}
 	if strings.Join(states, ",") != strings.Join(want, ",") {
 		t.Errorf("the states draw as %v and the flow declares them %v", states, want)
 	}
@@ -530,7 +530,7 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 // narrow where grouping puts a card.
 func TestAnActPlaneAxisReadsTheWholeActRecord(t *testing.T) {
 	h := newHarness(t)
-	shared := h.add("a card two owners have acted on")
+	shared := h.ready("a card two owners have acted on")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: shared, Holder: "zoya"})
 	h.mustDo(&Request{Verb: Release, Actor: "zoya", Card: shared})
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: shared, Holder: "alka"})
@@ -563,13 +563,13 @@ func TestAnActPlaneAxisReadsTheWholeActRecord(t *testing.T) {
 // separates a closed axis from a journal-shaped one.
 func TestOnlyTheTwoClosedAxesEnumerateTheirMembers(t *testing.T) {
 	h := newHarness(t)
-	ref := h.add("a card that has only ever been in two states")
+	ref := h.ready("a card that has only ever been in two states")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref, Holder: "alka"})
 	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
 
 	byState := treeOf(t, h, "", []string{FieldState}, LevelCards)
-	if len(byState.Root.Children) != 5 {
-		t.Errorf("the state axis draws %d groups and the workbench declares five states", len(byState.Root.Children))
+	if len(byState.Root.Children) != 6 {
+		t.Errorf("the state axis draws %d groups and the workbench declares six states", len(byState.Root.Children))
 	}
 	byEntered := treeOf(t, h, "", []string{FieldEntered}, LevelCards)
 	var entered []string
@@ -577,7 +577,7 @@ func TestOnlyTheTwoClosedAxesEnumerateTheirMembers(t *testing.T) {
 		entered = append(entered, child.Value)
 	}
 	sort.Strings(entered)
-	if strings.Join(entered, ",") != "doing,intake" {
+	if strings.Join(entered, ",") != "aftercare,doing,intake" {
 		t.Errorf("the entered axis draws groups for %v, and the card has entered only two states", entered)
 	}
 	blocks := treeOf(t, h, "", []string{FieldBlockKind}, LevelCards)
@@ -1057,7 +1057,8 @@ func TestTheWorkbenchWalkDrawsItsCollectionsInOrder(t *testing.T) {
 		kinds = append(kinds, child.Kind)
 	}
 	wanted := []string{
-		bench.KindState, bench.KindState, bench.KindState, bench.KindState, bench.KindState,
+		bench.KindState, bench.KindState, bench.KindState,
+		bench.KindState, bench.KindState, bench.KindState,
 		bench.KindCard, bench.KindCard,
 	}
 	if strings.Join(kinds, ",") != strings.Join(wanted, ",") {

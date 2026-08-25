@@ -364,13 +364,13 @@ var commandTool = map[string]string{
 
 // surfaceAffordances translates a response's affordances from the library's
 // command spellings to the tool names an agent can actually call on this
-// surface. The read path already serves the tool names; the refusal path
-// inherits the library's no-card default set, which still spells the two
-// reads as commands. Translating here keeps the two vocabularies from
-// disagreeing, which is the promise the mcp guide makes when it says that
-// following the affordances cannot dead-end. Reads never return a
-// *verb.Response, so applying the translation to every such payload touches
-// refusals alone and is safe to run twice.
+// surface. The reads that write their own list already spell the tool names;
+// the refusal path, and every read that asks the library instead, can carry
+// the library's own spellings, which name the two reads as the commands ls
+// and next. Translating here keeps the two vocabularies from disagreeing,
+// which is the promise the mcp guide makes when it says that following the
+// affordances cannot dead-end. Every spelling it does not remap passes
+// through unchanged, so it is safe to run over an already-translated list.
 func surfaceAffordances(affordances []string) []string {
 	translated := make([]string, 0, len(affordances))
 	for _, affordance := range affordances {

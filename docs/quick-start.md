@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.4
+conforms to dinah-core/0.5
 storage format 1
 [exit 0]
 ```
@@ -241,16 +241,16 @@ where you put it.
 
 ```console
 $ dinah states
-  Slug    Name    Kind    Cards  Work   Owner
-  ------  ------  ------  -----  -----  -----
-  intake  Intake  intake  0      taken  agent
-  doing   Doing   work    0      taken  agent
-  done    Done    done    0      taken  agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0      taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 ```
 
 You get one row per state. The slug is the short name you type, the name is what
-you called the state, the kind is one of `intake`, `work`, and `done`, and the
+you called the state, the kind is one of `intake`, `work`, `done`, and `dinah.buffer`, and the
 count is how many cards stand there. Dinah runs the flow in the order
 `workbench.md` lists the states. When you move a card to a later state you move
 it forward, and when you move it to an earlier state you move it backward.
@@ -260,15 +260,28 @@ a state anybody can work and `operator` for one where the departure is the
 operator's alone, and you choose the second by writing `operator_owned: true`
 into the state's own file. Every state starts out an agent's.
 
-The column before it says whether work is taken up at the state at all. It reads
-`taken` for an ordinary state, and `waiting` for one where the workbench is
-waiting on somebody outside it: a reviewer, a customer, a supplier. You choose
-the second by writing `awaiting_outside: true` into the state's own file. Nobody
-claims a card there, `dinah next` offers nothing from it, and `dinah pull`
-neither takes a card out of it nor lands one in it, but a card standing there is
-ready in the ordinary way, carries no block, and anybody may move it on when the
-answer comes. The two columns answer different questions, so a state can be
-either, both, or neither.
+The column before it says whether work is taken up at the state at all, and it
+reads one of three things. It reads `taken` for a state where somebody works a
+card: you claim the card there, work it, and move it on.
+
+It reads `waiting` for a state where the workbench is waiting on somebody
+outside it: a reviewer, a customer, a supplier. You choose that by writing
+`awaiting_outside: true` into the state's own file. Nobody claims a card there,
+`dinah next` offers nothing from it, and `dinah pull` neither takes a card out
+of it nor lands one in it, but a card standing there is ready in the ordinary
+way, carries no block, and anybody may move it on when the answer comes.
+
+It reads `none taken` for a state where nobody works a card and a card is
+waiting for the state beyond rather than for a person. An intake state and a
+done state both read this way, and so does a state you mark `kind: dinah.buffer`
+to hold cards between two stations. You cannot claim a card at such a state, and
+you cannot move a card you are holding into one, so you release it first. What
+you can do is pull the card into the station beyond, which is what a card
+standing there is waiting for. A block still works wherever a card stands,
+because a block says something about the card rather than about a worker.
+
+The two columns answer different questions, so a state can be either, both, or
+neither.
 
 If you have been keeping such cards out of the queue by blocking them, the way
 across is short and there is no migration command, because nothing can tell a
@@ -294,11 +307,11 @@ $ dinah status
 release-notes  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Work   Owner
-  ------  ------  ------  -----  -----  -----
-  intake  Intake  intake  0      taken  agent
-  doing   Doing   work    0      taken  agent
-  done    Done    done    0      taken  agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0      taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 ```
 
@@ -313,7 +326,7 @@ transcript:
 ```file path=<workbench>/workbench.md
 ---
 format: 1
-profile: dinah-core/0.4
+profile: dinah-core/0.5
 title: Release 0.2
 slug: rel
 operator: ana
@@ -351,11 +364,11 @@ $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Work   Owner
-  ------  ------  ------  -----  -----  -----
-  intake  Intake  intake  0      taken  agent
-  doing   Doing   work    0/1    taken  agent
-  done    Done    done    0      taken  agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 ```
 
@@ -456,16 +469,16 @@ $ dinah ls intake --ready
   rel-2  ready     Draft the changelog
 [exit 0]
 $ dinah next
-  State   Card   Title
-  ------  -----  ------------------------
-  Intake  rel-1  Write the release notes
-  Doing   rel-3  Check the download links
-  Done    nothing ready
+  State   Card   Title                     Take
+  ------  -----  ------------------------  -----
+  Intake  rel-1  Write the release notes   pull
+  Doing   rel-3  Check the download links  claim
+  Done    nothing is taken from here
 [exit 0]
 $ dinah next doing
-  State  Card   Title
-  -----  -----  ------------------------
-  Doing  rel-3  Check the download links
+  State  Card   Title                     Take
+  -----  -----  ------------------------  -----
+  Doing  rel-3  Check the download links  claim
 [exit 0]
 $ dinah show rel-1
 rel-1  Write the release notes  [Intake / ready]
@@ -550,29 +563,33 @@ and `unblock`. Dinah's own guide calls these five the verbs, and you can read it
 with `dinah guide verbs`. The shared rules fix what each one does. A second tool
 reading the same workbench answers you the same way.
 
-You can run the two halves of a pull separately whenever you want the card
-rather than the next card. `claim` takes up a card you name:
+`claim` takes up a card you name, where it already stands, and `move` carries
+it on. `rel-3` is standing in `Doing`, so you can take it up there:
 
 ```console
-$ dinah claim rel-2
-rel-2  Draft the changelog  [Intake / active]
+$ dinah claim rel-3
+rel-3  Check the download links  [Doing / active]
   held by ana
 
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
+Instructions, this state:
+Work the card until it is finished or until something stops you.
+Leave a comment saying what you did before you carry it on.
+
 Moves this card may make:
-  State  Name   Direction
-  -----  -----  ---------
-  doing  Doing  forward
-  done   Done   forward
+  State   Name    Direction
+  ------  ------  ---------
+  intake  Intake  backward
+  done    Done    forward
 [exit 0]
 ```
 
 Dinah will not let anybody else take a card you hold:
 
 ```console
-$ dinah claim rel-2 --actor bo
+$ dinah claim rel-3 --actor bo
 held ana holds this card; wait for ana to release it
 [exit 2]
 ```
@@ -581,8 +598,8 @@ held ana holds this card; wait for ana to release it
 because a card you are still holding is a card nobody else will pull:
 
 ```console
-$ dinah release rel-2
-rel-2  Draft the changelog  [Intake / ready]
+$ dinah release rel-3
+rel-3  Check the download links  [Doing / ready]
 [exit 0]
 ```
 
@@ -629,11 +646,11 @@ $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Work   Owner
-  ------  ------  ------  -----  -----  -----
-  intake  Intake  intake  1      taken  agent
-  doing   Doing   work    2/1    taken  agent
-  done    Done    done    0      taken  agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  1      none taken  agent
+  doing   Doing   work    2/1    taken       agent
+  done    Done    done    0      none taken  agent
 
 You are holding:
   Card   Title
@@ -671,9 +688,11 @@ $ dinah claim rel-1 --expires 8h --quiet
 rel-1  Write the release notes  [Doing / active]
   held by ana
 [exit 0]
+$ dinah release rel-1
+rel-1  Write the release notes  [Doing / ready]
+[exit 0]
 $ dinah move rel-1 done
-rel-1  Write the release notes  [Done / active]
-  held by ana
+rel-1  Write the release notes  [Done / ready]
 
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
@@ -685,6 +704,11 @@ Moves this card may make:
   doing   Doing   backward
 [exit 0]
 ```
+
+Nobody takes work up at a done state, so Dinah will not carry a card you are
+holding into one. Release the card first, as the transcript does, and then move
+it. The card arrives ready and nobody holds it, which is what a finished card
+looks like.
 
 You can always move a card backward out of a done state, but if you try to move
 one forward out of a done state, Dinah refuses with `terminal`. Dinah therefore
@@ -705,8 +729,7 @@ Then attach it to the card:
 
 ```console
 $ dinah attach rel-1 notes.txt
-rel-1  Write the release notes  [Done / active]
-  held by ana
+rel-1  Write the release notes  [Done / ready]
 [exit 0]
 ```
 
@@ -744,8 +767,7 @@ arrive.
 
 ```console
 $ dinah rename rel-1/attachments/1 cert-notes.txt
-rel-1  Write the release notes  [Done / active]
-  held by ana
+rel-1  Write the release notes  [Done / ready]
 [exit 0]
 $ dinah show rel-1/attachments/1
 ---
@@ -800,6 +822,7 @@ $ dinah log rel-1
   2026-08-18T21:02:23Z  commented           ana
   2026-08-18T21:02:23Z  released            ana
   2026-08-18T21:02:23Z  claimed             ana
+  2026-08-18T21:02:23Z  released            ana
   2026-08-18T21:02:23Z  moved               ana    Doing to Done
   2026-08-18T21:02:23Z  attached            ana    notes.txt
   2026-08-18T21:02:23Z  attachment renamed  ana    notes.txt to cert-notes.txt
@@ -844,8 +867,7 @@ file is what changes:
 
 ```console
 $ dinah join rel-1 autumn
-rel-1  Write the release notes  [Done / active]  autumn
-  held by ana
+rel-1  Write the release notes  [Done / ready]  autumn
 [exit 0]
 $ dinah join rel-2 autumn
 rel-2  Draft the changelog  [Intake / ready]  autumn
@@ -921,7 +943,7 @@ $ dinah archive rel-3
 $ dinah ls done
   Card   Standing  Title
   -----  --------  -----------------------
-  rel-1  active    Write the release notes
+  rel-1  ready     Write the release notes
 [exit 0]
 $ dinah delete rel-1/comments/2
 dinah.unconfirmed delete destroys history, so it needs --yes
@@ -1156,16 +1178,11 @@ $ dinah --lang hi status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [खोज]
 ana के रूप में, संचालक: हाँ
 
-  उपनाम   नाम     प्रकार  कार्ड  कार्य         स्वामी
-  ------  ------  -----  ----  -----------  -----
-  intake  Intake  आवक    1     लिया जाता है  एजेंट
-  doing   Doing   काम    0/1   लिया जाता है  एजेंट
-  done    Done    समाप्त  1     लिया जाता है  एजेंट
-
-आपके पास:
-  कार्ड   शीर्षक
-  -----  -----------------------
-  rel-1  Write the release notes
+  उपनाम   नाम     प्रकार  कार्ड  कार्य          स्वामी
+  ------  ------  -----  ----  ------------  -----
+  intake  Intake  आवक    1     कोई कार्य नहीं  एजेंट
+  doing   Doing   काम    0/1   लिया जाता है   एजेंट
+  done    Done    समाप्त  1     कोई कार्य नहीं  एजेंट
 [exit 0]
 ```
 
@@ -1176,20 +1193,20 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.4
+conforms to dinah-core/0.5
 storage format 1
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        612/612
-  af        0/612
-  cs        0/612
-  de        612/612
-  es        0/612
-  fil       0/612
-  hi        612/612
-  id        0/612
+  en        622/622
+  af        0/622
+  cs        0/622
+  de        622/622
+  es        0/622
+  fil       0/622
+  hi        622/622
+  id        0/622
 [exit 0]
 ```
 
@@ -1215,10 +1232,7 @@ $ dinah edit rel-1
 title: Write the release notes
 number: 1
 state: fcd0d92e167a
-substate: active
-claim_holder: ana
-claim_since: 2026-08-18T21:02:23Z
-claim_expires: 2026-08-19T05:02:23Z
+substate: ready
 workstreams:
   - 8c3b92a3c21a
 ---
@@ -1269,16 +1283,11 @@ $ dinah --workbench release-notes/.dinah/d0e41d414bb5 status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [flag]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Work   Owner
-  ------  ------  ------  -----  -----  -----
-  intake  Intake  intake  1      taken  agent
-  doing   Doing   work    0/1    taken  agent
-  done    Done    done    1      taken  agent
-
-You are holding:
-  Card   Title
-  -----  -----------------------
-  rel-1  Write the release notes
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  1      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  done    Done    done    1      none taken  agent
 [exit 0]
 ```
 
@@ -1353,7 +1362,7 @@ $ cd release-notes
 $ dinah export
 {
   "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.4",
+  "profile": "dinah-core/0.5",
   "states": [
     {
       "id": "003b09ee6e31",
@@ -1403,11 +1412,11 @@ $ dinah init --from ../release-template --slug rel3 --operator ana
 Workbench created at /home/ana/release-0.3/.dinah/e65a73e02874.
 [exit 0]
 $ dinah states
-  Slug    Name    Kind    Cards  Work   Owner
-  ------  ------  ------  -----  -----  -----
-  intake  Intake  intake  0      taken  agent
-  doing   Doing   work    0/1    taken  agent
-  done    Done    done    0      taken  agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 $ dinah instructions doing
 

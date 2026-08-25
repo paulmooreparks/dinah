@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -46,6 +47,17 @@ func newLibrary(t *testing.T) *verb.Library {
 	library := verb.New(opened, filepath.Join(base, "home"))
 	if response := library.Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A card"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("add: %s %s", response.Outcome, response.Refusal)
+	}
+	// The card is carried to the doing station, because no owner takes work up
+	// at an intake state and the claims below would be refused there.
+	moved := library.Do(&verb.Request{Verb: verb.Move, Actor: "alka", Card: "fx-1", State: "doing"})
+	if moved.Outcome != contract.OutcomeOK {
+		t.Fatalf("move: %s %s", moved.Outcome, moved.Refusal)
+	}
+	// A second card stands ready in the intake state, which is what the pull
+	// tests take and what leaves the first card claimable where it stands.
+	if response := library.Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A waiting card"}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("add the waiting card: %s %s", response.Outcome, response.Refusal)
 	}
 	reopened, err := bench.Open(root)
 	if err != nil {
@@ -217,6 +229,61 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 	}
 }
 
+// TestTheInstructionsListAgreesWithWhereTheCardIsStanding is dinah-273 AC-42.
+// The instructions tool is the one a caller reaches for precisely to learn
+// what it may do where the card is standing, so a written-out list here sends
+// the reader into the refusal it came to avoid. The list is read off the real
+// tool answer and held against the act, for a card at a station, for a card at
+// an intake state, and for the bare state itself.
+func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
+	cases := []struct {
+		name      string
+		arguments string
+		wantClaim bool
+		wantPull  bool
+	}{
+		{name: "a card at a station", arguments: `{"actor":"alka","card":"fx-1"}`, wantClaim: true},
+		{name: "a card at an intake state", arguments: `{"actor":"alka","card":"fx-2"}`, wantPull: true},
+		{name: "the intake state itself", arguments: `{"actor":"alka","card":"intake"}`, wantPull: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			library := newLibrary(t)
+			answer := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"instructions","arguments":`+c.arguments+`}}`))
+			offered := stringsOf(t, answer["affordances"])
+			if got := slices.Contains(offered, verb.Claim); got != c.wantClaim {
+				t.Errorf("the list %v offers claim: %t, wanted %t", offered, got, c.wantClaim)
+			}
+			if got := slices.Contains(offered, verb.Pull); got != c.wantPull {
+				t.Errorf("the list %v offers pull: %t, wanted %t", offered, got, c.wantPull)
+			}
+			for _, name := range offered {
+				if _, served := commandTool[name]; served {
+					t.Errorf("the list %v names %s, which is a command here and not a tool", offered, name)
+				}
+			}
+		})
+	}
+}
+
+// stringsOf reads a decoded affordances member as the list of names it is.
+func stringsOf(t *testing.T, member any) []string {
+	t.Helper()
+	raw, ok := member.([]any)
+	if !ok {
+		t.Fatalf("wanted a list of affordances, got %v", member)
+	}
+	names := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		name, ok := entry.(string)
+		if !ok {
+			t.Fatalf("wanted an affordance name, got %v", entry)
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
 // TestClaimCarriesStructuredInstructions asserts that a successful claim
 // response carries the three instruction layers and the legal moves as
 // separate structured members rather than as a prose blob.
@@ -234,7 +301,7 @@ func TestClaimCarriesStructuredInstructions(t *testing.T) {
 	if instructions["standing"] != "Standing text.\n" {
 		t.Errorf("standing layer: got %v", instructions["standing"])
 	}
-	if instructions["state"] != "Intake text.\n" {
+	if instructions["state"] != "Doing text.\n" {
 		t.Errorf("state layer: got %v", instructions["state"])
 	}
 	if _, carried := decoded["legal_moves"]; !carried {
@@ -732,9 +799,9 @@ func durationOrWord(name string) string {
 // nothing about what happens to it, which is how the `no-claim` marker came to
 // be advertised, accepted, and thrown away.
 //
-// The fixture's flow is Intake then Doing, with one ready card in Intake, so a
-// pull into Doing takes that card and a pull into Intake has nothing before it
-// to take from.
+// The fixture's flow is Intake then Doing, with one ready card standing in
+// Intake and one already carried to Doing, so a pull into Doing takes the
+// waiting card and a pull into Intake has nothing before it to take from.
 func TestPullIsDrivenThroughTheHead(t *testing.T) {
 	t.Run("the named form takes the card and claims it", func(t *testing.T) {
 		library := newLibrary(t)

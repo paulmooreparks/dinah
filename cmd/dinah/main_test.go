@@ -210,6 +210,16 @@ func newBench(t *testing.T) string {
 	return root
 }
 
+// carryToDoing moves a card to the doing station, which is where a test that
+// goes on to claim it needs the card: no owner takes work up at an intake
+// state, so a claim standing there is refused.
+func carryToDoing(t *testing.T, root, card string) {
+	t.Helper()
+	if got := runCLI(t, root, "move", card, "doing"); got.code != 0 {
+		t.Fatalf("move %s to doing: %d %s", card, got.code, got.errw)
+	}
+}
+
 // soleBenchDir resolves the one workbench directory a container built by
 // newBench actually holds, which sits under container's own .dinah rather
 // than at container itself since dinah-76. Tests that hand a workbench path
@@ -332,6 +342,11 @@ func diffLines(wanted, got string) string {
 func TestExitCodesAndTheLeadingToken(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
+	// The second card keeps the intake state occupied, which is what the
+	// archive case below refuses over, while the first is carried to a
+	// station so the claim cases can take it up.
+	runCLI(t, root, "add", "A second card")
+	carryToDoing(t, root, "fx-1")
 
 	cases := []struct {
 		name  string
@@ -3153,6 +3168,7 @@ func TestCardAliasResolvesAcrossTheDeclaredCommandSurface(t *testing.T) {
 	}
 
 	// claim, status, instructions and comment resolve the alias.
+	carryToDoing(t, root, first)
 	if claimed := runCLI(t, root, "claim", first); claimed.code != 0 || !strings.Contains(claimed.out, first) {
 		t.Fatalf("claim %s: %d %q", first, claimed.code, claimed.out)
 	}
@@ -3317,6 +3333,7 @@ func TestShowResolvesALinkToTheAliasNotTheBareIdentifier(t *testing.T) {
 func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
 	root := newBench(t)
 	first := addCard(t, root, "First")
+	carryToDoing(t, root, first)
 
 	claimed := runCLI(t, root, "--json", "claim", first)
 	if claimed.code != 0 {
@@ -3339,7 +3356,12 @@ func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
 			t.Errorf("legal move to %s: ref fell back to the bare identifier though the state carries a slug", move.State)
 		}
 		// The ref is what move actually accepts, proving it is not merely
-		// displayed but usable.
+		// displayed but usable. The card is released first, because every
+		// move out of the doing station on this flow lands at a state where
+		// no owner takes work up, and such a state takes an unheld card.
+		if released := runCLI(t, root, "release", first); released.code != 0 {
+			t.Fatalf("release %s: %d %s", first, released.code, released.errw)
+		}
 		moved := runCLI(t, root, "move", first, move.Ref)
 		if moved.code != 0 {
 			t.Fatalf("move %s %s: %d %s", first, move.Ref, moved.code, moved.errw)
@@ -4596,6 +4618,7 @@ func TestARefusalWithAnAbsentSubjectSaysSomethingElse(t *testing.T) {
 	if got := runCLI(t, root, "add", "Something"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
+	carryToDoing(t, root, "fx-1")
 	english := msg.For(msg.Base)
 
 	unheld := runCLI(t, root, "release", "fx-1")
@@ -5217,8 +5240,9 @@ func TestADashedWorkbenchSlugResolvesEveryReference(t *testing.T) {
 		{"ls"},
 		{"show", "fx-dev-1"},
 		{"path", "fx-dev-1"},
-		{"claim", "fx-dev-1"},
 		{"move", "fx-dev-1", "doing"},
+		{"claim", "fx-dev-1"},
+		{"release", "fx-dev-1"},
 	} {
 		if got := runCLI(t, root, argv...); got.code != 0 {
 			t.Errorf("%v under a dashed slug: %d %s", argv, got.code, got.errw)
@@ -5725,6 +5749,7 @@ func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
 	if joined.out != strings.TrimSuffix(plain.out, "\n")+"  portfolio-work\n" {
 		t.Errorf("the two forms differ by more than the trailing field:\n%q\n%q", plain.out, joined.out)
 	}
+	carryToDoing(t, root, "fx-1")
 	for _, command := range [][]string{{"show", "fx-1"}, {"claim", "fx-1"}, {"release", "fx-1"}} {
 		got := runCLI(t, root, command...)
 		if got.code != 0 {
@@ -6017,6 +6042,7 @@ func TestQueryRendersATableAndSaysSoWhenNothingMatched(t *testing.T) {
 			t.Fatalf("add %s: %d %s", title, got.code, got.errw)
 		}
 	}
+	carryToDoing(t, root, "fx-1")
 	if got := runCLI(t, root, "claim", "fx-1"); got.code != 0 {
 		t.Fatalf("claim: %d %s", got.code, got.errw)
 	}
@@ -6631,6 +6657,7 @@ func TestExpiresTakesTheDaySuffixAndRefusesTheWeek(t *testing.T) {
 	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
+	carryToDoing(t, root, "fx-1")
 	if got := runCLI(t, root, "claim", "fx-1", "--expires", "7d"); got.code != 0 {
 		t.Errorf("--expires 7d: %d %s", got.code, got.errw)
 	}
@@ -6911,10 +6938,12 @@ func TestPullOnTheCommandLine(t *testing.T) {
 	})
 
 	t.Run("a bare form with two qualifying states refuses and lists them", func(t *testing.T) {
-		root := newBench(t)
-		// intake holds a ready card, so doing qualifies, and doing holds a
-		// ready card of its own, so done qualifies too. The default flow
-		// declares no capacity limit, so neither is filtered out.
+		// The flow runs intake, doing, review and done. Intake holds a ready
+		// card, so doing qualifies, and doing holds a ready card of its own,
+		// so review qualifies too. The done state never qualifies, because a
+		// pull lands no card where no owner takes work up, which is why the
+		// ambiguity needs a flow one state wider than the default one.
+		root := newBenchFromDefinition(t, ambiguousFlow)
 		runCLI(t, root, "add", "Waiting in intake")
 		runCLI(t, root, "add", "Waiting in doing", "--state", "doing")
 		got := runCLI(t, root, "pull")
@@ -6924,7 +6953,7 @@ func TestPullOnTheCommandLine(t *testing.T) {
 		if !strings.HasPrefix(got.errw, contract.AmbiguousState+" ") {
 			t.Errorf("wanted the refusal name first on stderr, got %q", got.errw)
 		}
-		for _, slug := range []string{"doing", "done"} {
+		for _, slug := range []string{"doing", "review"} {
 			if !regexp.MustCompile(`(?m)^\s+` + slug + `\s*$`).MatchString(got.errw) {
 				t.Errorf("the refusal should draw %s as a row of its own, got %q", slug, got.errw)
 			}

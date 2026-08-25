@@ -368,8 +368,85 @@ answers, unimplemented today.
 
 Each `states/<id>/state.md` carries the state's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
-of `intake`, `work`, `done`. A state marked operator-owned is one an agent
-never moves a card out of; only the operator does.
+of `intake`, `work`, `done`, and `dinah.buffer`. A state marked
+operator-owned is one an agent never moves a card out of; only the operator
+does.
+
+Two words run through the rest of this section. A **station** is a state where
+an owner takes work up: a card there is claimed, worked, and moved on. A
+**queue state** is a state where no owner takes work up: a card there waits,
+and it leaves when a pull carries it into the station beyond. Three of the four
+kinds are queue states, since nobody claims a card at an intake state, at a
+done state, or at a buffer, and a state declaring `awaiting_outside: true` is
+one whatever its kind. The phrase that decides between them is **takes work
+up**, which is the name of the predicate every path in the tool reads, so one
+rule reads the same wherever somebody meets it.
+
+A queue state refuses a claim and permits a block. The claim is refused because
+a claim says somebody is working the card now, and letting one stand where
+nobody works lets the board describe work that is not happening. The block
+stays because a block is a statement about the card rather than about a worker,
+and it is as true at a buffer as anywhere else. The same rule refuses a move
+that would carry a card its holder is still holding into a queue state, so the
+holder releases the card and then moves it.
+
+`dinah.buffer` is the kind for a state that holds cards between two stations.
+The word is `buffer` because Lean uses it for the inventory between two
+operations and the profile's own boundary table already reasons about the
+concept as a buffer, and because `queue` is unavailable: the profile fixes
+that word for the cards waiting at a state, so a kind called `queue` would
+give one word two meanings in one document. The word is also wrong on the
+merits, since an intake state and a done state are queue states too, and naming
+only the interstitial one for the category would claim a distinction it does
+not have. The token carries the `dinah.` prefix because the profile admits a
+kind this profile declares and a kind carrying a layer's prefix and nothing
+else, so a bare fourth word is a value every conforming tool refuses as
+malformed. Andoneer, the other implementation of the shared contract, spells
+the same concept `pull_queue`, one of its eight column kinds, and the
+divergence is deliberate on the same ground the `external_wait` divergence
+below is: nothing obliges two implementations to agree on a name for a concept
+neither has promoted into the core.
+
+A card enters a buffer by a move and leaves it by a pull:
+
+```
+dinah release rel-1      # a queue state takes an unheld card
+dinah move rel-1 waiting # rel-1 now stands ready in the buffer
+dinah pull doing         # the station beyond takes the head of the buffer
+```
+
+A pull looks through a buffer rather than stopping at it, because a queue is a
+place to wait rather than a place to arrive. On a flow running `intake`,
+`waiting` and `doing`, with the buffer empty and one card ready at the intake
+state, `dinah pull doing` carries that card straight into `doing` and writes
+nothing into the buffer on the way. With the buffer holding a card as well, the
+same command takes the buffer's card and leaves the intake state's where it
+stands, so a full buffer drains before a pull reaches behind it.
+
+Position is constrained by kind, and the constraint is a fact about the flow's
+shape rather than about where a card may be filed. An `intake` state stands
+first, so at most one state carries that kind. A `done` state stands in the
+terminal region, which is the run of states at the end of the ordered list
+every member of which is `done`, and no state that is not `done` stands after
+a state that is. A `dinah.buffer` stands neither first nor in the terminal
+region. The terminal region is a region rather than a single state because a
+board that ends cards two ways, finished and rejected, needs two terminals, and
+allowing it costs nothing: a forward move out of any `done` state is already
+refused, so no card walks from one terminal into the next. `dinah add --state`
+goes on filing a card into any state the workbench declares, a buffer and a
+done state included, so intake-first governs which state is the default door
+rather than which doors exist.
+
+No board becomes unopenable under any of this. A workbench whose kinds sit
+outside these positions opens, is read as it stands, and is reported by `dinah
+check` under `check.kind-out-of-position`. A card standing held at a state
+that takes no work up opens on the same terms and is reported under
+`check.claim-where-no-work-is-taken`. A state carrying a layer's kind this
+build does not implement opens too, is read as an ordinary `work` state, and
+is reported under `check.unknown-kind`. None of the three gets a repair flag,
+because the repair is an edit to `workbench.md` or to a `state.md` and the
+operator makes it. The acts that would create any of these conditions afresh
+are refused, so the findings name history and never grow.
 
 A state may declare `awaiting_outside: true`, which says the workbench waits
 at that state on somebody who is not an owner of it: a reviewer, a customer, a
@@ -1041,6 +1118,33 @@ interpret it: severity and priority level sets are the proof case, declared
 per workbench, because no contract behavior hangs on their members. The
 registry marks which is which, and this rule is the test that settles every
 future "should this be configurable?" argument.
+
+The same rule decides where a state's own behaviour is written, and the answer
+is that a state never declares its behaviour freely in its own file. Prose says
+what a worker should do; a closed vocabulary says what the tool enforces. A
+board author who wants a state where nobody claims marks it with a kind the
+tool implements rather than writing a rule of their own, and the kinds are a
+shared vocabulary rather than a limit on what a board can express.
+
+Three reasons stand behind that, and they are recorded here because the
+question gets asked again by whoever has not had it. Conformance is the first
+casualty of free declaration: this project's premise is a written contract with
+a suite that says whether an implementation honours it, and if behaviour is
+per-board data then whether a tool implements the contract stops having an
+answer. The second reason is that an open behaviour vocabulary does not produce
+correct boards; it produces several authors inventing several spellings of one
+idea. The third is that the behaviour has to exist in code either way, so
+declaring "no claim is taken here" in a state file does not remove the path
+that refuses the claim, it moves the decision somewhere nothing validates and
+no test covers.
+
+What the rule permits is the half that matters in practice. A state's body is
+unbounded and per-board, and stays that way. The prose that tells a worker what
+to do on arrival is where boards genuinely differ, and no schema should try to
+hold it. What the rule costs is that when the fixed set turns out to be short,
+a kind is added deliberately, with a conformance row, as a card rather than as
+a configuration change. That is the correct price for changing what the tool
+guarantees.
 
 ## Workstreams
 

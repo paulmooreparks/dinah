@@ -67,7 +67,16 @@ func (l *Library) Pull(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// The immediate upstream is tried first and on its own terms, so every
+	// refusal it owes the caller under the lock is still raised: a done
+	// upstream still answers terminal and one waiting on somebody outside
+	// still answers its own name. Only when it holds no ready card does the
+	// pull look further back, through the states that carry into this
+	// destination, nearest first.
 	head := headOfReady(upstream.ID, cards)
+	if head == nil {
+		head = headOfFurtherSource(destination, upstream, l.Bench.States, cards)
+	}
 	if head == nil {
 		return l.okEmpty(req, destination)
 	}
@@ -115,16 +124,15 @@ func (l *Library) pullDestination(req *Request, named *bench.State) (*bench.Stat
 // pull into, in flow order, so the sentence the ambiguous refusal prints
 // reads as the workbench reads.
 //
-// The conditions are the state-scoped rows of the precondition list, and
-// each one names the row it stands for. The state has an upstream state, or
-// it stands first in the flow and nothing precedes it. That upstream holds at
-// least one ready card, which is the one condition with no row behind it,
-// because nothing waiting is an answer rather than a refusal. The upstream's
-// kind is not done, since a forward move out of a done state refuses. The
-// upstream is not operator-owned unless the owner asking is the operator.
-// Neither the upstream nor the destination waits on somebody outside the
-// workbench, since a pull would take a card up at the first and land one at
-// the second, and no owner takes work up at such a state. The
+// The conditions are the state-scoped rows of the precondition list. A state
+// qualifies when at least one state carries into it and holds a ready card,
+// where carrying into it is carriesInto's answer and covers on its own the
+// rows a hand-written list used to spell out: a pull may not take a card out
+// of a done state or out of one waiting on somebody outside, and a pull never
+// lands a card where no owner takes work up. The source is not
+// operator-owned unless the owner asking is the operator, which narrows the
+// set rather than refusing, because the bare form enumerates destinations and
+// one the caller cannot reach makes a worse answer than a shorter list. The
 // destination stands below its capacity limit, or the invocation carries the
 // override marker, whose legality Pull has already settled. The destination is
 // not being retired.
@@ -138,23 +146,7 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
 	operator := req.Actor == l.Bench.Operator
 	var qualifying []string
 	for _, state := range l.Bench.States {
-		upstream := upstreamOf(state, l.Bench.States)
-		if upstream == nil {
-			continue
-		}
-		if upstream.Kind == contract.KindDone {
-			continue
-		}
-		if upstream.OperatorOwned && !operator {
-			continue
-		}
-		// The two waiting rows, which narrow the qualifying set rather than
-		// refusing, exactly as every other state-scoped row here does. The
-		// named form reaches the refusal instead.
-		if upstream.AwaitingOutside || state.AwaitingOutside {
-			continue
-		}
-		if headOfReady(upstream.ID, cards) == nil {
+		if !l.someSourceIsReady(state, cards, operator) {
 			continue
 		}
 		reached, err := l.atCapacity(state)
@@ -167,6 +159,20 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
 		qualifying = append(qualifying, stateRef(state))
 	}
 	return qualifying
+}
+
+// someSourceIsReady reports whether any state a pull into this destination
+// could take a card from holds a ready card the asking owner may take.
+func (l *Library) someSourceIsReady(destination *bench.State, cards []*bench.Card, operator bool) bool {
+	for _, source := range pullSources(destination, l.Bench.States) {
+		if source.OperatorOwned && !operator {
+			continue
+		}
+		if headOfReady(source.ID, cards) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // okEmpty answers a pull that found nothing to take, at exit 0 with no card
@@ -248,13 +254,13 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 //
 // claimableSubstate runs whether or not the caller passed --no-claim, because
 // the option changes what pull writes and not what pull allows, and
-// claimableState behind it is the claim's last row for the same reason.
+// pullableDeparture behind it reads the state the card is leaving for the
+// same reason.
 //
 // canLand is told this act takes the card up, which is what refuses a pull
-// landing a card in a state that waits on somebody outside the workbench.
-// The two directions are one rule: a pull is a claim bundled with a move,
-// and the claim is the thing the flag forbids, so neither the upstream nor
-// the destination may declare it.
+// landing a card where no owner takes work up. The claim a pull writes is
+// taken at the destination, so the departure is asked the narrower question
+// pullableDeparture asks: whether a pull may take a card out of it at all.
 //
 // Pull's caller has already fixed req.State to the destination's reference,
 // so canRoute resolves the destination exactly as the named form of a move
@@ -268,7 +274,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal := l.claimableSubstate(req, card); refusal != nil {
 		return refusal
 	}
-	if refusal := l.claimableState(req, card); refusal != nil {
+	if refusal := l.pullableDeparture(req, card, departure); refusal != nil {
 		return refusal
 	}
 	override, refusal, err := l.canLand(req, card, destination, departure, true)
@@ -328,6 +334,66 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	return response
 }
 
+// pullableDeparture is the row that reads the state a pull is taking the card
+// out of. A pull may not take a card out of a state waiting on somebody
+// outside the workbench, because the card leaves there when that person
+// answers rather than when somebody pulls, and the refusal names the flag so
+// the sentence can say who is being waited on.
+//
+// A departure where no owner takes work up by kind is not refused here. That
+// is what a buffer and an intake state are for: nobody works the card where
+// it stands, so a pull is the act that carries it on.
+//
+// The row decides on PullCanTakeFrom and reads the flags only to pick the
+// name, on the pattern takesNoWorkName sets for the claim path. Reading
+// AwaitingOutside to decide would leave any later reason for a pull not to
+// take from a state sitting in the predicate and never reaching this row,
+// which is the second-answer defect this card exists to close.
+func (l *Library) pullableDeparture(req *Request, card *bench.Card, departure *bench.State) *Response {
+	if departure == nil || departure.PullCanTakeFrom() {
+		return nil
+	}
+	name := pullDepartureName(departure)
+	if name == "" {
+		return nil
+	}
+	return l.refuse(req, card, name, stateRef(departure))
+}
+
+// pullDepartureName picks the refusal name for a state a pull may not take a
+// card out of, and returns the empty string for a departure another row of the
+// pull's list answers.
+//
+// A terminal departure is one of those: canLand's terminal row refuses the
+// forward move a pull makes and names it after CORE-STATE-9, so repeating that
+// refusal here would put the same rule in two places and could answer it by
+// the wrong name. Every other reason names the flag, which is what lets the
+// sentence say who is being waited on.
+func pullDepartureName(state *bench.State) string {
+	if state.Terminal() {
+		return ""
+	}
+	return contract.AwaitingOutside
+}
+
+// headOfFurtherSource returns the card a pull takes when the destination's
+// immediate upstream holds none: the head of the nearest state that carries
+// into this destination and holds a ready card. It reads the caller not at
+// all, exactly as the immediate-upstream step does, so a source the caller
+// may not move a card out of answers not-operator under the lock rather than
+// leaving the caller with the empty answer for a card the board shows them.
+func headOfFurtherSource(destination, upstream *bench.State, states []*bench.State, cards []*bench.Card) *bench.Card {
+	for _, source := range pullSources(destination, states) {
+		if source == upstream {
+			continue
+		}
+		if head := headOfReady(source.ID, cards); head != nil {
+			return head
+		}
+	}
+	return nil
+}
+
 // upstreamOf returns the state standing immediately before the given state in
 // the declared flow, or nil when that state stands first and nothing precedes
 // it. Position is a dense index over the live states, so the predecessor is
@@ -337,6 +403,71 @@ func upstreamOf(state *bench.State, states []*bench.State) *bench.State {
 		return nil
 	}
 	return states[state.Position-1]
+}
+
+// downstreamOf returns the state after the given one in the flow, or nil
+// when the given state stands last. Position is a dense index over the live
+// states, so the successor is the row after it.
+func downstreamOf(state *bench.State, states []*bench.State) *bench.State {
+	if state == nil || state.Position+1 >= len(states) {
+		return nil
+	}
+	return states[state.Position+1]
+}
+
+// carriesInto returns the state a pull would carry a card standing at the
+// given state into, or nil when no pull could carry it anywhere.
+//
+// A card standing at a station is taken from where it stands, so the state
+// beyond it is where a pull puts it or there is no pull to make. A card
+// standing where nobody takes work up is carried on instead, because a
+// queue is a place to wait rather than a place to arrive, and the walk ends
+// at the first state where an owner takes the card up.
+//
+// Two states end the walk without answering. A pull may not take a card out
+// of a done state or out of one waiting on somebody outside, so neither
+// carries a card through either. An operator-owned queue in the middle of a
+// run ends it too, whoever is asking, because carrying a card past that
+// state without its owner acting is what the state exists to prevent.
+func carriesInto(state *bench.State, states []*bench.State) *bench.State {
+	if state == nil || !state.PullCanTakeFrom() {
+		return nil
+	}
+	beyond := downstreamOf(state, states)
+	if state.TakesWorkUp() {
+		if beyond != nil && beyond.TakesWorkUp() {
+			return beyond
+		}
+		return nil
+	}
+	for ; beyond != nil; beyond = downstreamOf(beyond, states) {
+		if beyond.TakesWorkUp() {
+			return beyond
+		}
+		if !beyond.PullCanTakeFrom() || beyond.OperatorOwned {
+			return nil
+		}
+	}
+	return nil
+}
+
+// pullSources returns the states a pull into the given destination may take a
+// card from, nearest first. It states no rule of its own. It asks carriesInto
+// about each state in the flow and keeps the ones that answer this
+// destination, so carriesInto stays the only place the rule is written.
+//
+// Iterating the flow backward is what puts the nearest source first. The run
+// it returns happens to be contiguous, nothing here relies on that, and a
+// caller must not walk back from the destination on the strength of it,
+// because the walk and this filter disagree about an operator-owned state.
+func pullSources(destination *bench.State, states []*bench.State) []*bench.State {
+	var sources []*bench.State
+	for i := len(states) - 1; i >= 0; i-- {
+		if carriesInto(states[i], states) == destination {
+			sources = append(sources, states[i])
+		}
+	}
+	return sources
 }
 
 // upstreamTitle names the upstream state for the sentence the named form's
