@@ -442,10 +442,10 @@ under a layer's prefix, as section 9 describes. A tool that meets a kind it
 does not implement reads the state as an ordinary `work` state, so a
 workbench carrying one still opens and its cards still move.
 
-A state may be operator-owned, which reserves departure from it, and the
-claim that would let anybody else act on it, to the operator. A workbench
-uses this where a person has to look at the work before it goes on, and it is
-the mechanism behind ACTOR-4.
+A state may be operator-owned. That reserves two things to the operator:
+departure from the state, and the claim that would let anybody else act on a
+card standing there. A workbench uses this where a person has to look at the
+work before it goes on, and it is the mechanism behind ACTOR-4.
 
 A state also carries a slug, which is the short handle somebody types in
 place of a title. An identifier is exact and nobody remembers one, and a

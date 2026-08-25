@@ -222,13 +222,21 @@ func TestTheBareFormRefusesAmbiguousUpstreams(t *testing.T) {
 // distinguish "two states both qualify" from "one state, one candidate".
 func newAmbiguousHarness(t *testing.T) *harness {
 	t.Helper()
+	return newAmbiguousHarnessFrom(t, ambiguousDefinition)
+}
+
+// newAmbiguousHarnessFrom is newAmbiguousHarness over a caller's definition,
+// so that a test wanting the same two-qualifying-destinations shape with one
+// state declared differently does not restate the seeding.
+func newAmbiguousHarnessFrom(t *testing.T, definitionText string) *harness {
+	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
 	root := filepath.Join(base, "workbench")
 	if err := os.MkdirAll(filepath.Join(home, bench.UserBaseName), 0o755); err != nil {
 		t.Fatalf("user base: %v", err)
 	}
-	definition, err := bench.ReadDefinition([]byte(ambiguousDefinition))
+	definition, err := bench.ReadDefinition([]byte(definitionText))
 	if err != nil {
 		t.Fatalf("definition: %v", err)
 	}
@@ -648,6 +656,94 @@ func TestANamedPullIntoAnOperatorOwnedDestinationRefusesUnlessOperator(t *testin
 		}
 	})
 }
+
+// TestTheBareFormNarrowsAwayAnOperatorOwnedDestination asserts that the
+// candidate set a bare pull enumerates drops a destination reserved to the
+// operator when the owner asking is not the operator, the way it already
+// drops a source reserved that way.
+//
+// The two forms have to agree. The named form refuses such a pull, which
+// TestANamedPullIntoAnOperatorOwnedDestinationRefusesUnlessOperator holds, so
+// a bare form that still counted the destination would either refuse a
+// command that asked for no destination in particular, or print the state's
+// name in an ambiguous refusal and then refuse the caller who typed it. The
+// first subtest below is the one that goes red on the first of those, and the
+// third on the second.
+func TestTheBareFormNarrowsAwayAnOperatorOwnedDestination(t *testing.T) {
+	t.Run("a non-operator is offered nothing rather than refused", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("upstream of review")
+		h.at(ref, doing)
+
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob"})
+		h.reopen()
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+		if response.Card != nil {
+			t.Errorf("nothing qualifies for this owner, so the answer should carry no card, got %+v", response.Card)
+		}
+		if response.Message != "answer.pull.empty.bare" {
+			t.Errorf("wanted the bare-form empty answer, got %q", response.Message)
+		}
+		if card := h.card(ref); card.State != doing || card.Holder != "" {
+			t.Errorf("the answer wrote to the card: state %q holder %q", card.State, card.Holder)
+		}
+	})
+
+	t.Run("the operator is still offered it", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("upstream of review")
+		h.at(ref, doing)
+
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka"})
+		h.reopen()
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the operator should be admitted, got %s %s", response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.State != review || card.Holder != "alka" {
+			t.Errorf("expected the card held by the operator in review, got state %q holder %q", card.State, card.Holder)
+		}
+	})
+
+	t.Run("the list narrows rather than naming a state the caller cannot reach", func(t *testing.T) {
+		h := newAmbiguousHarnessFrom(t, reservedAmbiguousDefinition)
+		h.add("another in intake")
+
+		operators := h.library.Pull(&Request{Verb: Pull, Actor: "alka"})
+		if operators.Outcome != contract.OutcomeRefused || operators.Refusal != contract.AmbiguousState {
+			t.Fatalf("two destinations qualify for the operator, so wanted %s, got %s %s",
+				contract.AmbiguousState, operators.Outcome, operators.Refusal)
+		}
+		h.reopen()
+
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob"})
+		h.reopen()
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("one destination qualifies for this owner, so wanted ok, got %s %s",
+				response.Outcome, response.Refusal)
+		}
+		if response.Card == nil || response.Card.State != doing {
+			t.Fatalf("the reachable destination is doing, got %+v", response.Card)
+		}
+	})
+}
+
+// reservedAmbiguousDefinition is ambiguousDefinition with its review state
+// reserved to the operator, which is the bench where the two owners see
+// different candidate sets: the operator sees doing and review, and anybody
+// else sees doing alone.
+const reservedAmbiguousDefinition = `{
+  "profile": "dinah-core/1.0",
+  "title": "Wide",
+  "instructions": "Standing text.\n",
+  "states": [
+    { "id": "a00000000001", "title": "Intake", "kind": "intake" },
+    { "id": "a00000000002", "title": "Doing", "kind": "work", "capacity": 2 },
+    { "id": "a00000000003", "title": "Review", "kind": "work", "operator_owned": true },
+    { "id": "a00000000004", "title": "Finished", "kind": "done" }
+  ]
+}`
 
 // TestPullChecksAgainstTheFullFourteenRowTable asserts that the ordered
 // precondition list Pull's help is generated from is the workbench pair

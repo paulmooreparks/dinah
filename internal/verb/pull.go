@@ -135,7 +135,11 @@ func (l *Library) pullDestination(req *Request, named *bench.State) (*bench.Stat
 // one the caller cannot reach makes a worse answer than a shorter list. The
 // destination stands below its capacity limit, or the invocation carries the
 // override marker, whose legality Pull has already settled. The destination is
-// not being retired.
+// not operator-owned unless the owner asking is the operator, which is the
+// same reservation read at the other end of the pull: a pull lands holding
+// the card, so a destination reserved to the operator is one this caller
+// cannot reach, and it is narrowed away for the same reason the source is.
+// The destination is not being retired.
 //
 // The predicate reads the workbench without holding any lock, so the set it
 // returns is a prediction about what a pull would do. The authoritative
@@ -151,6 +155,9 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) []string {
 		}
 		reached, err := l.atCapacity(state)
 		if err == nil && reached && !req.Override {
+			continue
+		}
+		if operatorReservesClaim(state, req.Actor, l.Bench.Operator) {
 			continue
 		}
 		if _, retiring := l.retiring(state.ID); retiring {
