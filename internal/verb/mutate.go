@@ -137,16 +137,25 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	return l.claimableState(req, card)
 }
 
-// claimableState is the last row of the claim's list, and the first row the
-// claim has that reads the state a card stands in rather than the card. A
-// state where no owner takes work up refuses the claim whoever asks, the
-// operator included, because taking work up is a fact about the state and not
-// a permission.
+// claimableState carries the last two rows of the claim's list, which are the
+// rows that read the state a card stands in rather than the card. A state
+// where no owner takes work up refuses the claim whoever asks, the operator
+// included, because taking work up is a fact about the state and not a
+// permission.
 //
-// Two names answer that one rule. A state declaring awaiting_outside tells a
-// reader who the workbench is waiting on, so that name wins wherever the flag
-// is set. A state that takes no work up by kind has nobody to name, so it
-// answers dinah.takes-no-work instead.
+// Two names answer that first rule. A state declaring awaiting_outside tells
+// a reader who the workbench is waiting on, so that name wins wherever the
+// flag is set. A state that takes no work up by kind has nobody to name, so
+// it answers dinah.takes-no-work instead.
+//
+// The second row asks a different question of a state that does take work
+// up. Such a state can still be reserved to the operator, and CORE-CLAIM-8
+// refuses the claim there to every other owner under the name CORE-MOVE-6
+// already reports for the departure side of the same reservation. The two
+// rows are not one axis wearing two names. A state declaring
+// awaiting_outside says nobody inside the workbench can act yet, an
+// operator-owned state says only the operator may take the card up, and a
+// state can be either, both or neither.
 //
 // It stands after claimableSubstate rather than before it so that a card
 // which is both blocked and standing at such a state answers the profile's
@@ -154,10 +163,13 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 // answer CORE-OUT-6 makes observable.
 func (l *Library) claimableState(req *Request, card *bench.Card) *Response {
 	state := l.Bench.State(card.State)
-	if state == nil || state.HoldsSubstate(contract.SubstateActive) {
-		return nil
+	if state != nil && !state.HoldsSubstate(contract.SubstateActive) {
+		return l.refuse(req, card, takesNoWorkName(state), stateRef(state))
 	}
-	return l.refuse(req, card, takesNoWorkName(state), stateRef(state))
+	if operatorReservesClaim(state, req.Actor, l.Bench.Operator) {
+		return l.refuse(req, card, contract.NotOperator, req.Actor)
+	}
+	return nil
 }
 
 // takesNoWorkName picks the refusal name for a state where no owner takes
@@ -168,6 +180,16 @@ func takesNoWorkName(state *bench.State) string {
 		return contract.AwaitingOutside
 	}
 	return contract.TakesNoWork
+}
+
+// operatorReservesClaim reports whether an operator-owned state refuses a
+// claim to this actor. CORE-CLAIM-8 and canLand's destination row both read
+// it, so an operator-owned state means the same thing whichever act is
+// taking a card up there: an ordinary claim in place, or a pull that lands
+// holding it. A card standing at a state the workbench no longer declares
+// reaches this with a nil state and is reserved to nobody.
+func operatorReservesClaim(state *bench.State, actor, operator string) bool {
+	return state != nil && state.OperatorOwned && actor != operator
 }
 
 // claimableSubstate runs the last two rows of the claim's list, blocked then
@@ -288,15 +310,16 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.State, *bench
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
 // state, the destination stands below its capacity, the destination does not
-// wait on somebody outside the workbench, and the destination is not being
-// retired. It reports whether the capacity limit was reached and overridden,
-// which is the flag the moved event carries.
+// wait on somebody outside the workbench, the destination does not reserve
+// to the operator the claim an arriving act would take there, and the
+// destination is not being retired. It reports whether the capacity limit was
+// reached and overridden, which is the flag the moved event carries.
 //
 // takesUp says whether the act this list is running for takes the card up
-// where it lands, which a pull does and a move does not. Only the waiting
-// row reads it, and it is a parameter rather than a reading of req.Verb
-// because it is a property of the act rather than of the word the caller
-// typed.
+// where it lands, which a pull does and a move does not. The waiting row and
+// the operator-owned row read it, and it is a parameter rather than a reading
+// of req.Verb because it is a property of the act rather than of the word the
+// caller typed.
 func (l *Library) canLand(req *Request, card *bench.Card, destination, departure *bench.State, takesUp bool) (bool, *Response, error) {
 	if card.Substate == contract.SubstateBlocked {
 		return false, l.refuse(req, card, contract.Blocked, card.BlockReason), nil
@@ -330,6 +353,19 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// comment gives.
 	if !destination.TakesWorkUp() && (card.Holder != "" || takesUp) {
 		return false, l.refuse(req, card, takesNoWorkName(destination), stateRef(destination)), nil
+	}
+	// An operator-owned destination reserves the claim taken there to the
+	// operator, which is CORE-CLAIM-8 read at the far end of a pull rather
+	// than in place. The row is gated on takesUp, so an ordinary handoff
+	// stays legal for every owner: a move leaves the card unheld wherever it
+	// lands, and CORE-MOVE-6 already reserves the departure a card is later
+	// taken out of.
+	//
+	// Like the row above it, this one does not weaken for --no-claim. Pull
+	// passes takesUp whichever way that option is set, because the option
+	// changes what a pull writes rather than what a pull allows.
+	if takesUp && operatorReservesClaim(destination, req.Actor, l.Bench.Operator) {
+		return false, l.refuse(req, card, contract.NotOperator, req.Actor), nil
 	}
 	if holder, retiring := l.retiring(destination.ID); retiring {
 		return false, l.refuse(req, card, contract.Locked, holder), nil

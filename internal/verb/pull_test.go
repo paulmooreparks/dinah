@@ -454,10 +454,12 @@ func TestOperatorOwnedUpstreamFiltersAndAdmitsTheOperator(t *testing.T) {
 	t.Run("a non-operator pulling out of an operator-owned upstream is refused", func(t *testing.T) {
 		h := newHarness(t)
 		// The destination is aftercare, whose upstream is the fixture's
-		// operator-owned review state, because the row reads the state the
-		// card departs rather than the state it arrives in: a state is
-		// operator-owned to say who may take work out of it, so pulling
-		// into one is as legal for anybody as moving into one.
+		// operator-owned review state, because this row reads the state the
+		// card departs rather than the state it arrives in. The destination
+		// side of the same reservation is a second row, which
+		// TestANamedPullIntoAnOperatorOwnedDestinationRefusesUnlessOperator
+		// covers, so a refusal here says nothing about where the card was
+		// going.
 		ref := h.add("waiting in review")
 		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
 		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: aftercareSlug})
@@ -581,11 +583,77 @@ func TestAPullWithHeldSiblingRefusesLocked(t *testing.T) {
 	}
 }
 
-// TestPullChecksAgainstTheFullThirteenRowTable asserts that the ordered
+// TestANamedPullIntoAnOperatorOwnedDestinationRefusesUnlessOperator drives
+// CORE-CLAIM-8 at the far end of a pull. A pull lands its card holding it, so
+// the destination reserves that claim exactly as the state a plain claim is
+// asked at does, and a named pull is the form that reaches the row: the bare
+// form's qualifier reads the source rather than the destination.
+//
+// The --no-claim form is refused on the same terms, because the option changes
+// what a pull writes rather than what a pull allows, which is the rule
+// TestANamedPullIsRefusedAtAQueueDestination already holds for the row above
+// this one in canLand.
+//
+// The departure is doing, which is not itself operator-owned, so nothing here
+// can be answered by the departure-side row
+// TestOperatorOwnedUpstreamFiltersAndAdmitsTheOperator covers.
+func TestANamedPullIntoAnOperatorOwnedDestinationRefusesUnlessOperator(t *testing.T) {
+	t.Run("a non-operator claiming is refused", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("upstream of review")
+		h.at(ref, doing)
+
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: review})
+		h.reopen()
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
+			t.Fatalf("wanted %s, got %s %s", contract.NotOperator, response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.State != doing || card.Holder != "" {
+			t.Errorf("the refused pull wrote to the card: state %q holder %q", card.State, card.Holder)
+		}
+	})
+
+	t.Run("a non-operator carrying --no-claim is refused on the same terms", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("upstream of review")
+		h.at(ref, doing)
+
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "bob", State: review, NoClaim: true})
+		h.reopen()
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
+			t.Fatalf("wanted %s, got %s %s", contract.NotOperator, response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.State != doing {
+			t.Errorf("the refused pull moved the card anyway: %s", card.State)
+		}
+	})
+
+	t.Run("the operator carrying --no-claim is admitted", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("upstream of review")
+		h.at(ref, doing)
+
+		response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", State: review, NoClaim: true})
+		h.reopen()
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the operator should be admitted, got %s %s", response.Outcome, response.Refusal)
+		}
+		card := h.card(ref)
+		if card.State != review {
+			t.Errorf("expected the card in review, got %s", card.State)
+		}
+		if card.Substate != contract.SubstateReady || card.Holder != "" {
+			t.Errorf("a pull carrying --no-claim should leave the card ready and unheld: substate %q holder %q",
+				card.Substate, card.Holder)
+		}
+	})
+}
+
+// TestPullChecksAgainstTheFullFourteenRowTable asserts that the ordered
 // precondition list Pull's help is generated from is the workbench pair
-// followed by the eleven pull rows the spec owns, in the order the spec
+// followed by the twelve pull rows the spec owns, in the order the spec
 // names them. This is the test the help renders against.
-func TestPullChecksAgainstTheFullThirteenRowTable(t *testing.T) {
+func TestPullChecksAgainstTheFullFourteenRowTable(t *testing.T) {
 	checks := Checks(Pull)
 	want := []Check{
 		{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
@@ -600,8 +668,46 @@ func TestPullChecksAgainstTheFullThirteenRowTable(t *testing.T) {
 		{Refusal: contract.Held, Key: "check.pull.8"},
 		{Refusal: contract.Terminal, Key: "check.pull.9"},
 		{Refusal: contract.AtCapacity, Key: "check.pull.10"},
-		{Refusal: contract.Locked, Key: "check.pull.11"},
+		{Refusal: contract.NotOperator, Key: "check.pull.11"},
+		{Refusal: contract.Locked, Key: "check.pull.12"},
 	}
+	if len(checks) != len(want) {
+		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))
+	}
+	for i, row := range want {
+		if checks[i].Refusal != row.Refusal || checks[i].Key != row.Key {
+			t.Errorf("row %d: wanted %+v, got %+v", i, row, checks[i])
+		}
+	}
+}
+
+// TestClaimChecksAgainstTheFullSixRowTable is the claim's half of the same
+// assertion, and it is what pins the new row's position: the claim's own list
+// ends with the operator-owned reservation, behind the workbench pair every
+// contract verb carries in front of its own rows.
+func TestClaimChecksAgainstTheFullSixRowTable(t *testing.T) {
+	own, found := ownChecks(Claim)
+	if !found {
+		t.Fatal("the claim declares no precondition list")
+	}
+	wantOwn := []Check{
+		{Refusal: contract.UnknownCard, Key: "check.claim.1"},
+		{Refusal: contract.NoOwner, Key: "check.claim.2"},
+		{Refusal: contract.NotRequester, Key: "check.claim.3"},
+		{Refusal: contract.Blocked, Key: "check.claim.4"},
+		{Refusal: contract.Held, Key: "check.claim.5"},
+		{Refusal: contract.NotOperator, Key: "check.claim.6"},
+	}
+	if len(own) != len(wantOwn) {
+		t.Fatalf("wanted %d own rows, got %d", len(wantOwn), len(own))
+	}
+	for i, row := range wantOwn {
+		if own[i].Refusal != row.Refusal || own[i].Key != row.Key {
+			t.Errorf("own row %d: wanted %+v, got %+v", i, row, own[i])
+		}
+	}
+	want := append(append([]Check{}, WorkbenchChecks...), wantOwn...)
+	checks := Checks(Claim)
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))
 	}
