@@ -4,3 +4,17 @@
 __pycache__/
 .claude/isolation-audit.jsonl
 /.dinah-gh-token
+
+# The VS Code extension. The /bin/ entry above is root-anchored and does not
+# reach editors/vscode/bin/, which is the staging directory one platform
+# binary is copied into just before vsce packages that platform's vsix.
+editors/vscode/node_modules/
+editors/vscode/dist/
+editors/vscode/out/
+editors/vscode/bin/
+editors/vscode/*.vsix
+editors/vscode/vsix/
+editors/vscode/.binaries/
+editors/vscode/.release-binaries/
+editors/vscode/src/generated/
+editors/vscode/.vscode-test/
