@@ -67,6 +67,17 @@ all here. The strings are generated now, with the second invocation
 spelled four ways, because the guard's counter once excluded three of
 them and cleared the reset that followed.
 
+A RELAXATION IS DECLARED OR IT IS A REGRESSION. The rule above stops a
+branch quietly refusing less than the trunk, and a card whose whole
+purpose is to refuse less would fail every run under it. So a string this
+branch means to allow is generated with a name that says so, and the
+harness then holds it to both halves of the claim: the trunk has to
+refuse it, or the declaration is stale and has stopped describing
+anything, and this branch has to allow it, or the fix it was written for
+has been reverted. Every declared string still goes to the shell like any
+other, so a relaxation that lets a deny-set verb through is a fail-open
+and is reported as one.
+
 SAFETY. Every generated string is git and nothing else, wrapped in
 punctuation. `git` is the stub, so no repository is touched, and the
 shell runs with its working directory in a temporary sandbox. The one
@@ -189,22 +200,30 @@ class Trunk:
         kinds = {}
         original = module.worktree_kind
 
-        def cached(target, base):
-            key = (target, base)
-            if key not in kinds:
-                kinds[key] = original(target, base)
-            return kinds[key]
+        # One argument, because that is what `worktree_kind` takes. This
+        # wrapper asked for two, so every trunk verdict on a command
+        # carrying a `-C` raised a TypeError, `refuses` swallowed it, and
+        # the string was recorded as one the deployed guard allows. The
+        # second oracle was answering "no refusal" for precisely the
+        # commands it exists to compare, which is why an unanswerable
+        # trunk is now fatal to the run rather than a number in the
+        # report.
+        def cached(target):
+            if target not in kinds:
+                kinds[target] = original(target)
+            return kinds[target]
 
         module.worktree_kind = cached
 
     def refuses(self, command):
         """True when the deployed guard denies this command.
 
-        A command the trunk cannot read at all, which `shlex` raises on
-        for an unbalanced quotation mark, counts as no verdict rather
-        than as a refusal. Counting it as a refusal would make every
-        such string a failure of this branch for something the trunk
-        never did.
+        A command the trunk cannot read at all counts as no verdict
+        rather than as a refusal, because counting it as a refusal would
+        make every such string a failure of this branch for something the
+        trunk never did. The count is kept, and the run fails on it: a
+        trunk that answers nothing is not a comparison, and the report
+        used to carry that number where nobody read it.
         """
         payload = json.dumps({"tool_input": {"command": command}, "cwd": self.cwd})
         with self.lock:
@@ -248,7 +267,12 @@ def build_repo(root):
     git("worktree", "add", "--detach", "-q", linked, "HEAD", cwd=main)
     spaced = os.path.join(root, "dinah scratch", "card-impl", "wt")
     git("worktree", "add", "--detach", "-q", spaced, "HEAD", cwd=main)
-    return main, linked, spaced
+    # A worktree named for a card at the merge stage, which is the shape
+    # this board's own convention produces and the shape whose verb the
+    # guard used to read as a subcommand.
+    verbnamed = os.path.join(root, "scratch", "dinah-249-merge", "wt")
+    git("worktree", "add", "--detach", "-q", verbnamed, "HEAD", cwd=main)
+    return main, linked, spaced, verbnamed
 
 
 # ---------------------------------------------------------------------------
@@ -619,7 +643,69 @@ def two_in_one_span(linked, stub):
     return shapes
 
 
-def strings(linked, spaced, stub):
+# The name a declared relaxation carries. A string generated under this
+# prefix is one this branch intends to allow and the deployed guard
+# refuses; anything else that the trunk refuses and this branch allows is
+# a regression.
+RELAXATION = "declared relaxation: "
+
+# The deny-set verbs a path segment can trip on its own. The rules left
+# out want a flag as well, or a second word, and a directory name
+# supplies neither, so a path alone never reached them.
+PATH_VERBS = ["restore", "stash", "commit", "merge", "rebase", "cherry-pick",
+              "revert", "am", "apply", "rm", "mv", "bisect", "pull"]
+
+
+def slashed(path):
+    """`path` written with forward slashes, which is how this board writes one.
+
+    A backslash is how a shell quotes the letter after it rather than a
+    separator, and the guard does not read one as ending a word, so a
+    backslash-spelled fixture would ask a different question from the one
+    these strings are for.
+    """
+    return path.replace("\\", "/")
+
+
+def declares_relaxation(name):
+    return name.startswith(RELAXATION)
+
+
+def relaxations(checkout, verbnamed):
+    """Strings this branch allows and the deployed guard refuses.
+
+    Every verb in the deny set is also a word a directory can be named
+    after, and this board names them that way, because a worktree belongs
+    to a card at a stage and is written `<card>-<stage>/wt`. A regular
+    expression ends a word at a hyphen where a shell does not, so the
+    deployed guard reads `merge` out of `dinah-249-merge` and refuses a
+    status, a log or a diff for a verb the command never ran. The worst
+    of them is the last string here, which is the command the guard's own
+    refusal text prescribes: a worktree is added from the repository it
+    belongs to, so a creating command names the main checkout with its
+    `-C` and cannot avoid doing so.
+
+    The count is fixed and small, at three shapes for each of the verbs a
+    path can trip plus two spelled-out cases, because every string here
+    starts a shell.
+    """
+    scratch = slashed(os.path.dirname(os.path.dirname(verbnamed)))
+    shapes = []
+    for name in PATH_VERBS:
+        for shape, segment in (("ending a segment", "card-%s" % name),
+                               ("beginning a segment", "%s-fixture" % name),
+                               ("standing as a whole segment", name)):
+            shapes.append((RELAXATION + "%s %s of a -C path" % (name, shape),
+                           "git -C %s/%s/wt rev-parse HEAD" % (scratch, segment)))
+    shapes.append((RELAXATION + "a status read through a merge-stage path",
+                   "git -C %s/dinah-250-merge/wt status --short" % scratch))
+    shapes.append((RELAXATION + "the board's own merge-stage worktree is created",
+                   "git -C %s worktree add --detach %s/dinah-293-merge/wt HEAD"
+                   % (slashed(checkout), scratch)))
+    return shapes
+
+
+def strings(checkout, linked, spaced, verbnamed, stub):
     """Every generated string, as `(name, command)`.
 
     The crossing is deliberate and it is the point. Each deny-set verb is
@@ -719,6 +805,9 @@ def strings(linked, spaced, stub):
     # produce because it always puts a separator between them.
     generated.extend(two_in_one_span(linked, stub))
 
+    # The strings this branch means to allow and the trunk refuses.
+    generated.extend(relaxations(checkout, verbnamed))
+
     return generated
 
 
@@ -806,11 +895,12 @@ def main():
     regressions = []
     shapes = {}
     over_refusals = 0
+    relaxed = 0
     total = 0
     reached = 0
     trunk = None
     try:
-        checkout, linked, spaced = build_repo(root)
+        checkout, linked, spaced, verbnamed = build_repo(root)
 
         stubdir = os.path.join(root, "stub")
         os.makedirs(stubdir)
@@ -888,9 +978,24 @@ def main():
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
             for name, command, allowed, offences, trunk_refused in pool.map(
-                    examine, strings(linked, spaced, stub)):
+                    examine, strings(checkout, linked, spaced, verbnamed, stub)):
                 total += 1
-                if trunk_refused:
+                if declares_relaxation(name):
+                    # Held to both halves of what it claims. A string the
+                    # trunk no longer refuses has stopped being a
+                    # relaxation, and a string this branch refuses is the
+                    # fix gone missing.
+                    if not allowed:
+                        failures.append((name, command,
+                                         "declared as a relaxation and refused by this branch",
+                                         None))
+                    elif trunk is not None and not trunk_refused:
+                        failures.append((name, command,
+                                         "declared as a relaxation and allowed by the deployed "
+                                         "guard too, so it relaxes nothing", None))
+                    else:
+                        relaxed += 1
+                elif trunk_refused:
                     regressions.append((name, command))
                 if offences is None:
                     failures.append((name, command, "the shell did not finish", None))
@@ -913,6 +1018,8 @@ def main():
           "(over-refusal, not a failure)" % over_refusals)
     for shape, count in sorted(shapes.items(), key=lambda pair: -pair[1])[:12]:
         print("    %4d  %s" % (count, shape))
+    print("%d of them are declared relaxations, allowed here and refused by the "
+          "deployed guard" % relaxed)
     if trunk is None:
         print("the deployed guard at %s could not be read, so no string was "
               "compared against it" % TRUNK_REF)
@@ -943,6 +1050,11 @@ def main():
     if trunk is None:
         print("no fail-open in %d generated strings, but the comparison against "
               "%s did not run" % (total, TRUNK_REF))
+        return 1
+
+    if trunk.errors:
+        print("the deployed guard could not read %d of the %d strings, so those "
+              "were compared against nothing" % (trunk.errors, total))
         return 1
 
     print("no fail-open and no regression against %s in %d generated strings"

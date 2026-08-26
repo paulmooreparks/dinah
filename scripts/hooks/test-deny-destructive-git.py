@@ -65,7 +65,13 @@ def build_repo(root):
     # refusal. The two cases built on it pin the cost and the escape.
     componented = os.path.join(root, "git", "card-impl", "wt")
     git("worktree", "add", "--detach", "-q", componented, "HEAD", cwd=main)
-    return main, linked, spaced, nested, componented
+    # A worktree named the way this board names one, for a card at the
+    # merge stage. The verb is a syllable of the directory rather than a
+    # subcommand, and the cases built on it say the guard reads it that
+    # way.
+    verbnamed = os.path.join(root, "scratch", "dinah-249-merge", "wt")
+    git("worktree", "add", "--detach", "-q", verbnamed, "HEAD", cwd=main)
+    return main, linked, spaced, nested, componented, verbnamed
 
 
 def verdict(command, cwd):
@@ -85,6 +91,30 @@ def qualified(command, path):
     """The same command with a `-C <path>` naming where it runs."""
     assert command.startswith("git "), command
     return 'git -C "%s" %s' % (path, command[4:])
+
+
+def slashed(path):
+    """`path` written with forward slashes, which is how this board writes one.
+
+    The path cases below put a deny-set verb inside a directory name and
+    ask whether the guard still reads it as a subcommand, so the
+    separator has to be the one those cases reason about. A backslash is
+    how a shell quotes the letter after it rather than a separator, and
+    the guard does not read one as the end of a word, so a
+    backslash-spelled fixture would be asking a different question and
+    would pass while the reported defect stood.
+    """
+    return path.replace("\\", "/")
+
+
+# The deny-set verbs a path segment can carry on its own. Each of these
+# rules fires on the verb alone, so a directory named after one used to
+# cost a read-only command its permission. The rules left out need a
+# flag as well (reset, clean, checkout, switch, push, branch, tag) or a
+# second word (worktree remove), and a path segment does not supply one,
+# so there was nothing for a path alone to trip.
+PATH_VERBS = ["restore", "stash", "commit", "merge", "rebase", "cherry-pick",
+              "revert", "am", "apply", "rm", "mv", "bisect", "pull"]
 
 
 # Every verb the guard refuses. Each one is run six ways, and the first
@@ -218,7 +248,7 @@ def leaks(linked):
     ]
 
 
-def cases(root, main, linked, spaced, nested, componented):
+def cases(root, main, linked, spaced, nested, componented, verbnamed):
     gone = os.path.join(main, ".claude", "worktrees", "deleted-out-from-under-us")
     backslashed = linked.replace("/", "\\") if os.name == "nt" else linked
     table = []
@@ -558,6 +588,102 @@ def cases(root, main, linked, spaced, nested, componented):
         # A command mentioning no git at all never reaches the rule.
         ("no git in the command", "rm -rf build", main, ALLOW),
     ])
+
+    # A deny-set verb standing inside a path is not the subcommand. Every
+    # verb in the set is also a word a directory can be named after, and
+    # this board names them that way, because a worktree belongs to a
+    # card at a stage and is written `<card>-<stage>/wt`. A regular
+    # expression's `\b` ends a word at a hyphen where a shell does not,
+    # so `merge` was found inside `dinah-249-merge`, `am` inside
+    # `card-am` and `rm` inside `rm-fixture`, and a read-only command was
+    # refused for a verb it never ran. Each command below runs a verb the
+    # deny set does not carry at all, so the only way to refuse one is to
+    # read the path as a subcommand.
+    for name in PATH_VERBS:
+        for shape, segment in (("ending a segment", "card-%s" % name),
+                               ("beginning a segment", "%s-fixture" % name),
+                               ("standing as a whole segment", name)):
+            spelled = slashed(os.path.join(root, "scratch", segment, "wt"))
+            table.append(("%s %s of a -C path is not a subcommand" % (name, shape),
+                          "git -C %s rev-parse HEAD" % spelled, main, ALLOW))
+
+    table.extend([
+        # The three reads that were refused, spelled as they were found.
+        # The merge-stage path here names no worktree, which is how the
+        # defect was met: an agent reads through a directory a card has
+        # already finished with, and the guard answers that it blocked a
+        # merge. A path that does name a live worktree is the case below.
+        ("a status read through a merge-stage path",
+         "git -C %s status --short"
+         % slashed(os.path.join(root, "scratch", "dinah-250-merge", "wt")), main, ALLOW),
+        ("a status read through a live merge-stage worktree",
+         "git -C %s status --short" % slashed(verbnamed), main, ALLOW),
+        ("a log read through an am-named worktree",
+         "git -C %s log --oneline -1"
+         % slashed(os.path.join(root, "scratch", "card-am", "wt")), main, ALLOW),
+        ("a diff read through an rm-named worktree",
+         "git -C %s diff" % slashed(os.path.join(root, "scratch", "rm-fixture", "wt")),
+         main, ALLOW),
+
+        # The command the guard's own refusal text prescribes, refused by
+        # the guard that printed it. A worktree is added from the
+        # repository it belongs to, so the `-C` of a creating command
+        # names the main checkout by necessity, and no rewording of the
+        # naming convention could have cleared this one.
+        ("the board's own merge-stage worktree can be created",
+         "git -C %s worktree add --detach %s HEAD"
+         % (slashed(main), slashed(os.path.join(root, "scratch", "dinah-293-merge", "wt"))),
+         main, ALLOW),
+
+        # The same defect one layer down, on the last long flag that was
+        # read without asking where its word began. A file called
+        # `seed--hard.txt` is not the `--hard` flag, and a soft reset is
+        # in nobody's deny set.
+        ("a long flag inside a filename is not that flag",
+         "git -C %s re" % slashed(main) + "set --soft HEAD -- seed--hard.txt", main, ALLOW),
+
+        # The other face of that rule. An exemption asks for a flag too,
+        # so anchoring the flag makes the exemption harder to satisfy,
+        # and a file named after `--cached` no longer excuses an rm that
+        # really would delete it.
+        ("a filename spelled like --cached does not exempt an rm",
+         "git rm seed--cached.txt", main, DENY),
+
+        # Where a word ends carries the other half of the question, and
+        # these two are the cases that ask it. A path can begin with a
+        # verb's name as readily as it can end with one, and a
+        # subcommand that merely starts with a verb's letters is a
+        # different subcommand.
+        ("a relative path beginning with a verb name is not a subcommand",
+         "git -C %s log -1 -- merge/notes.txt" % slashed(main), main, ALLOW),
+        ("merge-base is not merge", "git merge-base HEAD origin/main", main, ALLOW),
+
+        # The operand of the force-with-lease rule stays a regular
+        # expression's word rather than a shell's. A ref is written with
+        # slashes and colons, so requiring `main` to stand alone there
+        # would clear a forced push at the trunk.
+        ("--force-with-lease at a fully spelled trunk ref",
+         "git push --force-with-lease origin refs/heads/main", main, DENY),
+        ("--force-with-lease at a colon-spelled trunk ref",
+         "git push --force-with-lease origin HEAD:refs/heads/main", main, DENY),
+    ])
+
+    # The other direction, and it is the half a suite of refusals cannot
+    # prove. Narrowing a verb to a whole shell word must not stop the
+    # guard finding a verb that is one, so every deny-set command runs
+    # again with a path carrying its own verb's name standing beside it.
+    # A rule that stopped matching would clear all of these at once.
+    for name, command in MUTATING:
+        segment = "card-" + command.split(" ")[1]
+        decorated = "%s %s" % (command, slashed(os.path.join(root, "scratch", segment, "wt")))
+        table.append(("%s beside a path carrying its own verb" % name,
+                      decorated, main, DENY))
+        table.append(("%s -C the main checkout, beside such a path" % name,
+                      qualified(decorated, main), main, DENY))
+        table.append(("%s -C a worktree whose own path carries a verb" % name,
+                      "git -C %s %s" % (slashed(verbnamed), command[len("git "):]),
+                      main, ALLOW))
+
     return table
 
 
@@ -566,9 +692,9 @@ def main():
     failures = 0
     total = 0
     try:
-        checkout, linked, spaced, nested, componented = build_repo(root)
+        checkout, linked, spaced, nested, componented, verbnamed = build_repo(root)
         for name, command, cwd, want in cases(
-                root, checkout, linked, spaced, nested, componented):
+                root, checkout, linked, spaced, nested, componented, verbnamed):
             total += 1
             try:
                 got = verdict(command, cwd)

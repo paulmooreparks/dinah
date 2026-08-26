@@ -52,6 +52,50 @@ its own, whereupon the walker underneath stopped on that `>`, called it
 the subcommand, found it in no table, and cleared `git >/dev/null reset
 --hard`. A fix at one layer opened a hole at the next.
 
+A verb is matched only where it stands as a whole shell word, and the
+two lookarounds that say so are the narrowest thing this file could do
+about a defect that refused read-only commands. `\b` is a regular
+expression's idea of a word rather than a shell's, and a hyphen ends
+one, so `merge` was found inside the path `dinah-249-merge`, `am` inside
+`card-am`, and `rm` inside `rm-fixture`. The guard refused
+`git -C C:/dinah-scratch/dinah-249-merge/wt status --short` and told the
+agent it had run a merge. It also forbade the command this file's own
+refusal text prescribes, because a worktree built for the merge stage is
+`<card>-merge/wt` and the command that creates one carries `-C` at the
+main checkout by necessity.
+
+That fix is not the reader this file abandoned three times, and the
+difference is worth stating rather than assuming. Nothing added here
+walks words, skips options, keeps a position, or decides which word is
+the subcommand. Every rule still fires on its verb wherever the verb
+stands in the span, and all that changed is which characters count as
+joining a word to its neighbour. Both lookarounds are zero-width and
+read the single character on each side of the match, so a spelling
+nobody has enumerated cannot carry a verb out of the guard's sight by
+standing somewhere the guard never considered. There is nowhere for it
+to stand.
+
+What a spelling can do is delete a character next to the verb, and that
+is bounded rather than open. The refused characters are `\w . = / ~ @ +
+-`, and every one of them, left in the text, makes the shell hand git a
+longer token than the verb: `xreset`, `.reset`, `/reset`, `reset-`,
+`reset/`. Quote removal and word splitting inside an expansion are the
+only shell constructs that take such a character away before git sees
+it, and both of those are the hole this file has always had and states
+below. Blanking replaces a quoted span with spaces of its own length,
+and a space joins nothing, so `git ''reset --hard` is refused exactly as
+it was. What quoting destroys is the verb itself, and that was already
+true.
+
+A backslash is deliberately not among the refused characters, and
+leaving it out costs a refusal on Windows. A backslash in front of a
+word is how a shell quotes the letter after it, so reading it as a
+joining character would clear `git \reset --hard`. The price is that a
+backslash-spelled path whose segment is exactly a deny-set verb, as
+`C:\dinah-scratch\merge\wt`, still reads as carrying that verb. Every
+path this board writes uses forward slashes, and refusing too much is
+the direction this guard is allowed to be wrong in.
+
 The patterns below are the shape that has never leaked. Each one runs
 from a `git` word, through a span of characters that cannot contain a
 command separator, to the verb and to whichever flag decides the verb.
@@ -244,11 +288,32 @@ GIT = r"\bgit\b"
 # than a word beginning at `host`.
 WORD_START = r"(?<![\w.=/~@+-])"
 
+# Where a word ends, spelled as the mirror of WORD_START so that the two
+# refuse the same characters. A git subcommand is a whole shell word, and
+# these two together are all that says so. The header records why that is
+# a different question from the one the retired parser asked, and what
+# the backslash's absence from the set costs.
+WORD_END = r"(?![\w.=/~@+-])"
+
 
 # A bundled short flag carrying a particular letter, as `-fdx` carries
 # `f`. The trailing `\b` is what makes `-fdx;` and `-fdx` the same flag.
 def short(letter):
     return WORD_START + r"-[a-z]*" + letter + r"[a-z]*\b"
+
+
+# A verb where it stands as a whole shell word rather than inside one.
+def verb(word):
+    return WORD_START + word + WORD_END
+
+
+# A long flag where it begins a word. The left side is the side a path
+# takes away, as `--hard` inside `seed--hard.txt`, and it is the side
+# `short` has always guarded. The right side keeps `\b`: WORD_END there
+# would stop the `--force` rule reading `--force-if-includes`, and a rule
+# that stops refusing a forced push is not a tidying-up.
+def flag(*names):
+    return "(?:" + WORD_START + "(?:" + "|".join(names) + r")\b)"
 
 
 def rule(*parts):
@@ -260,45 +325,57 @@ def rule(*parts):
 # colon too, so `://` and a `user@host` prefix are both excluded.
 COLON_REFSPEC = WORD_START + r"(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
 
+# The verbs are written with `verb`, so each one is refused where it is
+# the word git reads and not where it is a syllable of a path. The
+# `(?!-)` that used to follow `merge` and `rebase` is gone because
+# WORD_END already refuses the hyphen, which is what kept `merge-base`
+# and `rebase-todo` out.
+#
+# The operand of the `--force-with-lease` rule is the one place a bare
+# `\b` is still right. A ref is written `refs/heads/main` and
+# `HEAD:refs/heads/main` as readily as `main`, so requiring `main` to be
+# a whole shell word there would clear a forced push to the trunk.
 DENIED = [
-    (rule(GIT, GAP, r"\breset\b", GAP, r"(?:--hard|--merge|--keep)\b"),
+    (rule(GIT, GAP, verb("reset"), GAP, flag("--hard", "--merge", "--keep")),
      "git reset --hard/--merge/--keep"),
-    (rule(GIT, GAP, r"\bclean\b", GAP, "(?:", short("f"), "|", short("d"), "|",
-          short("x"), "|", WORD_START, r"--force\b)"),
+    (rule(GIT, GAP, verb("clean"), GAP, "(?:", short("f"), "|", short("d"), "|",
+          short("x"), "|", flag("--force"), ")"),
      "git clean -f/-d/-x"),
-    (rule(GIT, GAP, r"\bcheckout\b", GAP, "(?:", WORD_START, r"--(?![\w.=-])|", short("f"),
-          "|", WORD_START, r"--force\b)"),
+    (rule(GIT, GAP, verb("checkout"), GAP, "(?:", WORD_START, r"--(?![\w.=-])|", short("f"),
+          "|", flag("--force"), ")"),
      "git checkout -- / -f"),
-    (rule(GIT, GAP, r"\brestore\b(?!", GAP, r"--staged\b(?!", GAP, r"--worktree\b))"),
+    (rule(GIT, GAP, verb("restore"), "(?!", GAP, flag("--staged"), "(?!", GAP,
+          flag("--worktree"), "))"),
      "git restore (working tree)"),
-    (rule(GIT, GAP, r"\bswitch\b", GAP, "(?:", short("f"),
-          "|", WORD_START, r"--force\b|", WORD_START, r"--discard-changes\b)"),
+    (rule(GIT, GAP, verb("switch"), GAP, "(?:", short("f"),
+          "|", flag("--force", "--discard-changes"), ")"),
      "git switch -f/--force/--discard-changes"),
-    (rule(GIT, GAP, r"\bpush\b", GAP, "(?:", WORD_START,
+    (rule(GIT, GAP, verb("push"), GAP, "(?:", WORD_START,
           r"--force(?!-with-lease)\b|", short("f"), ")"),
      "git push --force"),
-    (rule(GIT, GAP, r"\bpush\b", GAP, r"--force-with-lease", GAP, r"\b(?:main|master)\b"),
+    (rule(GIT, GAP, verb("push"), GAP, WORD_START, r"--force-with-lease", GAP,
+          r"\b(?:main|master)\b"),
      "git push --force-with-lease to main/master"),
-    (rule(GIT, GAP, r"\bpush\b", GAP, "(?:", WORD_START, r"--delete\b|", short("d"), "|",
+    (rule(GIT, GAP, verb("push"), GAP, "(?:", flag("--delete"), "|", short("d"), "|",
           COLON_REFSPEC, ")"),
      "git push --delete / colon refspec"),
-    (rule(GIT, GAP, r"\bstash\b(?!\s+(?:list|show)\b)"),
+    (rule(GIT, GAP, verb("stash"), r"(?!\s+(?:list|show)\b)"),
      "git stash (mutating)"),
-    (rule(GIT, GAP, r"\bcommit\b"), "git commit"),
-    (rule(GIT, GAP, r"\bmerge\b(?!-)"), "git merge"),
-    (rule(GIT, GAP, r"\brebase\b(?!-)"), "git rebase"),
-    (rule(GIT, GAP, r"\bcherry-pick\b"), "git cherry-pick"),
-    (rule(GIT, GAP, r"\brevert\b"), "git revert"),
-    (rule(GIT, GAP, r"\bam\b"), "git am"),
-    (rule(GIT, GAP, r"\bapply\b(?!", GAP, r"--(?:check|stat)\b)"), "git apply"),
-    (rule(GIT, GAP, r"\brm\b(?!", GAP, r"--cached\b)"), "git rm"),
-    (rule(GIT, GAP, r"\bmv\b"), "git mv"),
-    (rule(GIT, GAP, r"\bbisect\b(?!\s+(?:log|view)\b)"), "git bisect"),
-    (rule(GIT, GAP, r"\bpull\b(?!", GAP, r"--ff-only\b)"), "git pull (may merge)"),
-    (rule(GIT, GAP, r"\bworktree\b", GAP, r"\bremove\b"), "git worktree remove"),
-    (rule(GIT, GAP, r"\bbranch\b", GAP, "(?:", WORD_START, r"--delete\b|", short("d"), ")"),
+    (rule(GIT, GAP, verb("commit")), "git commit"),
+    (rule(GIT, GAP, verb("merge")), "git merge"),
+    (rule(GIT, GAP, verb("rebase")), "git rebase"),
+    (rule(GIT, GAP, verb("cherry-pick")), "git cherry-pick"),
+    (rule(GIT, GAP, verb("revert")), "git revert"),
+    (rule(GIT, GAP, verb("am")), "git am"),
+    (rule(GIT, GAP, verb("apply"), "(?!", GAP, flag("--check", "--stat"), ")"), "git apply"),
+    (rule(GIT, GAP, verb("rm"), "(?!", GAP, flag("--cached"), ")"), "git rm"),
+    (rule(GIT, GAP, verb("mv")), "git mv"),
+    (rule(GIT, GAP, verb("bisect"), r"(?!\s+(?:log|view)\b)"), "git bisect"),
+    (rule(GIT, GAP, verb("pull"), "(?!", GAP, flag("--ff-only"), ")"), "git pull (may merge)"),
+    (rule(GIT, GAP, verb("worktree"), GAP, verb("remove")), "git worktree remove"),
+    (rule(GIT, GAP, verb("branch"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
      "git branch -d/-D"),
-    (rule(GIT, GAP, r"\btag\b", GAP, "(?:", WORD_START, r"--delete\b|", short("d"), ")"),
+    (rule(GIT, GAP, verb("tag"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
      "git tag -d"),
 ]
 
@@ -573,11 +650,38 @@ def fault(raw, scan):
     return None
 
 
+# How much of the matched text a refusal quotes, and how a run of
+# whitespace in it is written. A match reaches from the `git` word to the
+# flag that condemns it, so it can carry a whole `-C` path and a message;
+# the cap keeps the refusal readable, and the collapse keeps it on one
+# line inside a JSON string.
+EVIDENCE_LIMIT = 160
+WHITESPACE = re.compile(r"\s+")
+
+
+def evidence(matched):
+    """The text a rule matched, on one line and short enough to read."""
+    collapsed = WHITESPACE.sub(" ", matched).strip()
+    if len(collapsed) > EVIDENCE_LIMIT:
+        collapsed = collapsed[:EVIDENCE_LIMIT - 3] + "..."
+    return collapsed
+
+
 def offender(command):
     """The first invocation the guard will not clear, or None when all are clear.
 
-    Returns `(label, fault)`, where the label names the rule and the
-    fault says why the invocation did not earn its permission.
+    Returns `(label, fault, matched)`. The label names the rule, the
+    fault says why the invocation did not earn its permission, and
+    `matched` is the text the rule actually matched, taken from the
+    command as the agent wrote it.
+
+    A refusal quotes that text rather than naming the label alone,
+    because the label is what the guard read and not necessarily what the
+    command runs. A rule reads a span rather than a parse tree, so
+    `git log --grep commit` matches the commit rule; a message saying
+    only "git commit" tells the reader something the command does not
+    contain, and a reader who cannot see what matched cannot tell a
+    correct refusal from a defective one.
     """
     scannable = normalise(command)
     for pattern, label in DENIED:
@@ -586,12 +690,12 @@ def offender(command):
             end = boundary.start() if boundary else len(scannable)
             why = fault(command[match.start():end], scannable[match.start():end])
             if why:
-                return label, why
+                return label, why, command[match.start():match.end()]
     return None
 
 
 def decide(command):
-    """The guard's verdict on a command, as `(label, fault)` or None.
+    """The guard's verdict on a command, as `(label, fault, matched)` or None.
 
     Split out from `main` so that a harness comparing this guard with a
     real shell reads the guard itself rather than a copy of its early
@@ -614,11 +718,13 @@ def main():
     refusal = decide(command)
     if refusal is None:
         return
-    matched, why = refusal
+    matched, why, text = refusal
 
     reason = (
-        "Blocked repository-mutating git ({0}), because {1}. A command running this "
-        "class of git verb has to name its worktree on the invocation itself, as "
+        "Blocked repository-mutating git. The text \"{2}\" stands outside quotation "
+        "marks in this command, and this guard reads it as {0}; the invocation was "
+        "refused because {1}. A command running this class of git verb has to name "
+        "its worktree on the invocation itself, as "
         "git -C <worktree> ... , and nothing else grants it permission. The shell's "
         "working directory does not persist between calls: it resets to the session's "
         "primary directory, which is the operator's checkout, so a command that does "
@@ -626,10 +732,12 @@ def main():
         "C:\\dinah-scratch\\, never inside the checkout, because Dinah's workbench "
         "discovery climbs to the drive root and a nested worktree reaches the "
         "operator's live data. Create one with git -C <repo> worktree add --detach "
-        "C:/dinah-scratch/<card>-<stage>/wt <ref>. If this command really does belong "
+        "C:/dinah-scratch/<card>-<stage>/wt <ref>. If the quoted text above is an "
+        "argument rather than the subcommand git will run, quoting that argument "
+        "keeps it out of this scan. If this command really does belong "
         "in the main checkout, it is the operator's to run, or the operator can "
         "disable this guard via /hooks (.claude/settings.json)."
-    ).format(matched, why)
+    ).format(matched, why, evidence(text))
 
     print(json.dumps({
         "hookSpecificOutput": {
