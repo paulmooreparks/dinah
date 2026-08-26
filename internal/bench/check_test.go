@@ -1794,3 +1794,42 @@ func TestAnUnwritableDirectoryIsAnUnwritableEntity(t *testing.T) {
 		t.Errorf("wanted the entity in the unwritable directory named, got %+v", reported)
 	}
 }
+
+// TestRenamingOntoAKeyTheHeaderAlreadyCarriesRefuses asserts that a
+// Frontmatter
+// Rename refuses a collision and leaves the header untouched, rather than
+// making room by deleting whatever the target held.
+//
+// The refusal is not a defensive extra. Renaming one key onto another is how
+// the vocabulary migration moves a card across the rename, and the two names
+// it moves overlap: the column key's old name is the state key's new one. A
+// caller that reaches this function with a mistaken idea of which keys the
+// header carries is one statement away from destroying a value no journal can
+// recover, and a header this format writes has no journal behind it.
+func TestRenamingOntoAKeyTheHeaderAlreadyCarriesRefuses(t *testing.T) {
+	fm, body := ParseAnchor("---\ntitle: A card\ncolumn: 004acda2c28a\nstate: ready\n---\nStanding text.\n")
+	before := fm.Render(body)
+
+	err := fm.Rename("state", "column")
+	if !errors.Is(err, ErrRenameCollides) {
+		t.Fatalf("renaming state onto column answered %v, wanted ErrRenameCollides", err)
+	}
+	if got := fm.Value("column"); got != "004acda2c28a" {
+		t.Errorf("the column now holds %q, so the refused rename wrote over it anyway", got)
+	}
+	if got := fm.Value("state"); got != "ready" {
+		t.Errorf("the state now holds %q, so the refused rename moved it", got)
+	}
+	if got := fm.Render(body); got != before {
+		t.Errorf("the refused rename changed the header:\n%s\nwanted:\n%s", got, before)
+	}
+	if err := fm.Rename("nothing-here", "column"); err != nil {
+		t.Errorf("renaming a key the header does not carry answered %v, and there is nothing there to lose", err)
+	}
+	if err := fm.Rename("state", "condition"); err != nil {
+		t.Errorf("renaming onto a free name answered %v", err)
+	}
+	if got := fm.Value("condition"); got != "ready" {
+		t.Errorf("the renamed key holds %q", got)
+	}
+}

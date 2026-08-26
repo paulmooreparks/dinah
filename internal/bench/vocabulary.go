@@ -20,6 +20,26 @@ const (
 	preVocabularyStateKey    = "substate"
 )
 
+// The card keys this build writes. columnKey and stateKey are named beside
+// the retired spellings above because one of the four names is shared:
+// preVocabularyColumnKey and stateKey are both "state", which is the whole
+// difficulty this migration has to hold in view. The word named the column
+// before the rename and names the condition after it, so its presence on a
+// card answers nothing about which vocabulary the card is written in.
+//
+// columnKey is the name that does answer it. No card written in the retired
+// vocabulary carries it, since that vocabulary spells the flow position
+// "state", and every card this build writes carries it, since Card.Save sets
+// it on every write. Checked against the whole compat corpus before it was
+// built on: all six cards of each pre-vocabulary fixture, at 0.4, 0.5, 0.6,
+// 1.0 and 1.0-pre-slug, plus the archived card of each, carry state and
+// substate and no column; all seven cards of the 0.7 fixture carry column and
+// state and no substate.
+const (
+	columnKey = "column"
+	stateKey  = "state"
+)
+
 // PreVocabularyFloor and PreVocabularyCeiling are the profile window this
 // build accepted immediately before dinah-287 raised the floor. A workbench
 // declaring a revision in this closed range still carries the state/substate
@@ -136,6 +156,16 @@ func RecognizedAt(root string) (string, error) {
 //
 // The journal is not rewritten. Its own field names carry no vocabulary, and
 // its history is append-only, so there is nothing here to migrate.
+//
+// A second run over the same workbench is an ordinary event rather than a
+// mistake, so every step here is written to be re-entrant. A workbench the
+// walk failed partway through is left half converted, and the report asks the
+// operator to clear the cause and run it again, which means the resumed run
+// meets cards that have been rewritten beside cards that have not, and a
+// collection whose members have been renamed beside members that have not.
+// Each step therefore recognizes its own output and steps over it: a card by
+// the column key it now carries, a member anchor and the collection itself by
+// the name no longer being there. What none of them do is act twice.
 func MigrateVocabulary(b *Bench) ([]string, error) {
 	touched, err := migrateCardVocabulary(b)
 	if err != nil {
@@ -172,14 +202,47 @@ func migrateCardVocabulary(b *Bench) ([]string, error) {
 				return touched, contract.RefuseWith(contract.Malformed, CardAnchor, map[string]string{"path": path})
 			}
 			fm, body := ParseAnchor(text)
-			if !fm.Has(preVocabularyColumnKey) && !fm.Has(preVocabularyStateKey) {
+			// A card carrying the column key has been across this rename
+			// already, and the run that carried it may have been an earlier
+			// run of this same migration: a workbench the walk failed
+			// partway through is left with some cards rewritten and some
+			// not, and the report asks the operator to clear the cause and
+			// run it again. So the second pass has to tell one shape from
+			// the other, and the column key is the only name on the card
+			// that tells it. Asking whether the card carries "state"
+			// answers nothing, because both shapes carry that word.
+			//
+			// The migration's own skip-guard used to ask exactly that, and
+			// the cost of the ambiguity was total: a rewritten card reads as
+			// unrewritten, the column rename then maps "state" onto a
+			// "column" the card already holds, and the card's real column is
+			// replaced by its condition.
+			if fm.Has(columnKey) {
+				if !fm.Has(preVocabularyStateKey) {
+					continue
+				}
+				// Column beside substate is a card half of each vocabulary,
+				// which neither this migration nor any writer produces, and
+				// guessing which key holds the flow position is how a
+				// half-written card becomes a destroyed one.
+				return touched, contract.RefuseWith(contract.Malformed, CardAnchor, map[string]string{"path": path})
+			}
+			if !fm.Has(preVocabularyStateKey) && !fm.Has(preVocabularyColumnKey) {
 				continue
 			}
 			// The order is forced: the new name of the state key is the old
 			// name of the column key, so renaming the column key first frees
-			// the name the state key is about to take.
-			fm.Rename(preVocabularyColumnKey, "column")
-			fm.Rename(preVocabularyStateKey, "state")
+			// the name the state key is about to take. Neither rename can
+			// collide here, since the guard above has established the card
+			// carries no column key, and both are checked anyway because a
+			// rename that silently made room is what this migration is
+			// recovering from.
+			if err := fm.Rename(preVocabularyColumnKey, columnKey); err != nil {
+				return touched, err
+			}
+			if err := fm.Rename(preVocabularyStateKey, stateKey); err != nil {
+				return touched, err
+			}
 			if err := WriteText(path, fm.Render(body)); err != nil {
 				return touched, err
 			}
@@ -227,7 +290,12 @@ func migrateBenchAnchor(b *Bench) error {
 		return contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path})
 	}
 	fm, body := ParseAnchor(text)
-	fm.Rename(preVocabularySequenceKey, "columns")
+	// An anchor carrying both sequence keys is half of each vocabulary, and
+	// the rename refuses rather than choosing which of the two lists the
+	// workbench's flow really is.
+	if err := fm.Rename(preVocabularySequenceKey, "columns"); err != nil {
+		return err
+	}
 	fm.Set("profile", ProfileVersion)
 	return WriteText(path, fm.Render(body))
 }

@@ -319,12 +319,40 @@ func TestEveryCompatFixtureOpensAndReads(t *testing.T) {
 // TestEveryCompatFixtureSurvivesTheInterchangePath drives the second admission
 // site for every fixture, which is the path dinah init --from takes through
 // Open, Export and ReadDefinition.
+//
+// Each card is also compared against the column it stood in before the run,
+// read off the fixture's own anchors, rather than merely counted. For a
+// pre-vocabulary fixture that path runs through the migration, and a card
+// whose column the migration destroyed still opens, still exports and still
+// reads its definition back: this test used to ask only whether those three
+// returned an error, and it passed against a migration that replaced every
+// card's column with its condition. An existence assertion cannot tell a
+// carried value from a lost one, so the value is what is asserted.
 func TestEveryCompatFixtureSurvivesTheInterchangePath(t *testing.T) {
 	for _, fixture := range compatFixtures(t) {
-		b, err := Open(interchangeSource(t, fixture))
+		source, stood := interchangeSource(t, fixture)
+		b, err := Open(source)
 		if err != nil {
 			t.Errorf("open %s: %v", fixture, err)
 			continue
+		}
+		cards, err := b.Cards()
+		if err != nil {
+			t.Errorf("list the cards of %s: %v", fixture, err)
+			continue
+		}
+		if len(cards) == 0 {
+			t.Errorf("%s opened with no cards, so nothing here was compared", fixture)
+		}
+		for _, card := range cards {
+			want, recorded := stood[card.ID]
+			if !recorded {
+				t.Errorf("%s reports a card %s that its own anchors did not carry before the run", fixture, card.ID)
+				continue
+			}
+			if card.Column != want {
+				t.Errorf("a card of %s stands in column %q and stood in %q before the run", fixture, card.Column, want)
+			}
 		}
 		exported, err := b.Export()
 		if err != nil {
@@ -337,6 +365,39 @@ func TestEveryCompatFixtureSurvivesTheInterchangePath(t *testing.T) {
 	}
 }
 
+// fixtureColumns reads the column identifier every live card of a workbench
+// stands in, straight off the anchors and under whichever key that
+// workbench's own vocabulary spells the column with. It opens nothing,
+// because the pre-vocabulary shape is exactly what the ordinary opener
+// refuses and reading these cards through LoadCard would take the flow
+// position for the condition, which is the misread the migration exists to
+// prevent.
+func fixtureColumns(t *testing.T, root, key string) map[string]string {
+	t.Helper()
+	stood := map[string]string{}
+	dir := filepath.Join(root, CardsDir)
+	for _, id := range ListIDs(dir) {
+		path := filepath.Join(dir, id, CardAnchor)
+		if !Exists(path) {
+			continue
+		}
+		text, err := ReadText(path)
+		if err != nil {
+			t.Fatalf("read the card %s: %v", id, err)
+		}
+		fm, _ := ParseAnchor(text)
+		column := fm.Value(key)
+		if column == "" {
+			t.Fatalf("the card %s carries no %s key, so this fixture is not the shape it was classified as", id, key)
+		}
+		stood[id] = column
+	}
+	if len(stood) == 0 {
+		t.Fatalf("%s holds no card, so nothing here can be compared across the run", root)
+	}
+	return stood
+}
+
 // interchangeSource answers the directory the interchange path should read a
 // fixture from. A fixture this build opens ordinarily is read where it sits. A
 // pre-vocabulary fixture is copied to a temporary directory and carried across
@@ -344,7 +405,14 @@ func TestEveryCompatFixtureSurvivesTheInterchangePath(t *testing.T) {
 // the only route a workbench of that age has to Open is the migration. That
 // makes this test the one that proves the migration's output survives the
 // second admission site, which is worth more than skipping the old fixtures.
-func interchangeSource(t *testing.T, fixture string) string {
+//
+// It answers the columns its cards stood in as well as the directory, read
+// off the fixture where it sits and before anything is migrated, so the
+// caller compares what came out against a value nothing under test computed.
+// Which key holds that value is decided by the classification rather than
+// guessed at, since the retired vocabulary spells the column `state` and the
+// current one spells it `column`.
+func interchangeSource(t *testing.T, fixture string) (string, map[string]string) {
 	t.Helper()
 	root := filepath.Join(compatDir, fixture)
 	major, minor, ok, err := ClassifyVocabulary(root)
@@ -352,8 +420,9 @@ func interchangeSource(t *testing.T, fixture string) string {
 		t.Fatalf("classify %s: %v", fixture, err)
 	}
 	if !ok || !WithinPreVocabulary(major, minor) {
-		return root
+		return root, fixtureColumns(t, root, columnKey)
 	}
+	stood := fixtureColumns(t, root, preVocabularyColumnKey)
 	copied := filepath.Join(t.TempDir(), fixture)
 	copyTree(t, root, copied)
 	opened, err := OpenPreVocabulary(copied)
@@ -363,7 +432,7 @@ func interchangeSource(t *testing.T, fixture string) string {
 	if _, err := MigrateVocabulary(opened); err != nil {
 		t.Fatalf("migrate %s: %v", fixture, err)
 	}
-	return copied
+	return copied, stood
 }
 
 // copyTree copies a fixture into a directory a test may write to, since a

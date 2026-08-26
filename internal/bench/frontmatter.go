@@ -5,6 +5,8 @@
 package bench
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -311,22 +313,36 @@ func escape(value string) string {
 	return strings.ReplaceAll(value, "\n", `\n`)
 }
 
+// ErrRenameCollides reports a rename onto a name the header already carries.
+// Two keys of one name is not a header any reader could resolve, and the only
+// way to make room is to destroy whatever the target holds, so the rename
+// refuses and leaves the header exactly as it found it.
+//
+// The refusal is the contract rather than a defensive extra. An earlier
+// version of Rename made room by deleting the target, which turned a caller's
+// mistake about which keys a header carried into the silent loss of a value
+// nothing could recover, and a header is the one place in this format where a
+// lost value has no journal behind it.
+var ErrRenameCollides = errors.New("frontmatter: the header already carries the name this rename would take")
+
 // Rename changes a key's name, keeping its position in the header and its
 // stored lines, which is the same preservation Set and SetAfter give a value.
-// A key the header does not carry is left alone, and a rename onto a name the
-// header already carries drops the target's own lines, since two keys of one
-// name is not a header any reader could resolve.
+// A key the header does not carry is left alone and answers no error, since
+// there is nothing there to rename and nothing there to lose. A rename onto a
+// name the header already carries answers ErrRenameCollides and changes
+// nothing, and a caller that means to replace the target deletes it first, in
+// its own statement, where a reader can see the deletion happening.
 //
 // A migration that renames a key rather than rewriting a value needs this:
 // re-Setting the value would quote it afresh and move the key to the end,
 // where a reader expects to find it where its neighbours left it.
-func (f *Frontmatter) Rename(from, to string) {
+func (f *Frontmatter) Rename(from, to string) error {
 	lines, ok := f.block[from]
 	if !ok || from == to {
-		return
+		return nil
 	}
 	if _, taken := f.block[to]; taken {
-		f.Delete(to)
+		return fmt.Errorf("%w: %s onto %s", ErrRenameCollides, from, to)
 	}
 	renamed := append([]string(nil), lines...)
 	if len(renamed) > 0 {
@@ -337,7 +353,8 @@ func (f *Frontmatter) Rename(from, to string) {
 	for i, key := range f.keys {
 		if key == from {
 			f.keys[i] = to
-			return
+			return nil
 		}
 	}
+	return nil
 }

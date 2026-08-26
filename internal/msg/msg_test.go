@@ -226,9 +226,28 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 // dinah-287 took Hindi and German off it while both still carry hundreds of
 // real translations. A guard keyed on that roster stopped checking those
 // translations on the day the roster changed, and reported that it was
-// asserting nothing rather than checking what was in front of it. Reading
-// every catalog and skipping every skeleton entry is the same test over a
-// strictly larger set: no entry it used to check is dropped.
+// asserting nothing rather than checking what was in front of it.
+//
+// What the change costs is worth stating in the numbers, because the first
+// version of this comment claimed a strictly larger population and the
+// opposite is true. Before dinah-287 the roster was [en, hi, de] and the loop
+// covered every entry of German and Hindi, which is 1288. After it, each of
+// those two carries entries the rename left holding renamed English under the
+// skeleton flag, 108 apiece, and this loop skips a skeleton entry, so it
+// covers 1072. The five catalogs that joined the loop are skeletons
+// throughout and contribute nothing at all. The population fell by 216 and
+// gained none.
+//
+// The change is still the right one, on the merits rather than on the size of
+// the set. A skeleton entry holds English rather than a translation and has no
+// source it could have fallen behind, so checking one would assert nothing;
+// every entry that does hold a translation is checked here, whichever catalog
+// carries it and whatever roster that catalog is on. What the edit gives up is
+// the empty-population alarm's ability to report a roster emptied by accident,
+// which the workbench document "Translation staleness contract" names as its
+// designed behaviour. That document is amended by this card to describe the
+// guard the tree now has, and the roster change itself is the operator's to
+// rule on rather than this test's to absorb.
 //
 // The base catalog and any skeleton entry are exempt, because neither is a
 // translation of anything and so neither has a source to fall behind. A key

@@ -376,6 +376,12 @@ var params = map[string][]Param{
 		{Name: "migrate-columns", Flag: true, Marker: true},
 		{Name: "migrate-vocabulary", Flag: true, Marker: true},
 		{Name: "migrate-workstreams", Flag: true, Marker: true},
+		// Read by migrate-vocabulary alone, which is the one repair here
+		// that walks a whole tree of workbenches rather than acting on the
+		// one the caller is standing in, and whose rewrite has no undo.
+		// Without it that repair reports what it would carry forward and
+		// writes nothing.
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes"},
 	},
 	"whoami":      {},
 	"workbenches": {},

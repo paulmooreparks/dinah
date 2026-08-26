@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -179,7 +180,7 @@ func TestTheVocabularyMigrationWalksTheWholeTree(t *testing.T) {
 		}
 	}
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary")
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if got.code != 0 {
 		t.Fatalf("migrate the tree: %d %s\n%s", got.code, got.errw, got.out)
 	}
@@ -245,22 +246,71 @@ func TestTheVocabularyMigrationWalksTheWholeTree(t *testing.T) {
 	}
 }
 
+// denyWrite makes one file of a workbench impossible for the migration to
+// write, by the mechanism the platform this test runs on actually uses, and
+// restores the permission when the test ends.
+//
+// The two platforms refuse a write on different grounds, and a test that
+// exercises only one of them leaves the other untested while reading green.
+// docs/design/format.md says which is which, in the passage on the ordinal
+// migration: every write in this format is a temporary file renamed over its
+// target, so the right that governs a write is the right to replace a name,
+// and "POSIX grants that right through the containing directory, so a
+// read-only anchor sitting in a directory its owner can write is replaced,
+// while an anchor in a directory nobody can write is refused. Windows asks
+// the file's own attribute instead and refuses the read-only anchor."
+//
+// So Windows is denied by the file's own mode and POSIX by the containing
+// directory's. Making the file read-only on Linux and macOS denies nothing at
+// all, the migration succeeds, and the assertion that a failure was reported
+// fires: that is exactly how this test failed on two of the three platforms
+// this ships to while passing on the third.
+func denyWrite(t *testing.T, path string) {
+	t.Helper()
+	target := path
+	if runtime.GOOS != "windows" {
+		target = filepath.Dir(path)
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatalf("stat %s: %v", target, err)
+	}
+	restore := info.Mode().Perm()
+	denied := os.FileMode(0o444)
+	if target != path {
+		denied = 0o555
+	}
+	if err := os.Chmod(target, denied); err != nil {
+		t.Fatalf("chmod %s: %v", target, err)
+	}
+	t.Cleanup(func() { os.Chmod(target, restore) })
+}
+
+// allowWrite undoes denyWrite ahead of the cleanup, which is what an operator
+// does when the report names the cause and asks him to clear it and run the
+// migration again.
+func allowWrite(t *testing.T, path string) {
+	t.Helper()
+	target := path
+	allowed := os.FileMode(0o644)
+	if runtime.GOOS != "windows" {
+		target = filepath.Dir(path)
+		allowed = 0o755
+	}
+	if err := os.Chmod(target, allowed); err != nil {
+		t.Fatalf("chmod %s: %v", target, err)
+	}
+}
+
 // TestTheVocabularyMigrationCarriesOnPastAFailure asserts the other half of
 // AC-16: a workbench the walk cannot write is reported with its path and its
 // reason, the other two are migrated anyway, and the exit code says a person is
 // needed.
 func TestTheVocabularyMigrationCarriesOnPastAFailure(t *testing.T) {
 	root, atRoot, nested, sibling, _ := buildTreeFixture(t)
-	// The anchor is made unwritable rather than the directory, because the
-	// migration's last write is to that file and a directory permission does
-	// not stop a rename on every platform this runs on.
-	locked := filepath.Join(nested, bench.WorkbenchAnchor)
-	if err := os.Chmod(locked, 0o444); err != nil {
-		t.Fatalf("chmod: %v", err)
-	}
-	t.Cleanup(func() { os.Chmod(locked, 0o644) })
+	denyWrite(t, filepath.Join(nested, bench.WorkbenchAnchor))
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary")
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run with a failed workbench exited 0:\n%s", got.out)
 	}
@@ -291,7 +341,7 @@ func TestTheVocabularyMigrationReportsWhatItWillNotOpen(t *testing.T) {
 		return strings.Replace(text, "profile: dinah-core/0.6\n", "", 1)
 	})
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary")
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run holding a candidate it could not classify exited 0:\n%s", got.out)
 	}
@@ -335,4 +385,203 @@ func treeContents(t *testing.T, root string) map[string]string {
 		t.Fatalf("read %s: %v", root, err)
 	}
 	return contents
+}
+
+// migratedColumns reads the column identifier every live card of a migrated
+// workbench stands in, through the ordinary opener, so the comparison against
+// what the cards stood in before the run goes through the same reader every
+// other command uses.
+func migratedColumns(t *testing.T, root string) map[string]string {
+	t.Helper()
+	opened, err := bench.Open(root)
+	if err != nil {
+		t.Fatalf("open the migrated %s: %v", root, err)
+	}
+	cards, err := opened.Cards()
+	if err != nil {
+		t.Fatalf("read the cards of %s: %v", root, err)
+	}
+	stands := map[string]string{}
+	for _, card := range cards {
+		stands[card.ID] = card.Column
+	}
+	return stands
+}
+
+// assertStood compares where every card of a migrated workbench stands against
+// where it stood before the run, by value rather than by presence. A card whose
+// column was replaced by its condition still answers a non-empty column, and an
+// absent state key reads as ready, so a destroyed card reads back plausibly in
+// both fields and only the identifier itself tells the two apart.
+func assertStood(t *testing.T, root string, stood map[string]string) {
+	t.Helper()
+	stands := migratedColumns(t, root)
+	if len(stands) != len(stood) {
+		t.Errorf("%s holds %d cards and held %d before the run", root, len(stands), len(stood))
+	}
+	for id, want := range stood {
+		got, carried := stands[id]
+		if !carried {
+			t.Errorf("the card %s of %s is gone", id, root)
+			continue
+		}
+		if got != want {
+			t.Errorf("the card %s of %s stands in column %q and stood in %q before the run", id, root, got, want)
+		}
+	}
+}
+
+// TestASecondVocabularyMigrationChangesNothing asserts the promise the
+// migration's own failure report makes. That report asks the operator to clear
+// the cause and run the command again, so a second run over a tree the first
+// run already carried forward has to be an inspection rather than an act: every
+// file byte-identical, every card standing where it stood, and every workbench
+// reported as already current.
+//
+// It is asserted byte for byte rather than field by field because the way this
+// went wrong was invisible to a field check. The migration's skip-guard could
+// not tell its own output from its input, so the second run renamed each card's
+// condition over its column, and the card that came out still carried a column
+// key and still carried a state key and still opened and still listed.
+func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
+	root, atRoot, nested, sibling, _ := buildTreeFixture(t)
+	migrated := []string{atRoot, nested, sibling}
+	stood := map[string]map[string]string{}
+	for _, where := range migrated {
+		stood[where] = preVocabularyColumns(t, where)
+	}
+
+	first := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	if first.code != 0 {
+		t.Fatalf("the first run: %d %s\n%s", first.code, first.errw, first.out)
+	}
+	before := map[string]map[string]string{}
+	for _, where := range migrated {
+		before[where] = treeContents(t, where)
+		assertStood(t, where, stood[where])
+	}
+
+	second := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	if second.code != 0 {
+		t.Fatalf("the second run: %d %s\n%s", second.code, second.errw, second.out)
+	}
+	if strings.Contains(second.out, "Carried 1 ") || strings.Contains(second.out, "Carried 2 ") || strings.Contains(second.out, "Carried 3 ") {
+		t.Errorf("the second run reports carrying a workbench forward, and there was nothing left to carry:\n%s", second.out)
+	}
+	for _, where := range migrated {
+		if !strings.Contains(second.out, where) {
+			t.Errorf("the second run does not name %s, so it did not say what it found there:\n%s", where, second.out)
+		}
+		after := treeContents(t, where)
+		if len(before[where]) != len(after) {
+			t.Errorf("%s held %d files after the first run and %d after the second", where, len(before[where]), len(after))
+		}
+		for path, content := range after {
+			if before[where][path] != content {
+				t.Errorf("%s changed under a second run that had nothing to do", filepath.Join(where, path))
+			}
+		}
+		assertStood(t, where, stood[where])
+	}
+}
+
+// TestTheVocabularyMigrationResumesAWorkbenchLeftHalfConverted asserts the
+// case that actually bit: a run that fails partway leaves a workbench neither
+// old nor new, and the run the operator makes after clearing the cause has to
+// finish it without touching what the first run already did.
+//
+// The half-converted state is produced rather than written by hand, by denying
+// the migration the write to one card and letting it fail inside its own card
+// loop, so the shape under test is the shape a real failure leaves.
+func TestTheVocabularyMigrationResumesAWorkbenchLeftHalfConverted(t *testing.T) {
+	root, _, nested, _, _ := buildTreeFixture(t)
+	stood := preVocabularyColumns(t, nested)
+	ids := bench.ListIDs(filepath.Join(nested, bench.CardsDir))
+	if len(ids) < 2 {
+		t.Fatalf("%s holds %d cards, and this test needs one card rewritten before the failure", nested, len(ids))
+	}
+	// The last identifier in the order the migration walks, so the cards
+	// before it are rewritten and the workbench is genuinely half converted
+	// rather than untouched.
+	last := ids[len(ids)-1]
+	denyWrite(t, filepath.Join(nested, bench.CardsDir, last, bench.CardAnchor))
+
+	failed := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	if failed.code == 0 {
+		t.Fatalf("the run that could not write a card exited 0:\n%s", failed.out)
+	}
+	if !strings.Contains(failed.out, nested) {
+		t.Fatalf("the report does not name the workbench it could not finish:\n%s", failed.out)
+	}
+	carried := 0
+	for _, id := range ids {
+		if cardCarries(t, nested, id, "column") {
+			carried++
+		}
+	}
+	if carried == 0 || carried == len(ids) {
+		t.Fatalf("%d of %d cards carry a column key, so the failure did not leave the workbench half converted", carried, len(ids))
+	}
+
+	allowWrite(t, filepath.Join(nested, bench.CardsDir, last, bench.CardAnchor))
+	resumed := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	if resumed.code != 0 {
+		t.Fatalf("the resumed run: %d %s\n%s", resumed.code, resumed.errw, resumed.out)
+	}
+	assertStood(t, nested, stood)
+}
+
+// cardCarries reports whether one card's header carries a key, read straight
+// off the anchor. A half-converted workbench opens under neither opener, so
+// nothing here can go through one.
+func cardCarries(t *testing.T, root, id, key string) bool {
+	t.Helper()
+	text, err := os.ReadFile(filepath.Join(root, bench.CardsDir, id, bench.CardAnchor))
+	if err != nil {
+		t.Fatalf("read the card %s: %v", id, err)
+	}
+	fm, _ := bench.ParseAnchor(string(text))
+	return fm.Has(key)
+}
+
+// TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation asserts the
+// preview. The root of this walk is a directory rather than a workbench, so a
+// run started from a home directory or a drive root reaches every board on the
+// machine, and what it does to each one cannot be undone. A bare run therefore
+// names what it would carry forward, writes nothing at all, names the flag that
+// authorizes the rewrite, and exits non-zero because the work is still waiting.
+func TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation(t *testing.T) {
+	root, atRoot, nested, sibling, current := buildTreeFixture(t)
+	candidates := []string{atRoot, nested, sibling}
+	before := map[string]map[string]string{}
+	for _, where := range append(candidates, current) {
+		before[where] = treeContents(t, where)
+	}
+
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary")
+	if got.code == 0 {
+		t.Errorf("a preview holding three workbenches still to carry forward exited 0:\n%s", got.out)
+	}
+	if !strings.Contains(got.out, "--yes") {
+		t.Errorf("the preview does not name the flag that would authorize it:\n%s", got.out)
+	}
+	for _, where := range candidates {
+		if !strings.Contains(got.out, where) {
+			t.Errorf("the preview does not name %s, which it would have rewritten:\n%s", where, got.out)
+		}
+		if !bench.Exists(filepath.Join(where, bench.PreVocabularyDir)) {
+			t.Errorf("%s no longer carries a %s directory, so the preview wrote", where, bench.PreVocabularyDir)
+		}
+	}
+	for where, was := range before {
+		now := treeContents(t, where)
+		if len(was) != len(now) {
+			t.Errorf("%s held %d files before the preview and %d after", where, len(was), len(now))
+		}
+		for path, content := range now {
+			if was[path] != content {
+				t.Errorf("the preview rewrote %s", filepath.Join(where, path))
+			}
+		}
+	}
 }

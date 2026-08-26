@@ -3176,6 +3176,11 @@
       "context": "One migrated workbench, naming its directory and how many cards were rewritten there, for any other number.",
       "skeleton": true
     },
+    "check.vocabulary-confirm": {
+      "text": "Nothing was written. Run the same command again with --yes to carry these workbenches across the rename.",
+      "context": "The closing line of a vocabulary-migration preview, printed whether or not the walk found anything. --yes is a flag spelling and is never translated.",
+      "skeleton": true
+    },
     "check.vocabulary-failed.one": {
       "text": "{count} workbench could not be carried forward.",
       "context": "The heading over the workbenches the vocabulary migration met an error on, for exactly one. The walk carries on past a failure, so this heading stands beside the migrated list rather than instead of it, and each row names the directory and the reason.",
@@ -3214,6 +3219,16 @@
     "check.vocabulary-unsupported.other": {
       "text": "{count} workbenches declare a revision this migration does not cover.",
       "context": "The heading over the workbenches whose declared revision sits outside the window the vocabulary migration carries, for any other number.",
+      "skeleton": true
+    },
+    "check.vocabulary-would-migrate.one": {
+      "text": "{count} workbench would be carried across the column and state rename.",
+      "context": "The heading of a vocabulary-migration preview, for exactly one workbench. Followed by one line per workbench, each naming its directory and the revision it declares.",
+      "skeleton": true
+    },
+    "check.vocabulary-would-migrate.other": {
+      "text": "{count} workbenches would be carried across the column and state rename.",
+      "context": "The heading of a vocabulary-migration preview, for any other number. Followed by one line per workbench, each naming its directory and the revision it declares.",
       "skeleton": true
     },
     "param.check.migrate-vocabulary.summary": {

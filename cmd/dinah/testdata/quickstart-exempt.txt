@@ -21,7 +21,7 @@
 # rather than a fence, which the day somebody documents this document's own
 # console grammar inside it will need: a four-backtick outer fence wrapping a
 # three-backtick example is well formed, and the line scan behind the fence
-# arithmetic has no column with which to see that. The document carries no
+# arithmetic has no state with which to see that. The document carries no
 # nested fence today, so no such entry stands here.
 
 24 reason=the first word is curl, which the in-process head cannot run quotes=none because=every line of this output is written by scripts/install.sh rather than by Dinah

@@ -989,9 +989,13 @@ func (s *session) workstreamRef(id string) string {
 // written here counts characters where a terminal counts columns, and one
 // renderer owns that arithmetic.
 func (s *session) renderVocabulary(report *verb.TreeVocabularyReport) {
-	s.line(s.r.TN("check.vocabulary-migrated", len(report.Migrated)))
-	for _, entry := range report.Migrated {
-		s.line(s.r.TN("check.vocabulary-cards", entry.Cards, "path", entry.Path))
+	if report.Preview {
+		s.renderVocabularyPreview(report)
+	} else {
+		s.line(s.r.TN("check.vocabulary-migrated", len(report.Migrated)))
+		for _, entry := range report.Migrated {
+			s.line(s.r.TN("check.vocabulary-cards", entry.Cards, "path", entry.Path))
+		}
 	}
 	s.vocabularySection("check.vocabulary-already-current", report.AlreadyCurrent)
 	s.vocabularySection("check.vocabulary-malformed", report.Malformed)
@@ -1005,6 +1009,21 @@ func (s *session) renderVocabulary(report *verb.TreeVocabularyReport) {
 		failed = append(failed, entry.Path+": "+entry.Reason)
 	}
 	s.vocabularySection("check.vocabulary-failed", failed)
+	if report.Preview {
+		s.line(s.r.T("check.vocabulary-confirm"))
+	}
+}
+
+// renderVocabularyPreview prints what a run carrying the confirmation would
+// rewrite, and the line telling the reader how to authorize it. The heading
+// and the closing line are both printed even when the walk found nothing,
+// because a reader who ran the command wants to be told that his tree holds
+// nothing to carry forward rather than to be shown an empty page.
+func (s *session) renderVocabularyPreview(report *verb.TreeVocabularyReport) {
+	s.line(s.r.TN("check.vocabulary-would-migrate", len(report.Migrated)))
+	for _, entry := range report.Migrated {
+		s.line(entry.Path + " (" + entry.Revision + ")")
+	}
 }
 
 // vocabularySection prints one heading and its rows, or nothing at all when

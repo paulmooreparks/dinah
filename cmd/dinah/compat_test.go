@@ -711,7 +711,7 @@ func migratedCopy(t *testing.T, fixture string) string {
 	}
 	copied := filepath.Join(t.TempDir(), fixture)
 	copyFixture(t, source, copied)
-	if got := runCLI(t, copied, "--workbench", copied, "check", "--migrate-vocabulary"); got.code != 0 {
+	if got := runCLI(t, copied, "--workbench", copied, "check", "--migrate-vocabulary", "--yes"); got.code != 0 {
 		t.Fatalf("migrate %s: %d %s", fixture, got.code, got.errw)
 	}
 	if got := runCLI(t, copied, "--workbench", copied, "columns"); got.code != 0 {

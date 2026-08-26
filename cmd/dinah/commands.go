@@ -851,7 +851,7 @@ func runConfig(s *session, parsed *arguments) int {
 // for sit spread across directories nobody wants to visit one at a time.
 func runCheck(s *session, parsed *arguments) int {
 	if parsed.has("migrate-vocabulary") {
-		return runMigrateVocabulary(s)
+		return runMigrateVocabulary(s, parsed.has("yes"))
 	}
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
@@ -1289,7 +1289,14 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 // the root when it is given, and the current directory is the root when it is
 // not, and a root that is itself a workbench is found by the walk rather than
 // by the climb.
-func runMigrateVocabulary(s *session) int {
+//
+// That reach is also why the rewrite waits for --yes. The root is wherever the
+// operator happens to be standing, the walk descends the whole way, and the
+// rewrite it performs is irreversible, so a bare run reports what it would
+// carry forward and writes nothing. The flag is the one this command's
+// siblings already use for a deliberate act, so the preview costs no new
+// vocabulary.
+func runMigrateVocabulary(s *session, confirmed bool) int {
 	root := s.cwd
 	if s.benchFlag != "" {
 		root = s.benchFlag
@@ -1298,7 +1305,7 @@ func runMigrateVocabulary(s *session) int {
 	if err != nil {
 		return s.reportError(err)
 	}
-	report, err := verb.MigrateVocabularyTree(resolved)
+	report, err := verb.MigrateVocabularyTree(resolved, confirmed)
 	if err != nil {
 		return s.reportError(err)
 	}

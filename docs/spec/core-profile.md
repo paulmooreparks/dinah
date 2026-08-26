@@ -1651,3 +1651,14 @@ holds a column identifier, for one of the three values the same key now names,
 and would mislabel every card's condition without failing. A workbench
 declaring a revision from `dinah-core 0.1` through `dinah-core 0.6` is
 therefore refused by name, and the refusal says which migration to run.
+
+That migration walks down from a directory rather than acting on the single
+workbench a caller is standing in, so it waits to be told to write. A run
+that is not confirmed names every workbench it would carry forward and the
+revision each declares, opens nothing and writes nothing. The rewrite is not
+reversible and the walk's reach is whatever the caller's directory contains,
+which together make an unconfirmed rewrite the wrong default however
+convenient it would be. A run that is confirmed is safe to repeat: a
+workbench a failure left half converted is finished rather than started
+again, and a workbench already carried forward is reported and left byte for
+byte as it stood.
