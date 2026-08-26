@@ -1002,6 +1002,25 @@ func splitProfile(declared string) (int, int, bool) {
 	return major, minor, true
 }
 
+// resolveProfile parses a declared profile string and, when it names the one
+// retired spelling this build still recognizes, aliases it to the revision
+// that spelling now means. aliased reports which reading was used, so a
+// caller that must tell a resolved-but-old revision from a plainly unsupported
+// one, the version gate below, can ask this function rather than repeat the
+// alias condition itself. splitProfile is called from here and nowhere else.
+func resolveProfile(declared string, ceiling [2]int) (major, minor int, aliased, ok bool) {
+	major, minor, ok = splitProfile(declared)
+	if !ok {
+		return 0, 0, false, false
+	}
+	pair := [2]int{major, minor}
+	if pair == retiredProfileName && aliasesRetiredName(ceiling) {
+		pair = retiredProfileMeans
+		aliased = true
+	}
+	return pair[0], pair[1], aliased, true
+}
+
 // sortsBelow reports whether one revision is older than another. The major
 // number decides it and the minor number breaks the tie, which is the ordering
 // the profile's own 0.4 changelog entry establishes: while the document's
@@ -1055,15 +1074,21 @@ func admitProfile(declared string) (int, int, error) {
 // the alias condition at a ceiling this build does not carry, which is the only
 // way to exercise what a later build does with the retired spelling.
 func admitProfileWithin(declared string, floor, ceiling [2]int) (int, int, error) {
-	major, minor, ok := splitProfile(declared)
+	major, minor, aliased, ok := resolveProfile(declared, ceiling)
 	if !ok {
 		return 0, 0, errProfileMalformed
 	}
 	pair := [2]int{major, minor}
-	if pair == retiredProfileName && aliasesRetiredName(ceiling) {
-		pair = retiredProfileMeans
+	// A revision the alias already resolved, and which the floor still
+	// rejects, is one this build knows the meaning of rather than one it has
+	// never heard of, so it is told to migrate rather than told the window.
+	// No shipped build reaches this, because ProfileFloorMinor is 1 and the
+	// alias resolves to 0.1; a later floor raise is what opens it.
+	below := sortsBelow(pair, floor)
+	if below && aliased {
+		return 0, 0, contract.Refuse(contract.NeedsVocabularyMigration, declared)
 	}
-	if sortsBelow(pair, floor) || sortsBelow(ceiling, pair) {
+	if below || sortsBelow(ceiling, pair) {
 		return 0, 0, contract.RefuseWith(contract.UnsupportedVer, declared, map[string]string{
 			"floor":   revisionText(floor),
 			"ceiling": revisionText(ceiling),

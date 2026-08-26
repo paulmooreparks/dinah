@@ -154,6 +154,90 @@ func TestTheRetiredSpellingResolvesOnlyWhileTheCeilingSitsBelowIt(t *testing.T) 
 	}
 }
 
+// TestResolveProfileReportsTheReadingItUsed asserts the resolver's own
+// contract: it reads a declared string as splitProfile does, applies the
+// retired-name alias when the build's ceiling still calls for it, and says
+// which of the two readings came back.
+//
+// The alias condition itself is not what this test stands on;
+// TestTheRetiredSpellingResolvesOnlyWhileTheCeilingSitsBelowIt already holds
+// that through admitProfileWithin. What is asserted here is that the flag
+// agrees with the pair, so a caller picking a refusal from the flag picks the
+// one the pair earned.
+func TestResolveProfileReportsTheReadingItUsed(t *testing.T) {
+	for _, ceiling := range [][2]int{{0, 6}, {ProfileMajor, ProfileMinor}} {
+		major, minor, aliased, ok := resolveProfile("dinah-core/1.0", ceiling)
+		if !ok {
+			t.Fatalf("a ceiling of %v read dinah-core/1.0 as malformed", ceiling)
+		}
+		if [2]int{major, minor} != retiredProfileMeans || !aliased {
+			t.Errorf("a ceiling of %v read dinah-core/1.0 as (%d, %d) aliased=%v, wanted %v aliased=true", ceiling, major, minor, aliased, retiredProfileMeans)
+		}
+	}
+	for _, ceiling := range [][2]int{{1, 0}, {2, 0}} {
+		major, minor, aliased, ok := resolveProfile("dinah-core/1.0", ceiling)
+		if !ok {
+			t.Fatalf("a ceiling of %v read dinah-core/1.0 as malformed", ceiling)
+		}
+		if [2]int{major, minor} != retiredProfileName || aliased {
+			t.Errorf("a ceiling of %v read dinah-core/1.0 as (%d, %d) aliased=%v, wanted %v aliased=false", ceiling, major, minor, aliased, retiredProfileName)
+		}
+	}
+	// The build's own ceiling is what checkStateSlugsWithin passes, so this
+	// is the reading the slug check computes for the workbench this
+	// repository runs itself on.
+	major, _, aliased, ok := resolveProfile("dinah-core/1.0", [2]int{ProfileMajor, ProfileMinor})
+	if !ok || major != 0 || !aliased {
+		t.Errorf("under this build's own ceiling dinah-core/1.0 resolved to major %d aliased=%v ok=%v, wanted major 0 aliased=true", major, aliased, ok)
+	}
+}
+
+// TestResolveProfileReadsAMalformedStringAsASentinel asserts that a string
+// that does not parse comes back as not-ok rather than as a pair, over the
+// same inputs TestAMalformedProfileIsASentinelRatherThanARefusal drives
+// through admitProfile.
+func TestResolveProfileReadsAMalformedStringAsASentinel(t *testing.T) {
+	for _, declared := range []string{"", "dinah/1.0", "dinah-core/1", "dinah-core/x.y"} {
+		if _, _, _, ok := resolveProfile(declared, [2]int{ProfileMajor, ProfileMinor}); ok {
+			t.Errorf("%q parsed, wanted the malformed sentinel", declared)
+		}
+	}
+}
+
+// TestARevisionTheAliasResolvedIsToldToMigrateRatherThanRefusedAsUnknown
+// asserts the gate's third case: a revision the retired-name alias already
+// resolved, which a floor raised past the alias's own output then rejects, is
+// refused by a name that says a migration carries the workbench forward. A
+// revision that never went through the alias keeps the older refusal, which is
+// what the aliased flag exists to tell apart.
+//
+// No shipped build reaches either case, because ProfileFloorMinor is 1 and the
+// alias resolves to 0.1. The floor is driven directly here for the same reason
+// TestTheRetiredSpellingResolvesOnlyWhileTheCeilingSitsBelowIt drives a
+// ceiling no shipped build carries.
+func TestARevisionTheAliasResolvedIsToldToMigrateRatherThanRefusedAsUnknown(t *testing.T) {
+	raised := [2]int{0, 7}
+	if !sortsBelow(retiredProfileMeans, raised) {
+		t.Fatalf("a floor of %v no longer sits above %v, so this test drives nothing", raised, retiredProfileMeans)
+	}
+	_, _, err := admitProfileWithin("dinah-core/1.0", raised, raised)
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("a floor of %v admitted dinah-core/1.0 or refused it with %v, wanted a refusal", raised, err)
+	}
+	if refusal.Name != contract.NeedsVocabularyMigration {
+		t.Errorf("dinah-core/1.0 below a raised floor was refused %s, wanted %s", refusal.Name, contract.NeedsVocabularyMigration)
+	}
+
+	_, _, err = admitProfileWithin("dinah-core/0.1", raised, raised)
+	if !errors.As(err, &refusal) {
+		t.Fatalf("a floor of %v admitted dinah-core/0.1 or refused it with %v, wanted a refusal", raised, err)
+	}
+	if refusal.Name != contract.UnsupportedVer {
+		t.Errorf("dinah-core/0.1 below a raised floor was refused %s, wanted %s", refusal.Name, contract.UnsupportedVer)
+	}
+}
+
 // TestEveryCompatFixtureOpensAndReads is the open test: every fixture
 // directory under testdata/compat opens under this build and gives up its
 // states and its cards. A fixture added later is picked up by the glob with no

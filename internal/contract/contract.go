@@ -127,6 +127,14 @@ const (
 	// remove every remaining stranded state, which CORE-BENCH-2 forbids
 	// leaving the workbench definition with none of.
 	RepairWouldEmptyStates = LayerPrefix + "repair-would-empty-states"
+	// NeedsVocabularyMigration is the version gate refusing a revision the
+	// retired-name alias resolved and the floor still rejects. It is
+	// distinct from UnsupportedVer because this build knows what the
+	// declared spelling means and can name the migration that carries the
+	// workbench forward, where UnsupportedVer reports a revision this build
+	// has no reading for at all. No shipped build raises it yet, since the
+	// floor sits below the alias's own output.
+	NeedsVocabularyMigration = LayerPrefix + "needs-vocabulary-migration"
 	// AddNeedsAState is Add declining to file a card into a workbench whose
 	// states list has no live entries left for the card to land in.
 	AddNeedsAState = LayerPrefix + "add-needs-a-state"
@@ -237,7 +245,8 @@ var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
-	WorkbenchNotApplicable, RepairWouldEmptyStates, AddNeedsAState, MultipleWords,
+	WorkbenchNotApplicable, RepairWouldEmptyStates, NeedsVocabularyMigration,
+	AddNeedsAState, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
