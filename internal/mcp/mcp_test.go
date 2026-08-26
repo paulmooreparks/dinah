@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -73,8 +74,16 @@ func newLibrary(t *testing.T) *verb.Library {
 // each ask call reuses what an earlier ask opened.
 func ask(t *testing.T, library *verb.Library, line string) *response {
 	t.Helper()
+	return askUnderRoot(t, library.Bench.Root, library, line)
+}
+
+// askUnderRoot is ask for a test that names the root the head is bounded by,
+// rather than taking the workbench's own directory as the root. Both go
+// through one Serve call, so a test naming a root reads its answer the way
+// every other test reads one.
+func askUnderRoot(t *testing.T, root string, library *verb.Library, line string) *response {
+	t.Helper()
 	out := &strings.Builder{}
-	root := library.Bench.Root
 	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
@@ -113,10 +122,16 @@ func payload(t *testing.T, answer *response) map[string]any {
 	return decoded
 }
 
-// TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-six tools the spec names, that each input schema is generated from
-// the same parameter list the cli head composes its syntax from, and that the
+// TestToolSurfaceIsTheProjection asserts that the head exposes every tool the
+// surface declares and no other, that each input schema is generated from the
+// same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
+//
+// The count below is the suite's own record of how wide the surface is, and it
+// moves whenever a card adds a command or takes one away. Anything outside
+// this package that wants to know how many tools the head serves reads this
+// number rather than carrying its own copy, because a copy freezes a set that
+// grows and is stale the next time a command lands.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
 	library := newLibrary(t)
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
@@ -157,7 +172,7 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
+	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workbenches", "workstream", "join_workstream", "leave_workstream"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
@@ -877,4 +892,44 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 			t.Errorf("wanted %s, got %v", contract.NoUpstream, decoded["refusal"])
 		}
 	})
+}
+
+// TestARootRemovedSinceTheServerStartedRefusesOutsideRoot holds the end of
+// AC-17's containment clauses at the layer where the refusal exists.
+//
+// bench.PathUnderRoot answers a failed containment walk with the error the
+// filesystem gave it and composes no refusal, because internal/bench does not
+// know which caller is asking and a package that renders for one caller stops
+// being reusable by the next. resolveLibrary is the caller that turns that
+// error into dinah.outside-root, and until now nothing drove the two together:
+// the bench tests assert the error and the surface tests reach the refusal
+// through a path that is merely outside the root rather than one the walk
+// could not settle.
+//
+// Removing the root after the server started is the failure a long-running
+// head actually meets, and it reaches resolveLibrary's error branch rather
+// than its not-contained branch, so the two branches are held apart here the
+// way they are in internal/bench.
+func TestARootRemovedSinceTheServerStartedRefusesOutsideRoot(t *testing.T) {
+	library := newLibrary(t)
+	workbench := library.Bench.Root
+	root := filepath.Dir(workbench)
+	if err := os.RemoveAll(root); err != nil {
+		t.Skipf("the platform would not remove the root under the open workbench: %v", err)
+	}
+
+	refused := payload(t, askUnderRoot(t, root, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka","workbench":"`+filepath.ToSlash(workbench)+`"}}}`))
+	if refused["outcome"] != contract.OutcomeRefused {
+		t.Fatalf("a workbench under a removed root should be refused, got %v", refused)
+	}
+	if refused["refusal"] != contract.OutsideRoot {
+		t.Errorf("the refusal a failed containment walk composes: wanted %s, got %v", contract.OutsideRoot, refused["refusal"])
+	}
+	named, ok := refused["context"].(map[string]any)
+	if !ok {
+		t.Fatalf("an outside-root refusal carries no context member: %v", refused)
+	}
+	if named["root"] != root {
+		t.Errorf("the refusal should name the root it was bounded by: wanted %q, got %v", root, named["root"])
+	}
 }
