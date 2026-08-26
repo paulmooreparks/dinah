@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
+	"dinah/internal/verb"
 )
 
 // unwind is what a workbench written before dinah-287 carries, applied to one
@@ -131,19 +134,44 @@ func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, curre
 	nested = plant(filepath.Join(root, "customer", "project"), "a nested card", "a second nested card")
 	sibling = plant(filepath.Join(root, "elsewhere"), "a card in a sibling")
 	current = plant(filepath.Join(root, "already"), "a card that needs nothing")
+	// The nested workbench's two cards are stood in the two conditions that
+	// are not the default, because an absent state key reads as ready. A
+	// fixture whose every card is ready cannot tell a condition carried
+	// across the rename from one dropped on the floor, and the wrong-order
+	// rename this migration is recovering from drops exactly that key.
+	for _, argv := range [][]string{
+		{"move", "fx-1", "doing"},
+		{"claim", "fx-1"},
+		{"move", "fx-2", "doing"},
+		{"block", "fx-2", "the fixture wants a card that is not ready"},
+	} {
+		if got := runCLI(t, root, append([]string{"--workbench", nested}, argv...)...); got.code != 0 {
+			t.Fatalf("%v at %s: %d %s", argv, nested, got.code, got.errw)
+		}
+	}
 	for _, where := range []string{atRoot, nested, sibling} {
 		unwind(t, where)
 	}
 	return root, atRoot, nested, sibling, current
 }
 
-// preVocabularyColumns reads the column identifier every card of an unwound
-// workbench stands in, off the old state key, without opening the workbench.
-// Neither opener will read these cards: Open refuses the workbench by name and
+// standing is where one card stands: the column it sits in, and the condition
+// it is in there. The two are read together and compared together because the
+// migration renames both keys and the order of the two renames is what went
+// wrong, so a check on either half alone passes against a run that lost the
+// other.
+type standing struct {
+	column    string
+	condition string
+}
+
+// preVocabularyStanding reads where every card of an unwound workbench stands,
+// off the retired pair of keys, without opening the workbench. Neither opener
+// will read these cards: Open refuses the workbench by name and
 // OpenPreVocabulary reads its columns rather than its cards.
-func preVocabularyColumns(t *testing.T, root string) map[string]string {
+func preVocabularyStanding(t *testing.T, root string) map[string]standing {
 	t.Helper()
-	stood := map[string]string{}
+	stood := map[string]standing{}
 	dir := filepath.Join(root, bench.CardsDir)
 	for _, id := range bench.ListIDs(dir) {
 		text, err := os.ReadFile(filepath.Join(dir, id, bench.CardAnchor))
@@ -155,12 +183,31 @@ func preVocabularyColumns(t *testing.T, root string) map[string]string {
 		if column == "" {
 			t.Fatalf("the card %s carries no state key, so this workbench was not unwound", id)
 		}
-		stood[id] = column
+		condition := fm.Value("substate")
+		if condition == "" {
+			t.Fatalf("the card %s carries no substate key, so this workbench was not unwound", id)
+		}
+		stood[id] = standing{column: column, condition: condition}
 	}
 	if len(stood) == 0 {
 		t.Fatalf("%s holds no cards, so nothing here can be compared across the run", root)
 	}
 	return stood
+}
+
+// assertConditionVaries fails when every card in view stands in the default
+// condition. LoadCard reads an absent state key as ready, so a comparison of
+// conditions over cards that are all ready cannot tell a condition the
+// migration carried across from one it dropped, and the assertion resting on
+// it would be asserting nothing.
+func assertConditionVaries(t *testing.T, stood map[string]standing) {
+	t.Helper()
+	for _, was := range stood {
+		if was.condition != contract.StateReady {
+			return
+		}
+	}
+	t.Fatalf("every card in view stands in %q, so comparing conditions across the run asserts nothing", contract.StateReady)
 }
 
 // TestTheVocabularyMigrationWalksTheWholeTree asserts dinah-287 AC-16: every
@@ -173,12 +220,13 @@ func TestTheVocabularyMigrationWalksTheWholeTree(t *testing.T) {
 	// Where every card stands before the run, read off the pre-vocabulary
 	// anchors, so the run can be checked for having carried the value across
 	// rather than merely for having written the key.
-	stood := map[string]string{}
+	stood := map[string]standing{}
 	for _, where := range []string{atRoot, nested, sibling} {
-		for id, column := range preVocabularyColumns(t, where) {
-			stood[id] = column
+		for id, was := range preVocabularyStanding(t, where) {
+			stood[id] = was
 		}
 	}
+	assertConditionVaries(t, stood)
 
 	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if got.code != 0 {
@@ -214,18 +262,21 @@ func TestTheVocabularyMigrationWalksTheWholeTree(t *testing.T) {
 			declared[column.ID] = true
 		}
 		for _, card := range cards {
-			if card.State != "ready" {
-				t.Errorf("a card of %s carries the state %q, wanted the condition rather than a column identifier", where, card.State)
-			}
-			// The column is compared against the identifier the card stood in
+			// Both halves are compared against the values the card stood in
 			// before the run, read off the unwound anchor, rather than merely
-			// tested for emptiness. Renaming the two keys in the wrong order
-			// leaves a card reading `column: ready` with no state at all, and
-			// a card in that shape answers a non-empty column and, because an
-			// absent state reads as ready, the right-looking state. Only the
-			// value itself tells the two apart.
-			if want := stood[card.ID]; card.Column != want {
-				t.Errorf("a card of %s stands in column %q and stood in %q before the run", where, card.Column, want)
+			// tested for emptiness or for the default. Renaming the two keys
+			// in the wrong order leaves a card reading `column: ready` with no
+			// state at all, and a card in that shape answers a non-empty
+			// column and, because an absent state reads as ready, the
+			// right-looking state. Only the values themselves tell the two
+			// apart, and only a fixture holding a card that is not ready makes
+			// the second comparison say anything.
+			was := stood[card.ID]
+			if card.Column != was.column {
+				t.Errorf("a card of %s stands in column %q and stood in %q before the run", where, card.Column, was.column)
+			}
+			if card.State != was.condition {
+				t.Errorf("a card of %s is in the condition %q and was in %q before the run", where, card.State, was.condition)
 			}
 			if !declared[card.Column] {
 				t.Errorf("a card of %s names the column %q, which the workbench does not declare", where, card.Column)
@@ -304,26 +355,51 @@ func allowWrite(t *testing.T, path string) {
 
 // TestTheVocabularyMigrationCarriesOnPastAFailure asserts the other half of
 // AC-16: a workbench the walk cannot write is reported with its path and its
-// reason, the other two are migrated anyway, and the exit code says a person is
-// needed.
+// reason, the other two are migrated anyway with every card standing where it
+// stood, and the exit code says a person is needed.
+//
+// The surviving workbenches are checked by value rather than by opening. A
+// card whose column was replaced by its condition opens perfectly well, so a
+// test asking only whether bench.Open answers cleanly reads green against a
+// migration that destroyed every card it touched, which is the assertion class
+// this file has now produced three times. Carrying on past a failure is worth
+// nothing if what the walk carries on to do is wrong, so the two halves are
+// asserted together.
 func TestTheVocabularyMigrationCarriesOnPastAFailure(t *testing.T) {
 	root, atRoot, nested, sibling, _ := buildTreeFixture(t)
-	denyWrite(t, filepath.Join(nested, bench.WorkbenchAnchor))
+	survivors := []string{atRoot, nested}
+	// Where every card of the two workbenches the walk should still carry
+	// forward stands, read off the unwound anchors before the run. The
+	// denied workbench is the sibling rather than the nested one, so that
+	// the survivors include the workbench holding the cards that are not
+	// ready and the comparison of conditions below says something.
+	stood := map[string]map[string]standing{}
+	all := map[string]standing{}
+	for _, where := range survivors {
+		stood[where] = preVocabularyStanding(t, where)
+		for id, was := range stood[where] {
+			all[id] = was
+		}
+	}
+	assertConditionVaries(t, all)
+	denyWrite(t, filepath.Join(sibling, bench.WorkbenchAnchor))
 
 	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run with a failed workbench exited 0:\n%s", got.out)
 	}
-	if !strings.Contains(got.out, nested) {
+	if !strings.Contains(got.out, sibling) {
 		t.Errorf("the report does not name the workbench it could not write:\n%s", got.out)
 	}
-	for _, where := range []string{atRoot, sibling} {
+	for _, where := range survivors {
 		if !strings.Contains(got.out, where) {
 			t.Errorf("the report stopped naming %s, so the walk did not carry on past the failure:\n%s", where, got.out)
 		}
 		if _, err := bench.Open(where); err != nil {
 			t.Errorf("%s was not migrated, so the walk stopped at the failure: %v", where, err)
+			continue
 		}
+		assertStood(t, where, stood[where])
 	}
 }
 
@@ -354,6 +430,16 @@ func TestTheVocabularyMigrationReportsWhatItWillNotOpen(t *testing.T) {
 		}
 		if bench.Exists(filepath.Join(where, bench.ColumnsDir)) {
 			t.Errorf("%s was migrated, and neither of these candidates should be opened at all", where)
+		}
+		// The collection directory answers only for the collection. A run
+		// that rewrote every card and then stopped before renaming the
+		// directory leaves the same answer there, so the cards are asked
+		// separately: a card of a candidate this walk declined to open still
+		// carries the retired pair of keys and not the current column key.
+		for _, id := range bench.ListIDs(filepath.Join(where, bench.CardsDir)) {
+			if cardCarries(t, where, id, "column") {
+				t.Errorf("the card %s of %s was rewritten, and this candidate should not have been opened at all", id, where)
+			}
 		}
 	}
 }
@@ -387,11 +473,10 @@ func treeContents(t *testing.T, root string) map[string]string {
 	return contents
 }
 
-// migratedColumns reads the column identifier every live card of a migrated
-// workbench stands in, through the ordinary opener, so the comparison against
-// what the cards stood in before the run goes through the same reader every
-// other command uses.
-func migratedColumns(t *testing.T, root string) map[string]string {
+// migratedStanding reads where every live card of a migrated workbench stands,
+// through the ordinary opener, so the comparison against what the cards stood
+// in before the run goes through the same reader every other command uses.
+func migratedStanding(t *testing.T, root string) map[string]standing {
 	t.Helper()
 	opened, err := bench.Open(root)
 	if err != nil {
@@ -401,9 +486,9 @@ func migratedColumns(t *testing.T, root string) map[string]string {
 	if err != nil {
 		t.Fatalf("read the cards of %s: %v", root, err)
 	}
-	stands := map[string]string{}
+	stands := map[string]standing{}
 	for _, card := range cards {
-		stands[card.ID] = card.Column
+		stands[card.ID] = standing{column: card.Column, condition: card.State}
 	}
 	return stands
 }
@@ -412,10 +497,10 @@ func migratedColumns(t *testing.T, root string) map[string]string {
 // where it stood before the run, by value rather than by presence. A card whose
 // column was replaced by its condition still answers a non-empty column, and an
 // absent state key reads as ready, so a destroyed card reads back plausibly in
-// both fields and only the identifier itself tells the two apart.
-func assertStood(t *testing.T, root string, stood map[string]string) {
+// both fields and only the values themselves tell the two apart.
+func assertStood(t *testing.T, root string, stood map[string]standing) {
 	t.Helper()
-	stands := migratedColumns(t, root)
+	stands := migratedStanding(t, root)
 	if len(stands) != len(stood) {
 		t.Errorf("%s holds %d cards and held %d before the run", root, len(stands), len(stood))
 	}
@@ -425,8 +510,11 @@ func assertStood(t *testing.T, root string, stood map[string]string) {
 			t.Errorf("the card %s of %s is gone", id, root)
 			continue
 		}
-		if got != want {
-			t.Errorf("the card %s of %s stands in column %q and stood in %q before the run", id, root, got, want)
+		if got.column != want.column {
+			t.Errorf("the card %s of %s stands in column %q and stood in %q before the run", id, root, got.column, want.column)
+		}
+		if got.condition != want.condition {
+			t.Errorf("the card %s of %s is in the condition %q and was in %q before the run", id, root, got.condition, want.condition)
 		}
 	}
 }
@@ -446,10 +534,15 @@ func assertStood(t *testing.T, root string, stood map[string]string) {
 func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
 	root, atRoot, nested, sibling, _ := buildTreeFixture(t)
 	migrated := []string{atRoot, nested, sibling}
-	stood := map[string]map[string]string{}
+	stood := map[string]map[string]standing{}
+	all := map[string]standing{}
 	for _, where := range migrated {
-		stood[where] = preVocabularyColumns(t, where)
+		stood[where] = preVocabularyStanding(t, where)
+		for id, was := range stood[where] {
+			all[id] = was
+		}
 	}
+	assertConditionVaries(t, all)
 
 	first := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if first.code != 0 {
@@ -461,16 +554,33 @@ func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
 		assertStood(t, where, stood[where])
 	}
 
-	second := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	// The second run goes through the JSON head so that what it carried
+	// forward is read as a count rather than matched against the English
+	// heading. A substring match asks after one spelling of one number, so a
+	// fourth workbench in the fixture would slip past it and a reworded
+	// catalog entry would silently stop it asserting, which is the class of
+	// check this file has already had to repair twice.
+	second := runCLI(t, root, "--json", "--workbench", root, "check", "--migrate-vocabulary", "--yes")
 	if second.code != 0 {
 		t.Fatalf("the second run: %d %s\n%s", second.code, second.errw, second.out)
 	}
-	if strings.Contains(second.out, "Carried 1 ") || strings.Contains(second.out, "Carried 2 ") || strings.Contains(second.out, "Carried 3 ") {
-		t.Errorf("the second run reports carrying a workbench forward, and there was nothing left to carry:\n%s", second.out)
+	report := verb.TreeVocabularyReport{}
+	if err := json.Unmarshal([]byte(second.out), &report); err != nil {
+		t.Fatalf("read the second run's JSON report: %v\n%s", err, second.out)
+	}
+	if len(report.Migrated) != 0 {
+		t.Errorf("the second run carried %d workbenches forward, and there was nothing left to carry:\n%s", len(report.Migrated), second.out)
+	}
+	if len(report.AlreadyCurrent) != len(migrated)+1 {
+		t.Errorf("the second run reports %d workbenches as already current, and the tree holds %d", len(report.AlreadyCurrent), len(migrated)+1)
+	}
+	current := map[string]bool{}
+	for _, where := range report.AlreadyCurrent {
+		current[where] = true
 	}
 	for _, where := range migrated {
-		if !strings.Contains(second.out, where) {
-			t.Errorf("the second run does not name %s, so it did not say what it found there:\n%s", where, second.out)
+		if !current[where] {
+			t.Errorf("the second run does not report %s as already current, so it did not say what it found there:\n%s", where, second.out)
 		}
 		after := treeContents(t, where)
 		if len(before[where]) != len(after) {
@@ -495,7 +605,8 @@ func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
 // loop, so the shape under test is the shape a real failure leaves.
 func TestTheVocabularyMigrationResumesAWorkbenchLeftHalfConverted(t *testing.T) {
 	root, _, nested, _, _ := buildTreeFixture(t)
-	stood := preVocabularyColumns(t, nested)
+	stood := preVocabularyStanding(t, nested)
+	assertConditionVaries(t, stood)
 	ids := bench.ListIDs(filepath.Join(nested, bench.CardsDir))
 	if len(ids) < 2 {
 		t.Fatalf("%s holds %d cards, and this test needs one card rewritten before the failure", nested, len(ids))
