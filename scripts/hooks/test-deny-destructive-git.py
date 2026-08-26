@@ -264,6 +264,13 @@ def deciding_operand(command):
 
     A verb the guard refuses on its own has no such word, and those
     commands are covered by the verb half of the crossing alone.
+
+    The condemning word is found by taking the first argument from index
+    2 onward that starts with `-` or `:`, which covers every deciding
+    operand in the guard's table today. A future verb whose deciding
+    operand is spelled some other way returns None here and loses its
+    half of the crossing without turning any run red, so a rule added to
+    the guard wants a look at this line as well.
     """
     words = command.split(" ")
     for index, word in enumerate(words):

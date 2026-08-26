@@ -86,24 +86,45 @@ written that way, and so can the flag that condemns one, as
 `git reset ${x---hard}`.
 
 The real question is therefore which shell constructs can take a
-character away from beside a verb, and there are three. Quote removal is
-the first and line continuation is the second. Both are normalised
-above, and both normalisations put a space where the removed characters
-stood. A space is not a refused character and it joins nothing, so after
-those two the guard sees a verb standing more alone than the shell does
-and can only refuse more than it should. Where quoting destroys the verb
-itself, as `git 'reset' --hard` does, this guard and the one on the
-trunk are blind together, which the last section of this header has
-always said.
+character away from beside a verb, and there are three. What follows
+answers that question and no larger one. It is about what stands beside
+a verb, not about what manufactures the invocation the verb belongs to:
+`${x-g}it reset --hard` runs a hard reset that this guard and the one on
+the trunk both allow, because neither finds a `git` word in the text to
+start a span from, and that hole belongs to dinah-267.
+
+Quote removal is the first construct and line continuation is the
+second. Both are normalised above, and both normalisations put a space
+where the removed characters stood. Where the removed characters stood
+between two words, that is harmless in the direction that matters: a
+space is not a refused character, so the guard sees a verb standing more
+alone than the shell does and can only refuse more than it should.
+
+Where they stood inside a word, it is not harmless, because the shell
+joins the halves and a space joins nothing. The verb is then absent from
+the guard's text altogether. That was run rather than reasoned: put
+through bash with a stub in place of git, a backslash-newline written
+inside the flag and one written inside the verb both arrive as
+`[reset] [--hard]`, and this guard and the one on the trunk allow both.
+It is the same shared blindness as `git 'reset' --hard`, which the last
+section of this header has always said, and it has the same cause, which
+is that the word the rules would have to read is not in the command
+text. The second reading below does not narrow it, and it is tracked as
+dinah-304.
 
 Expansion is the third, and it is the one that removes a character and
 puts nothing in its place. Enumerating its spellings is the trap this
 file has fallen into before, so nothing here tries to understand an
 expansion. The rules withdraw the relaxation wherever one could be doing
 the deleting. A span carrying `$`, a backtick, a brace or a parenthesis
-is read a second time by the same rules written the way the trunk wrote
-them, with a plain `\b` on each verb and no left anchor on any flag, and
-either reading is enough to refuse. One function builds both tables, so
+is read a second time by the same rules written with the trunk's
+boundary on each verb, a plain `\b` and nothing more, and with no left
+anchor anywhere on a flag. That second half is stricter than the trunk
+rather than equal to it, and deliberately so: the trunk's own table
+spells eight flags and one `--` separator with the left anchor, and its
+short-flag and colon-refspec helpers carry it at every use. Every one of
+those is dropped here, which can only refuse more. Either reading is
+enough to refuse. One function builds both tables, so
 the two readings are one rule set read two ways rather than two copies
 that drift apart, which is the failure the single `GIT_WORD` pattern
 below was written after.
@@ -123,13 +144,33 @@ refused again once `$(date)` stands in the same span, because the
 second reading finds the `merge` in the path that the first reading
 declined to read.
 
-Tilde expansion, filename expansion and history expansion are outside
-that trigger, and each is left out for a reason rather than forgotten. A
-tilde prefix becomes a home directory and a glob becomes a filename, so
-both hand git a longer word instead of a bare verb, and history
-expansion is off in the shell a hook's commands run in. None of the
-three can delete a character and leave nothing behind, which is the only
-thing the trigger is watching for.
+Tilde expansion and history expansion are outside that trigger, and both
+exclusions were run rather than assumed. A tilde prefix naming no login
+name stays literal, so `git ~reset --hard` reaches git as
+`[~reset] [--hard]`, and history expansion is off in the
+non-interactive shell a hook's commands run in, so `git !!reset --hard`
+reaches it as `[!!reset] [--hard]`. Both were put through bash with a
+stub in place of git. Neither hands git a bare verb.
+
+Filename expansion is outside the trigger as well, and there it is a
+hole rather than an exclusion. A glob does delete characters from inside
+a word and leave the verb standing alone: with a file named `reset` in
+the working directory, `git rese[t] --hard` and `git rese? --hard` both
+reach git as `[reset] [--hard]`, confirmed the same way, and this guard
+and the one on the trunk allow both. Widening the trigger would buy
+nothing, because the second reading re-reads the same text and there is
+no `reset` inside `rese[t]` for it to find; the filesystem supplies the
+verb rather than the command. So what can honestly be said here is a
+statement about this guard rather than a claim about bash. Where the
+word the rules would have to read is absent from the command text, the
+guard is blind, exactly as it is with `git 'reset' --hard`. Tracked as
+dinah-304, together with the line continuation above.
+
+Both of those were excluded from an earlier draft of this section by a
+property somebody asserted instead of ran, and a reviewer overturned
+each in one command. That is the entry now standing in the workbench's
+counterexamples document, and it is the reason the two paragraphs above
+cite what was executed rather than what follows from a model of a shell.
 
 A backslash is deliberately not among the refused characters, and
 leaving it out costs a refusal on Windows. A backslash in front of a
@@ -366,13 +407,18 @@ def flag(*names):
 # point of it: where the shell's punctuation cannot be trusted, the
 # guard trusts none of it.
 #
-# Two of these are stricter than the trunk rather than equal to it.
-# `anywhere_short` and `ANYWHERE_COLON_REFSPEC` drop a left anchor that
-# the trunk's own `short` and `COLON_REFSPEC` carry, because
-# `git clean ${x--fdx}` and `git push origin ${x-:topic}` are real
-# commands the trunk misses for the reason the header gives, and a
-# second reading written to be no stricter than the trunk would have
-# carried both holes forward.
+# All four of these are stricter than the trunk rather than equal to it,
+# and only `anywhere_verb` matches the trunk's boundaries exactly. The
+# trunk's own table spells the left anchor in front of eight flags
+# (`--force` on clean, checkout, switch and push, `--discard-changes` on
+# switch, and `--delete` on push, branch and tag) and in front of the
+# `--` separator on checkout, and its `short` and `COLON_REFSPEC`
+# helpers carry it at every use. Every one of those anchors is dropped
+# here. That is the safe direction, and two of the shapes it catches are
+# real commands the trunk misses for the reason the header gives:
+# `git clean ${x--fdx}` and `git push origin ${x-:topic}`. A second
+# reading written to be no stricter than the trunk would have carried
+# both holes forward.
 def anywhere_short(letter):
     return r"-[a-z]*" + letter + r"[a-z]*\b"
 
