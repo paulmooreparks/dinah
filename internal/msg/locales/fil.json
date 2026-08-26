@@ -1961,6 +1961,16 @@
       "context": "Spliced onto refusal.blocked as the next step. {card} is the card reference the reader named.",
       "skeleton": true
     },
+    "refusal.dinah.needs-vocabulary-migration": {
+      "text": "Dinah no longer opens {detail} directly",
+      "context": "The sentence printed after the refusal name dinah.needs-vocabulary-migration. {detail} carries the profile string the workbench declares, and this refusal is raised only for a revision the retired-name alias resolved, where a plainly unrecognized one is refused as unsupported-version instead.",
+      "skeleton": true
+    },
+    "refusal.dinah.needs-vocabulary-migration.next": {
+      "text": "; run `dinah check --migrate-vocabulary` first, then open it again",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
+      "skeleton": true
+    },
     "refusal.dinah.add-needs-a-state": {
       "text": "this workbench has no states left to file a new card into",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",

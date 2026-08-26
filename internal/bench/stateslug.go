@@ -33,13 +33,22 @@ func (b *Bench) StateAnchorPath(id string) string {
 // anchor as its path, so all three read the same way and a person is told which
 // file to open to see the value that is wrong.
 func (b *Bench) checkStateSlugs() []Finding {
-	major, _, ok := splitProfile(b.Profile)
+	return b.checkStateSlugsWithin(SlugMandatoryMajor)
+}
+
+// checkStateSlugsWithin is checkStateSlugs with the mandatory major supplied
+// rather than read from SlugMandatoryMajor, so a test can drive it to a value
+// this build's own constant does not carry. It is the same reason
+// admitProfileWithin takes its window as parameters instead of reading
+// ProfileFloorMajor/Minor and ProfileMajor/Minor directly.
+func (b *Bench) checkStateSlugsWithin(mandatoryMajor int) []Finding {
+	major, _, _, ok := resolveProfile(b.Profile, [2]int{ProfileMajor, ProfileMinor})
 	var findings []Finding
 	seen := map[string]bool{}
 	for _, state := range b.States {
 		path := b.StateAnchorPath(state.ID)
 		if state.Slug == "" {
-			if ok && major < SlugMandatoryMajor {
+			if ok && major < mandatoryMajor {
 				findings = append(findings, Finding{Path: path, Key: FindingSlugMissing, Detail: state.ID})
 			}
 			continue

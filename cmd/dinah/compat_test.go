@@ -581,6 +581,29 @@ func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
 	}
 }
 
+// TestEveryCommandThatOpensAWorkbenchRefusesAnUnsupportedRevision drives three
+// commands against a workbench declaring a revision no build has ever
+// conformed to. All three open the workbench through the same gate before they
+// do anything else, so all three should refuse by name at exit 2.
+//
+// The gate does this today, and the guard exists so that a later change to
+// profile resolution cannot quietly let an unreadable workbench through one
+// command while the others go on refusing it.
+func TestEveryCommandThatOpensAWorkbenchRefusesAnUnsupportedRevision(t *testing.T) {
+	for _, command := range []string{"status", "states", "check"} {
+		root := newBench(t)
+		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
+		got := runCLI(t, root, command)
+		if got.code != 2 {
+			t.Errorf("dinah %s exited %d against dinah-core/9.9, wanted 2", command, got.code)
+		}
+		leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+		if leading != contract.UnsupportedVer {
+			t.Errorf("dinah %s refused dinah-core/9.9 with %q, wanted a message beginning %s", command, got.errw, contract.UnsupportedVer)
+		}
+	}
+}
+
 // TestTheUnsupportedVersionRefusalNamesTheWindow asserts the clause a person
 // reads when their revision falls outside the window, and that the same refusal
 // name raised for a storage format carries no window and reads as it did

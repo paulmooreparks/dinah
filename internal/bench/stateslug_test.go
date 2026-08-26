@@ -283,6 +283,51 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 	}
 }
 
+// TestTheMandatoryMajorIsComparedAgainstTheResolvedReading drives the slug
+// check's threshold to two values this build's own constant does not carry, so
+// that a correct wiring and each of the two wirings a mistake here would
+// produce give different answers.
+//
+// At a threshold of 1 the two readings of dinah-core/1.0 disagree: the
+// resolved reading is major 0 and fires, and the bare tokenizer's unaliased
+// reading is major 1 and does not, so a check still reaching splitProfile
+// reports nothing where a finding is wanted. At a threshold of 0 nothing
+// should fire, since 0 is not below 0, so a body ignoring its own parameter
+// and comparing against SlugMandatoryMajor reports a finding where none is
+// wanted. Neither value alone separates the two, which is why both are driven.
+//
+// The third call declares 0.1 literally, the revision the alias resolves
+// dinah-core/1.0 to, and asserts the same finding, so the two spellings are
+// shown to compute one answer once the seam is wired.
+func TestTheMandatoryMajorIsComparedAgainstTheResolvedReading(t *testing.T) {
+	opened, err := Open(newTwoStateFixture(t, "dinah-core/1.0", "", "second"))
+	if err != nil {
+		t.Fatalf("a workbench carrying an absent slug should open: %v", err)
+	}
+	findings := opened.checkStateSlugsWithin(1)
+	if len(findings) != 1 || findings[0].Key != FindingSlugMissing {
+		t.Fatalf("wanted one missing finding at a mandatory major of 1, got %v", findings)
+	}
+	if findings[0].Detail != "b00000000001" {
+		t.Errorf("the finding names %q, wanted the state carrying no slug", findings[0].Detail)
+	}
+	if findings := opened.checkStateSlugsWithin(0); len(findings) != 0 {
+		t.Errorf("wanted no finding at a mandatory major of 0, got %v", findings)
+	}
+
+	literal, err := Open(newTwoStateFixture(t, "dinah-core/0.1", "", "second"))
+	if err != nil {
+		t.Fatalf("a workbench declaring 0.1 should open: %v", err)
+	}
+	findings = literal.checkStateSlugsWithin(1)
+	if len(findings) != 1 || findings[0].Key != FindingSlugMissing {
+		t.Fatalf("wanted one missing finding for the literal 0.1, got %v", findings)
+	}
+	if findings[0].Detail != "b00000000001" {
+		t.Errorf("the finding names %q, wanted the state carrying no slug", findings[0].Detail)
+	}
+}
+
 // TestCheckReportsAStoredSlugItWillNotRepair asserts that a malformed or
 // duplicated slug is reported and left alone. Either one is a value somebody
 // wrote on purpose, so the checker names it for a person and the migration does
