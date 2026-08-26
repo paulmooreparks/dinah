@@ -648,9 +648,19 @@ func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
 	standAt(t, h, undeclaredSubstate, declaredState, handSubstate)
 
 	for _, c := range []struct {
-		axis     string
-		value    string
+		axis  string
+		value string
+		// declared is a lower bound on where the undeclared group may be
+		// drawn rather than the count of groups the axis draws, because the
+		// question here is that the undeclared value comes after the
+		// declared ones and not how many of those there are.
 		declared int
+		// absent is a value this axis must draw no group at, empty where the
+		// axis has none. It carries what the lower bound above cannot: a
+		// bound that only says "not before position two" is met by a tree
+		// drawing a blocked group as well, and the count moved from three to
+		// two precisely because that group is no longer drawn.
+		absent string
 	}{
 		{axis: FieldState, value: deletedState, declared: 5},
 		// Two rather than three: the substate axis grouped standalone
@@ -658,7 +668,7 @@ func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
 		// is all three, and no card here stands blocked, so the blocked
 		// group is not drawn and the undeclared value follows ready and
 		// active.
-		{axis: FieldSubstate, value: handSubstate, declared: 2},
+		{axis: FieldSubstate, value: handSubstate, declared: 2, absent: contract.SubstateBlocked},
 	} {
 		built := treeOf(t, h, "", []string{c.axis}, LevelCards)
 		if built.Root.Count != cardsFiled {
@@ -679,6 +689,9 @@ func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
 			if !drawn[ref] {
 				t.Errorf("%s is drawn nowhere in the %s tree, and the root counts it", ref, c.axis)
 			}
+		}
+		if c.absent != "" && groupPosition(built.Root, c.absent) >= 0 {
+			t.Errorf("the %s tree draws a group at %q and no card of the fixture stands there", c.axis, c.absent)
 		}
 		at := groupPosition(built.Root, c.value)
 		if at < 0 {
@@ -1307,5 +1320,51 @@ func TestAFilteredBlockedGroupIsDrawnOnTheCardsTheFilterRemoved(t *testing.T) {
 	}
 	if blocked.Hidden == nil || blocked.Hidden.Filtered != 1 {
 		t.Fatalf("the blocked group reports %v and the filter removed one card from it", blocked.Hidden)
+	}
+}
+
+// TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenSubstate
+// asserts where a drawn blocked group sits among the others, which is among
+// the values the axis declares and ahead of any value only a card carries.
+//
+// A group at a value some card carries is drawn whether or not the axis
+// declares that value, so an occupied blocked group appears in the tree under
+// either rule and its presence alone settles nothing about where the occupancy
+// check runs. What the two differ on is order: a blocked group drawn because
+// the axis declared it stands with ready and active, while one drawn only
+// because a card carries it falls in among the hand-written values, sorted by
+// its bytes. The fixture writes a substate sorting ahead of blocked so the two
+// orders differ, and asserts the whole order rather than a membership.
+//
+// The filtered half asks the same question of the cards a filter removed. The
+// occupancy check reads those as well as the survivors, and a check reading
+// only the survivors would drop this blocked group out of the declared values
+// and leave it sorted in among the hand-written ones, which the first half
+// cannot see because nothing there is filtered.
+func TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenSubstate(t *testing.T) {
+	// The value is chosen to sort ahead of blocked. A hand-written substate
+	// sorting after it would draw the same order under both rules and the
+	// test would pass without asking anything.
+	const handSubstate = "adjourned"
+	h := newHarness(t)
+	h.ready("a card standing ready at the station")
+	stopped := h.ready("a card stopped at the station")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	hand := h.ready("a card carrying a substate the tool never writes")
+	standAt(t, h, hand, aftercare, handSubstate)
+
+	want := []string{
+		contract.SubstateReady,
+		contract.SubstateActive,
+		contract.SubstateBlocked,
+		handSubstate,
+	}
+	for _, query := range []string{"", "substate:ready"} {
+		built := treeOf(t, h, query, nil, LevelCards)
+		drawn := groupValues(groupAt(t, built.Root, aftercareSlug))
+		if strings.Join(drawn, ",") != strings.Join(want, ",") {
+			t.Errorf("under the query %q the station draws the substates %v, and the declared values come first at %v",
+				query, drawn, want)
+		}
 	}
 }
