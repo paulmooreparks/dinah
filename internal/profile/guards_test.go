@@ -3232,6 +3232,16 @@ func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contra
 // It is scoped to the named-value map and to freeText's label on purpose.
 // Widening it to the detail field would fire on the sites internal/bench
 // already has, which dinah-146 carries rather than this card.
+//
+// The named-value map is recognised by the role it plays rather than by its
+// shape, which dinah-282 narrowed after the shape alone reported two lookup
+// tables that no reader ever sees. A named value is either written out where
+// the refusal is raised, so it sits in an argument list, or built a line
+// earlier in the variable this codebase calls extra. A package-level
+// map[string]string carrying maintainer prose is neither, and it reaches no
+// placeholder, so it is not this check's business. Every raise site in the
+// tree is one of the two shapes above, which is what makes the narrowing a
+// statement of the rule rather than a hole in it.
 func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 	t.Helper()
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -3260,25 +3270,35 @@ func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 		report := func(pos token.Pos, where, text string) {
 			t.Errorf("%s:%d passes the phrase %q as %s, and a value a reader sees reaches them through a catalog key rather than as an English literal", name, fileSet.Position(pos).Line, text, where)
 		}
+		reportMap := func(literal *ast.CompositeLit) {
+			if !stringMapType(literal.Type) {
+				return
+			}
+			for _, element := range literal.Elts {
+				pair, ok := element.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				if text, ok := phraseLiteral(pair.Value); ok {
+					report(pair.Value.Pos(), "a named value", text)
+				}
+			}
+		}
 		ast.Inspect(file, func(node ast.Node) bool {
 			switch e := node.(type) {
-			case *ast.CompositeLit:
-				if !stringMapType(e.Type) {
-					return true
-				}
-				for _, element := range e.Elts {
-					pair, ok := element.(*ast.KeyValueExpr)
-					if !ok {
-						continue
-					}
-					if text, ok := phraseLiteral(pair.Value); ok {
-						report(pair.Value.Pos(), "a named value", text)
-					}
-				}
 			case *ast.AssignStmt:
 				for i, target := range e.Lhs {
+					if i >= len(e.Rhs) {
+						continue
+					}
+					if named, ok := target.(*ast.Ident); ok && named.Name == "extra" {
+						if literal, ok := e.Rhs[i].(*ast.CompositeLit); ok {
+							reportMap(literal)
+						}
+						continue
+					}
 					index, ok := target.(*ast.IndexExpr)
-					if !ok || i >= len(e.Rhs) {
+					if !ok {
 						continue
 					}
 					if named, ok := index.X.(*ast.Ident); !ok || named.Name != "extra" {
@@ -3289,6 +3309,11 @@ func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 					}
 				}
 			case *ast.CallExpr:
+				for _, argument := range e.Args {
+					if literal, ok := argument.(*ast.CompositeLit); ok {
+						reportMap(literal)
+					}
+				}
 				selector, ok := e.Fun.(*ast.SelectorExpr)
 				if !ok || selector.Sel.Name != "freeText" || len(e.Args) != 3 {
 					return true

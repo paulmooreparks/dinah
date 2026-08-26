@@ -59,6 +59,30 @@ func TestEveryLibraryCommandIsServedOrExempted(t *testing.T) {
 	}
 }
 
+// TestTheAffordanceTranslationAgreesWithTheRoster asserts that the map which
+// rewrites a library affordance into a tool name says what the roster says.
+//
+// commandTool carries only the commands whose two vocabularies differ, so it
+// is a short hand-written list standing beside the generated one, and a tool
+// renamed in tools would leave it pointing at a name this head no longer
+// serves. That is the drift this card exists to catch, one layer in from the
+// roster itself.
+func TestTheAffordanceTranslationAgreesWithTheRoster(t *testing.T) {
+	if len(commandTool) == 0 {
+		t.Fatal("the affordance translation is empty, so this check read nothing")
+	}
+	for command, name := range commandTool {
+		served := ToolNameFor(command)
+		if served == "" {
+			t.Errorf("the affordance translation rewrites %s and this head serves no tool for it", command)
+			continue
+		}
+		if served != name {
+			t.Errorf("the affordance translation rewrites %s to %s and the roster serves it as %s", command, name, served)
+		}
+	}
+}
+
 // sorted returns a copy of names in order, so a failing run reports the same
 // command first every time rather than in whatever order the map ranged.
 func sorted(names []string) []string {
