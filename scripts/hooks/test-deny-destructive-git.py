@@ -224,6 +224,54 @@ def glued_flags(command):
     return shapes
 
 
+# A parameter expansion whose value is the word standing inside it. The
+# shell hands git the word and eats the braces and the operator, so a
+# character the whole-word lookarounds refuse can stand beside a literal
+# verb in the text and never reach git at all. Four of the seven refused
+# characters are operators here, which is why `git ${x-reset} --hard` is
+# a working hard reset that the lookarounds alone decline to read.
+#
+# The two shapes that need the parameter set carry their assignment in
+# front across a separator rather than as a prefix on the same command.
+# An assignment prefix takes effect after the rest of the words have
+# been expanded, so `x=1 git ${x+reset}` would read the old value and
+# generate a command that runs nothing.
+EXPANSIONS = [
+    ("a default for an unset parameter", "", "${x-%s}"),
+    ("a default for an unset or empty parameter", "", "${x:-%s}"),
+    ("an assigned default", "", "${x=%s}"),
+    ("an assigned default for an empty parameter", "", "${x:=%s}"),
+    ("an alternate value for a set parameter", "x=1 ; ", "${x+%s}"),
+    ("an alternate value for a set, non-empty parameter", "x=1 ; ", "${x:+%s}"),
+    ("the first match substituted", "x=y ; ", "${x/y/%s}"),
+    ("every match substituted", "x=y ; ", "${x//y/%s}"),
+]
+
+
+def expanded(command, index):
+    """`command` with the word at `index` written inside each expansion."""
+    words = command.split(" ")
+    shapes = []
+    for name, assignment, form in EXPANSIONS:
+        spelled = list(words)
+        spelled[index] = form % words[index]
+        shapes.append((name, assignment + " ".join(spelled)))
+    return shapes
+
+
+def deciding_operand(command):
+    """Where the flag or refspec that condemns the verb stands, or None.
+
+    A verb the guard refuses on its own has no such word, and those
+    commands are covered by the verb half of the crossing alone.
+    """
+    words = command.split(" ")
+    for index, word in enumerate(words):
+        if index >= 2 and (word.startswith("-") or word.startswith(":")):
+            return index
+    return None
+
+
 def leaks(linked):
     """The seven spellings that got past the parsing design.
 
@@ -287,6 +335,27 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
                           if entry[0] in ("status", "log", "fetch", "worktree prune")]:
         for shape, spelled in glued_shapes(command):
             table.append(("%s, %s" % (name, shape), spelled, main, ALLOW))
+
+    # Every deny-set verb written inside a parameter expansion, and every
+    # deciding flag written inside one too. This is the class the
+    # whole-word lookarounds opened and the class the second reading
+    # closes, and it is generated from the deny set rather than listed
+    # for the verbs somebody thought of. A qualifying form of each shape
+    # is here as well, because a guard that pays for this coverage by
+    # refusing a command that names its worktree is a guard nobody keeps.
+    for name, command in MUTATING:
+        for shape, spelled in expanded(command, 1):
+            table.append(("%s, the verb inside %s" % (name, shape), spelled, main, DENY))
+        index = deciding_operand(command)
+        if index is not None:
+            for shape, spelled in expanded(command, index):
+                table.append(("%s, the deciding operand inside %s" % (name, shape),
+                              spelled, main, DENY))
+
+    for name, assignment, form in EXPANSIONS:
+        table.append(("commit, the verb inside %s, -C a worktree" % name,
+                      '%sgit -C "%s" %s -m wip' % (assignment, linked, form % "commit"),
+                      main, ALLOW))
 
     for name, command in leaks(linked):
         table.append((name, command, main, DENY))
@@ -618,6 +687,18 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
          % slashed(os.path.join(root, "scratch", "dinah-250-merge", "wt")), main, ALLOW),
         ("a status read through a live merge-stage worktree",
          "git -C %s status --short" % slashed(verbnamed), main, ALLOW),
+        # What the second reading costs, stated as a case rather than
+        # left to be discovered. A span carrying expansion syntax is read
+        # again with no word boundaries at all, so the very path shape
+        # this card cleared is refused again once a substitution stands
+        # in the same span. The pair is here so that the cost stays
+        # visible and so that narrowing it later reddens something.
+        ("a verb-named path is refused again once the span holds a substitution",
+         "git -C %s log --oneline -1 $(echo x)"
+         % slashed(os.path.join(root, "scratch", "dinah-250-merge", "wt")), main, DENY),
+        ("the same read without the substitution is allowed",
+         "git -C %s log --oneline -1"
+         % slashed(os.path.join(root, "scratch", "dinah-250-merge", "wt")), main, ALLOW),
         ("a log read through an am-named worktree",
          "git -C %s log --oneline -1"
          % slashed(os.path.join(root, "scratch", "card-am", "wt")), main, ALLOW),
@@ -639,6 +720,12 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # read without asking where its word began. A file called
         # `seed--hard.txt` is not the `--hard` flag, and a soft reset is
         # in nobody's deny set.
+        #
+        # The verb is spelled across a concatenation here, as it is in
+        # `MUTATING` and for the same reason: an agent editing this
+        # repository writes the file through a shell, and the live guard
+        # reads the writing command. Grep for `--soft` rather than for
+        # the whole invocation when you come looking for this case.
         ("a long flag inside a filename is not that flag",
          "git -C %s re" % slashed(main) + "set --soft HEAD -- seed--hard.txt", main, ALLOW),
 

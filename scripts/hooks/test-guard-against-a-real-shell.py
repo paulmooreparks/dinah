@@ -512,6 +512,80 @@ def between_git_and_verb():
     ]
 
 
+def parameter_expansions():
+    """Ways of writing a word so that a shell hands git the word alone.
+
+    The braces and the operator are syntax the shell consumes, so what
+    reaches git is whatever stands after the operator. That is the whole
+    of the sixth cycle's defect: the guard grew a pair of lookarounds
+    refusing the characters that continue a shell word, and four of the
+    seven characters it refused (`-`, `=`, `+`, `/`) are the operators
+    below. Each of them can therefore stand in the command text right
+    beside a literal verb and be gone before git starts.
+
+    This generator went without the shape for six cycles. It carried
+    `${OPTS}` and `${OPTS:-}` as empty fillers in the gap between `git`
+    and the subcommand, so the gap was exercised and the subcommand
+    never was, and 27,081 strings reported no regression over a deny set
+    that was open on every verb in it. One character's difference, the
+    verb moving inside the braces, is the whole finding.
+
+    The two shapes that need the parameter set carry their assignment in
+    front across a separator rather than as a prefix on the same command.
+    A shell performs the assignments of a simple command after expanding
+    the rest of its words, so `x=1 git ${x+reset}` would read the old
+    value and generate a string that runs nothing.
+    """
+    return [
+        ("a default for an unset parameter", "", "${x-%s}"),
+        ("a default for an unset or empty parameter", "", "${x:-%s}"),
+        ("an assigned default", "", "${x=%s}"),
+        ("an assigned default for an empty parameter", "", "${x:=%s}"),
+        ("an alternate value for a set parameter", "x=1 ; ", "${x+%s}"),
+        ("an alternate value for a set, non-empty parameter", "x=1 ; ", "${x:+%s}"),
+        ("the first match substituted", "x=y ; ", "${x/y/%s}"),
+        ("every match substituted", "x=y ; ", "${x//y/%s}"),
+    ]
+
+
+def deciding_operand(command):
+    """Where the flag or refspec that condemns the verb stands, or None.
+
+    A verb the guard refuses on its own carries no such word, and those
+    commands are covered by the verb half of this crossing alone.
+    """
+    words = command.split(" ")
+    for index, word in enumerate(words):
+        if index >= 2 and (word.startswith("-") or word.startswith(":")):
+            return index
+    return None
+
+
+def inside_an_expansion(command):
+    """The command with its verb, and then its deciding flag, expanded.
+
+    Both halves are generated, because the two blockers of the sixth
+    cycle arrived through different helpers. The verb half defeats the
+    lookarounds around a subcommand and the flag half defeats the one in
+    front of a long flag, and a fix for either that does not fix the
+    other leaves the deny set open through the half it missed.
+    """
+    words = command.split(" ")
+    positions = [1]
+    operand = deciding_operand(command)
+    if operand is not None:
+        positions.append(operand)
+    shapes = []
+    for position in positions:
+        where = "the verb" if position == 1 else "the deciding operand"
+        for name, assignment, form in parameter_expansions():
+            spelled = list(words)
+            spelled[position] = form % words[position]
+            shapes.append(("%s inside %s" % (where, name),
+                           assignment + " ".join(spelled)))
+    return shapes
+
+
 def brace_expanded(command):
     """The command with its whole argument list written as a brace expansion.
 
@@ -740,6 +814,19 @@ def strings(checkout, linked, spaced, verbnamed, stub):
             generated.append(
                 ("%s, %s between git and the verb, %s" % (command, where, shape),
                  form % spelled))
+
+    # The verb, and the flag that condemns it, written as the value of a
+    # parameter expansion. This is the class the generator could not
+    # reach for six cycles, and while it could not reach it a guard that
+    # had opened every verb in the deny set passed here.
+    for command in VERBS:
+        for shape, spelled in inside_an_expansion(command):
+            generated.append(("%s, %s" % (command, shape), spelled))
+            for wrapper, form in wrappings():
+                if wrapper == "bare":
+                    continue
+                generated.append(("%s, %s, %s" % (command, shape, wrapper),
+                                  form % spelled))
 
     for command in VERBS:
         spelled = brace_expanded(command)

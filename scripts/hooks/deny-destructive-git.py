@@ -69,32 +69,75 @@ difference is worth stating rather than assuming. Nothing added here
 walks words, skips options, keeps a position, or decides which word is
 the subcommand. Every rule still fires on its verb wherever the verb
 stands in the span, and all that changed is which characters count as
-joining a word to its neighbour. Both lookarounds are zero-width and
-read the single character on each side of the match, so a spelling
-nobody has enumerated cannot carry a verb out of the guard's sight by
-standing somewhere the guard never considered. There is nowhere for it
-to stand.
+joining a word to its neighbour.
 
-What a spelling can do is delete a character next to the verb, and that
-is bounded rather than open. The refused characters are `\w . = / ~ @ +
--`, and every one of them, left in the text, makes the shell hand git a
-longer token than the verb: `xreset`, `.reset`, `/reset`, `reset-`,
-`reset/`. Quote removal and word splitting inside an expansion are the
-only shell constructs that take such a character away before git sees
-it, and both of those are the hole this file has always had and states
-below. Blanking replaces a quoted span with spaces of its own length,
-and a space joins nothing, so `git ''reset --hard` is refused exactly as
-it was. What quoting destroys is the verb itself, and that was already
-true.
+Whether that is safe turns on one question: is a character the
+lookaround refuses a character git will really receive? The first
+version of this argument answered yes and was wrong. It claimed that
+every refused character, left in the text, hands git a longer token than
+the verb, so a rule declining to match could never be a rule missing a
+command. But four of the seven refused characters are also shell
+punctuation. `-`, `=`, `+` and `/` are the operators of a parameter
+expansion, so each of them can stand in the command text immediately
+beside a literal verb and be deleted from it before git is started.
+`git ${x-reset} --hard` runs a hard reset, and the whole-word rules
+decline to read the verb it runs. Every verb in the deny set can be
+written that way, and so can the flag that condemns one, as
+`git reset ${x---hard}`.
+
+The real question is therefore which shell constructs can take a
+character away from beside a verb, and there are three. Quote removal is
+the first and line continuation is the second. Both are normalised
+above, and both normalisations put a space where the removed characters
+stood. A space is not a refused character and it joins nothing, so after
+those two the guard sees a verb standing more alone than the shell does
+and can only refuse more than it should. Where quoting destroys the verb
+itself, as `git 'reset' --hard` does, this guard and the one on the
+trunk are blind together, which the last section of this header has
+always said.
+
+Expansion is the third, and it is the one that removes a character and
+puts nothing in its place. Enumerating its spellings is the trap this
+file has fallen into before, so nothing here tries to understand an
+expansion. The rules withdraw the relaxation wherever one could be doing
+the deleting. A span carrying `$`, a backtick, a brace or a parenthesis
+is read a second time by the same rules written the way the trunk wrote
+them, with a plain `\b` on each verb and no left anchor on any flag, and
+either reading is enough to refuse. One function builds both tables, so
+the two readings are one rule set read two ways rather than two copies
+that drift apart, which is the failure the single `GIT_WORD` pattern
+below was written after.
+
+What that buys is a comparison rather than a claim about shells. On a
+span carrying expansion syntax this guard refuses everything the guard
+on the trunk refuses, and on a span carrying none it refuses everything
+the trunk refuses except the path-shaped false positives this change
+exists to remove. An expansion spelled in a way nobody here has thought
+of cannot get past that, because what turns the second reading on is the
+presence of the punctuation rather than the shape of it. The cost falls
+where expansion syntax and a verb-named path share a span and the `-C`
+does not earn the command its permission on its own. A read through a
+merge-stage worktree that has already been removed is allowed as
+`git -C C:/dinah-scratch/dinah-250-merge/wt log --oneline -1` and
+refused again once `$(date)` stands in the same span, because the
+second reading finds the `merge` in the path that the first reading
+declined to read.
+
+Tilde expansion, filename expansion and history expansion are outside
+that trigger, and each is left out for a reason rather than forgotten. A
+tilde prefix becomes a home directory and a glob becomes a filename, so
+both hand git a longer word instead of a bare verb, and history
+expansion is off in the shell a hook's commands run in. None of the
+three can delete a character and leave nothing behind, which is the only
+thing the trigger is watching for.
 
 A backslash is deliberately not among the refused characters, and
 leaving it out costs a refusal on Windows. A backslash in front of a
 word is how a shell quotes the letter after it, so reading it as a
 joining character would clear `git \reset --hard`. The price is that a
 backslash-spelled path whose segment is exactly a deny-set verb, as
-`C:\dinah-scratch\merge\wt`, still reads as carrying that verb. Every
-path this board writes uses forward slashes, and refusing too much is
-the direction this guard is allowed to be wrong in.
+`C:\dinah-scratch\merge\wt`, still reads as carrying that verb, and
+every path this board writes uses forward slashes.
 
 The patterns below are the shape that has never leaked. Each one runs
 from a `git` word, through a span of characters that cannot contain a
@@ -316,6 +359,32 @@ def flag(*names):
     return "(?:" + WORD_START + "(?:" + "|".join(names) + r")\b)"
 
 
+# The same three spelled without the left anchor, for the second reading
+# of a span that carries expansion syntax. A verb keeps a plain `\b` and
+# a flag carries no anchor at all, so nothing in this set can be talked
+# out of a match by a character standing beside the match. That is the
+# point of it: where the shell's punctuation cannot be trusted, the
+# guard trusts none of it.
+#
+# Two of these are stricter than the trunk rather than equal to it.
+# `anywhere_short` and `ANYWHERE_COLON_REFSPEC` drop a left anchor that
+# the trunk's own `short` and `COLON_REFSPEC` carry, because
+# `git clean ${x--fdx}` and `git push origin ${x-:topic}` are real
+# commands the trunk misses for the reason the header gives, and a
+# second reading written to be no stricter than the trunk would have
+# carried both holes forward.
+def anywhere_short(letter):
+    return r"-[a-z]*" + letter + r"[a-z]*\b"
+
+
+def anywhere_verb(word):
+    return r"\b" + word + r"\b"
+
+
+def anywhere_flag(*names):
+    return "(?:" + "|".join(names) + r")\b"
+
+
 def rule(*parts):
     return re.compile("".join(parts), re.IGNORECASE)
 
@@ -325,59 +394,106 @@ def rule(*parts):
 # colon too, so `://` and a `user@host` prefix are both excluded.
 COLON_REFSPEC = WORD_START + r"(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
 
-# The verbs are written with `verb`, so each one is refused where it is
-# the word git reads and not where it is a syllable of a path. The
-# `(?!-)` that used to follow `merge` and `rebase` is gone because
-# WORD_END already refuses the hyphen, which is what kept `merge-base`
-# and `rebase-todo` out.
-#
-# The operand of the `--force-with-lease` rule is the one place a bare
-# `\b` is still right. A ref is written `refs/heads/main` and
-# `HEAD:refs/heads/main` as readily as `main`, so requiring `main` to be
-# a whole shell word there would clear a forced push to the trunk.
-DENIED = [
-    (rule(GIT, GAP, verb("reset"), GAP, flag("--hard", "--merge", "--keep")),
-     "git reset --hard/--merge/--keep"),
-    (rule(GIT, GAP, verb("clean"), GAP, "(?:", short("f"), "|", short("d"), "|",
-          short("x"), "|", flag("--force"), ")"),
-     "git clean -f/-d/-x"),
-    (rule(GIT, GAP, verb("checkout"), GAP, "(?:", WORD_START, r"--(?![\w.=-])|", short("f"),
-          "|", flag("--force"), ")"),
-     "git checkout -- / -f"),
-    (rule(GIT, GAP, verb("restore"), "(?!", GAP, flag("--staged"), "(?!", GAP,
-          flag("--worktree"), "))"),
-     "git restore (working tree)"),
-    (rule(GIT, GAP, verb("switch"), GAP, "(?:", short("f"),
-          "|", flag("--force", "--discard-changes"), ")"),
-     "git switch -f/--force/--discard-changes"),
-    (rule(GIT, GAP, verb("push"), GAP, "(?:", WORD_START,
-          r"--force(?!-with-lease)\b|", short("f"), ")"),
-     "git push --force"),
-    (rule(GIT, GAP, verb("push"), GAP, WORD_START, r"--force-with-lease", GAP,
-          r"\b(?:main|master)\b"),
-     "git push --force-with-lease to main/master"),
-    (rule(GIT, GAP, verb("push"), GAP, "(?:", flag("--delete"), "|", short("d"), "|",
-          COLON_REFSPEC, ")"),
-     "git push --delete / colon refspec"),
-    (rule(GIT, GAP, verb("stash"), r"(?!\s+(?:list|show)\b)"),
-     "git stash (mutating)"),
-    (rule(GIT, GAP, verb("commit")), "git commit"),
-    (rule(GIT, GAP, verb("merge")), "git merge"),
-    (rule(GIT, GAP, verb("rebase")), "git rebase"),
-    (rule(GIT, GAP, verb("cherry-pick")), "git cherry-pick"),
-    (rule(GIT, GAP, verb("revert")), "git revert"),
-    (rule(GIT, GAP, verb("am")), "git am"),
-    (rule(GIT, GAP, verb("apply"), "(?!", GAP, flag("--check", "--stat"), ")"), "git apply"),
-    (rule(GIT, GAP, verb("rm"), "(?!", GAP, flag("--cached"), ")"), "git rm"),
-    (rule(GIT, GAP, verb("mv")), "git mv"),
-    (rule(GIT, GAP, verb("bisect"), r"(?!\s+(?:log|view)\b)"), "git bisect"),
-    (rule(GIT, GAP, verb("pull"), "(?!", GAP, flag("--ff-only"), ")"), "git pull (may merge)"),
-    (rule(GIT, GAP, verb("worktree"), GAP, verb("remove")), "git worktree remove"),
-    (rule(GIT, GAP, verb("branch"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
-     "git branch -d/-D"),
-    (rule(GIT, GAP, verb("tag"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
-     "git tag -d"),
-]
+ANYWHERE_COLON_REFSPEC = r"(?!-)[^\s:@" + re.escape(BOUNDARY_CHARACTERS) + r"]*:(?!//)"
+
+# The bare `--` that ends git's own options, which is what makes
+# `git checkout -- .` a discard of the working tree rather than a branch
+# switch.
+SEPARATOR = WORD_START + r"--(?![\w.=-])"
+
+ANYWHERE_SEPARATOR = r"--(?![\w.=-])"
+
+# `merge-base` and `rebase-todo` are not the verbs, and the second
+# reading has to say so itself because a plain `\b` ends a word at a
+# hyphen. WORD_END already refuses the hyphen in the first reading,
+# where this lookahead is redundant and harmless.
+NOT_HYPHENATED = r"(?!-)"
+
+
+def denied(verb, flag, short, colon, separator):
+    r"""The deny set, spelled with one set of word boundaries.
+
+    Called twice, and the two calls are the whole of the difference
+    between the guard's two readings of a span. Writing the table out
+    twice instead would be two tables to keep in step, and keeping two
+    patterns in step is what produced the counting defect recorded
+    further down this file.
+
+    The operand of the `--force-with-lease` rule takes no boundary from
+    the caller, because a plain `\b` is right there under either reading.
+    A ref is written `refs/heads/main` and `HEAD:refs/heads/main` as
+    readily as `main`, so requiring `main` to be a whole shell word would
+    clear a forced push at the trunk.
+    """
+    return [
+        (rule(GIT, GAP, verb("reset"), GAP, flag("--hard", "--merge", "--keep")),
+         "git reset --hard/--merge/--keep"),
+        (rule(GIT, GAP, verb("clean"), GAP, "(?:", short("f"), "|", short("d"), "|",
+              short("x"), "|", flag("--force"), ")"),
+         "git clean -f/-d/-x"),
+        (rule(GIT, GAP, verb("checkout"), GAP, "(?:", separator, "|", short("f"),
+              "|", flag("--force"), ")"),
+         "git checkout -- / -f"),
+        (rule(GIT, GAP, verb("restore"), "(?!", GAP, flag("--staged"), "(?!", GAP,
+              flag("--worktree"), "))"),
+         "git restore (working tree)"),
+        (rule(GIT, GAP, verb("switch"), GAP, "(?:", short("f"),
+              "|", flag("--force", "--discard-changes"), ")"),
+         "git switch -f/--force/--discard-changes"),
+        (rule(GIT, GAP, verb("push"), GAP, "(?:", flag("--force(?!-with-lease)"),
+              "|", short("f"), ")"),
+         "git push --force"),
+        (rule(GIT, GAP, verb("push"), GAP, flag("--force-with-lease"), GAP,
+              r"\b(?:main|master)\b"),
+         "git push --force-with-lease to main/master"),
+        (rule(GIT, GAP, verb("push"), GAP, "(?:", flag("--delete"), "|", short("d"), "|",
+              colon, ")"),
+         "git push --delete / colon refspec"),
+        (rule(GIT, GAP, verb("stash"), r"(?!\s+(?:list|show)\b)"),
+         "git stash (mutating)"),
+        (rule(GIT, GAP, verb("commit")), "git commit"),
+        (rule(GIT, GAP, verb("merge"), NOT_HYPHENATED), "git merge"),
+        (rule(GIT, GAP, verb("rebase"), NOT_HYPHENATED), "git rebase"),
+        (rule(GIT, GAP, verb("cherry-pick")), "git cherry-pick"),
+        (rule(GIT, GAP, verb("revert")), "git revert"),
+        (rule(GIT, GAP, verb("am")), "git am"),
+        (rule(GIT, GAP, verb("apply"), "(?!", GAP, flag("--check", "--stat"), ")"),
+         "git apply"),
+        (rule(GIT, GAP, verb("rm"), "(?!", GAP, flag("--cached"), ")"), "git rm"),
+        (rule(GIT, GAP, verb("mv")), "git mv"),
+        (rule(GIT, GAP, verb("bisect"), r"(?!\s+(?:log|view)\b)"), "git bisect"),
+        (rule(GIT, GAP, verb("pull"), "(?!", GAP, flag("--ff-only"), ")"),
+         "git pull (may merge)"),
+        (rule(GIT, GAP, verb("worktree"), GAP, verb("remove")), "git worktree remove"),
+        (rule(GIT, GAP, verb("branch"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
+         "git branch -d/-D"),
+        (rule(GIT, GAP, verb("tag"), GAP, "(?:", flag("--delete"), "|", short("d"), ")"),
+         "git tag -d"),
+    ]
+
+
+# The first reading, where a verb has to stand as a whole shell word.
+# This is the reading that stopped `merge` being found inside
+# `dinah-249-merge`.
+DENIED = denied(verb, flag, short, COLON_REFSPEC, SEPARATOR)
+
+# The second reading, for a span whose punctuation the shell may be
+# about to eat. `offender` runs these only where EXPANSION matches the
+# span, so the path-shaped false positives the first reading removes
+# stay removed everywhere else.
+DENIED_ANYWHERE = denied(anywhere_verb, anywhere_flag, anywhere_short,
+                         ANYWHERE_COLON_REFSPEC, ANYWHERE_SEPARATOR)
+
+# The punctuation that introduces or delimits an expansion, a
+# substitution, or a grouping a shell can expand. Its presence anywhere
+# in a span is what turns the second reading on, because these are the
+# constructs that delete a character from beside a verb and put nothing
+# in its place. What is read is the presence of the punctuation rather
+# than its shape, so an expansion spelled in a way nobody here has
+# enumerated still turns the second reading on. This runs over the
+# normalised text, where a quoted span is blank, because a `$` inside
+# quotation marks expands nothing that reaches git.
+EXPANSION = re.compile(r"[$`{}()]")
 
 # One real invocation split over two lines. Folded first so the flag on
 # the second line still counts, and folded to spaces so the fold costs no
@@ -682,15 +798,28 @@ def offender(command):
     only "git commit" tells the reader something the command does not
     contain, and a reader who cannot see what matched cannot tell a
     correct refusal from a defective one.
+
+    Every span is read by the whole-word rules, and a span carrying
+    expansion syntax is read again by the rules that anchor nothing.
+    Either reading is enough to refuse, which is what makes the second
+    one safe to add: it can only take a span away from the allowed side.
+    The header says why the second reading is needed, and the short
+    version is that four of the characters the whole-word rules refuse
+    are also parameter-expansion operators, so a verb can sit beside one
+    in the text and reach git without it.
     """
     scannable = normalise(command)
-    for pattern, label in DENIED:
-        for match in pattern.finditer(scannable):
-            boundary = BOUNDARY.search(scannable, match.end())
-            end = boundary.start() if boundary else len(scannable)
-            why = fault(command[match.start():end], scannable[match.start():end])
-            if why:
-                return label, why, command[match.start():match.end()]
+    for rules, needs_expansion in ((DENIED, False), (DENIED_ANYWHERE, True)):
+        for pattern, label in rules:
+            for match in pattern.finditer(scannable):
+                boundary = BOUNDARY.search(scannable, match.end())
+                end = boundary.start() if boundary else len(scannable)
+                span = scannable[match.start():end]
+                if needs_expansion and not EXPANSION.search(span):
+                    continue
+                why = fault(command[match.start():end], span)
+                if why:
+                    return label, why, command[match.start():match.end()]
     return None
 
 
