@@ -230,13 +230,20 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 //
 // What the change costs is worth stating in the numbers, because the first
 // version of this comment claimed a strictly larger population and the
-// opposite is true. Before dinah-287 the roster was [en, hi, de] and the loop
-// covered every entry of German and Hindi, which is 1288. After it, each of
-// those two carries entries the rename left holding renamed English under the
-// skeleton flag, 108 apiece, and this loop skips a skeleton entry, so it
-// covers 1072. The five catalogs that joined the loop are skeletons
-// throughout and contribute nothing at all. The population fell by 216 and
-// gained none.
+// opposite is true. The figures below are counted on origin/main for the
+// before and on this branch for the after, which is the correction the second
+// version of this comment needed: it counted both on the branch, where en has
+// already gained this card's own keys, and so reported a before that no tree
+// ever held.
+//
+// Before dinah-287, on origin/main, the roster was [en, hi, de], every catalog
+// carried 631 entries and none of them was a skeleton, so the loop covered 631
+// of German and 631 of Hindi, which is 1262. After it, en carries 647 and each
+// of those two carries 647 of which 111 are skeletons, entries the rename left
+// holding renamed English, and this loop skips a skeleton entry, so it covers
+// 536 apiece and 1072 together. The five catalogs that joined the loop are
+// skeletons throughout and contribute nothing at all. The population fell by
+// 190 and gained none.
 //
 // The change is still the right one, on the merits rather than on the size of
 // the set. A skeleton entry holds English rather than a translation and has no
