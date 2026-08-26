@@ -1739,14 +1739,41 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 	return rows
 }
 
-// sweptSubstates are the three substates the grouped producer draws under a
-// state, in the order it draws them, which is the order the contract declares
-// them in rather than an order this fixture chose.
-var sweptSubstates = []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+// sweptSubstates are the substates the grouped producer draws under one state,
+// in the order it draws them, which is the order the contract declares them in
+// rather than an order this fixture chose.
+//
+// The set is not the same under every state, and the two reasons it varies are
+// different in kind. A state that takes no work up holds no active card, so no
+// active group is drawn beneath one, and the expected side asks the head's own
+// predicate that question rather than restating which kinds those are. A
+// blocked group is drawn only where a card actually stands blocked, whatever
+// the state could hold, because a block is the exception and a blocked group
+// reading zero under every state reports the ordinary case on every row.
+func sweptSubstates(state sweptStateRecord, held []sweptCardRecord) []string {
+	var drawn []string
+	for _, substate := range state.state().Substates() {
+		if substate == contract.SubstateBlocked && !sweptAnyStanding(held, substate) {
+			continue
+		}
+		drawn = append(drawn, substate)
+	}
+	return drawn
+}
+
+// sweptAnyStanding reports whether any of the cards stands in one substate.
+func sweptAnyStanding(held []sweptCardRecord, substate string) bool {
+	for _, card := range held {
+		if card.standing == substate {
+			return true
+		}
+	}
+	return false
+}
 
 // expectTree is dinah tree with no arguments: a group per declared state in
-// flow order, the three substates under each one whether or not a card stands
-// there, and the cards themselves at the third level.
+// flow order, the substates that state draws under each one whether or not a
+// card stands in them, and the cards themselves at the third level.
 //
 // A group carries its value under Reference, its axis under Entity, nothing
 // under Title, and its own card count under Count. A card carries no count at
@@ -1762,7 +1789,7 @@ func expectTree(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	for at, state := range r.states {
 		held := sweptCardsIn(r, at)
 		node := sweptTreeNode{ref: state.ref(), entity: bench.KindState, count: strconv.Itoa(len(held))}
-		for _, substate := range sweptSubstates {
+		for _, substate := range sweptSubstates(state, held) {
 			var cards []sweptTreeNode
 			for _, card := range held {
 				if card.standing != substate {

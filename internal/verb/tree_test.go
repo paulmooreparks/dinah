@@ -338,8 +338,13 @@ func TestAFullyExpandedTreeHidesNothingAnywhere(t *testing.T) {
 
 	grouped := treeOf(t, h, "", nil, LevelCards)
 	assertNothingIsHidden(t, "the grouped tree", grouped.Root)
-	if empty := groupAt(t, groupAt(t, grouped.Root, "intake"), contract.SubstateBlocked); empty.Count != 0 {
-		t.Errorf("the blocked group counts %d and the fixture blocks nothing", empty.Count)
+	// The blocked group is drawn only where a card stands blocked, and this
+	// fixture blocks nothing, so the group is absent rather than empty. The
+	// walk above is what asserts the tree hides nothing; this reads the
+	// suppression, which the walk cannot see because a group that was never
+	// drawn reports no account of itself either.
+	if drawn := groupValues(groupAt(t, grouped.Root, "intake")); contains(drawn, contract.SubstateBlocked) {
+		t.Errorf("intake draws the groups %v and the fixture blocks nothing", drawn)
 	}
 	assertNothingIsHidden(t, "the whole containment walk", contentsOf(t, h, "workbench", LevelAll).Root)
 	// A bounded depth that reaches its boundary and finds nothing to cut is
@@ -502,14 +507,29 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	if strings.Join(states, ",") != strings.Join(want, ",") {
 		t.Errorf("the states draw as %v and the flow declares them %v", states, want)
 	}
+	// The two closed axes enumerate differently, and the substate axis does
+	// not enumerate the same set under every state. Intake takes no work up,
+	// so it can hold no active card and draws no active group; nothing in this
+	// fixture is blocked, so no state draws a blocked group either. Doing
+	// takes work up and is asserted alongside intake, because a rule reading
+	// the state would otherwise be indistinguishable here from a rule that
+	// dropped active and blocked from every state on the board.
 	intakeGroup := groupAt(t, built.Root, "intake")
-	var substates []string
-	for _, child := range intakeGroup.Children {
-		substates = append(substates, child.Value)
-	}
-	wantSubstates := []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
-	if strings.Join(substates, ",") != strings.Join(wantSubstates, ",") {
-		t.Errorf("the substates draw as %v and the order is fixed at %v", substates, wantSubstates)
+	for _, c := range []struct {
+		group TreeNode
+		want  []string
+	}{
+		{group: intakeGroup, want: []string{contract.SubstateReady}},
+		{
+			group: groupAt(t, built.Root, "doing"),
+			want:  []string{contract.SubstateReady, contract.SubstateActive},
+		},
+	} {
+		substates := groupValues(c.group)
+		if strings.Join(substates, ",") != strings.Join(c.want, ",") {
+			t.Errorf("the substates of the %s group draw as %v and the order is fixed at %v",
+				c.group.Value, substates, c.want)
+		}
 	}
 	listing, err := h.library.List(&Request{Verb: "ls", State: "intake"})
 	if err != nil {
@@ -633,7 +653,12 @@ func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
 		declared int
 	}{
 		{axis: FieldState, value: deletedState, declared: 5},
-		{axis: FieldSubstate, value: handSubstate, declared: 3},
+		// Two rather than three: the substate axis grouped standalone
+		// enumerates the union of what the fixture's states can hold, which
+		// is all three, and no card here stands blocked, so the blocked
+		// group is not drawn and the undeclared value follows ready and
+		// active.
+		{axis: FieldSubstate, value: handSubstate, declared: 2},
 	} {
 		built := treeOf(t, h, "", []string{c.axis}, LevelCards)
 		if built.Root.Count != cardsFiled {
@@ -1098,4 +1123,189 @@ func writeFile(t *testing.T, name string) string {
 		t.Fatalf("write %s: %v", path, err)
 	}
 	return path
+}
+
+// nobodyWorksHereDefinition is a flow whose every state takes work up nowhere:
+// one intake station and one done state, and nothing between them. A card can
+// stand ready or blocked anywhere on it and can never stand active, which is
+// what makes it the one fixture able to tell the union rule apart from a rule
+// that draws all three substates whatever the workbench says.
+const nobodyWorksHereDefinition = `{
+  "profile": "dinah-core/1.0",
+  "title": "Nobody works here",
+  "instructions": "The standing text of this workbench.\n",
+  "states": [
+    { "id": "c00000000001", "title": "Waiting", "kind": "intake",
+      "instructions": "Waiting instructions.\n" },
+    { "id": "c00000000002", "title": "Filed", "kind": "done",
+      "instructions": "Filed instructions.\n" }
+  ]
+}`
+
+// TestSubstateResolvesTheStateAboveItWhateverAxisComesBetween asserts that the
+// state an ancestor group fixed still governs the substate enumeration when
+// another axis stands between the two in the chain.
+//
+// Grouping partitions a card set and never merges two of them back together,
+// so every card below an intake group stands at the intake state however many
+// axes intervene, and the substates drawn there are the intake state's own. The
+// fixture blocks one of its two cards so that the expected set, ready and
+// blocked, differs from the union across the whole workbench in both members: a
+// tree that lost the state would draw active, and a tree that suppressed
+// blocked wherever it appeared would drop blocked.
+//
+// The same tree taken with the state axis dropped out of the chain is the
+// control. Without it the substate groups draw active as well, which is what
+// makes the absence of active above a statement about the intervening axis
+// rather than about a workbench that never draws active at all.
+func TestSubstateResolvesTheStateAboveItWhateverAxisComesBetween(t *testing.T) {
+	h := newHarness(t)
+	h.add("a card standing ready where it was filed")
+	stopped := h.add("a card stopped where it was filed")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+
+	built := treeOf(t, h, "", []string{FieldState, FieldEntered, FieldSubstate}, LevelCards)
+	entered := groupAt(t, groupAt(t, built.Root, "intake"), "intake")
+	want := []string{contract.SubstateReady, contract.SubstateBlocked}
+	if drawn := groupValues(entered); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Errorf("the substates under the entered group draw as %v, and the intake state holds %v", drawn, want)
+	}
+
+	control := treeOf(t, h, "", []string{FieldEntered, FieldSubstate}, LevelCards)
+	drawn := groupValues(groupAt(t, control.Root, "intake"))
+	if !contains(drawn, contract.SubstateActive) {
+		t.Fatalf("the same fixture draws %v with no state axis in the chain, so the absence of active above proves nothing", drawn)
+	}
+}
+
+// TestStandaloneSubstateUnionsAcrossStates asserts that a substate axis grouped
+// with no state above it anywhere in the chain enumerates the union of what the
+// workbench's states can hold, rather than the three the contract names.
+//
+// The fixture is a flow where no state takes work up at all, so the union holds
+// ready and blocked and no card on the workbench can ever stand active. A tree
+// drawing an active group here is drawing a group nothing can occupy, which is
+// the defect this card fixes, and the standard fixture cannot show it: its
+// states union to all three and pass under either rule.
+//
+// The second half is the control for the first. Blocking a card draws the
+// blocked group, so the assertion that only ready is drawn while nothing is
+// blocked reads as the occupancy rule rather than as a tree that lost the
+// blocked group entirely. Active is absent from both halves, which is the
+// union rule holding while the rest of the answer moves.
+func TestStandaloneSubstateUnionsAcrossStates(t *testing.T) {
+	h := harnessFromDefinition(t, "nw", nobodyWorksHereDefinition)
+	h.add("a card standing ready")
+	stopped := h.add("a card that will be stopped")
+
+	built := treeOf(t, h, "", []string{FieldSubstate}, LevelCards)
+	want := []string{contract.SubstateReady}
+	if drawn := groupValues(built.Root); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Errorf("the substate axis draws %v, and no state on this workbench takes work up or holds a blocked card, so it holds %v", drawn, want)
+	}
+
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	blocked := treeOf(t, h, "", []string{FieldSubstate}, LevelCards)
+	wantBlocked := []string{contract.SubstateReady, contract.SubstateBlocked}
+	if drawn := groupValues(blocked.Root); strings.Join(drawn, ",") != strings.Join(wantBlocked, ",") {
+		t.Errorf("the substate axis draws %v once a card is blocked, and the union of this workbench's states holds %v", drawn, wantBlocked)
+	}
+}
+
+// TestSubstateUnderAnUndeclaredStateFallsBackToTheUnion asserts that a substate
+// group standing under a state ref the workbench no longer declares draws the
+// union, rather than erroring or drawing nothing.
+//
+// A state deleted from the flow leaves the cards standing in it naming a state
+// nothing declares, and no state answers what those cards may carry. The tree
+// still has to draw them, so the enumeration falls back to the union across the
+// declared states, and the occupancy rule applies to that union's blocked
+// member exactly as it applies to a single state's. Both halves are asserted
+// over one card, moved from ready to blocked by hand the same way it was stood
+// at the deleted state, so the group appearing is the occupancy rule and not a
+// second fixture behaving differently.
+func TestSubstateUnderAnUndeclaredStateFallsBackToTheUnion(t *testing.T) {
+	const deletedState = "a00000000009"
+	h := newHarness(t)
+	stranded := h.add("a card standing in a state the flow no longer declares")
+	standAt(t, h, stranded, deletedState, contract.SubstateReady)
+
+	built := treeOf(t, h, "", []string{FieldState, FieldSubstate}, LevelCards)
+	want := []string{contract.SubstateReady, contract.SubstateActive}
+	if drawn := groupValues(groupAt(t, built.Root, deletedState)); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Errorf("the deleted state draws the substates %v, and the union less an unoccupied blocked group is %v", drawn, want)
+	}
+
+	standAt(t, h, stranded, deletedState, contract.SubstateBlocked)
+	blocked := treeOf(t, h, "", []string{FieldState, FieldSubstate}, LevelCards)
+	wantBlocked := []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+	if drawn := groupValues(groupAt(t, blocked.Root, deletedState)); strings.Join(drawn, ",") != strings.Join(wantBlocked, ",") {
+		t.Errorf("the deleted state draws the substates %v once its card is blocked, and the whole union is %v", drawn, wantBlocked)
+	}
+}
+
+// TestAnOccupiedBlockedGroupIsDrawnAlongsideAnEmptyActiveGroup asserts the two
+// halves of the empty-group rule against each other in one fixture: a blocked
+// group is drawn because a card stands in it, and an active group is drawn
+// beside it although no card stands in that.
+//
+// This is the only test in the suite where a card is actually blocked at a
+// state that takes work up, so it is the only one that can show the occupancy
+// rule drawing a group rather than suppressing one. Unblocking the same card
+// and reading the state again is what tells the rule apart from a fixture that
+// happens to draw three groups: the blocked group has to leave when its one
+// card leaves, and nothing else about the tree may move with it.
+func TestAnOccupiedBlockedGroupIsDrawnAlongsideAnEmptyActiveGroup(t *testing.T) {
+	h := newHarness(t)
+	h.ready("a card standing ready at the station")
+	stopped := h.ready("a card stopped at the station")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+
+	built := treeOf(t, h, "", nil, LevelCards)
+	state := groupAt(t, built.Root, aftercareSlug)
+	want := []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+	if drawn := groupValues(state); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Fatalf("the station draws the substates %v, and it can hold %v with one card blocked", drawn, want)
+	}
+	if active := groupAt(t, state, contract.SubstateActive); active.Count != 0 {
+		t.Errorf("the active group counts %d and nobody has taken a card up", active.Count)
+	}
+	if blocked := groupAt(t, state, contract.SubstateBlocked); blocked.Count != 1 {
+		t.Errorf("the blocked group counts %d and one card is blocked", blocked.Count)
+	}
+
+	h.mustDo(&Request{Verb: Unblock, Card: stopped, Actor: "alka"})
+	after := treeOf(t, h, "", nil, LevelCards)
+	drawn := groupValues(groupAt(t, after.Root, aftercareSlug))
+	wantAfter := []string{contract.SubstateReady, contract.SubstateActive}
+	if strings.Join(drawn, ",") != strings.Join(wantAfter, ",") {
+		t.Errorf("the station draws the substates %v once its card is unblocked, and it holds %v", drawn, wantAfter)
+	}
+}
+
+// TestAFilteredBlockedGroupIsDrawnOnTheCardsTheFilterRemoved asserts that a
+// blocked card the filter cut still draws its group, counting nothing and
+// reporting what was filtered.
+//
+// The occupancy rule reads the cards the filter removed as well as the
+// survivors, and the two readings are not the same statement. A state holding a
+// blocked card that the reader's own filter hid still has a blocked card, so
+// drawing no group there tells the reader the state has none. The honest
+// drawing is a group counting nothing with an account of what it is not
+// showing, which is what every other emptied group in this tree does.
+func TestAFilteredBlockedGroupIsDrawnOnTheCardsTheFilterRemoved(t *testing.T) {
+	h := newHarness(t)
+	h.ready("a card standing ready at the station")
+	stopped := h.ready("a card stopped at the station")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+
+	built := treeOf(t, h, "substate:ready", nil, LevelCards)
+	state := groupAt(t, built.Root, aftercareSlug)
+	blocked := groupAt(t, state, contract.SubstateBlocked)
+	if blocked.Count != 0 {
+		t.Errorf("the blocked group counts %d and the filter kept none of its cards", blocked.Count)
+	}
+	if blocked.Hidden == nil || blocked.Hidden.Filtered != 1 {
+		t.Fatalf("the blocked group reports %v and the filter removed one card from it", blocked.Hidden)
+	}
 }

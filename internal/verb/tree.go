@@ -353,7 +353,7 @@ func (l *Library) Tree(req *Request, chain []string, level string) (*Tree, error
 			Count: len(kept),
 		},
 	}
-	l.fillGrouped(&tree.Root, kept, cut, chain, 0, 0, groupedLimit(level, len(chain)))
+	l.fillGrouped(&tree.Root, kept, cut, chain, 0, 0, groupedLimit(level, len(chain)), "")
 	return tree, nil
 }
 
@@ -388,9 +388,10 @@ func (l *Library) fillGrouped(
 	kept, cut []*bench.Card,
 	chain []string,
 	axisAt, rank, limit int,
+	stateCtx string,
 ) {
 	hidden := &Hidden{Filtered: len(cut)}
-	children := l.groupedChildren(kept, cut, chain, axisAt, rank, limit)
+	children := l.groupedChildren(kept, cut, chain, axisAt, rank, limit, stateCtx)
 	if rank < limit {
 		node.Children = children
 	} else if len(children) > 0 {
@@ -409,10 +410,18 @@ func (l *Library) fillGrouped(
 // groupedChildren builds the nodes one level below a node of the grouped tree.
 // It builds them whatever the depth allows, because a node at the boundary has
 // to count what it is holding back before it drops it.
+//
+// stateCtx is the state every card below this node stands at, or empty where
+// no axis above the node has grouped by state. Grouping partitions a card set
+// and never merges two of them back together, so once an axis has grouped by
+// state, every group below it however deep holds cards of that one state, and
+// the substate axis can ask that state what it holds. Any other axis between
+// the two carries the value forward untouched.
 func (l *Library) groupedChildren(
 	kept, cut []*bench.Card,
 	chain []string,
 	axisAt, rank, limit int,
+	stateCtx string,
 ) []TreeNode {
 	if axisAt == len(chain) {
 		nodes := make([]TreeNode, 0, len(kept))
@@ -423,14 +432,18 @@ func (l *Library) groupedChildren(
 	}
 	axis := chain[axisAt]
 	var nodes []TreeNode
-	for _, group := range l.groupsOn(axis, kept, cut) {
+	for _, group := range l.groupsOn(axis, kept, cut, stateCtx) {
 		node := TreeNode{
 			Kind:  NodeGroup,
 			Axis:  axis,
 			Value: group.value,
 			Count: len(group.kept),
 		}
-		l.fillGrouped(&node, group.kept, group.cut, chain, axisAt+1, rank+1, limit)
+		childCtx := stateCtx
+		if axis == FieldState {
+			childCtx = group.value
+		}
+		l.fillGrouped(&node, group.kept, group.cut, chain, axisAt+1, rank+1, limit, childCtx)
 		nodes = append(nodes, node)
 	}
 	return nodes
@@ -459,17 +472,19 @@ type group struct {
 
 // groupsOn nests a node's cards along one axis, in the order the axis fixes.
 //
-// A closed-enum axis draws a group for every member the workbench declares,
-// including the members holding nothing, because enumerating the flow
-// completely is what the status tree is for. An open-valued axis draws a group
-// for every value some card the producer considered carries, survivor or
-// removed, sorted by the value's bytes ascending. The group holding the cards
-// that carry no value on the axis comes last, whatever the axis.
-func (l *Library) groupsOn(axis string, kept, cut []*bench.Card) []group {
+// A closed-enum axis draws a group for every member the workbench declares
+// that the group's own state can hold, including the members holding nothing,
+// because enumerating the flow completely is what the status tree is for. The
+// blocked substate is the one member exempt from that, and axisValueOrder says
+// why. An open-valued axis draws a group for every value some card the producer
+// considered carries, survivor or removed, sorted by the value's bytes
+// ascending. The group holding the cards that carry no value on the axis comes
+// last, whatever the axis.
+func (l *Library) groupsOn(axis string, kept, cut []*bench.Card, stateCtx string) []group {
 	keptBy := l.gather(axis, kept)
 	cutBy := l.gather(axis, cut)
 	var groups []group
-	for _, value := range l.axisValueOrder(axis, keptBy, cutBy) {
+	for _, value := range l.axisValueOrder(axis, keptBy, cutBy, stateCtx) {
 		groups = append(groups, group{value: value, kept: keptBy[value], cut: cutBy[value]})
 	}
 	return groups
@@ -503,12 +518,32 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 // those cards out of the tree with no node and no account while the root above
 // them went on counting them, and a card missing from a view whose total says
 // it is there is the one failure this projection must not have.
-func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card) []string {
+//
+// Which declared members a substate group draws is settled in three tiers, and
+// two of them meet here. A substate the state cannot hold is never drawn, and
+// declaredValues answers that by asking the state. Of the substates it can
+// hold, ready and active are drawn whether or not a card stands in them, which
+// is the promise the paragraph above makes: an empty ready group tells a reader
+// work is waiting and nobody has taken it up. Blocked is drawn only where a
+// card actually stands in it. A block is the exception rather than the ordinary
+// case, so a blocked group reading zero under every state on the board reports
+// the common thing on every row and leaves the reader to find the row that
+// means something.
+//
+// Occupancy counts the cards the filter removed as well as the survivors. A
+// blocked card a filter hid still means the state has a blocked card, and the
+// honest drawing of that is a group counting nothing with an account of what
+// was filtered, rather than no group at all.
+func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card, stateCtx string) []string {
 	seen := map[string]bool{}
 	var order []string
 	if closedAxis(axis) {
-		for _, value := range l.declaredValues(axis) {
+		for _, value := range l.declaredValues(axis, stateCtx) {
 			if value == "" || seen[value] {
+				continue
+			}
+			if axis == FieldSubstate && value == contract.SubstateBlocked &&
+				len(keptBy[value]) == 0 && len(cutBy[value]) == 0 {
 				continue
 			}
 			seen[value] = true
@@ -537,19 +572,64 @@ func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.
 // workbench declares it: state follows the flow order of workbench.md, and
 // substate follows ready, active, blocked.
 //
+// The substate axis answers for one state rather than for the whole workbench,
+// because which substates a card may carry is a property of where it stands. A
+// state that takes no work up holds no active card, so drawing an active group
+// beneath one invites a reader to ask what would put a card there when the
+// answer is that nothing can. stateCtx is the value of the nearest state group
+// above this one and governs the enumeration through Substates. Where it is
+// empty, and where it names a state the workbench no longer declares, the
+// answer is substateUnion.
+//
 // It is what the workbench says, rather than the whole of what the tree draws.
 // A value no longer declared, and the absent value a card carrying nothing on
 // the axis holds, are both drawn after these by axisValueOrder, which is where
-// the order of the groups is settled.
-func (l *Library) declaredValues(axis string) []string {
+// the order of the groups is settled, and which also drops an unoccupied
+// blocked group from whatever this returns.
+func (l *Library) declaredValues(axis, stateCtx string) []string {
 	if axis == FieldSubstate {
-		return []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+		if stateCtx != "" {
+			if state := l.Bench.StateByRef(stateCtx); state != nil {
+				return state.Substates()
+			}
+		}
+		return l.substateUnion()
 	}
 	values := make([]string, 0, len(l.Bench.States))
 	for _, state := range l.Bench.States {
 		values = append(values, stateRef(state))
 	}
 	return values
+}
+
+// substateUnion is the substates of every state the workbench declares, each
+// one drawn once, in the order the substate axis declares its vocabulary. The
+// order comes from closedValues rather than from whichever state happened to
+// report a value first, because the axis has one order and a reader meeting
+// these groups under a state elsewhere in the same tree meets them in it.
+//
+// It is what declaredValues answers with when no state governs the group,
+// which is the standalone substate axis, a chain that reaches substate without
+// passing through state, and a group standing at a state ref the workbench no
+// longer declares. Such a group still has to say what its closed axis holds,
+// and the union is the widest answer that never offers a value no state on this
+// workbench can reach. On a workbench where no state takes work up, no active
+// group is drawn anywhere, which is the question this whole enumeration exists
+// to answer correctly.
+func (l *Library) substateUnion() []string {
+	held := map[string]bool{}
+	for _, state := range l.Bench.States {
+		for _, value := range state.Substates() {
+			held[value] = true
+		}
+	}
+	var order []string
+	for _, value := range closedValues(FieldSubstate) {
+		if held[value] {
+			order = append(order, value)
+		}
+	}
+	return order
 }
 
 // axisValues is what one card carries on an axis, as the set of groups it is
