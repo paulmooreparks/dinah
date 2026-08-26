@@ -1537,6 +1537,14 @@
       "text": " कोई स्थिति जोड़ने के लिए वर्कबेंच की states सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-states फिर से चलाएँ।",
       "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with."
     },
+    "refusal.dinah.needs-vocabulary-migration": {
+      "text": "Dinah अब {detail} को सीधे नहीं खोलता",
+      "context": "The sentence printed after the refusal name dinah.needs-vocabulary-migration. {detail} carries the profile string the workbench declares, and this refusal is raised only for a revision the retired-name alias resolved, where a plainly unrecognized one is refused as unsupported-version instead."
+    },
+    "refusal.dinah.needs-vocabulary-migration.next": {
+      "text": "; पहले `dinah check --migrate-vocabulary` चलाएँ, फिर इसे दोबारा खोलें",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling."
+    },
     "refusal.dinah.add-needs-a-state": {
       "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्थिति नहीं बची है",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach."

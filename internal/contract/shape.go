@@ -338,6 +338,11 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.repair-would-empty-states.next"},
 	},
 	{
+		Name:      NeedsVocabularyMigration,
+		Fragments: []Fragment{{Key: "refusal.dinah.needs-vocabulary-migration.next"}},
+		NextStep:  []string{"refusal.dinah.needs-vocabulary-migration.next"},
+	},
+	{
 		// One refusal name answers two acts here. delete destroys history,
 		// and a slug rename renames every card in the workbench, so the
 		// workbench command carries its own sentence and its own next step
