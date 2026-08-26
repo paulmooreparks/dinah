@@ -1993,11 +1993,13 @@
     },
     "refusal.dinah.needs-vocabulary-migration": {
       "text": "Dinah öffnet {detail} nicht mehr direkt",
-      "context": "The sentence printed after the refusal name dinah.needs-vocabulary-migration. {detail} carries the profile string the workbench declares, and this refusal is raised only for a revision the retired-name alias resolved, where a plainly unrecognized one is refused as unsupported-version instead."
+      "context": "The sentence printed after the refusal name dinah.needs-vocabulary-migration. {detail} carries the profile string the workbench declares, and this refusal is raised only for a revision the retired-name alias resolved, where a plainly unrecognized one is refused as unsupported-version instead.",
+      "source": "c3cc30091b4f8297"
     },
     "refusal.dinah.needs-vocabulary-migration.next": {
       "text": "; führen Sie zuerst `dinah check --migrate-vocabulary` aus und öffnen Sie sie danach erneut",
-      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling."
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
+      "source": "2d044b02d1cbb5c1"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "this workbench has no columns left to file a new card into",
