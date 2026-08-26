@@ -655,6 +655,14 @@ RELAXATION = "declared relaxation: "
 PATH_VERBS = ["restore", "stash", "commit", "merge", "rebase", "cherry-pick",
               "revert", "am", "apply", "rm", "mv", "bisect", "pull"]
 
+# The two verbs the deployed guard already excluded a trailing hyphen
+# after, so that `merge-base` and `rebase-todo` stayed out of its rules.
+# A segment beginning with one of them was therefore never refused, and
+# claiming it as a relaxation would claim something the trunk never did.
+# The fast suite still holds both shapes, because there the question is
+# what the guard does rather than what it stopped doing.
+HYPHEN_EXCLUDED = ("merge", "rebase")
+
 
 def slashed(path):
     """`path` written with forward slashes, which is how this board writes one.
@@ -695,6 +703,8 @@ def relaxations(checkout, verbnamed):
         for shape, segment in (("ending a segment", "card-%s" % name),
                                ("beginning a segment", "%s-fixture" % name),
                                ("standing as a whole segment", name)):
+            if shape == "beginning a segment" and name in HYPHEN_EXCLUDED:
+                continue
             shapes.append((RELAXATION + "%s %s of a -C path" % (name, shape),
                            "git -C %s/%s/wt rev-parse HEAD" % (scratch, segment)))
     shapes.append((RELAXATION + "a status read through a merge-stage path",
