@@ -456,10 +456,12 @@ are drawn in section 5 rather than here because the page is where a reader meets
 | `check.mcp.1` | `--root names a directory that exists` |
 | `check.mcp.2` | `the workbench you name lies under the root` |
 
-A translation of either sentence stays at or under 51 display columns. That is the width the
-row's other fields leave, and a sentence over it takes a line of its own and puts the page
-over 80 columns, because this table does not wrap. The translator's note on both keys says
-so.
+A translation of either sentence stays at or under 52 display columns. That is the width the
+row's other fields leave, and a sentence over it takes the row to itself and pushes the
+refusal name down to the line beneath. The page survives that, and stays inside 80 columns
+until the sentence itself reaches 72 columns, at which point the row's own line is wider
+than the page, because this table does not wrap. The translator's note on both keys carries
+the 52-column ceiling and says what a longer sentence does to the row.
 
 ## 8. What the operator is being asked to accept
 

@@ -363,12 +363,12 @@
     },
     "check.mcp.1": {
       "text": "--root nennt ein vorhandenes Verzeichnis",
-      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "cb1cd98b0eaed2b8"
     },
     "check.mcp.2": {
       "text": "die genannte Werkbank liegt unter --root",
-      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root.",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "af2ab98a7a859f37"
     },
     "check.missing-anchor": {

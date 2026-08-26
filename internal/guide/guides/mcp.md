@@ -150,8 +150,16 @@ If you leave `workbench` out, Dinah resolves the call against the server's
 default workbench. A value outside the served directory is refused with
 `outside-root`, and a path holding no `workbench.md` is refused with
 `no-workbench`; the refusal names the path it tried, so it points you at
-what is reachable. The one tool that takes no `workbench` is `workbenches`,
-and the paths it lists are every workbench this server can reach.
+what is reachable.
+
+The one tool that takes no `workbench` is `workbenches`. It searches the
+directory the server was given to serve and reports a workbench held by any
+directory below that one, at any depth. Dinah skips the top directory
+itself, so a workbench sitting there is missing from the list. A server
+started without a directory to serve is narrower still. It serves the one
+workbench Dinah discovered for it at startup and searches nowhere else, so
+`workbenches` answers with an empty list while that workbench goes on
+answering every other call.
 
 ```json
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status","arguments":{"workbench":"/srv/dinah/incident"}}}
