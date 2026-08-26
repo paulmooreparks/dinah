@@ -34,7 +34,8 @@
     "card.line.workstreams.separator": {
       "text": ", ",
       "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it.",
-      "source": "7d38007b49acdd1"
+      "source": "7d38007b49acdd1",
+      "verbatim": true
     },
     "card.priority": {
       "text": "  Priorität: {priority}",
@@ -1084,7 +1085,8 @@
     "column.attachments.position": {
       "text": "#",
       "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "af639e4c86018332"
+      "source": "af639e4c86018332",
+      "verbatim": true
     },
     "column.attachments.filename": {
       "text": "Datei",
@@ -1154,7 +1156,8 @@
     "column.flags.option": {
       "text": "Option",
       "context": "Heading over the flag with the value it takes, in the global flag list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "4802e47fe2e95134"
+      "source": "4802e47fe2e95134",
+      "verbatim": true
     },
     "column.flags.what": {
       "text": "Was sie tut",
@@ -1219,7 +1222,8 @@
     "column.log.detail": {
       "text": "Detail",
       "context": "Heading over what the act carried, such as the columns a move ran between, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "8daa1db5187d4ad4"
+      "source": "8daa1db5187d4ad4",
+      "verbatim": true
     },
     "column.log.when": {
       "text": "Wann",
@@ -1259,7 +1263,8 @@
     "column.moves.name": {
       "text": "Name",
       "context": "Heading over the destination's display name, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ef49aec68fd1dc66"
+      "source": "ef49aec68fd1dc66",
+      "verbatim": true
     },
     "column.moves.reject": {
       "text": "Ablehnung",
@@ -1309,7 +1314,8 @@
     "column.slugs.slug": {
       "text": "Slug",
       "context": "Heading over the handle the repair assigned, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.slugs.title": {
       "text": "Titel",
@@ -1329,7 +1335,8 @@
     "column.columns.name": {
       "text": "Name",
       "context": "Heading over the column's display name, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ef49aec68fd1dc66"
+      "source": "ef49aec68fd1dc66",
+      "verbatim": true
     },
     "column.columns.owner": {
       "text": "Eigner",
@@ -1339,7 +1346,8 @@
     "column.columns.slug": {
       "text": "Slug",
       "context": "Heading over the column's short handle, which is what a person types to name it, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.tree.count": {
       "text": "Anzahl",
@@ -1384,7 +1392,8 @@
     "column.workbenches.slug": {
       "text": "Slug",
       "context": "Heading over the workbench's short handle, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.workbenches.workbench": {
       "text": "Werkbank",
@@ -1424,17 +1433,20 @@
     "column.workstreams.name": {
       "text": "Name",
       "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ef49aec68fd1dc66"
+      "source": "ef49aec68fd1dc66",
+      "verbatim": true
     },
     "column.workstreams.slug": {
       "text": "Slug",
       "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.workstreams.status": {
       "text": "Status",
       "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ad3e3c8146fc920f"
+      "source": "ad3e3c8146fc920f",
+      "verbatim": true
     },
     "contents.empty": {
       "text": "{title} ({ref}) enthält nichts.",
@@ -2514,7 +2526,8 @@
     "refusal.malformed.at": {
       "text": ", in {path}",
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
-      "source": "ef1414e25cbe0d27"
+      "source": "ef1414e25cbe0d27",
+      "verbatim": true
     },
     "refusal.malformed.fix": {
       "text": "; bearbeiten Sie die Datei von Hand und fügen Sie es hinzu, und führen Sie dann `dinah check` aus, um es zu bestätigen",
@@ -2524,7 +2537,8 @@
     "refusal.malformed.in-file": {
       "text": ", in {file}",
       "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
-      "source": "746638cc448d3d7c"
+      "source": "746638cc448d3d7c",
+      "verbatim": true
     },
     "refusal.malformed.next": {
       "text": "; schreiben Sie den Befehl als `dinah {usage}` und versuchen Sie es erneut",
@@ -2759,7 +2773,8 @@
     "status.workbench": {
       "text": "{title}  ({root})  [{source}]",
       "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it.",
-      "source": "b9613776bc0a4419"
+      "source": "b9613776bc0a4419",
+      "verbatim": true
     },
     "token.active": {
       "text": "aktiv",
@@ -2834,7 +2849,8 @@
     "token.dinah-editor": {
       "text": "DINAH_EDITOR",
       "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language.",
-      "source": "36616795c3e19d6b"
+      "source": "36616795c3e19d6b",
+      "verbatim": true
     },
     "token.done": {
       "text": "erledigt",
@@ -2924,7 +2940,8 @@
     "token.visual": {
       "text": "VISUAL",
       "context": "How the canonical token visual is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the VISUAL environment variable, which the editor ladder reads above EDITOR. The rendering is the variable's own name, which is the same in every language.",
-      "source": "2097faeb5e231899"
+      "source": "2097faeb5e231899",
+      "verbatim": true
     },
     "token.work": {
       "text": "Arbeit",
@@ -2984,7 +3001,8 @@
     "tree.hidden.join": {
       "text": "{first}, {second}",
       "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
-      "source": "86da02c677b5c51b"
+      "source": "86da02c677b5c51b",
+      "verbatim": true
     },
     "tree.unset": {
       "text": "(kein Wert)",
@@ -3009,7 +3027,8 @@
     "version.tool": {
       "text": "dinah {release}",
       "context": "The tool's own release number.",
-      "source": "9d2528e6a4d8ae98"
+      "source": "9d2528e6a4d8ae98",
+      "verbatim": true
     },
     "warn.stale-prefix": {
       "text": "das Präfix {detail} nennt keinen aktuellen Slug; die Nummer hat die Karte aufgelöst",
@@ -3039,7 +3058,8 @@
     "workstream.line": {
       "text": "{ref}  {title}  [{status}]",
       "context": "The one line printed about a workstream after it is created or one of its fields is written. {ref} is what a person types to reach it, {status} is the value stored under status.",
-      "source": "2d59ee18c01df9b8"
+      "source": "2d59ee18c01df9b8",
+      "verbatim": true
     },
     "workstreams.empty": {
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
@@ -3109,7 +3129,8 @@
     "column.changes.detail": {
       "text": "Detail",
       "context": "Heading over what the act carried, such as the columns a move ran between, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "8daa1db5187d4ad4"
+      "source": "8daa1db5187d4ad4",
+      "verbatim": true
     },
     "changes.cursor": {
       "text": "Cursor: {cursor}",

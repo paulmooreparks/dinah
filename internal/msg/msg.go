@@ -37,6 +37,20 @@ type Entry struct {
 	// Skeleton marks an entry carrying the English text unchanged, which is
 	// what a generated catalog ships until somebody translates it.
 	Skeleton bool `json:"skeleton,omitempty"`
+	// Verbatim marks an entry a translator really did translate and whose
+	// answer is the English text, letter for letter, because the language
+	// uses the same word. A table heading reading "Name" in German is the
+	// ordinary case.
+	//
+	// The flag exists so that the guard over the catalogs can tell such an
+	// entry from English left standing where a translation should be. Every
+	// other entry that is not a skeleton is required to differ from its
+	// English source, which is what makes a catalog quietly refilled with
+	// English fail rather than pass, and a language does not have to be on
+	// the Complete roster for that to hold. Nothing outside the guard reads
+	// this field: to a reader a verbatim entry is an ordinary translation,
+	// and Coverage counts it as one.
+	Verbatim bool `json:"verbatim,omitempty"`
 	// Source is a fingerprint of the English text this entry was translated
 	// from, written when the entry is translated and checked against the
 	// current base entry by TestATranslationTracksItsEnglishSource. It is

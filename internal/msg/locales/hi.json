@@ -34,7 +34,8 @@
     "card.line.workstreams.separator": {
       "text": ", ",
       "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it.",
-      "source": "7d38007b49acdd1"
+      "source": "7d38007b49acdd1",
+      "verbatim": true
     },
     "card.priority": {
       "text": "  प्राथमिकता: {priority}",
@@ -1019,7 +1020,8 @@
     "column.attachments.position": {
       "text": "#",
       "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "af639e4c86018332"
+      "source": "af639e4c86018332",
+      "verbatim": true
     },
     "column.attachments.filename": {
       "text": "फ़ाइल",
@@ -2259,7 +2261,8 @@
     "status.workbench": {
       "text": "{title}  ({root})  [{source}]",
       "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it.",
-      "source": "b9613776bc0a4419"
+      "source": "b9613776bc0a4419",
+      "verbatim": true
     },
     "token.active": {
       "text": "सक्रिय",
@@ -2334,7 +2337,8 @@
     "token.dinah-editor": {
       "text": "DINAH_EDITOR",
       "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language.",
-      "source": "36616795c3e19d6b"
+      "source": "36616795c3e19d6b",
+      "verbatim": true
     },
     "token.done": {
       "text": "समाप्त",
@@ -2424,7 +2428,8 @@
     "token.visual": {
       "text": "VISUAL",
       "context": "How the canonical token visual is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the VISUAL environment variable, which the editor ladder reads above EDITOR. The rendering is the variable's own name, which is the same in every language.",
-      "source": "2097faeb5e231899"
+      "source": "2097faeb5e231899",
+      "verbatim": true
     },
     "token.work": {
       "text": "काम",
@@ -2469,7 +2474,8 @@
     "version.tool": {
       "text": "dinah {release}",
       "context": "The tool's own release number.",
-      "source": "9d2528e6a4d8ae98"
+      "source": "9d2528e6a4d8ae98",
+      "verbatim": true
     },
     "warn.stale-prefix": {
       "text": "उपसर्ग {detail} किसी मौजूदा स्लग को नहीं नामता; संख्या से कार्ड मिला",
@@ -2499,7 +2505,8 @@
     "workstream.line": {
       "text": "{ref}  {title}  [{status}]",
       "context": "The one line printed about a workstream after it is created or one of its fields is written. {ref} is what a person types to reach it, {status} is the value stored under status.",
-      "source": "2d59ee18c01df9b8"
+      "source": "2d59ee18c01df9b8",
+      "verbatim": true
     },
     "workstreams.empty": {
       "text": "इस वर्कबेंच में कोई वर्कस्ट्रीम नहीं है",
@@ -2954,7 +2961,8 @@
     "tree.hidden.join": {
       "text": "{first}, {second}",
       "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
-      "source": "86da02c677b5c51b"
+      "source": "86da02c677b5c51b",
+      "verbatim": true
     },
     "column.tree.title": {
       "text": "शीर्षक",

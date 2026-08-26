@@ -1772,7 +1772,7 @@
       "skeleton": true
     },
     "param.edit.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah edit`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1862,7 +1862,7 @@
       "skeleton": true
     },
     "param.path.card.summary": {
-      "text": "this workbench written as `workbench` or `.`, a column, a card, or something below a card such as wb-1/comments/1",
+      "text": "this workbench written as `workbench` or `.`, a card, or something below a card such as wb-1/comments/1",
       "context": "The meaning of the card argument of `dinah path`, printed in that command's arguments table.",
       "skeleton": true
     },
@@ -1877,7 +1877,7 @@
       "skeleton": true
     },
     "param.show.card.summary": {
-      "text": "a column, a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
+      "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
       "skeleton": true
     },
