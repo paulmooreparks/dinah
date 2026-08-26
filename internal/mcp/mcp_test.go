@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -134,8 +135,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 32 {
-		t.Errorf("wanted thirty-two tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 33 {
+		t.Errorf("wanted thirty-three tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -162,9 +163,9 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
 	}
-	for _, absent := range []string{"path", "edit", "init", "extract", "config", "mcp", "guide"} {
+	for absent := range toolExemptions {
 		if names[absent] {
-			t.Errorf("%s should not be a tool on this head", absent)
+			t.Errorf("%s is exempted from this head and is served as a tool anyway", absent)
 		}
 	}
 }
@@ -705,34 +706,32 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 	}
 }
 
-// TestEveryDeclaredParameterReachesTheRequest asserts that every parameter a
-// tool advertises in its schema is one this head can actually put on a
-// request.
+// TestEveryDeclaredParameterReachesItsDeclaredField asserts that every
+// parameter a tool advertises in its schema lands on the exact verb.Request
+// field the table declares for it, and that a parameter declaring no field
+// lands nowhere at all.
 //
-// The schema is generated from verb.Params, and request2Args reads the same
-// list, but the two switch statements it dispatches into are written by hand.
-// A parameter added to a command's table therefore appears in the schema, is
-// offered to every agent reading the surface, is looked up by name on the way
-// in, and then falls off the end of a switch that has no case for it. Nothing
+// The schema is generated from verb.Params, and the assignment behind it is a
+// pair of hand-written switches in this package. A parameter can therefore be
+// offered to every agent reading the surface, be looked up by name on the way
+// in, and then fall off the end of a switch that has no case for it. Nothing
 // fails: the call succeeds and the argument is discarded, so an agent asking
 // for one thing is silently given another. `no-claim` shipped that way and is
 // the reason this check exists.
 //
-// The check drives a value through request2Args and asserts the request came
-// back different from an empty one, which is what "reached the request"
-// means. A parameter that lands in the wrong field still passes, so the check
-// bounds one defect class and does not prove the assignment correct.
-func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
-	// A parameter the head deliberately reads and discards is named here with
-	// the reason, so that the deliberate case is visible rather than looking
-	// like the accident this check exists to find. An entry here does not skip
-	// the parameter either. The check requires the parameter to go on landing
-	// nowhere, so an entry states what the head does today rather than excusing
-	// it from being read, and wiring the parameter up reddens this test until
-	// somebody says the decision has changed.
-	carriedNowhereOnPurpose := map[string]string{
-		"version.catalogs": "the version tool always reports catalog coverage, so the marker selects nothing",
-	}
+// The check used to ask only whether the request came back different from an
+// empty one, which passed a parameter that landed in the wrong field. It now
+// reads param.Field, drives a sentinel of that field's own type through
+// request2Args, and requires that field to hold the sentinel and every other
+// field to be untouched. Two defects are caught rather than one: a parameter
+// dropped on the floor, and a parameter that collides with a field it was
+// never meant to fill.
+//
+// A parameter whose Field is empty is checked in the other direction. The
+// declaration says it reaches no field, so the check builds the request and
+// requires it to stay at its zero value, which is what makes "nothing, on
+// purpose" different from "something, lost on the way".
+func TestEveryDeclaredParameterReachesItsDeclaredField(t *testing.T) {
 	// A parameter this check found landing nowhere, which is a defect rather
 	// than a decision and is tracked on its own card. An entry here does not
 	// skip the parameter. The check still builds the request and requires the
@@ -745,34 +744,29 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 	for _, entry := range tools {
 		for _, param := range verb.Params(entry.command) {
 			named := entry.command + "." + param.Name
-			arguments := map[string]any{}
-			if param.Marker {
-				arguments[param.Name] = true
-			} else {
-				arguments[param.Name] = durationOrWord(param.Name)
-			}
-			built := request2Args(entry.command, arguments)
 			empty := request2Args(entry.command, map[string]any{})
-			reached := !reflect.DeepEqual(built, empty)
-			if reason, deliberate := carriedNowhereOnPurpose[named]; deliberate {
-				if reached {
-					t.Errorf("%s: %q reaches the request, and this entry says it never does (%s); the decision has changed, so change the entry or take it out",
-						entry.name, param.Name, reason)
+			argument, want := sentinelFor(t, entry.name, param, empty)
+			if argument == nil {
+				continue
+			}
+			built := request2Args(entry.command, map[string]any{param.Name: argument})
+			if param.Field == "" {
+				checked++
+				if !reflect.DeepEqual(built, empty) {
+					t.Errorf("%s: %q declares no request field and this head puts it on one anyway, so the declaration and the code disagree",
+						entry.name, param.Name)
 				}
 				continue
 			}
 			if tracked, defective := knownDefect[named]; defective {
-				if reached {
+				if !reflect.DeepEqual(built, empty) {
 					t.Errorf("%s: %q now reaches the request, so the exemption has outlived its defect and belongs deleted (%s)",
 						entry.name, param.Name, tracked)
 				}
 				continue
 			}
 			checked++
-			if !reached {
-				t.Errorf("%s: the schema offers %q and request2Args puts it nowhere on the request, so an agent sending it is silently ignored",
-					entry.name, param.Name)
-			}
+			assertOnlyFieldChanged(t, entry.name, param, built, empty, want)
 		}
 	}
 	if checked == 0 {
@@ -780,14 +774,106 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 	}
 }
 
-// durationOrWord returns a value the assignment will accept for one named
-// parameter. Most take any word; `expires` is parsed as a duration and a word
-// it cannot parse would be dropped for a reason this check is not about.
-func durationOrWord(name string) string {
-	if name == "expires" {
-		return "8h"
+// sentinelFor returns the argument to send for one parameter and the value its
+// declared field should hold afterwards, both derived from that field's own Go
+// type rather than from the parameter's spelling. A parameter declaring no
+// field gets an argument of the type its Marker mark implies and no expected
+// value, since there is nothing for it to land in.
+//
+// A field type this check cannot drive fails the test rather than being
+// skipped, because a silently skipped parameter is the outcome the whole check
+// exists to prevent. Such a parameter comes back with a nil argument, which is
+// the caller's signal to move on to the next one.
+func sentinelFor(t *testing.T, tool string, param verb.Param, empty *verb.Request) (any, any) {
+	t.Helper()
+	if param.Field == "" {
+		if param.Marker {
+			return true, nil
+		}
+		return "sentinel-value", nil
 	}
-	return "x"
+	field := reflect.ValueOf(empty).Elem().FieldByName(param.Field)
+	if !field.IsValid() {
+		t.Errorf("%s: %q declares the request field %s and verb.Request has no such field", tool, param.Name, param.Field)
+		return nil, nil
+	}
+	switch {
+	case field.Type() == reflect.TypeOf(time.Duration(0)):
+		return "8h", 8 * time.Hour
+	case field.Kind() == reflect.Bool:
+		return true, true
+	case field.Kind() == reflect.String:
+		return "sentinel-value", "sentinel-value"
+	}
+	t.Errorf("%s: %q declares the request field %s, whose type %s this check does not know how to drive",
+		tool, param.Name, param.Field, field.Type())
+	return nil, nil
+}
+
+// assertOnlyFieldChanged requires the built request to carry the sentinel in
+// the parameter's declared field and to match the empty request everywhere
+// else, which is what tells a landing apart from a collision.
+func assertOnlyFieldChanged(t *testing.T, tool string, param verb.Param, built, empty *verb.Request, want any) {
+	t.Helper()
+	builtValue := reflect.ValueOf(built).Elem()
+	emptyValue := reflect.ValueOf(empty).Elem()
+	for i := 0; i < builtValue.NumField(); i++ {
+		name := builtValue.Type().Field(i).Name
+		got := builtValue.Field(i).Interface()
+		if name == param.Field {
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("%s: the schema offers %q and request2Args left %s holding %v rather than the value sent, so an agent sending it is silently ignored",
+					tool, param.Name, name, got)
+			}
+			continue
+		}
+		if !reflect.DeepEqual(got, emptyValue.Field(i).Interface()) {
+			t.Errorf("%s: %q declares the request field %s and also changed %s, so it collides with a field it was never meant to fill",
+				tool, param.Name, param.Field, name)
+		}
+	}
+}
+
+// TestEveryWorkbenchesParameterChangesTheAnswer asserts that each parameter the
+// workbenches command declares actually reaches the one tool that is answered
+// ahead of the table lookup.
+//
+// workbenches is dispatched by call before request2Args ever runs, so the
+// check above cannot see it: the handler takes the root and nothing else. That
+// is how a schema could come to advertise a path and a depth bound the handler
+// never reads. The assertion is call-shaped rather than reflective, and it
+// iterates verb.Params rather than a count typed out here, so it reads nothing
+// today and arms itself the moment the command declares its first parameter.
+func TestEveryWorkbenchesParameterChangesTheAnswer(t *testing.T) {
+	declared := verb.Params("workbenches")
+	if len(declared) == 0 {
+		t.Skip("workbenches declares no parameters yet, so there is nothing for the handler to read")
+	}
+	library := newLibrary(t)
+	bare := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`))
+	plain, err := json.Marshal(bare)
+	if err != nil {
+		t.Fatalf("marshal the bare answer: %v", err)
+	}
+	for _, param := range declared {
+		var argument any = "sentinel-value"
+		if param.Marker {
+			argument = true
+		}
+		encoded, err := json.Marshal(map[string]any{param.Name: argument})
+		if err != nil {
+			t.Fatalf("marshal the arguments for %q: %v", param.Name, err)
+		}
+		call := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":` + string(encoded) + `}}`
+		named, err := json.Marshal(payload(t, ask(t, library, call)))
+		if err != nil {
+			t.Fatalf("marshal the answer to %q: %v", param.Name, err)
+		}
+		if string(named) == string(plain) {
+			t.Errorf("workbenches: the schema offers %q and the handler answers a call naming it exactly as it answers a call naming nothing, so the argument is discarded",
+				param.Name)
+		}
+	}
 }
 
 // TestPullIsDrivenThroughTheHead asserts that the pull tool works over the

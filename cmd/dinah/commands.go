@@ -23,6 +23,15 @@ import (
 // an initialisation cycle.
 var commands []*command
 
+// commandExemptions names every library command this head deliberately does
+// not dispatch, with the reason it is absent. It is empty because the terminal
+// serves the whole verb table today, and it exists anyway so that a future
+// omission has somewhere to be argued for: the roster check requires every
+// command to be either dispatched here or named here with a reason, and an
+// empty map is the strongest reading of that rule rather than the absence of
+// one.
+var commandExemptions = map[string]string{}
+
 func init() {
 	commands = []*command{
 		{name: "add", group: groupWork, run: runAdd, openTail: true},
