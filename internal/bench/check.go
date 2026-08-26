@@ -60,6 +60,18 @@ const (
 	// refused for the reason above. The repair is an edit to workbench.md or
 	// to a state.md, so no flag offers to make it.
 	FindingKindOutOfPosition = "check.kind-out-of-position"
+	// FindingRejectTargetUnknown names a state whose reject_to names no
+	// state this workbench carries.
+	FindingRejectTargetUnknown = "check.reject-target-unknown"
+	// FindingRejectTargetIsSelf names a state whose reject_to names itself.
+	FindingRejectTargetIsSelf = "check.reject-target-is-self"
+	// FindingRejectTargetForward names a state whose reject_to names a state
+	// standing ahead of it in the flow whose kind is not done. A forward
+	// reject_to landing in a done state is not reported, because a rejected
+	// card ends in the same done queue a finished one ends in and carries
+	// its own outcome, which is the ruling dinah-207 records as D-5. See the
+	// state.md reject_to section of docs/design/format.md for the reasoning.
+	FindingRejectTargetForward = "check.reject-target-forward"
 	// FindingUnknownKind names a state carrying a layer's kind this build
 	// does not implement. CORE-STATE-12 says such a state is read as though
 	// its kind were work, and the sentence says so, because a reader
@@ -158,6 +170,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		findings = append(findings, b.checkCard(card)...)
 	}
 	findings = append(findings, b.checkStateKinds()...)
+	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkWorkstreams()...)
 	findings = append(findings, b.checkStateSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
@@ -194,6 +207,38 @@ func (b *Bench) checkStateKinds() []Finding {
 		}
 		if b.kindStandsWrong(state, start) {
 			findings = append(findings, Finding{Path: path, Key: FindingKindOutOfPosition, Detail: state.Ref()})
+		}
+	}
+	return findings
+}
+
+// checkRejectTargets reports a declared reject_to this build cannot cleanly
+// act on: one naming no state, one naming its own state, and one naming a
+// state ahead of it in the flow whose kind is not done. It resolves each
+// declaration for itself rather than calling RejectTarget, because
+// RejectTarget answers one nil for all three conditions and a reader telling a
+// person what to fix needs to tell them which one applies. Whether the target
+// is a done state is asked of State.Terminal rather than compared here, which
+// is the one answer dinah-273 left for that question.
+//
+// A forward declaration landing in a done state is not reported. A rejected
+// card ends where a finished card ends, carrying its own outcome, so naming
+// the terminal is a thing a board may legitimately want to say.
+func (b *Bench) checkRejectTargets() []Finding {
+	var findings []Finding
+	for _, state := range b.States {
+		if state.RejectTo == "" {
+			continue
+		}
+		path := b.StateAnchorPath(state.ID)
+		target := b.StateByRef(state.RejectTo)
+		switch {
+		case target == nil:
+			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetUnknown, Detail: state.Ref()})
+		case target.ID == state.ID:
+			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetIsSelf, Detail: state.Ref()})
+		case target.Position > state.Position && !target.Terminal():
+			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetForward, Detail: state.Ref()})
 		}
 	}
 	return findings

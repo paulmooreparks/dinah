@@ -37,6 +37,18 @@ type Event struct {
 	ToTitle   string `json:"to_title,omitempty"`
 	// Override marks the one act a move admitted under CORE-MOVE-9 records.
 	Override bool `json:"override,omitempty"`
+	// Reject marks a moved event whose destination is the departure state's
+	// own reject_to target. Set only by move; pull never carries it, because
+	// a pull's destination is always a state a card is carried forward into
+	// by carriesInto's walk, and a state that walk ever selects always takes
+	// work up, which the terminal region and every buffer, intake and done
+	// state reject_to may legally name do not. That argument leaves one
+	// destination over: an ordinary work state ahead of the declaring one,
+	// which carriesInto can select and a pull into it records no mark for.
+	// Nothing refuses such a declaration, and nothing needs to, because it is
+	// a defect in the board rather than a rejection anybody meant, and
+	// checkRejectTargets reports it under check.reject-target-forward.
+	Reject bool `json:"reject,omitempty"`
 	// Reason is a block's prose reason.
 	Reason string `json:"reason,omitempty"`
 	// Kind is a block's optional class of obstacle.

@@ -393,6 +393,11 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 		ToTitle:   destination.Title,
 		Override:  override,
 	}
+	if departure != nil {
+		if target := l.Bench.RejectTarget(departure); target != nil && target.ID == destination.ID {
+			ev.Reject = true
+		}
+	}
 	card.State = destination.ID
 	response, err := l.commit(req, card, ev)
 	if err != nil {

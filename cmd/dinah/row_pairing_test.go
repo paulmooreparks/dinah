@@ -946,6 +946,16 @@ func sweptToken(tag, name string) string {
 	return msg.For(tag).T(key)
 }
 
+// sweptYesNo renders a boolean column's value the way the head's own yesNo
+// does, so a fixture expecting one reads the catalog the renderer read rather
+// than a literal a translator can move out from under it.
+func sweptYesNo(tag string, value bool) string {
+	if value {
+		return msg.For(tag).T("word.yes")
+	}
+	return msg.For(tag).T("word.no")
+}
+
 // sweptSlugCell renders a slug column's value the way the head's own slugCell
 // does: the slug where the entity has one, and the placeholder naming the
 // repair where it has none.
@@ -972,6 +982,10 @@ func sweptCardsIn(r *sweptRecord, state int) []sweptCardRecord {
 // expectMoves is the legal moves under a served instruction: every state but
 // the one the card stands in, under the head's own direction rule, which is
 // forward for a state further down the flow and backward for one behind it.
+// The reject cell reads no on every row, because the sweep's healthy fixture
+// declares reject_to on no state; the positive case belongs to dinah-207's own
+// tests rather than to a fixture whose point is column widths under wide,
+// matra-bearing and emoji-joined titles.
 func expectMoves(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	card := r.cards[0]
@@ -984,7 +998,7 @@ func expectMoves(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 		if at > card.state {
 			direction = verb.Forward
 		}
-		rows = append(rows, sweptTexts(state.ref(), state.title, sweptToken(tag, direction)))
+		rows = append(rows, sweptTexts(state.ref(), state.title, sweptToken(tag, direction), sweptYesNo(tag, false)))
 	}
 	return sweptExpectation{rows: rows, source: "the record's states, other than the one the served card stands in"}
 }

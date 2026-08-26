@@ -125,6 +125,12 @@ type State struct {
 	// orthogonal to OperatorOwned, which answers who may move a card out
 	// and which this field never touches.
 	AwaitingOutside bool
+	// RejectTo is the ref the state's own reject_to declaration names,
+	// exactly as the frontmatter carries it, or empty when the state
+	// declares none. It is resolved through Bench.RejectTarget rather than
+	// read directly, because resolving a name against the flow needs the
+	// whole state list and this field alone does not carry one.
+	RejectTo string
 	// Capacity is the state's declared limit, or zero for unlimited.
 	Capacity int
 	// Instructions is the state's own body, the last layer of the chain.
@@ -1090,6 +1096,7 @@ func readState(root, id string, position int) (*State, error) {
 		Slug:          fm.Value("slug"),
 		Kind:          fm.Value("kind"),
 		OperatorOwned: fm.Value("operator_owned") == "true",
+		RejectTo:      fm.Value("reject_to"),
 		Instructions:  body,
 		Position:      position,
 		FM:            fm,
@@ -1138,6 +1145,26 @@ func (b *Bench) State(id string) *State {
 		}
 	}
 	return nil
+}
+
+// RejectTarget resolves the state a state's own reject_to declaration names.
+// It answers nil when the state is nil, when the state declares no reject_to,
+// when the declared ref names no state this workbench carries, and when it
+// names the declaring state itself, because none of those is a destination any
+// caller should act on. Every reader of the declaration, which is legalMoves
+// and move's own journal event, calls this rather than reading RejectTo and
+// resolving the name for itself, so a workbench this build cannot cleanly
+// resolve reads as a workbench declaring nothing wherever the declaration is
+// acted on, and dinah check is the one surface that still says why.
+func (b *Bench) RejectTarget(state *State) *State {
+	if state == nil || state.RejectTo == "" {
+		return nil
+	}
+	target := b.StateByRef(state.RejectTo)
+	if target == nil || target.ID == state.ID {
+		return nil
+	}
+	return target
 }
 
 // StateByRef returns the state a reference names, accepting the identifier,

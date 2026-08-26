@@ -170,9 +170,9 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	}
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
-	t := table{indent: 2, columns: s.columns("moves", "state", "name", "direction")}
+	t := table{indent: 2, columns: s.columns("moves", "state", "name", "direction", "reject")}
 	for _, move := range moves {
-		fields := []string{move.Ref, move.Title, s.token(move.Direction)}
+		fields := []string{move.Ref, move.Title, s.token(move.Direction), s.yesNo(move.Reject)}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -521,6 +521,9 @@ func (s *session) eventDetail(ev bench.Event) string {
 		tail := s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
 		if ev.Override {
 			tail += " " + s.r.T("log.override")
+		}
+		if ev.Reject {
+			tail += " " + s.r.T("log.reject")
 		}
 		return tail
 	case contract.EventBlocked:

@@ -433,6 +433,18 @@
       "text": "क्वेरी जिस भी severity या priority का नाम लेती है वह घोषित है या किसी जीवित कार्ड में दर्ज है",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "check.reject-target-forward": {
+      "text": "स्थिति {detail} reject_to में अपने आगे की ऐसी स्थिति बताती है जो done स्थिति नहीं है",
+      "context": "A check finding: reject_to names a state further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring state, or that lands in a done state ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring state."
+    },
+    "check.reject-target-is-self": {
+      "text": "स्थिति {detail} reject_to में स्वयं को बताती है",
+      "context": "A check finding: reject_to names the state that declares it, which is never a destination a caller should act on. {detail} carries the declaring state."
+    },
+    "check.reject-target-unknown": {
+      "text": "स्थिति {detail} reject_to में ऐसी स्थिति बताती है जो यह वर्कबेंच नहीं रखती",
+      "context": "A check finding: reject_to names no state in the flow. {detail} carries the declaring state, and the repair is an edit to that state's own state.md."
+    },
     "check.release.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of release, quoted from section 6 of the core profile."
@@ -937,6 +949,10 @@
       "text": "नाम",
       "context": "Heading over the destination's display name, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.moves.reject": {
+      "text": "अस्वीकृति",
+      "context": "Heading over whether this row is the destination the departure state's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "column.moves.state": {
       "text": "स्थिति",
       "context": "Heading over the destination a person types on a move, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -1176,6 +1192,10 @@
     "log.override": {
       "text": "(अधिरोहण)",
       "context": "The mark on a move admitted under an operator's override."
+    },
+    "log.reject": {
+      "text": "(अस्वीकृत)",
+      "context": "The mark on a move whose destination is the departure state's own reject_to target."
     },
     "ls.empty": {
       "text": "यहाँ कोई कार्ड नहीं।",
