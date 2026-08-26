@@ -2,7 +2,7 @@
 
 import * as assert from "node:assert/strict";
 
-import { api, extension, folder, resolution, until } from "./support";
+import { api, declaredProfile, extension, folder, resolution, until } from "./support";
 
 suite("a workspace containing a workbench", () => {
 	test("the extension activates on its own", async () => {
@@ -22,7 +22,7 @@ suite("a workspace containing a workbench", () => {
 			return;
 		}
 		assert.ok(resolved.root.length > 0);
-		assert.equal(resolved.profile, "dinah-core/0.4");
+		assert.equal(resolved.profile, declaredProfile());
 		assert.equal(resolved.insideWorkspace, true);
 		assert.ok(resolved.root.startsWith(folder()));
 	});
