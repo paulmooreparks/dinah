@@ -3232,8 +3232,15 @@ func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contra
 // tree keeps that shape. An entry is the one way such a site stays quiet, so a
 // construct nobody has argued for is a finding rather than a silence, and an
 // entry naming a shape the tree no longer has is reported too.
+//
+// A key is a file and an expression rather than a line, so an entry excuses
+// every site in that file handing a refusal an argument written that way. That
+// is deliberate for the two entries below, whose expressions each occur once,
+// and it is the granularity to tighten first if a file ever grows a second
+// site spelled identically.
 var unfollowedRefusalValues = map[string]string{
 	"cmd/dinah/render.go:s.outcomeValues(response)": "outcomeValues composes a response's named values in cmd/dinah/render.go, and a map built inside a called function is not followed into that function. Nothing else in the tree composes its named values that way, and that is a fact this check keeps rather than a claim it makes, since a second such site would be reported here instead of read past.",
+	"internal/contract/contract.go:extra":           "With copies an existing refusal's Extra map forward and adds one caller-supplied value, so its contents are a container this check reads at the raise site that built it rather than at this one, and the added value is a parameter. Following it would mean following a struct field across calls, which is dataflow this check does not do. Every caller in the tree passes a path variable there, which grep -rn 'contract.With(' confirms, so no English literal reaches a reader through this site today.",
 }
 
 // checkNoEnglishLiteralReachesAPlaceholder is check 5. A value a reader sees
@@ -3261,25 +3268,45 @@ var unfollowedRefusalValues = map[string]string{
 //     parameter, read through the composite literals its callers in the same
 //     package hand it in that position.
 //
-// An argument none of the four routes resolves is not read past. It is
-// reported at the raise site, and it goes quiet only when
-// unfollowedRefusalValues names it with a reason. The number of constructs
-// this check reads past is therefore kept by the code rather than asserted in
-// this comment, which matters because dinah-282 wrote that number down twice
-// and was wrong both times. The first attempt recognised a literal in an
-// argument list and a literal assigned to the name extra, and it missed the
-// same map under any other name. The second followed a local identifier and
-// missed a package-level one. Each missed spelling reached the same
-// placeholder through the same refusal, and a check whose reach is the list
-// its author thought of is the defect this card exists to remove.
+// Reaching a container is not the same as reading it, and dinah-282's third
+// review turned on that difference. A route answers that it read the map only
+// when every value reaching the name is a string literal this check examined.
+// A value of any other shape, a name handed to another function that may fill
+// it, and an argument no route describes are all one answer, which is that the
+// check did not read the map, and that answer reports the site. An empty
+// literal assigned to a name is therefore the least evidence this check can
+// hold rather than the most, so a map made empty and filled by a helper, and a
+// map populated by copying from a table, are both reported rather than counted
+// as read.
 //
-// Two of the routes over-reach rather than under-reach, and a guard is better
-// wrong in that direction. An index write is matched by name across the whole
+// An argument the check did not read is not read past. It is reported at the
+// raise site, and it goes quiet only when unfollowedRefusalValues names it
+// with a reason. The number of constructs this check reads past is therefore
+// kept by the code rather than asserted in this comment, which matters because
+// dinah-282 wrote that number down twice and was wrong both times. The first
+// attempt recognised a literal in an argument list and a literal assigned to
+// the name extra, and it missed the same map under any other name. The second
+// followed a local identifier and missed a package-level one. The third
+// followed a local identifier to a container it never opened. Each missed
+// spelling reached the same placeholder through the same refusal, and a check
+// whose reach is the list its author thought of is the defect this card exists
+// to remove.
+//
+// Three totals rather than one say whether the check did any work, because one
+// counter cannot tell a check that found no refusal to examine from a check
+// that examined nothing but empty containers. sites counts the refusals
+// carrying named values, resolved counts those the check followed to their
+// values, and values counts the individual strings it examined. Each total
+// carries its own assertion and its own sentence.
+//
+// The routes over-reach rather than under-reach, and a guard is better wrong
+// in that direction. An index write is matched by name across the whole
 // package, so a local sharing a package-level map's name is attributed to that
-// map, and a caller is matched by function name, so a method sharing a
-// function's name is read as a call to it. Each costs at worst a finding that
-// quotes a real phrase in a real map, which a person can then move into the
-// catalog.
+// map. A caller is matched by function name, so a method sharing a function's
+// name is read as a call to it. A name handed to any call other than the
+// refusal that consumes it is treated as filled there, even where the callee
+// only reads it. Each costs at worst a finding that quotes a real phrase in a
+// real map, or that names a real site somebody then exempts with a reason.
 func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 	t.Helper()
 	fileSet := token.NewFileSet()
@@ -3315,15 +3342,21 @@ func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 	}
 	reporter := refusalReporter{t: t, fileSet: fileSet, seen: map[string]bool{}}
 	excused := map[string]bool{}
-	sites := 0
+	tally := refusalTally{}
 	for _, directory := range sortedCatalogKeys(packages) {
 		scope := readRefusalScope(packages[directory])
 		for _, source := range packages[directory] {
-			sites += readRefusalPhrases(reporter, source, scope, excused)
+			tally.add(readRefusalPhrases(reporter, source, scope, excused))
 		}
 	}
-	if sites == 0 {
+	if tally.sites == 0 {
 		t.Error("no refusal in the tree was found carrying named values, so check 5 read nothing")
+	}
+	if tally.sites > 0 && tally.resolved == 0 {
+		t.Errorf("check 5 found %d refusals carrying named values and followed none of them to a value, so every site it saw was reported or excused and it validated nothing", tally.sites)
+	}
+	if tally.resolved > 0 && tally.values == 0 {
+		t.Errorf("check 5 followed %d refusals to their named values and every container it reached was empty, so it examined no string at all and would report no phrase however many the tree carried", tally.resolved)
 	}
 	for _, key := range sortedCatalogKeys(unfollowedRefusalValues) {
 		if strings.TrimSpace(unfollowedRefusalValues[key]) == "" {
@@ -3341,6 +3374,46 @@ type refusalSource struct {
 	name string
 	file *ast.File
 }
+
+// refusalTally is how much work check 5 did, kept as three totals because one
+// total cannot distinguish the two ways the check can do none. A tree carrying
+// no refusal with named values leaves sites at zero, a tree whose every such
+// refusal is reported or excused leaves resolved at zero, and a tree whose
+// followed refusals all carry empty containers leaves values at zero. Each is
+// a different defect and each gets its own sentence.
+type refusalTally struct {
+	// sites is the RefuseWith calls found carrying a named-value argument.
+	sites int
+	// resolved is the sites the check followed to the values inside them.
+	resolved int
+	// values is the individual strings the check examined.
+	values int
+}
+
+// add accumulates one file's totals into the run's.
+func (r *refusalTally) add(other refusalTally) {
+	r.sites += other.sites
+	r.resolved += other.resolved
+	r.values += other.values
+}
+
+// refusalReach is what one resolution route learned about the name a refusal
+// was handed. Reading nothing and reading a container that turned out to be
+// empty are different answers, and treating the second as the first is the
+// fail-open dinah-282's third review found.
+type refusalReach int
+
+const (
+	// reachNone says the route does not describe this name at all, so the
+	// next route gets its turn.
+	reachNone refusalReach = iota
+	// reachOpaque says the route found the name and could not follow every
+	// value that reaches it, which is the answer that reports the site.
+	reachOpaque
+	// reachRead says every value reaching the name was a string literal this
+	// check examined.
+	reachRead
+)
 
 // refusalLiteral is a composite literal and the file it was written in, which
 // is not always the file of the refusal that reaches it: a package-level map
@@ -3367,10 +3440,14 @@ type refusalCall struct {
 // declares, and what its callers hand each of its functions. A refusal given a
 // package-level name reaches everything the package wrote into that name, and
 // a refusal given a parameter reaches whatever its callers passed.
+// A package-level name can also be filled by a function this check does not
+// enter, so escapes records every name the package hands to a call that is not
+// the refusal consuming it.
 type refusalScope struct {
 	literals map[string]refusalLiteral
 	writes   map[string][]refusalValue
 	calls    map[string][]refusalCall
+	escapes  map[string]bool
 }
 
 // readRefusalScope reads one package's files into the scope above.
@@ -3379,6 +3456,7 @@ func readRefusalScope(sources []*refusalSource) *refusalScope {
 		literals: map[string]refusalLiteral{},
 		writes:   map[string][]refusalValue{},
 		calls:    map[string][]refusalCall{},
+		escapes:  map[string]bool{},
 	}
 	for _, source := range sources {
 		for _, declaration := range source.file.Decls {
@@ -3420,6 +3498,14 @@ func readRefusalScope(sources []*refusalSource) *refusalScope {
 			case *ast.CallExpr:
 				if named := calleeName(found); named != "" {
 					scope.calls[named] = append(scope.calls[named], refusalCall{file: source.name, arguments: found.Args})
+				}
+				if !fillableCall(found) {
+					return true
+				}
+				for _, argument := range found.Args {
+					if passed, ok := argument.(*ast.Ident); ok {
+						scope.escapes[passed.Name] = true
+					}
 				}
 			}
 			return true
@@ -3466,32 +3552,60 @@ func (r refusalReporter) phrase(file string, pos token.Pos, where, text string) 
 	r.t.Errorf("%s:%d passes the phrase %q as %s, and a value a reader sees reaches them through a catalog key rather than as an English literal", file, r.fileSet.Position(pos).Line, text, where)
 }
 
-// mapLiteral reports every phrase a named-value map spells out.
-func (r refusalReporter) mapLiteral(file string, literal *ast.CompositeLit) {
+// mapLiteral reports every phrase a named-value map spells out, and answers
+// how many string literals it examined. A literal written out in front of the
+// check carries its whole content there, so every element of it is examined
+// whether or not the element turns out to be a literal.
+func (r refusalReporter) mapLiteral(file string, literal *ast.CompositeLit) int {
+	read := 0
 	for _, element := range literal.Elts {
 		pair, ok := element.(*ast.KeyValueExpr)
 		if !ok {
 			continue
 		}
-		if text, ok := phraseLiteral(pair.Value); ok {
-			r.phrase(file, pair.Value.Pos(), "a named value", text)
+		if r.value(file, pair.Value) {
+			read++
 		}
 	}
+	return read
 }
 
-// written reports the phrases written into a named-value map by index.
-func (r refusalReporter) written(values []refusalValue) {
+// written reports the phrases written into a named-value map by index, and
+// answers in the same terms mapLiteral does.
+func (r refusalReporter) written(values []refusalValue) int {
+	read := 0
 	for _, value := range values {
-		if text, ok := phraseLiteral(value.value); ok {
-			r.phrase(value.file, value.value.Pos(), "a named value", text)
+		if r.value(value.file, value.value) {
+			read++
 		}
 	}
+	return read
 }
 
-// readRefusalPhrases reports one file's raise sites and returns how many
-// refusals carrying named values it found, which is what tells the caller
-// whether the check read anything at all.
-func readRefusalPhrases(reporter refusalReporter, source *refusalSource, scope *refusalScope, excused map[string]bool) int {
+// value examines one string reaching a named-value map, reporting it when it
+// is a phrase, and answers whether it was a string literal.
+//
+// An expression of any other shape is examined and found not to be a literal,
+// which is a real answer rather than a gap: a path from filepath.Join, a count
+// from strconv.Itoa and a catalog lookup carry data to a reader and carry no
+// English written into this map. What the check must not miss is a literal
+// somebody wrote, and the routes above are what make sure every write it could
+// arrive through is in front of this method.
+func (r refusalReporter) value(file string, expr ast.Expr) bool {
+	literal, ok := expr.(*ast.BasicLit)
+	if !ok || literal.Kind != token.STRING {
+		return false
+	}
+	if text, ok := phraseLiteral(expr); ok {
+		r.phrase(file, expr.Pos(), "a named value", text)
+	}
+	return true
+}
+
+// readRefusalPhrases reports one file's raise sites and returns how much work
+// they gave the check, which is what tells the caller whether the check read
+// anything at all and whether what it read carried anything.
+func readRefusalPhrases(reporter refusalReporter, source *refusalSource, scope *refusalScope, excused map[string]bool) refusalTally {
 	// freeText's label is checked in the same pass over the file, since it
 	// reaches a reader the same way a named value does.
 	ast.Inspect(source.file, func(node ast.Node) bool {
@@ -3507,7 +3621,7 @@ func readRefusalPhrases(reporter refusalReporter, source *refusalSource, scope *
 		}
 		return true
 	})
-	sites := 0
+	tally := refusalTally{}
 	for _, declaration := range source.file.Decls {
 		function, _ := declaration.(*ast.FuncDecl)
 		ast.Inspect(declaration, func(node ast.Node) bool {
@@ -3519,8 +3633,11 @@ func readRefusalPhrases(reporter refusalReporter, source *refusalSource, scope *
 			if argument == nil {
 				return true
 			}
-			sites++
-			if resolveRefusalValues(argument, function, source.name, scope, reporter) {
+			tally.sites++
+			reach, read := resolveRefusalValues(argument, function, source.name, scope, reporter)
+			if reach == reachRead {
+				tally.resolved++
+				tally.values += read
 				return true
 			}
 			written := types.ExprString(argument)
@@ -3533,44 +3650,64 @@ func readRefusalPhrases(reporter refusalReporter, source *refusalSource, scope *
 			return true
 		})
 	}
-	return sites
+	return tally
 }
 
 // resolveRefusalValues reads a refusal's third argument to the strings it
-// carries, reporting each phrase it finds, and returns whether it got there at
-// all. False is the answer that makes the caller report the construct instead.
-func resolveRefusalValues(argument ast.Expr, function *ast.FuncDecl, file string, scope *refusalScope, reporter refusalReporter) bool {
+// carries, reporting each phrase it finds, and answers how far it got and how
+// many strings it examined. Anything short of reachRead makes the caller
+// report the construct instead of accepting it.
+func resolveRefusalValues(argument ast.Expr, function *ast.FuncDecl, file string, scope *refusalScope, reporter refusalReporter) (refusalReach, int) {
 	named, isName := argument.(*ast.Ident)
 	if !isName {
 		literal, isLiteral := argument.(*ast.CompositeLit)
 		if !isLiteral || !stringMapType(literal.Type) {
-			return false
+			return reachNone, 0
 		}
-		reporter.mapLiteral(file, literal)
-		return true
+		// A literal at the raise site carries its whole content in
+		// front of the check, so there is nowhere else for a string of
+		// its to have come from.
+		return reachRead, reporter.mapLiteral(file, literal)
 	}
 	// A refusal carrying no named values at all carries no phrase either.
 	if named.Name == "nil" {
-		return true
+		return reachRead, 0
 	}
-	if readLocalMap(named.Name, function, file, reporter) {
-		return true
+	reach, read := readLocalMap(named.Name, function, file, scope, reporter)
+	if reach == reachNone {
+		reach, read = readPackageMap(named.Name, scope, reporter)
 	}
-	if readPackageMap(named.Name, scope, reporter) {
-		return true
+	if reach == reachNone {
+		reach, read = readParameterMap(named.Name, function, scope, reporter)
 	}
-	return readParameterMap(named.Name, function, scope, reporter)
+	// Whichever route described the name, a function that hands it to
+	// another call may be handing it somewhere it gets filled, and this
+	// check does not enter that function.
+	if reach == reachRead && handsOverName(function, named.Name) {
+		return reachOpaque, read
+	}
+	return reach, read
 }
 
 // readLocalMap reads a name the enclosing function assigns, through the
-// composite literals assigned to it and the values written into it by index. A
-// map the function makes empty and then fills counts as read, since the index
-// writes are where its strings are.
-func readLocalMap(name string, function *ast.FuncDecl, file string, reporter refusalReporter) bool {
+// composite literals assigned to it and the values written into it by index.
+//
+// A map the function makes empty is reached, not read, and the difference is
+// what dinah-282's third review turned on. The route answers reachRead only
+// when every write that can put a string in the map is one it walked over, so
+// an empty literal or a make with nothing else in the function is an empty map
+// rather than an unexamined one, and a container filled from somewhere the
+// walk does not go is reported. Two such places exist and each is closed
+// below: a value the function assigns from an expression that is neither a
+// string-map literal nor make, and a loop copying another container's contents
+// in wholesale.
+func readLocalMap(name string, function *ast.FuncDecl, file string, scope *refusalScope, reporter refusalReporter) (refusalReach, int) {
 	if function == nil || function.Body == nil {
-		return false
+		return reachNone, 0
 	}
-	found := false
+	touched := false
+	whole := true
+	read := 0
 	ast.Inspect(function.Body, func(node ast.Node) bool {
 		assignment, ok := node.(*ast.AssignStmt)
 		if !ok {
@@ -3585,20 +3722,96 @@ func readLocalMap(name string, function *ast.FuncDecl, file string, reporter ref
 				if addressed.Name != name {
 					continue
 				}
+				touched = true
 				if literal, ok := assignment.Rhs[i].(*ast.CompositeLit); ok && stringMapType(literal.Type) {
-					reporter.mapLiteral(file, literal)
-					found = true
+					read += reporter.mapLiteral(file, literal)
 					continue
 				}
-				if makesStringMap(assignment.Rhs[i]) {
-					found = true
+				// make produces an empty map and puts no string
+				// in it, so it leaves the reading to the writes.
+				// A right-hand side of any other shape arrived
+				// carrying contents this check never saw.
+				if !makesStringMap(assignment.Rhs[i]) {
+					whole = false
 				}
 			case *ast.IndexExpr:
 				indexed, ok := addressed.X.(*ast.Ident)
 				if !ok || indexed.Name != name {
 					continue
 				}
-				reporter.written([]refusalValue{{file: file, value: assignment.Rhs[i]}})
+				touched = true
+				read += reporter.written([]refusalValue{{file: file, value: assignment.Rhs[i]}})
+			}
+		}
+		return true
+	})
+	for _, source := range copiedInto(function, name) {
+		touched = true
+		copied, isName := source.(*ast.Ident)
+		if !isName {
+			whole = false
+			continue
+		}
+		reach, count := readPackageMap(copied.Name, scope, reporter)
+		if reach != reachRead {
+			whole = false
+			continue
+		}
+		read += count
+	}
+	if !touched {
+		return reachNone, 0
+	}
+	if !whole {
+		return reachOpaque, read
+	}
+	return reachRead, read
+}
+
+// copiedInto returns what a loop copies wholesale into the named map. A write
+// of a string literal is that literal and nothing more, however it is spelled,
+// so a loop writing literals is not a copy and does not appear here. A write of
+// anything else inside a range is a value taken from the ranged container, and
+// that container's strings are the ones at stake, so the caller has to read it
+// or report the site.
+func copiedInto(function *ast.FuncDecl, name string) []ast.Expr {
+	sources := []ast.Expr{}
+	ast.Inspect(function.Body, func(node ast.Node) bool {
+		loop, ok := node.(*ast.RangeStmt)
+		if !ok || loop.Body == nil {
+			return true
+		}
+		if copiesNonLiteral(loop.Body, name) {
+			sources = append(sources, loop.X)
+		}
+		return true
+	})
+	return sources
+}
+
+// copiesNonLiteral reports whether a block writes something other than a string
+// literal into the named map by index.
+func copiesNonLiteral(block *ast.BlockStmt, name string) bool {
+	found := false
+	ast.Inspect(block, func(node ast.Node) bool {
+		assignment, ok := node.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, target := range assignment.Lhs {
+			if i >= len(assignment.Rhs) {
+				continue
+			}
+			indexed, ok := target.(*ast.IndexExpr)
+			if !ok {
+				continue
+			}
+			addressed, isName := indexed.X.(*ast.Ident)
+			if !isName || addressed.Name != name {
+				continue
+			}
+			literal, isLiteral := assignment.Rhs[i].(*ast.BasicLit)
+			if !isLiteral || literal.Kind != token.STRING {
 				found = true
 			}
 		}
@@ -3608,42 +3821,92 @@ func readLocalMap(name string, function *ast.FuncDecl, file string, reporter ref
 }
 
 // readPackageMap reads a name the package declares at its own level, which is
-// the spelling a walk bounded by a function body cannot see.
-func readPackageMap(name string, scope *refusalScope, reporter refusalReporter) bool {
+// the spelling a walk bounded by a function body cannot see. A package-level
+// name the package hands to any other call can be filled there, so escapes
+// leaves it unread for the same reason a local one is.
+func readPackageMap(name string, scope *refusalScope, reporter refusalReporter) (refusalReach, int) {
 	declared, ok := scope.literals[name]
 	if !ok {
-		return false
+		return reachNone, 0
 	}
-	reporter.mapLiteral(declared.file, declared.literal)
-	reporter.written(scope.writes[name])
-	return true
+	read := reporter.mapLiteral(declared.file, declared.literal)
+	read += reporter.written(scope.writes[name])
+	if scope.escapes[name] {
+		return reachOpaque, read
+	}
+	return reachRead, read
 }
 
 // readParameterMap reads a name the enclosing function takes as a parameter,
 // through the composite literals its callers in the same package hand it. One
 // caller passing something this check cannot read leaves the parameter
 // unresolved, since a map is only as read as its least readable source.
-func readParameterMap(name string, function *ast.FuncDecl, scope *refusalScope, reporter refusalReporter) bool {
+func readParameterMap(name string, function *ast.FuncDecl, scope *refusalScope, reporter refusalReporter) (refusalReach, int) {
 	if function == nil || function.Type == nil || function.Type.Params == nil {
-		return false
+		return reachNone, 0
 	}
 	position, ok := parameterPosition(function.Type.Params, name)
 	if !ok {
-		return false
+		return reachNone, 0
 	}
 	calls := scope.calls[function.Name.Name]
 	if len(calls) == 0 {
-		return false
+		return reachOpaque, 0
 	}
+	read := 0
+	whole := true
 	for _, call := range calls {
 		if position >= len(call.arguments) {
-			return false
+			whole = false
+			continue
 		}
 		literal, ok := call.arguments[position].(*ast.CompositeLit)
 		if !ok || !stringMapType(literal.Type) {
-			return false
+			whole = false
+			continue
 		}
-		reporter.mapLiteral(call.file, literal)
+		read += reporter.mapLiteral(call.file, literal)
+	}
+	if !whole {
+		return reachOpaque, read
+	}
+	return reachRead, read
+}
+
+// handsOverName reports whether a function gives the named map to a call other
+// than the refusal that consumes it. The callee may fill the map, and this
+// check does not enter it, so the name stops being readable at that call.
+func handsOverName(function *ast.FuncDecl, name string) bool {
+	if function == nil || function.Body == nil {
+		return false
+	}
+	handed := false
+	ast.Inspect(function.Body, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || !fillableCall(call) {
+			return true
+		}
+		for _, argument := range call.Args {
+			if passed, ok := argument.(*ast.Ident); ok && passed.Name == name {
+				handed = true
+			}
+		}
+		return true
+	})
+	return handed
+}
+
+// fillableCall reports whether a call could write into a map it is handed. The
+// refusal consuming the map is the one call that reads it by construction, and
+// len and cap cannot write, so those three are what a name survives being
+// passed to.
+func fillableCall(call *ast.CallExpr) bool {
+	if refusalValues(call) != nil {
+		return false
+	}
+	named, ok := call.Fun.(*ast.Ident)
+	if ok && (named.Name == "len" || named.Name == "cap") {
+		return false
 	}
 	return true
 }
