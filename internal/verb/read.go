@@ -36,6 +36,14 @@ type StateView struct {
 	TakesWorkUp bool `json:"takes_work_up"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
+	// RejectTo is the state a card goes to when the work at this state is
+	// refused, empty where the state declares no such destination. It is
+	// published as the reference the declaration carries rather than as a
+	// resolved identifier, because a reference naming no state opens the
+	// workbench anyway and a reader is owed what was written. Whether the
+	// reference resolves is `dinah check`'s question, under
+	// check.reject-target-unknown.
+	RejectTo string `json:"reject_to,omitempty"`
 	// Count is the number of live cards the state holds.
 	Count int `json:"count"`
 }
@@ -127,6 +135,7 @@ func (l *Library) stateViews(counts map[string]int) []StateView {
 			AwaitingOutside: state.AwaitingOutside,
 			TakesWorkUp:     state.TakesWorkUp(),
 			Capacity:        state.Capacity,
+			RejectTo:        state.RejectTo,
 			Count:           counts[state.ID],
 		}
 		views = append(views, view)

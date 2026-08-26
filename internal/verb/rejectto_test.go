@@ -1,8 +1,84 @@
 package verb
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 )
+
+// TestTheStateViewCarriesTheDeclaredRejectTarget is the publication half of
+// the declaration. StateView is the one read that enumerates what a state
+// declares, and the MCP status tool serves it, so a state carrying reject_to
+// and a view silent about it would leave an agent to discover the destination
+// from the legal moves of a card it has already moved.
+//
+// The reference is published as written. A declaration naming no state opens
+// the workbench anyway, so the view reports the string rather than dropping
+// what it cannot resolve, and the two subtests below pin both halves of that.
+func TestTheStateViewCarriesTheDeclaredRejectTarget(t *testing.T) {
+	h := newHarness(t)
+	h.declare(aftercare, "reject_to", "doing")
+	views, err := h.library.States()
+	if err != nil {
+		t.Fatalf("states: %v", err)
+	}
+	var declaring, ordinary *StateView
+	for i := range views {
+		switch views[i].ID {
+		case aftercare:
+			declaring = &views[i]
+		case doing:
+			ordinary = &views[i]
+		}
+	}
+	if declaring == nil || ordinary == nil {
+		t.Fatalf("the fixture's states did not all come back: %+v", views)
+	}
+	if declaring.RejectTo != "doing" {
+		t.Errorf("the declaring state's view carries reject_to %q, the state declares \"doing\"", declaring.RejectTo)
+	}
+	if ordinary.RejectTo != "" {
+		t.Errorf("a state declaring nothing carries reject_to %q", ordinary.RejectTo)
+	}
+
+	raw, err := json.Marshal(declaring)
+	if err != nil {
+		t.Fatalf("marshalling the view: %v", err)
+	}
+	if !strings.Contains(string(raw), `"reject_to":"doing"`) {
+		t.Errorf("the member is not spelled reject_to on the wire: %s", raw)
+	}
+	bare, err := json.Marshal(ordinary)
+	if err != nil {
+		t.Fatalf("marshalling the view: %v", err)
+	}
+	if strings.Contains(string(bare), "reject_to") {
+		t.Errorf("a state declaring nothing publishes the member anyway: %s", bare)
+	}
+}
+
+// TestTheStateViewPublishesAnUnresolvableRejectTarget pins the decision to
+// publish the reference verbatim. Resolving it here would make the view drop
+// exactly the value an operator needs to see in order to repair the typo that
+// dinah check reports under check.reject-target-unknown.
+func TestTheStateViewPublishesAnUnresolvableRejectTarget(t *testing.T) {
+	h := newHarness(t)
+	h.declare(aftercare, "reject_to", "nowhere at all")
+	views, err := h.library.States()
+	if err != nil {
+		t.Fatalf("states: %v", err)
+	}
+	for i := range views {
+		if views[i].ID != aftercare {
+			continue
+		}
+		if views[i].RejectTo != "nowhere at all" {
+			t.Errorf("the view carries reject_to %q, the state declares \"nowhere at all\"", views[i].RejectTo)
+		}
+		return
+	}
+	t.Fatalf("the declaring state did not come back: %+v", views)
+}
 
 // TestLegalMovesMarksTheDeclaredRejectTarget is dinah-207 AC-6. The marking is
 // the whole of what makes the declaration discoverable: the destination was

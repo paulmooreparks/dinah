@@ -1146,7 +1146,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 33. Rows ruled out: 22. Total rows: 55.
+Rows ruled in: 33. Rows ruled out: 23. Total rows: 56.
 
 ### 10.1 Walking a wedding through the whole profile
 

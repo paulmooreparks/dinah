@@ -456,9 +456,22 @@ operator makes it.
 A declaration naming a done state ahead of the declaring one is legal and is
 reported under none of the three. A rejected card ends where a finished card
 ends, in the flow's one terminal region, carrying its own outcome on the card
-rather than in the shape of the board. That is what keeps a board to a single
-terminal while still letting a station say that refusing the work here closes
-the card.
+rather than in the shape of the board, so a station can say that refusing the
+work here closes the card without the board growing a second terminal to hold
+the cards it refused.
+
+`reject_to` travels through interchange as a member of its own on the state
+element, present wherever the declaration is and absent where it is not. It
+reaches the wire by a different route from `awaiting_outside` below, which is
+listed in `knownStateKeys` and written out by name: `reject_to` is not listed,
+so the generic pass `exportState` makes over the rest of a state's frontmatter
+carries it, and an import writes it back into the anchor's frontmatter
+unchanged. CORE-JSON-9 lists the state members the profile blesses and does not
+list this one, which is correct rather than a defect. To another tool it is an
+unrecognized member, and CORE-JSON-7 obliges that tool to preserve it. The
+concept's boundary-table row in section 10 of the profile is ruled out, with
+the reason and the reopen condition that go with staying out, and no version of
+`dinah-core` moves to admit it.
 
 No board becomes unopenable under any of this. A workbench whose kinds sit
 outside these positions opens, is read as it stands, and is reported by `dinah

@@ -315,8 +315,11 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 			continue
 		}
 		moves = append(moves, LegalMove{
-			State: state.ID, Ref: stateRef(state), Title: state.Title,
-			Direction: direction, Reject: target != nil && state.ID == target.ID,
+			State:     state.ID,
+			Ref:       stateRef(state),
+			Title:     state.Title,
+			Direction: direction,
+			Reject:    target != nil && state.ID == target.ID,
 		})
 	}
 	return moves

@@ -753,14 +753,6 @@
       "text": "Serve workbenches over MCP on stdio",
       "context": "The one-line summary of the mcp command, shown beside its syntax in the help block."
     },
-    "column.moves.reject": {
-      "text": "Reject",
-      "context": "Heading over whether this row is the destination the departure state's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
-    },
-    "log.reject": {
-      "text": "(reject)",
-      "context": "The mark on a move whose destination is the departure state's own reject_to target."
-    },
     "param.add.priority.summary": {
       "text": "which priority level to file the card with, from the levels this workbench declares",
       "context": "The meaning of the priority argument of `dinah add`, printed in that command's arguments table."
@@ -1013,6 +1005,10 @@
       "text": "Name",
       "context": "Heading over the destination's display name, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
+    "column.moves.reject": {
+      "text": "Reject",
+      "context": "Heading over whether this row is the destination the departure state's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
     "column.moves.state": {
       "text": "State",
       "context": "Heading over the destination a person types on a move, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
@@ -1248,6 +1244,10 @@
     "log.override": {
       "text": "(override)",
       "context": "The mark on a move admitted under an operator's override."
+    },
+    "log.reject": {
+      "text": "(reject)",
+      "context": "The mark on a move whose destination is the departure state's own reject_to target."
     },
     "log.attachment-renamed": {
       "text": "{from} to {to}",
