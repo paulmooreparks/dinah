@@ -6508,14 +6508,15 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "card", "depth", "description", "expires", "from",
+		"actor", "card", "column", "depth", "description", "expires", "from",
 		"group-by", "kind", "lang", "operator", "priority", "root",
-		"severity", "since", "slug", "column", "workbench",
+		"severity", "since", "slug", "workbench",
 	}
 	wantMarkers := []string{
-		"catalogs", "finish", "help", "json", "migrate-ordinals",
-		"migrate-slugs", "migrate-columns", "migrate-workstreams", "no-claim",
-		"override", "quiet", "ready", "replace", "version", "yes",
+		"catalogs", "finish", "help", "json", "migrate-columns",
+		"migrate-ordinals", "migrate-slugs", "migrate-vocabulary",
+		"migrate-workstreams", "no-claim", "override", "quiet", "ready",
+		"replace", "version", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
@@ -6673,14 +6674,28 @@ func TestExpiresTakesTheDaySuffixAndRefusesTheWeek(t *testing.T) {
 	}
 }
 
-// TestTheTwoTranslatedCatalogsAreReportedComplete asserts dinah-172 AC-14:
-// every key this card adds reached both real catalogs and the six skeletons,
-// so `dinah version --catalogs` still reports two catalogs at N/N and the rest
-// at 0/N.
-func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
+// TestEveryCatalogIsReportedAgainstItsOwnRoster asserts dinah-172 AC-14: every
+// key a card adds reaches every catalog, so `dinah version --catalogs` reports
+// each one against the roster it is on and none of them short of a key.
+//
+// The rosters are read rather than inferred from the coverage numbers. Until
+// dinah-287 every catalog was either fully translated or a generated skeleton,
+// and reading "not N/N" as "must be 0/N" was true by accident. Hindi and German
+// now carry hundreds of real translations and a run of entries the vocabulary
+// rename left in English, so they are on neither roster and the numbers in
+// between are the honest report rather than a defect.
+func TestEveryCatalogIsReportedAgainstItsOwnRoster(t *testing.T) {
 	total := len(msg.Keys())
 	if total == 0 {
 		t.Fatal("the base catalog carries no keys")
+	}
+	isComplete := map[string]bool{}
+	for _, tag := range msg.Complete {
+		isComplete[tag] = true
+	}
+	isSkeleton := map[string]bool{}
+	for _, tag := range msg.Skeleton {
+		isSkeleton[tag] = true
 	}
 	complete := 0
 	for _, tag := range msg.Tags() {
@@ -6693,14 +6708,16 @@ func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
 		}
 		if translated == total {
 			complete++
-			continue
 		}
-		if translated != 0 {
-			t.Errorf("%s is a skeleton and reports %d keys translated", tag, translated)
+		if isComplete[tag] && translated != total {
+			t.Errorf("%s ships complete and reports %d of %d keys translated", tag, translated, total)
+		}
+		if isSkeleton[tag] && translated != 0 {
+			t.Errorf("%s ships as a skeleton and reports %d keys translated", tag, translated)
 		}
 	}
-	if complete != 3 {
-		t.Errorf("%d catalogs report every key translated, want the three that are really translated", complete)
+	if complete != len(msg.Complete) {
+		t.Errorf("%d catalogs report every key translated, want the %d the roster names", complete, len(msg.Complete))
 	}
 }
 

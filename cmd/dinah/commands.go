@@ -871,39 +871,6 @@ func runCheck(s *session, parsed *arguments) int {
 	})
 }
 
-// runMigrateVocabulary carries every workbench at or beneath the discovered
-// root across the vocabulary rename. It resolves the root the way every other
-// command does and then declines to open it, because a workbench in the
-// pre-vocabulary window is refused by the ordinary opener by name.
-func runMigrateVocabulary(s *session) int {
-	root, source, _, err := bench.DiscoverSource(
-		s.cwd,
-		s.benchFlag,
-		s.benchFlagSource,
-		s.home,
-		s.nativeHome,
-		s.cfg.Get("workbench"),
-	)
-	if err != nil {
-		return s.reportError(err)
-	}
-	s.workbenchSource = source
-	report, err := verb.MigrateVocabularyTree(root)
-	if err != nil {
-		return s.reportError(err)
-	}
-	code := 0
-	if !report.Clean() {
-		code = contract.ExitCode(contract.OutcomeRefused)
-	}
-	if s.json {
-		s.emitJSON(report)
-		return code
-	}
-	s.renderVocabulary(report)
-	return code
-}
-
 // runWhoami reports the actor and whether it is the operator of this bench.
 func runWhoami(s *session, parsed *arguments) int {
 	req := s.request("whoami", parsed)
@@ -1306,4 +1273,37 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 	}
 	s.renderWorkstreamLine(response.Workstream)
 	return 0
+}
+
+// runMigrateVocabulary carries every workbench at or beneath the discovered
+// root across the vocabulary rename. It resolves the root the way every other
+// command does and then declines to open it, because a workbench in the
+// pre-vocabulary window is refused by the ordinary opener by name.
+func runMigrateVocabulary(s *session) int {
+	root, source, _, err := bench.DiscoverSource(
+		s.cwd,
+		s.benchFlag,
+		s.benchFlagSource,
+		s.home,
+		s.nativeHome,
+		s.cfg.Get("workbench"),
+	)
+	if err != nil {
+		return s.reportError(err)
+	}
+	s.workbenchSource = source
+	report, err := verb.MigrateVocabularyTree(root)
+	if err != nil {
+		return s.reportError(err)
+	}
+	code := 0
+	if !report.Clean() {
+		code = contract.ExitCode(contract.OutcomeRefused)
+	}
+	if s.json {
+		s.emitJSON(report)
+		return code
+	}
+	s.renderVocabulary(report)
+	return code
 }
