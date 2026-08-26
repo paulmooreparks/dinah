@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,14 @@ const (
 	// make a workbench unreadable the moment somebody edits its declaration.
 	FindingUnknownLevel  = "check.unknown-level"
 	FindingIgnoredAnchor = "check.ignored-anchor"
+	// FindingCardVocabularyMixed and FindingCardVocabularyRetired name the
+	// two headers the card reader refuses, and they exist because check is
+	// the tool a reader reaches for when the reader has refused. Without
+	// them every such card was reported as a directory carrying no anchor
+	// file, which is untrue of a file that is plainly there and which
+	// invites the reader to delete a directory holding a card.
+	FindingCardVocabularyMixed   = "check.card-vocabulary-mixed"
+	FindingCardVocabularyRetired = "check.card-vocabulary-retired"
 	// FindingClaimWhereNoWorkIsTaken names a card held at a column where no
 	// owner takes work up, which the acts are refused from the day this
 	// build ships and which a board written before that day can still carry.
@@ -164,7 +173,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		card, err := LoadCard(b.CardsRoot(), id)
 		if err != nil {
-			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
+			findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id})
 			continue
 		}
 		findings = append(findings, b.checkCard(card)...)
@@ -430,4 +439,25 @@ func replayPosition(events []Event) string {
 		}
 	}
 	return position
+}
+
+// unreadableCardFinding names the defect a card the reader refused actually
+// has. The reader owns the vocabulary conditions, because a card whose keys
+// mean the wrong thing cannot be read at all; the checker's job is to say so
+// in its own report rather than to translate every refusal into the one
+// finding it had a key for. Anything else the reader refuses is still a
+// directory the checker cannot make a card out of, which is what
+// FindingMissingAnchor says.
+func unreadableCardFinding(err error) string {
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		return FindingMissingAnchor
+	}
+	switch refusal.Name {
+	case contract.VocabularyMixed:
+		return FindingCardVocabularyMixed
+	case contract.VocabularyRetired:
+		return FindingCardVocabularyRetired
+	}
+	return FindingMissingAnchor
 }

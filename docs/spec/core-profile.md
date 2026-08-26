@@ -1665,11 +1665,30 @@ byte as it stood.
 
 The version gate reads the revision a workbench's own anchor declares, so it
 cannot see a workbench whose anchor was carried across the rename and whose
-cards were not. A card still carrying the retired `substate:` key inside a
-workbench declaring this revision is therefore refused where it is read,
-under the layer refusal `dinah.vocabulary-mixed`, and the refusal names the
-card. The same refusal answers the two shapes that mix the vocabularies
-within one file: a card carrying `column:` beside `substate:`, and a
-workbench anchor carrying `states:` beside `columns:`. No writer produces any
-of the three, and Dinah refuses rather than guessing which key holds the
-column.
+cards were not. A card that carries no `column:` key inside a workbench
+declaring this revision is therefore refused where it is read, under the
+layer refusal `dinah.vocabulary-retired`, and the refusal names the card. The
+key the reader asks about is `column:` rather than the retired `substate:`,
+because the harm comes from `state:`, which named the column before the
+rename and names the condition after it. A card carrying `state:` and nothing
+else holds a column identifier where the reader expects one of ready, active
+and blocked, and it carries no retired key at all, so a check keyed on the
+retired keys does not see it. No card written before the rename carries
+`column:` and every card this build writes carries it, which is what makes
+its absence the whole question.
+
+A second layer refusal, `dinah.vocabulary-mixed`, answers the two shapes that
+mix the vocabularies within one file: a card carrying `column:` beside
+`substate:`, and a workbench anchor carrying `states:` beside `columns:`.
+Those two really do hold half of each vocabulary, and their reader is told to
+remove one of the two. The card written wholly in the retired vocabulary is
+consistent within itself and disagrees with the anchor above it, which is a
+different defect with a different repair, so it carries its own sentence
+rather than being told to undo a mixture that is not there. No writer
+produces any of the three shapes, and Dinah refuses rather than guessing
+which key holds the column.
+
+A reader who meets either refusal reaches for `dinah check`, so the checker
+reports both conditions itself, under `check.card-vocabulary-retired` and
+`check.card-vocabulary-mixed`. It does not report such a card as a directory
+carrying no anchor file, which is untrue of a file that is plainly there.

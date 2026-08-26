@@ -721,6 +721,13 @@ func TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation(t *testing.T)
 // This migration writes the anchor last, so it cannot produce the shape. A
 // hand edit or another tool can, and the fixture makes it by hand for that
 // reason.
+//
+// The refusal this asserts is VocabularyRetired rather than VocabularyMixed,
+// and the two are kept apart because their sentences are different sentences.
+// A card unwound whole carries one vocabulary and not both, so telling its
+// reader to remove a mixture would describe a file that is not there. The
+// mixed refusal keeps the shapes that really do hold half of each vocabulary,
+// which TestACardCarryingHalfOfEachVocabularyIsRefusedAsMixed covers.
 func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing.T) {
 	root, _, _, _, current := buildTreeFixture(t)
 	unwindCards(t, current)
@@ -730,8 +737,8 @@ func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing
 		if got.code == 0 {
 			t.Errorf("%v over a workbench whose cards were never carried across exited 0:\n%s", argv, got.out)
 		}
-		if !strings.Contains(got.errw, contract.VocabularyMixed) {
-			t.Errorf("%v refused with %q, wanted the %s refusal", argv, got.errw, contract.VocabularyMixed)
+		if !strings.Contains(got.errw, contract.VocabularyRetired) {
+			t.Errorf("%v refused with %q, wanted the %s refusal", argv, got.errw, contract.VocabularyRetired)
 		}
 	}
 

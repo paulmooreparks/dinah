@@ -358,6 +358,19 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.vocabulary-mixed.next"},
 	},
 	{
+		// The retired-vocabulary refusal reads as the mixed one does, and
+		// carries its own sentence because its file is not mixed. The detail
+		// names the card inside the workbench and path names it on disk, so
+		// a reader of a tree-wide run learns which card to edit.
+		Name:   VocabularyRetired,
+		Values: []string{"path"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.vocabulary-retired.at", When: "path"},
+			{Key: "refusal.dinah.vocabulary-retired.next"},
+		},
+		NextStep: []string{"refusal.dinah.vocabulary-retired.next"},
+	},
+	{
 		// One refusal name answers two acts here. delete destroys history,
 		// and a slug rename renames every card in the workbench, so the
 		// workbench command carries its own sentence and its own next step

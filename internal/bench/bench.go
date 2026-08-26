@@ -1379,9 +1379,17 @@ func IsWorkbenchRef(ref string) bool {
 //
 // A bench the lenient opener admitted reads its cards through the lenient
 // reader, because its own anchor declares a pre-vocabulary revision and its
-// cards are written to match it. Everywhere else a card carrying the retired
-// key disagrees with the anchor above it, and LoadCard refuses it rather than
-// reading a column identifier as the card's condition.
+// cards are written to match it. Everywhere else a card that never came across
+// the rename disagrees with the anchor above it, and LoadCard refuses it rather
+// than reading a column identifier as the card's condition.
+//
+// This is the live half of the collection and the routing stops here on
+// purpose. Every archive reader goes through LoadCard directly, which is
+// strict, and nothing reaches one during a migration run because the migration
+// reads anchors through ParseAnchor rather than through either reader. So the
+// archive half is deliberately not routed rather than routed by oversight, and
+// whoever gives a Bench an archive-reading method next owes it the same choice
+// this method makes.
 func (b *Bench) Cards() ([]*Card, error) {
 	if b.retiredVocabulary {
 		return retiredCardsIn(b.CardsRoot())

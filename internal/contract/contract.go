@@ -137,17 +137,22 @@ const (
 	NeedsVocabularyMigration = LayerPrefix + "needs-vocabulary-migration"
 	// VocabularyMixed is a header carrying a key from each of the two
 	// vocabularies this format has had, which no writer produces and which
-	// Dinah refuses rather than guessing its way through. Three shapes
-	// reach it: a workbench anchor carrying both sequence keys, a card
-	// carrying the current column key beside the retired substate key, and
-	// a card still written in the retired vocabulary inside a workbench
-	// whose anchor declares the current one. The last of those is the one
-	// worth naming, because a workbench carried across the rename at its
+	// Dinah refuses rather than guessing its way through. Two shapes reach
+	// it: a workbench anchor carrying both sequence keys, and a card carrying
+	// the current column key beside the retired substate key. Each of them is
+	// one file holding half of each vocabulary, which is what the refusal's
+	// sentence describes and what its next step tells the reader to undo.
+	VocabularyMixed = LayerPrefix + "vocabulary-mixed"
+	// VocabularyRetired is a card still written in the vocabulary this format
+	// retired, inside a workbench whose anchor declares the current one. The
+	// file itself is consistent, so it is not the mixture above; what
+	// disagrees is the card and the workbench around it. The disagreement is
+	// worth its own name because a workbench carried across the rename at its
 	// anchor and not in its cards passes the version gate, and the column
 	// identifier sitting in the state slot would otherwise be read as the
 	// card's condition. The gate reads the anchor, so only a check on the
 	// card itself can see it.
-	VocabularyMixed = LayerPrefix + "vocabulary-mixed"
+	VocabularyRetired = LayerPrefix + "vocabulary-retired"
 	// AddNeedsAColumn is Add declining to file a card into a workbench whose
 	// columns list has no live entries left for the card to land in.
 	AddNeedsAColumn = LayerPrefix + "add-needs-a-column"

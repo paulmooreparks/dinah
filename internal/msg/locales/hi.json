@@ -356,6 +356,16 @@
       "context": "A check finding: a hex directory without its anchor.",
       "source": "76367748cbe85dd4"
     },
+    "check.card-vocabulary-mixed": {
+      "text": "card {detail} carries a key from each of the two vocabularies this format has had, so its standing cannot be read",
+      "context": "A check finding: a card whose header holds half of each vocabulary. The checker reports what the reader refuses under dinah.vocabulary-mixed, so a card whose anchor file is plainly there is not reported as having none.",
+      "skeleton": true
+    },
+    "check.card-vocabulary-retired": {
+      "text": "card {detail} is written in the vocabulary this format retired, and this workbench declares the current one, so its standing cannot be read",
+      "context": "A check finding: a card the rename never carried across, inside a workbench whose own anchor says it was. The checker reports what the reader refuses under dinah.vocabulary-retired, so a card whose anchor file is plainly there is not reported as having none.",
+      "skeleton": true
+    },
     "check.move.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
@@ -1914,6 +1924,21 @@
     "refusal.dinah.vocabulary-mixed.next": {
       "text": "; hand-edit the file so that it carries one vocabulary and not both, then run `dinah check --migrate-vocabulary` to carry the workbench forward",
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.vocabulary-retired": {
+      "text": "{detail} is written in the vocabulary this format retired, and the workbench around it declares the current one, so the card and its workbench disagree about what the card's keys mean",
+      "context": "The sentence printed after the refusal name dinah.vocabulary-retired. {detail} names the card inside the workbench, its identifier and card.md, so a tree-wide run says which of several hundred cards it refused. The file itself carries one vocabulary and not both, which is what separates this refusal from dinah.vocabulary-mixed, and the defect is that it disagrees with the anchor above it.",
+      "skeleton": true
+    },
+    "refusal.dinah.vocabulary-retired.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.dinah.vocabulary-retired: the file on disk the retired header belongs to. It reads as refusal.malformed.at does, and every raise site of this refusal carries a path.",
+      "skeleton": true
+    },
+    "refusal.dinah.vocabulary-retired.next": {
+      "text": "; hand-edit the file so that the key holding the card's column is named `column` and the key holding its condition is named `state`, which is the rename `dinah check --migrate-vocabulary` performs on a workbench that still declares the retired format",
+      "context": "Spliced onto refusal.dinah.vocabulary-retired as the next step. The two key names and the command spelling dinah check --migrate-vocabulary are machine vocabulary and are never translated. The instruction names the two keys by what they hold rather than by the retired spellings, because a card that carries only the retired column key and no condition key at all reaches this refusal too, and telling its reader to rename a key the file does not carry would name a line they cannot find. The reader is told to make the edit by hand because the migration reads the workbench anchor to decide what needs carrying, and the anchor here already declares the current format, so the command would report that there is nothing to do.",
       "skeleton": true
     },
     "refusal.dinah.workbench-not-applicable": {

@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -47,6 +48,19 @@ func (b *Bench) resolveCardIn(root, ref string) (*Resolved, error) {
 	if IsID(ref) {
 		card, err := LoadCard(root, ref)
 		if err != nil {
+			// A card the reader refused is a card this workbench has, so
+			// its own refusal travels rather than being rewritten into a
+			// report that the workbench carries no such card. Only the
+			// reader's own unknown-card, which is what an unreadable anchor
+			// gives back, is restated here against the reference the caller
+			// typed. Without this, the same card answered one way when it
+			// was addressed by identifier and another way when it was
+			// addressed by its human reference, because the reference route
+			// reads the collection and lets the refusal through.
+			var refusal *contract.Refusal
+			if errors.As(err, &refusal) && refusal.Name != contract.UnknownCard {
+				return nil, err
+			}
 			return nil, contract.Refuse(contract.UnknownCard, ref)
 		}
 		return &Resolved{Card: card}, nil

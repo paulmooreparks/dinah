@@ -301,15 +301,12 @@ func migrateColumnDirectories(b *Bench) error {
 // refuses rather than choosing which of the two lists the workbench's flow
 // really is, and the refusal names the anchor and its path so that an operator
 // reading a tree-wide report is told which file to edit.
+//
+// The header it asks about is the one the opener already parsed and kept on
+// the bench, so the check costs no read and no parse of its own.
 func checkBenchAnchorVocabulary(b *Bench) error {
-	path := filepath.Join(b.Root, WorkbenchAnchor)
-	text, err := ReadText(path)
-	if err != nil {
-		return contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path})
-	}
-	fm, _ := ParseAnchor(text)
-	if fm.Has(preVocabularySequenceKey) && fm.Has(currentVocabulary.SequenceKey) {
-		return contract.RefuseWith(contract.VocabularyMixed, WorkbenchAnchor, map[string]string{"path": path})
+	if b.FM.Has(preVocabularySequenceKey) && b.FM.Has(currentVocabulary.SequenceKey) {
+		return contract.RefuseWith(contract.VocabularyMixed, WorkbenchAnchor, map[string]string{"path": filepath.Join(b.Root, WorkbenchAnchor)})
 	}
 	return nil
 }

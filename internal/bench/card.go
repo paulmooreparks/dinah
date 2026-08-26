@@ -66,8 +66,9 @@ type Card struct {
 	FM *Frontmatter
 }
 
-// LoadCard reads one card from a cards collection, refusing one written in
-// the vocabulary this build retired.
+// LoadCard reads one card from a cards collection, refusing one that is not
+// written in the vocabulary this build reads: a card carrying no column key at
+// all, and a card carrying the column key beside the retired substate key.
 func LoadCard(collection, id string) (*Card, error) {
 	return loadCard(collection, id, true)
 }
@@ -100,23 +101,44 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		return nil, err
 	}
 	fm, body := ParseAnchor(text)
-	// A card carrying the retired substate key is written in the vocabulary
-	// this build no longer reads, and reaching here means the workbench's own
-	// anchor declares the current one, because the version gate turns a
-	// pre-vocabulary workbench away before any card is opened. The two
-	// disagree, so this card's state key holds a column identifier and every
-	// field below would be filled with the wrong half of the card.
+	// Which vocabulary a card is written in is decided by the column key,
+	// which is the discriminator this card's D-14 settled and the one the
+	// migration's own skip-guard already asks about. No card written before
+	// the rename carries it, because that vocabulary spells the flow position
+	// "state", and every card this build writes carries it, because Card.Save
+	// sets it on every write. The substate key answers a narrower question:
+	// its presence beside the column key is a header holding half of each
+	// vocabulary, and a card can carry the harm without carrying it at all.
+	//
+	// Reaching here means the workbench's own anchor declares the current
+	// vocabulary, because the version gate turns a pre-vocabulary workbench
+	// away before any card is opened. So a card that is not across the rename
+	// disagrees with the anchor above it, its state key holds a column
+	// identifier, and every field below would be filled from the wrong half of
+	// the header.
 	//
 	// The gate cannot see this, and that is the whole reason for the check.
-	// It reads the revision the anchor declares, so a workbench carried
-	// across the rename at its anchor and not in its cards passes it, and
-	// dinah ls then prints a column identifier under the heading that names
-	// the card's condition and exits 0. This migration writes the anchor
-	// last and so cannot produce that shape, but a hand edit or another tool
-	// can, and a silent misread is exactly what the gate exists to prevent.
-	// Asking the card itself is the only place the disagreement is visible.
-	if refuseRetired && fm.Has(preVocabularyStateKey) {
-		return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+	// It reads the revision the anchor declares, so a workbench carried across
+	// the rename at its anchor and not in its cards passes it, and dinah ls
+	// then prints a column identifier under the heading that names the card's
+	// condition and exits 0. This migration writes the anchor last and so
+	// cannot produce that shape, but a hand edit or another tool can, and a
+	// silent misread is exactly what the gate exists to prevent. Asking the
+	// card itself is the only place the disagreement is visible.
+	//
+	// The two conditions carry different refusals because their sentences are
+	// different sentences. A header carrying both vocabularies is genuinely
+	// mixed and the reader is told to pick one. A card written wholly in the
+	// retired vocabulary is internally consistent and disagrees with the
+	// workbench around it, so telling its reader to remove a mixture would
+	// describe a file that does not exist.
+	if refuseRetired {
+		switch {
+		case !fm.Has(columnKey):
+			return nil, contract.RefuseWith(contract.VocabularyRetired, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+		case fm.Has(preVocabularyStateKey):
+			return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+		}
 	}
 	card := &Card{
 		ID:          id,
