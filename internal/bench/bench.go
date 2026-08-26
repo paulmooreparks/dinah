@@ -58,16 +58,21 @@ const StorageFormat = 1
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 6
+	ProfileMinor = 7
 )
 
-// The oldest profile revision this build opens. Every workbench any build of
-// this tool has written declares dinah-core/1.0, which the profile's own 0.4
-// changelog entry renames dinah-core 0.1, so the floor is that revision.
-// Below it lies nothing anyone published.
+// The oldest profile revision this build opens. dinah-core 0.7 renamed the
+// flow vocabulary on disk, retiring the state and substate keys for column
+// and state, so a workbench below that revision is written in a vocabulary
+// this build's readers no longer speak. The floor sits at the rename rather
+// than at the oldest revision anyone published, because a lenient reader here
+// would take an old card's state field, which held a flow position, for the
+// condition the same key now names. The window below the floor is not lost:
+// PreVocabularyFloor and PreVocabularyCeiling name it, and
+// `dinah check --migrate-vocabulary` carries a workbench across it.
 const (
 	ProfileFloorMajor = 0
-	ProfileFloorMinor = 1
+	ProfileFloorMinor = 7
 )
 
 // The moment the never-refuse promise started binding, and the floor as it
@@ -522,14 +527,14 @@ func (s *search) fallbackTo(home string) (bool, error) {
 // repository checked out at the home directory is found exactly as before.
 func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []string, err error) {
 	anchorPath := filepath.Join(dir, WorkbenchAnchor)
-	column, err := readAnchor(anchorPath)
+	recognition, err := readAnchor(anchorPath)
 	if err != nil {
 		return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 	}
-	if column == anchorOurs {
+	if recognition == anchorOurs {
 		return dir, nil, nil, nil
 	}
-	if column == anchorForeign {
+	if recognition == anchorForeign {
 		passed = append(passed, anchorPath)
 	}
 	if skipBase {
@@ -546,7 +551,7 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []strin
 // check would accept: a workbench.md recognised as ours at any directory
 // itself, or a sole workbench inside a .dinah of any directory below it. The
 // walk skips dotfiles and symbolic links at every rung, since neither can be
-// expected to mean what its name says: a dotfile holds user column on a POSIX
+// expected to mean what its name says: a dotfile holds user state on a POSIX
 // machine, and a symlink can point anywhere the server is not entitled to
 // follow. A .dinah directory the walker descends into runs the same check,
 // which is the discovery shape every other rung of the search already uses.
@@ -752,15 +757,15 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 	for _, id := range ListIDs(base) {
 		candidate := filepath.Join(base, id)
 		anchorPath := filepath.Join(candidate, WorkbenchAnchor)
-		column, rerr := readAnchor(anchorPath)
+		recognition, rerr := readAnchor(anchorPath)
 		if rerr != nil {
 			return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 		}
-		if column == anchorForeign {
+		if recognition == anchorForeign {
 			passed = append(passed, anchorPath)
 			continue
 		}
-		if column != anchorOurs {
+		if recognition != anchorOurs {
 			continue
 		}
 		candidates = append(candidates, candidate)
@@ -774,13 +779,13 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 	return "", nil, passed, nil
 }
 
-// anchorColumn is what a workbench.md holds at one rung of the search, without
+// anchorRecognition is what a workbench.md holds at one rung of the search, without
 // validating what it holds.
-type anchorColumn int
+type anchorRecognition int
 
 const (
 	// anchorAbsent means no file sits there at all.
-	anchorAbsent anchorColumn = iota
+	anchorAbsent anchorRecognition = iota
 	// anchorForeign means a file sits there and carries none of the keys
 	// that claim it as a Dinah workbench.
 	anchorForeign
@@ -801,7 +806,7 @@ var readAnchorContent = ReadText
 // rare. A non-nil error means the file exists and could not be read, a
 // different question from whether it is recognized, and the caller checks
 // the error first.
-func readAnchor(path string) (anchorColumn, error) {
+func readAnchor(path string) (anchorRecognition, error) {
 	if !Exists(path) {
 		return anchorAbsent, nil
 	}
@@ -823,11 +828,11 @@ func readAnchor(path string) (anchorColumn, error) {
 // somebody else's document; a non-nil error means a file exists and could
 // not be read, and the caller decides how to refuse over that.
 func AnchorRecognized(path string) (bool, error) {
-	column, err := readAnchor(path)
+	recognition, err := readAnchor(path)
 	if err != nil {
 		return false, err
 	}
-	return column == anchorOurs, nil
+	return recognition == anchorOurs, nil
 }
 
 // Candidate is one workbench a listing reports: enough of its identity to
@@ -873,6 +878,27 @@ func describeAll(candidates []string) []Candidate {
 	return described
 }
 
+// columnVocabulary names the on-disk spellings one opener reads. It carries
+// no behavior of its own; it exists so Open and OpenPreVocabulary run the
+// same validation over two different key names instead of each keeping its
+// own copy of what "the same way, except" means.
+type columnVocabulary struct {
+	// SequenceKey is the workbench anchor's own key naming the flow.
+	SequenceKey string
+	// Dir is the collection directory the flow's members live in.
+	Dir string
+	// Anchor is the filename one member's own anchor takes.
+	Anchor string
+}
+
+// The two vocabularies a bench on disk can be written in. currentVocabulary is
+// what every workbench this build writes carries; preVocabulary is what a
+// workbench written before dinah-287 carries, and only the migration reads it.
+var (
+	currentVocabulary = columnVocabulary{SequenceKey: "columns", Dir: ColumnsDir, Anchor: ColumnAnchor}
+	preVocabulary     = columnVocabulary{SequenceKey: preVocabularySequenceKey, Dir: PreVocabularyDir, Anchor: PreVocabularyAnchor}
+)
+
 // Open reads a bench definition and the columns it declares.
 //
 // The refusals here are the profile's own: a definition missing a title, a
@@ -881,7 +907,32 @@ func describeAll(candidates []string) []Candidate {
 // a bench whose storage format is newer than this binary knows is refused with
 // the version it wanted named. Each malformed refusal carries the file it was
 // raised over, so a reader knows which workbench to repair.
+//
+// A workbench declaring a revision inside the pre-vocabulary window is refused
+// with needs-vocabulary-migration before any column is read, which is what
+// stops a reader taking an old card's state field, holding a flow-position
+// identifier under the old vocabulary, for one of ready, active or blocked.
 func Open(root string) (*Bench, error) {
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary)
+}
+
+// OpenPreVocabulary reads a workbench still written in the vocabulary this
+// build retired, so the migration that carries it forward has something to
+// read. It runs the same five checks Open runs, over the old key names, and it
+// is reachable from the vocabulary migration alone: every other caller goes
+// through Open and is refused a workbench of this age by name.
+func OpenPreVocabulary(root string) (*Bench, error) {
+	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile)
+}
+
+// openWithVocabulary is the body both openers share. It reads and parses the
+// workbench anchor, requires a title, requires and admits a profile, requires
+// the sequence key to name at least one column, and reads each named column's
+// own anchor. None of those five steps is specific to a vocabulary, so a later
+// change to any of them is a change here and reaches both callers; a second
+// copy of any of them appearing elsewhere in this file is the drift this
+// arrangement exists to make visible.
+func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error)) (*Bench, error) {
 	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor)}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
@@ -904,7 +955,7 @@ func Open(root string) (*Bench, error) {
 	if b.Profile == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
-	major, _, err := admitProfile(b.Profile)
+	major, _, err := admit(b.Profile)
 	if errors.Is(err, errProfileMalformed) {
 		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
@@ -922,27 +973,28 @@ func Open(root string) (*Bench, error) {
 		}
 		b.Format = n
 	}
-	ids := fm.Seq("columns")
+	ids := fm.Seq(vocab.SequenceKey)
 	if len(ids) == 0 {
-		return nil, contract.RefuseWith(contract.Malformed, "columns", anchor)
+		return nil, contract.RefuseWith(contract.Malformed, vocab.SequenceKey, anchor)
 	}
 	seen := map[string]bool{}
 	seenSlug := map[string]bool{}
 	for _, id := range ids {
 		if seen[id] {
-			return nil, contract.RefuseWith(contract.Malformed, "columns", anchor)
+			return nil, contract.RefuseWith(contract.Malformed, vocab.SequenceKey, anchor)
 		}
 		seen[id] = true
-		columnDir := filepath.Join(root, ColumnsDir, id)
+		columnDir := filepath.Join(root, vocab.Dir, id)
 		if !Exists(columnDir) {
 			b.StrandedColumns = append(b.StrandedColumns, id)
 			continue
 		}
-		column, err := readColumn(root, id, len(b.Columns))
+		column, err := readColumnIn(root, vocab, id, len(b.Columns))
 		if err != nil {
 			return nil, err
 		}
-		if err := admitSlug(column, major, seenSlug, map[string]string{"path": b.ColumnAnchorPath(id)}); err != nil {
+		path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
+		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path}); err != nil {
 			return nil, err
 		}
 		b.Columns = append(b.Columns, column)
@@ -1108,7 +1160,14 @@ func revisionText(pair [2]int) string {
 // column: a duplicate identifier, an absent title and a kind outside the three
 // are each malformed.
 func readColumn(root, id string, position int) (*Column, error) {
-	path := filepath.Join(root, ColumnsDir, id, ColumnAnchor)
+	return readColumnIn(root, currentVocabulary, id, position)
+}
+
+// readColumnIn is readColumn with the on-disk spellings supplied, so the
+// pre-vocabulary opener reads a column anchor by the same rules under the
+// names that vocabulary used.
+func readColumnIn(root string, vocab columnVocabulary, id string, position int) (*Column, error) {
+	path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
 	anchor := map[string]string{"path": path}
 	text, err := ReadText(path)
 	if err != nil {

@@ -6,7 +6,7 @@ package main
 // pull lands no card at a column where no owner takes work up, so doing is the
 // only destination a bare pull ever has.
 const ambiguousFlow = `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Wide flow",
   "columns": [
     { "id": "b00000000001", "title": "Intake", "slug": "intake", "kind": "intake" },

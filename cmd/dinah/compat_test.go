@@ -557,14 +557,35 @@ func readJournalMembers(t *testing.T, path string, into map[string]map[string]bo
 // TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused drives the window
 // through the head, one declared string at a time, which is what a person meets
 // when their own workbench declares one of them.
+//
+// Three answers rather than two, since dinah-287. A revision this build reads
+// opens. A revision written in the retired vocabulary is refused by name and
+// told which migration to run, which is the whole point of the gate that
+// refuses it. A revision nothing has ever read is refused with the window.
 func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
-	opens := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/0.6", "dinah-core/1.0"}
-	refuses := []string{"dinah-core/0.0", "dinah-core/0.7", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
+	opens := []string{"dinah-core/0.7"}
+	migrates := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/0.6", "dinah-core/1.0"}
+	refuses := []string{"dinah-core/0.0", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
 	for _, declared := range opens {
 		root := newBench(t)
 		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: "+declared)
 		if got := runCLI(t, root, "status"); got.code != 0 {
 			t.Errorf("a workbench declaring %s was refused: %d %s", declared, got.code, got.errw)
+		}
+	}
+	for _, declared := range migrates {
+		root := newBench(t)
+		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: "+declared)
+		got := runCLI(t, root, "status")
+		if got.code != 2 {
+			t.Errorf("a workbench declaring %s exited %d, wanted 2", declared, got.code)
+		}
+		leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+		if leading != contract.NeedsVocabularyMigration {
+			t.Errorf("a workbench declaring %s was refused %q, wanted %s", declared, got.errw, contract.NeedsVocabularyMigration)
+		}
+		if !strings.Contains(got.errw, "dinah check --migrate-vocabulary") {
+			t.Errorf("the refusal over %s does not name the migration to run: %s", declared, got.errw)
 		}
 	}
 	for _, declared := range refuses {
@@ -612,7 +633,11 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	root := newBench(t)
 	editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
 	got := runCLI(t, root, "status")
-	wanted := "; this build reads dinah-core 0.1 through dinah-core 0.6"
+	// The window is one revision wide while the floor sits at the rename, and
+	// the clause is composed from the constants rather than spelled here, so
+	// this reads the sentence's shape without pinning the numbers a later
+	// bump moves.
+	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.7"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}
@@ -670,16 +695,68 @@ func TestAMalformedProfileKeepsItsTwoSentences(t *testing.T) {
 	}
 }
 
+// migratedCopy copies a pre-vocabulary fixture somewhere a test may write and
+// carries it across the rename with the head's own migration, which is the
+// route a person with a workbench of that age takes. It answers the anchor
+// directory of the migrated copy.
+//
+// Two things are asserted on the way past, because this is the one helper that
+// runs the migration through the head: the run reports success, and the copy
+// opens afterwards. A test using this helper is entitled to assume both.
+func migratedCopy(t *testing.T, fixture string) string {
+	t.Helper()
+	source, err := filepath.Abs(filepath.Join(compatDir, fixture))
+	if err != nil {
+		t.Fatalf("resolve the fixture: %v", err)
+	}
+	copied := filepath.Join(t.TempDir(), fixture)
+	copyFixture(t, source, copied)
+	if got := runCLI(t, copied, "--workbench", copied, "check", "--migrate-vocabulary"); got.code != 0 {
+		t.Fatalf("migrate %s: %d %s", fixture, got.code, got.errw)
+	}
+	if got := runCLI(t, copied, "--workbench", copied, "columns"); got.code != 0 {
+		t.Fatalf("the migrated %s does not open: %d %s", fixture, got.code, got.errw)
+	}
+	return copied
+}
+
+// copyFixture copies a fixture tree, since a migration rewrites what it is
+// given and a fixture in the tree is evidence rather than scratch.
+func copyFixture(t *testing.T, from, to string) {
+	t.Helper()
+	err := filepath.WalkDir(from, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(from, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(to, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
+	if err != nil {
+		t.Fatalf("copy %s: %v", from, err)
+	}
+}
+
 // TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision drives both
 // forms dinah init --from accepts, the anchor directory and an exported .json
 // file, against a fixture declaring the retired spelling. The clone declares
 // this build's own revision, because a workbench names the revision it was
 // written against.
 func TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision(t *testing.T) {
-	source, err := filepath.Abs(filepath.Join(compatDir, "dinah-core-1.0"))
-	if err != nil {
-		t.Fatalf("resolve the fixture: %v", err)
-	}
+	// The fixture declares the retired spelling, which this build reads only
+	// after the vocabulary migration has run over it, so the clone starts from
+	// a migrated copy rather than from the fixture where it sits.
+	source := migratedCopy(t, "dinah-core-1.0")
 	exported := filepath.Join(t.TempDir(), "definition.json")
 	b, err := bench.Open(source)
 	if err != nil {
@@ -722,10 +799,11 @@ func TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision(t *testing.T)
 // with every file left byte-identical afterwards. That last clause is what
 // proves no migration ran on open.
 func TestThePreSlugFixtureOpensAndReportsItsMissingSlugs(t *testing.T) {
-	fixture, err := filepath.Abs(filepath.Join(compatDir, "dinah-core-1.0-pre-slug"))
-	if err != nil {
-		t.Fatalf("resolve the fixture: %v", err)
-	}
+	// The snapshot is taken after the vocabulary migration rather than before
+	// it, because that migration is a write and this test is about what a read
+	// does not write. What it asserts is unchanged: the slug defects are
+	// reported and left alone.
+	fixture := migratedCopy(t, "dinah-core-1.0-pre-slug")
 	before := fixtureContents(t, fixture)
 	root := t.TempDir()
 	t.Setenv("DINAH_HOME", filepath.Join(root, "home"))

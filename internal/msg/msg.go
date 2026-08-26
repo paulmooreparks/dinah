@@ -109,7 +109,17 @@ func readAll() map[string]*Catalog {
 // internal/verb both read them rather than each carrying its own copy of the
 // same fact, which is what let German ship translated while two separate
 // hardcoded rosters still called it a skeleton.
-var Complete = []string{Base, "hi", "de"}
+//
+// Hindi and German left this list at dinah-287, and the card's own D-6 records
+// why. That rename moved the English text of ninety-five entries, no fluent
+// editor of either language was available in the pass that made the move, and
+// the two bad answers were both ruled out by name: leaving the retired word
+// standing in the one place an English-speaking maintainer would never see it,
+// or deleting the keys so the reader silently gets English. The entries carry
+// the renamed English with the skeleton flag the package already has for
+// saying a string is not translated yet, and the follow-up card that
+// retranslates them puts both tags back here.
+var Complete = []string{Base}
 
 // Skeleton is documented on Complete, which it is the other half of.
 var Skeleton = []string{"cs", "id", "es", "fil", "af"}

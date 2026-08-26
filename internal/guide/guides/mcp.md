@@ -25,13 +25,13 @@ the response indented for reading.
 ```
 
 ```json
-{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"affordances\": [\"status\", \"states\", \"list_cards\", \"next_card\"],\n  \"status\": { \"workbench\": \"Your workbench\", \"profile\": \"dinah-core/1.0\", ... }\n}"}]}}
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"],\n  \"status\": { \"workbench\": \"Your workbench\", \"profile\": \"dinah-core/1.0\", ... }\n}"}]}}
 ```
 
 Every payload carries two things at the top: the answer the tool was asked
 for, and an `affordances` member naming what you may do next. Treat that
 member as the loop. When the answer is a read, the affordances are the other
-reads of the same workbench, `status`, `states`, `list_cards`, `next_card`. When
+reads of the same workbench, `status`, `columns`, `list_cards`, `next_card`. When
 the answer is a card, they name the acts that card will accept, and a refused
 call carries its own affordances telling you where to go instead. The machine
 answer and the affordances together are the whole surface; if you follow the
@@ -42,36 +42,36 @@ affordances you cannot dead-end.
 Three reads give you the workbench you have been handed.
 
 `status` reports the workbench itself: who its operator is, whether you are
-that person, and the states of the flow with each one's occupancy. The
-`operator_owned` flag on a state is the answer to whether that state is yours
+that person, and the columns of the flow with each one's occupancy. The
+`operator_owned` flag on a column is the answer to whether that column is yours
 to move cards out of, and it repeats the rule in `initialize`. Read the
-`awaiting_outside` flag beside it, which answers a different question: a state
+`awaiting_outside` flag beside it, which answers a different question: a column
 carrying it waits on somebody outside the workbench, so no claim of yours will
 be taken there and no pull will take a card out of it or land one in it. What
-you can still do at such a state is move a card on from it once the answer
+you can still do at such a column is move a card on from it once the answer
 comes, which needs no claim.
 
-Read `takes_work_up` beside both of them. A state answering false is one where
+Read `takes_work_up` beside both of them. A column answering false is one where
 nobody works a card: the card waits there until a pull carries it into the
-state beyond, so `pull` rather than `claim` is the act to reach for, and a
-claim there is refused with `dinah.takes-no-work`. An intake state, a done
-state and a state a workbench uses to buffer for the station after it all
+column beyond, so `pull` rather than `claim` is the act to reach for, and a
+claim there is refused with `dinah.takes-no-work`. An intake column, a done
+column and a column a workbench uses to buffer for the station after it all
 answer false.
 
-`list_cards` returns the cards of a state, in the order the workbench
+`list_cards` returns the cards of a column, in the order the workbench
 fixes. `next_card` offers the first ready card in that order, and it is the
 cheapest way to learn what is pullable without enumerating everything.
-`states` lists the states of the workbench alone.
+`columns` lists the columns of the workbench alone.
 
 ```json
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_cards","arguments":{}}}
 ```
 
 ```json
-{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\n  \"affordances\": [\"status\", \"states\", \"list_cards\", \"next_card\"],\n  \"listing\": { \"cards\": [] }\n}"}]}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"],\n  \"listing\": { \"cards\": [] }\n}"}]}}
 ```
 
-An empty `cards` array is the honest answer for a state nobody has filed
+An empty `cards` array is the honest answer for a column nobody has filed
 into. It is not an error.
 
 ## Take a card and carry it
@@ -90,7 +90,7 @@ its own tool call: `comment` to leave a note, `move` to carry the card along
 the flow, `attach` to bind a file, `release` to hand a card back to the
 queue unfinished. A successful `claim` or `move` carries the instructions of
 the new position and the moves the flow allows, so follow the one you need
-rather than guessing the next state's name. `show` returns one card in full,
+rather than guessing the next column's name. `show` returns one card in full,
 its body, its links, and its comments, and that is the call to make before
 you act on a card you have not already met.
 
@@ -106,12 +106,12 @@ follows everywhere on this surface.
 ```
 
 ```json
-{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\n  \"outcome\": \"refused\",\n  \"verb\": \"claim\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"0\",\n  \"affordances\": [\"status\", \"states\", \"list_cards\", \"next_card\"]\n}"}]}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\n  \"outcome\": \"refused\",\n  \"verb\": \"claim\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"0\",\n  \"affordances\": [\"status\", \"columns\", \"list_cards\", \"next_card\"]\n}"}]}}
 ```
 
 `unknown-card` names what the call did wrong, and the affordances name where
 to go to recover. A card you name must exist, a card another owner holds is
-not yours to claim, and a card in an operator-owned state is not yours to
+not yours to claim, and a card in an operator-owned column is not yours to
 move. The refusal tells you which rule stopped you and on what.
 
 A transport error is a different thing. An unknown `method` or a malformed
@@ -164,7 +164,7 @@ happened, and `log` is the call for the second question.
 Call it again with that token whenever you are about to act on something you
 believe about the board rather than something you just read. The answer
 carries `changed`, which is a fact about the whole workbench, the lines that
-landed since your token, the cards that moved with their new state, and a
+landed since your token, the cards that moved with their new column, and a
 fresh token to carry forward. A `changed` of true is a reason to re-read
 before you act, even where the arrays are empty, which is what a narrowed call
 answers when the board moved somewhere you did not ask about.

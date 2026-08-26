@@ -41,7 +41,7 @@ const (
 // after one. A fixture that reached a forward move out of a done column by
 // putting an ordinary station past it would be a board dinah check reports.
 const fixtureDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Fixture",
   "instructions": "The standing text of this workbench.\n",
   "columns": [

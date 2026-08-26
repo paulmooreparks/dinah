@@ -621,6 +621,47 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	return s.renderFindings(report.Findings)
 }
 
+// renderVocabulary prints what a tree-wide vocabulary migration did, one
+// section per outcome, and prints only the sections that hold something. A
+// section nobody needs is a line a reader has to skip, and the counts alone
+// already say that nothing was silently dropped.
+func (s *session) renderVocabulary(report *verb.TreeVocabularyReport) {
+	s.line(s.r.TN("check.vocabulary-migrated", len(report.Migrated)))
+	migrated := table{indent: 2, columns: listColumn()}
+	for _, entry := range report.Migrated {
+		migrated.rows = append(migrated.rows, tableRow{fields: []string{
+			s.r.TN("check.vocabulary-cards", entry.Cards, "path", entry.Path),
+		}})
+	}
+	s.table(migrated)
+	s.vocabularySection("check.vocabulary-already-current", report.AlreadyCurrent)
+	s.vocabularySection("check.vocabulary-malformed", report.Malformed)
+	unsupported := make([]string, 0, len(report.Unsupported))
+	for _, entry := range report.Unsupported {
+		unsupported = append(unsupported, entry.Path+" ("+entry.Revision+")")
+	}
+	s.vocabularySection("check.vocabulary-unsupported", unsupported)
+	failed := make([]string, 0, len(report.Failed))
+	for _, entry := range report.Failed {
+		failed = append(failed, entry.Path+": "+entry.Reason)
+	}
+	s.vocabularySection("check.vocabulary-failed", failed)
+}
+
+// vocabularySection prints one heading and its rows, or nothing at all when
+// the outcome caught no workbench.
+func (s *session) vocabularySection(key string, rows []string) {
+	if len(rows) == 0 {
+		return
+	}
+	s.line(s.r.TN(key, len(rows)))
+	t := table{indent: 2, columns: listColumn()}
+	for _, row := range rows {
+		t.rows = append(t.rows, tableRow{fields: []string{row}})
+	}
+	s.table(t)
+}
+
 // renderFindings prints what check found and returns the exit code: zero on a
 // clean bench, the refused code when anything was found.
 func (s *session) renderFindings(findings []bench.Finding) int {

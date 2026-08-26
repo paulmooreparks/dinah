@@ -374,6 +374,7 @@ var params = map[string][]Param{
 		{Name: "migrate-ordinals", Flag: true, Marker: true},
 		{Name: "migrate-slugs", Flag: true, Marker: true},
 		{Name: "migrate-columns", Flag: true, Marker: true},
+		{Name: "migrate-vocabulary", Flag: true, Marker: true},
 		{Name: "migrate-workstreams", Flag: true, Marker: true},
 	},
 	"whoami":      {},

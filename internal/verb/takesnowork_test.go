@@ -14,7 +14,7 @@ import (
 // a second station past it so that a pull out of the buffer has somewhere to
 // land and a pull out of that station has somewhere to go.
 const bufferDefinition = `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Buffered",
   "instructions": "Standing text.\n",
   "columns": [
@@ -186,7 +186,7 @@ func TestNoQueueColumnIsEverABarePullsDestination(t *testing.T) {
 		{
 			name: "the only candidate is a buffer",
 			flow: `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Buffer last",
   "columns": [
     { "id": "c00000000001", "title": "Doing", "slug": "doing", "kind": "work" },
@@ -198,7 +198,7 @@ func TestNoQueueColumnIsEverABarePullsDestination(t *testing.T) {
 		{
 			name: "the only candidate is a done column",
 			flow: `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Done last",
   "columns": [
     { "id": "c00000000001", "title": "Doing", "slug": "doing", "kind": "work" },
@@ -268,7 +268,7 @@ func TestANamedPullIsRefusedAtAQueueDestination(t *testing.T) {
 		// reaches the row is an intake column standing elsewhere, which
 		// dinah check reports and which still opens.
 		h := harnessFromDefinition(t, "ni", `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Intake second",
   "columns": [
     { "id": "d00000000001", "title": "Doing", "slug": "doing", "kind": "work" },
@@ -389,7 +389,7 @@ func TestNextOffersNothingWhereNoPullCouldReach(t *testing.T) {
 		{
 			name: "a buffer standing last",
 			flow: `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Buffer last",
   "columns": [
     { "id": "e00000000001", "title": "Doing", "slug": "doing", "kind": "work" },
@@ -400,7 +400,7 @@ func TestNextOffersNothingWhereNoPullCouldReach(t *testing.T) {
 		{
 			name: "a buffer whose downstream waits on somebody outside",
 			flow: `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Buffer then outside",
   "columns": [
     { "id": "e00000000001", "title": "Waiting", "slug": "waiting", "kind": "dinah.buffer" },
@@ -533,7 +533,7 @@ func TestACardHeldWhereNoWorkIsTakenUpIsReported(t *testing.T) {
 // offers the card, which is the work-column reading the statement requires.
 func TestAKindThisBuildDoesNotImplementIsWorkedLikeAnyOther(t *testing.T) {
 	h := harnessFromDefinition(t, "uk", `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Unknown kind",
   "columns": [
     { "id": "f00000000001", "title": "Intake", "slug": "intake", "kind": "intake" },

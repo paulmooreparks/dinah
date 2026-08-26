@@ -256,7 +256,7 @@ func newAmbiguousHarnessFrom(t *testing.T, definitionText string) *harness {
 }
 
 const ambiguousDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Wide",
   "instructions": "Standing text.\n",
   "columns": [
@@ -734,7 +734,7 @@ func TestTheBareFormNarrowsAwayAnOperatorOwnedDestination(t *testing.T) {
 // different candidate sets: the operator sees doing and review, and anybody
 // else sees doing alone.
 const reservedAmbiguousDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Wide",
   "instructions": "Standing text.\n",
   "columns": [

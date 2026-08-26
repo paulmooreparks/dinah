@@ -310,3 +310,34 @@ func escape(value string) string {
 	value = strings.ReplaceAll(value, `"`, `\"`)
 	return strings.ReplaceAll(value, "\n", `\n`)
 }
+
+// Rename changes a key's name, keeping its position in the header and its
+// stored lines, which is the same preservation Set and SetAfter give a value.
+// A key the header does not carry is left alone, and a rename onto a name the
+// header already carries drops the target's own lines, since two keys of one
+// name is not a header any reader could resolve.
+//
+// A migration that renames a key rather than rewriting a value needs this:
+// re-Setting the value would quote it afresh and move the key to the end,
+// where a reader expects to find it where its neighbours left it.
+func (f *Frontmatter) Rename(from, to string) {
+	lines, ok := f.block[from]
+	if !ok || from == to {
+		return
+	}
+	if _, taken := f.block[to]; taken {
+		f.Delete(to)
+	}
+	renamed := append([]string(nil), lines...)
+	if len(renamed) > 0 {
+		renamed[0] = to + strings.TrimPrefix(renamed[0], from)
+	}
+	delete(f.block, from)
+	f.block[to] = renamed
+	for i, key := range f.keys {
+		if key == from {
+			f.keys[i] = to
+			return
+		}
+	}
+}

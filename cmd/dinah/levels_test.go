@@ -17,7 +17,7 @@ import (
 // bothAxesDefinition declares the two level sets docs/design/format.md uses as
 // its own example, which is what the Dinah board itself declares.
 const bothAxesDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Levelled",
   "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },
   "columns": [
@@ -31,7 +31,7 @@ const bothAxesDefinition = `{
 // than a degenerate one, and the case a single workbench-wide "does this
 // declare any levels at all" gate would pass while breaking the format.
 const severityOnlyDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Severity only",
   "levels": { "severity": ["trivial", "minor", "major", "critical"] },
   "columns": [
@@ -785,7 +785,7 @@ func TestUndeclaredLevelDisplaysUnmarkedOnAllThreeSurfaces(t *testing.T) {
 // would read "aktiv" instead of "active".
 func TestLevelNamesNeverPassThroughTheTokenCatalog(t *testing.T) {
 	const collidingDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Colliding level",
   "levels": { "severity": ["active"] },
   "columns": [

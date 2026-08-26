@@ -407,7 +407,7 @@ func TestAFurtherAxisIsRenderedAfterTheTwoInSortedOrder(t *testing.T) {
 func instantiateWithLevels(t *testing.T, root, member string) {
 	t.Helper()
 	source := `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Levelled",
   "levels": ` + member + `,
   "columns": [{ "id": "b00000000001", "title": "Only", "kind": "work" }]

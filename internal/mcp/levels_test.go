@@ -15,7 +15,7 @@ import (
 // levelledDefinition is the fixture definition with the two level sets
 // declared, so the write path this file exercises has something to admit.
 const levelledDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Fixture",
   "instructions": "Standing text.\n",
   "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },

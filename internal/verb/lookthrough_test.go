@@ -80,7 +80,7 @@ func TestAFullBufferDrainsBeforeThePullReachesBehindIt(t *testing.T) {
 // nothing and says so.
 func TestAPullDoesNotReachPastAStationThatHoldsACard(t *testing.T) {
 	h := harnessFromDefinition(t, "ps", `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Station then buffer",
   "columns": [
     { "id": "100000000001", "title": "Intake", "slug": "intake", "kind": "intake" },
@@ -113,7 +113,7 @@ func TestAPullDoesNotReachPastAStationThatHoldsACard(t *testing.T) {
 func TestTheLookThroughRemovesNoRefusalTheNamedFormOwes(t *testing.T) {
 	t.Run("a done upstream still answers terminal", func(t *testing.T) {
 		h := harnessFromDefinition(t, "du", `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Done upstream",
   "columns": [
     { "id": "200000000001", "title": "Doing", "slug": "doing", "kind": "work" },
@@ -135,7 +135,7 @@ func TestTheLookThroughRemovesNoRefusalTheNamedFormOwes(t *testing.T) {
 
 	t.Run("an upstream waiting on somebody outside still answers its own name", func(t *testing.T) {
 		h := harnessFromDefinition(t, "ou", `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Outside upstream",
   "columns": [
     { "id": "200000000001", "title": "Intake", "slug": "intake", "kind": "intake" },
@@ -159,7 +159,7 @@ func TestTheLookThroughRemovesNoRefusalTheNamedFormOwes(t *testing.T) {
 // which is a better answer than the empty one for a card the board shows them.
 func TestAnOperatorOwnedSourceAnswersInWordsRatherThanSilence(t *testing.T) {
 	const flow = `{
-  "profile": "dinah-core/0.5",
+  "profile": "dinah-core/0.7",
   "title": "Operator-owned buffer",
   "columns": [
     { "id": "300000000001", "title": "Intake", "slug": "intake", "kind": "intake" },

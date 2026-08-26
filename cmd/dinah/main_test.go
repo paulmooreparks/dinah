@@ -1135,7 +1135,7 @@ func TestEveryCatalogKeyTheCodeNamesExists(t *testing.T) {
 // done station, which is what the refusals below need and the default flow
 // `init` writes does not carry.
 const limitedDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Limited",
   "columns": [
     { "id": "b00000000001", "title": "Intake", "kind": "intake" },
@@ -2645,7 +2645,7 @@ func emptyTree(t *testing.T) string {
 // the title as its one argument. It stands in for the flow `init` builds when
 // no source is named.
 const baseDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": %q,
   "columns": [
     { "id": "c00000000001", "title": "Intake", "kind": "intake" },

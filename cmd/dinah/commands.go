@@ -96,19 +96,20 @@ func init() {
 // resolved actor and whatever flags the command reads.
 func (s *session) request(name string, parsed *arguments) *verb.Request {
 	req := &verb.Request{
-		Verb:            name,
-		Actor:           s.actor,
-		Column:          parsed.value("column"),
-		Kind:            parsed.value("kind"),
-		Description:     parsed.value("description"),
-		Override:        parsed.has("override"),
-		Replace:         parsed.has("replace"),
-		Confirm:         parsed.has("yes"),
-		ReadyOnly:       parsed.has("ready"),
-		Finish:          parsed.has("finish"),
-		MigrateOrdinals: parsed.has("migrate-ordinals"),
-		MigrateSlugs:    parsed.has("migrate-slugs"),
-		MigrateColumns:  parsed.has("migrate-columns"),
+		Verb:              name,
+		Actor:             s.actor,
+		Column:            parsed.value("column"),
+		Kind:              parsed.value("kind"),
+		Description:       parsed.value("description"),
+		Override:          parsed.has("override"),
+		Replace:           parsed.has("replace"),
+		Confirm:           parsed.has("yes"),
+		ReadyOnly:         parsed.has("ready"),
+		Finish:            parsed.has("finish"),
+		MigrateOrdinals:   parsed.has("migrate-ordinals"),
+		MigrateSlugs:      parsed.has("migrate-slugs"),
+		MigrateColumns:    parsed.has("migrate-columns"),
+		MigrateVocabulary: parsed.has("migrate-vocabulary"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		NoClaim:            parsed.has("no-claim"),
@@ -840,7 +841,18 @@ func runConfig(s *session, parsed *arguments) int {
 }
 
 // runCheck checks the bench for structural defects.
+//
+// The vocabulary migration is answered before the workbench is opened, which
+// no other migration marker needs. Every one of its siblings repairs an
+// additive gap in a workbench this build can already read; this one repairs
+// the key names the reader itself is looking for, so the ordinary open would
+// refuse the very workbench the migration exists to carry forward. It also
+// walks a tree rather than acting on one bench, since the boards it was asked
+// for sit spread across directories nobody wants to visit one at a time.
 func runCheck(s *session, parsed *arguments) int {
+	if parsed.has("migrate-vocabulary") {
+		return runMigrateVocabulary(s)
+	}
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
@@ -857,6 +869,39 @@ func runCheck(s *session, parsed *arguments) int {
 		}
 		return s.renderCheck(report)
 	})
+}
+
+// runMigrateVocabulary carries every workbench at or beneath the discovered
+// root across the vocabulary rename. It resolves the root the way every other
+// command does and then declines to open it, because a workbench in the
+// pre-vocabulary window is refused by the ordinary opener by name.
+func runMigrateVocabulary(s *session) int {
+	root, source, _, err := bench.DiscoverSource(
+		s.cwd,
+		s.benchFlag,
+		s.benchFlagSource,
+		s.home,
+		s.nativeHome,
+		s.cfg.Get("workbench"),
+	)
+	if err != nil {
+		return s.reportError(err)
+	}
+	s.workbenchSource = source
+	report, err := verb.MigrateVocabularyTree(root)
+	if err != nil {
+		return s.reportError(err)
+	}
+	code := 0
+	if !report.Clean() {
+		code = contract.ExitCode(contract.OutcomeRefused)
+	}
+	if s.json {
+		s.emitJSON(report)
+		return code
+	}
+	s.renderVocabulary(report)
+	return code
 }
 
 // runWhoami reports the actor and whether it is the operator of this bench.

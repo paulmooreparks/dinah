@@ -124,6 +124,12 @@ type Request struct {
 	// MigrateColumns asks check to remove every stranded identifier from the
 	// workbench's own columns list, before it reports.
 	MigrateColumns bool
+	// MigrateVocabulary asks check to carry every workbench at or beneath the
+	// discovered root from the retired state and substate vocabulary to the
+	// current column and state one. It is the one marker check reads before a
+	// workbench is opened rather than after, because a workbench still written
+	// in the old vocabulary is exactly what the ordinary open refuses.
+	MigrateVocabulary bool
 	// MigrateWorkstreams asks check to create a workstream at every
 	// identifier the live cards list that names none, before it reports.
 	MigrateWorkstreams bool

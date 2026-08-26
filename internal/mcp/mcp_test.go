@@ -16,7 +16,7 @@ import (
 
 // definition is the bench this head's tests are served over.
 const definition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Fixture",
   "instructions": "Standing text.\n",
   "columns": [

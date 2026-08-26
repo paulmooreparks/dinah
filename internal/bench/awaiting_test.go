@@ -15,7 +15,7 @@ import (
 // somebody outside it, which is the smallest fixture that can show the member
 // written on one column and left off the other.
 const waitingDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Waiting",
   "columns": [
     { "id": "d00000000001", "title": "Doing", "kind": "work",

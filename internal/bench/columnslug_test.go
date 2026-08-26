@@ -133,7 +133,7 @@ func TestOpenGatesAStoredSlugOnTheDeclaredMajor(t *testing.T) {
 		t.Errorf("the column carries slug %q, wanted the stored value", got)
 	}
 
-	shared, err := Open(newTwoColumnFixture(t, "dinah-core/1.0", "review", "review"))
+	shared, err := Open(newTwoColumnFixture(t, ProfileVersion, "review", "review"))
 	if err != nil {
 		t.Fatalf("two columns sharing a slug should open below the mandating major: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestOpenGatesTheMissingSlugOnTheDeclaredMajor(t *testing.T) {
 // whose slug it is, which is the tier that makes a spaced title reachable
 // without quoting it.
 func TestColumnByRefReadsTheSlugAheadOfTheTitle(t *testing.T) {
-	root := newTwoColumnFixture(t, "dinah-core/1.0", "agent-code-review", "review")
+	root := newTwoColumnFixture(t, ProfileVersion, "agent-code-review", "review")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -300,7 +300,7 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 // dinah-core/1.0 to, and asserts the same finding, so the two spellings are
 // shown to compute one answer once the seam is wired.
 func TestTheMandatoryMajorIsComparedAgainstTheResolvedReading(t *testing.T) {
-	opened, err := Open(newTwoColumnFixture(t, "dinah-core/1.0", "", "second"))
+	opened, err := Open(newTwoColumnFixture(t, ProfileVersion, "", "second"))
 	if err != nil {
 		t.Fatalf("a workbench carrying an absent slug should open: %v", err)
 	}
@@ -315,10 +315,17 @@ func TestTheMandatoryMajorIsComparedAgainstTheResolvedReading(t *testing.T) {
 		t.Errorf("wanted no finding at a mandatory major of 0, got %v", findings)
 	}
 
-	literal, err := Open(newTwoColumnFixture(t, "dinah-core/0.1", "", "second"))
+	// The literal spelling of the revision the alias resolves dinah-core/1.0
+	// to sits below the floor dinah-287 raised, so no workbench declaring it
+	// opens through Open any more. The declaration is put on the opened bench
+	// instead, which is where the check reads it from and is therefore the
+	// whole of the seam under test: a body still calling the bare tokenizer
+	// reads major 1 here and reports nothing.
+	literal, err := Open(newTwoColumnFixture(t, ProfileVersion, "", "second"))
 	if err != nil {
-		t.Fatalf("a workbench declaring 0.1 should open: %v", err)
+		t.Fatalf("a workbench carrying an absent slug should open: %v", err)
 	}
+	literal.Profile = "dinah-core/0.1"
 	findings = literal.checkColumnSlugsWithin(1)
 	if len(findings) != 1 || findings[0].Key != FindingSlugMissing {
 		t.Fatalf("wanted one missing finding for the literal 0.1, got %v", findings)
@@ -338,7 +345,7 @@ func TestTheMandatoryMajorIsComparedAgainstTheResolvedReading(t *testing.T) {
 // to open, so a reader refusing these two slugs would leave both findings
 // unreachable and this test asserting nothing anybody can meet.
 func TestCheckReportsAStoredSlugItWillNotRepair(t *testing.T) {
-	root := newTwoColumnFixture(t, "dinah-core/1.0", "review", "review")
+	root := newTwoColumnFixture(t, ProfileVersion, "review", "review")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("a workbench carrying a duplicated slug should open: %v", err)
@@ -351,7 +358,7 @@ func TestCheckReportsAStoredSlugItWillNotRepair(t *testing.T) {
 		t.Errorf("the finding names %q, wanted the second column's anchor %q", findings[0].Path, want)
 	}
 
-	malformed := newTwoColumnFixture(t, "dinah-core/1.0", "Only", "second")
+	malformed := newTwoColumnFixture(t, ProfileVersion, "Only", "second")
 	stored, err := Open(malformed)
 	if err != nil {
 		t.Fatalf("a workbench carrying a malformed slug should open: %v", err)
@@ -456,7 +463,7 @@ func anchorKeys(text string) []string {
 // is taken as given.
 func TestInstantiateDerivesASlugForEveryColumn(t *testing.T) {
 	definition := readDefinition(t, `{
-	  "profile": "dinah-core/1.0",
+	  "profile": "dinah-core/0.7",
 	  "title": "Fixture",
 	  "columns": [
 	    {"id": "b00000000001", "title": "Agent Code Review", "kind": "intake"},
@@ -512,7 +519,7 @@ func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			definition := readDefinition(t, `{"profile": "dinah-core/1.0", "title": "Fixture", "columns": [`+c.columns+`]}`)
+			definition := readDefinition(t, `{"profile": "dinah-core/0.7", "title": "Fixture", "columns": [`+c.columns+`]}`)
 			root := filepath.Join(t.TempDir(), "workbench")
 			err := Instantiate(root, "fx", "alka", definition)
 			if !refusedMalformed(err) {

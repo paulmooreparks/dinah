@@ -48,7 +48,7 @@ func TestAForeignAnchorDoesNotStopTheClimb(t *testing.T) {
 func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 	outer := t.TempDir()
 	write(t, filepath.Join(outer, WorkbenchAnchor), benchDefinition)
-	damaged := strings.Replace(benchDefinition, "profile: dinah-core/1.0\n", "", 1)
+	damaged := strings.Replace(benchDefinition, "profile: dinah-core/0.7\n", "", 1)
 	inner := filepath.Join(outer, "damaged")
 	write(t, filepath.Join(inner, WorkbenchAnchor), damaged)
 
@@ -82,7 +82,7 @@ func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 // claims the directory.
 func TestARecognizedAnchorStopsTheClimbOnProfileAlone(t *testing.T) {
 	root := t.TempDir()
-	write(t, filepath.Join(root, WorkbenchAnchor), "---\nprofile: dinah-core/1.0\n---\n")
+	write(t, filepath.Join(root, WorkbenchAnchor), "---\nprofile: dinah-core/0.7\n---\n")
 
 	found, passed, err := Discover(root, "", "", "")
 	if err != nil {

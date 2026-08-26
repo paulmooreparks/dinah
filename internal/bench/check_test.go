@@ -103,7 +103,7 @@ func namesVariable(names []string, want string) bool {
 // benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---
 format: 1
-profile: dinah-core/1.0
+profile: dinah-core/0.7
 title: Fixture
 slug: fx
 operator: alka
@@ -1257,7 +1257,7 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 		{
 			name: "a workbench predating the profile line",
 			damage: func(t *testing.T, root string) {
-				write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "profile: dinah-core/1.0\n", "", 1))
+				write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "profile: dinah-core/0.7\n", "", 1))
 			},
 			detail: "profile",
 			path:   func(root string) string { return filepath.Join(root, WorkbenchAnchor) },

@@ -215,10 +215,20 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 //
 // A subtest per language keeps a failure readable. Without one, a single
 // English edit reports the same key once per catalog and a reader cannot tell
-// how many languages are actually behind. Each catalog the language ruling
-// calls complete earns a subtest on its own, so the five skeleton catalogs
-// join the guard when somebody translates them and nothing here has to be
-// edited for that to happen.
+// how many languages are actually behind. Every catalog that ships earns a
+// subtest, so a skeleton catalog joins the guard the moment somebody
+// translates one of its entries and nothing here has to be edited for that to
+// happen.
+//
+// The loop reads every shipped catalog rather than the Complete roster it once
+// read, because the roster answers a different question. Complete is
+// catalog-level: it says a language has no untranslated entry left, and
+// dinah-287 took Hindi and German off it while both still carry hundreds of
+// real translations. A guard keyed on that roster stopped checking those
+// translations on the day the roster changed, and reported that it was
+// asserting nothing rather than checking what was in front of it. Reading
+// every catalog and skipping every skeleton entry is the same test over a
+// strictly larger set: no entry it used to check is dropped.
 //
 // The base catalog and any skeleton entry are exempt, because neither is a
 // translation of anything and so neither has a source to fall behind. A key
@@ -226,14 +236,14 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 // already reports it, rather than reported twice.
 func TestATranslationTracksItsEnglishSource(t *testing.T) {
 	checked := 0
-	for _, tag := range Complete {
+	for _, tag := range Tags() {
 		if tag == Base {
 			continue
 		}
 		t.Run(tag, func(t *testing.T) {
 			catalog, shipped := loaded[tag]
 			if !shipped {
-				t.Fatalf("the complete catalog %s does not ship, so no entry of it can be checked", tag)
+				t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
 			}
 			for _, key := range Keys() {
 				base, ok := BaseEntry(key)

@@ -2207,7 +2207,7 @@ func sweptInit(t *testing.T, dir string) {
 // from the healthy tree is unaffected, since only the ls table draws these
 // two columns at all.
 const sweptLeveledDefinitionFormat = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": %q,
   "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },
   "columns": [

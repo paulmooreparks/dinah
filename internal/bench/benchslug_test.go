@@ -142,7 +142,7 @@ func hasFinding(findings []Finding, key string) bool {
 // empty string, matching the convention ColumnView.Slug already carries.
 func TestCandidateSlugOmitsWhenAbsent(t *testing.T) {
 	root := t.TempDir()
-	write(t, filepath.Join(root, WorkbenchAnchor), "---\nformat: 1\nprofile: dinah-core/1.0\ntitle: NoSlug\noperator: alka\nstates:\n  - b00000000001\n---\n")
+	write(t, filepath.Join(root, WorkbenchAnchor), "---\nformat: 1\nprofile: dinah-core/0.7\ntitle: NoSlug\noperator: alka\nstates:\n  - b00000000001\n---\n")
 	candidate := describe(root)
 	if candidate.Slug != "" {
 		t.Fatalf("wanted no slug, got %q", candidate.Slug)

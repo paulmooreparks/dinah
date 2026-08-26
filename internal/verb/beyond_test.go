@@ -622,6 +622,16 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	for _, tag := range msg.Complete {
 		isComplete[tag] = true
 	}
+	// The two rosters are read separately rather than as one another's
+	// negation. A catalog can be on neither: dinah-287 took Hindi and German
+	// off Complete while both go on carrying hundreds of real translations,
+	// so "not complete" stopped meaning "generated skeleton". Each roster's
+	// claim is asserted against the tags that roster actually names, which is
+	// the shape TestEveryDeclaredLanguageShips already reads them in.
+	isSkeleton := map[string]bool{}
+	for _, tag := range msg.Skeleton {
+		isSkeleton[tag] = true
+	}
 	wanted := map[string]bool{}
 	for _, tag := range append(append([]string{}, msg.Complete...), msg.Skeleton...) {
 		wanted[tag] = true
@@ -635,7 +645,7 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 		if complete && coverage.Translated != coverage.Total {
 			t.Errorf("%s ships complete, got %d of %d translated", coverage.Tag, coverage.Translated, coverage.Total)
 		}
-		if !complete && coverage.Translated != 0 {
+		if isSkeleton[coverage.Tag] && coverage.Translated != 0 {
 			t.Errorf("%s ships as a skeleton, got %d translated", coverage.Tag, coverage.Translated)
 		}
 	}

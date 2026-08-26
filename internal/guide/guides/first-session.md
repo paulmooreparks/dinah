@@ -9,7 +9,7 @@ halfway you have still done the first half correctly.
 
 Run `dinah status`. One command answers four questions: which workbench
 answered you and where it sits on disk, which actor you are and whether that
-actor is the operator, what the flow is and how many cards each state holds,
+actor is the operator, what the flow is and how many cards each column holds,
 and which cards you are already holding.
 
 Dinah finds a workbench by walking up from the directory you are standing in,
@@ -35,25 +35,25 @@ written.
 
 The operator holds acts nobody else may take. `dinah unblock` refuses anybody
 else with `not-operator`, and `dinah move --override` carries a card into a
-state that has reached its limit.
+column that has reached its limit.
 
 ## Read what this workbench asks of you
 
 Every workbench states its own rules, and reading them is part of the work
-rather than a courtesy you pay it. Run `dinah states` for the flow in order,
-with each state's slug, name, kind, how many cards it holds, and who owns it.
+rather than a courtesy you pay it. Run `dinah columns` for the flow in order,
+with each column's slug, name, kind, how many cards it holds, and who owns it.
 
 Run `dinah instructions <card>` for the standing prose of the workbench and of
-the state that card sits in, followed by the moves that card may make. Run
-`dinah instructions <state>` when you want one state's prose on its own. A
-workbench or a state that carries no prose prints none and exits 0, so nothing
+the column that card sits in, followed by the moves that card may make. Run
+`dinah instructions <column>` when you want one column's prose on its own. A
+workbench or a column that carries no prose prints none and exits 0, so nothing
 printed means nobody has written anything rather than that something is wrong.
 
 ## Take a card
 
 You take work here rather than waiting to be given it, so you choose your own
-card and nobody assigns you one. `dinah next` shows what each state offers
-next, `dinah ls <state>` lists one state in the order its cards arrived, and
+card and nobody assigns you one. `dinah next` shows what each column offers
+next, `dinah ls <column>` lists one column in the order its cards arrived, and
 `dinah query` answers the questions those two cannot. The language `query`
 reads is written down in `dinah guide query`.
 
@@ -83,7 +83,7 @@ be there to fill in what you left out.
 
 ## Move the card, then give it back
 
-Run `dinah move <card> <state>` to carry the card on. The move changes where
+Run `dinah move <card> <column>` to carry the card on. The move changes where
 the card stands and nothing else, so you are still holding it afterwards.
 
 Run `dinah release <card>` to give the card back, and do it as soon as you stop

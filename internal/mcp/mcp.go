@@ -491,6 +491,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateSlugs = value
 	case "migrate-columns":
 		req.MigrateColumns = value
+	case "migrate-vocabulary":
+		req.MigrateVocabulary = value
 	case "migrate-workstreams":
 		req.MigrateWorkstreams = value
 	case "no-claim":

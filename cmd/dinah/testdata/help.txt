@@ -3,12 +3,12 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>]             File a new card in the first state
+  add <title> [--column <column>]             File a new card in the first column
     [--severity <level>]
     [--priority <level>]
   claim <card> [--expires <duration>]       Take up a ready card
-  move <card> <state> [--override]          Carry a card to another state
-  pull [state] [--no-claim]                 Claim the head of a state's queue
+  move <card> <column> [--override]          Carry a card to another column
+  pull [column] [--no-claim]                 Claim the head of a column's queue
     [--expires <duration>] [--override]       and move it there in one act
   release <card>                            Give the card back to its queue
   block <card> <reason> [--kind <kind>]     Raise an obstacle and free the card
@@ -18,9 +18,9 @@ WORK
     [--description <text>] [--replace]
   join <card> <workstream>                  Add a card to a workstream
   leave <card> <workstream>                 Take a card out of a workstream
-  archive <ref>                             Move a card, a state, or anything
+  archive <ref>                             Move a card, a column, or anything
                                               below a card, out of the live set
-  delete <ref> --yes                        Destroy a card, a state, or anything
+  delete <ref> --yes                        Destroy a card, a column, or anything
                                               below a card, along with its
                                               history
   rename <ref> <name>                       Rename an attachment
@@ -30,9 +30,9 @@ WORK
 READ
   status                                    Where this workbench stands, and
                                               what you hold
-  states                                    The flow, in order
-  ls [state] [--ready]                      The cards of a state, in queue order
-  next [state]                              The card a state offers next
+  columns                                    The flow, in order
+  ls [column] [--ready]                      The cards of a column, in queue order
+  next [column]                              The card a column offers next
   query [query]                             The cards of the workbench that
                                               match a query
   tree [query] [--group-by <axes>]          The workbench's cards nested along a
@@ -43,8 +43,8 @@ READ
   log <card>                                The recorded actions of a card,
                                               oldest first
   changes [--since <cursor>]                What has happened on this workbench
-    [--card <ref>] [--state <state>]          since a cursor
-  instructions <card|state>                 The instructions served at a
+    [--card <ref>] [--column <column>]          since a cursor
+  instructions <card|column>                 The instructions served at a
                                               position
   guide [topic]                             The embedded guides, or one of them
 
@@ -64,7 +64,7 @@ WORKBENCH
   config [get|set] [key] [value]            List your user settings, or read or
                                               write one
   check [--finish] [--migrate-ordinals]     Look for structural defects in this
-    [--migrate-slugs] [--migrate-states]      workbench
+    [--migrate-slugs] [--migrate-columns]      workbench
     [--migrate-workstreams]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator

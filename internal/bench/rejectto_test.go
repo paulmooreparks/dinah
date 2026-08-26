@@ -12,7 +12,7 @@ import (
 // naming the first. It is the interchange round trip's fixture, written in the
 // shape waitingDefinition already uses so the two read alike.
 const rejectDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Rejecting",
   "columns": [
     { "id": "e00000000001", "title": "Editing", "kind": "work",

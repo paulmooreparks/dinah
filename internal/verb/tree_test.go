@@ -1144,7 +1144,7 @@ func writeFile(t *testing.T, name string) string {
 // what makes it the one fixture able to tell the union rule apart from a rule
 // that draws all three states whatever the workbench says.
 const nobodyWorksHereDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Nobody works here",
   "instructions": "The standing text of this workbench.\n",
   "columns": [
