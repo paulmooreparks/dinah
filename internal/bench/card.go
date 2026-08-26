@@ -31,11 +31,11 @@ type Card struct {
 	Number int
 	// Title is what a person calls the card.
 	Title string
-	// State is the identifier of the state the card occupies.
+	// Column is the identifier of the column the card occupies.
+	Column string
+	// State is one of ready, active and blocked.
 	State string
-	// Substate is one of ready, active and blocked.
-	Substate string
-	// Holder and ClaimSince are present exactly when the substate is
+	// Holder and ClaimSince are present exactly when the state is
 	// active, which is the implication check enforces both ways.
 	Holder     string
 	ClaimSince string
@@ -43,7 +43,7 @@ type Card struct {
 	// expiry.
 	Expires string
 	// BlockReason, BlockKind and BlockSince are the block's own fields, and
-	// the reason is present exactly when the substate is blocked.
+	// the reason is present exactly when the state is blocked.
 	BlockReason string
 	BlockKind   string
 	BlockSince  string
@@ -83,8 +83,8 @@ func LoadCard(collection, id string) (*Card, error) {
 		ID:          id,
 		Dir:         dir,
 		Title:       fm.Value("title"),
+		Column:      fm.Value("column"),
 		State:       fm.Value("state"),
-		Substate:    fm.Value("substate"),
 		Holder:      fm.Value("claim_holder"),
 		ClaimSince:  fm.Value("claim_since"),
 		Expires:     fm.Value("claim_expires"),
@@ -102,8 +102,8 @@ func LoadCard(collection, id string) (*Card, error) {
 		card.Number, _ = strconv.Atoi(number)
 	}
 	card.Links = readLinks(fm)
-	if card.Substate == "" {
-		card.Substate = contract.SubstateReady
+	if card.State == "" {
+		card.State = contract.StateReady
 	}
 	return card, nil
 }
@@ -169,8 +169,8 @@ func (c *Card) Save() error {
 	if c.Number > 0 {
 		c.FM.Set("number", strconv.Itoa(c.Number))
 	}
+	c.FM.Set("column", c.Column)
 	c.FM.Set("state", c.State)
-	c.FM.Set("substate", c.Substate)
 	setOrDelete(c.FM, "claim_holder", c.Holder)
 	setOrDelete(c.FM, "claim_since", c.ClaimSince)
 	setOrDelete(c.FM, "claim_expires", c.Expires)
@@ -178,11 +178,11 @@ func (c *Card) Save() error {
 	setOrDelete(c.FM, "block_kind", c.BlockKind)
 	setOrDelete(c.FM, "block_since", c.BlockSince)
 	// SetAfter inserts directly after its anchor and leaves an existing key
-	// where it already sits, so writing priority after substate and then
-	// severity after substate lands severity, then priority, whichever of
+	// where it already sits, so writing priority after state and then
+	// severity after state lands severity, then priority, whichever of
 	// the two is present, and a key somebody placed by hand stays put.
-	setAfterOrDelete(c.FM, PriorityField, c.Priority, "substate")
-	setAfterOrDelete(c.FM, SeverityField, c.Severity, "substate")
+	setAfterOrDelete(c.FM, PriorityField, c.Priority, "state")
+	setAfterOrDelete(c.FM, SeverityField, c.Severity, "state")
 	c.FM.SetSeq("workstreams", c.Workstreams)
 	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {
 		return err
@@ -266,7 +266,7 @@ func (c *Card) SetLevel(field, value string) {
 	}
 }
 
-// Arrival returns when the card entered the state it now occupies, read from
+// Arrival returns when the card entered the column it now occupies, read from
 // its journal rather than from a frontmatter field. The journal is
 // authoritative for history, and the arrival of a card is a fact about its
 // history, so nothing has to be kept in step with anything.
@@ -281,7 +281,7 @@ func (c *Card) Arrival() time.Time {
 		case contract.EventCreated:
 			arrival = ParseStamp(ev.TS)
 		case contract.EventMoved:
-			if ev.To == c.State {
+			if ev.To == c.Column {
 				arrival = ParseStamp(ev.TS)
 			}
 		}
@@ -294,7 +294,7 @@ func (c *Card) Arrival() time.Time {
 // card, because a single-seat local tool runs no background process and
 // CORE-CLAIM-5 requires no daemon to notice the instant it happens.
 func (c *Card) Lapsed(now time.Time) bool {
-	if c.Substate != contract.SubstateActive || c.Expires == "" {
+	if c.State != contract.StateActive || c.Expires == "" {
 		return false
 	}
 	expiry := ParseStamp(c.Expires)

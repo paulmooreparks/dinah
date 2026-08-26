@@ -101,7 +101,7 @@ var checklistKinds = map[string]string{
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
-// a state, a workstream, a card, or anything below any of the first three
+// a column, a workstream, a card, or anything below any of the first three
 // composed by path. It is what the plumbing guarantee of `path` rests on,
 // what `edit` walks, and what `show` walks for the composed form.
 //
@@ -130,9 +130,9 @@ func (b *Bench) ResolvePath(ref string) (string, error) {
 // two readings of that pair, so both accept the same references.
 //
 // The head segment names where the walk starts and the rest descends through
-// the containment grammar. A state is an entity of the workbench and the
+// the containment grammar. A column is an entity of the workbench and the
 // containment walk draws one, so the reference a walk prints for it opens the
-// state the way every other reference opens what it names. The slug heads a
+// column the way every other reference opens what it names. The slug heads a
 // path below the workbench without naming the workbench itself, which is the
 // form the walk prints for a workbench attachment; whether the bare slug also
 // opens the workbench is a separate question and this does not answer it.
@@ -145,12 +145,12 @@ func (b *Bench) resolveBelow(ref string) (string, *Card, error) {
 		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil)
 		return path, nil, err
 	}
-	if state := b.StateByRef(head); state != nil {
+	if column := b.ColumnByRef(head); column != nil {
 		if rest == "" {
-			return b.StateAnchorPath(state.ID), nil, nil
+			return b.ColumnAnchorPath(column.ID), nil, nil
 		}
-		dir := filepath.Join(b.Root, StatesDir, state.ID)
-		path, err := descend(dir, KindState, strings.Split(rest, "/"), nil)
+		dir := filepath.Join(b.Root, ColumnsDir, column.ID)
+		path, err := descend(dir, KindColumn, strings.Split(rest, "/"), nil)
 		return path, nil, err
 	}
 	found, err := b.ResolveCard(head)
@@ -208,7 +208,7 @@ func checklistMount() (Mount, bool) {
 // that may name, so a reference reaches as deep as the grammar goes.
 //
 // A collection holding a kind that is addressed in its own right is refused,
-// so the workbench's cards and states are reached by the address a person
+// so the workbench's cards and columns are reached by the address a person
 // types for them and by nothing else. See addressedInItsOwnRight.
 //
 // A segment the grammar does not know is refused rather than dropped. The
@@ -273,7 +273,7 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 
 // addressedInItsOwnRight reports whether a kind is one a person names directly
 // rather than by its position in the collection that holds it. A card is named
-// by its reference and a state by its slug, and each of those addresses is the
+// by its reference and a column by its slug, and each of those addresses is the
 // only one either kind has.
 //
 // The containment walk mounts both under the workbench and draws a row for
@@ -285,7 +285,7 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 // wrote a card's own history into the workbench journal under the workbench's
 // lock.
 func addressedInItsOwnRight(kind string) bool {
-	return kind == KindCard || kind == KindState
+	return kind == KindCard || kind == KindColumn
 }
 
 // payloadOf is the file an attachment wraps, which is the one file its payload

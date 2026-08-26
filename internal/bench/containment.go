@@ -7,8 +7,8 @@ const (
 	// KindWorkbench is the workbench itself, the one root that is not
 	// contained by anything.
 	KindWorkbench = "workbench"
-	// KindState is one station of the flow.
-	KindState = "state"
+	// KindColumn is one station of the flow.
+	KindColumn = "column"
 	// KindCard is one card.
 	KindCard = "card"
 	// KindComment is one comment below a card.
@@ -46,11 +46,11 @@ type Mount struct {
 // caller can tell a leaf of the grammar from a kind the grammar does not have.
 var containment = map[string][]Mount{
 	KindWorkbench: {
-		{Dir: StatesDir, Kind: KindState, Anchor: StateAnchor},
+		{Dir: ColumnsDir, Kind: KindColumn, Anchor: ColumnAnchor},
 		{Dir: CardsDir, Kind: KindCard, Anchor: CardAnchor},
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
-	KindState: {
+	KindColumn: {
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename"},
 	},
 	KindCard: {

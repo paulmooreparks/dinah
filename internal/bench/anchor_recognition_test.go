@@ -17,7 +17,7 @@ import (
 const foreignAnchor = "# Notes\n\nJust some notes, unrelated to any workbench.\n"
 
 // TestAForeignAnchorDoesNotStopTheClimb asserts AC-1: a directory holding a
-// workbench.md that carries none of profile, format or states sitting below
+// workbench.md that carries none of profile, format or columns sitting below
 // a real workbench no longer stops the ancestor walk. The command run from
 // inside it resolves the ancestor workbench instead of refusing over the
 // foreign file, and the foreign file is reported back as passed over.
@@ -41,7 +41,7 @@ func TestAForeignAnchorDoesNotStopTheClimb(t *testing.T) {
 }
 
 // TestARecognizedButDamagedAnchorStillStopsTheClimb asserts AC-2: a directory
-// whose workbench.md carries format or states but not profile is still
+// whose workbench.md carries format or columns but not profile is still
 // recognized, so the climb stops there rather than passing it over, and Open
 // refuses over it with the exact wording the format's malformed refusal has
 // always carried.
@@ -77,7 +77,7 @@ func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 }
 
 // TestARecognizedAnchorStopsTheClimbOnProfileAlone asserts AC-3: an anchor
-// carrying profile and nothing else that format or states would have
+// carrying profile and nothing else that format or columns would have
 // declared stops the climb exactly as before, since profile alone already
 // claims the directory.
 func TestARecognizedAnchorStopsTheClimbOnProfileAlone(t *testing.T) {

@@ -60,7 +60,7 @@ func TestTheBoundaryRowForWaitingOnSomebodyOutsideStands(t *testing.T) {
 	rows := BoundaryTable(readProfile(t))
 	var row *BoundaryRow
 	for i := range rows {
-		if rows[i].Item == "A state where the workbench waits on somebody outside it" {
+		if rows[i].Item == "A column where the workbench waits on somebody outside it" {
 			row = &rows[i]
 		}
 	}
@@ -73,7 +73,7 @@ func TestTheBoundaryRowForWaitingOnSomebodyOutsideStands(t *testing.T) {
 	for _, wanted := range []string{
 		"a distinct kind would still add machinery for the same result",
 		"nothing joins the core vocabulary that did not work somewhere first",
-		"as a property of a state rather than a kind of state",
+		"as a property of a column rather than a kind of column",
 	} {
 		if !strings.Contains(row.Reason, wanted) {
 			t.Errorf("the row's reason does not carry %q", wanted)

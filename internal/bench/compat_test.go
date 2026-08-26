@@ -183,7 +183,7 @@ func TestResolveProfileReportsTheReadingItUsed(t *testing.T) {
 			t.Errorf("a ceiling of %v read dinah-core/1.0 as (%d, %d) aliased=%v, wanted %v aliased=false", ceiling, major, minor, aliased, retiredProfileName)
 		}
 	}
-	// The build's own ceiling is what checkStateSlugsWithin passes, so this
+	// The build's own ceiling is what checkColumnSlugsWithin passes, so this
 	// is the reading the slug check computes for the workbench this
 	// repository runs itself on.
 	major, _, aliased, ok := resolveProfile("dinah-core/1.0", [2]int{ProfileMajor, ProfileMinor})
@@ -240,7 +240,7 @@ func TestARevisionTheAliasResolvedIsToldToMigrateRatherThanRefusedAsUnknown(t *t
 
 // TestEveryCompatFixtureOpensAndReads is the open test: every fixture
 // directory under testdata/compat opens under this build and gives up its
-// states and its cards. A fixture added later is picked up by the glob with no
+// columns and its cards. A fixture added later is picked up by the glob with no
 // change here.
 //
 // What this test does not prove (spec section 6.5): it shows the binary
@@ -256,8 +256,8 @@ func TestEveryCompatFixtureOpensAndReads(t *testing.T) {
 			t.Errorf("open %s: %v", fixture, err)
 			continue
 		}
-		if len(b.States) == 0 {
-			t.Errorf("%s opened with no states", fixture)
+		if len(b.Columns) == 0 {
+			t.Errorf("%s opened with no columns", fixture)
 		}
 		cards, err := b.Cards()
 		if err != nil {

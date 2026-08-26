@@ -19,7 +19,7 @@ const definition = `{
   "profile": "dinah-core/1.0",
   "title": "Fixture",
   "instructions": "Standing text.\n",
-  "states": [
+  "columns": [
     { "id": "a00000000001", "title": "Intake", "kind": "intake", "instructions": "Intake text.\n" },
     { "id": "a00000000002", "title": "Doing", "kind": "work", "instructions": "Doing text.\n" }
   ]
@@ -49,12 +49,12 @@ func newLibrary(t *testing.T) *verb.Library {
 		t.Fatalf("add: %s %s", response.Outcome, response.Refusal)
 	}
 	// The card is carried to the doing station, because no owner takes work up
-	// at an intake state and the claims below would be refused there.
-	moved := library.Do(&verb.Request{Verb: verb.Move, Actor: "alka", Card: "fx-1", State: "doing"})
+	// at an intake column and the claims below would be refused there.
+	moved := library.Do(&verb.Request{Verb: verb.Move, Actor: "alka", Card: "fx-1", Column: "doing"})
 	if moved.Outcome != contract.OutcomeOK {
 		t.Fatalf("move: %s %s", moved.Outcome, moved.Refusal)
 	}
-	// A second card stands ready in the intake state, which is what the pull
+	// A second card stands ready in the intake column, which is what the pull
 	// tests take and what leaves the first card claimable where it stands.
 	if response := library.Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A waiting card"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("add the waiting card: %s %s", response.Outcome, response.Refusal)
@@ -205,7 +205,7 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 	library := newLibrary(t)
 	calls := []string{
 		`{"name":"status","arguments":{"actor":"alka"}}`,
-		`{"name":"states","arguments":{"actor":"alka"}}`,
+		`{"name":"columns","arguments":{"actor":"alka"}}`,
 		`{"name":"list_cards","arguments":{"actor":"alka"}}`,
 		`{"name":"next_card","arguments":{"actor":"alka"}}`,
 		`{"name":"show","arguments":{"actor":"alka","card":"fx-1"}}`,
@@ -234,7 +234,7 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 // what it may do where the card is standing, so a written-out list here sends
 // the reader into the refusal it came to avoid. The list is read off the real
 // tool answer and held against the act, for a card at a station, for a card at
-// an intake state, and for the bare state itself.
+// an intake column, and for the bare column itself.
 func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -243,8 +243,8 @@ func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
 		wantPull  bool
 	}{
 		{name: "a card at a station", arguments: `{"actor":"alka","card":"fx-1"}`, wantClaim: true},
-		{name: "a card at an intake state", arguments: `{"actor":"alka","card":"fx-2"}`, wantPull: true},
-		{name: "the intake state itself", arguments: `{"actor":"alka","card":"intake"}`, wantPull: true},
+		{name: "a card at an intake column", arguments: `{"actor":"alka","card":"fx-2"}`, wantPull: true},
+		{name: "the intake column itself", arguments: `{"actor":"alka","card":"intake"}`, wantPull: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -301,8 +301,8 @@ func TestClaimCarriesStructuredInstructions(t *testing.T) {
 	if instructions["standing"] != "Standing text.\n" {
 		t.Errorf("standing layer: got %v", instructions["standing"])
 	}
-	if instructions["state"] != "Doing text.\n" {
-		t.Errorf("state layer: got %v", instructions["state"])
+	if instructions["column"] != "Doing text.\n" {
+		t.Errorf("column layer: got %v", instructions["column"])
 	}
 	if _, carried := decoded["legal_moves"]; !carried {
 		t.Error("wanted the legal moves as a member of their own")
@@ -446,7 +446,7 @@ func TestUnknownMethodIsATransportError(t *testing.T) {
 // somebody changed one of them.
 func TestTheQueryToolCarriesTheSameMatchesTheCliEmits(t *testing.T) {
 	library := newLibrary(t)
-	for _, text := range []string{"", " ", "substate:ready", "holder:nobody"} {
+	for _, text := range []string{"", " ", "state:ready", "holder:nobody"} {
 		encoded, err := json.Marshal(text)
 		if err != nil {
 			t.Fatalf("marshal %q: %v", text, err)
@@ -515,7 +515,7 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 		for i, a := range affordances {
 			got[i], _ = a.(string)
 		}
-		want := []string{"status", "states", "list_cards", "next_card"}
+		want := []string{"status", "columns", "list_cards", "next_card"}
 		if strings.Join(got, ",") != strings.Join(want, ",") {
 			t.Errorf("a refusal's affordances: got [%s], want surface tool names [%s]", strings.Join(got, ","), strings.Join(want, ","))
 		}
@@ -554,7 +554,7 @@ func TestARefusalFromWorkbenchResolutionNamesRecoveryInToolNames(t *testing.T) {
 	for i, a := range affordances {
 		got[i], _ = a.(string)
 	}
-	want := []string{"status", "states", "list_cards", "next_card"}
+	want := []string{"status", "columns", "list_cards", "next_card"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("an outside-root refusal's affordances: got [%s], want [%s]", strings.Join(got, ","), strings.Join(want, ","))
 	}
@@ -805,7 +805,7 @@ func durationOrWord(name string) string {
 func TestPullIsDrivenThroughTheHead(t *testing.T) {
 	t.Run("the named form takes the card and claims it", func(t *testing.T) {
 		library := newLibrary(t)
-		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"doing"}}}`)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","column":"doing"}}}`)
 		decoded := payload(t, answer)
 		if decoded["outcome"] != contract.OutcomeOK {
 			t.Fatalf("pull: %v", decoded)
@@ -817,15 +817,15 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if card["holder"] != "alka" {
 			t.Errorf("a pull claims what it takes, got holder %v", card["holder"])
 		}
-		if card["substate"] != contract.SubstateActive {
-			t.Errorf("wanted the card active, got %v", card["substate"])
+		if card["state"] != contract.StateActive {
+			t.Errorf("wanted the card active, got %v", card["state"])
 		}
 		if _, carried := decoded["legal_moves"]; !carried {
 			t.Error("wanted the legal moves the canonical response carries")
 		}
 	})
 
-	t.Run("the bare form chooses the one state that qualifies", func(t *testing.T) {
+	t.Run("the bare form chooses the one column that qualifies", func(t *testing.T) {
 		library := newLibrary(t)
 		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka"}}}`)
 		decoded := payload(t, answer)
@@ -836,17 +836,17 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if !ok {
 			t.Fatalf("the bare form should have taken the one card standing ready, got %v", decoded["card"])
 		}
-		// Naming the state is what ties the subtest to its title: the fixture
+		// Naming the column is what ties the subtest to its title: the fixture
 		// declares Intake and Doing, and only Doing qualifies, so a head that
-		// pulled into whichever state it saw last would pass without it.
-		if card["state_title"] != "Doing" {
-			t.Errorf("the one state that qualifies is Doing, got %v", card["state_title"])
+		// pulled into whichever column it saw last would pass without it.
+		if card["column_title"] != "Doing" {
+			t.Errorf("the one column that qualifies is Doing, got %v", card["column_title"])
 		}
 	})
 
 	t.Run("the no-claim marker crosses the boundary", func(t *testing.T) {
 		library := newLibrary(t)
-		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"doing","no-claim":true}}}`)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","column":"doing","no-claim":true}}}`)
 		decoded := payload(t, answer)
 		if decoded["outcome"] != contract.OutcomeOK {
 			t.Fatalf("pull --no-claim: %v", decoded)
@@ -861,17 +861,17 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if card["holder"] != nil && card["holder"] != "" {
 			t.Errorf("--no-claim asked for no claim and the card came back held by %v", card["holder"])
 		}
-		if card["substate"] != contract.SubstateReady {
-			t.Errorf("wanted the card left ready, got %v", card["substate"])
+		if card["state"] != contract.StateReady {
+			t.Errorf("wanted the card left ready, got %v", card["state"])
 		}
 	})
 
 	t.Run("a refusal carries its name across", func(t *testing.T) {
 		library := newLibrary(t)
-		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"intake"}}}`)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","column":"intake"}}}`)
 		decoded := payload(t, answer)
 		if decoded["outcome"] != contract.OutcomeRefused {
-			t.Fatalf("a pull into the first state should refuse, got %v", decoded)
+			t.Fatalf("a pull into the first column should refuse, got %v", decoded)
 		}
 		if decoded["refusal"] != contract.NoUpstream {
 			t.Errorf("wanted %s, got %v", contract.NoUpstream, decoded["refusal"])

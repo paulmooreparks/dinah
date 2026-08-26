@@ -252,7 +252,7 @@ func (b *Bench) beforeOrdinalStamp(id string) error {
 // The walk covers the three collections a positional reference reaches below a
 // card: the card's comments, the card's attachments and the card's checklist,
 // plus the attachments of each comment. Collections hanging off the workbench
-// itself and off a state are left alone, because no reference syntax selects a
+// itself and off a column are left alone, because no reference syntax selects a
 // member of one by position and an ordinal there would order nothing.
 //
 // A locked card, and an entity this run cannot write to, are each reported and

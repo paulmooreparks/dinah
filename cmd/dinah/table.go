@@ -17,7 +17,7 @@ type tableColumn struct {
 //
 // A row may supply fewer fields than the table has columns. The last field it
 // supplies then takes the rest of the line and widens no column, which is how
-// a state offering nothing says so where the card reference would have been.
+// a column offering nothing says so where the card reference would have been.
 type tableRow struct {
 	// section, when it carries text, starts a new group before this row: a
 	// blank line, then the label, then the rows under it. The widths are still
@@ -505,7 +505,7 @@ func withoutEmptyColumns(t table) table {
 
 // withoutTrailingEmptyFields ends every row at its last field carrying text.
 // A row whose trailing fields are empty ends early rather than running past
-// its own content, which is what removes the trailing run of spaces the state
+// its own content, which is what removes the trailing run of spaces the column
 // listing carried before this.
 func withoutTrailingEmptyFields(t table) table {
 	rows := make([]tableRow, 0, len(t.rows))

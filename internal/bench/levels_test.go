@@ -14,9 +14,9 @@ import (
 func benchDeclaring(t *testing.T, block string) *Bench {
 	t.Helper()
 	root := t.TempDir()
-	anchor := strings.Replace(benchDefinition, "states:\n  - b00000000001\n", "states:\n  - b00000000001\n"+block, 1)
+	anchor := strings.Replace(benchDefinition, "columns:\n  - b00000000001\n", "columns:\n  - b00000000001\n"+block, 1)
 	write(t, filepath.Join(root, WorkbenchAnchor), anchor)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), stateDefinition)
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -229,8 +229,8 @@ func TestACardKeepsEveryFrontmatterKeyItDoesNotKnowAroundALevel(t *testing.T) {
 	const anchor = `---
 title: A card
 number: 1
-state: b00000000001
-substate: ready
+column: b00000000001
+state: ready
 project: awan-saya
 repository: git@example.com:awan/saya.git
 ---
@@ -252,8 +252,8 @@ Framing.
 			t.Errorf("writing a level dropped %q:\n%s", key, written)
 		}
 	}
-	if !strings.Contains(written, "substate: ready\nseverity: major\n") {
-		t.Errorf("the level did not land directly under substate:\n%s", written)
+	if !strings.Contains(written, "state: ready\nseverity: major\n") {
+		t.Errorf("the level did not land directly under state:\n%s", written)
 	}
 	cleared, err := LoadCard(collection, "c00000000001")
 	if err != nil {
@@ -274,10 +274,10 @@ Framing.
 	}
 }
 
-// TestBothLevelsLandUnderSubstateInOneOrder asserts the placement rule of
+// TestBothLevelsLandUnderStateInOneOrder asserts the placement rule of
 // dinah-193 section 2 for the case Card.Save owns: a card carrying neither
-// level and written with both reads severity, then priority, under substate.
-func TestBothLevelsLandUnderSubstateInOneOrder(t *testing.T) {
+// level and written with both reads severity, then priority, under state.
+func TestBothLevelsLandUnderStateInOneOrder(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	collection := filepath.Join(root, CardsDir)
@@ -289,8 +289,8 @@ func TestBothLevelsLandUnderSubstateInOneOrder(t *testing.T) {
 	if err := card.Save(); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if written := readCardAnchor(t, collection); !strings.Contains(written, "substate: ready\nseverity: major\npriority: now\n") {
-		t.Errorf("the pair did not land under substate in order:\n%s", written)
+	if written := readCardAnchor(t, collection); !strings.Contains(written, "state: ready\nseverity: major\npriority: now\n") {
+		t.Errorf("the pair did not land under state in order:\n%s", written)
 	}
 }
 
@@ -410,7 +410,7 @@ func instantiateWithLevels(t *testing.T, root, member string) {
   "profile": "dinah-core/1.0",
   "title": "Levelled",
   "levels": ` + member + `,
-  "states": [{ "id": "b00000000001", "title": "Only", "kind": "work" }]
+  "columns": [{ "id": "b00000000001", "title": "Only", "kind": "work" }]
 }`
 	definition, err := ReadDefinition([]byte(source))
 	if err != nil {

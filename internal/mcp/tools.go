@@ -38,7 +38,7 @@ type tool struct {
 // extract, config and mcp itself, and guide is a resource rather than a tool.
 //
 // workbench falls inside that rule rather than outside it, even though config
-// does not. A workbench's own fields are workbench state that travels with the
+// does not. A workbench's own fields are workbench column that travels with the
 // repository, where a user setting is a machine artifact, and the operator
 // check guards the write here exactly as it does at a terminal, because the
 // library holds it.
@@ -63,7 +63,7 @@ var tools = []tool{
 	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
 	{name: "delete", command: "delete", run: func(l *verb.Library, r *verb.Request) any { return l.Delete(r) }},
 	{name: "status", command: "status", run: readStatus},
-	{name: "states", command: "states", run: readStates},
+	{name: "columns", command: "columns", run: readColumns},
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
 	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
@@ -175,7 +175,7 @@ func wrap(payload map[string]any, affordances []string) map[string]any {
 
 // readAffordances are what a caller may do next after a read of the bench
 // rather than of one card.
-var readAffordances = []string{"status", "states", "list_cards", "next_card"}
+var readAffordances = []string{"status", "columns", "list_cards", "next_card"}
 
 // readStatus answers the status tool.
 func readStatus(l *verb.Library, r *verb.Request) any {
@@ -186,13 +186,13 @@ func readStatus(l *verb.Library, r *verb.Request) any {
 	return wrap(map[string]any{"status": status}, readAffordances)
 }
 
-// readStates answers the states tool.
-func readStates(l *verb.Library, r *verb.Request) any {
-	states, err := l.States()
+// readColumns answers the columns tool.
+func readColumns(l *verb.Library, r *verb.Request) any {
+	columns, err := l.Columns()
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	return wrap(map[string]any{"states": states}, readAffordances)
+	return wrap(map[string]any{"columns": columns}, readAffordances)
 }
 
 // readList answers the list_cards tool.
@@ -207,8 +207,8 @@ func readList(l *verb.Library, r *verb.Request) any {
 // readNext answers the next_card tool, which changes nothing: offering a card
 // is not assigning it.
 //
-// The affordances carry pull beside claim, because an offer from a state where
-// no owner takes work up is taken by a pull into the state beyond and a claim
+// The affordances carry pull beside claim, because an offer from a column where
+// no owner takes work up is taken by a pull into the column beyond and a claim
 // there is refused. An agent reading only claim would meet that refusal with
 // nothing telling it what to reach for instead.
 func readNext(l *verb.Library, r *verb.Request) any {
@@ -272,7 +272,7 @@ func cardAffordances(l *verb.Library, r *verb.Request) []string {
 
 // readShow answers the show tool. The card branch asks the library what a
 // caller may do with the card it just read, rather than carrying a list of its
-// own that would go on naming claim at a state where a claim is refused.
+// own that would go on naming claim at a column where a claim is refused.
 func readShow(l *verb.Library, r *verb.Request) any {
 	detail, text, err := l.Show(r)
 	if err != nil {
@@ -296,7 +296,7 @@ func readLog(l *verb.Library, r *verb.Request) any {
 
 // readChanges answers the changes tool. It carries the same ChangeSet the cli
 // head emits under --json for the same arguments, since both heads hand the
-// one library call the one cursor, the one card and the one state.
+// one library call the one cursor, the one card and the one column.
 //
 // The answer is the ChangeSet itself rather than a wrapped payload, the way
 // log's is, because the shape already declares its own affordances member.
@@ -315,7 +315,7 @@ func readChanges(l *verb.Library, r *verb.Request) any {
 // This is the tool an agent calls precisely to learn what it may do where the
 // card is standing, so it is the worst place on the surface to name an act the
 // tool refuses. A written-out claim told a caller at a buffer, at an intake
-// state or at a done state to claim, and the claim then answered
+// column or at a done column to claim, and the claim then answered
 // dinah.takes-no-work.
 func readInstructions(l *verb.Library, r *verb.Request) any {
 	served, err := l.Instructions(r)

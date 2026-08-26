@@ -62,7 +62,7 @@ import (
 //     is both the wide field and the last one, and it is the listing a reader
 //     meets most: a hand-rolled block planted there is invisible here, and
 //     only the source patterns speak to it. A plant reaches this check only
-//     when the block carries another field after its wide one, and the states
+//     when the block carries another field after its wide one, and the columns
 //     listing is where this card's arming proofs planted theirs for that
 //     reason.
 //   - Anything written to somewhere other than the two streams run was given.

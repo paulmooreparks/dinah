@@ -3,7 +3,7 @@
 // language is adding a catalog rather than hunting literals through the code.
 //
 // Machine vocabulary never passes through this package. Refusal names,
-// substates, state kinds, outcome names, block kinds, link kinds, command
+// states, column kinds, outcome names, block kinds, link kinds, command
 // names, flag names and the interchange member names travel as the profile
 // spells them on every surface under every language setting, which is what
 // CORE-TEXT-3 requires and what CORE-TEXT-4 leaves room around.

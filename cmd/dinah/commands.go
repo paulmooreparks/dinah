@@ -49,7 +49,7 @@ func init() {
 		{name: "card", group: groupWork, run: runCard, openTail: true},
 
 		{name: "status", group: groupRead, run: runStatus},
-		{name: "states", group: groupRead, run: runStates},
+		{name: "columns", group: groupRead, run: runColumns},
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
@@ -98,7 +98,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 	req := &verb.Request{
 		Verb:            name,
 		Actor:           s.actor,
-		State:           parsed.value("state"),
+		Column:          parsed.value("column"),
 		Kind:            parsed.value("kind"),
 		Description:     parsed.value("description"),
 		Override:        parsed.has("override"),
@@ -108,7 +108,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		Finish:          parsed.has("finish"),
 		MigrateOrdinals: parsed.has("migrate-ordinals"),
 		MigrateSlugs:    parsed.has("migrate-slugs"),
-		MigrateStates:   parsed.has("migrate-states"),
+		MigrateColumns:  parsed.has("migrate-columns"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		NoClaim:            parsed.has("no-claim"),
@@ -131,13 +131,13 @@ func runClaim(s *session, parsed *arguments) int {
 	})
 }
 
-// runMove carries a card to another state.
+// runMove carries a card to another column.
 func runMove(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Move, parsed)
 	req.Card = at(words, 0)
-	if req.State == "" {
-		req.State = at(words, 1)
+	if req.Column == "" {
+		req.Column = at(words, 1)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
@@ -293,7 +293,7 @@ func runComment(s *session, parsed *arguments) int {
 	})
 }
 
-// runAttach records a file against the bench, a state, a card or a comment.
+// runAttach records a file against the bench, a column, a card or a comment.
 func runAttach(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("attach", parsed)
@@ -354,26 +354,26 @@ func runStatus(s *session, parsed *arguments) int {
 	})
 }
 
-// runStates reports the flow in order.
-func runStates(s *session, parsed *arguments) int {
+// runColumns reports the flow in order.
+func runColumns(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
-		states, err := l.States()
+		columns, err := l.Columns()
 		if err != nil {
 			return s.reportError(err)
 		}
 		if s.json {
-			return s.emitJSON(states)
+			return s.emitJSON(columns)
 		}
-		s.renderStates(states)
+		s.renderColumns(columns)
 		return 0
 	})
 }
 
-// runList presents a state's cards in queue order.
+// runList presents a column's cards in queue order.
 func runList(s *session, parsed *arguments) int {
 	req := s.request("ls", parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		listing, err := l.List(req)
@@ -388,11 +388,11 @@ func runList(s *session, parsed *arguments) int {
 	})
 }
 
-// runNext reports the card each state offers next, and changes nothing.
+// runNext reports the card each column offers next, and changes nothing.
 func runNext(s *session, parsed *arguments) int {
 	req := s.request("next", parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		offers, err := l.Next(req)
@@ -409,12 +409,12 @@ func runNext(s *session, parsed *arguments) int {
 
 // runPull picks the destination, claims a card from its upstream, and moves
 // it there in one transaction. The named form names the destination; the bare
-// form chooses the one state that qualifies and refuses when more than one
+// form chooses the one column that qualifies and refuses when more than one
 // does. --no-claim weakens what pull writes, not what pull allows.
 func runPull(s *session, parsed *arguments) int {
 	req := s.request(verb.Pull, parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	expires, err := verb.ParseDuration(parsed.value("expires"))
 	if err != nil {
@@ -664,13 +664,13 @@ func runInit(s *session, parsed *arguments) int {
 // names the card reference on only the one shape that reads as one.
 //
 // The distinction is what keeps the spliced clause honest. ValidSlug is
-// ValidStateSlug and a final segment carrying a letter, so a slug the state
+// ValidColumnSlug and a final segment carrying a letter, so a slug the column
 // grammar accepts and this one refuses is exactly a slug ending in a dash and
 // digits alone. A slug refused for any other reason gets the bare sentence,
 // since the clause would otherwise tell a reader that "My Project" is a card
 // reference.
 func malformedSlug(slug string) error {
-	if bench.ValidStateSlug(slug) {
+	if bench.ValidColumnSlug(slug) {
 		return contract.RefuseWith(contract.Malformed, "slug", map[string]string{"cardRef": slug})
 	}
 	return contract.Refuse(contract.Malformed, "slug")
@@ -773,7 +773,7 @@ func onPath(name string) bool {
 
 // runConfig lists the user's own settings, or reads or writes one of them.
 //
-// The bare invocation lists, the way `states` and `whoami` report everything
+// The bare invocation lists, the way `columns` and `whoami` report everything
 // with no argument. The listing resolves each setting through its own ladder,
 // so it answers a question `get` cannot: a key nobody ever set and a key set
 // to the value the default carries read alike through the stored value alone.

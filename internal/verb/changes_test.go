@@ -182,7 +182,7 @@ func TestAMoveIsReportedOnceAndThenNotAgain(t *testing.T) {
 	h.add("A card that does not move")
 	minted := h.mint()
 
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, Column: doing})
 
 	set := h.checkpoint(&Request{Since: minted})
 	if !set.Changed {
@@ -191,8 +191,8 @@ func TestAMoveIsReportedOnceAndThenNotAgain(t *testing.T) {
 	if names := eventNames(set); len(names) != 1 || names[0] != contract.EventMoved {
 		t.Fatalf("wanted the one moved event, got %v", names)
 	}
-	if len(set.Cards) != 1 || set.Cards[0].ID != h.cardID(ref) || set.Cards[0].State != doing {
-		t.Fatalf("wanted the moved card in its new state, got %+v", set.Cards)
+	if len(set.Cards) != 1 || set.Cards[0].ID != h.cardID(ref) || set.Cards[0].Column != doing {
+		t.Fatalf("wanted the moved card in its new column, got %+v", set.Cards)
 	}
 	if set.Events[0].Scope != ScopeCard || set.Events[0].ID != h.cardID(ref) {
 		t.Errorf("the event does not name the card it came from: %+v", set.Events[0])
@@ -403,9 +403,9 @@ func TestAFilteredCallStillAdvancesPastWhatItDidNotReport(t *testing.T) {
 	h.comment(higher, "an act before the cursor")
 	minted := h.mint()
 
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, Column: doing})
 
-	set := h.checkpoint(&Request{Since: minted, State: aftercareSlug})
+	set := h.checkpoint(&Request{Since: minted, Column: aftercareSlug})
 	if !set.Changed {
 		t.Error("the board moved and a filtered call reported it as unchanged")
 	}
@@ -478,7 +478,7 @@ func TestABadCursorIsRefusedRatherThanResynced(t *testing.T) {
 	for _, check := range Checks("changes") {
 		names[check.Refusal] = true
 	}
-	for _, wanted := range []string{contract.Malformed, contract.UnknownCard, contract.UnknownState} {
+	for _, wanted := range []string{contract.Malformed, contract.UnknownCard, contract.UnknownColumn} {
 		if !names[wanted] {
 			t.Errorf("the changes check list does not carry %s", wanted)
 		}
@@ -558,7 +558,7 @@ func TestACheckpointWritesNothing(t *testing.T) {
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref, Holder: "alka", Expires: time.Minute})
 	h.add("A second card")
 	minted := h.mint()
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, Column: doing})
 
 	// The clock is past the lease, so a read that lapses claims the way the
 	// other reads of the bench do would rewrite this card's anchor here.
@@ -739,7 +739,7 @@ func TestTheArchiveIsSkippedUntilTheArchiveItselfMoves(t *testing.T) {
 	live := h.add("A card still on the board")
 	minted := h.mint()
 
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: live, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: live, Column: doing})
 	confined := h.checkpoint(&Request{Since: minted})
 	if len(confined.Gone) != 0 || len(confined.Unreadable) != 0 {
 		t.Errorf("a change confined to the live half opened the archive: %+v %v", confined.Gone, confined.Unreadable)
@@ -780,7 +780,7 @@ func TestTheArchiveIsSkippedUntilTheArchiveItselfMoves(t *testing.T) {
 // crash between the two leaves the event in a journal that is still in the
 // live half, with the anchor still beside it. The anchor is loaded live half
 // first and mirror second, which is the order linkRef already reads in, and
-// the card is suppressed from cards: an archived card has no live state a
+// the card is suppressed from cards: an archived card has no live column a
 // caller would act on, and one departure is reported in one place.
 func TestAnInterruptedArchiveIsReportedGoneAndNotAlsoLive(t *testing.T) {
 	h := newHarness(t)
@@ -878,7 +878,7 @@ func TestAFilterRefusesOverTheNameItCannotResolve(t *testing.T) {
 		refusal string
 	}{
 		{name: "an unknown card", request: &Request{Since: minted, Card: "fx-404"}, refusal: contract.UnknownCard},
-		{name: "an unknown state", request: &Request{Since: minted, State: "nowhere"}, refusal: contract.UnknownState},
+		{name: "an unknown column", request: &Request{Since: minted, Column: "nowhere"}, refusal: contract.UnknownColumn},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

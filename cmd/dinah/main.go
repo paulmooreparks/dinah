@@ -69,7 +69,7 @@ type session struct {
 	// composes the syntax line from.
 	command string
 	// library is the bench this invocation opened, nil until one is. The
-	// composer reads the states off it for the listing unknown-state prints.
+	// composer reads the columns off it for the listing unknown-column prints.
 	library *verb.Library
 }
 

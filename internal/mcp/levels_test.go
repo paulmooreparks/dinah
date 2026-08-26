@@ -19,7 +19,7 @@ const levelledDefinition = `{
   "title": "Fixture",
   "instructions": "Standing text.\n",
   "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },
-  "states": [
+  "columns": [
     { "id": "a00000000001", "title": "Intake", "kind": "intake", "instructions": "Intake text.\n" },
     { "id": "a00000000002", "title": "Doing", "kind": "work", "instructions": "Doing text.\n" }
   ]

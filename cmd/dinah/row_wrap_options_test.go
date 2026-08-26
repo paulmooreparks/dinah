@@ -73,7 +73,7 @@ func TestContinuationIndentClamp(t *testing.T) {
 
 // TestBreakOnOptions asserts the boundary shapes Contract B names, now that
 // dinah-220 has widened them: a space before any `[` (an option group like
-// `[--state <state>]` and a vocabulary group like `[new|get|set]` alike), a
+// `[--column <column>]` and a vocabulary group like `[new|get|set]` alike), a
 // space before `<`, and a bare `--`. Each group is kept whole, and the
 // groups pack as many to a line as the room allows rather than taking one
 // line each. Every line after the first is indented to the call's indent;
@@ -96,10 +96,10 @@ func TestBreakOnOptions(t *testing.T) {
 	}{
 		{
 			name:   "square bracket",
-			text:   "add <title> [--state <state>]",
+			text:   "add <title> [--column <column>]",
 			indent: 2,
 			room:   20,
-			want:   "add <title>\n  [--state <state>]",
+			want:   "add <title>\n  [--column <column>]",
 		},
 		{
 			name:   "angle bracket",
@@ -136,17 +136,17 @@ func TestBreakOnOptions(t *testing.T) {
 		},
 		{
 			name:   "one indent for the square bracket piece",
-			text:   "add <title> [--state <state>]",
+			text:   "add <title> [--column <column>]",
 			indent: 4,
 			room:   20,
-			want:   "add <title>\n    [--state <state>]",
+			want:   "add <title>\n    [--column <column>]",
 		},
 		{
 			name:   "everything that fits packs onto one line",
-			text:   "add <title> [--state <state>]",
+			text:   "add <title> [--column <column>]",
 			indent: 2,
 			room:   100,
-			want:   "add <title> [--state <state>]",
+			want:   "add <title> [--column <column>]",
 		},
 	}
 	for _, c := range cases {
@@ -224,9 +224,9 @@ func TestTwoOverflowingCells(t *testing.T) {
 // from the option group before it.
 func TestBreakOnOptionsFallsBackToWordWrap(t *testing.T) {
 	t.Run("trailing prose word-wraps", func(t *testing.T) {
-		text := "add <title> [--state <state>] file a new card in the first state"
+		text := "add <title> [--column <column>] file a new card in the first column"
 		got := breakOnOptions(text, 2, 30)
-		want := "add <title> [--state <state>]\n  file a new card in the first\n  state"
+		want := "add <title> [--column <column>]\n  file a new card in the first\n  column"
 		if got != want {
 			t.Errorf("trailing prose word-wraps:\n got  %q\n want %q", got, want)
 		}

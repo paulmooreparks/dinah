@@ -171,7 +171,7 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("1. Claim a card before producing work on it.\n")
 	b.WriteString("2. Do not hold a claim on a card you have stopped working.\n")
 	b.WriteString("3. Treat the workbench as the authority for where a card stands and who holds it.\n")
-	b.WriteString("4. Do not move a card out of an operator-owned state unless you are the operator.\n\n")
+	b.WriteString("4. Do not move a card out of an operator-owned column unless you are the operator.\n\n")
 	b.WriteString("Every response carries an affordances member naming what you may do next. ")
 	b.WriteString("A successful claim or move carries the instructions of the position in three ")
 	b.WriteString("separate layers and the moves the flow allows. Tokens are canonical on this ")
@@ -289,7 +289,7 @@ func answerWorkbenches(root string) (map[string]any, error) {
 	sort.SliceStable(listed, func(i, j int) bool {
 		return listed[i].Path < listed[j].Path
 	})
-	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "states", "list_cards", "next_card", "workbenches"})
+	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
 	encoded, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err
@@ -433,8 +433,8 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Card = value
 	case "ref":
 		req.Ref = value
-	case "state":
-		req.State = value
+	case "column":
+		req.Column = value
 	case "since":
 		req.Since = value
 	case "query":
@@ -489,8 +489,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateOrdinals = value
 	case "migrate-slugs":
 		req.MigrateSlugs = value
-	case "migrate-states":
-		req.MigrateStates = value
+	case "migrate-columns":
+		req.MigrateColumns = value
 	case "migrate-workstreams":
 		req.MigrateWorkstreams = value
 	case "no-claim":

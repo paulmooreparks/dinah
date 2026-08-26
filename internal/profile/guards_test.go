@@ -1129,7 +1129,7 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 }
 
 // TestInstallScriptSaysWhetherDinahIsReadyToRun runs scripts/install.sh to a
-// successful finish under four combinations of platform and PATH state, and
+// successful finish under four combinations of platform and PATH column, and
 // asserts the final message matches what is actually true of that run: ready
 // to run when the install directory is already on PATH, and the accurate,
 // platform-specific explanation when it is not. Debian and Ubuntu add
@@ -1638,7 +1638,7 @@ func readRegistryPath(t *testing.T, psExe, key string) (string, error) {
 }
 
 // TestInstallPS1SaysWhetherDinahIsReadyToRun exercises scripts/install.ps1's
-// PATH message across the four states persisted PATH and this session's PATH
+// PATH message across the four columns persisted PATH and this session's PATH
 // can combine into: registry and session can each independently already have
 // the install directory or not. Writing the registry does not change what an
 // already-running PowerShell process can see, so "already on your PATH" is
@@ -3112,7 +3112,7 @@ func checkEveryShapeSaysWhatToDoNext(t *testing.T, shapes map[string]*contract.S
 		hasNext := len(shape.NextStep) > 0
 		hasReason := shape.NoNext != ""
 		if hasNext && hasReason {
-			t.Errorf("%s sets both NextStep and NoNext, and a refusal either says what to do next or states why it cannot", name)
+			t.Errorf("%s sets both NextStep and NoNext, and a refusal either says what to do next or columns why it cannot", name)
 		}
 		if !hasNext && !hasReason {
 			t.Errorf("%s sets neither NextStep nor NoNext, so nothing says whether this refusal offers a next step", name)
@@ -3398,7 +3398,7 @@ const theOneContainmentTable = "internal/bench/containment.go"
 // The grammar is what says which kind mounts which collection, so a switch or
 // a map keyed on one of these names is a second copy of the grammar.
 var anchorConstants = map[string]bool{
-	"StateAnchor":      true,
+	"ColumnAnchor":     true,
 	"CardAnchor":       true,
 	"CommentAnchor":    true,
 	"AttachmentAnchor": true,

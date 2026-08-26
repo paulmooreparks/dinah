@@ -20,7 +20,7 @@ const bothAxesDefinition = `{
   "profile": "dinah-core/1.0",
   "title": "Levelled",
   "levels": { "severity": ["trivial", "minor", "major", "critical"], "priority": ["later", "soon", "next", "now"] },
-  "states": [
+  "columns": [
     { "id": "b00000000001", "title": "Intake", "kind": "intake" },
     { "id": "b00000000002", "title": "Done", "kind": "done" }
   ]
@@ -34,7 +34,7 @@ const severityOnlyDefinition = `{
   "profile": "dinah-core/1.0",
   "title": "Severity only",
   "levels": { "severity": ["trivial", "minor", "major", "critical"] },
-  "states": [
+  "columns": [
     { "id": "b00000000001", "title": "Intake", "kind": "intake" },
     { "id": "b00000000002", "title": "Done", "kind": "done" }
   ]
@@ -123,17 +123,17 @@ func refusalNameOf(errw string) string {
 	return strings.Fields(errw)[0]
 }
 
-// TestFilingACardWithBothLevelsWritesThePairUnderSubstate asserts dinah-193
-// AC-5 and AC-6: the two flags land in the anchor in order under substate, and
+// TestFilingACardWithBothLevelsWritesThePairUnderState asserts dinah-193
+// AC-5 and AC-6: the two flags land in the anchor in order under state, and
 // a filing that names neither leaves absence as absence rather than writing
 // two empty values.
-func TestFilingACardWithBothLevelsWritesThePairUnderSubstate(t *testing.T) {
+func TestFilingACardWithBothLevelsWritesThePairUnderState(t *testing.T) {
 	root := newBenchFromDefinition(t, bothAxesDefinition)
 	if got := runCLI(t, root, "add", "--severity", "major", "--priority", "now", "a classified card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	if written := anchorText(t, root, "fx-1"); !strings.Contains(written, "substate: ready\nseverity: major\npriority: now\n") {
-		t.Errorf("the pair did not land under substate in order:\n%s", written)
+	if written := anchorText(t, root, "fx-1"); !strings.Contains(written, "state: ready\nseverity: major\npriority: now\n") {
+		t.Errorf("the pair did not land under state in order:\n%s", written)
 	}
 	if got := runCLI(t, root, "add", "a card nobody has classified yet"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
@@ -504,9 +504,9 @@ func handWrite(t *testing.T, root, ref, line string) {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	edited := strings.Replace(string(data), "substate: ready\n", "substate: ready\n"+line+"\n", 1)
+	edited := strings.Replace(string(data), "state: ready\n", "state: ready\n"+line+"\n", 1)
 	if edited == string(data) {
-		t.Fatalf("the anchor carries no substate line to write under:\n%s", data)
+		t.Fatalf("the anchor carries no state line to write under:\n%s", data)
 	}
 	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
 		t.Fatalf("write the anchor: %v", err)
@@ -617,8 +617,8 @@ func TestShowPrintsIndependentlyConditionalSeverityAndPriorityLines(t *testing.T
 	s.renderCard(&verb.CardView{
 		Ref:         "fx-4",
 		Title:       "a card carrying both levels",
-		StateTitle:  "Intake",
-		Substate:    "active",
+		ColumnTitle: "Intake",
+		State:       "active",
 		Severity:    "critical",
 		Priority:    "soon",
 		Holder:      "paul",
@@ -788,7 +788,7 @@ func TestLevelNamesNeverPassThroughTheTokenCatalog(t *testing.T) {
   "profile": "dinah-core/1.0",
   "title": "Colliding level",
   "levels": { "severity": ["active"] },
-  "states": [
+  "columns": [
     { "id": "b00000000001", "title": "Intake", "kind": "intake" },
     { "id": "b00000000002", "title": "Done", "kind": "done" }
   ]

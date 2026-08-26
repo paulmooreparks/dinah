@@ -76,7 +76,7 @@ func (s *session) emitJSON(value any) int {
 }
 
 // renderCard prints the one line a person needs after an act: where the card
-// is, what it is called, what state it is in, and which workstreams it belongs
+// is, what it is called, what column it is in, and which workstreams it belongs
 // to.
 //
 // A card belonging to at least one workstream draws from a sibling key
@@ -93,8 +93,8 @@ func (s *session) renderCard(card *verb.CardView) {
 	values := []string{
 		"ref", card.Ref,
 		"title", card.Title,
-		"state", card.StateTitle,
-		"substate", s.token(card.Substate),
+		"column", card.ColumnTitle,
+		"state", s.token(card.State),
 	}
 	key := "card.line"
 	if len(card.Workstreams) > 0 {
@@ -155,7 +155,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	}{
 		{label: "instructions.global", text: instructions.Global},
 		{label: "instructions.standing", text: instructions.Standing},
-		{label: "instructions.state", text: instructions.State},
+		{label: "instructions.column", text: instructions.Column},
 	}
 	for _, layer := range layers {
 		if layer.text == "" {
@@ -170,7 +170,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	}
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
-	t := table{indent: 2, columns: s.columns("moves", "state", "name", "direction", "reject")}
+	t := table{indent: 2, columns: s.columns("moves", "column", "name", "direction", "reject")}
 	for _, move := range moves {
 		fields := []string{move.Ref, move.Title, s.token(move.Direction), s.yesNo(move.Reject)}
 		t.rows = append(t.rows, tableRow{fields: fields})
@@ -187,7 +187,7 @@ func (s *session) renderStatus(status *verb.Status) {
 	))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
-	s.renderStates(status.States)
+	s.renderColumns(status.Columns)
 	if len(status.Holding) > 0 {
 		s.line("")
 		s.line(s.r.T("status.holding"))
@@ -216,41 +216,41 @@ func (s *session) yesNo(value bool) string {
 	return s.r.T("word.no")
 }
 
-// renderStates prints the flow in order with each station's occupancy.
-func (s *session) renderStates(states []verb.StateView) {
-	t := table{indent: 2, columns: s.columns("states", "slug", "name", "kind", "cards", "work", "owner")}
-	for _, state := range states {
-		count := strconv.Itoa(state.Count)
-		if state.Capacity > 0 {
-			count += "/" + strconv.Itoa(state.Capacity)
+// renderColumns prints the flow in order with each station's occupancy.
+func (s *session) renderColumns(columns []verb.ColumnView) {
+	t := table{indent: 2, columns: s.columns("columns", "slug", "name", "kind", "cards", "work", "owner")}
+	for _, column := range columns {
+		count := strconv.Itoa(column.Count)
+		if column.Capacity > 0 {
+			count += "/" + strconv.Itoa(column.Capacity)
 		}
-		owner := s.r.T("states.moved-by.agent")
-		if state.OperatorOwned {
-			owner = s.r.T("states.moved-by.operator")
+		owner := s.r.T("columns.moved-by.agent")
+		if column.OperatorOwned {
+			owner = s.r.T("columns.moved-by.operator")
 		}
-		// The Work cell answers whether work is taken up at the state and
+		// The Work cell answers whether work is taken up at the column and
 		// the Owner cell answers who may move a card out of it. They are two
-		// questions, so they are two cells, and a state where nobody takes
+		// questions, so they are two cells, and a column where nobody takes
 		// work up and nobody owner-owns still reads agent under Owner.
 		//
-		// The three values run most specific first. A state declaring the
+		// The three values run most specific first. A column declaring the
 		// flag reads waiting, because a reader is told the workbench is
-		// waiting on somebody; a state where no owner takes work up for any
-		// other reason reads none taken; every other state reads taken.
-		work := s.r.T("states.work.taken")
-		if !state.TakesWorkUp {
-			work = s.r.T("states.work.none")
+		// waiting on somebody; a column where no owner takes work up for any
+		// other reason reads none taken; every other column reads taken.
+		work := s.r.T("columns.work.taken")
+		if !column.TakesWorkUp {
+			work = s.r.T("columns.work.none")
 		}
-		if state.AwaitingOutside {
-			work = s.r.T("states.work.waiting")
+		if column.AwaitingOutside {
+			work = s.r.T("columns.work.waiting")
 		}
-		fields := []string{s.slugCell(state.Slug), state.Title, s.token(state.Kind), count, work, owner}
+		fields := []string{s.slugCell(column.Slug), column.Title, s.token(column.Kind), count, work, owner}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
 }
 
-// renderListing prints a state's cards in queue order.
+// renderListing prints a column's cards in queue order.
 func (s *session) renderListing(listing *verb.Listing) {
 	if len(listing.Cards) == 0 {
 		s.line(s.r.T("ls.empty"))
@@ -258,23 +258,23 @@ func (s *session) renderListing(listing *verb.Listing) {
 	}
 	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "severity", "priority", "title")}
 	for _, card := range listing.Cards {
-		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.Substate), card.Severity, card.Priority, card.Title}})
+		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), card.Severity, card.Priority, card.Title}})
 	}
 	s.table(t)
 }
 
 // renderMatches prints the cards a query selected. A query spans the whole
-// workbench where ls lists one state at a time, so the reader needs a state
-// column that ls has no use for, and it carries the state's title rather than
+// workbench where ls lists one column at a time, so the reader needs a column
+// column that ls has no use for, and it carries the column's title rather than
 // its identifier.
 func (s *session) renderMatches(matches *verb.Matches) {
 	if len(matches.Cards) == 0 {
 		s.line(s.r.T("query.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("query", "card", "state", "standing", "title")}
+	t := table{indent: 2, columns: s.columns("query", "card", "column", "standing", "title")}
 	for _, card := range matches.Cards {
-		fields := []string{card.Ref, card.StateTitle, s.token(card.Substate), card.Title}
+		fields := []string{card.Ref, card.ColumnTitle, s.token(card.State), card.Title}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -426,15 +426,15 @@ func (s *session) slugCell(slug string) string {
 	return slug
 }
 
-// renderOffers prints what each state offers next.
+// renderOffers prints what each column offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
-	t := table{indent: 2, columns: s.columns("next", "state", "card", "title", "take")}
+	t := table{indent: 2, columns: s.columns("next", "column", "card", "title", "take")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			// Three empty answers, most specific first. A state that waits on
-			// somebody outside says who it waits on. A state where no act
+			// Three empty answers, most specific first. A column that waits on
+			// somebody outside says who it waits on. A column where no act
 			// could take a card up says so, which is a different fact from
-			// nothing ready, because a done state holding four ready cards
+			// nothing ready, because a done column holding four ready cards
 			// offers none of them. Everything else has nothing ready.
 			absent := s.r.T("next.none")
 			if offer.NoTaker {
@@ -448,7 +448,7 @@ func (s *session) renderOffers(offers []verb.Offer) {
 		}
 		// The Take cell names the act that takes the offered card, since a
 		// claim is refused where nobody takes work up and a pull into the
-		// state beyond is what moves the card instead.
+		// column beyond is what moves the card instead.
 		take := s.r.T("next.take.claim")
 		if offer.TakenByPull {
 			take = s.r.T("next.take.pull")
@@ -610,10 +610,10 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedWorkstreams {
 		s.line(s.r.TN("check.workstream-adopted", len(report.AdoptedWorkstreams)))
 	}
-	if report.MigratedStates {
-		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
+	if report.MigratedColumns {
+		s.line(s.r.TN("check.columns-removed", len(report.RemovedStrandedColumns)))
 		removed := table{indent: 2, columns: listColumn()}
-		for _, id := range report.RemovedStrandedStates {
+		for _, id := range report.RemovedStrandedColumns {
 			removed.rows = append(removed.rows, tableRow{fields: []string{id}})
 		}
 		s.table(removed)
@@ -679,17 +679,17 @@ func (s *session) outcomeValues(response *verb.Response) map[string]string {
 // prints, one per row. The enumerable sets live in three different places, so
 // this map is what keeps the composer from knowing about any of them.
 //
-// A refusal raised before the workbench opens carries no states, which costs
-// nothing in practice because unknown-state is only ever raised once one is
+// A refusal raised before the workbench opens carries no columns, which costs
+// nothing in practice because unknown-column is only ever raised once one is
 // open.
 var refusalListings = map[string]func(*session) []string{
-	"states": func(s *session) []string {
+	"columns": func(s *session) []string {
 		if s.library == nil {
 			return nil
 		}
-		rows := make([]string, 0, len(s.library.Bench.States))
-		for _, state := range s.library.Bench.States {
-			rows = append(rows, state.Ref())
+		rows := make([]string, 0, len(s.library.Bench.Columns))
+		for _, column := range s.library.Bench.Columns {
+			rows = append(rows, column.Ref())
 		}
 		return rows
 	},
@@ -860,7 +860,7 @@ func sortedKeys(values map[string]string) []string {
 // The field names travel untranslated, the way `config`'s keys do, because a
 // field name is machine vocabulary a caller types back. The slug row is served
 // through slugCell, so a workbench carrying none names its repair rather than
-// standing blank, and this listing says what `dinah states` and `dinah
+// standing blank, and this listing says what `dinah columns` and `dinah
 // workbenches` already say about a missing slug.
 func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
@@ -876,7 +876,7 @@ func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 
 // renderWorkstreams prints every live workstream of the workbench, and the
 // sentence that says so when the workbench carries none. The columns are the
-// shape dinah states already draws, and a workstream carrying no slug prints
+// shape dinah columns already draws, and a workstream carrying no slug prints
 // through slugCell rather than as a blank.
 func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
 	if len(listing.Workstreams) == 0 {
@@ -923,9 +923,9 @@ func (s *session) renderWorkstreamDetail(detail *verb.WorkstreamDetail) {
 		return
 	}
 	s.line("")
-	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "state")}
+	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "column")}
 	for _, card := range detail.Cards {
-		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.StateTitle}})
+		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.ColumnTitle}})
 	}
 	s.table(members)
 }
@@ -953,7 +953,7 @@ func (s *session) renderWorkstreamLine(workstream *verb.WorkstreamView) {
 // surface carries the identifiers the card's frontmatter stores, deliberately,
 // and a reader of the JSON resolves them the way a reader of a link's to
 // already does. The head reads the open workbench for the same reason the
-// composer reads its states to list them.
+// composer reads its columns to list them.
 func (s *session) workstreamsCell(ids []string) string {
 	refs := make([]string, 0, len(ids))
 	for _, id := range ids {

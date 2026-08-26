@@ -24,7 +24,7 @@ import (
 //
 // The equality holds for a command with no arguments too, which is what the
 // obvious spelling of it gets wrong: TrimPrefix(Usage(name), name+" ") returns
-// the bare command word for export, mcp, states, status, whoami and
+// the bare command word for export, mcp, columns, status, whoami and
 // workbenches, while the joined tokens return the empty string.
 func TestTheSyntaxLineIsComposedOfTheSameTokensTheTableReads(t *testing.T) {
 	bare := 0
@@ -53,7 +53,7 @@ func TestEveryTokenCarriesItsBracketsByTheOneRule(t *testing.T) {
 		want  string
 	}{
 		{label: "a required positional", param: Param{Name: "card", Required: true}, want: "<card>"},
-		{label: "an optional positional", param: Param{Name: "state"}, want: "[state]"},
+		{label: "an optional positional", param: Param{Name: "column"}, want: "[column]"},
 		{label: "an optional marker", param: Param{Name: "ready", Flag: true, Marker: true}, want: "[--ready]"},
 		{label: "a required marker", param: Param{Name: "yes", Flag: true, Marker: true, Required: true}, want: "--yes"},
 		{label: "an optional valued flag", param: Param{Name: "kind", Flag: true, Value: "kind"}, want: "[--kind <kind>]"},

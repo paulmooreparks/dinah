@@ -45,7 +45,7 @@ func TestSlugDerivationMatchesTheHandRun(t *testing.T) {
 		if got != want.slug {
 			t.Errorf("%q derived %q, wanted %q", want.title, got, want.slug)
 		}
-		if !ValidStateSlug(got) {
+		if !ValidColumnSlug(got) {
 			t.Errorf("%q derived %q, which the grammar refuses", want.title, got)
 		}
 		if first, ok := seen[got]; ok {
@@ -59,7 +59,7 @@ func TestSlugDerivationMatchesTheHandRun(t *testing.T) {
 // way the format's encoding rule requires, so a title carrying an uppercase I
 // derives the same slug on every machine. A locale-aware lowering of I under
 // Turkish is not i, and a slug that differed by locale would be a different
-// name for the same state depending on who ran the tool.
+// name for the same column depending on who ran the tool.
 func TestSlugDerivationLowersByAsciiRules(t *testing.T) {
 	if got := SlugifyDashed("Interim Inspection"); got != "interim-inspection" {
 		t.Errorf("derived %q, wanted interim-inspection", got)
@@ -94,81 +94,81 @@ func TestSlugDerivationShapesEveryAwkwardTitle(t *testing.T) {
 	}
 }
 
-// TestTheGrammarRefusesEveryMalformedSlug asserts the shapes StateSlugPattern
+// TestTheGrammarRefusesEveryMalformedSlug asserts the shapes ColumnSlugPattern
 // excludes: a leading digit, a leading or trailing dash, a doubled dash and an
 // uppercase character. Each is refused wherever a slug is set by hand.
 func TestTheGrammarRefusesEveryMalformedSlug(t *testing.T) {
 	valid := []string{"spec", "agent-code-review", "stage-2", "a", "a-1-b"}
 	for _, slug := range valid {
-		if !ValidStateSlug(slug) {
-			t.Errorf("%q should conform to %s", slug, StateSlugPattern)
+		if !ValidColumnSlug(slug) {
+			t.Errorf("%q should conform to %s", slug, ColumnSlugPattern)
 		}
 	}
 	malformed := []string{"", "2spec", "-spec", "spec-", "agent--code", "Spec", "agent code", "agent_code"}
 	for _, slug := range malformed {
-		if ValidStateSlug(slug) {
-			t.Errorf("%q should not conform to %s", slug, StateSlugPattern)
+		if ValidColumnSlug(slug) {
+			t.Errorf("%q should not conform to %s", slug, ColumnSlugPattern)
 		}
 	}
 }
 
 // TestOpenGatesAStoredSlugOnTheDeclaredMajor asserts the rule that keeps one
 // hand-typed slug from closing a workbench: a stored slug outside the grammar
-// and a slug two states share both open while the workbench declares a major
+// and a slug two columns share both open while the workbench declares a major
 // below SlugMandatoryMajor, and both refuse at that major.
 //
 // The tolerant side is what the checker and the migration stand on. Every
 // command has to open a workbench before it can do anything with it, so a
 // reader refusing here would take away the `dinah check` that names the defect
-// and the `dinah check --migrate-slugs` that repairs the states around it, and
+// and the `dinah check --migrate-slugs` that repairs the columns around it, and
 // the operator would have no way back in through the tool at all.
 func TestOpenGatesAStoredSlugOnTheDeclaredMajor(t *testing.T) {
 	root := newFixture(t)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Only\nslug: Only\nkind: work\n---\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: Only\nslug: Only\nkind: work\n---\n")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("a workbench below the mandating major should open: %v", err)
 	}
-	if got := opened.States[0].Slug; got != "Only" {
-		t.Errorf("the state carries slug %q, wanted the stored value", got)
+	if got := opened.Columns[0].Slug; got != "Only" {
+		t.Errorf("the column carries slug %q, wanted the stored value", got)
 	}
 
-	shared, err := Open(newTwoStateFixture(t, "dinah-core/1.0", "review", "review"))
+	shared, err := Open(newTwoColumnFixture(t, "dinah-core/1.0", "review", "review"))
 	if err != nil {
-		t.Fatalf("two states sharing a slug should open below the mandating major: %v", err)
+		t.Fatalf("two columns sharing a slug should open below the mandating major: %v", err)
 	}
-	if len(shared.States) != 2 {
-		t.Errorf("the workbench carries %d states", len(shared.States))
+	if len(shared.Columns) != 2 {
+		t.Errorf("the workbench carries %d columns", len(shared.Columns))
 	}
 
 	// The mandating major is out of Open's reach while this binary claims an
 	// earlier one, so the refusing side is driven over admitSlug directly.
-	anchor := map[string]string{"path": filepath.Join("states", "b00000000001", StateAnchor)}
-	malformed := admitSlug(&State{ID: "b00000000001", Slug: "Only"}, SlugMandatoryMajor, map[string]bool{}, anchor)
+	anchor := map[string]string{"path": filepath.Join("columns", "b00000000001", ColumnAnchor)}
+	malformed := admitSlug(&Column{ID: "b00000000001", Slug: "Only"}, SlugMandatoryMajor, map[string]bool{}, anchor)
 	if !refusedMalformed(malformed) {
 		t.Errorf("a malformed slug at the mandating major should refuse malformed, got %v", malformed)
 	}
-	assertNamesStateAndFile(t, malformed, "b00000000001", anchor["path"])
+	assertNamesColumnAndFile(t, malformed, "b00000000001", anchor["path"])
 
 	taken := map[string]bool{"review": true}
-	duplicate := admitSlug(&State{ID: "b00000000002", Slug: "review"}, SlugMandatoryMajor, taken, anchor)
+	duplicate := admitSlug(&Column{ID: "b00000000002", Slug: "review"}, SlugMandatoryMajor, taken, anchor)
 	if !refusedMalformed(duplicate) {
 		t.Errorf("a duplicated slug at the mandating major should refuse malformed, got %v", duplicate)
 	}
-	assertNamesStateAndFile(t, duplicate, "b00000000002", anchor["path"])
+	assertNamesColumnAndFile(t, duplicate, "b00000000002", anchor["path"])
 }
 
-// assertNamesStateAndFile asserts the standard every refusal in Open holds to:
-// the state it was raised over is named, and so is the file a reader opens to
+// assertNamesColumnAndFile asserts the standard every refusal in Open holds to:
+// the column it was raised over is named, and so is the file a reader opens to
 // repair it.
-func assertNamesStateAndFile(t *testing.T, err error, state, path string) {
+func assertNamesColumnAndFile(t *testing.T, err error, column, path string) {
 	t.Helper()
 	var refusal *contract.Refusal
 	if !errors.As(err, &refusal) {
 		t.Fatalf("wanted a refusal, got %v", err)
 	}
-	if !strings.Contains(refusal.Detail, state) {
-		t.Errorf("the refusal should name state %s, got %q", state, refusal.Detail)
+	if !strings.Contains(refusal.Detail, column) {
+		t.Errorf("the refusal should name column %s, got %q", column, refusal.Detail)
 	}
 	if refusal.Extra["path"] != path {
 		t.Errorf("the refusal should carry path %s, got %q", path, refusal.Extra["path"])
@@ -176,70 +176,70 @@ func assertNamesStateAndFile(t *testing.T, err error, state, path string) {
 }
 
 // TestOpenGatesTheMissingSlugOnTheDeclaredMajor asserts the rule that keeps an
-// unmigrated workbench usable: a state carrying no slug opens while the
+// unmigrated workbench usable: a column carrying no slug opens while the
 // workbench declares a major below SlugMandatoryMajor, and is refused once it
 // declares that major, because the revision introducing CORE-STATE-10 is the
 // revision that binds a workbench to it.
 func TestOpenGatesTheMissingSlugOnTheDeclaredMajor(t *testing.T) {
 	tolerated := newFixture(t)
-	write(t, filepath.Join(tolerated, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Only\nkind: work\n---\n")
+	write(t, filepath.Join(tolerated, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: Only\nkind: work\n---\n")
 	opened, err := Open(tolerated)
 	if err != nil {
 		t.Fatalf("a workbench below the mandating major should open: %v", err)
 	}
-	if opened.States[0].Slug != "" {
-		t.Errorf("the state carries slug %q, wanted none", opened.States[0].Slug)
+	if opened.Columns[0].Slug != "" {
+		t.Errorf("the column carries slug %q, wanted none", opened.Columns[0].Slug)
 	}
 
-	anchor := map[string]string{"path": filepath.Join("states", "b00000000001", StateAnchor)}
-	refused := admitSlug(&State{ID: "b00000000001"}, SlugMandatoryMajor, map[string]bool{}, anchor)
+	anchor := map[string]string{"path": filepath.Join("columns", "b00000000001", ColumnAnchor)}
+	refused := admitSlug(&Column{ID: "b00000000001"}, SlugMandatoryMajor, map[string]bool{}, anchor)
 	if !refusedMalformed(refused) {
 		t.Errorf("a missing slug at the mandating major should refuse malformed, got %v", refused)
 	}
-	assertNamesStateAndFile(t, refused, "b00000000001", anchor["path"])
-	if err := admitSlug(&State{ID: "b00000000001"}, SlugMandatoryMajor-1, map[string]bool{}, anchor); err != nil {
+	assertNamesColumnAndFile(t, refused, "b00000000001", anchor["path"])
+	if err := admitSlug(&Column{ID: "b00000000001"}, SlugMandatoryMajor-1, map[string]bool{}, anchor); err != nil {
 		t.Errorf("a missing slug below the mandating major should open, got %v", err)
 	}
 }
 
-// TestStateByRefReadsTheSlugAheadOfTheTitle asserts the resolution order a
+// TestColumnByRefReadsTheSlugAheadOfTheTitle asserts the resolution order a
 // reference takes: the identifier, then the slug, then the title. A reference
-// matching one state's slug and another state's title resolves to the state
+// matching one column's slug and another column's title resolves to the column
 // whose slug it is, which is the tier that makes a spaced title reachable
 // without quoting it.
-func TestStateByRefReadsTheSlugAheadOfTheTitle(t *testing.T) {
-	root := newTwoStateFixture(t, "dinah-core/1.0", "agent-code-review", "review")
+func TestColumnByRefReadsTheSlugAheadOfTheTitle(t *testing.T) {
+	root := newTwoColumnFixture(t, "dinah-core/1.0", "agent-code-review", "review")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	// The second state is titled Review and the first is slugged review, so
+	// The second column is titled Review and the first is slugged review, so
 	// the two tiers disagree and the slug tier is the one that answers.
-	opened.States[0].Slug = "review"
-	opened.States[1].Title = "Review"
-	if state := opened.StateByRef("review"); state == nil || state.ID != "b00000000001" {
-		t.Errorf("a slug should resolve ahead of another state's title, got %v", state)
+	opened.Columns[0].Slug = "review"
+	opened.Columns[1].Title = "Review"
+	if column := opened.ColumnByRef("review"); column == nil || column.ID != "b00000000001" {
+		t.Errorf("a slug should resolve ahead of another column's title, got %v", column)
 	}
-	if state := opened.StateByRef("b00000000002"); state == nil || state.ID != "b00000000002" {
-		t.Errorf("an identifier should resolve ahead of everything, got %v", state)
+	if column := opened.ColumnByRef("b00000000002"); column == nil || column.ID != "b00000000002" {
+		t.Errorf("an identifier should resolve ahead of everything, got %v", column)
 	}
-	opened.States[0].Slug = "agent-code-review"
-	if state := opened.StateByRef("agent-code-review"); state == nil || state.ID != "b00000000001" {
-		t.Error("a slug should resolve a state whose title needs quoting")
+	opened.Columns[0].Slug = "agent-code-review"
+	if column := opened.ColumnByRef("agent-code-review"); column == nil || column.ID != "b00000000001" {
+		t.Error("a slug should resolve a column whose title needs quoting")
 	}
-	if state := opened.StateByRef("AGENT-CODE-REVIEW"); state == nil || state.ID != "b00000000001" {
+	if column := opened.ColumnByRef("AGENT-CODE-REVIEW"); column == nil || column.ID != "b00000000001" {
 		t.Error("a slug should resolve without regard to ASCII case")
 	}
 }
 
 // TestCheckReportsWhatTheSlugMigrationRepairs asserts the checker and the
-// repair together: a state with no slug is reported while the workbench
+// repair together: a column with no slug is reported while the workbench
 // declares a major below the mandating one, the migration derives a slug from
 // each title and says which one it gave, a second run finds nothing left to do,
 // and the workbench checks clean afterwards.
 func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 	root := newFixture(t)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Agent Code Review\nkind: work\n---\nState text.\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: Agent Code Review\nkind: work\n---\nColumn text.\n")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -252,7 +252,7 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 		t.Fatalf("wanted one missing-slug finding, got %v", findings)
 	}
 
-	assigned, reported := opened.BackfillStateSlugs()
+	assigned, reported := opened.BackfillColumnSlugs()
 	if len(reported) != 0 {
 		t.Errorf("the migration reported %v", reported)
 	}
@@ -264,13 +264,13 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
-	if got := reopened.States[0].Slug; got != "agent-code-review" {
-		t.Errorf("the state anchor carries slug %q", got)
+	if got := reopened.Columns[0].Slug; got != "agent-code-review" {
+		t.Errorf("the column anchor carries slug %q", got)
 	}
-	if body := readStateAnchorText(t, root); !strings.Contains(body, "State text.") {
-		t.Errorf("the migration lost the state's own instructions:\n%s", body)
+	if body := readColumnAnchorText(t, root); !strings.Contains(body, "Column text.") {
+		t.Errorf("the migration lost the column's own instructions:\n%s", body)
 	}
-	again, reported := reopened.BackfillStateSlugs()
+	again, reported := reopened.BackfillColumnSlugs()
 	if len(again) != 0 || len(reported) != 0 {
 		t.Errorf("a second run assigned %v and reported %v", again, reported)
 	}
@@ -300,31 +300,31 @@ func TestCheckReportsWhatTheSlugMigrationRepairs(t *testing.T) {
 // dinah-core/1.0 to, and asserts the same finding, so the two spellings are
 // shown to compute one answer once the seam is wired.
 func TestTheMandatoryMajorIsComparedAgainstTheResolvedReading(t *testing.T) {
-	opened, err := Open(newTwoStateFixture(t, "dinah-core/1.0", "", "second"))
+	opened, err := Open(newTwoColumnFixture(t, "dinah-core/1.0", "", "second"))
 	if err != nil {
 		t.Fatalf("a workbench carrying an absent slug should open: %v", err)
 	}
-	findings := opened.checkStateSlugsWithin(1)
+	findings := opened.checkColumnSlugsWithin(1)
 	if len(findings) != 1 || findings[0].Key != FindingSlugMissing {
 		t.Fatalf("wanted one missing finding at a mandatory major of 1, got %v", findings)
 	}
 	if findings[0].Detail != "b00000000001" {
-		t.Errorf("the finding names %q, wanted the state carrying no slug", findings[0].Detail)
+		t.Errorf("the finding names %q, wanted the column carrying no slug", findings[0].Detail)
 	}
-	if findings := opened.checkStateSlugsWithin(0); len(findings) != 0 {
+	if findings := opened.checkColumnSlugsWithin(0); len(findings) != 0 {
 		t.Errorf("wanted no finding at a mandatory major of 0, got %v", findings)
 	}
 
-	literal, err := Open(newTwoStateFixture(t, "dinah-core/0.1", "", "second"))
+	literal, err := Open(newTwoColumnFixture(t, "dinah-core/0.1", "", "second"))
 	if err != nil {
 		t.Fatalf("a workbench declaring 0.1 should open: %v", err)
 	}
-	findings = literal.checkStateSlugsWithin(1)
+	findings = literal.checkColumnSlugsWithin(1)
 	if len(findings) != 1 || findings[0].Key != FindingSlugMissing {
 		t.Fatalf("wanted one missing finding for the literal 0.1, got %v", findings)
 	}
 	if findings[0].Detail != "b00000000001" {
-		t.Errorf("the finding names %q, wanted the state carrying no slug", findings[0].Detail)
+		t.Errorf("the finding names %q, wanted the column carrying no slug", findings[0].Detail)
 	}
 }
 
@@ -338,60 +338,60 @@ func TestTheMandatoryMajorIsComparedAgainstTheResolvedReading(t *testing.T) {
 // to open, so a reader refusing these two slugs would leave both findings
 // unreachable and this test asserting nothing anybody can meet.
 func TestCheckReportsAStoredSlugItWillNotRepair(t *testing.T) {
-	root := newTwoStateFixture(t, "dinah-core/1.0", "review", "review")
+	root := newTwoColumnFixture(t, "dinah-core/1.0", "review", "review")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("a workbench carrying a duplicated slug should open: %v", err)
 	}
-	findings := opened.checkStateSlugs()
+	findings := opened.checkColumnSlugs()
 	if len(findings) != 1 || findings[0].Key != FindingSlugDuplicate {
 		t.Fatalf("wanted one duplicate finding, got %v", findings)
 	}
-	if want := opened.StateAnchorPath("b00000000002"); findings[0].Path != want {
-		t.Errorf("the finding names %q, wanted the second state's anchor %q", findings[0].Path, want)
+	if want := opened.ColumnAnchorPath("b00000000002"); findings[0].Path != want {
+		t.Errorf("the finding names %q, wanted the second column's anchor %q", findings[0].Path, want)
 	}
 
-	malformed := newTwoStateFixture(t, "dinah-core/1.0", "Only", "second")
+	malformed := newTwoColumnFixture(t, "dinah-core/1.0", "Only", "second")
 	stored, err := Open(malformed)
 	if err != nil {
 		t.Fatalf("a workbench carrying a malformed slug should open: %v", err)
 	}
-	findings = stored.checkStateSlugs()
+	findings = stored.checkColumnSlugs()
 	if len(findings) != 1 || findings[0].Key != FindingSlugMalformed {
 		t.Fatalf("wanted one malformed finding, got %v", findings)
 	}
 	if findings[0].Detail != "b00000000001" {
-		t.Errorf("the finding names %q, wanted the state carrying the slug", findings[0].Detail)
+		t.Errorf("the finding names %q, wanted the column carrying the slug", findings[0].Detail)
 	}
-	if want := stored.StateAnchorPath("b00000000001"); findings[0].Path != want {
-		t.Errorf("the finding names %q, wanted the state's anchor %q", findings[0].Path, want)
+	if want := stored.ColumnAnchorPath("b00000000001"); findings[0].Path != want {
+		t.Errorf("the finding names %q, wanted the column's anchor %q", findings[0].Path, want)
 	}
 
 	// The migration leaves both alone and repairs what it can around them,
 	// which is the way out of a workbench carrying one.
-	assigned, reported := stored.BackfillStateSlugs()
+	assigned, reported := stored.BackfillColumnSlugs()
 	if len(assigned) != 0 || len(reported) != 0 {
 		t.Errorf("the migration assigned %v and reported %v over slugs already stored", assigned, reported)
 	}
-	if got := stored.States[0].Slug; got != "Only" {
+	if got := stored.Columns[0].Slug; got != "Only" {
 		t.Errorf("the migration overwrote a stored slug with %q", got)
 	}
 }
 
 // TestTheSlugMigrationNamesWhatStoppedIt asserts that the two conditions only
 // the run itself can know are filed under keys that describe them: a title no
-// slug can be derived from, and a state anchor the run could not write to.
-// Neither is a state carrying a malformed slug or a state carrying none, and
+// slug can be derived from, and a column anchor the run could not write to.
+// Neither is a column carrying a malformed slug or a column carrying none, and
 // reporting them under those keys would print a sentence about a slug's shape
-// for a state that has no slug at all.
+// for a column that has no slug at all.
 func TestTheSlugMigrationNamesWhatStoppedIt(t *testing.T) {
 	root := newFixture(t)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: 2026\nkind: work\n---\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: 2026\nkind: work\n---\n")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	assigned, reported := opened.BackfillStateSlugs()
+	assigned, reported := opened.BackfillColumnSlugs()
 	if len(assigned) != 0 {
 		t.Errorf("the migration assigned %v for a title it cannot derive from", assigned)
 	}
@@ -399,21 +399,21 @@ func TestTheSlugMigrationNamesWhatStoppedIt(t *testing.T) {
 		t.Fatalf("wanted one underivable finding, got %v", reported)
 	}
 	if reported[0].Detail != "b00000000001" {
-		t.Errorf("the finding names %q, wanted the state", reported[0].Detail)
+		t.Errorf("the finding names %q, wanted the column", reported[0].Detail)
 	}
 
-	// The anchor goes after the workbench is open, which is the state a run
+	// The anchor goes after the workbench is open, which is the column a run
 	// meets when something takes the file away underneath it.
 	unwritable := newFixture(t)
 	stripped, err := Open(unwritable)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	stripped.States[0].Slug = ""
-	if err := os.Remove(stripped.StateAnchorPath("b00000000001")); err != nil {
+	stripped.Columns[0].Slug = ""
+	if err := os.Remove(stripped.ColumnAnchorPath("b00000000001")); err != nil {
 		t.Fatalf("remove anchor: %v", err)
 	}
-	assigned, reported = stripped.BackfillStateSlugs()
+	assigned, reported = stripped.BackfillColumnSlugs()
 	if len(assigned) != 0 {
 		t.Errorf("the migration assigned %v over an anchor it cannot write", assigned)
 	}
@@ -427,15 +427,15 @@ func TestTheSlugMigrationNamesWhatStoppedIt(t *testing.T) {
 // anchors of one workbench do not differ by which code path wrote them.
 func TestTheMigrationWritesTheSlugWhereTheWriterPutsIt(t *testing.T) {
 	root := newFixture(t)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Agent Code Review\nkind: work\noperator_owned: true\n---\nState text.\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: Agent Code Review\nkind: work\noperator_owned: true\n---\nColumn text.\n")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	if _, reported := opened.BackfillStateSlugs(); len(reported) != 0 {
+	if _, reported := opened.BackfillColumnSlugs(); len(reported) != 0 {
 		t.Fatalf("the migration reported %v", reported)
 	}
-	keys := anchorKeys(readStateAnchorText(t, root))
+	keys := anchorKeys(readColumnAnchorText(t, root))
 	wanted := []string{"title", "slug", "kind", "operator_owned"}
 	if strings.Join(keys, ",") != strings.Join(wanted, ",") {
 		t.Errorf("the migrated anchor reads %v, wanted %v", keys, wanted)
@@ -449,16 +449,16 @@ func anchorKeys(text string) []string {
 	return fm.Keys()
 }
 
-// TestInstantiateDerivesASlugForEveryState asserts CORE-JSON-9 and
-// CORE-STATE-10 over the interchange form: a state object carrying no slug
-// member is given one derived from its title, two states of one title take the
+// TestInstantiateDerivesASlugForEveryColumn asserts CORE-JSON-9 and
+// CORE-STATE-10 over the interchange form: a column object carrying no slug
+// member is given one derived from its title, two columns of one title take the
 // derived name and the first free suffix in array order, and an explicit slug
 // is taken as given.
-func TestInstantiateDerivesASlugForEveryState(t *testing.T) {
+func TestInstantiateDerivesASlugForEveryColumn(t *testing.T) {
 	definition := readDefinition(t, `{
 	  "profile": "dinah-core/1.0",
 	  "title": "Fixture",
-	  "states": [
+	  "columns": [
 	    {"id": "b00000000001", "title": "Agent Code Review", "kind": "intake"},
 	    {"id": "b00000000002", "title": "Review", "kind": "work"},
 	    {"id": "b00000000003", "title": "Review", "kind": "work"},
@@ -475,19 +475,19 @@ func TestInstantiateDerivesASlugForEveryState(t *testing.T) {
 	}
 	wanted := []string{"agent-code-review", "review", "review-2", "done"}
 	for position, want := range wanted {
-		if got := opened.States[position].Slug; got != want {
-			t.Errorf("state %d carries slug %q, wanted %q", position+1, got, want)
+		if got := opened.Columns[position].Slug; got != want {
+			t.Errorf("column %d carries slug %q, wanted %q", position+1, got, want)
 		}
 	}
 }
 
 // TestInstantiateRefusesASlugItCannotHonour asserts the two malformed cases at
 // the write surface: an explicit slug outside the grammar or already asked for
-// by another state, and a title deriving to nothing a slug can be made of.
+// by another column, and a title deriving to nothing a slug can be made of.
 func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 	cases := []struct {
-		name   string
-		states string
+		name    string
+		columns string
 		// detail is what the refusal names, which is the value the author has
 		// to change. A title deriving to nothing never became a slug, so a
 		// refusal calling it one sends the reader looking for a field the
@@ -495,24 +495,24 @@ func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 		detail string
 	}{
 		{
-			name:   "an explicit slug outside the grammar",
-			states: `{"id": "b00000000001", "title": "One", "kind": "work", "slug": "Not A Slug"}`,
-			detail: "slug Not A Slug",
+			name:    "an explicit slug outside the grammar",
+			columns: `{"id": "b00000000001", "title": "One", "kind": "work", "slug": "Not A Slug"}`,
+			detail:  "slug Not A Slug",
 		},
 		{
-			name:   "two explicit slugs asking for one value",
-			states: `{"id": "b00000000001", "title": "One", "kind": "work", "slug": "review"}, {"id": "b00000000002", "title": "Two", "kind": "work", "slug": "review"}`,
-			detail: "slug review",
+			name:    "two explicit slugs asking for one value",
+			columns: `{"id": "b00000000001", "title": "One", "kind": "work", "slug": "review"}, {"id": "b00000000002", "title": "Two", "kind": "work", "slug": "review"}`,
+			detail:  "slug review",
 		},
 		{
-			name:   "a title no slug can be derived from",
-			states: `{"id": "b00000000001", "title": "---", "kind": "work"}`,
-			detail: "title ---",
+			name:    "a title no slug can be derived from",
+			columns: `{"id": "b00000000001", "title": "---", "kind": "work"}`,
+			detail:  "title ---",
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			definition := readDefinition(t, `{"profile": "dinah-core/1.0", "title": "Fixture", "states": [`+c.states+`]}`)
+			definition := readDefinition(t, `{"profile": "dinah-core/1.0", "title": "Fixture", "columns": [`+c.columns+`]}`)
 			root := filepath.Join(t.TempDir(), "workbench")
 			err := Instantiate(root, "fx", "alka", definition)
 			if !refusedMalformed(err) {
@@ -526,7 +526,7 @@ func TestInstantiateRefusesASlugItCannotHonour(t *testing.T) {
 	}
 }
 
-// TestTheInterchangeFormCarriesTheSlug asserts CORE-JSON-9: a state object
+// TestTheInterchangeFormCarriesTheSlug asserts CORE-JSON-9: a column object
 // carries slug beside the members it already admits, and a definition exported
 // and read back keeps it.
 func TestTheInterchangeFormCarriesTheSlug(t *testing.T) {
@@ -540,7 +540,7 @@ func TestTheInterchangeFormCarriesTheSlug(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 	if !strings.Contains(string(encoded), `"slug": "only"`) {
-		t.Errorf("the exported state carries no slug:\n%s", encoded)
+		t.Errorf("the exported column carries no slug:\n%s", encoded)
 	}
 	definition, err := ReadDefinition(encoded)
 	if err != nil {
@@ -554,7 +554,7 @@ func TestTheInterchangeFormCarriesTheSlug(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
-	if got := reopened.States[0].Slug; got != "only" {
+	if got := reopened.Columns[0].Slug; got != "only" {
 		t.Errorf("the round trip carried slug %q, wanted only", got)
 	}
 }
@@ -569,20 +569,20 @@ func readDefinition(t *testing.T, text string) *Definition {
 	return definition
 }
 
-// readStateAnchorText reads the anchor of the fixture's first state.
-func readStateAnchorText(t *testing.T, root string) string {
+// readColumnAnchorText reads the anchor of the fixture's first column.
+func readColumnAnchorText(t *testing.T, root string) string {
 	t.Helper()
-	text, err := ReadText(filepath.Join(root, StatesDir, "b00000000001", StateAnchor))
+	text, err := ReadText(filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor))
 	if err != nil {
 		t.Fatalf("read anchor: %v", err)
 	}
 	return text
 }
 
-// newTwoStateFixture writes a workbench of two states carrying the slugs a
+// newTwoColumnFixture writes a workbench of two columns carrying the slugs a
 // case needs, which is the smallest shape the uniqueness and precedence rules
 // can be driven over.
-func newTwoStateFixture(t *testing.T, profile, first, second string) string {
+func newTwoColumnFixture(t *testing.T, profile, first, second string) string {
 	t.Helper()
 	root := t.TempDir()
 	fm := NewFrontmatter()
@@ -591,22 +591,22 @@ func newTwoStateFixture(t *testing.T, profile, first, second string) string {
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
 	fm.Set("operator", "alka")
-	fm.SetSeq("states", []string{"b00000000001", "b00000000002"})
+	fm.SetSeq("columns", []string{"b00000000001", "b00000000002"})
 	write(t, filepath.Join(root, WorkbenchAnchor), fm.Render("Standing text.\n"))
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), stateAnchor("One", first, "intake"))
-	write(t, filepath.Join(root, StatesDir, "b00000000002", StateAnchor), stateAnchor("Two", second, "work"))
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnAnchor("One", first, "intake"))
+	write(t, filepath.Join(root, ColumnsDir, "b00000000002", ColumnAnchor), columnAnchor("Two", second, "work"))
 	return root
 }
 
-// stateAnchor renders one state anchor for a fixture.
-func stateAnchor(title, slug, kind string) string {
+// columnAnchor renders one column anchor for a fixture.
+func columnAnchor(title, slug, kind string) string {
 	fm := NewFrontmatter()
 	fm.Set("title", title)
 	if slug != "" {
 		fm.Set(SlugField, slug)
 	}
 	fm.Set("kind", kind)
-	return fm.Render("State text.\n")
+	return fm.Render("Column text.\n")
 }
 
 // refusedMalformed reports whether an error is the profile's malformed

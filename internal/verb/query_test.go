@@ -66,7 +66,7 @@ func wantRefs(t *testing.T, text string, matches *Matches, want ...string) {
 // setWorkstreams writes a card's workstreams list into its anchor by hand.
 // join assigns membership now, but it resolves the workstream first, so it
 // cannot produce the identifier naming nothing that most of these fixtures
-// need, and a hand-written list is the only way to reach that state.
+// need, and a hand-written list is the only way to reach that column.
 func (h *harness) setWorkstreams(ref string, names ...string) {
 	h.t.Helper()
 	path := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
@@ -96,7 +96,7 @@ func TestAQueryOverActsFindsTheCardsAnOwnerTouched(t *testing.T) {
 	second := h.ready("second")
 	third := h.ready("third")
 	h.mustDo(&Request{Verb: Claim, Actor: "bo", Card: second, Holder: "bo"})
-	h.mustDo(&Request{Verb: Move, Actor: "bo", Card: second, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "bo", Card: second, Column: doing})
 	h.mustDo(&Request{Verb: Claim, Actor: "bo", Card: third, Holder: "bo"})
 	h.mustDo(&Request{Verb: Release, Actor: "bo", Card: third})
 
@@ -106,7 +106,7 @@ func TestAQueryOverActsFindsTheCardsAnOwnerTouched(t *testing.T) {
 }
 
 // TestOneActWitnessesEveryActPlaneTerm asserts the single-witness rule: an
-// interval query over an entry into a state selects the card whose entry falls
+// interval query over an entry into a column selects the card whose entry falls
 // inside it, keeps a card that has since moved on, and does not select a card
 // whose entry and whose later act fall on either side of the window.
 func TestOneActWitnessesEveryActPlaneTerm(t *testing.T) {
@@ -115,19 +115,19 @@ func TestOneActWitnessesEveryActPlaneTerm(t *testing.T) {
 	h.reopen()
 	early := h.ready("entered in June")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: early, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: early, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: early, Column: doing})
 	// Doing holds one card, so the June card leaves before the August card
 	// arrives. Its entry stays in the journal, which is where the query looks.
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: early, State: review})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: early, Column: review})
 
 	h.clock = time.Date(2026, 8, 10, 9, 0, 0, 0, time.UTC)
 	h.reopen()
 	inside := h.ready("entered in August")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: inside, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: inside, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: inside, Column: doing})
 	// The August card moves on, so the query has to find the entry in the
-	// journal rather than the state the card stands in now.
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: inside, State: review})
+	// journal rather than the column the card stands in now.
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: inside, Column: review})
 	// The June card is commented on inside the window, which is the second
 	// witness the looser reading would accept.
 	h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: early, Text: "a note"})
@@ -152,8 +152,8 @@ func TestAnUnknownFieldIsNamedBackToTheReader(t *testing.T) {
 		text  string
 		field string
 	}{
-		{"substate:ready urgency>=next", "urgency"},
-		{"State:doing", "State"},
+		{"state:ready urgency>=next", "urgency"},
+		{"Column:doing", "Column"},
 		{"Priority>=next", "Priority"},
 		{"field1:x", "field1"},
 		{"at-2:x", "at-2"},
@@ -186,7 +186,7 @@ func TestAnUnknownFieldIsNamedBackToTheReader(t *testing.T) {
 func TestAnOperatorTheFieldDoesNotTakeIsRefusedAsAField(t *testing.T) {
 	h := newHarness(t)
 	h.add("a card")
-	for _, text := range []string{"state>doing", "substate>=ready", "at:2026-08-01", "at!=2026-08-01"} {
+	for _, text := range []string{"column>doing", "state>=ready", "at:2026-08-01", "at!=2026-08-01"} {
 		refusal := h.refuse(text)
 		if refusal.Name != contract.UnknownField {
 			t.Errorf("query %q refused %s, want %s", text, refusal.Name, contract.UnknownField)
@@ -204,7 +204,7 @@ func TestAnOperatorTheFieldDoesNotTakeIsRefusedAsAField(t *testing.T) {
 func TestAClosedVocabularyRefusesATypoAndAnOpenOneDoesNot(t *testing.T) {
 	h := newHarness(t)
 	h.add("a card")
-	for _, text := range []string{"substate:reday", "event:comment"} {
+	for _, text := range []string{"state:reday", "event:comment"} {
 		refusal := h.refuse(text)
 		if refusal.Name != contract.UnknownValue {
 			t.Errorf("query %q refused %s, want %s", text, refusal.Name, contract.UnknownValue)
@@ -216,8 +216,8 @@ func TestAClosedVocabularyRefusesATypoAndAnOpenOneDoesNot(t *testing.T) {
 			t.Errorf("query %q listed no legal value", text)
 		}
 	}
-	if legal := h.refuse("substate:reday").Extra["legal"]; !strings.Contains(legal, contract.SubstateBlocked) {
-		t.Errorf("the substate vocabulary reported was %q", legal)
+	if legal := h.refuse("state:reday").Extra["legal"]; !strings.Contains(legal, contract.StateBlocked) {
+		t.Errorf("the state vocabulary reported was %q", legal)
 	}
 	if legal := h.refuse("event:comment").Extra["legal"]; !strings.Contains(legal, contract.EventCommented) {
 		t.Errorf("the event vocabulary reported was %q", legal)
@@ -230,8 +230,8 @@ func TestAClosedVocabularyRefusesATypoAndAnOpenOneDoesNot(t *testing.T) {
 			t.Errorf("the event vocabulary omits %s, which a card journal carries: %q", event, legal)
 		}
 	}
-	if refusal := h.refuse("state:nosuchstate"); refusal.Name != contract.UnknownState {
-		t.Errorf("state:nosuchstate refused %s, want %s", refusal.Name, contract.UnknownState)
+	if refusal := h.refuse("column:nosuchstate"); refusal.Name != contract.UnknownColumn {
+		t.Errorf("column:nosuchstate refused %s, want %s", refusal.Name, contract.UnknownColumn)
 	}
 	for _, text := range []string{"holder:reday", "actor:reday", "block_kind:reday"} {
 		wantRefs(t, text, h.ask(text))
@@ -302,11 +302,11 @@ func TestTheParseRulesOfTheQueryLanguageHold(t *testing.T) {
 	// Trimming, and a tab between two terms separating them as a space does.
 	wantRefs(t, `" "`, h.ask(" "), first, second, third)
 	wantRefs(t, `""`, h.ask(""), first, second, third)
-	wantRefs(t, "a tab between terms", h.ask("substate:active\tholder:alka"), first)
+	wantRefs(t, "a tab between terms", h.ask("state:active\tholder:alka"), first)
 
 	// A comma reads as or under : and as neither under !=.
-	wantRefs(t, "substate:ready,active", h.ask("substate:ready,active"), first, second)
-	wantRefs(t, "substate!=ready,active", h.ask("substate!=ready,active"), third)
+	wantRefs(t, "state:ready,active", h.ask("state:ready,active"), first, second)
+	wantRefs(t, "state!=ready,active", h.ask("state!=ready,active"), third)
 
 	// A quoted value is one value, and quoting turns the comma split off.
 	if got := h.ask(`holder:"alka,bo"`); got.Count != 0 {
@@ -320,14 +320,14 @@ func TestTheParseRulesOfTheQueryLanguageHold(t *testing.T) {
 	if got := h.ask(`holder:"a\"b"`); got.Count != 0 {
 		t.Errorf(`holder:"a\"b" selected %v and no card is held by a"b`, refs(got))
 	}
-	for _, text := range []string{`holder:"a\nb"`, `holder:a\b`, `holder:`, `substate:ready,`, `holder:"unterminated`} {
+	for _, text := range []string{`holder:"a\nb"`, `holder:a\b`, `holder:`, `state:ready,`, `holder:"unterminated`} {
 		if refusal := h.refuse(text); refusal.Name != contract.Malformed {
 			t.Errorf("query %q refused %s, want %s", text, refusal.Name, contract.Malformed)
 		}
 	}
 
 	// A repeated field is legal and every one of its terms still has to hold.
-	wantRefs(t, "state:doing state:done", h.ask("state:"+doing+" state:"+finished))
+	wantRefs(t, "column:doing column:done", h.ask("column:"+doing+" column:"+finished))
 }
 
 // TestAFieldTokenCarryingAQuotationMarkIsMalformed asserts the answer this card
@@ -343,7 +343,7 @@ func TestTheParseRulesOfTheQueryLanguageHold(t *testing.T) {
 func TestAFieldTokenCarryingAQuotationMarkIsMalformed(t *testing.T) {
 	h := newHarness(t)
 	h.add("a card")
-	for _, text := range []string{`"holder:alka"`, `"state:doing"`, `ho"lder:alka`} {
+	for _, text := range []string{`"holder:alka"`, `"column:doing"`, `ho"lder:alka`} {
 		refusal := h.refuse(text)
 		if refusal.Name != contract.Malformed {
 			t.Errorf("query %q refused %s, want %s", text, refusal.Name, contract.Malformed)
@@ -379,7 +379,7 @@ func TestTheEmptyValueAsksForAbsenceOnEveryFieldButAt(t *testing.T) {
 	// A comment act and a created act both moved the card nowhere, so both
 	// carry no destination and both witness the absence query.
 	wantRefs(t, `entered:""`, h.ask(`entered:""`), held, free)
-	for _, text := range []string{`substate:""`, `event:""`, `state:""`, `workstream:""`} {
+	for _, text := range []string{`state:""`, `event:""`, `column:""`, `workstream:""`} {
 		h.ask(text)
 	}
 	if refusal := h.refuse(`at>=""`); refusal.Name != contract.Malformed {
@@ -417,8 +417,8 @@ func TestWorkstreamMatchesByItsRegistryAsWellAsTheLiveCards(t *testing.T) {
 	// The roster is every live card's list, so a workstream only a card the
 	// other terms exclude lists is still a value the query may name.
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: sole, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: sole, State: doing})
-	wantRefs(t, "state:intake workstream:c", h.ask("state:"+intake+" workstream:c"))
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: sole, Column: doing})
+	wantRefs(t, "column:intake workstream:c", h.ask("column:"+intake+" workstream:c"))
 
 	// A workstream the workbench carries and no card has joined is a name the
 	// query recognises: it returns no rows and exits 0, where the old rule
@@ -516,12 +516,12 @@ func TestAQueryReadsALapsedClaimAsLapsed(t *testing.T) {
 	h := newHarness(t)
 	card := h.ready("leased")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: card, Holder: "alka", Expires: time.Hour})
-	wantRefs(t, "substate:active", h.ask("substate:active"), card)
+	wantRefs(t, "state:active", h.ask("state:active"), card)
 
 	h.advance(2 * time.Hour)
 	h.reopen()
-	wantRefs(t, "substate:ready", h.ask("substate:ready"), card)
-	wantRefs(t, "substate:active", h.ask("substate:active"))
+	wantRefs(t, "state:ready", h.ask("state:ready"), card)
+	wantRefs(t, "state:active", h.ask("state:active"))
 }
 
 // TestAQueryReturnsTheArrivalOrderAndRepeats asserts that an empty query
@@ -532,7 +532,7 @@ func TestAQueryReturnsTheArrivalOrderAndRepeats(t *testing.T) {
 	first := h.ready("first")
 	second := h.add("second")
 	third := h.add("third")
-	// A card's arrival is when it reached the state it stands in, so moving
+	// A card's arrival is when it reached the column it stands in, so moving
 	// the first card an hour later sends it to the back. The expected
 	// sequence is therefore the one ByArrival produces and not the ascending
 	// identifier order Bench.Cards reads the directory in, which is what
@@ -540,7 +540,7 @@ func TestAQueryReturnsTheArrivalOrderAndRepeats(t *testing.T) {
 	h.advance(time.Hour)
 	h.reopen()
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: first, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: first, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: first, Column: doing})
 
 	wantRefs(t, "", h.ask(""), second, third, first)
 	wantRefs(t, "", h.ask(""), second, third, first)
@@ -581,20 +581,20 @@ func TestAQueryMatchingNothingCarriesAnEmptyArray(t *testing.T) {
 	}
 }
 
-// TestTheStateFieldsCompareOnTheResolvedIdentifier asserts that state, entered
+// TestTheColumnFieldsCompareOnTheResolvedIdentifier asserts that column, entered
 // and left accept a slug or a title and compare on what it resolved to, so a
-// query written against a slug keeps working when the state is renamed.
-func TestTheStateFieldsCompareOnTheResolvedIdentifier(t *testing.T) {
+// query written against a slug keeps working when the column is renamed.
+func TestTheColumnFieldsCompareOnTheResolvedIdentifier(t *testing.T) {
 	h := newHarness(t)
 	// The card is parked at the working station rather than by ready, which
 	// parks at aftercare. The move below is this test's own subject, and a
-	// card already standing at aftercare would be moved to the state it
+	// card already standing at aftercare would be moved to the column it
 	// stands in, which nothing refuses and which asserts nothing.
 	card := h.readyAt("moving", doing)
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: card, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: card, State: aftercareSlug})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: card, Column: aftercareSlug})
 
-	for _, text := range []string{"state:" + aftercareSlug, "state:" + aftercare, "state:Aftercare"} {
+	for _, text := range []string{"column:" + aftercareSlug, "column:" + aftercare, "column:Aftercare"} {
 		wantRefs(t, text, h.ask(text), card)
 	}
 	wantRefs(t, "left:"+intake, h.ask("left:"+intake), card)
@@ -615,13 +615,13 @@ func TestAQueryCarryingTwoMistakesIsRefusedForTheEarlier(t *testing.T) {
 		want string
 	}{
 		{"doing Priority>=next", contract.Malformed},
-		{"Priority>=next substate:reday", contract.UnknownField},
-		{"at:2026-08-01 substate:reday", contract.UnknownField},
-		{"substate:reday state:nosuchstate", contract.UnknownValue},
+		{"Priority>=next state:reday", contract.UnknownField},
+		{"at:2026-08-01 state:reday", contract.UnknownField},
+		{"state:reday column:nosuchstate", contract.UnknownValue},
 		// workstream:d is a mistake because no workstream of this fixture
 		// answers to d and no card lists it, which is what leaves this row
 		// carrying two mistakes rather than one.
-		{"state:nosuchstate workstream:d", contract.UnknownState},
+		{"column:nosuchstate workstream:d", contract.UnknownColumn},
 	} {
 		if refusal := h.refuse(pair.text); refusal.Name != pair.want {
 			t.Errorf("query %q refused %s, want the earlier %s", pair.text, refusal.Name, pair.want)

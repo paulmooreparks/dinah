@@ -48,7 +48,7 @@ type Watched struct {
 //
 // Two exclusions are deliberate and neither is an oversight. An archived
 // card contributes its journal size alone, because its anchor describes no
-// live state a caller would act on and because reading every archived anchor
+// live column a caller would act on and because reading every archived anchor
 // on every call is the cost the archive digest term exists to avoid. And the
 // archived half of the workstreams collection is out of the walk entirely:
 // archiving a workstream drops its key out of the live term, so a caller

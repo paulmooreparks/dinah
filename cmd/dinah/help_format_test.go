@@ -28,11 +28,11 @@ const desiredHelpAt107 = `Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>] [--severity <level>]     File a new card in the first state
+  add <title> [--column <column>] [--severity <level>]     File a new card in the first column
     [--priority <level>]
   claim <card> [--expires <duration>]                    Take up a ready card
-  move <card> <state> [--override]                       Carry a card to another state
-  pull [state] [--no-claim] [--expires <duration>]       Claim the head of a state's queue and move it
+  move <card> <column> [--override]                       Carry a card to another column
+  pull [column] [--no-claim] [--expires <duration>]       Claim the head of a column's queue and move it
     [--override]                                           there in one act
   release <card>                                         Give the card back to its queue
   block <card> <reason> [--kind <kind>]                  Raise an obstacle and free the card
@@ -42,26 +42,26 @@ WORK
     [--replace]
   join <card> <workstream>                               Add a card to a workstream
   leave <card> <workstream>                              Take a card out of a workstream
-  archive <ref>                                          Move a card, a state, or anything below a card,
+  archive <ref>                                          Move a card, a column, or anything below a card,
                                                            out of the live set
-  delete <ref> --yes                                     Destroy a card, a state, or anything below a card,
+  delete <ref> --yes                                     Destroy a card, a column, or anything below a card,
                                                            along with its history
   rename <ref> <name>                                    Rename an attachment
   card <get|set> <card> <field> [value]                  Read one of a card's own fields, or write one
 
 READ
   status                                                 Where this workbench stands, and what you hold
-  states                                                 The flow, in order
-  ls [state] [--ready]                                   The cards of a state, in queue order
-  next [state]                                           The card a state offers next
+  columns                                                 The flow, in order
+  ls [column] [--ready]                                   The cards of a column, in queue order
+  next [column]                                           The card a column offers next
   query [query]                                          The cards of the workbench that match a query
   tree [query] [--group-by <axes>] [--depth <level>]     The workbench's cards nested along a chain of axes
   contents <ref> [--depth <level>]                       What an entity of the workbench contains
   show <ref>                                             A card, or anything below it
   log <card>                                             The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
-    [--state <state>]
-  instructions <card|state>                              The instructions served at a position
+    [--column <column>]
+  instructions <card|column>                              The instructions served at a position
   guide [topic]                                          The embedded guides, or one of them
 
 WORKBENCH
@@ -75,7 +75,7 @@ WORKBENCH
                                                            card in your editor
   config [get|set] [key] [value]                         List your user settings, or read or write one
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
-    [--migrate-slugs] [--migrate-states]
+    [--migrate-slugs] [--migrate-columns]
     [--migrate-workstreams]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
@@ -112,10 +112,10 @@ const desiredHelpAt200 = `Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>] [--severity <level>] [--priority <level>]                             File a new card in the first state
+  add <title> [--column <column>] [--severity <level>] [--priority <level>]                             File a new card in the first column
   claim <card> [--expires <duration>]                                                                 Take up a ready card
-  move <card> <state> [--override]                                                                    Carry a card to another state
-  pull [state] [--no-claim] [--expires <duration>] [--override]                                       Claim the head of a state's queue and move it there in one act
+  move <card> <column> [--override]                                                                    Carry a card to another column
+  pull [column] [--no-claim] [--expires <duration>] [--override]                                       Claim the head of a column's queue and move it there in one act
   release <card>                                                                                      Give the card back to its queue
   block <card> <reason> [--kind <kind>]                                                               Raise an obstacle and free the card
   unblock <card>                                                                                      Lift a block (operator only)
@@ -123,23 +123,23 @@ WORK
   attach <ref> <file> [--description <text>] [--replace]                                              Attach a file, or replace its bytes
   join <card> <workstream>                                                                            Add a card to a workstream
   leave <card> <workstream>                                                                           Take a card out of a workstream
-  archive <ref>                                                                                       Move a card, a state, or anything below a card, out of the live set
-  delete <ref> --yes                                                                                  Destroy a card, a state, or anything below a card, along with its history
+  archive <ref>                                                                                       Move a card, a column, or anything below a card, out of the live set
+  delete <ref> --yes                                                                                  Destroy a card, a column, or anything below a card, along with its history
   rename <ref> <name>                                                                                 Rename an attachment
   card <get|set> <card> <field> [value]                                                               Read one of a card's own fields, or write one
 
 READ
   status                                                                                              Where this workbench stands, and what you hold
-  states                                                                                              The flow, in order
-  ls [state] [--ready]                                                                                The cards of a state, in queue order
-  next [state]                                                                                        The card a state offers next
+  columns                                                                                              The flow, in order
+  ls [column] [--ready]                                                                                The cards of a column, in queue order
+  next [column]                                                                                        The card a column offers next
   query [query]                                                                                       The cards of the workbench that match a query
   tree [query] [--group-by <axes>] [--depth <level>]                                                  The workbench's cards nested along a chain of axes
   contents <ref> [--depth <level>]                                                                    What an entity of the workbench contains
   show <ref>                                                                                          A card, or anything below it
   log <card>                                                                                          The recorded actions of a card, oldest first
-  changes [--since <cursor>] [--card <ref>] [--state <state>]                                         What has happened on this workbench since a cursor
-  instructions <card|state>                                                                           The instructions served at a position
+  changes [--since <cursor>] [--card <ref>] [--column <column>]                                         What has happened on this workbench since a cursor
+  instructions <card|column>                                                                           The instructions served at a position
   guide [topic]                                                                                       The embedded guides, or one of them
 
 WORKBENCH
@@ -149,7 +149,7 @@ WORKBENCH
   path <ref>                                                                                          Print the file path of this workbench, of a card, or of anything below a card
   edit <ref>                                                                                          Open this workbench, a card, or anything below a card in your editor
   config [get|set] [key] [value]                                                                      List your user settings, or read or write one
-  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]  Look for structural defects in this workbench
+  check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-workstreams]  Look for structural defects in this workbench
   whoami                                                                                              The actor your actions carry, and whether it is the operator
   workbench [get|set] [field] [value] [--yes]                                                         Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field] [value] [--yes]                                 Read this workbench's workstreams, create one, or write one's fields

@@ -49,8 +49,8 @@ var wantedTemplates = []string{
 	".gitignore",
 	"workbench.md",
 	"journal.ndjson",
-	"states/<id>/state.md",
-	"archive/states/<id>/state.md",
+	"columns/<id>/column.md",
+	"archive/columns/<id>/column.md",
 	"cards/<id>/card.md",
 	"cards/<id>/journal.ndjson",
 	"cards/<id>/comments/<id>/comment.md",
@@ -69,14 +69,14 @@ var wantedTemplates = []string{
 
 // wantedKeys is the union of top-level frontmatter keys the sequence writes,
 // per file kind. Nested members sit outside the comparison, meaning the
-// entries under the anchor's states sequence and under a card's links and
+// entries under the anchor's columns sequence and under a card's links and
 // workstreams, and the head writes none of them as mappings today.
 var wantedKeys = map[string][]string{
-	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "states", "levels"},
-	"states/<id>/state.md":                              {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"archive/states/<id>/state.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "severity", "priority", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
-	"archive/cards/<id>/card.md":                        {"title", "number", "state", "substate"},
+	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels"},
+	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit"},
+	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
+	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"archive/cards/<id>/card.md":                        {"title", "number", "column", "state"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
 	"cards/<id>/attachments/<id>/attachment.md":         {"filename", "description", "provenance", "ordinal"},
@@ -180,9 +180,9 @@ func TestReplayingThePopulationSequenceReachesEveryShapeItNames(t *testing.T) {
 // bytes came from; provenance rests on the capture commit named in the
 // fixture's manifest row and on a reader replaying it, not on any assertion
 // here. wantedKeys above tells a reader which top-level keys the sequence
-// samples, and it does not say that Instantiate and writeStateFromMember copy
-// an unrecognised definition or state member straight into the anchor they
-// write, so the workbench.md and state.md key sets are open in a way this
+// samples, and it does not say that Instantiate and writeColumnFromMember copy
+// an unrecognised definition or column member straight into the anchor they
+// write, so the workbench.md and column.md key sets are open in a way this
 // comparison cannot see (OQ-7).
 func TestTheSampleFixtureCarriesEveryShapeThisBuildWrites(t *testing.T) {
 	sample := readShape(t, sampleFixture(t))
@@ -590,7 +590,7 @@ func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
 // profile resolution cannot quietly let an unreadable workbench through one
 // command while the others go on refusing it.
 func TestEveryCommandThatOpensAWorkbenchRefusesAnUnsupportedRevision(t *testing.T) {
-	for _, command := range []string{"status", "states", "check"} {
+	for _, command := range []string{"status", "columns", "check"} {
 		root := newBench(t)
 		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
 		got := runCLI(t, root, command)
@@ -650,7 +650,7 @@ func TestAMalformedProfileKeepsItsTwoSentences(t *testing.T) {
 
 	root := newBench(t)
 	template := filepath.Join(root, "template.json")
-	definition := `{"profile":"dinah/1.0","title":"a template","states":[{"id":"004acda2c28a","title":"Intake","kind":"intake"}]}`
+	definition := `{"profile":"dinah/1.0","title":"a template","columns":[{"id":"004acda2c28a","title":"Intake","kind":"intake"}]}`
 	if err := os.WriteFile(template, []byte(definition), 0o644); err != nil {
 		t.Fatalf("write the template: %v", err)
 	}
@@ -717,8 +717,8 @@ func TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision(t *testing.T)
 }
 
 // TestThePreSlugFixtureOpensAndReportsItsMissingSlugs asserts that a workbench
-// written before state slugs and creation ordinals existed opens under this
-// build, lists its states, and has its defects reported rather than repaired,
+// written before column slugs and creation ordinals existed opens under this
+// build, lists its columns, and has its defects reported rather than repaired,
 // with every file left byte-identical afterwards. That last clause is what
 // proves no migration ran on open.
 func TestThePreSlugFixtureOpensAndReportsItsMissingSlugs(t *testing.T) {
@@ -733,8 +733,8 @@ func TestThePreSlugFixtureOpensAndReportsItsMissingSlugs(t *testing.T) {
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
-	if got := runCLI(t, root, "--workbench", fixture, "states"); got.code != 0 {
-		t.Fatalf("states: %d %s", got.code, got.errw)
+	if got := runCLI(t, root, "--workbench", fixture, "columns"); got.code != 0 {
+		t.Fatalf("columns: %d %s", got.code, got.errw)
 	}
 	checked := runCLI(t, root, "--workbench", fixture, "check")
 	for _, wanted := range []string{"1a2b3c4d5e6f", "2b3c4d5e6f70", "carries no slug"} {

@@ -20,7 +20,7 @@ import (
 // each refusal below names the reader rule that forced it.
 //
 // No YAML parser stands here. The reader covers the shapes docs/design/format.md
-// declares, reusing the splitting rules Seq and splitLevelEntry already state,
+// declares, reusing the splitting rules Seq and splitLevelEntry already column,
 // and skips what it cannot read, which is the reader posture readLevels states
 // for its own key.
 
