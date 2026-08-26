@@ -132,13 +132,15 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	// retired vocabulary is internally consistent and disagrees with the
 	// workbench around it, so telling its reader to remove a mixture would
 	// describe a file that does not exist.
-	if refuseRetired {
-		switch {
-		case !fm.Has(columnKey):
-			return nil, contract.RefuseWith(contract.VocabularyRetired, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
-		case fm.Has(preVocabularyStateKey):
-			return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
-		}
+	// The two conditions are written as sibling ifs rather than as a switch
+	// because a switch naming an anchor constant is a second copy of the
+	// containment grammar, which TestTheContainmentGrammarIsDeclaredOnce
+	// refuses wherever it is not the table that declares it.
+	if refuseRetired && !fm.Has(columnKey) {
+		return nil, contract.RefuseWith(contract.VocabularyRetired, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+	}
+	if refuseRetired && fm.Has(preVocabularyStateKey) {
+		return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
 	}
 	card := &Card{
 		ID:          id,
