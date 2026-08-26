@@ -12,6 +12,7 @@ package msg
 import (
 	"embed"
 	"encoding/json"
+	"hash/fnv"
 	"path"
 	"sort"
 	"strconv"
@@ -36,6 +37,25 @@ type Entry struct {
 	// Skeleton marks an entry carrying the English text unchanged, which is
 	// what a generated catalog ships until somebody translates it.
 	Skeleton bool `json:"skeleton,omitempty"`
+	// Source is a fingerprint of the English text this entry was translated
+	// from, written when the entry is translated and checked against the
+	// current base entry by TestATranslationTracksItsEnglishSource. It is
+	// empty on the base catalog itself and on any entry carrying Skeleton,
+	// neither of which is a translation of anything.
+	Source string `json:"source,omitempty"`
+}
+
+// Fingerprint returns a short, stable digest of text, and it is the one place
+// this project computes that digest. A translated entry records the
+// fingerprint of the English it was translated from, and the guard over the
+// catalogs recomputes it from the English of the day to find out whether the
+// translation has fallen behind. Two calls on the same text return the same
+// value on any machine and under any Go release, because FNV-1a is a pure
+// function of the bytes handed to it and hash/fnv fixes the algorithm.
+func Fingerprint(text string) string {
+	digest := fnv.New64a()
+	digest.Write([]byte(text))
+	return strconv.FormatUint(digest.Sum64(), 16)
 }
 
 // Catalog is one language's messages.

@@ -200,6 +200,66 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 	}
 }
 
+// TestATranslationTracksItsEnglishSource asserts that every translated entry
+// records the English it was translated from, and that the English has not
+// moved since. The entry stores a fingerprint of the base text under source,
+// this test recomputes that fingerprint from the base catalog of the day, and
+// the two disagree exactly when somebody edited English and left a translation
+// behind. That is the failure no other guard in this file can see:
+// TestATranslationKeepsThePlaceholdersAndTheSplice reads only the
+// placeholders and the leading separator, and
+// TestEveryUntranslatableIdentifierSurvivesTranslation reads only the entries
+// that declare part of their content untranslatable, so an English sentence
+// that gains, loses or rewords an ordinary clause passes both while the
+// translation goes on saying the older thing.
+//
+// A subtest per language keeps a failure readable. Without one, a single
+// English edit reports the same key once per catalog and a reader cannot tell
+// how many languages are actually behind. Each catalog the language ruling
+// calls complete earns a subtest on its own, so the five skeleton catalogs
+// join the guard when somebody translates them and nothing here has to be
+// edited for that to happen.
+//
+// The base catalog and any skeleton entry are exempt, because neither is a
+// translation of anything and so neither has a source to fall behind. A key
+// missing from a catalog is left to TestEveryDeclaredLanguageShips, which
+// already reports it, rather than reported twice.
+func TestATranslationTracksItsEnglishSource(t *testing.T) {
+	checked := 0
+	for _, tag := range Complete {
+		if tag == Base {
+			continue
+		}
+		t.Run(tag, func(t *testing.T) {
+			catalog, shipped := loaded[tag]
+			if !shipped {
+				t.Fatalf("the complete catalog %s does not ship, so no entry of it can be checked", tag)
+			}
+			for _, key := range Keys() {
+				base, ok := BaseEntry(key)
+				if !ok {
+					continue
+				}
+				entry, carried := catalog.Entries[key]
+				if !carried || entry.Skeleton {
+					continue
+				}
+				checked++
+				want := Fingerprint(base.Text)
+				switch {
+				case entry.Source == "":
+					t.Errorf("%s: carries no recorded source, so write one with Fingerprint of the English text before this entry ships", key)
+				case entry.Source != want:
+					t.Errorf("%s: the source is stale, so the English text changed after this entry was translated; git log -p internal/msg/locales/en.json shows what changed", key)
+				}
+			}
+		})
+	}
+	if checked == 0 {
+		t.Fatal("no translated entry was checked, so this guard is asserting nothing")
+	}
+}
+
 // TestEveryUntranslatableIdentifierSurvivesTranslation asserts that a
 // translation carries through, unchanged, every machine identifier its English
 // source names, for each entry whose context declares those identifiers are
