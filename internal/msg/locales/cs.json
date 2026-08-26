@@ -2386,6 +2386,21 @@
       "context": "Spliced onto refusal.dinah.usage as the next step, carrying the clause that base entry used to end with. It is spliced ahead of refusal.dinah.usage.dash-hint, which is the position it held inside the sentence.",
       "skeleton": true
     },
+    "refusal.dinah.vocabulary-mixed": {
+      "text": "{detail} carries a key from each of the two vocabularies this format has had, so Dinah cannot tell which of them the file is written in",
+      "context": "The sentence printed after the refusal name dinah.vocabulary-mixed. {detail} names the file inside the workbench, either workbench.md or a card's identifier and card.md, so a tree-wide run says which of several hundred cards it refused.",
+      "skeleton": true
+    },
+    "refusal.dinah.vocabulary-mixed.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed: the file on disk the mixed header belongs to. It reads as refusal.malformed.at does, and every raise site of this refusal carries a path.",
+      "skeleton": true
+    },
+    "refusal.dinah.vocabulary-mixed.next": {
+      "text": "; hand-edit the file so that it carries one vocabulary and not both, then run `dinah check --migrate-vocabulary` to carry the workbench forward",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated.",
+      "skeleton": true
+    },
     "refusal.dinah.workbench-not-applicable": {
       "text": "Dinah does not use {source} here: init makes a new workbench rather than opening the one {source} names ({detail}).",
       "context": "The sentence printed after the refusal name dinah.workbench-not-applicable. {detail} is the directory named by --workbench or DINAH_WORKBENCH when init refuses it. {source} is the literal spelling of whichever one actually supplied it, --workbench or DINAH_WORKBENCH, never the other one.",
@@ -3177,8 +3192,8 @@
       "skeleton": true
     },
     "check.vocabulary-confirm": {
-      "text": "Nothing was written. Run the same command again with --yes to carry these workbenches across the rename.",
-      "context": "The closing line of a vocabulary-migration preview, printed whether or not the walk found anything. --yes is a flag spelling and is never translated.",
+      "text": "Nothing was written. The preview reads the format each workbench declares and does not open it, so a workbench listed above can still be refused by the run that carries it. Run the same command again with --yes to carry these workbenches across the rename.",
+      "context": "The closing line of a vocabulary-migration preview, printed whether or not the walk found anything. The middle sentence says the list names candidates the confirmed run may still refuse, because the preview classifies each anchor without opening the workbench. --yes is a flag spelling and is never translated.",
       "skeleton": true
     },
     "check.vocabulary-failed.one": {

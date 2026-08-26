@@ -1662,3 +1662,14 @@ convenient it would be. A run that is confirmed is safe to repeat: a
 workbench a failure left half converted is finished rather than started
 again, and a workbench already carried forward is reported and left byte for
 byte as it stood.
+
+The version gate reads the revision a workbench's own anchor declares, so it
+cannot see a workbench whose anchor was carried across the rename and whose
+cards were not. A card still carrying the retired `substate:` key inside a
+workbench declaring this revision is therefore refused where it is read,
+under the layer refusal `dinah.vocabulary-mixed`, and the refusal names the
+card. The same refusal answers the two shapes that mix the vocabularies
+within one file: a card carrying `column:` beside `substate:`, and a
+workbench anchor carrying `states:` beside `columns:`. No writer produces any
+of the three, and Dinah refuses rather than guessing which key holds the
+column.

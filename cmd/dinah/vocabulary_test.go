@@ -33,21 +33,7 @@ func unwind(t *testing.T, root string) {
 		text = strings.Replace(text, "\ncolumns:\n", "\nstates:\n", 1)
 		return strings.Replace(text, "profile: "+bench.ProfileVersion, "profile: dinah-core/0.6", 1)
 	})
-	for _, dir := range []string{
-		filepath.Join(root, bench.CardsDir),
-		filepath.Join(root, bench.ArchiveDir, bench.CardsDir),
-	} {
-		for _, id := range bench.ListIDs(dir) {
-			card := filepath.Join(dir, id, bench.CardAnchor)
-			if !bench.Exists(card) {
-				continue
-			}
-			rewriteFile(t, card, func(text string) string {
-				text = strings.Replace(text, "\nstate: ", "\nsubstate: ", 1)
-				return strings.Replace(text, "\ncolumn: ", "\nstate: ", 1)
-			})
-		}
-	}
+	unwindCards(t, root)
 	for _, parent := range []string{root, filepath.Join(root, bench.ArchiveDir)} {
 		columns := filepath.Join(parent, bench.ColumnsDir)
 		if !bench.Exists(columns) {
@@ -64,6 +50,31 @@ func unwind(t *testing.T, root string) {
 		}
 		if err := os.Rename(columns, filepath.Join(parent, bench.PreVocabularyDir)); err != nil {
 			t.Fatalf("rename the collection: %v", err)
+		}
+	}
+}
+
+// unwindCards is the half of unwind that touches the cards and nothing else,
+// so a test can build the workbench whose cards are written in the retired
+// vocabulary under an anchor still declaring the current one. That is what a
+// workbench carried across the rename at its anchor and not in its cards looks
+// like, and no writer here produces it, so a test that wants the shape has to
+// make it by hand.
+func unwindCards(t *testing.T, root string) {
+	t.Helper()
+	for _, dir := range []string{
+		filepath.Join(root, bench.CardsDir),
+		filepath.Join(root, bench.ArchiveDir, bench.CardsDir),
+	} {
+		for _, id := range bench.ListIDs(dir) {
+			card := filepath.Join(dir, id, bench.CardAnchor)
+			if !bench.Exists(card) {
+				continue
+			}
+			rewriteFile(t, card, func(text string) string {
+				text = strings.Replace(text, "\nstate: ", "\nsubstate: ", 1)
+				return strings.Replace(text, "\ncolumn: ", "\nstate: ", 1)
+			})
 		}
 	}
 }
@@ -694,5 +705,115 @@ func TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation(t *testing.T)
 				t.Errorf("the preview rewrote %s", filepath.Join(where, path))
 			}
 		}
+	}
+}
+
+// TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread asserts the
+// case the version gate cannot see. A workbench whose anchor declares the
+// current format passes the gate, so a workbench carried across the rename at
+// its anchor and not in its cards is opened, and every card's state key then
+// holds a column identifier where the reader expects one of ready, active and
+// blocked. Before this refusal, dinah ls printed that identifier under the
+// heading naming the card's condition and exited 0, which is the silent
+// misread the gate exists to prevent, reached by the one route the gate cannot
+// look down.
+//
+// This migration writes the anchor last, so it cannot produce the shape. A
+// hand edit or another tool can, and the fixture makes it by hand for that
+// reason.
+func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing.T) {
+	root, _, _, _, current := buildTreeFixture(t)
+	unwindCards(t, current)
+
+	for _, argv := range [][]string{{"ls"}, {"status"}, {"show", "fx-1"}} {
+		got := runCLI(t, root, append([]string{"--workbench", current}, argv...)...)
+		if got.code == 0 {
+			t.Errorf("%v over a workbench whose cards were never carried across exited 0:\n%s", argv, got.out)
+		}
+		if !strings.Contains(got.errw, contract.VocabularyMixed) {
+			t.Errorf("%v refused with %q, wanted the %s refusal", argv, got.errw, contract.VocabularyMixed)
+		}
+	}
+
+	// The refusal names the card, not merely the anchor filename. A board of
+	// any size makes the difference between an operator who knows where to
+	// look and one who does not.
+	ids := bench.ListIDs(filepath.Join(current, bench.CardsDir))
+	if len(ids) == 0 {
+		t.Fatalf("%s holds no cards, so this test asserts nothing", current)
+	}
+	got := runCLI(t, root, "--workbench", current, "ls")
+	if !strings.Contains(got.errw, ids[0]) {
+		t.Errorf("the refusal does not name the card %s:\n%s", ids[0], got.errw)
+	}
+}
+
+// TestAnAnchorCarryingBothSequenceKeysIsRefusedBeforeAnythingIsWritten asserts
+// the other end of the same class. An anchor carrying states: beside columns:
+// is half of each vocabulary, and the rename refuses rather than choosing
+// which of the two lists the workbench's flow really is. The refusal used to
+// come last, after every card and the whole collection had been rewritten,
+// which left the workbench opening under neither opener and refusing
+// identically on every later run. It now comes first, so the workbench is left
+// exactly as it was found and one hand edit frees it.
+func TestAnAnchorCarryingBothSequenceKeysIsRefusedBeforeAnythingIsWritten(t *testing.T) {
+	// The sibling rather than the workbench at the root, because the root's
+	// own anchor directory is the walk's root and holds the other three
+	// workbenches beneath it, so a byte-for-byte comparison over it would be
+	// comparing their files too.
+	root, _, _, sibling, _ := buildTreeFixture(t)
+	rewriteFile(t, filepath.Join(sibling, bench.WorkbenchAnchor), func(text string) string {
+		return strings.Replace(text, "\nstates:\n", "\ncolumns:\n- b00000000001\nstates:\n", 1)
+	})
+	before := treeContents(t, sibling)
+
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	if got.code == 0 {
+		t.Errorf("a run meeting an anchor in both vocabularies exited 0:\n%s", got.out)
+	}
+	if !strings.Contains(got.out, contract.VocabularyMixed) {
+		t.Errorf("the report does not carry the %s refusal:\n%s", contract.VocabularyMixed, got.out)
+	}
+	// The report must not leak the frontmatter package's own error text, which
+	// names an internal package to an operator and tells him nothing he can act
+	// on.
+	if strings.Contains(got.out, "frontmatter:") {
+		t.Errorf("the report leaks an internal package name:\n%s", got.out)
+	}
+	after := treeContents(t, sibling)
+	if len(before) != len(after) {
+		t.Fatalf("%s held %d files before the refused run and %d after", sibling, len(before), len(after))
+	}
+	for path, content := range after {
+		if before[path] != content {
+			t.Errorf("%s changed under a run that refused the workbench", filepath.Join(sibling, path))
+		}
+	}
+}
+
+// TestACardCarryingBothVocabulariesIsRefusedByName asserts that the migration's
+// own card guard names the card it refused. The report of a tree-wide run
+// prints the workbench's path, so a refusal naming only the anchor filename
+// tells an operator that one card of several hundred is the problem and does
+// not tell him which.
+func TestACardCarryingBothVocabulariesIsRefusedByName(t *testing.T) {
+	root, atRoot, _, _, _ := buildTreeFixture(t)
+	ids := bench.ListIDs(filepath.Join(atRoot, bench.CardsDir))
+	if len(ids) == 0 {
+		t.Fatalf("%s holds no cards", atRoot)
+	}
+	rewriteFile(t, filepath.Join(atRoot, bench.CardsDir, ids[0], bench.CardAnchor), func(text string) string {
+		return strings.Replace(text, "\nstate: ", "\ncolumn: b00000000001\nstate: ", 1)
+	})
+
+	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	if got.code == 0 {
+		t.Errorf("a run meeting a card in both vocabularies exited 0:\n%s", got.out)
+	}
+	if !strings.Contains(got.out, contract.VocabularyMixed) {
+		t.Errorf("the report does not carry the %s refusal:\n%s", contract.VocabularyMixed, got.out)
+	}
+	if !strings.Contains(got.out, ids[0]) {
+		t.Errorf("the report does not name the card %s it refused:\n%s", ids[0], got.out)
 	}
 }

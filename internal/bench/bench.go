@@ -269,6 +269,11 @@ type Bench struct {
 	Profile string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+	// retiredVocabulary marks a bench the lenient opener admitted, whose
+	// cards are written in the vocabulary this build retired. It is
+	// unexported because only this package reads it and only the vocabulary
+	// migration produces a bench carrying it.
+	retiredVocabulary bool
 	// Hooks are the test-only levers on the structural protocol's timing.
 	Hooks *Hooks
 	// StrandedColumns is every identifier this workbench's own definition names
@@ -940,14 +945,15 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	}
 	fm, body := ParseAnchor(text)
 	b := &Bench{
-		Root:     root,
-		Title:    fm.Value("title"),
-		Slug:     fm.Value("slug"),
-		Operator: fm.Value("operator"),
-		Standing: body,
-		Profile:  fm.Value("profile"),
-		FM:       fm,
-		levels:   readLevels(fm),
+		Root:              root,
+		Title:             fm.Value("title"),
+		Slug:              fm.Value("slug"),
+		Operator:          fm.Value("operator"),
+		Standing:          body,
+		Profile:           fm.Value("profile"),
+		retiredVocabulary: vocab.SequenceKey == preVocabulary.SequenceKey,
+		FM:                fm,
+		levels:            readLevels(fm),
 	}
 	if b.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)
@@ -1370,16 +1376,37 @@ func IsWorkbenchRef(ref string) bool {
 }
 
 // Cards reads every live card of the bench, in ascending identifier order.
+//
+// A bench the lenient opener admitted reads its cards through the lenient
+// reader, because its own anchor declares a pre-vocabulary revision and its
+// cards are written to match it. Everywhere else a card carrying the retired
+// key disagrees with the anchor above it, and LoadCard refuses it rather than
+// reading a column identifier as the card's condition.
 func (b *Bench) Cards() ([]*Card, error) {
+	if b.retiredVocabulary {
+		return retiredCardsIn(b.CardsRoot())
+	}
 	return cardsIn(b.CardsRoot())
 }
 
 // cardsIn reads every card of one half of the collection, in ascending
 // identifier order.
 func cardsIn(root string) ([]*Card, error) {
+	return cardsWith(root, LoadCard)
+}
+
+// retiredCardsIn is cardsIn for a bench written in the retired vocabulary,
+// which the lenient opener is the only source of.
+func retiredCardsIn(root string) ([]*Card, error) {
+	return cardsWith(root, loadRetiredCard)
+}
+
+// cardsWith is the body both readers share, given the one-card reader that
+// separates them.
+func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, error) {
 	var cards []*Card
 	for _, id := range ListIDs(root) {
-		card, err := LoadCard(root, id)
+		card, err := load(root, id)
 		if err != nil {
 			return nil, err
 		}

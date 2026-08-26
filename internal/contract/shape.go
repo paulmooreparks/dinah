@@ -343,6 +343,21 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.needs-vocabulary-migration.next"},
 	},
 	{
+		// The detail names the file inside the workbench, and path names it
+		// on disk, so a reader of a tree-wide run learns which of several
+		// hundred cards is the one refused. Malformed's location clause is
+		// the model, and this refusal keeps only the half of it that
+		// applies: every raise site holds a path and none of them reads a
+		// definition file or a request argument.
+		Name:   VocabularyMixed,
+		Values: []string{"path"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.vocabulary-mixed.at", When: "path"},
+			{Key: "refusal.dinah.vocabulary-mixed.next"},
+		},
+		NextStep: []string{"refusal.dinah.vocabulary-mixed.next"},
+	},
+	{
 		// One refusal name answers two acts here. delete destroys history,
 		// and a slug rename renames every card in the workbench, so the
 		// workbench command carries its own sentence and its own next step

@@ -167,6 +167,17 @@ func RecognizedAt(root string) (string, error) {
 // the column key it now carries, a member anchor and the collection itself by
 // the name no longer being there. What none of them do is act twice.
 func MigrateVocabulary(b *Bench) ([]string, error) {
+	// The anchor's own precondition is checked before the first card is
+	// written, even though the anchor is rewritten last. An anchor carrying
+	// both sequence keys is a shape no writer produces and the rename
+	// refuses it, and refusing it at the end left a workbench whose cards
+	// and collection had already been carried across and whose anchor never
+	// could be, so every later run met the same refusal and the workbench
+	// opened under neither opener. Asking first costs one read and leaves
+	// such a workbench exactly as it was found.
+	if err := checkBenchAnchorVocabulary(b); err != nil {
+		return nil, err
+	}
 	touched, err := migrateCardVocabulary(b)
 	if err != nil {
 		return touched, err
@@ -224,8 +235,12 @@ func migrateCardVocabulary(b *Bench) ([]string, error) {
 				// Column beside substate is a card half of each vocabulary,
 				// which neither this migration nor any writer produces, and
 				// guessing which key holds the flow position is how a
-				// half-written card becomes a destroyed one.
-				return touched, contract.RefuseWith(contract.Malformed, CardAnchor, map[string]string{"path": path})
+				// half-written card becomes a destroyed one. The detail
+				// carries the identifier as well as the filename, because
+				// the report of a tree-wide run prints the workbench's path
+				// and would otherwise tell an operator that one card of
+				// several hundred is the problem without saying which.
+				return touched, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": path})
 			}
 			if !fm.Has(preVocabularyStateKey) && !fm.Has(preVocabularyColumnKey) {
 				continue
@@ -281,8 +296,29 @@ func migrateColumnDirectories(b *Bench) error {
 	return nil
 }
 
+// checkBenchAnchorVocabulary refuses a workbench anchor carrying both sequence
+// keys, which is half of each vocabulary and which no writer produces. Dinah
+// refuses rather than choosing which of the two lists the workbench's flow
+// really is, and the refusal names the anchor and its path so that an operator
+// reading a tree-wide report is told which file to edit.
+func checkBenchAnchorVocabulary(b *Bench) error {
+	path := filepath.Join(b.Root, WorkbenchAnchor)
+	text, err := ReadText(path)
+	if err != nil {
+		return contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path})
+	}
+	fm, _ := ParseAnchor(text)
+	if fm.Has(preVocabularySequenceKey) && fm.Has(currentVocabulary.SequenceKey) {
+		return contract.RefuseWith(contract.VocabularyMixed, WorkbenchAnchor, map[string]string{"path": path})
+	}
+	return nil
+}
+
 // migrateBenchAnchor renames the workbench anchor's own sequence key and
-// declares the revision the current vocabulary arrived in.
+// declares the revision the current vocabulary arrived in. The rename cannot
+// collide, because checkBenchAnchorVocabulary asked before the first card was
+// written, and it is checked anyway because a rename that silently made room
+// is what this migration is recovering from.
 func migrateBenchAnchor(b *Bench) error {
 	path := filepath.Join(b.Root, WorkbenchAnchor)
 	text, err := ReadText(path)
@@ -290,11 +326,8 @@ func migrateBenchAnchor(b *Bench) error {
 		return contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path})
 	}
 	fm, body := ParseAnchor(text)
-	// An anchor carrying both sequence keys is half of each vocabulary, and
-	// the rename refuses rather than choosing which of the two lists the
-	// workbench's flow really is.
-	if err := fm.Rename(preVocabularySequenceKey, "columns"); err != nil {
-		return err
+	if err := fm.Rename(preVocabularySequenceKey, currentVocabulary.SequenceKey); err != nil {
+		return contract.RefuseWith(contract.VocabularyMixed, WorkbenchAnchor, map[string]string{"path": path})
 	}
 	fm.Set("profile", ProfileVersion)
 	return WriteText(path, fm.Render(body))

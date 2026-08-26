@@ -66,8 +66,29 @@ type Card struct {
 	FM *Frontmatter
 }
 
-// LoadCard reads one card from a cards collection.
+// LoadCard reads one card from a cards collection, refusing one written in
+// the vocabulary this build retired.
 func LoadCard(collection, id string) (*Card, error) {
+	return loadCard(collection, id, true)
+}
+
+// loadRetiredCard reads a card written in the retired vocabulary without
+// refusing it, which the lenient opener the migration reads through is the one
+// caller of. A workbench that opener admits declares a pre-vocabulary revision
+// on its own anchor, so its cards and its anchor agree with each other and the
+// disagreement LoadCard refuses is not present. What such a card gives back is
+// still read in the current vocabulary's meaning of the two keys, so nothing
+// here should take its Column or its State for the card's real standing; the
+// migration itself reads cards through ParseAnchor for exactly that reason.
+func loadRetiredCard(collection, id string) (*Card, error) {
+	return loadCard(collection, id, false)
+}
+
+// loadCard is the body both readers share. refuseRetired is what separates
+// them, and it is a parameter rather than a package flag so that the choice is
+// made at the call site by a caller who knows which vocabulary the workbench
+// it opened declares.
+func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	dir := filepath.Join(collection, id)
 	anchor := filepath.Join(dir, CardAnchor)
 	text, err := ReadText(anchor)
@@ -79,6 +100,24 @@ func LoadCard(collection, id string) (*Card, error) {
 		return nil, err
 	}
 	fm, body := ParseAnchor(text)
+	// A card carrying the retired substate key is written in the vocabulary
+	// this build no longer reads, and reaching here means the workbench's own
+	// anchor declares the current one, because the version gate turns a
+	// pre-vocabulary workbench away before any card is opened. The two
+	// disagree, so this card's state key holds a column identifier and every
+	// field below would be filled with the wrong half of the card.
+	//
+	// The gate cannot see this, and that is the whole reason for the check.
+	// It reads the revision the anchor declares, so a workbench carried
+	// across the rename at its anchor and not in its cards passes it, and
+	// dinah ls then prints a column identifier under the heading that names
+	// the card's condition and exits 0. This migration writes the anchor
+	// last and so cannot produce that shape, but a hand edit or another tool
+	// can, and a silent misread is exactly what the gate exists to prevent.
+	// Asking the card itself is the only place the disagreement is visible.
+	if refuseRetired && fm.Has(preVocabularyStateKey) {
+		return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+	}
 	card := &Card{
 		ID:          id,
 		Dir:         dir,
