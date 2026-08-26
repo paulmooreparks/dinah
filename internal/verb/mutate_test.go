@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1213,6 +1214,72 @@ func TestTheSafeInterleavingsAreCleanRefusals(t *testing.T) {
 		}
 		if got := strings.Join(h.locks(), ", "); got != "" {
 			t.Errorf("the loser left %q behind", got)
+		}
+	})
+}
+
+// TestMoveRecordsRejectOnTheJournalEventForTheDeclaredTarget is dinah-207 AC-7.
+// The flag is what makes a rejection countable after the fact: without it a
+// reader of the journal cannot tell a rejection from any other backward move,
+// which is the state the customer board that raised the card is in today.
+func TestMoveRecordsRejectOnTheJournalEventForTheDeclaredTarget(t *testing.T) {
+	// lastMoved is the moved event of the act under test, which is the last
+	// one on the journal because each case moves the card exactly once after
+	// its setup.
+	lastMoved := func(t *testing.T, h *harness, ref string) bench.Event {
+		t.Helper()
+		events := h.events(ref)
+		for i := len(events) - 1; i >= 0; i-- {
+			if events[i].Event == contract.EventMoved {
+				return events[i]
+			}
+		}
+		t.Fatalf("the journal of %s carries no moved event", ref)
+		return bench.Event{}
+	}
+
+	t.Run("a move to the declared target records the flag", func(t *testing.T) {
+		h := newHarness(t)
+		h.declare(aftercare, "reject_to", "doing")
+		ref := h.add("refused work")
+		h.at(ref, aftercare)
+		h.at(ref, doing)
+		if ev := lastMoved(t, h, ref); !ev.Reject {
+			t.Errorf("the move to the declared target recorded %+v", ev)
+		}
+	})
+
+	t.Run("a move to some other state does not", func(t *testing.T) {
+		h := newHarness(t)
+		h.declare(aftercare, "reject_to", "doing")
+		ref := h.add("ordinary work")
+		h.at(ref, aftercare)
+		h.at(ref, review)
+		if ev := lastMoved(t, h, ref); ev.Reject {
+			t.Errorf("a move to a state the declaration does not name recorded %+v", ev)
+		}
+	})
+
+	t.Run("a move out of a state declaring nothing does not", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("ordinary work")
+		h.at(ref, aftercare)
+		h.at(ref, doing)
+		if ev := lastMoved(t, h, ref); ev.Reject {
+			t.Errorf("a move out of a state declaring nothing recorded %+v", ev)
+		}
+	})
+
+	t.Run("the absent flag never serializes", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("ordinary work")
+		h.at(ref, aftercare)
+		line, err := json.Marshal(lastMoved(t, h, ref))
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if strings.Contains(string(line), "reject") {
+			t.Errorf("the unset flag reached the journal line: %s", line)
 		}
 	})
 }

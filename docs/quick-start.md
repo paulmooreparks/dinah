@@ -425,10 +425,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  State   Name    Direction
-  ------  ------  ---------
-  intake  Intake  backward
-  done    Done    forward
+  State   Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  done    Done    forward    no
 [exit 0]
 ```
 
@@ -517,10 +517,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  State   Name    Direction
-  ------  ------  ---------
-  intake  Intake  backward
-  done    Done    forward
+  State   Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  done    Done    forward    no
 [exit 0]
 ```
 
@@ -579,10 +579,10 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  State   Name    Direction
-  ------  ------  ---------
-  intake  Intake  backward
-  done    Done    forward
+  State   Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  done    Done    forward    no
 [exit 0]
 ```
 
@@ -698,10 +698,10 @@ Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
 Moves this card may make:
-  State   Name    Direction
-  ------  ------  ---------
-  intake  Intake  backward
-  doing   Doing   backward
+  State   Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  doing   Doing   backward   no
 [exit 0]
 ```
 
@@ -1199,14 +1199,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        624/624
-  af        0/624
-  cs        0/624
-  de        624/624
-  es        0/624
-  fil       0/624
-  hi        624/624
-  id        0/624
+  en        629/629
+  af        0/629
+  cs        0/629
+  de        629/629
+  es        0/629
+  fil       0/629
+  hi        629/629
+  id        0/629
 [exit 0]
 ```
 

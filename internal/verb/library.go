@@ -196,6 +196,10 @@ type LegalMove struct {
 	Title string `json:"title"`
 	// Direction is forward or backward along the declared flow.
 	Direction string `json:"direction"`
+	// Reject marks the one row, if any, that the departure's own reject_to
+	// declaration names. At most one row of a card's legal moves ever
+	// carries this, since RejectTarget answers at most one state.
+	Reject bool `json:"reject,omitempty"`
 }
 
 // The two directions a legal move can carry.
@@ -297,6 +301,7 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 	if current == nil {
 		return nil
 	}
+	target := l.Bench.RejectTarget(current)
 	var moves []LegalMove
 	for _, state := range l.Bench.States {
 		if state.ID == current.ID {
@@ -309,7 +314,10 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		if direction == Forward && current.Terminal() {
 			continue
 		}
-		moves = append(moves, LegalMove{State: state.ID, Ref: stateRef(state), Title: state.Title, Direction: direction})
+		moves = append(moves, LegalMove{
+			State: state.ID, Ref: stateRef(state), Title: state.Title,
+			Direction: direction, Reject: target != nil && state.ID == target.ID,
+		})
 	}
 	return moves
 }

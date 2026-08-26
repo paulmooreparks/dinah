@@ -437,16 +437,45 @@ goes on filing a card into any state the workbench declares, a buffer and a
 done state included, so intake-first governs which state is the default door
 rather than which doors exist.
 
+A state may declare `reject_to`, naming the state a card goes to when the work
+at this state is refused. An acceptance station sending a card that fails
+review back to the state it was edited in is the case the declaration was
+written for. The declaration names an ordinary destination, and moving a card
+there is an ordinary move, legal on the same terms CORE-STATE-8 already gives a
+move to any state, so declaring it changes nothing about what a move is allowed
+to do. What it changes is discoverability. The destination it names is marked
+on the card's legal moves, and a move that lands there is marked on the
+journal, so a reader can tell a rejection from an ordinary backward move
+without having read the board's own prose for it. A `reject_to` naming no state
+this workbench carries, naming the declaring state itself, or naming a state
+ahead of it in the flow that is not a done state, opens without complaint and
+is reported by `dinah check` under one of three findings, on the same posture
+every position rule above takes: the repair is an edit to a `state.md`, and the
+operator makes it.
+
+A declaration naming a done state ahead of the declaring one is legal and is
+reported under none of the three. A rejected card ends where a finished card
+ends, in the flow's one terminal region, carrying its own outcome on the card
+rather than in the shape of the board. That is what keeps a board to a single
+terminal while still letting a station say that refusing the work here closes
+the card.
+
 No board becomes unopenable under any of this. A workbench whose kinds sit
 outside these positions opens, is read as it stands, and is reported by `dinah
 check` under `check.kind-out-of-position`. A card standing held at a state
 that takes no work up opens on the same terms and is reported under
 `check.claim-where-no-work-is-taken`. A state carrying a layer's kind this
 build does not implement opens too, is read as an ordinary `work` state, and
-is reported under `check.unknown-kind`. None of the three gets a repair flag,
-because the repair is an edit to `workbench.md` or to a `state.md` and the
-operator makes it. The acts that would create any of these conditions afresh
-are refused, so the findings name history and never grow.
+is reported under `check.unknown-kind`. A state whose `reject_to` names no
+state this workbench carries is reported under `check.reject-target-unknown`,
+one naming itself under `check.reject-target-is-self`, and one naming a state
+ahead of it that is not a done state under `check.reject-target-forward`. None
+of the six gets a repair flag, because the repair is an edit to `workbench.md`
+or to a `state.md` and the operator makes it. The acts that would create the
+first three afresh are refused, so those findings name history and never grow.
+The last three name a declaration no act of the tool writes, so they are
+checked rather than refused, and a board that acquires one acquires it the way
+it acquired everything else in a `state.md`, which is that somebody typed it.
 
 A state may declare `awaiting_outside: true`, which says the workbench waits
 at that state on somebody who is not an owner of it: a reviewer, a customer, a
