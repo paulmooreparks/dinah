@@ -31,6 +31,19 @@ type tool struct {
 	// summaryKey, when set, replaces "cmd.<command>.summary" as the catalog
 	// key toolList reads.
 	summaryKey string
+	// wrapper names the single member this tool publishes its answer under,
+	// and is empty on a tool that publishes the answer's own object with no
+	// member around it. The name is part of what an agent reads, since a
+	// caller that decodes the payload and looks the answer up by member gets
+	// nothing when the member is spelled differently, so it is declared here
+	// where a test can read it rather than left implicit in the wrap call
+	// that produces it.
+	//
+	// It is filled on the commands verb.CrossHeadIdentical names, which is
+	// where the cross-head guard checks it. Elsewhere it is empty, and empty
+	// carries no claim: a tool this field says nothing about is one no test
+	// reads it for.
+	wrapper string
 }
 
 // tools is the whole MCP surface. A command that exists only because a shell
@@ -69,8 +82,8 @@ var tools = []tool{
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
 	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
-	{name: "query", command: "query", run: readQuery},
-	{name: "tree", command: "tree", run: readTree},
+	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
+	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
 	{name: "contents", command: "contents", run: readContents},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
@@ -111,6 +124,24 @@ func ToolNameFor(command string) string {
 	for _, entry := range tools {
 		if entry.command == command {
 			return entry.name
+		}
+	}
+	return ""
+}
+
+// WrapperMemberFor returns the member name this head publishes a library
+// command's answer under, and the empty string both for a command whose answer
+// carries no wrapping member and for one this surface serves no tool for.
+//
+// The two empties are not distinguished here because nothing is served by
+// distinguishing them in this function. The caller that matters is the
+// cross-head comparison, which already knows the tool exists before it asks,
+// and which proves an empty answer right or wrong by comparing the unwrapped
+// payload against the terminal's rather than by trusting this declaration.
+func WrapperMemberFor(command string) string {
+	for _, entry := range tools {
+		if entry.command == command {
+			return entry.wrapper
 		}
 	}
 	return ""

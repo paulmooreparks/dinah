@@ -128,10 +128,15 @@ func parseHead(t *testing.T) map[string][]*ast.FuncDecl {
 	return declared
 }
 
-// sharedRequestFields reads the composite literal inside (*session).request
+// sharedRequestFields reads the verb.Request literal inside (*session).request
 // and returns the parameter each field is filled from, keyed by parameter
 // name. It is the one place the terminal wires a parameter for every command
 // at once, so it is read once here rather than looked for in each command.
+//
+// The literal's own type is checked rather than its position. Taking any
+// composite literal in the method would let a second literal built from
+// parsed.value register a binding to a field verb.Request does not have, which
+// would then stand in for wiring nobody wrote.
 func sharedRequestFields(t *testing.T, head map[string][]*ast.FuncDecl) map[string]string {
 	t.Helper()
 	fields := map[string]string{}
@@ -141,7 +146,7 @@ func sharedRequestFields(t *testing.T, head map[string][]*ast.FuncDecl) map[stri
 		}
 		ast.Inspect(function.Body, func(node ast.Node) bool {
 			literal, ok := node.(*ast.CompositeLit)
-			if !ok {
+			if !ok || !requestLiteralType(literal.Type) {
 				return true
 			}
 			for _, element := range literal.Elts {
@@ -161,6 +166,18 @@ func sharedRequestFields(t *testing.T, head map[string][]*ast.FuncDecl) map[stri
 		})
 	}
 	return fields
+}
+
+// requestLiteralType reports whether a composite literal's type is
+// verb.Request, which is the one struct the shared helper builds and the only
+// one whose field names this check may read as request fields.
+func requestLiteralType(expr ast.Expr) bool {
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != "Request" {
+		return false
+	}
+	pkg, ok := selector.X.(*ast.Ident)
+	return ok && pkg.Name == "verb"
 }
 
 // paramNameRead reports the parameter one expression reads by name, which is

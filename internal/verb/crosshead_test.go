@@ -1,6 +1,9 @@
 package verb
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 // TestCrossHeadIdenticalIsWellFormed asserts that every command declared to
 // answer alike on every head is a command the table actually defines, and that
@@ -30,9 +33,23 @@ func TestCrossHeadIdenticalIsWellFormed(t *testing.T) {
 // TestCrossHeadIdenticalCannotBeEditedThroughItsAccessor asserts that a caller
 // writing into the returned map does not reach the declaration behind it, so
 // the guard's own source cannot be rewritten by whoever reads it.
+//
+// The key it writes through is whichever one the map carries rather than a
+// command named here. Naming one made this test report that the accessor
+// leaked whenever that command was renamed or dropped, which is a check
+// failing for a reason that is not the one it tests for.
 func TestCrossHeadIdenticalCannotBeEditedThroughItsAccessor(t *testing.T) {
-	CrossHeadIdentical()["query"] = ""
-	if CrossHeadIdentical()["query"] == "" {
-		t.Error("writing into the returned map reached the declaration behind it")
+	names := make([]string, 0, len(CrossHeadIdentical()))
+	for name := range CrossHeadIdentical() {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		t.Fatal("no command is declared cross-head identical, so there is no entry to try writing through")
+	}
+	written := names[0]
+	CrossHeadIdentical()[written] = ""
+	if CrossHeadIdentical()[written] == "" {
+		t.Errorf("writing into the returned map reached the declaration behind it, since %q came back empty", written)
 	}
 }

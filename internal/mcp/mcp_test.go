@@ -740,10 +740,20 @@ func TestEveryDeclaredParameterReachesItsDeclaredField(t *testing.T) {
 	knownDefect := map[string]string{
 		"attach.description": "dinah-222: assignValue has no case for it, so an attachment made over this head is created with no description",
 	}
+	// An entry naming a parameter the table no longer declares is looked up by
+	// nothing below, so it would sit here unread while reading as coverage.
+	// The keys are struck off as they are met and whatever is left over is
+	// reported, which is what stops a repaired or renamed parameter leaving a
+	// tracked defect behind it.
+	unmet := map[string]bool{}
+	for named := range knownDefect {
+		unmet[named] = true
+	}
 	checked := 0
 	for _, entry := range tools {
 		for _, param := range verb.Params(entry.command) {
 			named := entry.command + "." + param.Name
+			delete(unmet, named)
 			empty := request2Args(entry.command, map[string]any{})
 			argument, want := sentinelFor(t, entry.name, param, empty)
 			if argument == nil {
@@ -768,6 +778,14 @@ func TestEveryDeclaredParameterReachesItsDeclaredField(t *testing.T) {
 			checked++
 			assertOnlyFieldChanged(t, entry.name, param, built, empty, want)
 		}
+	}
+	stale := make([]string, 0, len(unmet))
+	for named := range unmet {
+		stale = append(stale, named)
+	}
+	for _, named := range sorted(stale) {
+		t.Errorf("%q is tracked as a known defect and no tool declares a parameter by that name, so the entry outlived the parameter it excused (%s)",
+			named, knownDefect[named])
 	}
 	if checked == 0 {
 		t.Fatal("no tool declared a parameter, so this check read nothing")

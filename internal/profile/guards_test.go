@@ -3233,15 +3233,26 @@ func checkNoPlaceholderIsStrayOrOrphaned(t *testing.T, shapes map[string]*contra
 // Widening it to the detail field would fire on the sites internal/bench
 // already has, which dinah-146 carries rather than this card.
 //
-// The named-value map is recognised by the role it plays rather than by its
-// shape, which dinah-282 narrowed after the shape alone reported two lookup
-// tables that no reader ever sees. A named value is either written out where
-// the refusal is raised, so it sits in an argument list, or built a line
-// earlier in the variable this codebase calls extra. A package-level
-// map[string]string carrying maintainer prose is neither, and it reaches no
-// placeholder, so it is not this check's business. Every raise site in the
-// tree is one of the two shapes above, which is what makes the narrowing a
-// statement of the rule rather than a hole in it.
+// The named-value map is recognised by the grammar of the refusal that
+// consumes it, rather than by the shape of the literal or by the name of the
+// variable holding it. The map is whatever a RefuseWith call is handed as its
+// third argument: a composite literal written out at the raise site, or an
+// identifier, which this check follows back through the assignments the same
+// function makes into that name.
+//
+// Enumerating the spellings instead was dinah-282's first attempt at narrowing
+// this, after the bare shape reported two lookup tables no reader ever sees.
+// It recognised a literal in an argument list and a literal assigned to the
+// name extra, and it left a third spelling invisible: the same map assigned to
+// any other name and handed to the same refusal reached the placeholder
+// exactly as the other two did, and nothing fired. Following the identifier
+// the refusal is given costs the check nothing and closes that hole, and it
+// leaves a package-level map of maintainer prose alone, since no refusal is
+// ever handed one.
+//
+// A third argument that is neither of those, a value some called function
+// composes, is not followed. That is the one construct this check reads past,
+// and it is a limit of the code below rather than a claim about the tree.
 func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 	t.Helper()
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -3284,51 +3295,106 @@ func checkNoEnglishLiteralReachesAPlaceholder(t *testing.T, root string) {
 				}
 			}
 		}
+		// A refusal handed its named values outright is read where it stands,
+		// and freeText's label is checked in the same pass over the file.
 		ast.Inspect(file, func(node ast.Node) bool {
-			switch e := node.(type) {
-			case *ast.AssignStmt:
-				for i, target := range e.Lhs {
-					if i >= len(e.Rhs) {
-						continue
-					}
-					if named, ok := target.(*ast.Ident); ok && named.Name == "extra" {
-						if literal, ok := e.Rhs[i].(*ast.CompositeLit); ok {
-							reportMap(literal)
-						}
-						continue
-					}
-					index, ok := target.(*ast.IndexExpr)
-					if !ok {
-						continue
-					}
-					if named, ok := index.X.(*ast.Ident); !ok || named.Name != "extra" {
-						continue
-					}
-					if text, ok := phraseLiteral(e.Rhs[i]); ok {
-						report(e.Rhs[i].Pos(), "a named value", text)
-					}
-				}
-			case *ast.CallExpr:
-				for _, argument := range e.Args {
-					if literal, ok := argument.(*ast.CompositeLit); ok {
-						reportMap(literal)
-					}
-				}
-				selector, ok := e.Fun.(*ast.SelectorExpr)
-				if !ok || selector.Sel.Name != "freeText" || len(e.Args) != 3 {
-					return true
-				}
-				if text, ok := phraseLiteral(e.Args[2]); ok {
-					report(e.Args[2].Pos(), "a freeText label", text)
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if literal, ok := refusalValues(call).(*ast.CompositeLit); ok {
+				reportMap(literal)
+			}
+			selector, isSelector := call.Fun.(*ast.SelectorExpr)
+			if isSelector && selector.Sel.Name == "freeText" && len(call.Args) == 3 {
+				if text, ok := phraseLiteral(call.Args[2]); ok {
+					report(call.Args[2].Pos(), "a freeText label", text)
 				}
 			}
 			return true
 		})
+		// A refusal handed an identifier is followed back to the assignments
+		// the enclosing function makes into that name, which is what reaches a
+		// map built a line or two earlier whatever its author called it.
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Body == nil {
+				continue
+			}
+			followed := map[string]bool{}
+			ast.Inspect(function.Body, func(node ast.Node) bool {
+				call, ok := node.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				if named, ok := refusalValues(call).(*ast.Ident); ok {
+					followed[named.Name] = true
+				}
+				return true
+			})
+			if len(followed) == 0 {
+				continue
+			}
+			ast.Inspect(function.Body, func(node ast.Node) bool {
+				assignment, ok := node.(*ast.AssignStmt)
+				if !ok {
+					return true
+				}
+				for i, target := range assignment.Lhs {
+					if i >= len(assignment.Rhs) {
+						continue
+					}
+					switch addressed := target.(type) {
+					case *ast.Ident:
+						if !followed[addressed.Name] {
+							continue
+						}
+						if literal, ok := assignment.Rhs[i].(*ast.CompositeLit); ok {
+							reportMap(literal)
+						}
+					case *ast.IndexExpr:
+						named, ok := addressed.X.(*ast.Ident)
+						if !ok || !followed[named.Name] {
+							continue
+						}
+						if text, ok := phraseLiteral(assignment.Rhs[i]); ok {
+							report(assignment.Rhs[i].Pos(), "a named value", text)
+						}
+					}
+				}
+				return true
+			})
+		}
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("walk: %v", err)
 	}
+}
+
+// refusalValues returns the argument a RefuseWith call is handed as its named
+// values, and nil for every other call. That third argument is the one route a
+// value reaches a placeholder by, so it is the whole of what check 5 follows.
+//
+// The name is matched both qualified and bare, since internal/contract raises
+// its own refusals without the package prefix that every other package writes.
+func refusalValues(call *ast.CallExpr) ast.Expr {
+	if len(call.Args) != 3 {
+		return nil
+	}
+	switch called := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		if called.Sel.Name != "RefuseWith" {
+			return nil
+		}
+	case *ast.Ident:
+		if called.Name != "RefuseWith" {
+			return nil
+		}
+	default:
+		return nil
+	}
+	return call.Args[2]
 }
 
 // stringMapType reports whether a composite literal is a map[string]string,
