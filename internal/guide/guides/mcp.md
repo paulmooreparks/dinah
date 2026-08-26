@@ -136,13 +136,22 @@ That is the optimistic check, and it is why you pass basis forward.
 
 `workbench` names the workbench a call targets when a process serves more
 than one. The value is a path to a workbench directory, the directory that
-holds its `workbench.md`. Omit it and the call resolves to the server's
+holds its `workbench.md`. Write that path in absolute form. The
+`workbenches` tool hands you absolute paths, and a client registration you
+store should keep them that way, since an absolute path means the same
+directory no matter who is reading it.
+
+Dinah does accept a relative path, and resolves it against the directory
+the server process was started in. Whoever launched the server chose that
+directory, and you may not be the one who launched it, so reach for a
+relative path only when you know where the process started.
+
+If you leave `workbench` out, Dinah resolves the call against the server's
 default workbench. A value outside the served directory is refused with
 `outside-root`, and a path holding no `workbench.md` is refused with
 `no-workbench`; the refusal names the path it tried, so it points you at
 what is reachable. The one tool that takes no `workbench` is `workbenches`,
-and its output, the enumerated workbench paths, is exactly the set of valid
-values to pass here.
+and the paths it lists are every workbench this server can reach.
 
 ```json
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status","arguments":{"workbench":"/srv/dinah/incident"}}}

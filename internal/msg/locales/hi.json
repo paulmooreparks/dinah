@@ -2767,9 +2767,9 @@
       "source": "7670387210ff58cf"
     },
     "check.mcp.1": {
-      "text": "--root जिस डायरेक्टरी को नामता है वह फ़ाइल सिस्टम रखता है",
+      "text": "--root जिस डायरेक्टरी को नामता है वह मौजूद है",
       "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
-      "source": "de3b44cbfc03156a"
+      "source": "cb1cd98b0eaed2b8"
     },
     "check.mcp.2": {
       "text": "आप जिस वर्कबेंच को नामते हैं वह रूट के नीचे है",

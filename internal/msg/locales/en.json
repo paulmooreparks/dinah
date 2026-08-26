@@ -282,7 +282,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.mcp.1": {
-      "text": "the directory --root names is one the filesystem carries",
+      "text": "--root names a directory that exists",
       "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist."
     },
     "check.mcp.2": {

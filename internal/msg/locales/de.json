@@ -362,9 +362,9 @@
       "source": "e62d40d1c2938929"
     },
     "check.mcp.1": {
-      "text": "das Dateisystem trägt das --root-Verzeichnis",
+      "text": "--root nennt ein vorhandenes Verzeichnis",
       "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
-      "source": "de3b44cbfc03156a"
+      "source": "cb1cd98b0eaed2b8"
     },
     "check.mcp.2": {
       "text": "die genannte Werkbank liegt unter --root",
