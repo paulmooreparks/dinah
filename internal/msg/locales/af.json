@@ -57,7 +57,7 @@
       "skeleton": true
     },
     "check.add.2": {
-      "text": "the named column is one the workbench declares",
+      "text": "the workbench declares the named column",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },

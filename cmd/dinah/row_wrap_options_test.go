@@ -224,8 +224,12 @@ func TestTwoOverflowingCells(t *testing.T) {
 // from the option group before it.
 func TestBreakOnOptionsFallsBackToWordWrap(t *testing.T) {
 	t.Run("trailing prose word-wraps", func(t *testing.T) {
+		// The window is one the fixture's own first line fits in. What this
+		// case is about is where the trailing prose goes once the last option
+		// boundary has passed, and a window too narrow for the option group
+		// itself would exercise the overflow rule instead.
 		text := "add <title> [--column <column>] file a new card in the first column"
-		got := breakOnOptions(text, 2, 30)
+		got := breakOnOptions(text, 2, 32)
 		want := "add <title> [--column <column>]\n  file a new card in the first\n  column"
 		if got != want {
 			t.Errorf("trailing prose word-wraps:\n got  %q\n want %q", got, want)

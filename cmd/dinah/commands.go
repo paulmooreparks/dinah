@@ -1275,24 +1275,30 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 	return 0
 }
 
-// runMigrateVocabulary carries every workbench at or beneath the discovered
-// root across the vocabulary rename. It resolves the root the way every other
-// command does and then declines to open it, because a workbench in the
-// pre-vocabulary window is refused by the ordinary opener by name.
+// runMigrateVocabulary carries every workbench at or beneath a root across the
+// vocabulary rename.
+//
+// The root is a directory rather than a workbench, and it is not resolved by
+// the ordinary discovery climb. Every other command asks which workbench it is
+// standing in and climbs until it finds one; this one asks which directory to
+// walk down from, and the two questions have different answers wherever a
+// person keeps several workbenches side by side. Climbing first would resolve
+// the root to one workbench and then walk beneath that, which finds none of
+// its siblings, and that is the case this command exists for: the boards it
+// was asked for sit spread across customer directories. So --workbench names
+// the root when it is given, and the current directory is the root when it is
+// not, and a root that is itself a workbench is found by the walk rather than
+// by the climb.
 func runMigrateVocabulary(s *session) int {
-	root, source, _, err := bench.DiscoverSource(
-		s.cwd,
-		s.benchFlag,
-		s.benchFlagSource,
-		s.home,
-		s.nativeHome,
-		s.cfg.Get("workbench"),
-	)
+	root := s.cwd
+	if s.benchFlag != "" {
+		root = s.benchFlag
+	}
+	resolved, err := filepath.Abs(root)
 	if err != nil {
 		return s.reportError(err)
 	}
-	s.workbenchSource = source
-	report, err := verb.MigrateVocabularyTree(root)
+	report, err := verb.MigrateVocabularyTree(resolved)
 	if err != nil {
 		return s.reportError(err)
 	}

@@ -121,9 +121,19 @@ func migrateOneVocabulary(report *TreeVocabularyReport, path string) {
 	}
 }
 
-// Clean reports whether the run needs a person. A failed or malformed
-// workbench needs one, and so does a run that migrated nothing at all, since
-// asking for a migration and getting none is an answer rather than a success.
+// Clean reports whether the run needs a person, which is the question the
+// command's exit code answers. A workbench the walk failed on needs one, and so
+// does a candidate it could not classify. Nothing else does.
+//
+// A run that migrated nothing is clean, and that is deliberate rather than an
+// oversight. Every other repair flag on this command exits zero against a
+// workbench with nothing to repair, an unattended sweep over a tree already
+// carried across the rename is the ordinary case rather than a mistake, and an
+// exit code that called it a failure would train a reader to ignore the one
+// this function exists to raise. The report still says what happened: a run
+// that carried nothing forward prints a count of zero and names every
+// workbench that already declares the current format, so nothing here reports
+// work that did not happen.
 func (r *TreeVocabularyReport) Clean() bool {
-	return len(r.Failed) == 0 && len(r.Malformed) == 0 && len(r.Migrated) > 0
+	return len(r.Failed) == 0 && len(r.Malformed) == 0
 }

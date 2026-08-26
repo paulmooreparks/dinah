@@ -96,6 +96,31 @@ func TestARecognizedAnchorStopsTheClimbOnProfileAlone(t *testing.T) {
 	}
 }
 
+// TestARecognizedAnchorStopsTheClimbOnTheColumnSequenceAlone asserts
+// dinah-287 AC-19: the key Recognized tests beside profile and format is
+// columns, the name that sequence took at the vocabulary rename, so an anchor
+// carrying only that sequence claims its directory.
+//
+// The other tests in this file all write a profile, which is the arm of
+// Recognized that answers first, so none of them can tell which name the third
+// arm reads. This one writes no profile at all, which is what makes it the
+// test that fails when the arm names the retired key.
+func TestARecognizedAnchorStopsTheClimbOnTheColumnSequenceAlone(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, WorkbenchAnchor), "---\ntitle: Sequence only\ncolumns:\n  - b00000000001\n---\n")
+
+	found, passed, err := Discover(root, "", "", "")
+	if err != nil {
+		t.Fatalf("an anchor declaring a column sequence should stop the climb, got %v", err)
+	}
+	if found != root {
+		t.Errorf("wanted %q, got %q", root, found)
+	}
+	if len(passed) != 0 {
+		t.Errorf("a recognized anchor is not passed over, got %v", passed)
+	}
+}
+
 // TestSoleBenchPassesOverAForeignContainerEntry asserts AC-4: the same
 // three-way test runs inside a .dinah container. A container holding one
 // recognized id directory and one foreign id directory resolves to the

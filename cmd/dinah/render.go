@@ -980,15 +980,18 @@ func (s *session) workstreamRef(id string) string {
 // section nobody needs is a line a reader has to skip, and the counts alone
 // already say that nothing was silently dropped.
 //
-// The rows are printed as lines rather than drawn as a table, which every
-// other repair report here uses. A row is one filesystem path, sometimes with
-// a reason after it, and a path is both the longest thing this head prints and
-// the one thing a reader most often copies: measuring it into a column would
-// wrap it or pad every other row out to it, and neither helps.
+// The rows are printed as whole lines rather than drawn as a table, and they
+// carry no indent. A row is one filesystem path, sometimes with a reason after
+// it, and a path is both the longest thing this head prints and the one thing a
+// reader most often copies: measuring it into a column would wrap it or pad
+// every other row out to it, and neither helps. The indent goes with the table,
+// for the reason TestNoRowIsLaidOutOutsideTheOneRenderer gives: a run of spaces
+// written here counts characters where a terminal counts columns, and one
+// renderer owns that arithmetic.
 func (s *session) renderVocabulary(report *verb.TreeVocabularyReport) {
 	s.line(s.r.TN("check.vocabulary-migrated", len(report.Migrated)))
 	for _, entry := range report.Migrated {
-		s.line("  " + s.r.TN("check.vocabulary-cards", entry.Cards, "path", entry.Path))
+		s.line(s.r.TN("check.vocabulary-cards", entry.Cards, "path", entry.Path))
 	}
 	s.vocabularySection("check.vocabulary-already-current", report.AlreadyCurrent)
 	s.vocabularySection("check.vocabulary-malformed", report.Malformed)
@@ -1012,6 +1015,6 @@ func (s *session) vocabularySection(key string, rows []string) {
 	}
 	s.line(s.r.TN(key, len(rows)))
 	for _, row := range rows {
-		s.line("  " + row)
+		s.line(row)
 	}
 }

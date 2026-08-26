@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.6
+conforms to dinah-core/0.7
 storage format 1
 [exit 0]
 ```
@@ -326,7 +326,7 @@ transcript:
 ```file path=<workbench>/workbench.md
 ---
 format: 1
-profile: dinah-core/0.5
+profile: dinah-core/0.7
 title: Release 0.2
 slug: rel
 operator: ana
@@ -425,7 +425,7 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  Column   Name    Direction  Reject
+  Column  Name    Direction  Reject
   ------  ------  ---------  ------
   intake  Intake  backward   no
   done    Done    forward    no
@@ -469,7 +469,7 @@ $ dinah ls intake --ready
   rel-2  ready     Draft the changelog
 [exit 0]
 $ dinah next
-  Column   Card   Title                     Take
+  Column  Card   Title                     Take
   ------  -----  ------------------------  -----
   Intake  rel-1  Write the release notes   pull
   Doing   rel-3  Check the download links  claim
@@ -477,8 +477,8 @@ $ dinah next
 [exit 0]
 $ dinah next doing
   Column  Card   Title                     Take
-  -----  -----  ------------------------  -----
-  Doing  rel-3  Check the download links  claim
+  ------  -----  ------------------------  -----
+  Doing   rel-3  Check the download links  claim
 [exit 0]
 $ dinah show rel-1
 rel-1  Write the release notes  [Intake / ready]
@@ -517,7 +517,7 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  Column   Name    Direction  Reject
+  Column  Name    Direction  Reject
   ------  ------  ---------  ------
   intake  Intake  backward   no
   done    Done    forward    no
@@ -579,7 +579,7 @@ Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  Column   Name    Direction  Reject
+  Column  Name    Direction  Reject
   ------  ------  ---------  ------
   intake  Intake  backward   no
   done    Done    forward    no
@@ -698,7 +698,7 @@ Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
 Moves this card may make:
-  Column   Name    Direction  Reject
+  Column  Name    Direction  Reject
   ------  ------  ---------  ------
   intake  Intake  backward   no
   doing   Doing   backward   no
@@ -1193,20 +1193,20 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.6
+conforms to dinah-core/0.7
 storage format 1
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        631/631
-  af        0/631
-  cs        0/631
-  de        631/631
-  es        0/631
-  fil       0/631
-  hi        631/631
-  id        0/631
+  en        644/644
+  af        0/644
+  cs        0/644
+  de        536/644
+  es        0/644
+  fil       0/644
+  hi        536/644
+  id        0/644
 [exit 0]
 ```
 
@@ -1361,8 +1361,6 @@ and another program built to the same rules can read what it prints:
 $ cd release-notes
 $ dinah export
 {
-  "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.5",
   "columns": [
     {
       "id": "003b09ee6e31",
@@ -1385,6 +1383,8 @@ $ dinah export
       "title": "Done"
     }
   ],
+  "instructions": "Every card on this workbench ends with a line in the changelog.\n",
+  "profile": "dinah-core/0.7",
   "title": "Release 0.2"
 }
 [exit 0]
@@ -1512,8 +1512,8 @@ What can go wrong, in the order each is checked:
   3      the card exists                                            unknown-card
   4      the request names an owner                                 no-owner
   5      the owner named as holder is the owner asking              not-requester
-  6      the card's state is not `blocked`                       blocked
-  7      the card's state is not `active`                        held
+  6      the card's state is not `blocked`                          blocked
+  7      the card's state is not `active`                           held
   8      taking the card up is legal for whoever asks               not-operator
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.

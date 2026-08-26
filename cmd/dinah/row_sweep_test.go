@@ -2290,7 +2290,7 @@ func sweptAddColumn(t *testing.T, dir, id, title, kind, extra string) {
 	// column stands first in a well-formed flow and dinah check reports a
 	// workbench whose kinds sit outside the positions they are allowed.
 	sweptRewrite(t, filepath.Join(root, bench.WorkbenchAnchor), func(source string) string {
-		const heading = "\nstates:\n"
+		const heading = "\ncolumns:\n"
 		at := strings.Index(source, heading)
 		if at < 0 {
 			return source
@@ -2310,7 +2310,7 @@ func sweptAddColumn(t *testing.T, dir, id, title, kind, extra string) {
 func sweptStrandColumn(t *testing.T, dir string) {
 	t.Helper()
 	sweptRewrite(t, filepath.Join(sweptRoot(t, dir), bench.WorkbenchAnchor), func(source string) string {
-		return strings.Replace(source, "\nstates:\n", "\nstates:\n  - ffffffffffff\n", 1)
+		return strings.Replace(source, "\ncolumns:\n", "\ncolumns:\n  - ffffffffffff\n", 1)
 	})
 }
 

@@ -1409,7 +1409,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-workstreams]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-workstreams]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -1422,7 +1422,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-workstreams"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-workstreams"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -6832,12 +6832,12 @@ const ratifiedMoveRefusalTable = `  Order  What can go wrong                    
                                                             unsupported-version
   2      the workbench designates an operator                no-operator
   3      the card exists                                     unknown-card
-  4      the destination is a column the workbench declares   unknown-column
+  4      the destination is a column the workbench declares  unknown-column
   5      an override marker, if carried, is the operator's   not-operator
   6      the departure is legal for whoever asks             not-operator
-  7      the card's state is not ` + "`blocked`" + `                blocked
+  7      the card's state is not ` + "`" + `blocked` + "`" + `                   blocked
   8      the card is unheld or held by whoever asks          held
-  9      the move is not a forward move out of a ` + "`done`" + ` column
+  9      the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
                                                             terminal
   10     the destination is below its capacity limit         at-capacity`
 
