@@ -553,14 +553,22 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []strin
 	return baseFound, baseAmbiguous, append(passed, basePassed...), nil
 }
 
-// Enumerate walks downward from root, listing every workbench the benchIn
-// check would accept: a workbench.md recognised as ours at any directory
-// itself, or a sole workbench inside a .dinah of any directory below it. The
-// walk skips dotfiles and symbolic links at every rung, since neither can be
+// Enumerate lists every workbench the benchIn check would accept at the root
+// or anywhere below it: a workbench.md recognised as ours sitting at a
+// directory, or a sole workbench inside that directory's .dinah. The root is
+// asked the same question as every directory beneath it, so a workbench in the
+// root's own .dinah, which is where dinah init writes, is listed rather than
+// missed. A .dinah holding several recognised workbenches contributes all of
+// them and none is chosen, wherever in the tree it sits.
+//
+// The walk skips dotfiles and symbolic links at every rung, since neither can be
 // expected to mean what its name says: a dotfile holds user state on a POSIX
 // machine, and a symlink can point anywhere the server is not entitled to
-// follow. A .dinah directory the walker descends into runs the same check,
-// which is the discovery shape every other rung of the search already uses.
+// follow. A .dinah is a dotted name like any other, so the descent enters
+// none of them, and the one .dinah this listing reads is the root's own,
+// opened by the root probe rather than reached by descending. A .dinah
+// belonging to a directory further down is read the same way, when that
+// directory is itself the entry the walk is testing.
 //
 // The descent is cached for the process life of the caller, since the second
 // per-call invocation during an MCP session would otherwise re-read every
@@ -603,6 +611,30 @@ func enumerate(root string) ([]Candidate, error) {
 	}
 	var collected []Candidate
 	seen := map[string]bool{}
+	// The root is probed with the same question every other directory in the
+	// walk is probed with. walkFor tests a directory's entries and skips every
+	// dotted name, so without this the root's own .dinah is reached from
+	// neither direction, and that is where dinah init always writes
+	// (dinah-312). The third return, the foreign anchors met and not claimed,
+	// is discarded here exactly as walkFor already discards it, because
+	// Enumerate's answer carries no field for it.
+	found, ambiguous, _, err := benchIn(root, false)
+	if err != nil {
+		return nil, err
+	}
+	if found != "" {
+		seen[found] = true
+		collected = append(collected, describe(found))
+	}
+	// Every ambiguous candidate is listed and none is chosen, which is what a
+	// walk meeting an ambiguous .dinah further down the tree already does.
+	for _, candidate := range ambiguous {
+		if seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		collected = append(collected, describe(candidate))
+	}
 	if err := walkFor(root, &collected, seen); err != nil {
 		return nil, err
 	}

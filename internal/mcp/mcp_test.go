@@ -1202,3 +1202,89 @@ func TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded(t *testing.T) {
 		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
 	}
 }
+
+// TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer is dinah-312 AC-5.
+// The workbenches tool answers off bench.Enumerate, and the enumeration used
+// to test a root's children and never the root itself, so a DINAH_MCP_ROOT
+// pointing at the directory whose own .dinah holds the boards listed nothing
+// at all. An empty list from that call says no workbench exists anywhere under
+// the root, which is the answer a caller acts on.
+//
+// The workbench here is written by verb.Init rather than by the bare
+// bench.Instantiate call newLibrary makes, because Init writes the .dinah
+// container and a bare anchor is the one shape this defect never hid in.
+func TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer(t *testing.T) {
+	root := t.TempDir()
+	written, err := verb.Init(root, "rt", "alka", "", "", "")
+	if err != nil {
+		t.Fatalf("init a workbench under %s: %v", root, err)
+	}
+
+	answer := askUnderRoot(t, root, newLibrary(t),
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+	decoded := payload(t, answer)
+	rows, ok := decoded["workbenches"].([]any)
+	if !ok {
+		t.Fatalf("the answer carries no workbenches array: %+v", decoded)
+	}
+	var listed []string
+	for _, row := range rows {
+		entry, ok := row.(map[string]any)
+		if !ok {
+			t.Fatalf("a workbenches row is not an object: %+v", row)
+		}
+		path, _ := entry["path"].(string)
+		listed = append(listed, path)
+	}
+	if len(listed) != 1 || listed[0] != written {
+		t.Errorf("workbenches under %s listed %v, wanted the one anchor directory %q", root, listed, written)
+	}
+}
+
+// TestWorkbenchesRefusesARootWithAnUnreadableAnchor is dinah-312 AC-8's other
+// half: the workbenches tool answers bench.Enumerate's contract.UnreadableBench
+// refusal, served by askUnderRoot exactly as the recognized-container case
+// above is, when DINAH_MCP_ROOT points at a directory whose own workbench.md
+// exists and cannot be read.
+//
+// The unreadable anchor is a directory sitting at the workbench.md path
+// rather than a regular file. bench.Exists uses os.Stat, which reports a
+// directory as present, and os.ReadFile (bench.ReadText's implementation)
+// refuses to read a directory as text on every platform this suite runs on,
+// confirmed on this machine: "read ...workbench.md: Incorrect function." on
+// Windows. That makes the anchor genuinely unreadable without depending on a
+// permission bit, which does not reliably block a file's own owner from
+// reading it on Windows. internal/mcp cannot reach internal/bench's unexported
+// readAnchorContent test seam across the package boundary, so this is the
+// mechanism available at this layer; internal/bench's own AC-8 test
+// (TestEnumerateRefusesARootWithAnUnreadableAnchor) uses the seam instead,
+// since it is in the same package.
+//
+// answerWorkbenches returns bench.Enumerate's error unwrapped, and mcp.call's
+// dispatch turns that into a JSON-RPC transport error (codeInvalidParams)
+// rather than a refusal payload, because the workbenches tool is served ahead
+// of the resolveLibrary step that composes answerRefusal's payload shape for
+// every other tool. So this assertion reads answer.Error directly instead of
+// going through payload(), which fatals on a non-nil answer.Error.
+func TestWorkbenchesRefusesARootWithAnUnreadableAnchor(t *testing.T) {
+	root := t.TempDir()
+	anchorPath := filepath.Join(root, bench.WorkbenchAnchor)
+	if err := os.MkdirAll(anchorPath, 0o755); err != nil {
+		t.Fatalf("make %s a directory: %v", anchorPath, err)
+	}
+
+	answer := askUnderRoot(t, root, newLibrary(t),
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+	if answer.Error == nil {
+		t.Fatalf("workbenches under %s: wanted a refusal, got a clean answer", root)
+	}
+	if answer.Error.Code != codeInvalidParams {
+		t.Errorf("refusal transport code: wanted %d, got %d (%s)", codeInvalidParams, answer.Error.Code, answer.Error.Message)
+	}
+	if !strings.Contains(answer.Error.Message, contract.UnreadableBench) {
+		t.Errorf("refusal message: wanted it to name %s, got %q", contract.UnreadableBench, answer.Error.Message)
+	}
+	if !strings.Contains(answer.Error.Message, anchorPath) {
+		t.Errorf("refusal message: wanted it to name the unreadable anchor %q, got %q", anchorPath, answer.Error.Message)
+	}
+}
