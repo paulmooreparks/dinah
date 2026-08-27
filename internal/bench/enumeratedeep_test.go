@@ -66,6 +66,32 @@ func TestEnumerateDeepFindsEveryWorkbenchBeneathARoot(t *testing.T) {
 	}
 }
 
+// TestEnumerateDeepOrdersItsRowsByPath asserts the order two heads depend on.
+// The recursion meets directories depth-first over each directory's sorted
+// names, which is not path order: two-extra sorts before two/three and the
+// recursion reaches it after. Two callers publish this listing, so the order
+// belongs to the walk rather than to whichever of them sorted last.
+func TestEnumerateDeepOrdersItsRowsByPath(t *testing.T) {
+	root := deepTree(t, "two/three", "two-extra", "alpha")
+	found, err := EnumerateDeep(root, 0)
+	if err != nil {
+		t.Fatalf("the walk refused: %v", err)
+	}
+	var got []string
+	for _, candidate := range found {
+		got = append(got, candidate.Path)
+	}
+	if !sort.StringsAreSorted(got) {
+		t.Errorf("the rows are not in path order: %v", got)
+	}
+	// Named rather than left to the sortedness check alone, because a walk that
+	// reported these two in recursion order would also be sorted if the fixture
+	// happened not to separate them.
+	if strings.Join(paths(t, root, found), " ") != "alpha two-extra two/three" {
+		t.Errorf("the walk answered %v, wanted the sibling before what lies inside the directory it sorts against", paths(t, root, found))
+	}
+}
+
 // TestEnumerateDeepBoundsTheWalkAtTheDepthAsked asserts the maxDepth contract
 // at each of its three shapes: a bound reports the rungs at or above it and
 // says nothing at all about what lies past it, zero descends without a bound,

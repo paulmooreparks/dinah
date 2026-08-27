@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -714,6 +715,16 @@ func EnumerateDeep(root string, maxDepth int) ([]Candidate, error) {
 	if collected == nil {
 		collected = []Candidate{}
 	}
+	// The rows are ordered by path rather than by the order the recursion met
+	// them, because two callers of this walk publish it and they have to agree.
+	// The recursion's own order is depth-first over each directory's sorted
+	// names, which is not path order: a sibling named two-extra sorts before
+	// two/three, and the recursion reaches it after. Ordering here rather than
+	// at each caller is what keeps one answer from depending on which head
+	// asked for it.
+	sort.SliceStable(collected, func(i, j int) bool {
+		return collected[i].Path < collected[j].Path
+	})
 	return collected, nil
 }
 

@@ -265,7 +265,7 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 	// a workbench argument runs on the root instead.
 	if builder, scoped := rootScoped[args.Name]; scoped {
 		if strings.TrimSpace(request.Root) != "" {
-			return answerForest(root, defaultLib, request, builder)
+			return answerForest(root, args.Name, defaultLib, request, builder)
 		}
 		// A depth bound with no root to bound would be read and dropped, which
 		// the terminal refuses. The two heads answer one question, so a caller
@@ -368,7 +368,7 @@ func parseWalkDepth(named string) (int, *contract.Refusal) {
 //
 // home comes off the default library when there is one and is empty otherwise,
 // which is resolveLibrary's own rule for a server started with no discovery.
-func answerForest(root string, defaultLib *verb.Library, request *verb.Request, build func(root, home string, req *verb.Request) (any, error)) (map[string]any, error) {
+func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Request, build func(root, home string, req *verb.Request) (any, error)) (map[string]any, error) {
 	abs, err := filepath.Abs(strings.TrimSpace(request.Root))
 	if err != nil {
 		return answerRefusal(request, contract.Refuse(contract.UnknownRoot, request.Root)), nil
@@ -392,7 +392,16 @@ func answerForest(root string, defaultLib *verb.Library, request *verb.Request, 
 		}
 		return nil, err
 	}
-	payload := wrap(map[string]any{forestMember[request.Verb]: answer}, readAffordances)
+	member, named := forestMember[tool]
+	if !named {
+		// A tool in the dispatch table and not in the member table would
+		// publish its answer under the empty key, which is a shape no client
+		// can dispatch on and which reads as a missing answer rather than as a
+		// misnamed one. The two tables are paired by a test; this is what the
+		// call does if that pairing is ever broken at run time.
+		return nil, contract.Refuse(contract.UnknownVerb, tool)
+	}
+	payload := wrap(map[string]any{member: answer}, readAffordances)
 	return textResult(payload)
 }
 
