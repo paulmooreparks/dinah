@@ -1277,6 +1277,14 @@
       "text": "You may reach any workbench under {root}; this server is serving no default. The workbenches tool lists the workbenches under the root, and the workbench property on any other tool names one.",
       "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named."
     },
+    "mcp.reach.nodefault.unbounded": {
+      "text": "You may reach any workbench you can name; this server was given no root and is serving no default. The workbenches tool needs a root to search and refuses dinah.no-workbench-found here, so name the one you want directly on the workbench property of any other tool.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only the checks made when the workbench is opened can refuse one."
+    },
+    "mcp.reach.unbounded": {
+      "text": "You may reach any workbench you can name; this server was given no root and is serving {title} by default. The workbenches tool needs a root to search and refuses dinah.no-workbench-found here, so name the one you want directly on the workbench property of any other tool, or leave it unnamed to use the default.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title."
+    },
     "mcp.no-default": {
       "text": "no default workbench: {detail}",
       "context": "The one line dinah mcp writes to stderr when startup discovery resolved a workbench the root does not contain or the ancestor walk found none, and a later call has to be told no default will answer."

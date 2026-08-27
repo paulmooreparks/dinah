@@ -54,8 +54,11 @@ type session struct {
 	// benchFlagSource names which of the two named it, SourceFlag or
 	// SourceEnvironment, empty when neither did.
 	benchFlagSource string
-	// mcpRoot is the directory the mcp command was bound to, empty when mcp
-	// was not the command that ran.
+	// mcpRoot is the directory the mcp command was bound to. It is empty when
+	// mcp was not the command that ran, and also when it ran with neither
+	// --root/DINAH_MCP_ROOT nor a discovered workbench narrowing it
+	// (dinah-307): a discovered workbench without an explicit root now
+	// becomes the server's default library without narrowing its root.
 	mcpRoot string
 	// cwd is where bench discovery starts.
 	cwd string
