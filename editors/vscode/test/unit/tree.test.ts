@@ -289,6 +289,45 @@ test("a column whose answer carries no state groups draws its cards with no grou
 	);
 });
 
+test("a queue column that does carry a state group draws it, and its cards still offer no Claim", async () => {
+	// This is what trunk actually produces for an OCCUPIED queue column after
+	// dinah-322: the column declares no state, so nothing is drawn from the
+	// declared list, but the cards standing there carry `ready` and the
+	// grouped producer draws a group for a value a card carries whatever the
+	// workbench declares. Verified against a bench built from the binary at
+	// 7438f8c: `column=intake count=2 -> children: group:ready`.
+	//
+	// The empty queue column is the other half and produces no groups at all
+	// (`column=done count=0 -> children: (none)`), which is the shape the
+	// fixture above draws. Both travel this same code path, which is the point:
+	// the provider reads what it was given either way and decides nothing.
+	const carried = treeAnswer([
+		columnGroup(
+			"review",
+			[stateGroup("ready", [leaf("ddd", "Confirm the pricing page")])],
+			1,
+		),
+	]);
+	const { spawner } = stubSpawner({
+		status: THREE_STATUS,
+		tree: carried,
+		ls: THREE_LISTING,
+	});
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	const [review] = await view.getChildren((await view.getChildren())[0]);
+	const groups = await view.getChildren(review);
+	assert.deepEqual(
+		groups.map((element) => treeItemFor(element).label),
+		["Ready"],
+	);
+	// The heading above the card says nothing about the card's own menu. The
+	// column takes no work up, so no Claim is offered under it.
+	for (const element of await view.getChildren(groups[0])) {
+		assert.equal(treeItemFor(element).contextValue, CONTEXT_CARD_READY_NONE);
+	}
+});
+
 test("cards inside a group come back in the fixture's own arrival order", async () => {
 	const view = await loadedBench();
 	const [intake] = await view.getChildren((await view.getChildren())[0]);
