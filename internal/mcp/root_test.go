@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -120,7 +121,22 @@ func TestEveryRootScopedToolAnswersForEveryWorkbenchBeneathTheRoot(t *testing.T)
 // cannot drift into two different answers to one question.
 func TestARootArgumentOutsideTheServersRootIsRefused(t *testing.T) {
 	root, library := mcpForest(t, "alpha")
-	outside := filepath.Join(root, "..", "..", "elsewhere")
+	// The path outside the root is a real directory holding a real workbench,
+	// not a name nothing sits at. A missing directory is refused by the stat
+	// the containment check makes before it decides anything, so a fixture
+	// pointing at one asserts that a refusal happened rather than that the
+	// bound was applied, and it stays green with the bound removed.
+	outside := filepath.Join(root, "..", "elsewhere")
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	read, err := bench.ReadDefinition([]byte(definition))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := bench.Instantiate(outside, "elsewhere", "alka", read); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
 
 	known := callWithArguments(t, root, library, "status", map[string]any{"actor": "alka", "workbench": outside})
 	wanted, _ := known["refusal"].(string)
