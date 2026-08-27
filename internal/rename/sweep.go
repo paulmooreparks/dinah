@@ -29,6 +29,17 @@
 // identifier in the tree lands in one enormous group that nobody reads.
 // Splitting the identifier makes the word in front of "Columns" be "Crash",
 // which is the whole finding.
+//
+// The word after the replacement is part of the group's key for the same
+// reason the word before it is. One word of company is not enough to tell an
+// idiom from an accident: "the column of the board" and "the column it is in"
+// share a determiner and do not share a verdict, so a key made of the
+// determiner alone drops the second into a group of hundreds and the reader
+// never reaches it. Two words of company make the key a phrase, and a phrase
+// that appears three times in a tree is a phrase worth reading.
+//
+// The sweep refuses a search term it cannot read rather than reporting that it
+// found nothing. See [Sweep].
 package rename
 
 import (
@@ -55,6 +66,13 @@ type Replacement struct {
 	// changed text, and is empty only where the diff carries no context
 	// either, which is what a diff taken with no context lines looks like.
 	Preceding string
+	// Following is the nearest word standing after the replacement,
+	// lowercased, read the same way Preceding is read and reaching forward
+	// into the diff's unchanged context by the same rule. It is the second
+	// half of the group's key, and it is what separates an idiom from an
+	// ordinary English sentence that happens to open with the same
+	// determiner.
+	Following string
 	// Glued reports that the replacement is a part of a longer identifier
 	// rather than a word of its own, meaning the word in front of it abuts
 	// it with nothing in between. The distinction decides the bucket,
@@ -73,12 +91,13 @@ type Replacement struct {
 	Excerpt string
 }
 
-// Bucket is the group of replacements sharing one preceding word. Preceding is
-// the group's key and is what a reader judges: the question a bucket asks is
-// whether the phrase "<preceding> <new word>" means the thing the rename was
+// Bucket is the group of replacements sharing one phrase. The phrase is the
+// group's key and is what a reader judges: the question a bucket asks is
+// whether "<preceding> <new word> <following>" means the thing the rename was
 // about.
 type Bucket struct {
 	Preceding string
+	Following string
 	Glued     bool
 	Sites     []Replacement
 }
@@ -121,14 +140,57 @@ const excerptWidth = 90
 //
 // The diff is read as text rather than applied, so the revisions it came from
 // need not be checked out.
-func Sweep(diff, retired, adopted string) Result {
+//
+// Sweep returns an error when either word is not one the tokenizer reads as a
+// single word, and the error is the reason this function reports one at all. A
+// match is one token tested against the whole term, so a term the tokenizer
+// splits can never match anything and the run would report zero replacements
+// in zero groups. That answer is indistinguishable from a clean tree, and a
+// reader holding a document that tells them to run this pass and report the
+// count would file the zero as a pass. Refusing costs a message and a
+// non-zero exit; answering zero costs the next rename its only instrument.
+func Sweep(diff, retired, adopted string) (Result, error) {
+	if err := checkTerm("old", retired); err != nil {
+		return Result{}, err
+	}
+	if err := checkTerm("new", adopted); err != nil {
+		return Result{}, err
+	}
 	retired = strings.ToLower(retired)
 	adopted = strings.ToLower(adopted)
 	var result Result
 	for _, run := range parseDiff(diff) {
 		result.merge(alignRun(run, retired, adopted))
 	}
-	return result
+	return result, nil
+}
+
+// checkTerm refuses a search term the tokenizer cannot represent as one word.
+// The rule is deliberately about the tokenizer rather than about a list of
+// scripts or characters, because the failure it closes is general: whatever
+// the tokenizer comes to split, a term it splits is a term this sweep cannot
+// look for, and the honest answer is to say so before the run rather than to
+// report the zero the run is guaranteed to produce. The flag name goes into
+// the message because the caller reaches this through a command line and
+// wants to know which of the two words to fix.
+func checkTerm(flag, word string) error {
+	tokens := tokenize(diffLine{number: 1, text: word})
+	if len(tokens) == 0 {
+		return fmt.Errorf("--%s carries no word, and a sweep needs a word to look for", flag)
+	}
+	if len(tokens) == 1 && isWord(tokens[0].text) && tokens[0].text == word {
+		return nil
+	}
+	parts := make([]string, 0, len(tokens))
+	for _, tok := range tokens {
+		parts = append(parts, tok.text)
+	}
+	return fmt.Errorf(
+		"--%s %q is not one word to this sweep, which reads it as %s. A term the tokenizer splits matches nothing, so the run would report zero replacements and a reader would take that for a clean tree",
+		flag,
+		word,
+		strings.Join(parts, " + "),
+	)
 }
 
 // merge appends another result's findings to this one.
@@ -137,31 +199,43 @@ func (r *Result) merge(other Result) {
 	r.Unaligned = append(r.Unaligned, other.Unaligned...)
 }
 
-// Buckets groups replacements by their preceding word and by whether they are
-// a word of their own or a part of a longer identifier. The order is rarest
-// first, then alphabetical, because a legitimate replacement follows the same
-// handful of determiners thousands of times while a wrong sense follows a word
-// that appears two or three times, so the tail of the distribution is where
-// the reader's attention is worth spending and putting it at the top spends it
+// Buckets groups replacements by the phrase they sit in, which is the word
+// before the replacement, the word after it, and whether the replacement is a
+// word of its own or a part of a longer identifier. The order is rarest first,
+// then alphabetical, because a legitimate replacement sits in the same handful
+// of phrases hundreds of times while a wrong sense sits in a phrase that
+// appears two or three times, so the tail of the distribution is where the
+// reader's attention is worth spending and putting it at the top spends it
 // first.
 //
-// Splitting on Glued as well as on the preceding word is what keeps a bucket
-// answerable. "live column" in a comment and LiveColumns in a test name share
-// a preceding word and do not share a verdict, and a bucket carrying both
-// shows the reader whichever of them happens to sort first.
+// The word after the replacement is in the key because the word before it is
+// not enough on its own, and the tree proved that rather than an argument
+// doing it. Seven over-eager renames of the plainest shape English has, an
+// ordinary noun behind an ordinary determiner, were planted in this
+// repository's own corpus and swept, and every one of them landed in a group
+// of hundreds keyed on "the", "its" or "that". With the following word in the
+// key the same seven surface in groups of one and two at the top of the
+// report. A determiner says only that a noun follows; the word after the noun
+// is where an idiom and a sentence part company.
+//
+// Splitting on Glued as well is what keeps a group answerable. "live column"
+// in a comment and LiveColumns in a test name can share both neighbours and do
+// not share a verdict, and a group carrying both shows the reader whichever of
+// them happens to sort first.
 func Buckets(reps []Replacement) []Bucket {
 	type bucketKey struct {
 		preceding string
+		following string
 		glued     bool
 	}
 	index := make(map[bucketKey]int)
 	var buckets []Bucket
 	for _, rep := range reps {
-		key := bucketKey{preceding: rep.Preceding, glued: rep.Glued}
+		key := bucketKey{preceding: rep.Preceding, following: rep.Following, glued: rep.Glued}
 		at, seen := index[key]
 		if !seen {
 			index[key] = len(buckets)
-			buckets = append(buckets, Bucket{Preceding: rep.Preceding, Glued: rep.Glued})
+			buckets = append(buckets, Bucket{Preceding: rep.Preceding, Following: rep.Following, Glued: rep.Glued})
 			at = len(buckets) - 1
 		}
 		buckets[at].Sites = append(buckets[at].Sites, rep)
@@ -172,6 +246,9 @@ func Buckets(reps []Replacement) []Bucket {
 		}
 		if buckets[i].Preceding != buckets[j].Preceding {
 			return buckets[i].Preceding < buckets[j].Preceding
+		}
+		if buckets[i].Following != buckets[j].Following {
+			return buckets[i].Following < buckets[j].Following
 		}
 		return !buckets[i].Glued && buckets[j].Glued
 	})
@@ -192,16 +269,20 @@ func Buckets(reps []Replacement) []Bucket {
 func (b Bucket) Label() string {
 	preceding := b.Preceding
 	if preceding == "" {
-		preceding = "(nothing before it)"
+		preceding = "(nothing before)"
+	}
+	following := b.Following
+	if following == "" {
+		following = "(nothing after)"
 	}
 	if len(b.Sites) == 0 || b.Sites[0].New == "" {
-		return preceding
+		return preceding + " " + following
 	}
 	adopted := b.Sites[0].New
 	if b.Glued {
-		return preceding + adopted + " (identifier)"
+		return preceding + adopted + " " + following + " (identifier)"
 	}
-	return preceding + " " + adopted
+	return preceding + " " + adopted + " " + following
 }
 
 // Report writes the sweep's findings to w: a header carrying the size of what
@@ -211,7 +292,7 @@ func (b Bucket) Label() string {
 func Report(w io.Writer, result Result, retired, adopted string, all bool) error {
 	buckets := Buckets(result.Replacements)
 	header := fmt.Sprintf(
-		"%d replacements of %q by %q, in %d groups by preceding word, rarest first\n",
+		"%d replacements of %q by %q, in %d groups by surrounding phrase, rarest first\n",
 		len(result.Replacements),
 		retired,
 		adopted,
@@ -277,6 +358,14 @@ type changedRun struct {
 	// rename fitted inside one line, so without this a replacement opening a
 	// run would be reported as having no company at all.
 	leadIn string
+	// leadOut is the first word standing after the run on the post-rename
+	// side, taken from the unchanged text the diff carries after it. It is
+	// leadIn's mirror and exists for the same wrapped-paragraph reason: a
+	// replacement that closes a run has the word after it on the next line,
+	// and that line is unchanged whenever the rename fitted inside one line.
+	// Blank context lines carry no word, so the search runs on until a
+	// context line carries one or the hunk ends.
+	leadOut string
 }
 
 // diffLine is one line of a run together with where it sits on its own side.
@@ -294,12 +383,16 @@ func parseDiff(diff string) []changedRun {
 	file := ""
 	leadIn := ""
 	oldLine, newLine := 0, 0
+	// awaiting is the index of the most recent run still looking for its
+	// lead-out word, or -1 when none is.
+	awaiting := -1
 	flush := func() {
 		if len(current.removed) == 0 && len(current.added) == 0 {
 			return
 		}
 		current.file = file
 		runs = append(runs, current)
+		awaiting = len(runs) - 1
 		leadIn = lastWord(tokenizeSide(current.added), leadIn)
 		current = changedRun{leadIn: leadIn}
 	}
@@ -309,6 +402,7 @@ func parseDiff(diff string) []changedRun {
 		case strings.HasPrefix(line, "+++ "):
 			flush()
 			leadIn = ""
+			awaiting = -1
 			current = changedRun{}
 			file = headerPath(strings.TrimPrefix(line, "+++ "))
 		case strings.HasPrefix(line, "--- "):
@@ -316,6 +410,7 @@ func parseDiff(diff string) []changedRun {
 		case strings.HasPrefix(line, "@@"):
 			flush()
 			leadIn = ""
+			awaiting = -1
 			current = changedRun{}
 			oldLine, newLine = hunkStarts(line)
 		case strings.HasPrefix(line, "-"):
@@ -327,7 +422,14 @@ func parseDiff(diff string) []changedRun {
 		case strings.HasPrefix(line, " "):
 			flush()
 			context := diffLine{number: newLine, text: line[1:]}
-			leadIn = lastWord(tokenize(context), leadIn)
+			tokens := tokenize(context)
+			if awaiting >= 0 {
+				if word := firstWord(tokens, ""); word != "" {
+					runs[awaiting].leadOut = word
+					awaiting = -1
+				}
+			}
+			leadIn = lastWord(tokens, leadIn)
 			current = changedRun{leadIn: leadIn}
 			oldLine++
 			newLine++
@@ -351,6 +453,18 @@ func lastWord(tokens []token, carried string) string {
 	for i := len(tokens) - 1; i >= 0; i-- {
 		if isWord(tokens[i].text) {
 			return strings.ToLower(tokens[i].text)
+		}
+	}
+	return carried
+}
+
+// firstWord returns the first word in a token sequence, falling back to the
+// word carried in when the sequence holds none. It is lastWord read the other
+// way round, and it skips punctuation for the same reason.
+func firstWord(tokens []token, carried string) string {
+	for _, tok := range tokens {
+		if isWord(tok.text) {
+			return strings.ToLower(tok.text)
 		}
 	}
 	return carried
@@ -460,14 +574,42 @@ func tokenize(line diffLine) []token {
 	return tokens
 }
 
+// zeroWidthNonJoiner and zeroWidthJoiner sit inside a word rather than between
+// two. Indic scripts spell a broken conjunct with the first and a joined one
+// with the second, and neither is a boundary a reader sees.
+const (
+	zeroWidthNonJoiner = '‌'
+	zeroWidthJoiner    = '‍'
+)
+
+// isCombining reports whether a rune carries on a word already begun without
+// being a letter itself. Every combining mark does, and so do the two
+// zero-width joiners.
+//
+// This exists because a script that writes its vowels as marks on a consonant
+// spells one word out of runes that unicode.IsLetter refuses. Hindi कॉलम
+// carries the vowel sign U+0949 and स्तंभ carries the virama U+094D and the
+// anusvara U+0902, so a tokenizer that breaks at every non-letter shreds both
+// into single consonants and no token can ever equal the word a caller is
+// looking for. Dinah's own Hindi rename swept to zero replacements in zero
+// groups until this existed, over the range that carried all ninety-nine of
+// them.
+func isCombining(r rune) bool {
+	if r == zeroWidthNonJoiner || r == zeroWidthJoiner {
+		return true
+	}
+	return unicode.In(r, unicode.Mn, unicode.Mc, unicode.Me)
+}
+
 // wordEnd returns the index just past the word beginning at start, breaking at
-// an internal case boundary. A lowercase or title-case letter followed by an
-// uppercase one ends the word, as in cardState, and a run of uppercase letters
-// ends one letter early when a lowercase letter follows, so HTTPState comes
-// apart as HTTP and State rather than HTTPS and tate.
+// an internal case boundary and carrying on across a combining mark. A
+// lowercase or title-case letter followed by an uppercase one ends the word,
+// as in cardState, and a run of uppercase letters ends one letter early when a
+// lowercase letter follows, so HTTPState comes apart as HTTP and State rather
+// than HTTPS and tate.
 func wordEnd(runes []rune, start int) int {
 	i := start + 1
-	for i < len(runes) && unicode.IsLetter(runes[i]) {
+	for i < len(runes) && (unicode.IsLetter(runes[i]) || isCombining(runes[i])) {
 		previous := runes[i-1]
 		current := runes[i]
 		if !unicode.IsUpper(previous) && unicode.IsUpper(current) {
@@ -587,9 +729,10 @@ func alignByEdits(before, after []token, retired, adopted string) []pairing {
 		}
 		pairs = append(pairs, pairEdit(before[startI:i], after[startJ:j], startI, startJ, retired, adopted)...)
 	}
-	if i < len(before) && j < len(after) {
-		pairs = append(pairs, pairEdit(before[i:], after[j:], i, j, retired, adopted)...)
-	}
+	// The loop above exits only when one side is exhausted, so whatever is
+	// left is a tail on one side alone with nothing on the other to pair it
+	// against. There is no replacement to be seen in a deletion nobody
+	// inserted anything for, so the walk ends here.
 	return pairs
 }
 
@@ -654,6 +797,7 @@ func report(run changedRun, before, after []token, pairs []pairing) []Replacemen
 			Line:      tok.line,
 			Column:    tok.column,
 			Preceding: precedingWord(after, pair.after, run.leadIn),
+			Following: followingWord(after, pair.after, run.leadOut),
 			Glued:     glued(after, pair.after),
 			Old:       before[pair.before].text,
 			New:       tok.text,
@@ -690,15 +834,31 @@ func precedingWord(tokens []token, at int, leadIn string) string {
 	return lastWord(tokens[:at], leadIn)
 }
 
+// followingWord returns the word standing after the token at the given index,
+// falling back to the run's lead-out when every token after it on the changed
+// side is punctuation or there are none. It skips punctuation for the reason
+// precedingWord does, so the word after `column` is the next word rather than
+// a backtick.
+func followingWord(tokens []token, at int, leadOut string) string {
+	return firstWord(tokens[at+1:], leadOut)
+}
+
 // isWord reports whether a token is made of letters or digits, which is what
-// separates a word from the punctuation between words.
+// separates a word from the punctuation between words. A combining mark counts
+// as part of a word, since that is where it belongs, but a token holding
+// nothing else is a stray mark rather than a word and does not count as one.
 func isWord(text string) bool {
+	letters := 0
 	for _, r := range text {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			letters++
+		case isCombining(r):
+		default:
 			return false
 		}
 	}
-	return text != ""
+	return letters > 0
 }
 
 // excerpt renders the line a replacement sits on, elided around the

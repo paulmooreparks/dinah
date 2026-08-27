@@ -89,6 +89,169 @@ func TestTokenizeSplitsAnIdentifierIntoItsWords(t *testing.T) {
 	}
 }
 
+// TestTokenizeKeepsACombiningMarkInsideItsWord asserts that a word written in
+// a script whose vowels are marks on a consonant arrives as one token. Dinah's
+// Hindi catalog is that script, and until this held, स्तंभ came apart into its
+// consonants with the virama and the anusvara emitted as punctuation between
+// them, so no token could ever equal the word a caller was looking for and
+// every Hindi rename swept to zero.
+func TestTokenizeKeepsACombiningMarkInsideItsWord(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		want []string
+	}{
+		{
+			name: "a virama and an anusvara stay inside the word",
+			line: "स्तंभ",
+			want: []string{"स्तंभ"},
+		},
+		{
+			name: "a vowel sign stays inside the word",
+			line: "कॉलम",
+			want: []string{"कॉलम"},
+		},
+		{
+			name: "a postposition is a word of its own",
+			line: "कॉलम में",
+			want: []string{"कॉलम", "में"},
+		},
+		{
+			name: "a combining acute stays inside a Latin word",
+			line: "café",
+			want: []string{"café"},
+		},
+		{
+			name: "punctuation around the word still stands alone",
+			line: "\"कॉलम\",",
+			want: []string{"\"", "कॉलम", "\"", ","},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var got []string
+			for _, tok := range tokenize(diffLine{number: 1, text: c.line}) {
+				got = append(got, tok.text)
+			}
+			if strings.Join(got, "|") != strings.Join(c.want, "|") {
+				t.Errorf("tokenize(%q) = %q, wanted %q", c.line, got, c.want)
+			}
+		})
+	}
+}
+
+// TestSweepReadsARenameWrittenInDevanagari asserts the whole of the blocker,
+// end to end rather than at the tokenizer alone. This is the rename this very
+// card made, and the reviewer who ran the document's own rule against it got
+// zero replacements in zero groups and could not tell that from a clean tree.
+func TestSweepReadsARenameWrittenInDevanagari(t *testing.T) {
+	diff := diffOf("internal/msg/locales/hi.json", 88, 88,
+		"-      \"text\": \"कोई कार्ड संग्रहीत स्तंभ में नहीं है\",",
+		"+      \"text\": \"कोई कार्ड संग्रहीत कॉलम में नहीं है\",",
+	)
+	result, err := Sweep(diff, "स्तंभ", "कॉलम")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if len(result.Replacements) != 1 {
+		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
+	}
+	got := result.Replacements[0]
+	if got.Old != "स्तंभ" || got.New != "कॉलम" {
+		t.Errorf("wanted स्तंभ replaced by कॉलम, got %q by %q", got.Old, got.New)
+	}
+	if got.Preceding != "संग्रहीत" {
+		t.Errorf("wanted the preceding word संग्रहीत, got %q", got.Preceding)
+	}
+	if got.Following != "में" {
+		t.Errorf("wanted the following word में, got %q", got.Following)
+	}
+}
+
+// TestSweepRefusesATermItCannotRead asserts the half of the blocker's fix that
+// outlives the tokenizer. Folding combining marks into a word makes Devanagari
+// work, and it says nothing about the next script or the next caller mistake.
+// A term this sweep splits can never match, so the run is guaranteed to report
+// zero, and a zero that means "I cannot read this" must not be spelled the
+// same way as a zero that means "there is nothing here". The refusal is what
+// keeps those two answers apart.
+func TestSweepRefusesATermItCannotRead(t *testing.T) {
+	diff := diffOf("a.md", 1, 1,
+		"-the pending state carries",
+		"+the pending column carries",
+	)
+	cases := []struct {
+		name    string
+		retired string
+		adopted string
+		wants   []string
+	}{
+		{
+			name:    "a term of two words",
+			retired: "board state",
+			adopted: "column",
+			wants:   []string{"--old", "board + state", "clean tree"},
+		},
+		{
+			name:    "a term that splits at its case boundary",
+			retired: "state",
+			adopted: "cardColumn",
+			wants:   []string{"--new", "card + Column"},
+		},
+		{
+			name:    "a term carrying punctuation",
+			retired: "work-state",
+			adopted: "column",
+			wants:   []string{"--old", "work + - + state"},
+		},
+		{
+			name:    "an empty term",
+			retired: "",
+			adopted: "column",
+			wants:   []string{"--old", "carries no word"},
+		},
+		{
+			name:    "a stray combining mark on its own",
+			retired: "ं",
+			adopted: "column",
+			wants:   []string{"--old", "not one word"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result, err := Sweep(diff, c.retired, c.adopted)
+			if err == nil {
+				t.Fatalf("wanted a refusal, got a report of %d replacements", len(result.Replacements))
+			}
+			for _, want := range c.wants {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("wanted the refusal to carry %q, got %q", want, err.Error())
+				}
+			}
+		})
+	}
+}
+
+// TestSweepAcceptsATermItCanRead asserts the other side of that refusal, so
+// that a guard which refuses everything cannot pass for a guard that refuses
+// the right things.
+func TestSweepAcceptsATermItCanRead(t *testing.T) {
+	diff := diffOf("a.md", 1, 1,
+		"-the pending state carries",
+		"+the pending column carries",
+	)
+	for _, pair := range [][2]string{
+		{"state", "column"},
+		{"State", "Column"},
+		{"स्तंभ", "कॉलम"},
+		{"Zustand", "Spalte"},
+	} {
+		if _, err := Sweep(diff, pair[0], pair[1]); err != nil {
+			t.Errorf("Sweep(%q, %q): %v", pair[0], pair[1], err)
+		}
+	}
+}
+
 // TestATokenCarriesItsLineAndOffset asserts that a token knows where it came
 // from, since a report a reader cannot open is a report they will not use.
 func TestATokenCarriesItsLineAndOffset(t *testing.T) {
@@ -116,7 +279,10 @@ func TestSweepReportsTheWordInFrontOfEachReplacement(t *testing.T) {
 		"-leaving the pending state carries at least one `citations` entry. Each",
 		"+leaving the pending column carries at least one `citations` entry. Each",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 1 {
 		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
 	}
@@ -150,7 +316,10 @@ func TestSweepReadsThePrecedingWordOffAnUnchangedLine(t *testing.T) {
 		"-state only where that citation recorded the check failing against the",
 		"+column only where that citation recorded the check failing against the",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 1 {
 		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
 	}
@@ -172,7 +341,10 @@ func TestSweepReadsAReplacementInsideAnIdentifier(t *testing.T) {
 		"-// TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired asserts the row",
 		"+// TestTheTwoUnresolvableCrashColumnsAreReportedAndNotRepaired asserts the row",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 1 {
 		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
 	}
@@ -196,7 +368,10 @@ func TestAnUnderscoreIsNotGlue(t *testing.T) {
 		"-\tcrash_state := 1",
 		"+\tcrash_column := 1",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 1 {
 		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
 	}
@@ -216,7 +391,10 @@ func TestSweepMatchesBothNumbers(t *testing.T) {
 		"-// every state the workbench declares, and the states it hides",
 		"+// every column the workbench declares, and the columns it hides",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 2 {
 		t.Fatalf("wanted two replacements, got %d: %+v", len(result.Replacements), result.Replacements)
 	}
@@ -235,7 +413,10 @@ func TestSweepAlignsARewrittenSentence(t *testing.T) {
 		"-the pending state carries one entry, and nothing else",
 		"+each and every pending column carries one entry",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 1 {
 		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
 	}
@@ -253,7 +434,10 @@ func TestSweepDoesNotInventAReplacement(t *testing.T) {
 		"-// the state a caller would act on",
 		"+// what a caller would act on",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Replacements) != 0 {
 		t.Errorf("wanted no replacement, got %+v", result.Replacements)
 	}
@@ -269,7 +453,10 @@ func TestSweepReportsARunItCannotAlign(t *testing.T) {
 		"-"+wide+"state and a rewritten tail",
 		"+"+wide+"column and a different tail entirely",
 	)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Unaligned) != 1 {
 		t.Fatalf("wanted one unaligned run, got %d: %+v", len(result.Unaligned), result.Unaligned)
 	}
@@ -293,7 +480,10 @@ func TestAWholesaleRenameTakesTheFastPath(t *testing.T) {
 		added = append(added, "+the column and the column and the column again")
 	}
 	diff := diffOf("internal/msg/locales/hi.json", 1, 1, append(removed, added...)...)
-	result := Sweep(diff, "state", "column")
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
 	if len(result.Unaligned) != 0 {
 		t.Fatalf("wanted no unaligned run, got %+v", result.Unaligned)
 	}
@@ -306,26 +496,81 @@ func TestAWholesaleRenameTakesTheFastPath(t *testing.T) {
 }
 
 // TestBucketsPutTheRarestFirst asserts the order the report is read in. A
-// legitimate replacement follows the same determiner thousands of times and a
-// wrong sense follows a word that appears once, so the rare end of the
+// legitimate replacement sits in the same phrase hundreds of times and a wrong
+// sense sits in a phrase that appears once, so the rare end of the
 // distribution is where a reader's attention belongs.
 func TestBucketsPutTheRarestFirst(t *testing.T) {
 	reps := []Replacement{
-		{Preceding: "the", New: "column"},
-		{Preceding: "the", New: "column"},
-		{Preceding: "the", New: "column"},
-		{Preceding: "pending", New: "column"},
-		{Preceding: "a", New: "column"},
-		{Preceding: "a", New: "column"},
+		{Preceding: "the", Following: "of", New: "column"},
+		{Preceding: "the", Following: "of", New: "column"},
+		{Preceding: "the", Following: "of", New: "column"},
+		{Preceding: "pending", Following: "carries", New: "column"},
+		{Preceding: "a", Following: "named", New: "column"},
+		{Preceding: "a", Following: "named", New: "column"},
 	}
 	buckets := Buckets(reps)
 	var order []string
 	for _, bucket := range buckets {
 		order = append(order, bucket.Label())
 	}
-	want := "pending column|a column|the column"
+	want := "pending column carries|a column named|the column of"
 	if strings.Join(order, "|") != want {
 		t.Errorf("wanted %q, got %q", want, strings.Join(order, "|"))
+	}
+}
+
+// TestTheFollowingWordSplitsAnOrdinaryEnglishSentenceOutOfADeterminerGroup
+// asserts the correction that made the sweep able to see the plainest kind of
+// over-eager rename there is. An ordinary English sentence where the renamed
+// word appears as a common noun sits behind the same determiner as the board
+// phrase does, so a group keyed on the determiner alone swallows it whole: the
+// seven planted in this repository's corpus disappeared into groups of
+// hundreds and none of them reached the report. Keyed on the phrase, the same
+// sites stand alone at the top.
+func TestTheFollowingWordSplitsAnOrdinaryEnglishSentenceOutOfADeterminerGroup(t *testing.T) {
+	reps := []Replacement{
+		{Preceding: "the", Following: "of", New: "column", File: "a.md", Line: 1},
+		{Preceding: "the", Following: "of", New: "column", File: "b.md", Line: 2},
+		{Preceding: "the", Following: "of", New: "column", File: "c.md", Line: 3},
+		{Preceding: "the", Following: "of", New: "column", File: "d.md", Line: 4},
+		// The defect: "the state it left behind" became "the column
+		// it left behind". It shares its determiner with the four
+		// above and shares no verdict with them.
+		{Preceding: "the", Following: "it", New: "column", File: "e.md", Line: 5},
+	}
+	buckets := Buckets(reps)
+	if len(buckets) != 2 {
+		t.Fatalf("wanted the determiner group split in two, got %d: %+v", len(buckets), buckets)
+	}
+	if buckets[0].Label() != "the column it" || len(buckets[0].Sites) != 1 {
+		t.Fatalf("wanted the lone defect first, got %q with %d sites", buckets[0].Label(), len(buckets[0].Sites))
+	}
+	if buckets[0].Sites[0].File != "e.md" {
+		t.Errorf("wanted the defect's own site, got %s", buckets[0].Sites[0].File)
+	}
+}
+
+// TestSweepReadsTheFollowingWordOffAnUnchangedLine asserts that the second
+// half of the key reaches across a line boundary the way the first half does.
+// Prose here is hard-wrapped, so a replacement that closes a run has the word
+// after it on the next line, and that line is unchanged whenever the rename
+// fitted inside one line. Without this the phrase would end at the replacement
+// and every wrapped site would key on nothing.
+func TestSweepReadsTheFollowingWordOffAnUnchangedLine(t *testing.T) {
+	diff := diffOf("docs/design/format.md", 782, 782,
+		"-carries at least one entry. Leaving the pending state",
+		"+carries at least one entry. Leaving the pending column",
+		" requires a citation that resolves.",
+	)
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if len(result.Replacements) != 1 {
+		t.Fatalf("wanted one replacement, got %d: %+v", len(result.Replacements), result.Replacements)
+	}
+	if got := result.Replacements[0].Following; got != "requires" {
+		t.Errorf("wanted the following word to be requires, taken from the line below, got %q", got)
 	}
 }
 
@@ -335,18 +580,18 @@ func TestBucketsPutTheRarestFirst(t *testing.T) {
 // both shows the reader whichever happens to sort first.
 func TestABucketSeparatesAnIdentifierFromAWord(t *testing.T) {
 	reps := []Replacement{
-		{Preceding: "live", New: "Columns", Glued: true},
-		{Preceding: "live", New: "Columns", Glued: true},
-		{Preceding: "live", New: "column"},
+		{Preceding: "live", Following: "in", New: "Columns", Glued: true},
+		{Preceding: "live", Following: "in", New: "Columns", Glued: true},
+		{Preceding: "live", Following: "in", New: "column"},
 	}
 	buckets := Buckets(reps)
 	if len(buckets) != 2 {
 		t.Fatalf("wanted two buckets, got %d: %+v", len(buckets), buckets)
 	}
-	if buckets[0].Label() != "live column" || len(buckets[0].Sites) != 1 {
+	if buckets[0].Label() != "live column in" || len(buckets[0].Sites) != 1 {
 		t.Errorf("wanted the lone word first, got %q with %d sites", buckets[0].Label(), len(buckets[0].Sites))
 	}
-	if buckets[1].Label() != "liveColumns (identifier)" {
+	if buckets[1].Label() != "liveColumns in (identifier)" {
 		t.Errorf("wanted the identifier bucket marked, got %q", buckets[1].Label())
 	}
 }
@@ -357,9 +602,9 @@ func TestABucketSeparatesAnIdentifierFromAWord(t *testing.T) {
 func TestReportNamesItsOwnSize(t *testing.T) {
 	result := Result{
 		Replacements: []Replacement{
-			{File: "a.go", Line: 3, Preceding: "pending", New: "column", Excerpt: "the pending column"},
-			{File: "b.go", Line: 4, Preceding: "the", New: "column", Excerpt: "the column"},
-			{File: "c.go", Line: 5, Preceding: "the", New: "column", Excerpt: "the column again"},
+			{File: "a.go", Line: 3, Preceding: "pending", Following: "carries", New: "column", Excerpt: "the pending column"},
+			{File: "b.go", Line: 4, Preceding: "the", Following: "of", New: "column", Excerpt: "the column"},
+			{File: "c.go", Line: 5, Preceding: "the", Following: "of", New: "column", Excerpt: "the column again"},
 		},
 		Unaligned: []Unaligned{{File: "d.json", Line: 9, Reason: "past the alignment cap"}},
 	}
@@ -376,10 +621,10 @@ func TestReportNamesItsOwnSize(t *testing.T) {
 	// and a padded field counts characters where a terminal counts columns,
 	// which drifts on the Devanagari excerpts this sweep's own catalogs
 	// produce.
-	if !strings.Contains(got, "\npending column   1 site   a.go:3  the pending column\n") {
+	if !strings.Contains(got, "\npending column carries   1 site   a.go:3  the pending column\n") {
 		t.Errorf("wanted the rarest group's line phrase-first and unpadded, got:\n%s", got)
 	}
-	if !strings.Contains(got, "\nthe column   2 sites   b.go:4  the column\n") {
+	if !strings.Contains(got, "\nthe column of   2 sites   b.go:4  the column\n") {
 		t.Errorf("wanted the common group counted in the plural, got:\n%s", got)
 	}
 	if !strings.Contains(got, "unaligned run   d.json:9   past the alignment cap") {

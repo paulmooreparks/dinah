@@ -13,11 +13,17 @@
 //
 //	go run ./internal/rename/renamesweep --old state --new column --range e9c0abd^..e9c0abd
 //
-// The report is one line per preceding word, rarest first, and the reader
+// The report is one line per phrase, rarest first, where a phrase is the word
+// before the replacement, the replacement, and the word after it. The reader
 // judges each line by asking whether the phrase it names means the thing the
-// rename was about. Pass --all to see every site under each line once one
-// looks wrong. Paths after the flags become a git pathspec, which narrows the
-// sweep to part of the tree.
+// rename was about, and opens the line rather than judging it whenever the
+// phrase could mean either. Pass --all to see every site under each line.
+// Paths after the flags become a git pathspec, which narrows the sweep to part
+// of the tree.
+//
+// A word this tool cannot read as a single token is refused rather than swept,
+// because a term the tokenizer splits matches nothing and the run would report
+// a zero indistinguishable from a clean tree.
 //
 // See docs/design/renaming-a-word.md for when this is run and what the reader
 // is looking for.
@@ -38,7 +44,7 @@ func main() {
 	adopted := flag.String("new", "", "the word that replaced it, in the singular")
 	revisions := flag.String("range", "", "the git revision range that carried the rename, such as main..HEAD")
 	repo := flag.String("repo", ".", "the repository to read the range out of")
-	all := flag.Bool("all", false, "list every site under each preceding word rather than one example")
+	all := flag.Bool("all", false, "list every site under each phrase rather than one example")
 	flag.Parse()
 	if *retired == "" || *adopted == "" || *revisions == "" {
 		fmt.Fprintln(os.Stderr, "renamesweep: --old, --new and --range are all required")
@@ -50,7 +56,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "renamesweep: %v\n", err)
 		os.Exit(1)
 	}
-	result := rename.Sweep(diff, *retired, *adopted)
+	result, err := rename.Sweep(diff, *retired, *adopted)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "renamesweep: %v\n", err)
+		os.Exit(1)
+	}
 	if err := rename.Report(os.Stdout, result, *retired, *adopted, *all); err != nil {
 		fmt.Fprintf(os.Stderr, "renamesweep: %v\n", err)
 		os.Exit(1)
@@ -63,9 +73,18 @@ func main() {
 // above, which is unchanged and reaches the sweep only as context. Rename
 // detection stays on so that a file moved during the rename is read as the one
 // file it is.
+//
+// Three settings are pinned rather than inherited, because each one changes
+// the text this tool parses. Colour and an external diff driver would replace
+// the format entirely. diff.suppressBlankEmpty is subtler and was found by a
+// reviewer whose configuration set it: an unchanged blank line then arrives as
+// an empty string rather than as a single space, misses the context branch of
+// the parser, advances no line counter, and every line number after it in the
+// file is reported one low.
 func readDiff(repo, revisions string, pathspec []string) (string, error) {
 	args := []string{
 		"-C", repo,
+		"-c", "diff.suppressBlankEmpty=false",
 		"diff",
 		"--unified=3",
 		"--find-renames",

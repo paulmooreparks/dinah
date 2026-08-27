@@ -33,16 +33,25 @@ tree meant 7126 hits, nearly all of them older than the rename and none
 of them distinguishable from the defects by any pattern a regular
 expression can express.
 
-What separates the two senses is the company the word keeps. A board
-column is a countable noun and stands behind a determiner, so the great
-majority of legitimate replacements follow "the", "a", "each" or a
-possessive. The other sense is a mass noun or a verb and stands behind
-other words entirely, which is how "the pending state" and
-"coordination-plane state" and "those loops state local intent" give
-themselves away.
-Group the rename's own replacements by the word standing in front of each
-one, and a few thousand replacements become a few hundred phrases a
-person judges in a couple of minutes.
+What separates the two senses is the company the word keeps. Group the
+rename's own replacements by the words on either side of each one, and a
+few thousand replacements become a couple of thousand phrases, most of
+which appear once or twice and are read at a glance.
+
+The company has to be counted on both sides, and the reason is worth
+setting down because an earlier version of this pass counted only one.
+Reading backwards alone says that a board column is a countable noun
+behind a determiner, so a group keyed on "pending" or on
+"coordination-plane" gives a defect away at once. What that misses is the
+commonest shape English has, which is an ordinary noun behind an ordinary
+determiner. "The state it left behind" and "the column of the board"
+share their determiner and share no verdict, so a key made of the
+determiner alone drops the first into a group of hundreds that a reader
+passes over. Seven over-eager renames of exactly that shape were planted
+in this repository's own corpus and swept, and not one of them reached
+the report. The word after the replacement is what tells them apart, so
+the key is three words wide: what stands before, the replaced word
+itself, and what stands after.
 
 ## Running the pass
 
@@ -80,35 +89,48 @@ known before it begins. Every line after that is one group, and the group
 opens with the phrase it stands for:
 
 ```
-pending column   4 sites   docs/design/format.md:702  leaving the pending state carries at least one
+pending column carries   1 site   docs/design/format.md:702  leaving the pending column carries at least one
 ```
 
 The phrase comes first so that the eye runs down the left edge of the
 report and reads phrases. What follows it is the number of sites in the
 group and one of them, with an excerpt of its line.
 
-Groups come rarest first. A legitimate replacement follows the same
-handful of determiners hundreds of times, while a wrong sense follows a
-word that appears once or twice, so the top of the report is where the
-attention is worth spending.
+Groups come rarest first. A legitimate replacement sits in the same
+phrase hundreds of times, while a wrong sense sits in a phrase that
+appears once or twice, so the top of the report is where the attention is
+worth spending. Dinah's own rename produced 2257 groups out of 6397
+replacements, and 1455 of those groups hold a single site.
 
 Read every phrase and ask one question of it: does this mean the thing
-the rename was about? A group reading "the column", "each column" or
-"another column" answers itself. A group reading "pending column",
-"recordless column" or "loops column" does not, and those are the ones to
-open.
+the rename was about?
 
-A group whose phrase is genuinely ambiguous in English cannot be settled
-from its label, and "live column" is the example that matters, since it
-is a real board phrase and was also a real defect in the same rename.
-Settle one of those by reading its sites rather than its example:
+Three rules govern the answer, and the third of them replaces a rule this
+document used to carry.
+
+- A label that can only be the board phrase clears its group. "a column
+  named", "the column of" and "each column in the flow" are of that kind.
+- A label that could be either is opened rather than judged, with the
+  `--all` run below. "the column it" is the example that matters here,
+  because "the column it removed" is a board phrase and "the column it is
+  in" is a defect, and both carry that label. "live column" is the same
+  case one word shorter.
+- A large group is never passed over because it is large. An earlier
+  version of this document told the reader that "the column" and "each
+  column" answer themselves, and that instruction is what hid the seven
+  planted renames described above: they landed in groups of 19, 27, 750
+  and 815 sites, every one of which the reader had been told to skip. A
+  sweep whose advice is to skip its largest groups has a hole the size of
+  those groups.
+
+Settle an ambiguous group by reading its sites rather than its example:
 
 ```
 go run ./internal/rename/renamesweep --old state --new column --range main..HEAD --all
 ```
 
 Two more things the report can say deserve attention. A group whose
-phrase is closed up and marked "(identifier)", as `crashColumns` is,
+phrase is closed up and marked "(identifier)", as `crashColumns are` is,
 holds replacements that are parts of a longer name rather than words of
 their own, which is why `CrashStates` is judged against "Crash" and not
 against the comment marker that opens its line. A line beginning
@@ -122,23 +144,83 @@ The sweep reports and does not rule. Every verdict is a person's, and the
 instrument's whole claim is that it reduces a few thousand judgements to
 a few hundred and puts the suspicious ones first.
 
-Three limits are worth stating plainly, because each one is a place a
+Five limits are worth stating plainly, because each one is a place a
 reader could assume more than the tool delivers.
 
 - The sweep matches one word in the singular and in the plural formed by
-  a trailing s. A rename between words with an irregular plural is run
-  once for each form.
+  a trailing s, which is an English inflection and only that. A rename
+  between words with an irregular plural is run once for each form, and
+  so is a rename in a language that inflects some other way. The Hindi
+  rename this pass was repaired on is the worked example: स्तंभ to कॉलम
+  reports 98 replacements, and the ninety-ninth is the oblique plural
+  स्तंभों to कॉलमों, which is a second run of one command.
 - The sweep reads a rename of one word to one word. A rename that
   replaces a word with a phrase, or a phrase with a word, is outside what
-  it aligns.
+  it aligns, and it refuses such a term rather than sweeping it. See "A
+  term the sweep will not accept" below.
 - The sweep reads the diff of a range and knows nothing about the rest of
   the tree. A word the rename took in a file the range never touched is
   not its business, and no instrument here looks for one.
+- The key is three words wide, so a defect whose three words match an
+  idiom already in the tree shares a group with that idiom. Two of the
+  seven planted renames that produced the current key are of this kind:
+  "a column of" and "the column it" are both real board phrases, and the
+  planted defects wearing those labels are reached by opening those
+  groups rather than by reading them. Widening the key further trades
+  this away for a report nobody finishes, so the trade stops here and the
+  `--all` run is the answer.
+- The sweep reports and does not know which sense a group means. Nothing
+  in it understands English or Hindi, and the counts and the ordering are
+  the whole of its contribution.
+
+## A term the sweep will not accept
+
+The sweep reads a word by tokenizing it, and it matches by testing one
+token against the whole term. A term that comes apart into more than one
+token therefore matches nothing, whatever the diff holds. Rather than
+running and reporting the zero that guarantees, the sweep refuses the
+term and exits non-zero:
+
+```
+$ go run ./internal/rename/renamesweep --old "board state" --new column --range main..HEAD
+renamesweep: --old "board state" is not one word to this sweep, which reads
+it as board + state. A term the tokenizer splits matches nothing, so the run
+would report zero replacements and a reader would take that for a clean tree
+```
+
+The refusal exists because of a defect this pass had on the day it
+shipped, and the shape of that defect is worth keeping in view. The
+tokenizer read a word as a run of letters, and the marks Devanagari
+writes its vowels with are not letters, so every Hindi word came apart
+into single consonants and no token could equal the word a caller was
+looking for. Running the rule at the bottom of this document against this
+repository's own Hindi rename, over the range carrying all ninety-nine
+substitutions, produced `0 replacements of "स्तंभ" by "कॉलम", in 0 groups`.
+Nothing distinguished that from a clean tree. A German control over the
+same range answered 92 replacements in 30 groups, so neither the range
+nor the invocation was at fault.
+
+Both halves of that were fixed, and they are separate fixes doing
+separate jobs. A combining mark now stays inside its word, so Devanagari,
+Arabic, Hebrew and a decomposed Latin accent all tokenize as a reader
+reads them. The refusal is the half that outlives the tokenizer: no list
+of scripts can be complete, and the next thing the tokenizer cannot
+represent will meet a refusal rather than a zero. An instrument that
+answers zero for input it cannot read is the same defect this whole
+document was written against, one layer up.
 
 ## The rule for the next rename
 
 A card that renames a word across the tree runs this pass before it hands
-off, and says in its handoff how many groups the report held and which
-ones it opened. A rename card that does not say so has not run it, since
-the count is the only part of the pass that cannot be produced from
-memory.
+off, and says in its handoff how many replacements and how many groups
+the report held and which groups it opened. A rename card that does not
+say so has not run it, since the counts are the only part of the pass
+that cannot be produced from memory.
+
+Report both counts rather than the group count alone. A run that refuses
+its term prints no counts at all, and a run whose term the sweep accepts
+but whose range is wrong reports zero of both, so a handoff carrying one
+number leaves a reader unable to tell a swept range from an unswept one.
+A rename in more than one language runs the pass once per language, and a
+rename in a language that inflects the word runs it once per form, so the
+handoff carries a line for each run rather than a single total.
