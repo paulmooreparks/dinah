@@ -222,11 +222,13 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 //
 // The loop reads every shipped catalog rather than the Complete roster it once
 // read, because the roster answers a different question. Complete is
-// catalog-level: it says a language has no untranslated entry left, and
-// dinah-287 took Hindi and German off it while both still carry hundreds of
-// real translations. A guard keyed on that roster stopped checking those
-// translations on the day the roster changed, and reported that it was
-// asserting nothing rather than checking what was in front of it.
+// catalog-level and says a language has no untranslated entry left, which is
+// not the same as saying the language carries translations worth checking.
+// dinah-287 nearly took Hindi and German off that roster while both still
+// carried hundreds of real translations, and a guard keyed on the roster would
+// have stopped checking those translations on the day it changed. The operator
+// ruled that the two languages be retranslated instead, so the roster came
+// through the card unchanged, and this loop no longer depends on that.
 //
 // What the change costs is a smaller population, and this comment no longer
 // writes down how much smaller. Three consecutive rounds of review each
@@ -359,14 +361,17 @@ func identifiers(pattern *regexp.Regexp, text string) string {
 //
 // Completeness and correctness are different properties, and dinah-287 made
 // the difference matter. Complete says a catalog has no untranslated entry
-// left, and German and Hindi came off that list because ninety-five entries of
-// theirs went back to skeletons. TestEveryDeclaredLanguageShips only ever
-// asserted anything about a language on one of the two rosters, so the day
-// those two left the completed list, nothing checked their contents at all:
-// replacing all of German's remaining translations with the English text left
-// the package green. A language off the roster is not expected to be complete.
-// It is still expected that what it does carry is genuinely translated, and
-// that an entry holding English says so.
+// left, and that card's rename sent a block of German and Hindi entries back
+// to skeletons, which would have taken both languages off the list.
+// TestEveryDeclaredLanguageShips only ever asserted anything about a language
+// on one of the two rosters, so on the branch where those two had left it,
+// nothing checked their contents at all: replacing all of German's remaining
+// translations with the English text left the package green. The operator
+// ruled that the entries be retranslated and both languages stayed on the
+// list, so that branch is not the tree you are reading, but the hole it
+// exposed was real and this guard is what closed it. A language off the roster
+// is not expected to be complete. It is still expected that what it does carry
+// is genuinely translated, and that an entry holding English says so.
 //
 // So the rule here is keyed on the entry rather than on the roster its catalog
 // is on. An entry that is not a skeleton must differ from its English source,

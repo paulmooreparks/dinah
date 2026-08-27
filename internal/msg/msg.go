@@ -124,16 +124,22 @@ func readAll() map[string]*Catalog {
 // same fact, which is what let German ship translated while two separate
 // hardcoded rosters still called it a skeleton.
 //
-// Hindi and German left this list at dinah-287, and the card's own D-6 records
-// why. That rename moved the English text of ninety-five entries, no fluent
-// editor of either language was available in the pass that made the move, and
-// the two bad answers were both ruled out by name: leaving the retired word
-// standing in the one place an English-speaking maintainer would never see it,
-// or deleting the keys so the reader silently gets English. The entries carry
-// the renamed English with the skeleton flag the package already has for
-// saying a string is not translated yet, and the follow-up card that
-// retranslates them puts both tags back here.
-var Complete = []string{Base}
+// Hindi and German nearly left this list at dinah-287. That rename moved the
+// English text of a large block of entries, no fluent editor of either
+// language was available in the pass that made the move, and the card's D-6
+// took both tags off the roster and shipped the moved entries as skeletons
+// carrying renamed English. The operator ruled the other way on 2026-08-27,
+// in his words "I am not going to ship something with incomplete
+// translations, so fix them first", so the entries were retranslated on that
+// same card and both tags stayed here.
+//
+// What the near miss left behind is worth knowing, because the reasoning
+// outlived the decision. Taking a language off this list used to take its
+// contents out of every check, so nothing would have noticed either language
+// rotting afterwards. Two guards in msg_test.go now key on the entry rather
+// than on the roster its catalog is on, and they hold whichever roster a
+// language is on.
+var Complete = []string{Base, "hi", "de"}
 
 // Skeleton is documented on Complete, which it is the other half of.
 var Skeleton = []string{"cs", "id", "es", "fil", "af"}

@@ -26,10 +26,18 @@ import (
 // heading naming its condition, and exited 0.
 //
 // The guard now asks what D-14 settled: whether the card carries the column
-// key. No card written before the rename carries it, and Card.Save writes it
-// on every card this build writes, so its absence is the whole question and no
-// hand edit can leave the answer out. The migration's own skip-guard has asked
-// it that way from the start; only the read path went the other way.
+// key. No card written before the rename carries it and Card.Save writes it on
+// every card this build writes, so a card that never came across the rename
+// cannot answer yes, and the one-line hand edit below is caught. The
+// migration's own skip-guard has asked it that way from the start; only the
+// read path went the other way.
+//
+// What the guard asks is narrower than whether the card is on the right side
+// of the rename. It tests that the column key is present and tests nothing
+// about what either key holds, so a card carrying a column key beside a
+// condition value the rename would never have produced still reads through.
+// That weakness is older than this rename, nothing here closes it, and it is
+// filed as dinah-306.
 
 // unwindOneCardHalfway makes the shape a hand edit reaches most easily: the
 // column key renamed back to its retired spelling and the condition key
