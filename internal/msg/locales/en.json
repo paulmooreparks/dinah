@@ -862,8 +862,8 @@
       "context": "The one-line summary of the workbench command, shown beside its syntax in the help block."
     },
     "cmd.workbenches.summary": {
-      "text": "The workbenches reachable from here",
-      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block."
+      "text": "The workbenches beneath a directory, or the ones reachable from here",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block. It names both directions the command answers in, since dinah-281 gave it a positional path: downward from a directory you name, and the upward search it runs when you name none."
     },
     "cmd.workstream.summary": {
       "text": "Read this workbench's workstreams, create one, or write one's fields",
@@ -2640,6 +2640,70 @@
     "param.check.migrate-vocabulary.summary": {
       "text": "carry every workbench at or beneath this root across the column and state rename",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table."
+    },
+    "refusal.dinah.conflicting-scope": {
+      "text": "{detail} names a root to walk downward from and {workbench} names one workbench, and one command answers about one scope or the other",
+      "context": "The sentence printed after the refusal name dinah.conflicting-scope. {detail} is the root the caller named with --root or as the path workbenches takes, and {workbench} is the single workbench --workbench or DINAH_WORKBENCH resolved to. refusal.dinah.conflicting-scope.next is spliced on after this one."
+    },
+    "refusal.dinah.conflicting-scope.next": {
+      "text": "; drop one of them, since --root answers for every workbench beneath a directory and --workbench answers for the one you name",
+      "context": "Spliced onto refusal.dinah.conflicting-scope as the next step, saying what each of the two scopes answers so the reader can tell which one they wanted."
+    },
+    "refusal.dinah.depth-without-root": {
+      "text": "--max-depth {detail} bounds a walk downward and this command was given no root to walk from",
+      "context": "The sentence printed after the refusal name dinah.depth-without-root. {detail} is the depth the caller wrote. refusal.dinah.depth-without-root.next is spliced on after this one."
+    },
+    "refusal.dinah.depth-without-root.next": {
+      "text": "; add --root <path> to name the directory to walk, or drop --max-depth",
+      "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated."
+    },
+    "refusal.dinah.malformed-depth": {
+      "text": "--max-depth takes a whole number of rungs and {detail} is not one",
+      "context": "The sentence printed after the refusal name dinah.malformed-depth. {detail} is the value the caller wrote. refusal.dinah.malformed-depth.next is spliced on after this one."
+    },
+    "refusal.dinah.malformed-depth.next": {
+      "text": "; write a number of rungs to descend, or 0 to descend without a bound",
+      "context": "Spliced onto refusal.dinah.malformed-depth as the next step, naming what a legal value looks like and what zero means."
+    },
+    "root.workbench": {
+      "text": "{title} ({slug}) {path}",
+      "context": "The heading printed above one workbench's own answer under a root-scoped read, which is dinah tree, status, ls, next or changes given --root. It names the workbench the lines below it belong to. {title} is the workbench's title, {slug} is its slug or the missing-slug repair, and {path} is its directory. The three are separated by single spaces because this is a label line rather than a table row: two of these printed one after another would otherwise read as a two-row table whose columns do not line up, which is a rendering defect the head's own output check catches."
+    },
+    "root.workbench.refused": {
+      "text": "{path} would not read: {refusal}",
+      "context": "The heading printed in place of root.workbench for a workbench the walk could not read, which is followed by no answer at all. {path} is the directory, and {refusal} is the bracketed refusal name workbenches.refused composes. The path leads because it is the only identity a workbench nothing could read still has: no title and no slug were ever read off it."
+    },
+    "root.workbench.unopened": {
+      "text": "this workbench would not open: {refusal}",
+      "context": "The line printed under root.workbench for a workbench the walk described off its anchor and then could not open, so its title and its slug are known and nothing further about it is. {refusal} is the bracketed refusal name workbenches.refused composes. It follows the identity line rather than replacing it, because that identity was read, and a reader who loses it cannot tell which directory of the listing failed."
+    },
+    "root.workbench.unanswered": {
+      "text": "this workbench read, and did not answer: {refusal}",
+      "context": "The line printed under root.workbench for a workbench that opened and whose own read then refused, which is what naming a column one workbench has and another does not produces. {refusal} is the bracketed refusal name workbenches.refused composes. The sentence says the workbench read, because it did: what refused was the question asked of it rather than the directory, and root.workbench.refused is the heading for the other case."
+    },
+    "root.empty": {
+      "text": "no workbench is beneath {root}",
+      "context": "The whole answer to a root-scoped read, and to dinah workbenches given a path, that walked a real directory and found nothing. {root} is the directory walked. Finding nothing is an ordinary answer rather than a refusal, so the command exits 0 having printed this."
+    },
+    "workbenches.refused": {
+      "text": "<{refusal}>",
+      "context": "The workbench cell of a listing row the walk could not describe, standing where the title would be. {refusal} is the refusal name, such as dinah.unreadable-workbench, which is machine vocabulary and is never translated. The angle brackets say the cell holds the reason a value is missing rather than the value."
+    },
+    "param.root.summary": {
+      "text": "answer for every workbench beneath this directory instead of for the one you are standing in",
+      "context": "The meaning of the root argument, shared by every read that can answer about a whole directory of workbenches at once, which is status, ls, next, tree and changes."
+    },
+    "param.max-depth.summary": {
+      "text": "how many directories deep to look, counting down from the root; 8 when you name none, and 0 for no limit",
+      "context": "The meaning of the max-depth argument, shared by every command that walks downward from a root. It bounds the walk so a workspace holding a deep dependency directory is not read in full on every poll."
+    },
+    "param.workbenches.path.summary": {
+      "text": "list every workbench beneath this directory; naming none lists what is reachable from here instead",
+      "context": "The meaning of the path argument of `dinah workbenches`, printed in that command's arguments table. It names the two directions the command answers in: downward from a directory you name, and the upward search it runs when you name none."
+    },
+    "status.workbench.unsourced": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status under a root-scoped read: the workbench and where it was discovered, with no rung named. It stands in for status.workbench, which also names the rung that resolved the workbench, because a root-scoped read resolves no single workbench by any rung and an empty bracket reads as a value that failed to render."
     }
   }
 }

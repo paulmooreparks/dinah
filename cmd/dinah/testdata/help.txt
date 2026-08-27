@@ -28,16 +28,18 @@ WORK
                                               write one
 
 READ
-  status                                    Where this workbench stands, and
+  status [--root <path>] [--max-depth <n>]  Where this workbench stands, and
                                               what you hold
   columns                                   The flow, in order
-  ls [column] [--ready]                     The cards of a column, in queue
-                                              order
-  next [column]                             The card a column offers next
+  ls [column] [--ready] [--root <path>]     The cards of a column, in queue
+    [--max-depth <n>]                         order
+  next [column] [--root <path>]             The card a column offers next
+    [--max-depth <n>]
   query [query]                             The cards of the workbench that
                                               match a query
   tree [query] [--group-by <axes>]          The workbench's cards nested along a
-    [--depth <level>]                         chain of axes
+    [--depth <level>] [--root <path>]         chain of axes
+    [--max-depth <n>]
   contents <ref> [--depth <level>]          What an entity of the workbench
                                               contains
   show <ref>                                A card, or anything below it
@@ -45,6 +47,7 @@ READ
                                               oldest first
   changes [--since <cursor>]                What has happened on this workbench
     [--card <ref>] [--column <column>]        since a cursor
+    [--root <path>] [--max-depth <n>]
   instructions <card|column>                The instructions served at a
                                               position
   guide [topic]                             The embedded guides, or one of them
@@ -75,7 +78,8 @@ WORKBENCH
   workstream [new|get|set]                  Read this workbench's workstreams,
     [workstream|title] [field] [value]        create one, or write one's fields
     [--yes]
-  workbenches                               The workbenches reachable from here
+  workbenches [path] [--max-depth <n>]      The workbenches beneath a directory,
+                                              or the ones reachable from here
   version [--catalogs]                      What Dinah is and what it conforms
                                               to
 

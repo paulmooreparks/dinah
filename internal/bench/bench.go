@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -649,19 +650,8 @@ func walkFor(dir string, collected *[]Candidate, seen map[string]bool) error {
 		return contract.Refuse(contract.UnknownRoot, dir)
 	}
 	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasPrefix(name, ".") && name != "." && name != ".." {
-			continue
-		}
-		full := filepath.Join(dir, name)
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			continue
-		}
-		if !info.IsDir() {
+		full, walkable := walkableDir(dir, entry)
+		if !walkable {
 			continue
 		}
 		found, ambiguous, passed, err := benchIn(full, false)
@@ -669,24 +659,208 @@ func walkFor(dir string, collected *[]Candidate, seen map[string]bool) error {
 			return err
 		}
 		_ = passed
-		if found != "" && !seen[found] {
-			seen[found] = true
-			*collected = append(*collected, describe(found))
+		if found != "" {
+			addDescribed(collected, seen, found)
 		}
-		if len(ambiguous) > 0 {
-			for _, candidate := range ambiguous {
-				if seen[candidate] {
-					continue
-				}
-				seen[candidate] = true
-				*collected = append(*collected, describe(candidate))
-			}
+		for _, candidate := range ambiguous {
+			addDescribed(collected, seen, candidate)
 		}
 		if err := walkFor(full, collected, seen); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// walkableDir is the entry filter both downward walks apply, returning the
+// full path of a directory a walk examines and false for an entry neither one
+// looks at. walkFor and walkDeep differ in what they do with a directory they
+// reach and agree exactly on which directories they reach, so the rule is
+// written once here: a dot-prefixed name is skipped, an entry whose own info
+// will not read is skipped, a symlink is skipped so that a link cannot walk
+// the search back into a directory it has already read, and a plain file is
+// skipped because a workbench is a directory.
+//
+// Sharing it is what stops the two walks answering different questions about
+// one tree. The recognition test they run is already one function, benchIn,
+// and the four differences EnumerateDeep's doc comment claims are the cache,
+// the per-row error handling, the depth bound and the path sort. Which
+// entries are candidates at all is not on that list, and a skip rule added to
+// one loop alone would put it there without anybody deciding to.
+func walkableDir(dir string, entry os.DirEntry) (string, bool) {
+	name := entry.Name()
+	if strings.HasPrefix(name, ".") && name != "." && name != ".." {
+		return "", false
+	}
+	info, err := entry.Info()
+	if err != nil {
+		return "", false
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", false
+	}
+	if !info.IsDir() {
+		return "", false
+	}
+	return filepath.Join(dir, name), true
+}
+
+// addDescribed records one recognised workbench, reading its identity off its
+// anchor, unless this walk has already recorded that path. Both walks
+// de-duplicate on the same seen set for the same reason: one directory can be
+// reached as a workbench in its own right and again as a candidate of an
+// ambiguous parent, and a listing naming it twice would report two workbenches
+// where the filesystem holds one.
+func addDescribed(collected *[]Candidate, seen map[string]bool, path string) {
+	if seen[path] {
+		return
+	}
+	seen[path] = true
+	*collected = append(*collected, describe(path))
+}
+
+// DefaultEnumerateDepth is the bound the CLI and MCP surfaces apply to a
+// downward walk when the caller names none. It is not 0 (unbounded): the
+// accident it guards against, a workspace holding a package-manager
+// dependency tree beneath a workbench, is not dot-prefixed, so it is not
+// caught by the dotfile skip walkableDir applies, and it sits on exactly
+// the path a refresh-cycle poll takes. 8 is deep enough for the shape this
+// bound is sized against, a workspace holding customer directories holding
+// one-pagers, concepts and issues, with headroom to spare.
+const DefaultEnumerateDepth = 8
+
+// EnumerateDeep walks downward from root exactly as Enumerate does, running
+// the same benchIn recognition, the same walkableDir entry filter, and the
+// same recursion into a found workbench looking for one nested inside it. The
+// recognition and the filter are shared functions rather than two loops
+// written alike, so the agreement holds by construction. Two things differ.
+//
+// It does not cache. Enumerate's cache exists for the one caller that issues
+// the same downward walk more than once in a process life, which is an MCP
+// session. A CLI process walks once and exits, matching Enumerate's own
+// no-benefit case exactly. The callers of this function are the opposite of
+// that case: a caller polling on a timer, for whom a workbench created after
+// the first call must appear on the next one. Caching here would hide the
+// exact thing the poll exists to notice.
+//
+// A directory it cannot confirm (an unreadable workbench.md, a directory it
+// cannot list) does not fail the walk the way Enumerate's failure mode does.
+// It is reported as a row with Refused set to the refusal name and no Title
+// or Slug, the walk does not descend into it, and every sibling is still
+// visited. Enumerate keeps its existing whole-call-fails contract unchanged;
+// this is a separate function precisely so that contract is not touched.
+//
+// maxDepth bounds how many rungs below root the walk examines; 0 means
+// unbounded, matching Enumerate's own contract exactly. A positive maxDepth
+// stops before the rungs past it without reporting those directories at all,
+// neither as a workbench nor as a refusal, since they were never examined.
+//
+// An empty root, a missing directory, or a non-directory root refuses as a
+// whole call rather than as a row, which is Enumerate's own contract for the
+// path the caller named and the one case that stays a refusal.
+func EnumerateDeep(root string, maxDepth int) ([]Candidate, error) {
+	if root == "" {
+		return nil, contract.Refuse(contract.NoWorkbenchFound, "")
+	}
+	info, err := statPath(root)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownRoot, root)
+	}
+	if !info.IsDir() {
+		return nil, contract.Refuse(contract.UnknownRoot, root)
+	}
+	var collected []Candidate
+	seen := map[string]bool{}
+	if err := walkDeep(root, &collected, seen, 0, maxDepth); err != nil {
+		return nil, err
+	}
+	if collected == nil {
+		collected = []Candidate{}
+	}
+	// The rows are ordered by path rather than by the order the recursion met
+	// them, because two callers of this walk publish it and they have to agree.
+	// The recursion's own order is depth-first over each directory's sorted
+	// names, which is not path order: a sibling named two-extra sorts before
+	// two/three, and the recursion reaches it after. Ordering here rather than
+	// at each caller is what keeps one answer from depending on which head
+	// asked for it.
+	sort.SliceStable(collected, func(i, j int) bool {
+		return collected[i].Path < collected[j].Path
+	})
+	return collected, nil
+}
+
+// walkDeep is EnumerateDeep's own recursion. depth is the rung dir itself sits
+// at, so dir's children sit at depth+1, and the bound is checked on entry
+// rather than before each recursive call: a call the bound turns away reads
+// nothing and reports nothing, which is what makes an out-of-bounds directory
+// absent from the listing rather than present as a refusal.
+//
+// The error return carries dir's own unreadability and nothing else. Every
+// failure below dir has already been turned into a row by the time this
+// returns, so the only caller that ever sees a non-nil error is EnumerateDeep
+// itself, for the root the caller named.
+func walkDeep(dir string, collected *[]Candidate, seen map[string]bool, depth, maxDepth int) error {
+	if maxDepth > 0 && depth >= maxDepth {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return contract.Refuse(contract.UnknownRoot, dir)
+	}
+	for _, entry := range entries {
+		full, walkable := walkableDir(dir, entry)
+		if !walkable {
+			continue
+		}
+		found, ambiguous, _, err := benchIn(full, false)
+		if err != nil {
+			addRefused(collected, seen, full, refusalNameOf(err))
+			continue
+		}
+		if found != "" {
+			addDescribed(collected, seen, found)
+		}
+		for _, candidate := range ambiguous {
+			addDescribed(collected, seen, candidate)
+		}
+		if err := walkDeep(full, collected, seen, depth+1, maxDepth); err != nil {
+			addRefused(collected, seen, full, refusalNameOf(err))
+		}
+	}
+	return nil
+}
+
+// addRefused records a directory the walk could not read past, unless that
+// directory is already in the listing on its own account. A workbench this
+// walk described and then could not descend into keeps its described row: the
+// workbench itself read, and what failed was the search for one nested inside
+// it, which is not a fact about the workbench the row names.
+func addRefused(collected *[]Candidate, seen map[string]bool, path, name string) {
+	if seen[path] {
+		return
+	}
+	seen[path] = true
+	*collected = append(*collected, Candidate{Path: path, Refused: name})
+}
+
+// refusalNameOf is the contract name an error carries, and UnreadableBench for
+// an error that is not a refusal at all. The fallback names the condition every
+// non-refusal reaching this walk actually is, which is a workbench directory
+// the tool could not read past, so a row never carries an empty Refused while
+// also carrying no title.
+//
+// internal/verb/forest.go holds a copy of this function, spelled identically,
+// because the root-scoped reads need the same answer and an unexported helper
+// cannot cross a package boundary. Change one and change the other. The copy
+// exists rather than an exported name because naming it in bench's public
+// surface would publish an error-classification detail no caller outside these
+// two files has any use for.
+func refusalNameOf(err error) string {
+	if refusal, ok := err.(*contract.Refusal); ok {
+		return refusal.Name
+	}
+	return contract.UnreadableBench
 }
 
 // samePath reports whether two directory paths name the same directory. It
@@ -895,6 +1069,21 @@ type Candidate struct {
 	Slug string `json:"slug,omitempty"`
 	// Path is the workbench directory, which is what --workbench takes.
 	Path string `json:"path"`
+	// Refused is the refusal name a reader could not get past on its way to
+	// this workbench, a contract name such as dinah.unreadable-workbench. It
+	// says that the workbench itself would not read. It never carries a
+	// refusal raised by a question asked of a workbench that opened, because
+	// a workbench that read and then declined a read is a different fact
+	// about a different thing, and a root-scoped answer reports that one on a
+	// field of its own so that a client can tell the two apart without
+	// reading the refusal name.
+	//
+	// EnumerateDeep sets it on a directory the walk could not describe, whose
+	// Title and Slug are then both empty. A caller that describes a workbench
+	// and then cannot open it sets it too, and that row carries whatever
+	// identity the anchor already gave. Empty on every row Enumerate,
+	// Reachable or describe ever produced.
+	Refused string `json:"refused,omitempty"`
 }
 
 // describe reads one workbench's identity off its anchor without opening it.

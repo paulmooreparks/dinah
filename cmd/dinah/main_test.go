@@ -3781,7 +3781,7 @@ func TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses(t *testing.T) {
 // leading dash) refuses with dinah.usage naming that exact word, in place of
 // today's silent exit 0.
 func TestPlainWordBeyondAZeroBoundedCommandRefuses(t *testing.T) {
-	for _, name := range []string{"status", "columns", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+	for _, name := range []string{"status", "columns", "version", "export", "mcp", "check", "whoami"} {
 		t.Run(name, func(t *testing.T) {
 			wantUsage(t, runCLI(t, t.TempDir(), name, "somejunk"), "somejunk")
 		})
@@ -3812,6 +3812,11 @@ func TestPlainWordBeyondAOneBoundedCommandRefuses(t *testing.T) {
 		{"help", []string{"help", "claim"}},
 		{"extract", []string{"extract", filepath.Join(t.TempDir(), "out")}},
 		{"path", []string{"path", "fx-1"}},
+		// workbenches joined this table on dinah-281, which gave it a
+		// positional: the directory to walk downward from. Its own bounded
+		// slot is a path rather than a card reference, so the baseline call
+		// names a real directory.
+		{"workbenches", []string{"workbenches", t.TempDir()}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6524,8 +6529,8 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
 		"actor", "card", "column", "depth", "description", "expires",
-		"format", "from",
-		"group-by", "kind", "lang", "operator", "priority", "root",
+		"format", "from", "group-by", "kind", "lang", "max-depth",
+		"operator", "priority", "root",
 		"severity", "since", "slug", "workbench",
 	}
 	wantMarkers := []string{
