@@ -122,3 +122,137 @@ func TestParseArgsUnknownFlagStillRefusesWithTheDashHint(t *testing.T) {
 		t.Errorf("wanted the missing-value refusal to carry dashHint, got %v", refusal.Extra)
 	}
 }
+
+// TestScanLangFlagReadsOnlyALangThatIsAFlag asserts dinah-97's AC-7 and the
+// scan half of its AC-8: scanLangFlag reports a --lang only where walkFlags
+// places that word as a flag of its own, so a --lang standing in another
+// valued flag's value slot is not a language choice, wherever on the line it
+// falls. The table is driven against scanLangFlag rather than through the
+// CLI because a CLI comparison would turn on which refusal happens to fire
+// first rather than on what the scan read.
+func TestScanLangFlagReadsOnlyALangThatIsAFlag(t *testing.T) {
+	cases := []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{
+			name: "lang in state's value slot is state's value",
+			argv: []string{"move", "card1", "--state", "--lang", "de"},
+			want: "",
+		},
+		{
+			name: "an ordinary lang after a filled value slot still reads",
+			argv: []string{"move", "card1", "--state", "de", "--lang", "hi"},
+			want: "hi",
+		},
+		{
+			name: "lang in actor's value slot is actor's value",
+			argv: []string{"comment", "fx-1", "--actor", "--lang", "de"},
+			want: "",
+		},
+		{
+			name: "lang in a value slot past the word that fails to parse",
+			argv: []string{"--nosuchflag", "--state", "--lang", "de"},
+			want: "",
+		},
+		{
+			name: "lang written before the word that fails to parse",
+			argv: []string{"--lang", "de", "--nosuchflag"},
+			want: "de",
+		},
+		{
+			name: "lang written after the word that fails to parse",
+			argv: []string{"--nosuchflag", "--lang", "de"},
+			want: "de",
+		},
+		{
+			name: "the last complete lang on the line wins",
+			argv: []string{"--lang", "de", "--nosuchflag", "--lang", "hi"},
+			want: "hi",
+		},
+		{
+			name: "a lang with no value left is not reported",
+			argv: []string{"--nosuchflag", "--lang"},
+			want: "",
+		},
+		{
+			name: "a lang past the end-of-options marker is literal text",
+			argv: []string{"add", "--", "--lang", "de"},
+			want: "",
+		},
+		{
+			name: "an inline spelling reads its own value",
+			argv: []string{"--nosuchflag", "--lang=de"},
+			want: "de",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := scanLangFlag(c.argv); got != c.want {
+				t.Errorf("scanLangFlag(%v): wanted %q, got %q", c.argv, c.want, got)
+			}
+		})
+	}
+}
+
+// TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse asserts the claim the
+// two callers rest on, that scanLangFlag and parseArgs read one occurrence of
+// --lang the same way. Where the parse succeeds, parsed.value("lang") is the
+// answer scanLangFlag has to reach as well, since a disagreement there would
+// render an invocation's refusal in a language its own parse never asked for.
+func TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse(t *testing.T) {
+	lines := [][]string{
+		{"move", "card1", "--state", "--lang", "de"},
+		{"move", "card1", "--state", "de", "--lang", "hi"},
+		{"comment", "fx-1", "--actor", "--lang", "de"},
+		{"add", "--", "--lang", "de"},
+		{"ls", "--lang", "de", "--json"},
+		{"ls", "--lang=de"},
+		{"ls"},
+	}
+	for _, argv := range lines {
+		parsed, err := parseArgs(argv, testValued())
+		if err != nil {
+			t.Fatalf("parseArgs(%v): wanted no error, got %v", argv, err)
+		}
+		if got, want := scanLangFlag(argv), parsed.value("lang"); got != want {
+			t.Errorf("the two readings of %v disagree: scanLangFlag got %q, parseArgs got %q", argv, got, want)
+		}
+	}
+}
+
+// TestParseArgsRecordsNoDomainCaptureForASessionFlag asserts dinah-97's AC-9,
+// and it guards an invariant scanLangFlag depends on rather than one of its
+// own lines. resolveOpenTailFlags rewrites parsed.flags only through
+// domainCaptures, so a session flag that never enters that list is a flag no
+// free-text zone can move after walkFlags has read it. A change folding
+// session flags into domainCaptures fails here, on the day it is written,
+// instead of quietly handing an open-tail command a --lang it may rewrite.
+func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
+	valued := testValued()
+	// help and version reach parseArgs through askedFor rather than through
+	// the valued or marker branch, so they cannot produce a capture by any
+	// route and the five below are the whole of what this can guard.
+	for _, name := range []string{"workbench", "json", "quiet", "lang", "actor"} {
+		t.Run(name, func(t *testing.T) {
+			if !sessionFlagNames[name] {
+				t.Fatalf("%s is no longer a session flag, so this case is asserting nothing", name)
+			}
+			argv := []string{"--" + name}
+			if valued[name] {
+				argv = append(argv, "de")
+			}
+			parsed, err := parseArgs(argv, valued)
+			if err != nil {
+				t.Fatalf("parseArgs(%v): wanted no error, got %v", argv, err)
+			}
+			if !parsed.has(name) {
+				t.Fatalf("parseArgs(%v) did not record --%s at all, so this case is asserting nothing", argv, name)
+			}
+			if len(parsed.domainCaptures) != 0 {
+				t.Errorf("--%s was recorded as a domain capture (%d of them), which puts it within reach of resolveOpenTailFlags", name, len(parsed.domainCaptures))
+			}
+		})
+	}
+}

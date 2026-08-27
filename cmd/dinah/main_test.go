@@ -7457,3 +7457,105 @@ func TestEverySplicedFragmentCarriesItsOwnSeparator(t *testing.T) {
 		}
 	}
 }
+
+// usageRefusalIn composes the stderr a parse-time dinah.usage refusal prints
+// in one language, which is the refusal name, the sentence naming the word,
+// the next step, and the two-dash hint. The tests below compare against this
+// rather than against the absence of English, because the catalogs keep the
+// product name and the flag spellings in Latin script on purpose.
+func usageRefusalIn(r *msg.Renderer, detail string) string {
+	return contract.Usage + " " +
+		r.T("refusal.dinah.usage", "detail", detail) +
+		r.T("refusal.dinah.usage.next") +
+		r.T("refusal.dinah.usage.dash-hint") + "\n"
+}
+
+// TestLangFlagIsHonouredWhateverItsPosition asserts dinah-97's AC-1, AC-3,
+// AC-4 and the rendering half of its AC-8. A --lang written after the word
+// that fails to parse reaches the reader exactly as one written before it
+// does, so the same mistake typed in either order is answered in the same
+// language. DINAH_LANG is cleared and the fixture configures no lang, so the
+// German and Hindi answers below can only have come from the flag.
+func TestLangFlagIsHonouredWhateverItsPosition(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("DINAH_LANG", "")
+	german := msg.For("de")
+	hindi := msg.For("hi")
+	english := msg.For(msg.Base)
+	if usageRefusalIn(german, "--nosuchflag") == usageRefusalIn(english, "--nosuchflag") {
+		t.Fatalf("the fixture is not testing anything: de and en render this refusal the same way")
+	}
+
+	cases := []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{
+			name: "the flag ahead of the word that fails to parse",
+			argv: []string{"--lang", "de", "--nosuchflag"},
+			want: usageRefusalIn(german, "--nosuchflag"),
+		},
+		{
+			name: "the flag behind the word that fails to parse",
+			argv: []string{"--nosuchflag", "--lang", "de"},
+			want: usageRefusalIn(german, "--nosuchflag"),
+		},
+		{
+			name: "an incomplete flag behind it falls through to English",
+			argv: []string{"--nosuchflag", "--lang"},
+			want: usageRefusalIn(english, "--nosuchflag"),
+		},
+		{
+			name: "the last complete flag on the line wins",
+			argv: []string{"--lang", "de", "--nosuchflag", "--lang", "hi"},
+			want: usageRefusalIn(hindi, "--nosuchflag"),
+		},
+		{
+			name: "a flag in a value slot behind it is not a language choice",
+			argv: []string{"--nosuchflag", "--state", "--lang", "de"},
+			want: usageRefusalIn(english, "--nosuchflag"),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := runCLI(t, root, c.argv...)
+			if got.code != 2 {
+				t.Fatalf("dinah %s exited %d, wanted 2", strings.Join(c.argv, " "), got.code)
+			}
+			if got.errw != c.want {
+				t.Errorf("dinah %s printed the wrong refusal:\n got  %q\n want %q", strings.Join(c.argv, " "), got.errw, c.want)
+			}
+			if strings.Count(got.errw, "--lang") != 0 {
+				t.Errorf("dinah %s raised a second complaint about --lang: %q", strings.Join(c.argv, " "), got.errw)
+			}
+		})
+	}
+}
+
+// TestLangPastTheEndOfOptionsMarkerIsLiteralText asserts dinah-97's AC-5: the
+// scan that reads --lang stops at the POSIX marker exactly as the parse does,
+// so `dinah add -- --lang de` hands both words to add as its title and is
+// answered in English. Two words in that slot is itself a refusal under
+// dinah-100's one-word rule, which is what this reads back.
+func TestLangPastTheEndOfOptionsMarkerIsLiteralText(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("DINAH_LANG", "")
+	german := msg.For("de")
+	english := msg.For(msg.Base)
+	if german.T("slot.title") == english.T("slot.title") {
+		t.Fatalf("the fixture is not testing anything: de and en render slot.title the same way")
+	}
+
+	got := runCLI(t, root, "add", "--", "--lang", "de")
+	if got.code != 2 {
+		t.Fatalf("dinah add -- --lang de exited %d, wanted 2", got.code)
+	}
+	wantSentence := english.T("refusal.dinah.multiple-words", "count", "2", "label", english.T("slot.title"))
+	if !strings.Contains(got.errw, wantSentence) {
+		t.Errorf("the refusal should be the English multiple-words sentence:\n got      %q\n wanted a %q", got.errw, wantSentence)
+	}
+	if strings.Contains(got.errw, german.T("slot.title")) {
+		t.Errorf("a --lang past the marker set the language anyway: %q", got.errw)
+	}
+}
