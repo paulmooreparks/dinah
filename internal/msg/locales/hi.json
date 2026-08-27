@@ -2767,13 +2767,13 @@
       "source": "7670387210ff58cf"
     },
     "check.mcp.1": {
-      "text": "--root जिस डायरेक्टरी को नामता है वह फ़ाइल सिस्टम रखता है",
-      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
-      "source": "de3b44cbfc03156a"
+      "text": "--root जिस डायरेक्टरी को नामता है वह मौजूद है",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "source": "cb1cd98b0eaed2b8"
     },
     "check.mcp.2": {
       "text": "आप जिस वर्कबेंच को नामते हैं वह रूट के नीचे है",
-      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root.",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "source": "af2ab98a7a859f37"
     },
     "tool.workbenches.summary": {
