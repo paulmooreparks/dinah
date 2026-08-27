@@ -518,6 +518,15 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 // restating the rule on the expected side. A rule written in two places is a
 // rule that drifts.
 //
+// One consequence of that belongs here rather than only at the call site. The
+// row sweep in cmd/dinah cannot catch this function drawing the wrong states,
+// because it moves the expectation and the output together, so a green sweep
+// says nothing about the rule below. What holds this function honest is
+// TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty, which pins the
+// declared half, and TestABlockedCardAtAQueueColumnStillDrawsItsGroup, which
+// pins the carried half, both in tree_test.go and both naming the states they
+// want as literals. Change the rule here and read those two.
+//
 // The vocabulary splits three ways. A state the column declares is drawn
 // whether or not a card stands in it, because an empty ready group tells a
 // reader work is waiting and nobody has taken it up. Blocked is the exception
@@ -622,12 +631,13 @@ func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.
 //
 // The state axis answers for one column rather than for the whole workbench,
 // because which states a card may carry is a property of where it stands. A
-// column that takes no work up holds no active card, so drawing an active group
-// beneath one invites a reader to ask what would put a card there when the
-// answer is that nothing can. columnCtx is the value of the nearest column group
-// above this one and governs the enumeration through States. Where it is
-// empty, and where it names a column the workbench no longer declares, the
-// answer is stateUnion.
+// column where nobody with access to the workbench takes work up declares none
+// of the three, so this function answers emptily for one, and every state group
+// beneath such a column is drawn by occupancy through StatesDrawn's carried
+// half rather than by a declaration. columnCtx is the value of the nearest
+// column group above this one and governs the enumeration through States.
+// Where it is empty, and where it names a column the workbench no longer
+// declares, the answer is stateUnion.
 //
 // It is what the workbench says, rather than the whole of what the tree draws.
 // A value no longer declared, and the absent value a card carrying nothing on
@@ -661,9 +671,10 @@ func (l *Library) declaredValues(axis, columnCtx string) []string {
 // passing through column, and a group standing at a column ref the workbench no
 // longer declares. Such a group still has to say what its closed axis holds,
 // and the union is the widest answer that never offers a value no column on this
-// workbench can reach. On a workbench where no column takes work up, no active
-// group is drawn anywhere, which is the question this whole enumeration exists
-// to answer correctly.
+// workbench can reach. On a workbench where nobody takes work up at any column,
+// every column declares nothing and so the union is empty, which leaves such a
+// tree drawing the states its cards actually stand in and no others. That is
+// the question this whole enumeration exists to answer correctly.
 func (l *Library) stateUnion() []string {
 	held := map[string]bool{}
 	for _, column := range l.Bench.Columns {

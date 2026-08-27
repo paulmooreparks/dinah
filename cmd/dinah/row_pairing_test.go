@@ -1753,6 +1753,31 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 // it, and this fixture's Intake column is one of those with a card standing
 // ready in it. Restating any of that here would put the rule in a second place
 // and let the expected side drift away from the tree it predicts.
+//
+// Delegating costs this sweep one thing, and a reader has to know exactly
+// which, because the loss is narrower than "this test covers less now" and
+// wider than nothing. The sweep can no longer catch a verb.StatesDrawn that
+// draws the wrong states. Both the expectation and the head under test call
+// that one function, so a rule broken inside it moves both sides together and
+// the rows still agree. Reversing the order StatesDrawn emits its vocabulary
+// in leaves this sweep green, which was checked rather than assumed.
+//
+// One class of break does still redden here, and it reddens for a reason worth
+// naming so that a green run is not read as more than it is. A break that
+// empties the answer altogether leaves the fixture with no state row to
+// compare, and the pairing guard above fails on the missing comparison rather
+// than on any disagreement about states. That is coverage firing, not this
+// helper catching a wrong answer.
+//
+// What the sweep still catches on its own terms is everything between
+// StatesDrawn's answer and the rendered row: a column dropped from the head, a
+// card filed under the wrong group, a row that starts its columns at the wrong
+// display column. StatesDrawn's own answer is pinned against literal expected
+// values elsewhere, by TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty
+// and TestABlockedCardAtAQueueColumnStillDrawsItsGroup in
+// internal/verb/tree_test.go. Those two name the states they want instead of
+// asking the rule for them, and the order break above reddens both by name.
+// Change the rule and read those two, not this.
 func sweptStates(column sweptColumnRecord, held []sweptCardRecord) []string {
 	return verb.StatesDrawn(column.column().States(), func(state string) bool {
 		return sweptAnyStanding(held, state)

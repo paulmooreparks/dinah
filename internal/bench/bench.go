@@ -196,7 +196,7 @@ func (s *Column) PullCanTakeFrom() bool {
 //
 // A column where an owner takes work up holds all three. That is a plain work
 // column, and it is also a column carrying a kind this build does not
-// implement, which CORE-STATE-11 reads as a work column.
+// implement, which CORE-STATE-12 reads as a work column.
 //
 // A column where nobody with access to the workbench takes work up holds none
 // of the three. That is an intake column, a done column, a buffer, and any
