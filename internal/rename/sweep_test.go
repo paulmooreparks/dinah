@@ -635,6 +635,26 @@ func TestReportNamesItsOwnSize(t *testing.T) {
 	}
 }
 
+// TestReportCountsOneOfSomethingInTheSingular asserts that the header does not
+// say "1 replacements". A rename in a language that inflects is swept once per
+// form, and those extra runs turn up single replacements routinely, so the
+// singular case is the ordinary one rather than a curiosity.
+func TestReportCountsOneOfSomethingInTheSingular(t *testing.T) {
+	result := Result{
+		Replacements: []Replacement{
+			{File: "hi.json", Line: 1609, Preceding: "अधिक", Following: "में", New: "कॉलमों", Excerpt: "एक से अधिक कॉलमों में"},
+		},
+	}
+	var out strings.Builder
+	if err := Report(&out, result, "स्तंभों", "कॉलमों", false); err != nil {
+		t.Fatalf("Report: %v", err)
+	}
+	want := "1 replacement of \"स्तंभों\" by \"कॉलमों\", in 1 group by surrounding phrase"
+	if !strings.HasPrefix(out.String(), want) {
+		t.Errorf("wanted the header %q, got %q", want, firstLine(out.String()))
+	}
+}
+
 // TestReportListsEverySiteWhenAsked asserts that --all reaches the sites a
 // bucket's one example hides. A bucket whose phrase is ambiguous in English is
 // settled by reading its sites, and this is how a reader reaches them.

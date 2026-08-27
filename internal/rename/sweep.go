@@ -292,11 +292,11 @@ func (b Bucket) Label() string {
 func Report(w io.Writer, result Result, retired, adopted string, all bool) error {
 	buckets := Buckets(result.Replacements)
 	header := fmt.Sprintf(
-		"%d replacements of %q by %q, in %d groups by surrounding phrase, rarest first\n",
-		len(result.Replacements),
+		"%s of %q by %q, in %s by surrounding phrase, rarest first\n",
+		counted(len(result.Replacements), "replacement"),
 		retired,
 		adopted,
-		len(buckets),
+		counted(len(buckets), "group"),
 	)
 	if _, err := io.WriteString(w, header); err != nil {
 		return err
@@ -329,13 +329,21 @@ func Report(w io.Writer, result Result, retired, adopted string, all bool) error
 	return nil
 }
 
-// sites counts a group's sites in words, so that a group holding one of them
-// does not report itself in the plural.
-func sites(n int) string {
+// counted spells a count beside its noun, so that a report holding one of
+// something does not describe it in the plural. Every noun this report counts
+// takes a plain trailing s, which is why nothing here consults a catalog: this
+// tool maintains the repository and is never translated.
+func counted(n int, noun string) string {
 	if n == 1 {
-		return "1 site"
+		return fmt.Sprintf("%d %s", n, noun)
 	}
-	return fmt.Sprintf("%d sites", n)
+	return fmt.Sprintf("%d %ss", n, noun)
+}
+
+// sites counts a group's sites, which is counted with the noun this report
+// reaches for most often.
+func sites(n int) string {
+	return counted(n, "site")
 }
 
 // siteLine renders one replacement as a location and an excerpt.
