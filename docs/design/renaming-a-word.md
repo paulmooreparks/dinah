@@ -140,9 +140,10 @@ against the comment marker that opens its line. A line beginning
 and each of those is opened by hand, because a run the instrument skipped
 is exactly where a defect would survive it. That line names the retired
 term beside the file, since a run is declined for its size alone and the
-file it names is often unrelated to the rename being swept. Without the
-term the line reads as news about somebody else's file, and the reader
-has no way to tell that their own search went unanswered inside it.
+file it names need not have anything to do with the rename being swept.
+Without the term the line reads as news about somebody else's file, and
+the reader has no way to tell that their own search went unanswered
+inside it.
 
 ## What the pass does not do
 
@@ -188,17 +189,29 @@ reader could assume more than the tool delivers.
   backstop described in "A zero the diff contradicts" below, so a run
   that could not read the rename ordinarily says so rather than answering
   zero. The guarantee lapses in one case, and it is worth being able to
-  recognise from the report alone. The backstop fires only where the
-  sweep declined nothing else, so a range that also carries an unrelated
-  run too large to align lets the zero through: the report then holds a
-  zero, no groups at all, and an "unaligned run" line naming a file with
-  nothing to do with the rename. This repository's JSON catalogs are the
-  file shape that trips the cap, so a rename swept over a range that also
-  touches a large catalog edit lands there. The line carries the retired
-  term, which is the signal that the term went uncounted rather than
-  unfound, and the way out is to narrow the range until nothing is
-  declined, or to read the diff by hand. A card renaming a word in such a
-  script reads its diff by hand in any case.
+  recognise that case from the report alone. The backstop fires only
+  where the sweep declined nothing else, so a range that also carries an
+  unrelated run too large to align lets the zero through: the report then
+  holds a zero, no groups at all, and an "unaligned run" line naming a
+  file with nothing to do with the rename. A run is declined on size
+  alone, because the cap multiplies the changed tokens on the two sides
+  of one run of changed lines and asks nothing about what kind of file
+  they came from. A run whose two sides differ only where the rename
+  touched them never reaches the cap, since it is aligned index for index
+  before the cap is consulted, so even a catalog rewritten on every line
+  goes through. This card's own Hindi rename swept 172 changed lines of
+  `internal/msg/locales/hi.json` and declined nothing. What does reach
+  the cap is a single run of roughly eighty rewritten lines or more that
+  carries edits the rename does not explain, which no catalog edit swept
+  on this repository has yet produced. The only place the cap has fired
+  is the worst case constructed for it in
+  `TestSweepReportsARunItCannotAlign`, which repeats one phrase four
+  hundred times on a line and rewrites the tail of that line. The
+  unaligned line carries the retired term, which is the signal that the
+  term went uncounted rather than unfound, and the way out is to narrow
+  the range until nothing is declined, or to read the diff by hand. A
+  card renaming a word in such a script reads its diff by hand in any
+  case.
 - The sweep reports and does not know which sense a group means. Nothing
   in it understands English or Hindi, and the counts and the ordering are
   the whole of its contribution.
