@@ -187,6 +187,29 @@ test("exactly one welcome block matches in every state a window can be in", () =
 	}
 });
 
+test("no welcome block is reachable in the state the tree renders for", () => {
+	// The companion to the exclusion above, and the half that does the work.
+	// everyState() skips this state, so the exactly-one loop cannot see a
+	// block written for it, and a block put back here would be text no reader
+	// reaches sitting in the manifest with nothing to notice it. Asserting
+	// zero matches is what notices.
+	//
+	// This also pins the delta the removal was specified as. Every other state
+	// must still match exactly one block, so a block added for another state,
+	// or one removed from another state, is caught by the loop above; a block
+	// added back for this one is caught here. Between them the array cannot
+	// change by anything but the one entry this card took out, and neither
+	// assertion goes stale when an unrelated card edits the manifest.
+	const matched = welcomeBlocks().filter((block) =>
+		evaluate(block.when, TREE_RENDERS_INSTEAD),
+	);
+	assert.deepEqual(
+		matched.map((block) => block.when),
+		[],
+		"a welcome block matches the state DinahTreeProvider always draws rows in",
+	);
+});
+
 test("each resolved state renders its own text, and none renders the still-looking text", () => {
 	// The four states the spec names, plus the interval before activate() has
 	// set either key. Each of the five reaches different contents, so no
