@@ -5,8 +5,8 @@
 // and a word that carries two senses gets replaced in both. Dinah renamed the
 // board position from "state" to "column", and "state" also means the
 // condition a thing is in, so sentences about the condition a checklist item
-// is in came out talking about a board column. Fifteen sentences went that way
-// and every one of them was found by eye.
+// is in came out talking about a board column. Twenty sentences went that way,
+// and the first eleven were found by a person reading the diff by eye.
 //
 // Neither obvious instrument finds them. Searching the tree for the retired
 // word finds the places the rename missed rather than the places it overshot,

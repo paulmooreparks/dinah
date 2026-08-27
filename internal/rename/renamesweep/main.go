@@ -19,8 +19,8 @@
 // looks wrong. Paths after the flags become a git pathspec, which narrows the
 // sweep to part of the tree.
 //
-// See docs/renaming-a-word.md for when this is run and what the reader is
-// looking for.
+// See docs/design/renaming-a-word.md for when this is run and what the reader
+// is looking for.
 package main
 
 import (
