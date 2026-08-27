@@ -1368,3 +1368,90 @@ func TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenState(t *test
 		}
 	}
 }
+
+// TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty is dinah-322 AC-3 and
+// AC-4. Nobody with access to the workbench claims a card standing at an
+// intake column, at a buffer, at a done column, or at a column waiting on
+// somebody outside, so a state breakdown beneath one of those tells a reader
+// nothing and is not drawn. A station is the contrasting half: it draws ready
+// and active whether or not a card stands in either, which is what stops this
+// test passing on an implementation that dropped the declared-group promise
+// everywhere rather than only where no work is taken up.
+func TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty(t *testing.T) {
+	t.Run("an intake column, a buffer and a done column", func(t *testing.T) {
+		h := newBufferHarness(t)
+		ref := h.add("moved off the queue columns")
+		h.at(ref, bufferDoing)
+
+		built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+		for _, column := range []string{bufferIntakeSlug, bufferQueueSlug, bufferDoneSlug} {
+			group := groupAt(t, built.Root, column)
+			if len(group.Children) != 0 {
+				t.Errorf("the %s column draws the state groups %v and holds no card",
+					column, groupValues(group))
+			}
+		}
+		doing := groupAt(t, built.Root, bufferDoingSlug)
+		want := []string{contract.StateReady, contract.StateActive}
+		if got := groupValues(doing); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("the doing column draws the state groups %v and a station always draws %v",
+				got, want)
+		}
+	})
+
+	t.Run("a station waiting on somebody outside", func(t *testing.T) {
+		h := newBufferHarness(t)
+		h.declare(bufferDoing, "awaiting_outside", "true")
+		ref := h.add("waiting on the customer")
+
+		built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+		waiting := groupAt(t, built.Root, bufferDoingSlug)
+		if len(waiting.Children) != 0 {
+			t.Errorf("the doing column waits on somebody outside and draws the state groups %v",
+				groupValues(waiting))
+		}
+		standing := groupAt(t, built.Root, bufferIntakeSlug)
+		want := []string{contract.StateReady}
+		if got := groupValues(standing); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("the intake column holds %s and draws the state groups %v rather than %v",
+				ref, got, want)
+		}
+	})
+}
+
+// TestABlockedCardAtAQueueColumnStillDrawsItsGroup is dinah-322 AC-5. A column
+// where no work is taken up declares no state at all, so the groups the cards
+// standing there draw come from StatesDrawn's carried case rather than from a
+// declaration. Without this test an implementation could satisfy the test above
+// by refusing to draw any state group beneath such a column at all, which would
+// drop a card out of a tree whose root count still includes it.
+//
+// Two cards stand at the column, one ready and one blocked, and the order the
+// groups come in is asserted along with their presence. One card alone would
+// not hold the carried case to account, because axisValueOrder's own carried
+// loop would draw a lone group whatever StatesDrawn answered. That loop sorts
+// what it draws by the value's bytes, so it puts blocked before ready, and the
+// state axis has one order wherever a reader meets it.
+func TestABlockedCardAtAQueueColumnStillDrawsItsGroup(t *testing.T) {
+	h := newBufferHarness(t)
+	stopped := h.add("blocked while waiting")
+	h.at(stopped, bufferQueue)
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	waiting := h.add("still waiting its turn")
+	h.at(waiting, bufferQueue)
+
+	built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+	group := groupAt(t, built.Root, bufferQueueSlug)
+	want := []string{contract.StateReady, contract.StateBlocked}
+	if got := groupValues(group); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("the waiting column draws the state groups %v and two cards stand there at %v",
+			got, want)
+	}
+	for state, ref := range map[string]string{contract.StateReady: waiting, contract.StateBlocked: stopped} {
+		refs := leafRefs(groupAt(t, group, state))
+		if len(refs) != 1 || refs[0] != ref {
+			t.Errorf("the %s group of the waiting column draws the cards %v and %s stands there",
+				state, refs, ref)
+		}
+	}
+}

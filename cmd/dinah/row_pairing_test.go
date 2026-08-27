@@ -1743,22 +1743,20 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 // in the order it draws them, which is the order the contract declares them in
 // rather than an order this fixture chose.
 //
-// The set is not the same under every column, and the two reasons it varies are
-// different in kind. A column that takes no work up holds no active card, so no
-// active group is drawn beneath one, and the expected side asks the head's own
-// predicate that question rather than restating which kinds those are. A
-// blocked group is drawn only where a card actually stands blocked, whatever
-// the column could hold, because a block is the exception and a blocked group
-// reading zero under every column reports the ordinary case on every row.
+// The set is not the same under every column, and the expected side asks the
+// head's own rule rather than restating it. verb.StatesDrawn is that rule and
+// is where its three cases are written down: a state the column declares is
+// drawn whether or not a card stands in it, blocked is drawn only where a card
+// actually stands blocked, and a state the column declares none of is drawn
+// only where a card actually stands in it. A column where nobody with access to
+// the workbench takes work up declares nothing, so only the last case reaches
+// it, and this fixture's Intake column is one of those with a card standing
+// ready in it. Restating any of that here would put the rule in a second place
+// and let the expected side drift away from the tree it predicts.
 func sweptStates(column sweptColumnRecord, held []sweptCardRecord) []string {
-	var drawn []string
-	for _, state := range column.column().States() {
-		if state == contract.StateBlocked && !sweptAnyStanding(held, state) {
-			continue
-		}
-		drawn = append(drawn, state)
-	}
-	return drawn
+	return verb.StatesDrawn(column.column().States(), func(state string) bool {
+		return sweptAnyStanding(held, state)
+	})
 }
 
 // sweptAnyStanding reports whether any of the cards stands in one state.

@@ -189,11 +189,32 @@ func (s *Column) PullCanTakeFrom() bool {
 	return !s.Terminal() && !s.AwaitingOutside
 }
 
-// States returns the states a card standing at this column may carry,
-// in the order ready, active, blocked. A column that takes work up holds all
-// three; a column that does not holds ready and blocked, because a block is
-// a statement about the card rather than about a worker and stays
-// meaningful wherever the card stands.
+// States returns the states a card standing at this column may carry, in the
+// order ready, active, blocked. The answer turns on the one question
+// TakesWorkUp already asks, so every kind the profile admits is covered by
+// that predicate rather than named a second time here.
+//
+// A column where an owner takes work up holds all three. That is a plain work
+// column, and it is also a column carrying a kind this build does not
+// implement, which CORE-STATE-11 reads as a work column.
+//
+// A column where nobody with access to the workbench takes work up holds none
+// of the three. That is an intake column, a done column, a buffer, and any
+// column marked awaiting_outside whatever its kind. A card standing at one of
+// those is waiting rather than being worked, because nobody claims it there.
+// An unoccupied ready group beneath such a column would tell a reader work is
+// waiting for somebody to pick it up when nothing at that column ever will be
+// picked up, and an unoccupied active group would invite the reader to ask
+// what could put a card there when the answer is that nothing can. A column
+// waiting on somebody outside belongs with the rest even though a person does
+// eventually act on the card, since that person has no access to the workbench
+// and takes no work up on it.
+//
+// Declaring nothing never drops a card out of a view. A card standing at such
+// a column and genuinely carrying one of the three, ready by the default every
+// new card starts with, or blocked because a block may land wherever a card
+// stands, is still drawn where a grouped view groups it, through the carried
+// half of the rule StatesDrawn in internal/verb states.
 //
 // The slice is fresh on each call, so a caller may sort or trim it without
 // reaching the next caller.
@@ -201,7 +222,7 @@ func (s *Column) States() []string {
 	if s.TakesWorkUp() {
 		return []string{contract.StateReady, contract.StateActive, contract.StateBlocked}
 	}
-	return []string{contract.StateReady, contract.StateBlocked}
+	return nil
 }
 
 // HoldsState reports whether a card standing at this column may carry the
