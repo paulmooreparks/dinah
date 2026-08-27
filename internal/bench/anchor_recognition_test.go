@@ -17,7 +17,7 @@ import (
 const foreignAnchor = "# Notes\n\nJust some notes, unrelated to any workbench.\n"
 
 // TestAForeignAnchorDoesNotStopTheClimb asserts AC-1: a directory holding a
-// workbench.md that carries none of profile, format or states sitting below
+// workbench.md that carries none of profile, format or columns sitting below
 // a real workbench no longer stops the ancestor walk. The command run from
 // inside it resolves the ancestor workbench instead of refusing over the
 // foreign file, and the foreign file is reported back as passed over.
@@ -41,14 +41,14 @@ func TestAForeignAnchorDoesNotStopTheClimb(t *testing.T) {
 }
 
 // TestARecognizedButDamagedAnchorStillStopsTheClimb asserts AC-2: a directory
-// whose workbench.md carries format or states but not profile is still
+// whose workbench.md carries format or columns but not profile is still
 // recognized, so the climb stops there rather than passing it over, and Open
 // refuses over it with the exact wording the format's malformed refusal has
 // always carried.
 func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 	outer := t.TempDir()
 	write(t, filepath.Join(outer, WorkbenchAnchor), benchDefinition)
-	damaged := strings.Replace(benchDefinition, "profile: dinah-core/1.0\n", "", 1)
+	damaged := strings.Replace(benchDefinition, "profile: dinah-core/0.7\n", "", 1)
 	inner := filepath.Join(outer, "damaged")
 	write(t, filepath.Join(inner, WorkbenchAnchor), damaged)
 
@@ -77,16 +77,41 @@ func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 }
 
 // TestARecognizedAnchorStopsTheClimbOnProfileAlone asserts AC-3: an anchor
-// carrying profile and nothing else that format or states would have
+// carrying profile and nothing else that format or columns would have
 // declared stops the climb exactly as before, since profile alone already
 // claims the directory.
 func TestARecognizedAnchorStopsTheClimbOnProfileAlone(t *testing.T) {
 	root := t.TempDir()
-	write(t, filepath.Join(root, WorkbenchAnchor), "---\nprofile: dinah-core/1.0\n---\n")
+	write(t, filepath.Join(root, WorkbenchAnchor), "---\nprofile: dinah-core/0.7\n---\n")
 
 	found, passed, err := Discover(root, "", "", "")
 	if err != nil {
 		t.Fatalf("an anchor declaring profile should stop the climb, got %v", err)
+	}
+	if found != root {
+		t.Errorf("wanted %q, got %q", root, found)
+	}
+	if len(passed) != 0 {
+		t.Errorf("a recognized anchor is not passed over, got %v", passed)
+	}
+}
+
+// TestARecognizedAnchorStopsTheClimbOnTheColumnSequenceAlone asserts
+// dinah-287 AC-19: the key Recognized tests beside profile and format is
+// columns, the name that sequence took at the vocabulary rename, so an anchor
+// carrying only that sequence claims its directory.
+//
+// The other tests in this file all write a profile, which is the arm of
+// Recognized that answers first, so none of them can tell which name the third
+// arm reads. This one writes no profile at all, which is what makes it the
+// test that fails when the arm names the retired key.
+func TestARecognizedAnchorStopsTheClimbOnTheColumnSequenceAlone(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, WorkbenchAnchor), "---\ntitle: Sequence only\ncolumns:\n  - b00000000001\n---\n")
+
+	found, passed, err := Discover(root, "", "", "")
+	if err != nil {
+		t.Fatalf("an anchor declaring a column sequence should stop the climb, got %v", err)
 	}
 	if found != root {
 		t.Errorf("wanted %q, got %q", root, found)

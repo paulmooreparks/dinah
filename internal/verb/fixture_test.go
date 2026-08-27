@@ -13,7 +13,7 @@ import (
 	"dinah/internal/contract"
 )
 
-// The identifiers of the fixture's five states, which the tests name
+// The identifiers of the fixture's five columns, which the tests name
 // directly. They are fixed rather than minted so that a test can assert an
 // ordering without first reading the bench back.
 const (
@@ -24,27 +24,27 @@ const (
 	aftercare = "a00000000005"
 	closed    = "a00000000006"
 
-	// aftercareSlug is what a person types for the aftercare state, derived
+	// aftercareSlug is what a person types for the aftercare column, derived
 	// from its fixture title the same way Instantiate derives it at
-	// creation. A refusal naming the state names it by this slug, not by
+	// creation. A refusal naming the column names it by this slug, not by
 	// the raw identifier above.
 	aftercareSlug = "aftercare"
 )
 
 // fixtureDefinition is the interchange form of the bench every test starts
 // from: an intake station, a working station limited to one card, an
-// operator-owned review station, a fourth station, and two done states, so
-// that a forward move out of a done state is reachable.
+// operator-owned review station, a fourth station, and two done columns, so
+// that a forward move out of a done column is reachable.
 //
-// The two done states stand together at the end because a done state stands
+// The two done columns stand together at the end because a done column stands
 // in the terminal region of the flow and nothing that is not done stands
-// after one. A fixture that reached a forward move out of a done state by
+// after one. A fixture that reached a forward move out of a done column by
 // putting an ordinary station past it would be a board dinah check reports.
 const fixtureDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Fixture",
   "instructions": "The standing text of this workbench.\n",
-  "states": [
+  "columns": [
     { "id": "a00000000001", "title": "Intake", "kind": "intake",
       "instructions": "Intake instructions.\n" },
     { "id": "a00000000002", "title": "Doing", "kind": "work", "capacity": 1,
@@ -129,7 +129,7 @@ func (h *harness) add(title string) string {
 
 // ready files a card and leaves it standing ready at the aftercare station,
 // which is where a test that goes on to claim it needs the card: no owner
-// takes work up at an intake state, so a claim there is refused. Aftercare is
+// takes work up at an intake column, so a claim there is refused. Aftercare is
 // the fixture's one plain station with no capacity limit and no operator
 // owner, so a card parked there meets no other row of the move's list on the
 // way.
@@ -140,10 +140,10 @@ func (h *harness) ready(title string) string {
 
 // readyAt is ready with the station named, for a test whose own subject is
 // the station ready would otherwise have parked the card at.
-func (h *harness) readyAt(title, state string) string {
+func (h *harness) readyAt(title, column string) string {
 	h.t.Helper()
 	ref := h.add(title)
-	h.at(ref, state)
+	h.at(ref, column)
 	return ref
 }
 

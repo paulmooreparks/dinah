@@ -25,8 +25,8 @@ type Matches struct {
 // so a name absent from this list is refused whatever a card carries in its
 // frontmatter.
 const (
+	FieldColumn     = "column"
 	FieldState      = "state"
-	FieldSubstate   = "substate"
 	FieldSeverity   = bench.SeverityField
 	FieldPriority   = bench.PriorityField
 	FieldHolder     = "holder"
@@ -41,10 +41,10 @@ const (
 
 // QueryFields lists the twelve legal field names in the order the spec's
 // field table states them, which is the order a refusal lists them back to a
-// reader. severity and priority sit between substate and holder, matching the
+// reader. severity and priority sit between state and holder, matching the
 // order CardView already reports a card in.
 var QueryFields = []string{
-	FieldState, FieldSubstate, FieldSeverity, FieldPriority, FieldHolder,
+	FieldColumn, FieldState, FieldSeverity, FieldPriority, FieldHolder,
 	FieldBlockKind, FieldWorkstream, FieldActor, FieldEvent, FieldEntered,
 	FieldLeft, FieldAt,
 }
@@ -206,7 +206,7 @@ func (q *query) append(t term) {
 
 // all returns a pointer to every term of the query, card plane first, which is
 // the order the checks read them in. The pointers are what lets check 5
-// rewrite a state-valued term's parts to the identifiers they resolved to.
+// rewrite a column-valued term's parts to the identifiers they resolved to.
 func (q *query) all() []*term {
 	terms := make([]*term, 0, len(q.cardTerms)+len(q.actTerms))
 	for i := range q.cardTerms {
@@ -427,15 +427,15 @@ func (l *Library) checkVocabularies(q *query) error {
 		}
 	}
 	for _, t := range q.all() {
-		if !stateValued(t.field) || t.empty {
+		if !columnValued(t.field) || t.empty {
 			continue
 		}
 		for i, value := range t.values {
-			state := l.Bench.StateByRef(value)
-			if state == nil {
-				return contract.Refuse(contract.UnknownState, value)
+			column := l.Bench.ColumnByRef(value)
+			if column == nil {
+				return contract.Refuse(contract.UnknownColumn, value)
 			}
-			t.values[i] = state.ID
+			t.values[i] = column.ID
 		}
 	}
 	return nil
@@ -448,18 +448,18 @@ func (l *Library) checkVocabularies(q *query) error {
 // open-valued; at is validated by its own parse instead.
 func closedValues(field string) []string {
 	switch field {
-	case FieldSubstate:
-		return []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+	case FieldState:
+		return []string{contract.StateReady, contract.StateActive, contract.StateBlocked}
 	case FieldEvent:
 		return contract.Events
 	}
 	return nil
 }
 
-// stateValued reports whether a field's value names a state of the workbench,
-// which is the condition ls already reports as unknown-state.
-func stateValued(field string) bool {
-	return field == FieldState || field == FieldEntered || field == FieldLeft
+// columnValued reports whether a field's value names a column of the workbench,
+// which is the condition ls already reports as unknown-column.
+func columnValued(field string) bool {
+	return field == FieldColumn || field == FieldEntered || field == FieldLeft
 }
 
 // checkWorkstreams runs check 6, the first of two checks that read the cards
@@ -468,8 +468,8 @@ func stateValued(field string) bool {
 //
 // The roster half of the cards is every identifier at least one live card
 // lists, read from every live card rather than from the cards the query's
-// other terms leave, so `state:done workstream:a` refuses a workstream nothing
-// lists rather than refusing one that only a card in another state lists. The
+// other terms leave, so `column:done workstream:a` refuses a workstream nothing
+// lists rather than refusing one that only a card in another column lists. The
 // archive is out of reach, so an identifier only an archived card carries is
 // not in the roster.
 //
@@ -709,10 +709,10 @@ func (l *Library) actMatches(q *query, event bench.Event) bool {
 // `workstream!=X` stays the exact complement of `workstream:X`.
 func (l *Library) cardValues(field string, card *bench.Card) []string {
 	switch field {
+	case FieldColumn:
+		return []string{card.Column}
 	case FieldState:
 		return []string{card.State}
-	case FieldSubstate:
-		return []string{card.Substate}
 	case FieldSeverity:
 		return []string{card.Severity}
 	case FieldPriority:
@@ -731,7 +731,7 @@ func (l *Library) cardValues(field string, card *bench.Card) []string {
 }
 
 // actValues is what one recorded act carries under an act-plane field. entered
-// reads the state the act moved the card into and left the state it moved the
+// reads the column the act moved the card into and left the column it moved the
 // card out of, so an act that moved the card nowhere, which a comment and an
 // attachment both are, carries the empty value under each.
 func (l *Library) actValues(field string, event bench.Event) []string {

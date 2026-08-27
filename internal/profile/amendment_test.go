@@ -18,12 +18,12 @@ import (
 const (
 	// declaredVersion is the version sentence of section 2, in full, so a
 	// bump cannot slip through as a one-character diff.
-	declaredVersion = "This document is version 0.6 of the profile whose identity string is\n`dinah-core`."
+	declaredVersion = "This document is version 0.7 of the profile whose identity string is\n`dinah-core`."
 	// publishedStatements is how many statements the document publishes.
 	publishedStatements = 129
 	// publishedChangelogEntries is how many entries section 12 carries. The
 	// changelog is append-only under DOC-CHG-1, so this number never falls.
-	publishedChangelogEntries = 6
+	publishedChangelogEntries = 7
 )
 
 // changelogEntry matches an entry heading of section 12, which carries the
@@ -60,7 +60,7 @@ func TestTheBoundaryRowForWaitingOnSomebodyOutsideStands(t *testing.T) {
 	rows := BoundaryTable(readProfile(t))
 	var row *BoundaryRow
 	for i := range rows {
-		if rows[i].Item == "A state where the workbench waits on somebody outside it" {
+		if rows[i].Item == "A column where the workbench waits on somebody outside it" {
 			row = &rows[i]
 		}
 	}
@@ -73,7 +73,7 @@ func TestTheBoundaryRowForWaitingOnSomebodyOutsideStands(t *testing.T) {
 	for _, wanted := range []string{
 		"a distinct kind would still add machinery for the same result",
 		"nothing joins the core vocabulary that did not work somewhere first",
-		"as a property of a state rather than a kind of state",
+		"as a property of a column rather than a kind of column",
 	} {
 		if !strings.Contains(row.Reason, wanted) {
 			t.Errorf("the row's reason does not carry %q", wanted)

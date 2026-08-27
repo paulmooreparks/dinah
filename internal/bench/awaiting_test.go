@@ -11,13 +11,13 @@ import (
 	"dinah/internal/contract"
 )
 
-// waitingDefinition is a two-state workbench whose second station waits on
+// waitingDefinition is a two-column workbench whose second station waits on
 // somebody outside it, which is the smallest fixture that can show the member
-// written on one state and left off the other.
+// written on one column and left off the other.
 const waitingDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Waiting",
-  "states": [
+  "columns": [
     { "id": "d00000000001", "title": "Doing", "kind": "work",
       "instructions": "Doing instructions.\n" },
     { "id": "d00000000002", "title": "Customer approval", "kind": "work",
@@ -32,8 +32,8 @@ func TestTheWaitingFlagIsParsedStrictly(t *testing.T) {
 	t.Run("a value outside the two refuses the workbench", func(t *testing.T) {
 		for _, value := range []string{"yes", "1", "True", "no", "maybe"} {
 			root := newFixture(t)
-			write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor),
-				"---\ntitle: Only\nslug: only\nkind: work\nawaiting_outside: "+value+"\n---\nState text.\n")
+			write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor),
+				"---\ntitle: Only\nslug: only\nkind: work\nawaiting_outside: "+value+"\n---\nColumn text.\n")
 			_, err := Open(root)
 			if err == nil {
 				t.Fatalf("awaiting_outside: %s opened the workbench", value)
@@ -43,26 +43,26 @@ func TestTheWaitingFlagIsParsedStrictly(t *testing.T) {
 				t.Fatalf("awaiting_outside: %s: wanted %s, got %v", value, contract.Malformed, err)
 			}
 			if !strings.Contains(refusal.Detail, "b00000000001") {
-				t.Errorf("the refusal should name the state, got %q", refusal.Detail)
+				t.Errorf("the refusal should name the column, got %q", refusal.Detail)
 			}
 		}
 	})
 
-	t.Run("false reads as a state that never carried the key", func(t *testing.T) {
+	t.Run("false reads as a column that never carried the key", func(t *testing.T) {
 		root := newFixture(t)
-		write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor),
-			"---\ntitle: Only\nslug: only\nkind: work\nawaiting_outside: false\n---\nState text.\n")
+		write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor),
+			"---\ntitle: Only\nslug: only\nkind: work\nawaiting_outside: false\n---\nColumn text.\n")
 		opened, err := Open(root)
 		if err != nil {
 			t.Fatalf("awaiting_outside: false refused the workbench: %v", err)
 		}
-		if opened.States[0].AwaitingOutside {
+		if opened.Columns[0].AwaitingOutside {
 			t.Error("awaiting_outside: false read as true")
 		}
 	})
 
 	t.Run("a workbench with no such key opens unchanged", func(t *testing.T) {
-		// newFixture writes the state anchor the rest of this package's
+		// newFixture writes the column anchor the rest of this package's
 		// tests read, which carries no such key, and the committed
 		// fixtures under testdata/compat are the same promise for every
 		// workbench already on disk.
@@ -71,18 +71,18 @@ func TestTheWaitingFlagIsParsedStrictly(t *testing.T) {
 		if err != nil {
 			t.Fatalf("open: %v", err)
 		}
-		if opened.States[0].AwaitingOutside {
-			t.Error("a state that declares nothing read as waiting")
+		if opened.Columns[0].AwaitingOutside {
+			t.Error("a column that declares nothing read as waiting")
 		}
-		if opened.States[0].FM.Value("awaiting_outside") != "" {
+		if opened.Columns[0].FM.Value("awaiting_outside") != "" {
 			t.Error("opening a workbench invented the key")
 		}
 	})
 }
 
 // TestTheWaitingFlagRidesTheInterchange is dinah-201 AC-7. The round trip is
-// what catches a field added to the parser and forgotten in exportState or in
-// knownStateKeys, which is the half of the interchange nobody notices until a
+// what catches a field added to the parser and forgotten in exportColumn or in
+// knownColumnKeys, which is the half of the interchange nobody notices until a
 // workbench is carried somewhere.
 func TestTheWaitingFlagRidesTheInterchange(t *testing.T) {
 	first := filepath.Join(t.TempDir(), "first")
@@ -102,17 +102,17 @@ func TestTheWaitingFlagRidesTheInterchange(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 
-	states := exportedStates(t, exported)
-	if len(states) != 2 {
-		t.Fatalf("wanted two states in the export, got %d", len(states))
+	columns := exportedColumns(t, exported)
+	if len(columns) != 2 {
+		t.Fatalf("wanted two columns in the export, got %d", len(columns))
 	}
-	if _, carried := states[0]["awaiting_outside"]; carried {
-		t.Error("the export carried the member on a state that does not declare it")
+	if _, carried := columns[0]["awaiting_outside"]; carried {
+		t.Error("the export carried the member on a column that does not declare it")
 	}
 	var flag bool
-	raw, carried := states[1]["awaiting_outside"]
+	raw, carried := columns[1]["awaiting_outside"]
 	if !carried {
-		t.Fatal("the export left the member off the state that declares it")
+		t.Fatal("the export left the member off the column that declares it")
 	}
 	if err := json.Unmarshal(raw, &flag); err != nil || !flag {
 		t.Errorf("the member exported as %s, wanted true", raw)
@@ -133,11 +133,11 @@ func TestTheWaitingFlagRidesTheInterchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open the import: %v", err)
 	}
-	if !imported.State("d00000000002").AwaitingOutside {
-		t.Error("the import did not reproduce the flag on the state that declares it")
+	if !imported.Column("d00000000002").AwaitingOutside {
+		t.Error("the import did not reproduce the flag on the column that declares it")
 	}
-	if imported.State("d00000000001").AwaitingOutside {
-		t.Error("the import invented the flag on a state that does not declare it")
+	if imported.Column("d00000000001").AwaitingOutside {
+		t.Error("the import invented the flag on a column that does not declare it")
 	}
 	again, err := imported.Export()
 	if err != nil {
@@ -149,7 +149,7 @@ func TestTheWaitingFlagRidesTheInterchange(t *testing.T) {
 
 	// The anchor on disk carries the key as the frontmatter it was declared
 	// in, rather than as a preserved unknown member with a JSON value.
-	text, err := os.ReadFile(filepath.Join(second, StatesDir, "d00000000002", StateAnchor))
+	text, err := os.ReadFile(filepath.Join(second, ColumnsDir, "d00000000002", ColumnAnchor))
 	if err != nil {
 		t.Fatalf("read the imported anchor: %v", err)
 	}
@@ -158,14 +158,14 @@ func TestTheWaitingFlagRidesTheInterchange(t *testing.T) {
 	}
 }
 
-// exportedStates pulls the states array out of an export as raw objects.
-func exportedStates(t *testing.T, exported []byte) []map[string]json.RawMessage {
+// exportedColumns pulls the columns array out of an export as raw objects.
+func exportedColumns(t *testing.T, exported []byte) []map[string]json.RawMessage {
 	t.Helper()
 	var object struct {
-		States []map[string]json.RawMessage `json:"states"`
+		Columns []map[string]json.RawMessage `json:"columns"`
 	}
 	if err := json.Unmarshal(exported, &object); err != nil {
 		t.Fatalf("unmarshal the export: %v", err)
 	}
-	return object.States
+	return object.Columns
 }

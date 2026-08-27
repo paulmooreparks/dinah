@@ -31,11 +31,11 @@ type Card struct {
 	Number int
 	// Title is what a person calls the card.
 	Title string
-	// State is the identifier of the state the card occupies.
+	// Column is the identifier of the column the card occupies.
+	Column string
+	// State is one of ready, active and blocked.
 	State string
-	// Substate is one of ready, active and blocked.
-	Substate string
-	// Holder and ClaimSince are present exactly when the substate is
+	// Holder and ClaimSince are present exactly when the state is
 	// active, which is the implication check enforces both ways.
 	Holder     string
 	ClaimSince string
@@ -43,7 +43,7 @@ type Card struct {
 	// expiry.
 	Expires string
 	// BlockReason, BlockKind and BlockSince are the block's own fields, and
-	// the reason is present exactly when the substate is blocked.
+	// the reason is present exactly when the state is blocked.
 	BlockReason string
 	BlockKind   string
 	BlockSince  string
@@ -66,8 +66,30 @@ type Card struct {
 	FM *Frontmatter
 }
 
-// LoadCard reads one card from a cards collection.
+// LoadCard reads one card from a cards collection, refusing one that is not
+// written in the vocabulary this build reads: a card carrying no column key at
+// all, and a card carrying the column key beside the retired substate key.
 func LoadCard(collection, id string) (*Card, error) {
+	return loadCard(collection, id, true)
+}
+
+// loadRetiredCard reads a card written in the retired vocabulary without
+// refusing it, which the lenient opener the migration reads through is the one
+// caller of. A workbench that opener admits declares a pre-vocabulary revision
+// on its own anchor, so its cards and its anchor agree with each other and the
+// disagreement LoadCard refuses is not present. What such a card gives back is
+// still read in the current vocabulary's meaning of the two keys, so nothing
+// here should take its Column or its State for the card's real standing; the
+// migration itself reads cards through ParseAnchor for exactly that reason.
+func loadRetiredCard(collection, id string) (*Card, error) {
+	return loadCard(collection, id, false)
+}
+
+// loadCard is the body both readers share. refuseRetired is what separates
+// them, and it is a parameter rather than a package flag so that the choice is
+// made at the call site by a caller who knows which vocabulary the workbench
+// it opened declares.
+func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	dir := filepath.Join(collection, id)
 	anchor := filepath.Join(dir, CardAnchor)
 	text, err := ReadText(anchor)
@@ -79,12 +101,53 @@ func LoadCard(collection, id string) (*Card, error) {
 		return nil, err
 	}
 	fm, body := ParseAnchor(text)
+	// Which vocabulary a card is written in is decided by the column key,
+	// which is the discriminator this card's D-14 settled and the one the
+	// migration's own skip-guard already asks about. No card written before
+	// the rename carries it, because that vocabulary spells the flow position
+	// "state", and every card this build writes carries it, because Card.Save
+	// sets it on every write. The substate key answers a narrower question:
+	// its presence beside the column key is a header holding half of each
+	// vocabulary, and a card can carry the harm without carrying it at all.
+	//
+	// Reaching here means the workbench's own anchor declares the current
+	// vocabulary, because the version gate turns a pre-vocabulary workbench
+	// away before any card is opened. So a card that is not across the rename
+	// disagrees with the anchor above it, its state key holds a column
+	// identifier, and every field below would be filled from the wrong half of
+	// the header.
+	//
+	// The gate cannot see this, and that is the whole reason for the check.
+	// It reads the revision the anchor declares, so a workbench carried across
+	// the rename at its anchor and not in its cards passes it, and dinah ls
+	// then prints a column identifier under the heading that names the card's
+	// condition and exits 0. This migration writes the anchor last and so
+	// cannot produce that shape, but a hand edit or another tool can, and a
+	// silent misread is exactly what the gate exists to prevent. Asking the
+	// card itself is the only place the disagreement is visible.
+	//
+	// The two conditions carry different refusals because their sentences are
+	// different sentences. A header carrying both vocabularies is genuinely
+	// mixed and the reader is told to pick one. A card written wholly in the
+	// retired vocabulary is internally consistent and disagrees with the
+	// workbench around it, so telling its reader to remove a mixture would
+	// describe a file that does not exist.
+	// The two conditions are written as sibling ifs rather than as a switch
+	// because a switch naming an anchor constant is a second copy of the
+	// containment grammar, which TestTheContainmentGrammarIsDeclaredOnce
+	// refuses wherever it is not the table that declares it.
+	if refuseRetired && !fm.Has(columnKey) {
+		return nil, contract.RefuseWith(contract.VocabularyRetired, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+	}
+	if refuseRetired && fm.Has(preVocabularyStateKey) {
+		return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
+	}
 	card := &Card{
 		ID:          id,
 		Dir:         dir,
 		Title:       fm.Value("title"),
+		Column:      fm.Value("column"),
 		State:       fm.Value("state"),
-		Substate:    fm.Value("substate"),
 		Holder:      fm.Value("claim_holder"),
 		ClaimSince:  fm.Value("claim_since"),
 		Expires:     fm.Value("claim_expires"),
@@ -102,8 +165,8 @@ func LoadCard(collection, id string) (*Card, error) {
 		card.Number, _ = strconv.Atoi(number)
 	}
 	card.Links = readLinks(fm)
-	if card.Substate == "" {
-		card.Substate = contract.SubstateReady
+	if card.State == "" {
+		card.State = contract.StateReady
 	}
 	return card, nil
 }
@@ -169,8 +232,8 @@ func (c *Card) Save() error {
 	if c.Number > 0 {
 		c.FM.Set("number", strconv.Itoa(c.Number))
 	}
+	c.FM.Set("column", c.Column)
 	c.FM.Set("state", c.State)
-	c.FM.Set("substate", c.Substate)
 	setOrDelete(c.FM, "claim_holder", c.Holder)
 	setOrDelete(c.FM, "claim_since", c.ClaimSince)
 	setOrDelete(c.FM, "claim_expires", c.Expires)
@@ -178,11 +241,11 @@ func (c *Card) Save() error {
 	setOrDelete(c.FM, "block_kind", c.BlockKind)
 	setOrDelete(c.FM, "block_since", c.BlockSince)
 	// SetAfter inserts directly after its anchor and leaves an existing key
-	// where it already sits, so writing priority after substate and then
-	// severity after substate lands severity, then priority, whichever of
+	// where it already sits, so writing priority after state and then
+	// severity after state lands severity, then priority, whichever of
 	// the two is present, and a key somebody placed by hand stays put.
-	setAfterOrDelete(c.FM, PriorityField, c.Priority, "substate")
-	setAfterOrDelete(c.FM, SeverityField, c.Severity, "substate")
+	setAfterOrDelete(c.FM, PriorityField, c.Priority, "state")
+	setAfterOrDelete(c.FM, SeverityField, c.Severity, "state")
 	c.FM.SetSeq("workstreams", c.Workstreams)
 	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {
 		return err
@@ -266,7 +329,7 @@ func (c *Card) SetLevel(field, value string) {
 	}
 }
 
-// Arrival returns when the card entered the state it now occupies, read from
+// Arrival returns when the card entered the column it now occupies, read from
 // its journal rather than from a frontmatter field. The journal is
 // authoritative for history, and the arrival of a card is a fact about its
 // history, so nothing has to be kept in step with anything.
@@ -281,7 +344,7 @@ func (c *Card) Arrival() time.Time {
 		case contract.EventCreated:
 			arrival = ParseStamp(ev.TS)
 		case contract.EventMoved:
-			if ev.To == c.State {
+			if ev.To == c.Column {
 				arrival = ParseStamp(ev.TS)
 			}
 		}
@@ -294,7 +357,7 @@ func (c *Card) Arrival() time.Time {
 // card, because a single-seat local tool runs no background process and
 // CORE-CLAIM-5 requires no daemon to notice the instant it happens.
 func (c *Card) Lapsed(now time.Time) bool {
-	if c.Substate != contract.SubstateActive || c.Expires == "" {
+	if c.State != contract.StateActive || c.Expires == "" {
 		return false
 	}
 	expiry := ParseStamp(c.Expires)

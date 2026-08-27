@@ -148,10 +148,10 @@ resolve against embedded templates first, then against `template_sources:`
 repos configured in the user config (how an organization points everyone
 at an internal library), then explicit URLs; nothing is ever auto-fetched.
 
-Trust is the design work, because a template's state instructions are
+Trust is the design work, because a template's column instructions are
 prompts that agents will obey, making a malicious template an injection
 vector with a delivery mechanism. Remote templates are pinned by ref or
-sha and shown to the operator (state list and instruction summaries)
+sha and shown to the operator (column list and instruction summaries)
 before instantiation. Instantiate-and-own caps the blast radius: nothing
 upstream can mutate a workbench already owned. Provenance (source and sha) is
 recorded in the new workbench's workbench.md as display-tier fact. A template
@@ -160,7 +160,7 @@ templates are machine-checked before a human reads them. After locale
 catalogs, they are the second well-shaped community contribution.
 
 Extraction closes the authoring loop: a command copies the definition out
-of a live workbench (workbench.md and states/, keeping their identifiers) and
+of a live workbench (workbench.md and columns/, keeping their identifiers) and
 leaves the work (cards, workstreams, archive, journals), so nobody authors
 a template from scratch; a workbench that already works gets promoted. Kept
 identifiers mean intra-definition references survive untouched and workbenches
@@ -179,11 +179,11 @@ first rung is the LSP plus verbs: registry-driven validation and
 completion in anchors, and CodeLens actions on a card file (claim, move,
 release) that shell to the CLI and refresh from the receipt. The second
 rung is the sidebar tree the operator asked for by name: workbenches at the
-top (from the same discovery walk and user base the CLI uses), states
-beneath in definition order, cards beneath those grouped by substate,
+top (from the same discovery walk and user base the CLI uses), columns
+beneath in definition order, cards beneath those grouped by state,
 every node opening its anchor on click because every node is a file.
-Substate rides the tree's badge-and-color decorations, a WIP-limited
-state shows its count against the limit, and a node's context menu is the
+State rides the tree's badge-and-color decorations, a WIP-limited
+column shows its count against the limit, and a node's context menu is the
 affordances block rendered as menu items, so illegal actions are absent
 from the representation here exactly as they are everywhere else. The
 in-binary TUI runs in the integrated terminal at every rung for free, and
@@ -235,8 +235,8 @@ lives in instructions and domain fields, so the same workbench minus the
 mapping runs the identical method where the wrapped system does not exist.
 
 The first cut needs no new mechanism: the agent working the card performs
-the projections per state instructions, through whatever tool surface it
-already has for the external system. Deterministic per-state hooks
+the projections per column instructions, through whatever tool surface it
+already has for the external system. Deterministic per-column hooks
 (on-enter and on-exit commands fed the card's JSON) are the later candidate
 for mechanical projections, held out of the first cut so experience decides
 which projections deserve determinism.
@@ -265,7 +265,7 @@ wider than the contract on purpose: the contract is the part another tool has
 to match, and the rest is what makes this one worth using.
 
 `query` is the general read beside the positional ones. It takes one string of
-qualifier terms, `state:doing holder:alka at>=2026-08-01` and the like, over a
+qualifier terms, `column:doing holder:alka at>=2026-08-01` and the like, over a
 closed vocabulary of ten field names, and it returns the matching live cards in
 the same arrival order every other listing uses. The language is Dinah's own
 tool surface rather than contract material, so a second implementation
@@ -288,7 +288,7 @@ guard is ETag and If-Match, stale is 412, refused is 403 or 409, and
 entity revisions serve as ETags throughout. The claim is a resource, not
 an action: POST to a card's claim creates it (409 when held), DELETE
 releases it, a lease renewal is a PUT on it. A move is a change to the
-card's state and rides PATCH, with a Dinah-defined media type
+card's column and rides PATCH, with a Dinah-defined media type
 (application/dinah.move+json) rather than generic merge-patch: the media
 type's definition is where the board semantics live in the contract (WIP
 refusal on entry, operator-owned stations offering agents no such
@@ -306,7 +306,7 @@ Two commands read the workbench as a tree rather than as a listing, and
 both build the same node so that one renderer draws them and one shape
 carries them to every head. `dinah tree` nests the cards along an ordered
 chain of axes, taking the query language as its filter, and its
-no-argument form is the status tree of states over substates over cards.
+no-argument form is the status tree of columns over states over cards.
 `dinah contents` walks the containment grammar down from any entity the
 reference resolver reaches, reading a table of what contains what rather
 than kind-specific code, so a declared extension kind appears in it with
@@ -324,7 +324,7 @@ next.
 
 ## Findings from the first hand-executed run
 
-A complete card (the check mini-concept) was run through a five-state
+A complete card (the check mini-concept) was run through a five-column
 workbench with every verb performed by hand-editing files, three
 fresh-context review cycles, and a real operator gate. The run validated the
 format's redundancy twice for real (a fabricated citation caught by review;
@@ -336,15 +336,15 @@ Verb semantics.
 
 - Whether a claim survives a move is unstated; the run carried it through,
   Andoneer-style, and a second implementer could legally invert it.
-- Claim/move/release ordering across a state boundary is unstated; the two
-  reviewers did it opposite ways, and the released event can name a state
+- Claim/move/release ordering across a column boundary is unstated; the two
+  reviewers did it opposite ways, and the released event can name a column
   its actor never worked. A related hazard was named: with no rule, the
   first fixture's arbitrary choice becomes the de facto contract.
 - A re-review has no verb and no relation between findings comments; cycles
   are reconstructed from timestamps and prose.
 - Operator-by-proxy needs an attribution rule: a scribe recording the
   operator's stated ruling writes actor operator, with the scribe named in
-  the note, or the operator-owned-state invariant reads as violated.
+  the note, or the operator-owned-column invariant reads as violated.
 
 Data the format has no slot for.
 

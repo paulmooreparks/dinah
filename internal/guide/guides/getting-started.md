@@ -43,7 +43,7 @@ File the first piece of work:
 dinah add "Write the release notes"
 ```
 
-Dinah lands the card in the first state of the flow with substate `ready`,
+Dinah lands the card in the first column of the flow with state `ready`,
 which means anybody may pull it. Ask what is waiting:
 
 ```
@@ -51,17 +51,17 @@ dinah next
 dinah ls
 ```
 
-You can also see the whole workbench at once, rather than one state at a time:
+You can also see the whole workbench at once, rather than one column at a time:
 
 ```
 dinah tree
 ```
 
-Dinah nests every card under the state it sits in, and then under whether it is
+Dinah nests every card under the column it sits in, and then under whether it is
 ready, active, or blocked, and it counts each group for you. Or nest along
 something else. `dinah tree --group-by holder` shows you who is sitting on
 what. The tree takes the same query `dinah query` does, so
-`dinah tree "substate:blocked"` draws only the blocked cards and tells you,
+`dinah tree "state:blocked"` draws only the blocked cards and tells you,
 group by group, how many it left out.
 
 Take one up, do the work, and carry it on:
