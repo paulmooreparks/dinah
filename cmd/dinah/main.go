@@ -105,7 +105,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		out:             out,
 		errw:            errw,
 		in:              in,
-		r:               msg.For(bench.ResolveLang(parsed.value("lang"), cfg)),
+		r:               msg.For(bench.ResolveLang(scanLangFlag(argv), cfg)),
 		quiet:           parsed.has("quiet"),
 		home:            home,
 		nativeHome:      bench.NativeHome(),
@@ -116,12 +116,13 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		width:           windowWidth(),
 	}
 	if parseErr != nil {
-		// The parse failed, so the language ladder reads what parseArgs
-		// managed to take apart before it stopped: a --lang written ahead
-		// of the offending word is honoured, and one written after it is
-		// not, because the scan never reached it. The report is text alone,
-		// since the flags that would have carried a format are what failed,
-		// and the session's zero format is the rendering a person reads.
+		// The parse failed, and the refusal still reaches its reader in
+		// their own language. scanLangFlag read --lang from the whole
+		// argument list above, so the flag is honoured wherever the caller
+		// wrote it rather than only ahead of the word the scan stopped at
+		// (dinah-97). The report is text alone, since the flags that would
+		// have carried a format are what failed, and the session's zero
+		// format is the rendering a person reads.
 		return s.reportError(parseErr)
 	}
 	format, formatRefusal := resolveFormat(parsed.has("json"), parsed.value("format"), os.Getenv("DINAH_FORMAT"))
