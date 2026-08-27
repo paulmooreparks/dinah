@@ -200,7 +200,7 @@ func TestTheWorkbenchesToolReadsItsPathAndItsDepth(t *testing.T) {
 			t.Fatalf("the bare call carries no listing: %v", answer)
 		}
 		if len(listed) != 3 {
-			t.Errorf("the bare call reported %d workbenches, wanted what bench.Enumerate finds beneath the server's root", len(listed))
+			t.Errorf("the bare call reported %d workbenches, wanted what the walk from the server's own configured root finds", len(listed))
 		}
 	})
 }

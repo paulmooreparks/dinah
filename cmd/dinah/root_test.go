@@ -426,13 +426,15 @@ func TestARootScopedReadOnAnEmptyDirectoryAnswersAndDoesNotRefuse(t *testing.T) 
 
 // TestTheHumanFormNamesTheWorkbenchEachAnswerBelongsTo asserts dinah-281 AC-9:
 // each of the five reads prints a distinguishing heading before every
-// workbench's own rendering, so no two workbenches' rows are printed with
+// workbench's own rendering, so no two workbenches' answers are printed with
 // nothing between them to say which is which.
 //
-// What is asserted is that each heading appears once and that the workbench's
-// own rendering follows it, indented. A test that only looked for the titles
-// somewhere in the output would pass on a run that printed both headings and
-// then both bodies.
+// The expected heading is composed from the same catalog entry the head
+// composes it from, filled with the identity the same call's JSON reports, so
+// the test asserts the heading a reader sees rather than a shape typed here.
+// Each has to appear exactly once, and the output has to open on one: a run
+// that printed both headings and then both bodies passes a test that only
+// looks for the titles somewhere, and fails this one.
 func TestTheHumanFormNamesTheWorkbenchEachAnswerBelongsTo(t *testing.T) {
 	root := newForest(t, "alpha", "customer/beta")
 	for _, place := range []string{"alpha", "customer/beta"} {
@@ -443,27 +445,38 @@ func TestTheHumanFormNamesTheWorkbenchEachAnswerBelongsTo(t *testing.T) {
 	}
 	for _, c := range rootScopedVerbs {
 		t.Run(c.verb, func(t *testing.T) {
+			rows := members(t, forestJSON(t, root, c.verb, "--root", root))
+			if len(rows) != 2 {
+				t.Fatalf("the answer carries %d workbenches, wanted the two the fixture holds", len(rows))
+			}
 			got := runCLI(t, root, c.verb, "--root", root)
 			if got.code != 0 {
 				t.Fatalf("%s --root: %d %s", c.verb, got.code, got.errw)
 			}
 			lines := strings.Split(strings.TrimRight(got.out, "\n"), "\n")
-			var headings []int
-			for i, line := range lines {
-				if line != "" && !strings.HasPrefix(line, " ") && strings.Contains(line, string(filepath.Separator)) {
-					headings = append(headings, i)
+			var headings []string
+			for _, row := range rows {
+				title, _ := row["title"].(string)
+				slug, _ := row["slug"].(string)
+				path, _ := row["path"].(string)
+				heading := msg.For(msg.Base).T("root.workbench",
+					"title", title, "slug", slug, "path", path)
+				headings = append(headings, heading)
+				seen := 0
+				for _, line := range lines {
+					if line == heading {
+						seen++
+					}
+				}
+				if seen != 1 {
+					t.Errorf("the heading %q appears %d times, wanted once:\n%s", heading, seen, got.out)
 				}
 			}
-			if len(headings) != 2 {
-				t.Fatalf("the output carries %d headings, wanted one per workbench:\n%s", len(headings), got.out)
+			if len(lines) == 0 || lines[0] != headings[0] {
+				t.Errorf("the output does not open on the first workbench's heading:\n%s", got.out)
 			}
-			for _, slug := range []string{"alpha", "customer-beta"} {
-				if strings.Count(got.out, slug) < 1 {
-					t.Errorf("no heading names %s:\n%s", slug, got.out)
-				}
-			}
-			if headings[0] != 0 {
-				t.Errorf("the output does not open with a heading:\n%s", got.out)
+			if headings[0] == headings[1] {
+				t.Fatal("the two workbenches compose the same heading, so this case cannot tell them apart")
 			}
 		})
 	}

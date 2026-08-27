@@ -1868,11 +1868,15 @@ var processStreamHolders = []string{"main", "windowWidth"}
 // card.line.workstreams is card.line with a trailing field on the end, chosen
 // by the same caller, so it is exempt for card.line's own reason.
 // workstream.line is that line's counterpart for an act on a workstream.
+// status.workbench.unsourced is status.workbench with its last field removed,
+// chosen by the same caller for the one read that resolves no workbench by any
+// rung, so it is exempt for that entry's own reason.
 var columnarCatalogKeys = []string{
 	"card.line",
 	"card.line.workstreams",
 	"workstream.line",
 	"status.workbench",
+	"status.workbench.unsourced",
 }
 
 // rowLayoutReason is what a reader who trips this guard needs: why the shape

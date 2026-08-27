@@ -566,11 +566,6 @@ type rootWalk struct {
 	Depth int
 }
 
-// rootIndent is how far a workbench's own rendering sits in from the margin
-// under a root-scoped read, so a reader can see where one workbench's answer
-// ends and the next begins.
-const rootIndent = 2
-
 // rootWalkFor reads the scope an invocation named and returns the walk it asks
 // for, or nil when the invocation named no root at all, which is the ordinary
 // single-workbench call every one of these commands still answers.

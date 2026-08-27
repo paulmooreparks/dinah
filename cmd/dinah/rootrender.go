@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"strings"
-
 	"dinah/internal/bench"
 	"dinah/internal/verb"
 )
@@ -38,35 +35,15 @@ func (s *session) rootHeading(candidate bench.Candidate) bool {
 	return false
 }
 
-// indented draws one workbench's own rendering two columns in from the margin.
+// A workbench's own rendering follows its heading unchanged and unindented.
 //
-// The renderer is handed a session writing to a buffer and drawing at a window
-// two columns narrower, because the indent takes those columns away from it
-// and a layout measured against the full window would overrun by exactly the
-// indent. Capturing rather than threading an indent through every renderer is
-// what keeps the inner rendering identical to the single-workbench one: the
-// renderers are called exactly as they are called today, and the indent is
-// applied to what they produced.
-func (s *session) indented(draw func(*session)) {
-	nested := *s
-	var held bytes.Buffer
-	nested.out = &held
-	if nested.width > rootIndent {
-		nested.width -= rootIndent
-	}
-	draw(&nested)
-	if held.Len() == 0 {
-		return
-	}
-	pad := strings.Repeat(" ", rootIndent)
-	for _, line := range strings.Split(strings.TrimSuffix(held.String(), "\n"), "\n") {
-		if line == "" {
-			s.line("")
-			continue
-		}
-		s.line(pad + line)
-	}
-}
+// Indenting the block would mean prefixing lines this head had already laid
+// out, and a columnar line is laid out in one place: the tables inside each
+// rendering already sit in from the margin, and a hand-built prefix counts
+// characters where a terminal counts columns. Leaving it alone costs a level
+// of nesting and buys the stronger property, which is that what a reader sees
+// under one heading is byte for byte what reading that workbench on its own
+// prints.
 
 // rootEmpty says a walk found no workbench at all, which is an ordinary answer
 // rather than a refusal: a directory with nothing beneath it is a fact, and the
@@ -88,7 +65,7 @@ func (s *session) renderForest(forest *verb.Forest) {
 		if s.rootHeading(member.Candidate) {
 			continue
 		}
-		s.indented(func(nested *session) { nested.renderTree(member.Tree) })
+		s.renderTree(member.Tree)
 	}
 }
 
@@ -105,7 +82,7 @@ func (s *session) renderRootStatus(answer *verb.RootStatus) {
 		if s.rootHeading(member.Candidate) {
 			continue
 		}
-		s.indented(func(nested *session) { nested.renderStatus(member.Status) })
+		s.renderStatus(member.Status)
 	}
 }
 
@@ -122,7 +99,7 @@ func (s *session) renderRootListing(answer *verb.RootListing) {
 		if s.rootHeading(member.Candidate) {
 			continue
 		}
-		s.indented(func(nested *session) { nested.renderListing(member.Listing) })
+		s.renderListing(member.Listing)
 	}
 }
 
@@ -139,7 +116,7 @@ func (s *session) renderRootOffers(answer *verb.RootOffers) {
 		if s.rootHeading(member.Candidate) {
 			continue
 		}
-		s.indented(func(nested *session) { nested.renderOffers(member.Offers) })
+		s.renderOffers(member.Offers)
 	}
 }
 
@@ -169,7 +146,7 @@ func (s *session) renderRootChanges(answer *verb.RootChangeSet) {
 		if member.Changes == nil {
 			continue
 		}
-		s.indented(func(nested *session) { nested.renderChangesBody(member.Changes) })
+		s.renderChangesBody(member.Changes)
 	}
 	s.line("")
 	s.line(s.r.T("changes.cursor", "cursor", answer.Cursor))
