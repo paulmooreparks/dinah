@@ -563,8 +563,11 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []strin
 // The walk skips dotfiles and symbolic links at every rung, since neither can be
 // expected to mean what its name says: a dotfile holds user state on a POSIX
 // machine, and a symlink can point anywhere the server is not entitled to
-// follow. A .dinah directory the walker descends into runs the same check,
-// which is the discovery shape every other rung of the search already uses.
+// follow. A .dinah is a dotted name like any other, so the descent enters
+// none of them, and the one .dinah this listing reads is the root's own,
+// opened by the root probe rather than reached by descending. A .dinah
+// belonging to a directory further down is read the same way, when that
+// directory is itself the entry the walk is testing.
 //
 // The descent is cached for the process life of the caller, since the second
 // per-call invocation during an MCP session would otherwise re-read every

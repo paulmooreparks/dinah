@@ -153,6 +153,16 @@ func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, curre
 	// inside the .dinah container of the directory it is given, and answers the
 	// anchor directory it wrote. Nothing is renamed, so what the fixture holds
 	// is what a person running dinah init in that directory would hold.
+	//
+	// internal/bench/rootenumeration_test.go carries a function of the same
+	// name doing the same job for the tests there. The two cannot be one
+	// helper, since an unexported helper does not cross a package boundary,
+	// and they differ in mechanism on purpose: that one calls
+	// bench.Instantiate directly because the package under test is the one
+	// that owns it, and this one runs the real command because these tests
+	// exercise the command. Each says where the other is so that a reader
+	// who changes one finds the other, since nothing in the build, the vet
+	// pass or the test run reports a duplicate written across two packages.
 	plantInContainer := func(where string, cards ...string) string {
 		if err := os.MkdirAll(where, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
@@ -877,6 +887,20 @@ func TestTheVocabularyMigrationSeesTheWorkbenchYouAreStandingIn(t *testing.T) {
 		t.Fatalf("init at %s: %d %s", board, got.code, got.errw)
 	}
 	anchor := benchDir(t, board)
+	// This run names no workbench, so the head takes its own working
+	// directory as the root and every path it prints is spelled the way
+	// os.Getwd spells that directory. anchor is joined onto the fixture's
+	// t.TempDir() value instead, and the two spellings of one directory
+	// agree here today with nothing promising they will: a temporary
+	// directory sitting behind a symlink, or one handed out as a short
+	// name, spells itself differently through the two routes. resolvedDir
+	// reproduces the head's own os.Chdir/os.Getwd sequence rather than
+	// normalising one side of the comparison, which is the remedy this
+	// package already carries for the hazard (dinah-312). The other uses
+	// of anchor below hand the path to the head or to bench.Open as an
+	// argument, and each of those resolves what it is given, so they stay
+	// on the fixture's spelling.
+	resolvedAnchor := resolvedDir(t, anchor)
 	if err := os.MkdirAll(filepath.Join(board, bench.CardsDir), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -889,7 +913,7 @@ func TestTheVocabularyMigrationSeesTheWorkbenchYouAreStandingIn(t *testing.T) {
 	// The preview first, because that is what the operator's own run was, and
 	// what it answered was that there was nothing there.
 	preview := runCLI(t, board, "check", "--migrate-vocabulary")
-	if !strings.Contains(preview.out, anchor) {
+	if !strings.Contains(preview.out, resolvedAnchor) {
 		t.Errorf("a preview run from %s does not name the workbench standing in it:\n%s", board, preview.out)
 	}
 	if preview.code == 0 {
@@ -903,7 +927,7 @@ func TestTheVocabularyMigrationSeesTheWorkbenchYouAreStandingIn(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("migrate from %s: %d %s\n%s", board, got.code, got.errw, got.out)
 	}
-	if !strings.Contains(got.out, anchor) {
+	if !strings.Contains(got.out, resolvedAnchor) {
 		t.Fatalf("the report does not name the workbench standing in %s:\n%s", board, got.out)
 	}
 	opened, err := bench.Open(anchor)

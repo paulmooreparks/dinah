@@ -21,6 +21,15 @@ const rootDefinition = `{
 // directory it wrote. That is the layout every dinah init run produces, and
 // it is the layout the enumeration used to be unable to see, so a fixture
 // planting a bare workbench instead cannot exercise these tests at all.
+//
+// cmd/dinah/vocabulary_test.go carries a closure of the same name doing the
+// same job for the tree fixture there. The two cannot be one helper: an
+// unexported helper does not cross a package boundary, and that copy plants
+// through a real dinah init run because the fixture it feeds is testing the
+// command, where this one calls Instantiate directly because the package
+// under test is this one. Each says where the other is so that a reader who
+// changes one finds the other, since nothing in the build, the vet pass or
+// the test run reports a duplicate written across two packages.
 func plantInContainer(t *testing.T, dir, id, slug string) string {
 	t.Helper()
 	definition, err := ReadDefinition([]byte(rootDefinition))
