@@ -322,8 +322,12 @@ test("a queue column that does carry a state group draws it, and its cards still
 		["Ready"],
 	);
 	// The heading above the card says nothing about the card's own menu. The
-	// column takes no work up, so no Claim is offered under it.
-	for (const element of await view.getChildren(groups[0])) {
+	// column takes no work up, so no Claim is offered under it. The count is
+	// asserted first, because a group that drew no cards would satisfy the
+	// loop below without the loop having read a single contextValue.
+	const carriedCards = await view.getChildren(groups[0]);
+	assert.equal(carriedCards.length, 1, "the ready group drew no cards to check");
+	for (const element of carriedCards) {
 		assert.equal(treeItemFor(element).contextValue, CONTEXT_CARD_READY_NONE);
 	}
 });
@@ -419,7 +423,9 @@ test("the ready cards of the queue column carry the no-Claim contextValue", asyn
 	// beneath their column row and still answer the same way.
 	const view = await loadedBench();
 	const [, review] = await view.getChildren((await view.getChildren())[0]);
-	for (const element of await view.getChildren(review)) {
+	const cards = await view.getChildren(review);
+	assert.equal(cards.length, 2, "the queue column drew no cards to check");
+	for (const element of cards) {
 		assert.equal(treeItemFor(element).contextValue, CONTEXT_CARD_READY_NONE);
 	}
 });
@@ -619,7 +625,9 @@ test("a window holding exactly one row opens it, and a window holding several do
 		folder({ folder: "C:\\work\\bench" }),
 		folder({ folder: "C:\\work\\other" }),
 	]);
-	for (const element of await several.getChildren()) {
+	const rows = await several.getChildren();
+	assert.equal(rows.length, 2, "the two folders drew no root rows to check");
+	for (const element of rows) {
 		assert.equal(treeItemFor(element).collapsibleState, "collapsed");
 	}
 });

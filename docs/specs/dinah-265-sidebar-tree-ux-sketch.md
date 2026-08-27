@@ -8,9 +8,11 @@ held by `alka` in Doing, `tr-3` blocked in Intake, `tr-4`/`tr-5`/`tr-6` ready
 in Intake), plus one row from a second fixture that declares
 `awaiting_outside` and one that declares a WIP limit, since `tr` has neither.
 
-Each row below is written `[icon] Label — description` with the tooltip on
-the following indented line, which is the same shape VS Code's own
-`vscode.TreeItem` documentation uses in its examples: `label` is what prints,
+Each row below is written `[icon] Label • description` with the tooltip on
+the following indented line. The bullet is this sketch's own separator
+between the two fields and is not a character VS Code prints. The row shape
+is the one VS Code's own `vscode.TreeItem` documentation uses in its
+examples: `label` is what prints,
 `description` is the dim trailing text, `tooltip` is the hover text, and
 `iconPath`/`ThemeIcon` is bracketed. A `>` prefix marks a collapsible row.
 
@@ -18,18 +20,18 @@ the following indented line, which is the same shape VS Code's own
 
 ```
 > [$(book)] Trees
-> [ ] Intake — 4, taken
+> [ ] Intake • taken, 4
       Doing (0/0)... (collapsed, not drawn)
       Blocked... (collapsed, not drawn)
-  > [ ] Ready — 3
+  > [ ] Ready • 3
         [$(circle-outline)] Draw the guides
             tr-4 · Intake · ready
         [$(circle-outline)] Translate the headings
             tr-5 · Intake · ready
         [$(circle-outline)] Retire the second map
             tr-6 · Intake · ready
-    [ ] Active — 0 (no children; VS Code draws nothing under a childless row)
-  > [ ] Blocked — 1
+    [ ] Active • 0 (no children; VS Code draws nothing under a childless row)
+  > [ ] Blocked • 1
         [$(circle-slash), red] tr-3
             tr-3 · Intake · blocked · workaround, filed by alka
 ```
@@ -70,7 +72,7 @@ A column declaring a WIP limit shows the count against it, in the same
 order `renderColumns` already composes (`count + "/" + capacity`):
 
 ```
-[ ] Doing — 2/3, taken
+[ ] Doing • taken, 2/3
 ```
 
 ## 4. `awaiting_outside`
@@ -79,7 +81,7 @@ A second fixture, a column called "Customer approval" carrying
 `awaiting_outside: true` and holding two ready cards:
 
 ```
-> [ ] Customer approval — 2, waiting
+> [ ] Customer approval • waiting, 2
       [$(circle-outline)] Confirm the pricing page
           cp-7 · Customer approval · ready
       [$(circle-outline)] Confirm the launch date
@@ -95,7 +97,7 @@ OQ-2's three-tier rule a column that takes no work up draws no
 ready-versus-active breakdown at all, so the cards render directly beneath
 the column row instead, exactly as an occupied intake or buffer column does
 once dinah-322 lands (this card's own gate). The earlier drawing of this
-section, a `Ready — 2` group between the column row and the two cards, is
+section, a `Ready • 2` group between the column row and the two cards, is
 withdrawn.
 
 The description reads `waiting` in place of `taken`, sourced from the same
@@ -183,9 +185,9 @@ precisely so a reader draws three different rows rather than one generic
 failure.
 
 ```
-[$(warning)] acme/scratch — unreadable
+[$(warning)] acme/scratch • unreadable
     The walk could not read this directory.
-> [$(book)] Bell Industries — would not open
+> [$(book)] Bell Industries • would not open
     [$(warning)] This workbench's definition would not open (dinah.unreadable-workbench).
 > [$(book)] Carter LLP
     ... (ordinary subtree)

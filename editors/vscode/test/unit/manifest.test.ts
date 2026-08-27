@@ -200,7 +200,15 @@ test("no welcome block is reachable in the state the tree renders for", () => {
 	// added back for this one is caught here. Between them the array cannot
 	// change by anything but the one entry this card took out, and neither
 	// assertion goes stale when an unrelated card edits the manifest.
-	const matched = welcomeBlocks().filter((block) =>
+	const blocks = welcomeBlocks();
+	// A view whose blocks all moved or were renamed matches nothing here for a
+	// reason that has nothing to do with the removal this pins, so the roster
+	// is checked before the match count is read.
+	assert.ok(
+		blocks.length > 0,
+		"the view contributes no welcome blocks at all, so this check proved nothing",
+	);
+	const matched = blocks.filter((block) =>
 		evaluate(block.when, TREE_RENDERS_INSTEAD),
 	);
 	assert.deepEqual(
@@ -310,14 +318,20 @@ test("every menu entry names a command the manifest declares", () => {
 		(contributes.commands as { command: string }[]).map((entry) => entry.command),
 	);
 	const menus = contributes.menus as Record<string, { command: string }[]>;
+	let checked = 0;
 	for (const [where, entries] of Object.entries(menus)) {
 		for (const entry of entries) {
+			checked += 1;
 			assert.ok(
 				declared.has(entry.command),
 				`${where} names the undeclared command ${entry.command}`,
 			);
 		}
 	}
+	// A manifest contributing no menu entries satisfies the loop above without
+	// the loop having read anything, so the count is what separates a clean
+	// set of menus from an absent one.
+	assert.ok(checked > 0, "no menu entry was scanned at all, so this check proved nothing");
 });
 
 test("nothing in the manifest offers a Pull", () => {
@@ -328,6 +342,19 @@ test("nothing in the manifest offers a Pull", () => {
 	// and built by whichever card lands dinah-280. This is the guard that
 	// keeps it from arriving early and mistargeting somebody's board.
 	const serialized = JSON.stringify(contributes);
+	// The two absence assertions below read one string, and a contributions
+	// block that had lost its commands or its menus would satisfy both while
+	// declaring nothing at all. A pull would arrive as a command, a menu entry
+	// or both, so both arrays being populated is what makes their silence mean
+	// something.
+	const commands = contributes.commands as unknown[];
+	const menuEntries = Object.values(
+		contributes.menus as Record<string, unknown[]>,
+	).flat();
+	assert.ok(
+		commands.length > 0 && menuEntries.length > 0,
+		`the contributions declare ${commands.length} commands and ${menuEntries.length} menu entries, so a missing pull proves nothing`,
+	);
 	assert.ok(
 		!serialized.includes("pullInto"),
 		"the manifest declares a pull command dinah cannot aim safely",

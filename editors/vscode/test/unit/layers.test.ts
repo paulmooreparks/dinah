@@ -39,7 +39,15 @@ function posix(path: string): string {
 	return relative(testRoot, path).split("\\").join("/");
 }
 
-/** Every file under test/, by which layer's directory holds it. */
+/**
+ * Every file under test/, by which layer's directory holds it.
+ *
+ * Every check below that filters this roster for offenders asserts the roster
+ * itself is non-empty before it reads the offenders, because an offender list
+ * computed from no files is empty for the wrong reason. Renaming test/unit is
+ * all it takes: the filter then matches nothing, the offender list is empty,
+ * and the check reports a clean layer it never looked at.
+ */
 function layerFiles(prefix: string): string[] {
 	return walk(testRoot)
 		.map(posix)
@@ -67,7 +75,12 @@ test("no unit-test file starts a process", () => {
 	// A unit test that shells out to `go build` or to a real dinah is an
 	// integration test filed in the wrong directory, and it takes the whole
 	// fast layer's runtime with it.
-	const offenders = layerFiles("unit/").filter((rel) => {
+	const files = layerFiles("unit/");
+	assert.ok(
+		files.length > 0,
+		"no unit-test file was scanned at all, so this check proved nothing",
+	);
+	const offenders = files.filter((rel) => {
 		const body = readFileSync(join(testRoot, rel), "utf8");
 		return (
 			valueImportOf("node:child_process").test(body) ||
@@ -87,7 +100,12 @@ test("no unit-test file imports the vscode module", () => {
 	// importing it cannot run under `node --test` at all, so this check is
 	// really about the file that imports it transitively through a src module
 	// and takes the whole layer down with it.
-	const offenders = layerFiles("unit/").filter((rel) => {
+	const files = layerFiles("unit/");
+	assert.ok(
+		files.length > 0,
+		"no unit-test file was scanned at all, so this check proved nothing",
+	);
+	const offenders = files.filter((rel) => {
 		const body = readFileSync(join(testRoot, rel), "utf8");
 		return (
 			valueImportOf("vscode").test(body) || /require\("vscode"\)/.test(body)
@@ -106,16 +124,25 @@ test("no module the unit layer reaches imports the vscode module at run time", (
 	// value import is what would break the layer.
 	const srcRoot = join(extensionRoot, "src");
 	const offenders: string[] = [];
+	let scanned = 0;
 	for (const file of walk(srcRoot)) {
 		const rel = relative(srcRoot, file).split("\\").join("/");
 		if (rel === "extension.ts") {
 			continue;
 		}
+		scanned += 1;
 		const body = readFileSync(file, "utf8");
 		if (/^import \* as vscode from "vscode";$/m.test(body)) {
 			offenders.push(rel);
 		}
 	}
+	// The sibling test below reads extension.ts by name, which says nothing
+	// about whether this walk found any other module, so the count is what
+	// keeps a moved or renamed src directory from reading as a clean one.
+	assert.ok(
+		scanned > 0,
+		"no module besides extension.ts was scanned at all, so this check proved nothing",
+	);
 	assert.deepEqual(
 		offenders,
 		[],
