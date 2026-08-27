@@ -379,6 +379,14 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
     backslashed = linked.replace("/", "\\") if os.name == "nt" else linked
     table = []
 
+    # `msys` rewrites a drive letter, and `linked` does not change across
+    # the loop below, so the rewrite is asserted once here rather than
+    # twenty-eight times inside it. The nested-worktree site further down
+    # asserts the same thing about its own fixture.
+    if os.name == "nt":
+        assert msys(linked) != slashed(linked), (
+            "msys() left %r in its plain spelling" % linked)
+
     for name, command in MUTATING:
         table.append(("%s, bare, session in the main checkout" % name, command, main, DENY))
         table.append(("%s, bare, session in a worktree" % name, command, linked, DENY))
@@ -392,8 +400,6 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # back. A guard that clears `C:/...` and refuses `/c/...` refuses
         # the form every agent on this board writes first.
         if os.name == "nt":
-            assert msys(linked) != slashed(linked), (
-                "msys() left %r in its plain spelling" % linked)
             table.append(("%s, -C a worktree spelled the Git Bash way" % name,
                           qualified(command, msys(linked)), main, ALLOW))
 
