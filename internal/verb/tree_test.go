@@ -509,11 +509,12 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	}
 	// The two closed axes enumerate differently, and the state axis does
 	// not enumerate the same set under every column. Intake takes no work up,
-	// so it can hold no active card and draws no active group; nothing in this
-	// fixture is blocked, so no column draws a blocked group either. Doing
-	// takes work up and is asserted alongside intake, because a rule reading
-	// the column would otherwise be indistinguishable here from a rule that
-	// dropped active and blocked from every column on the board.
+	// so it declares no state at all, and its ready group is drawn because two
+	// cards actually stand there rather than because the column promises one.
+	// Doing takes work up and is what discriminates here: it declares ready
+	// and active and draws both, so a rule that dropped the declared-group
+	// promise from every column on the board would redden the doing half while
+	// leaving the intake half alone.
 	intakeGroup := groupAt(t, built.Root, "intake")
 	for _, c := range []struct {
 		group TreeNode
@@ -1138,11 +1139,12 @@ func writeFile(t *testing.T, name string) string {
 	return path
 }
 
-// nobodyWorksHereDefinition is a flow whose every column takes work up nowhere:
-// one intake station and one done column, and nothing between them. A card can
-// stand ready or blocked anywhere on it and can never stand active, which is
-// what makes it the one fixture able to tell the union rule apart from a rule
-// that draws all three states whatever the workbench says.
+// nobodyWorksHereDefinition is a flow where nobody takes work up at any column:
+// one intake column and one done column, and nothing between them. Neither
+// column declares a state, so the union across the workbench is empty, and a
+// card standing on this flow can stand ready or blocked and can never stand
+// active. That is what makes it the one fixture able to tell the union rule
+// apart from a rule that draws all three states whatever the workbench says.
 const nobodyWorksHereDefinition = `{
   "profile": "dinah-core/0.7",
   "title": "Nobody works here",
@@ -1161,11 +1163,13 @@ const nobodyWorksHereDefinition = `{
 //
 // Grouping partitions a card set and never merges two of them back together,
 // so every card below an intake group stands at the intake column however many
-// axes intervene, and the states drawn there are the intake column's own. The
-// fixture blocks one of its two cards so that the expected set, ready and
-// blocked, differs from the union across the whole workbench in both members: a
-// tree that lost the column would draw active, and a tree that suppressed
-// blocked wherever it appeared would drop blocked.
+// axes intervene, and the state enumeration there is the intake column's own.
+// That column declares nothing, so both groups drawn under it are drawn by
+// occupancy. The fixture blocks one of its two cards so that the expected set,
+// ready and blocked, differs from the union across the whole workbench in both
+// members: a tree that lost the column would fall back to that union and draw
+// active, and a tree that suppressed blocked wherever it appeared would drop
+// blocked.
 //
 // The same tree taken with the column axis dropped out of the chain is the
 // control. Without it the state groups draw active as well, which is what
@@ -1195,17 +1199,21 @@ func TestStateResolvesTheColumnAboveItWhateverAxisComesBetween(t *testing.T) {
 // with no column above it anywhere in the chain enumerates the union of what the
 // workbench's columns can hold, rather than the three the contract names.
 //
-// The fixture is a flow where no column takes work up at all, so the union holds
-// ready and blocked and no card on the workbench can ever stand active. A tree
-// drawing an active group here is drawing a group nothing can occupy, which is
-// the defect this card fixes, and the standard fixture cannot show it: its
-// columns union to all three and pass under either rule.
+// The fixture is a flow where nobody takes work up at any column, so every
+// column declares nothing, the union is empty, and no card on the workbench can
+// ever stand active. Both halves below therefore draw through occupancy rather
+// than through a declaration. A tree drawing an active group here is drawing a
+// group nothing can occupy, which is the defect this card fixes, and the
+// standard fixture cannot show it: its columns union to all three and pass
+// under either rule.
 //
 // The second half is the control for the first. Blocking a card draws the
 // blocked group, so the assertion that only ready is drawn while nothing is
 // blocked reads as the occupancy rule rather than as a tree that lost the
-// blocked group entirely. Active is absent from both halves, which is the
-// union rule holding while the rest of the answer moves.
+// blocked group entirely. Active is absent from both halves, and the assertion
+// still discriminates: a stateUnion that wrongly returned the contract's three
+// whatever the columns declare would draw active beside ready and redden the
+// first half.
 func TestStandaloneStateUnionsAcrossColumns(t *testing.T) {
 	h := harnessFromDefinition(t, "nw", nobodyWorksHereDefinition)
 	h.add("a card standing ready")
@@ -1365,6 +1373,93 @@ func TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenState(t *test
 		if strings.Join(drawn, ",") != strings.Join(want, ",") {
 			t.Errorf("under the query %q the station draws the states %v, and the declared values come first at %v",
 				query, drawn, want)
+		}
+	}
+}
+
+// TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty is dinah-322 AC-3 and
+// AC-4. Nobody with access to the workbench claims a card standing at an
+// intake column, at a buffer, at a done column, or at a column waiting on
+// somebody outside, so a state breakdown beneath one of those tells a reader
+// nothing and is not drawn. A station is the contrasting half: it draws ready
+// and active whether or not a card stands in either, which is what stops this
+// test passing on an implementation that dropped the declared-group promise
+// everywhere rather than only where no work is taken up.
+func TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty(t *testing.T) {
+	t.Run("an intake column, a buffer and a done column", func(t *testing.T) {
+		h := newBufferHarness(t)
+		ref := h.add("moved off the queue columns")
+		h.at(ref, bufferDoing)
+
+		built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+		for _, column := range []string{bufferIntakeSlug, bufferQueueSlug, bufferDoneSlug} {
+			group := groupAt(t, built.Root, column)
+			if len(group.Children) != 0 {
+				t.Errorf("the %s column draws the state groups %v and holds no card",
+					column, groupValues(group))
+			}
+		}
+		doing := groupAt(t, built.Root, bufferDoingSlug)
+		want := []string{contract.StateReady, contract.StateActive}
+		if got := groupValues(doing); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("the doing column draws the state groups %v and a station always draws %v",
+				got, want)
+		}
+	})
+
+	t.Run("a station waiting on somebody outside", func(t *testing.T) {
+		h := newBufferHarness(t)
+		h.declare(bufferDoing, "awaiting_outside", "true")
+		ref := h.add("waiting on the customer")
+
+		built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+		waiting := groupAt(t, built.Root, bufferDoingSlug)
+		if len(waiting.Children) != 0 {
+			t.Errorf("the doing column waits on somebody outside and draws the state groups %v",
+				groupValues(waiting))
+		}
+		standing := groupAt(t, built.Root, bufferIntakeSlug)
+		want := []string{contract.StateReady}
+		if got := groupValues(standing); strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("the intake column holds %s and draws the state groups %v rather than %v",
+				ref, got, want)
+		}
+	})
+}
+
+// TestABlockedCardAtAQueueColumnStillDrawsItsGroup is dinah-322 AC-5. A column
+// where no work is taken up declares no state at all, so the groups the cards
+// standing there draw come from StatesDrawn's carried case rather than from a
+// declaration. Without this test an implementation could satisfy the test above
+// by refusing to draw any state group beneath such a column at all, which would
+// drop a card out of a tree whose root count still includes it.
+//
+// Two cards stand at the column, one ready and one blocked, and the order the
+// groups come in is asserted along with their presence. One card alone would
+// not hold the carried case to account, because axisValueOrder's own carried
+// loop would draw a lone group whatever StatesDrawn answered. That loop sorts
+// what it draws by the value's bytes, so it puts blocked before ready, and the
+// state axis has one order wherever a reader meets it.
+func TestABlockedCardAtAQueueColumnStillDrawsItsGroup(t *testing.T) {
+	h := newBufferHarness(t)
+	stopped := h.add("blocked while waiting")
+	h.at(stopped, bufferQueue)
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	waiting := h.add("still waiting its turn")
+	h.at(waiting, bufferQueue)
+
+	built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+	group := groupAt(t, built.Root, bufferQueueSlug)
+	want := []string{contract.StateReady, contract.StateBlocked}
+	if got := groupValues(group); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("the waiting column draws the state groups %v and two cards stand there at %v",
+			got, want)
+	}
+	for state, ref := range map[string]string{contract.StateReady: waiting, contract.StateBlocked: stopped} {
+		refs := leafRefs(groupAt(t, group, state))
+		if len(refs) != 1 || refs[0] != ref {
+			t.Errorf("the %s group of the waiting column draws the cards %v and %s stands there",
+				state, refs, ref)
 		}
 	}
 }

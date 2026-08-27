@@ -475,11 +475,14 @@ type group struct {
 // A closed-enum axis draws a group for every member the workbench declares
 // that the group's own column can hold, including the members holding nothing,
 // because enumerating the flow completely is what the status tree is for. The
-// blocked state is the one member exempt from that, and axisValueOrder says
-// why. An open-valued axis draws a group for every value some card the producer
-// considered carries, survivor or removed, sorted by the value's bytes
-// ascending. The group holding the cards that carry no value on the axis comes
-// last, whatever the axis.
+// blocked state is the one member exempt from that, and StatesDrawn says why.
+// A column where nobody with access to the workbench takes work up declares no
+// member of the state axis at all, so this rule draws no state group beneath
+// one whether or not a card stands there. Such a card is still drawn, through
+// the open-valued carried rule below. An open-valued axis draws a group for
+// every value some card the producer considered carries, survivor or removed,
+// sorted by the value's bytes ascending. The group holding the cards that
+// carry no value on the axis comes last, whatever the axis.
 func (l *Library) groupsOn(axis string, kept, cut []*bench.Card, columnCtx string) []group {
 	keptBy := l.gather(axis, kept)
 	cutBy := l.gather(axis, cut)
@@ -504,6 +507,61 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 	return by
 }
 
+// StatesDrawn is the state groups a grouped view draws beneath one column, in
+// the order the state axis declares its vocabulary. It takes the states that
+// column declares, which is Column.States, and a report of whether a card
+// actually stands in a state there.
+//
+// This is the one place the rule is written, so every reader answers the same
+// way. The grouped tree asks it through axisValueOrder, and cmd/dinah's
+// row-sweep suite asks it to predict what that tree will draw rather than
+// restating the rule on the expected side. A rule written in two places is a
+// rule that drifts.
+//
+// One consequence of that belongs here rather than only at the call site. The
+// row sweep in cmd/dinah cannot catch this function drawing the wrong states,
+// because it moves the expectation and the output together, so a green sweep
+// says nothing about the rule below. What holds this function honest is
+// TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty, which pins the
+// declared half, and TestABlockedCardAtAQueueColumnStillDrawsItsGroup, which
+// pins the carried half, both in tree_test.go and both naming the states they
+// want as literals. Change the rule here and read those two.
+//
+// The vocabulary splits three ways. A state the column declares is drawn
+// whether or not a card stands in it, because an empty ready group tells a
+// reader work is waiting and nobody has taken it up. Blocked is the exception
+// and is drawn only where a card actually stands blocked, since a block is the
+// rare case and a blocked group reading zero under every column reports the
+// ordinary thing on every row. A state the column does not declare is drawn
+// only where a card actually stands in it, which is the carried-value rule any
+// value the axis does not declare already follows. That last case is the whole
+// of the answer at a column where nobody with access to the workbench takes
+// work up, since such a column declares no state at all, and it is what keeps
+// a card standing there inside a tree whose root count already includes it.
+//
+// A state outside the axis's own vocabulary, which a hand edit can write into
+// a card, is not this function's business. axisValueOrder's carried loop draws
+// that group after these.
+func StatesDrawn(declared []string, standing func(state string) bool) []string {
+	holds := map[string]bool{}
+	for _, state := range declared {
+		holds[state] = true
+	}
+	var drawn []string
+	for _, state := range closedValues(FieldState) {
+		if state == contract.StateBlocked {
+			if standing(state) {
+				drawn = append(drawn, state)
+			}
+			continue
+		}
+		if holds[state] || standing(state) {
+			drawn = append(drawn, state)
+		}
+	}
+	return drawn
+}
+
 // axisValueOrder is the order the groups of one axis are drawn in: the values
 // a closed axis declares, in the order it declares them, then any further
 // value some card carries, sorted by its bytes ascending, then the no-value
@@ -519,31 +577,30 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 // them went on counting them, and a card missing from a view whose total says
 // it is there is the one failure this projection must not have.
 //
-// Which declared members a state group draws is settled in three tiers, and
-// two of them meet here. A state the column cannot hold is never drawn, and
-// declaredValues answers that by asking the column. Of the states it can
-// hold, ready and active are drawn whether or not a card stands in them, which
-// is the promise the paragraph above makes: an empty ready group tells a reader
-// work is waiting and nobody has taken it up. Blocked is drawn only where a
-// card actually stands in it. A block is the exception rather than the ordinary
-// case, so a blocked group reading zero under every column on the board reports
-// the common thing on every row and leaves the reader to find the row that
-// means something.
+// Which state groups a column draws is StatesDrawn's question rather than this
+// function's, so the rule is written once and this function asks for it. What
+// belongs here is the occupancy StatesDrawn needs, and occupancy counts the
+// cards the filter removed as well as the survivors. A blocked card a filter
+// hid still means the column has a blocked card, and the honest drawing of
+// that is a group counting nothing with an account of what was filtered,
+// rather than no group at all.
 //
-// Occupancy counts the cards the filter removed as well as the survivors. A
-// blocked card a filter hid still means the column has a blocked card, and the
-// honest drawing of that is a group counting nothing with an account of what
-// was filtered, rather than no group at all.
+// The promise the paragraph above makes holds for a column whose States
+// declares the value. A column that declares no state at all makes no such
+// promise, and a card standing there is drawn only where it actually stands,
+// the same as any value the axis does not declare.
 func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card, columnCtx string) []string {
 	seen := map[string]bool{}
 	var order []string
 	if closedAxis(axis) {
-		for _, value := range l.declaredValues(axis, columnCtx) {
+		declared := l.declaredValues(axis, columnCtx)
+		if axis == FieldState {
+			declared = StatesDrawn(declared, func(state string) bool {
+				return len(keptBy[state]) > 0 || len(cutBy[state]) > 0
+			})
+		}
+		for _, value := range declared {
 			if value == "" || seen[value] {
-				continue
-			}
-			if axis == FieldState && value == contract.StateBlocked &&
-				len(keptBy[value]) == 0 && len(cutBy[value]) == 0 {
 				continue
 			}
 			seen[value] = true
@@ -574,12 +631,13 @@ func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.
 //
 // The state axis answers for one column rather than for the whole workbench,
 // because which states a card may carry is a property of where it stands. A
-// column that takes no work up holds no active card, so drawing an active group
-// beneath one invites a reader to ask what would put a card there when the
-// answer is that nothing can. columnCtx is the value of the nearest column group
-// above this one and governs the enumeration through States. Where it is
-// empty, and where it names a column the workbench no longer declares, the
-// answer is stateUnion.
+// column where nobody with access to the workbench takes work up declares none
+// of the three, so this function answers emptily for one, and every state group
+// beneath such a column is drawn by occupancy through StatesDrawn's carried
+// half rather than by a declaration. columnCtx is the value of the nearest
+// column group above this one and governs the enumeration through States.
+// Where it is empty, and where it names a column the workbench no longer
+// declares, the answer is stateUnion.
 //
 // It is what the workbench says, rather than the whole of what the tree draws.
 // A value no longer declared, and the absent value a card carrying nothing on
@@ -613,9 +671,10 @@ func (l *Library) declaredValues(axis, columnCtx string) []string {
 // passing through column, and a group standing at a column ref the workbench no
 // longer declares. Such a group still has to say what its closed axis holds,
 // and the union is the widest answer that never offers a value no column on this
-// workbench can reach. On a workbench where no column takes work up, no active
-// group is drawn anywhere, which is the question this whole enumeration exists
-// to answer correctly.
+// workbench can reach. On a workbench where nobody takes work up at any column,
+// every column declares nothing and so the union is empty, which leaves such a
+// tree drawing the states its cards actually stand in and no others. That is
+// the question this whole enumeration exists to answer correctly.
 func (l *Library) stateUnion() []string {
 	held := map[string]bool{}
 	for _, column := range l.Bench.Columns {

@@ -68,11 +68,12 @@ func TestTerminalAndPullCanTakeFromAnswerForEveryKind(t *testing.T) {
 	}
 }
 
-// TestStatesAndHoldsStateAgree is dinah-273 AC-3. A column where work is
-// taken up holds all three states and one where it is not holds ready and
-// blocked, because a block says something about the card rather than about a
-// worker. HoldsState is asserted against States for all three in every
-// case, so the two cannot answer differently.
+// TestStatesAndHoldsStateAgree is dinah-273 AC-3, carried forward by dinah-322
+// AC-1 and AC-2. A column where work is taken up holds all three states, and a
+// column where nobody with access to the workbench takes work up holds none of
+// them, because a card standing in a queue is waiting rather than being worked
+// and nobody claims it there. HoldsState is asserted against States for all
+// three in every case, so the two cannot answer differently.
 func TestStatesAndHoldsStateAgree(t *testing.T) {
 	station := Column{Kind: contract.KindWork}
 	queues := []struct {
@@ -94,7 +95,7 @@ func TestStatesAndHoldsStateAgree(t *testing.T) {
 	})
 	for _, c := range queues {
 		t.Run(c.name, func(t *testing.T) {
-			wanted := []string{contract.StateReady, contract.StateBlocked}
+			var wanted []string
 			if got := strings.Join(c.column.States(), ","); got != strings.Join(wanted, ",") {
 				t.Errorf("States: wanted %v, got %v", wanted, c.column.States())
 			}
