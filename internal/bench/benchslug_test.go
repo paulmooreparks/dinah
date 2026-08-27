@@ -65,7 +65,7 @@ func TestCheckReportsAndRepairsAMissingWorkbenchSlug(t *testing.T) {
 
 // TestBackfillWorkbenchSlugLeavesAStoredSlugAlone asserts that a workbench
 // already carrying a slug is left exactly as it stands, malformed or not, the
-// same rule BackfillStateSlugs holds to for a state.
+// same rule BackfillColumnSlugs holds to for a column.
 func TestBackfillWorkbenchSlugLeavesAStoredSlugAlone(t *testing.T) {
 	root := newFixture(t)
 	opened, err := Open(root)
@@ -86,7 +86,7 @@ func TestBackfillWorkbenchSlugLeavesAStoredSlugAlone(t *testing.T) {
 
 // TestBackfillWorkbenchSlugNamesAnUnderivableTitle asserts that a title no
 // slug can be derived from is reported under its own key and the migration
-// gives the workbench no slug, mirroring FindingSlugUnderivable for a state.
+// gives the workbench no slug, mirroring FindingSlugUnderivable for a column.
 func TestBackfillWorkbenchSlugNamesAnUnderivableTitle(t *testing.T) {
 	root := newFixture(t)
 	editWorkbench(t, root, "title: Fixture\nslug: fx\n", "title: 2026\n")
@@ -108,7 +108,7 @@ func TestBackfillWorkbenchSlugNamesAnUnderivableTitle(t *testing.T) {
 
 // TestCheckWorkbenchSlugCarriesNoMajorGate asserts checkWorkbenchSlug fires
 // on a missing slug at every declared major, not only below
-// SlugMandatoryMajor. Unlike a state's slug, no CORE-BENCH statement makes a
+// SlugMandatoryMajor. Unlike a column's slug, no CORE-BENCH statement makes a
 // workbench slug mandatory at any major, and Open never refuses a workbench
 // for lacking one, so there is no major past which this check would be
 // redundant with a refusal Open already issued: it has to keep firing. A
@@ -139,10 +139,10 @@ func hasFinding(findings []Finding, key string) bool {
 
 // TestCandidateSlugOmitsWhenAbsent asserts AC-5: the JSON view of a
 // workbench carrying no slug omits the key entirely rather than serving an
-// empty string, matching the convention StateView.Slug already carries.
+// empty string, matching the convention ColumnView.Slug already carries.
 func TestCandidateSlugOmitsWhenAbsent(t *testing.T) {
 	root := t.TempDir()
-	write(t, filepath.Join(root, WorkbenchAnchor), "---\nformat: 1\nprofile: dinah-core/1.0\ntitle: NoSlug\noperator: alka\nstates:\n  - b00000000001\n---\n")
+	write(t, filepath.Join(root, WorkbenchAnchor), "---\nformat: 1\nprofile: dinah-core/0.7\ntitle: NoSlug\noperator: alka\nstates:\n  - b00000000001\n---\n")
 	candidate := describe(root)
 	if candidate.Slug != "" {
 		t.Fatalf("wanted no slug, got %q", candidate.Slug)

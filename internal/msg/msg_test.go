@@ -215,10 +215,46 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 //
 // A subtest per language keeps a failure readable. Without one, a single
 // English edit reports the same key once per catalog and a reader cannot tell
-// how many languages are actually behind. Each catalog the language ruling
-// calls complete earns a subtest on its own, so the five skeleton catalogs
-// join the guard when somebody translates them and nothing here has to be
-// edited for that to happen.
+// how many languages are actually behind. Every catalog that ships earns a
+// subtest, so a skeleton catalog joins the guard the moment somebody
+// translates one of its entries and nothing here has to be edited for that to
+// happen.
+//
+// The loop reads every shipped catalog rather than the Complete roster it once
+// read, because the roster answers a different question. Complete is
+// catalog-level and says a language has no untranslated entry left, which is
+// not the same as saying the language carries translations worth checking.
+// dinah-287 nearly took Hindi and German off that roster while both still
+// carried hundreds of real translations, and a guard keyed on the roster would
+// have stopped checking those translations on the day it changed. The operator
+// ruled that the two languages be retranslated instead, so the roster came
+// through the card unchanged, and this loop no longer depends on that.
+//
+// What the change costs is a smaller population, and this comment no longer
+// writes down how much smaller. Three consecutive rounds of review each
+// corrected that figure and each left it wrong somewhere, which is the signal
+// that a count is the wrong kind of thing to maintain by hand. A number
+// written into a comment is taken on some tree on some day and is stale by the
+// next commit, and this file's copy of it disagreed with a transcript in
+// docs/quick-start.md that the same commit regenerated.
+//
+// So the counts live in one place, and that place computes them: `dinah
+// version --catalogs` prints every shipped catalog with its translated count
+// over its total, read off the catalogs themselves. The population this loop
+// covers is the sum of the translated column over every catalog but English,
+// and the entries a retranslation would face in a language is the difference
+// between its two columns. The workbench document "Translation staleness
+// contract" carries that command and its output at a named commit, and
+// nothing else in the tree writes the figures down.
+//
+// The change is still the right one, on the merits rather than on the size of
+// the set. A skeleton entry holds English rather than a translation and has no
+// source it could have fallen behind, so checking one would assert nothing;
+// every entry that does hold a translation is checked here, whichever catalog
+// carries it and whatever roster that catalog is on. What the edit gives up is
+// the empty-population alarm's ability to report a roster emptied by accident,
+// which the workbench document names as its designed behaviour, and the
+// checked == 0 fatal at the foot of this test is what remains of it.
 //
 // The base catalog and any skeleton entry are exempt, because neither is a
 // translation of anything and so neither has a source to fall behind. A key
@@ -226,14 +262,14 @@ func TestATranslationKeepsThePlaceholdersAndTheSplice(t *testing.T) {
 // already reports it, rather than reported twice.
 func TestATranslationTracksItsEnglishSource(t *testing.T) {
 	checked := 0
-	for _, tag := range Complete {
+	for _, tag := range Tags() {
 		if tag == Base {
 			continue
 		}
 		t.Run(tag, func(t *testing.T) {
 			catalog, shipped := loaded[tag]
 			if !shipped {
-				t.Fatalf("the complete catalog %s does not ship, so no entry of it can be checked", tag)
+				t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
 			}
 			for _, key := range Keys() {
 				base, ok := BaseEntry(key)
@@ -435,4 +471,109 @@ func identifiers(pattern *regexp.Regexp, text string) string {
 	found := pattern.FindAllString(text, -1)
 	sort.Strings(found)
 	return strings.Join(found, ", ")
+}
+
+// TestATranslationIsNotEnglishUnderAnotherTag asserts that an entry a catalog
+// presents as translated is genuinely in that catalog's language, and it is
+// the check that survives a language leaving the Complete roster.
+//
+// Completeness and correctness are different properties, and dinah-287 made
+// the difference matter. Complete says a catalog has no untranslated entry
+// left, and that card's rename sent a block of German and Hindi entries back
+// to skeletons, which would have taken both languages off the list.
+// TestEveryDeclaredLanguageShips only ever asserted anything about a language
+// on one of the two rosters, so on the branch where those two had left it,
+// nothing checked their contents at all: replacing all of German's remaining
+// translations with the English text left the package green. The operator
+// ruled that the entries be retranslated and both languages stayed on the
+// list, so that branch is not the tree you are reading, but the hole it
+// exposed was real and this guard is what closed it. A language off the roster
+// is not expected to be complete. It is still expected that what it does carry
+// is genuinely translated, and that an entry holding English says so.
+//
+// So the rule here is keyed on the entry rather than on the roster its catalog
+// is on. An entry that is not a skeleton must differ from its English source,
+// unless it carries Verbatim, which is a translator saying the answer really
+// is the English word. Both arms of that are load-bearing: without the first,
+// English refilling a catalog passes; without the second, every German table
+// heading reading "Name" fails and the guard gets switched off.
+//
+// The stale-flag arm keeps Verbatim honest. An entry marked verbatim whose
+// text no longer matches English is either a translation somebody wrote
+// without clearing the flag or an English source that moved underneath it, and
+// either way the claim the flag makes is no longer true.
+func TestATranslationIsNotEnglishUnderAnotherTag(t *testing.T) {
+	checked := 0
+	for _, tag := range Tags() {
+		if tag == Base {
+			continue
+		}
+		t.Run(tag, func(t *testing.T) {
+			catalog, shipped := loaded[tag]
+			if !shipped {
+				t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
+			}
+			for _, key := range Keys() {
+				base, ok := BaseEntry(key)
+				if !ok {
+					continue
+				}
+				entry, carried := catalog.Entries[key]
+				if !carried || entry.Skeleton {
+					continue
+				}
+				checked++
+				switch {
+				case entry.Text == base.Text && !entry.Verbatim:
+					t.Errorf("%s: carries the English text and is marked neither skeleton nor verbatim, so English is standing where a translation should be", key)
+				case entry.Text != base.Text && entry.Verbatim:
+					t.Errorf("%s: is marked verbatim and no longer matches the English text, so the flag says something that is no longer true", key)
+				}
+			}
+		})
+	}
+	if checked == 0 {
+		t.Fatal("no entry a catalog presents as translated was checked, so this guard is asserting nothing")
+	}
+}
+
+// TestASkeletonEntryReallyCarriesTheEnglishText is the other half of the rule
+// above, and it is what stops a catalog answering the guard by marking
+// everything a skeleton. A skeleton entry is defined as the English text
+// standing in for a translation nobody has written, so an entry marked
+// skeleton whose text is not the English text is misdescribing itself: either
+// somebody translated it and left the flag on, in which case the reader is
+// told the language has an untranslated entry it does not have, or the entry
+// holds text that came from nowhere this project can name.
+func TestASkeletonEntryReallyCarriesTheEnglishText(t *testing.T) {
+	checked := 0
+	for _, tag := range Tags() {
+		if tag == Base {
+			continue
+		}
+		catalog, shipped := loaded[tag]
+		if !shipped {
+			t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
+		}
+		for _, key := range Keys() {
+			base, ok := BaseEntry(key)
+			if !ok {
+				continue
+			}
+			entry, carried := catalog.Entries[key]
+			if !carried || !entry.Skeleton {
+				continue
+			}
+			checked++
+			if entry.Text != base.Text {
+				t.Errorf("%s/%s: is marked as a skeleton and does not carry the English text", tag, key)
+			}
+			if entry.Verbatim {
+				t.Errorf("%s/%s: is marked both skeleton and verbatim, and the two say different things about the same entry", tag, key)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no skeleton entry was checked, so this guard is asserting nothing")
+	}
 }

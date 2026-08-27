@@ -11,17 +11,17 @@ import (
 	"dinah/internal/contract"
 )
 
-// Add files a new card. It enters the first state of the ordered list with
-// substate ready, its identifier is claimed by mkdir of the hex directory,
+// Add files a new card. It enters the first column of the ordered list with
+// state ready, its identifier is claimed by mkdir of the hex directory,
 // and its journal opens with the created event.
 //
-// A named state honours that state's capacity limit while a filing into the
-// first state never does, because work has to be able to enter the bench and
+// A named column honours that column's capacity limit while a filing into the
+// first column never does, because work has to be able to enter the bench and
 // the intake station is where unstarted work is meant to pile up.
 //
-// Bench.Open tolerates a workbench whose live states list has been emptied
+// Bench.Open tolerates a workbench whose live columns list has been emptied
 // by every id going stranded, so check can diagnose it. Add refuses with
-// contract.AddNeedsAState instead of reading the first state off an empty
+// contract.AddNeedsAColumn instead of reading the first column off an empty
 // list, before anything about the request past its title and actor is
 // checked, so the refusal is a pure read-only bail-out with nothing to
 // clean up.
@@ -36,15 +36,15 @@ func (l *Library) Add(req *Request) *Response {
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
 	}
-	if len(l.Bench.States) == 0 {
+	if len(l.Bench.Columns) == 0 {
 		anchor := filepath.Join(l.Bench.Root, bench.WorkbenchAnchor)
-		return l.refuse(req, nil, contract.AddNeedsAState, anchor)
+		return l.refuse(req, nil, contract.AddNeedsAColumn, anchor)
 	}
-	destination := l.Bench.States[0]
-	if req.State != "" {
-		named := l.Bench.StateByRef(req.State)
+	destination := l.Bench.Columns[0]
+	if req.Column != "" {
+		named := l.Bench.ColumnByRef(req.Column)
 		if named == nil {
-			return l.refuse(req, nil, contract.UnknownState, req.State)
+			return l.refuse(req, nil, contract.UnknownColumn, req.Column)
 		}
 		reached, err := l.atCapacity(named)
 		if err != nil {
@@ -81,9 +81,9 @@ func (l *Library) Add(req *Request) *Response {
 	fm := bench.NewFrontmatter()
 	fm.Set("title", title)
 	fm.Set("number", strconv.Itoa(number))
-	fm.Set("state", destination.ID)
-	fm.Set("substate", contract.SubstateReady)
-	// Set appends, and substate is the last key written above, so the pair
+	fm.Set("column", destination.ID)
+	fm.Set("state", contract.StateReady)
+	// Set appends, and state is the last key written above, so the pair
 	// lands under it in the order Card.Save places it. An axis the filing
 	// named no level for is written not at all, so absence stays absence
 	// rather than becoming an empty value.
@@ -156,7 +156,7 @@ func (l *Library) Comment(req *Request) *Response {
 	return response
 }
 
-// Attach records a file against the bench, a state, a card or a comment. The
+// Attach records a file against the bench, a column, a card or a comment. The
 // entity carries the original filename, the description and the provenance,
 // and the bytes alone sit in payload/ under their original name.
 func (l *Library) Attach(req *Request) *Response {
@@ -234,14 +234,14 @@ func (l *Library) Archive(req *Request) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Actor, Note: entity.ID}
 	act := &bench.StructuralAct{
-		Dir:      entity.Dir,
-		LockDir:  l.lockDirFor(entity),
-		Op:       bench.OpArchive,
-		Actor:    req.Actor,
-		Now:      now,
-		StateID:  stateSubject(entity),
-		StateRef: stateRefSubject(entity),
-		Record:   func() error { return bench.AppendEvent(journal, ev) },
+		Dir:       entity.Dir,
+		LockDir:   l.lockDirFor(entity),
+		Op:        bench.OpArchive,
+		Actor:     req.Actor,
+		Now:       now,
+		ColumnID:  columnSubject(entity),
+		ColumnRef: columnRefSubject(entity),
+		Record:    func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -283,8 +283,8 @@ func (l *Library) Delete(req *Request) *Response {
 		Op:            bench.OpDelete,
 		Actor:         req.Actor,
 		Now:           now,
-		StateID:       stateSubject(entity),
-		StateRef:      stateRefSubject(entity),
+		ColumnID:      columnSubject(entity),
+		ColumnRef:     columnRefSubject(entity),
 		WorkstreamID:  workstreamSubject(entity),
 		WorkstreamRef: workstreamRefSubject(entity),
 		Record:        func() error { return bench.AppendEvent(journal, ev) },
@@ -298,7 +298,7 @@ func (l *Library) Delete(req *Request) *Response {
 }
 
 // Rename carries an attachment's payload under a new filename and rewrites
-// the anchor's filename field to match. Cards, states, comments, checklist
+// the anchor's filename field to match. Cards, columns, comments, checklist
 // items, and the workbench itself sit outside this verb, since their names
 // travel by other acts.
 //
@@ -665,12 +665,12 @@ func (l *Library) lockDirFor(entity *bench.EntityRef) string {
 	return l.Bench.Root
 }
 
-// retiring names the actor retiring a state, when a structural act's sibling
-// stands beside that state's directory. It is what a write storing a card's
-// state reads before it stores one, so a card cannot enter a station whose
+// retiring names the actor retiring a column, when a structural act's sibling
+// stands beside that column's directory. It is what a write storing a card's
+// column reads before it stores one, so a card cannot enter a station whose
 // retirement is already in flight.
-func (l *Library) retiring(stateID string) (string, bool) {
-	dir := filepath.Join(l.Bench.Root, bench.StatesDir, stateID)
+func (l *Library) retiring(columnID string) (string, bool) {
+	dir := filepath.Join(l.Bench.Root, bench.ColumnsDir, columnID)
 	path := bench.SiblingPath(dir)
 	if path == "" || !bench.Exists(path) {
 		return "", false
@@ -678,22 +678,22 @@ func (l *Library) retiring(stateID string) (string, bool) {
 	return bench.LockHolder(path), true
 }
 
-// stateSubject names the state a structural act is retiring, and is empty for
+// columnSubject names the column a structural act is retiring, and is empty for
 // an act on any other kind. It is what arms the occupancy scan the act runs
 // once its own sibling exists.
-func stateSubject(entity *bench.EntityRef) string {
-	if entity.Kind != "state" {
+func columnSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "column" {
 		return ""
 	}
 	return entity.ID
 }
 
-// stateRefSubject is StateRef's own reading of the same question stateSubject
-// answers for StateID, so the two stay paired and StructuralAct.StateRef's
-// documented invariant, empty exactly when StateID is, holds by construction
-// rather than by every entity kind but state happening to carry no Ref today.
-func stateRefSubject(entity *bench.EntityRef) string {
-	if entity.Kind != "state" {
+// columnRefSubject is ColumnRef's own reading of the same question columnSubject
+// answers for ColumnID, so the two stay paired and StructuralAct.ColumnRef's
+// documented invariant, empty exactly when ColumnID is, holds by construction
+// rather than by every entity kind but column happening to carry no Ref today.
+func columnRefSubject(entity *bench.EntityRef) string {
+	if entity.Kind != "column" {
 		return ""
 	}
 	return entity.Ref
@@ -712,7 +712,7 @@ func workstreamSubject(entity *bench.EntityRef) string {
 
 // workstreamRefSubject is WorkstreamRef's own reading of the same question
 // workstreamSubject answers for WorkstreamID, paired the same way
-// stateRefSubject pairs with stateSubject, so StructuralAct.WorkstreamRef's
+// columnRefSubject pairs with columnSubject, so StructuralAct.WorkstreamRef's
 // documented invariant, empty exactly when WorkstreamID is, holds by
 // construction rather than by every entity kind but workstream happening to
 // carry no Ref today.
@@ -761,8 +761,8 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 		}
 		return ""
 	}
-	if state := l.Bench.State(entity.ID); state != nil {
-		return state.Title
+	if column := l.Bench.Column(entity.ID); column != nil {
+		return column.Title
 	}
 	return ""
 }
@@ -851,22 +851,22 @@ func readSource(root, source string) (*bench.Definition, error) {
 // intake station, one working station and one done station, which is the
 // smallest flow the contract's own vocabulary can express.
 func defaultDefinition(title string) *bench.Definition {
-	states := []map[string]json.RawMessage{
-		stateMember("intake", "Intake", contract.KindIntake),
-		stateMember("doing", "Doing", contract.KindWork),
-		stateMember("done", "Done", contract.KindDone),
+	columns := []map[string]json.RawMessage{
+		columnMember("intake", "Intake", contract.KindIntake),
+		columnMember("doing", "Doing", contract.KindWork),
+		columnMember("done", "Done", contract.KindDone),
 	}
 	return &bench.Definition{
 		Object:  map[string]json.RawMessage{},
 		Title:   title,
 		Profile: bench.ProfileVersion,
-		States:  states,
+		Columns: columns,
 	}
 }
 
-// stateMember builds one element of the default flow's states array. The
+// columnMember builds one element of the default flow's columns array. The
 // identifiers are minted at instantiation, since these names are not hex.
-func stateMember(id, title, kind string) map[string]json.RawMessage {
+func columnMember(id, title, kind string) map[string]json.RawMessage {
 	return map[string]json.RawMessage{
 		"id":    json.RawMessage(`"` + id + `"`),
 		"title": json.RawMessage(`"` + title + `"`),
@@ -1073,7 +1073,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 //
 // A slug another live workstream already carries is accepted, so this command
 // can write a duplicate that NewWorkstream's own collision loop can never
-// produce. Check is the whole answer to that state. It raises exactly one
+// produce. Check is the whole answer to that column. It raises exactly one
 // check.workstream-slug-duplicate finding over the pair, never two, and it
 // names the later of the two by creation order, because checkWorkstreams and
 // WorkstreamByRef walk the collection in the same order: the earlier workstream
@@ -1107,7 +1107,7 @@ func (l *Library) SetWorkstream(req *Request) *Response {
 	if value == "" {
 		return l.refuse(req, nil, contract.Malformed, req.Field)
 	}
-	if req.Field == bench.SlugField && !bench.ValidStateSlug(value) {
+	if req.Field == bench.SlugField && !bench.ValidColumnSlug(value) {
 		return l.refuse(req, nil, contract.Malformed, req.Field)
 	}
 	if req.Actor == "" {

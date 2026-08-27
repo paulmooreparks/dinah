@@ -1,5 +1,5 @@
 // Package contract holds the machine vocabulary of the core profile: the
-// outcome tokens, the declared refusal names, the substates, the state kinds
+// outcome tokens, the declared refusal names, the states, the column kinds
 // and the journal event names, together with the error types a verb returns
 // when it refuses or finds the caller's knowledge out of date.
 //
@@ -45,7 +45,7 @@ func ExitCode(outcome string) int {
 // LayerPrefix, which CORE-OUT-3 admits and DOC-LAYER-1 keeps collision-free.
 const (
 	UnknownCard       = "unknown-card"
-	UnknownState      = "unknown-state"
+	UnknownColumn     = "unknown-column"
 	UnsupportedVer    = "unsupported-version"
 	Held              = "held"
 	NotRequester      = "not-requester"
@@ -65,7 +65,7 @@ const (
 // Declared lists the profile's sixteen refusal names in the order section 6.1
 // prints them.
 var Declared = []string{
-	UnknownCard, UnknownState, UnsupportedVer, Held, NotRequester,
+	UnknownCard, UnknownColumn, UnsupportedVer, Held, NotRequester,
 	Blocked, NotBlocked, NotHolder, AtCapacity, NotOperator,
 	NoOperator, NoOwner, NoReason, Terminal, Malformed, LayerCollisionErr,
 }
@@ -101,10 +101,10 @@ const (
 	// with nothing closer to choose between them. The tool refuses to
 	// guess, so it names the candidates instead.
 	AmbiguousWorkbench = LayerPrefix + "ambiguous-workbench"
-	// LastState is archiving or deleting the one state a workbench has
+	// LastColumn is archiving or deleting the one column a workbench has
 	// left, which CORE-BENCH-2 forbids the workbench from ending up with
 	// none of.
-	LastState = LayerPrefix + "last-state"
+	LastColumn = LayerPrefix + "last-column"
 	// UnreadableBench is a workbench.md the discovery walk found and could
 	// not read. The walk stops there rather than climbing past it or
 	// reporting it as absent, because a file it could not open might be the
@@ -123,10 +123,10 @@ const (
 	// already exists; init has none yet at the path it is about to create,
 	// so the flag names nothing init can act on.
 	WorkbenchNotApplicable = LayerPrefix + "workbench-not-applicable"
-	// RepairWouldEmptyStates is dinah check --migrate-states declining to
-	// remove every remaining stranded state, which CORE-BENCH-2 forbids
+	// RepairWouldEmptyColumns is dinah check --migrate-columns declining to
+	// remove every remaining stranded column, which CORE-BENCH-2 forbids
 	// leaving the workbench definition with none of.
-	RepairWouldEmptyStates = LayerPrefix + "repair-would-empty-states"
+	RepairWouldEmptyColumns = LayerPrefix + "repair-would-empty-columns"
 	// NeedsVocabularyMigration is the version gate refusing a revision the
 	// retired-name alias resolved and the floor still rejects. It is
 	// distinct from UnsupportedVer because this build knows what the
@@ -135,9 +135,27 @@ const (
 	// has no reading for at all. No shipped build raises it yet, since the
 	// floor sits below the alias's own output.
 	NeedsVocabularyMigration = LayerPrefix + "needs-vocabulary-migration"
-	// AddNeedsAState is Add declining to file a card into a workbench whose
-	// states list has no live entries left for the card to land in.
-	AddNeedsAState = LayerPrefix + "add-needs-a-state"
+	// VocabularyMixed is a header carrying a key from each of the two
+	// vocabularies this format has had, which no writer produces and which
+	// Dinah refuses rather than guessing its way through. Two shapes reach
+	// it: a workbench anchor carrying both sequence keys, and a card carrying
+	// the current column key beside the retired substate key. Each of them is
+	// one file holding half of each vocabulary, which is what the refusal's
+	// sentence describes and what its next step tells the reader to undo.
+	VocabularyMixed = LayerPrefix + "vocabulary-mixed"
+	// VocabularyRetired is a card still written in the vocabulary this format
+	// retired, inside a workbench whose anchor declares the current one. The
+	// file itself is consistent, so it is not the mixture above; what
+	// disagrees is the card and the workbench around it. The disagreement is
+	// worth its own name because a workbench carried across the rename at its
+	// anchor and not in its cards passes the version gate, and the column
+	// identifier sitting in the state slot would otherwise be read as the
+	// card's condition. The gate reads the anchor, so only a check on the
+	// card itself can see it.
+	VocabularyRetired = LayerPrefix + "vocabulary-retired"
+	// AddNeedsAColumn is Add declining to file a card into a workbench whose
+	// columns list has no live entries left for the card to land in.
+	AddNeedsAColumn = LayerPrefix + "add-needs-a-column"
 	// UnknownField is a query naming a field this tool does not have, or
 	// naming one with an operator it does not take. One name covers both
 	// because to a reader `Priority>=next` and `at:` are the same mistake:
@@ -149,7 +167,7 @@ const (
 	// exactly right, and a reader cannot tell a typo from a fact.
 	UnknownValue = LayerPrefix + "unknown-value"
 	// UnknownAxis is a group-by chain naming a word this tool does not
-	// group on. It is a distinct name from UnknownField because state is
+	// group on. It is a distinct name from UnknownField because column is
 	// both a field and an axis and at is a field and not an axis, so one
 	// name covering both would tell a reader that at is not a field, which
 	// is false.
@@ -177,14 +195,14 @@ const (
 	MultipleWords = LayerPrefix + "multiple-words"
 	// UnknownWorkstream is a reference naming no workstream of this
 	// workbench, in either half of the collection. It is separate from
-	// unknown-state because a workstream is not a station of the flow, and
-	// a reader told about a state they never named would go looking in the
+	// unknown-column because a workstream is not a station of the flow, and
+	// a reader told about a column they never named would go looking in the
 	// wrong listing.
 	UnknownWorkstream = LayerPrefix + "unknown-workstream"
 	// Referenced is deleting a workstream that live cards still belong to.
 	// It is separate from Occupied, whose sentence says cards still occupy
-	// a state, because a card belongs to a workstream and stands in a
-	// state, and one sentence cannot honestly say both.
+	// a column, because a card belongs to a workstream and stands in a
+	// column, and one sentence cannot honestly say both.
 	Referenced = LayerPrefix + "referenced"
 	// UnknownRoot is a --root naming a directory the filesystem does not
 	// carry at startup. The mcp command raises it before serving, and the
@@ -217,25 +235,25 @@ const (
 	// The detail names what the reference resolved to, so the caller sees
 	// what was misunderstood rather than what they tried to write.
 	NotRenamable = LayerPrefix + "not-renamable"
-	// AmbiguousState is a pull with no destination named finding more than
-	// one state it could pull into. The sentence names the states that
+	// AmbiguousColumn is a pull with no destination named finding more than
+	// one column it could pull into. The sentence names the columns that
 	// qualified, because a reader whose command stopped needs to know what
 	// to type instead.
-	AmbiguousState = LayerPrefix + "ambiguous-state"
-	// NoUpstream is a pull naming a state that stands first in the flow, so
+	AmbiguousColumn = LayerPrefix + "ambiguous-column"
+	// NoUpstream is a pull naming a column that stands first in the flow, so
 	// nothing precedes it for a card to come from. It is a fact about the
 	// flow rather than about what is on the workbench today.
 	NoUpstream = LayerPrefix + "no-upstream"
-	// AwaitingOutside is an act that would take work up at a state whose
+	// AwaitingOutside is an act that would take work up at a column whose
 	// definition says the workbench waits there on somebody who is not an
 	// owner of it. One name covers all four raise sites, the claim, the
 	// named pull in either direction and the move that arrives holding the
 	// card, because a caller cannot act differently on four names for one
 	// fact and the sentence carries the fix.
 	AwaitingOutside = LayerPrefix + "awaiting-outside"
-	// TakesNoWork is an act that would take work up at a state where no
-	// owner does, when the state does not declare awaiting_outside and so
-	// has nobody to name. A card stands at such a state until a pull carries
+	// TakesNoWork is an act that would take work up at a column where no
+	// owner does, when the column does not declare awaiting_outside and so
+	// has nobody to name. A card stands at such a column until a pull carries
 	// it into the station beyond, and the sentence says so.
 	TakesNoWork = LayerPrefix + "takes-no-work"
 )
@@ -244,13 +262,13 @@ const (
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench, LastState, UnreadableBench, NoConfiguredWorkbench,
-	WorkbenchNotApplicable, RepairWouldEmptyStates, NeedsVocabularyMigration,
-	AddNeedsAState, MultipleWords,
+	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, NoConfiguredWorkbench,
+	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
+	AddNeedsAColumn, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
-	AmbiguousState, NoUpstream, AwaitingOutside, TakesNoWork,
+	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel,
 }
 
@@ -268,27 +286,27 @@ func NameIsLegal(name string) bool {
 	return false
 }
 
-// The three substates of a card. The set is closed, because the tool enforces
+// The three states of a card. The set is closed, because the tool enforces
 // the meaning of each member.
 const (
-	SubstateReady   = "ready"
-	SubstateActive  = "active"
-	SubstateBlocked = "blocked"
+	StateReady   = "ready"
+	StateActive  = "active"
+	StateBlocked = "blocked"
 )
 
-// The three state kinds the profile declares.
+// The three column kinds the profile declares.
 const (
 	KindIntake = "intake"
 	KindWork   = "work"
 	KindDone   = "done"
 )
 
-// KindBuffer is a state where no owner takes work up and a pull carries a
+// KindBuffer is a column where no owner takes work up and a pull carries a
 // card through into the station beyond. It carries LayerPrefix because
 // CORE-STATE-11 admits a kind of a layer's minting and no other.
 const KindBuffer = LayerPrefix + "buffer"
 
-// MintedKinds lists every state kind Dinah introduces beyond the three the
+// MintedKinds lists every column kind Dinah introduces beyond the three the
 // profile declares. It sits beside Introduced, which does the same for the
 // refusal names, because the layer prefix carries both and a reader meeting a
 // dotted token in a document needs one place to ask what it is.
@@ -372,7 +390,7 @@ var Events = []string{
 type Refusal struct {
 	// Name is the refusal name, from the profile's sixteen or dotted.
 	Name string
-	// Detail names what the refusal was about: the state asked for, the
+	// Detail names what the refusal was about: the column asked for, the
 	// owner holding the card, the version wanted. It is not a sentence and
 	// never reaches a reader untranslated.
 	Detail string

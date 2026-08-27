@@ -43,12 +43,12 @@ type sweptRecord struct {
 	// reference of the attachment that was renamed and the new filename it was
 	// carried under.
 	renames []sweptActRecord
-	// states are the states the healthy tree holds, in the order the workbench
+	// columns are the columns the healthy tree holds, in the order the workbench
 	// anchor lists them, which is the order every listing walks.
-	states []sweptStateRecord
-	// stripped are the states the tree a slug migration repairs holds, which is
+	columns []sweptColumnRecord
+	// stripped are the columns the tree a slug migration repairs holds, which is
 	// what that repair's own listing draws one row per.
-	stripped []sweptStateRecord
+	stripped []sweptColumnRecord
 	// editor is the editor the fixture wrote into the user config, which is the
 	// rung the editor row of dinah config then answers at.
 	editor string
@@ -81,12 +81,12 @@ type sweptWorkstreamRecord struct {
 
 // sweptCardRecord is one card the fixture filed, carrying what the fixture
 // handed dinah add and what the acts it ran afterwards left the card standing
-// in. state is an index into sweptRecord.states rather than an identifier,
-// since the identifiers of the states init mints are not known to the fixture.
+// in. column is an index into sweptRecord.columns rather than an identifier,
+// since the identifiers of the columns init mints are not known to the fixture.
 type sweptCardRecord struct {
 	ref      string
 	title    string
-	state    int
+	column   int
 	standing string
 	holder   string
 	reason   string
@@ -104,8 +104,8 @@ type sweptActRecord struct {
 	actor string
 	// reason is what a block carried, empty on every other act.
 	reason string
-	// from and to are the states a move carried, as indexes into
-	// sweptRecord.states. to is minus one on every other act.
+	// from and to are the columns a move carried, as indexes into
+	// sweptRecord.columns. to is minus one on every other act.
 	from int
 	to   int
 }
@@ -136,11 +136,11 @@ type sweptAttachmentRecord struct {
 	description string
 }
 
-// sweptStateRecord is one state of a tree the fixture built. slug is empty on a
-// state the fixture wrote by hand, which is what the missing-slug placeholder
-// is drawn for, and id is empty on a state init minted, whose identifier the
+// sweptColumnRecord is one column of a tree the fixture built. slug is empty on a
+// column the fixture wrote by hand, which is what the missing-slug placeholder
+// is drawn for, and id is empty on a column init minted, whose identifier the
 // fixture never sees.
-type sweptStateRecord struct {
+type sweptColumnRecord struct {
 	id            string
 	title         string
 	slug          string
@@ -153,42 +153,42 @@ type sweptStateRecord struct {
 	awaitingOutside bool
 }
 
-// ref is what a person types to reach a state, which is its slug where it has
-// one and its identifier where it does not. It reproduces bench.State.Ref
-// against the fixture's own record rather than against a state read back out
+// ref is what a person types to reach a column, which is its slug where it has
+// one and its identifier where it does not. It reproduces bench.Column.Ref
+// against the fixture's own record rather than against a column read back out
 // of a workbench.
-func (s sweptStateRecord) ref() string {
+func (s sweptColumnRecord) ref() string {
 	if s.slug != "" {
 		return s.slug
 	}
 	return s.id
 }
 
-// state builds the bench state this record stands for, so the expected side
-// asks the head's own predicates what a state does rather than restating them.
-func (s sweptStateRecord) state() *bench.State {
-	return &bench.State{ID: s.id, Title: s.title, Slug: s.slug, Kind: s.kind, OperatorOwned: s.operatorOwned, AwaitingOutside: s.awaitingOutside}
+// column builds the bench column this record stands for, so the expected side
+// asks the head's own predicates what a column does rather than restating them.
+func (s sweptColumnRecord) column() *bench.Column {
+	return &bench.Column{ID: s.id, Title: s.title, Slug: s.slug, Kind: s.kind, OperatorOwned: s.operatorOwned, AwaitingOutside: s.awaitingOutside}
 }
 
-// carriesInto returns the index of the state a pull would carry a card
+// carriesInto returns the index of the column a pull would carry a card
 // standing at the given one into, or -1 when no pull could carry it anywhere.
 // It reproduces the walk of the same name in the pull machinery, which is
 // unexported and in another package, over the fixture's own ordered record.
-func carriesInto(states []sweptStateRecord, at int) int {
-	if !states[at].state().PullCanTakeFrom() {
+func carriesInto(columns []sweptColumnRecord, at int) int {
+	if !columns[at].column().PullCanTakeFrom() {
 		return -1
 	}
-	if states[at].state().TakesWorkUp() {
-		if at+1 < len(states) && states[at+1].state().TakesWorkUp() {
+	if columns[at].column().TakesWorkUp() {
+		if at+1 < len(columns) && columns[at+1].column().TakesWorkUp() {
 			return at + 1
 		}
 		return -1
 	}
-	for beyond := at + 1; beyond < len(states); beyond++ {
-		if states[beyond].state().TakesWorkUp() {
+	for beyond := at + 1; beyond < len(columns); beyond++ {
+		if columns[beyond].column().TakesWorkUp() {
 			return beyond
 		}
-		if !states[beyond].state().PullCanTakeFrom() || states[beyond].operatorOwned {
+		if !columns[beyond].column().PullCanTakeFrom() || columns[beyond].operatorOwned {
 			return -1
 		}
 	}
@@ -966,41 +966,41 @@ func sweptSlugCell(tag, slug string) string {
 	return slug
 }
 
-// sweptCardsIn returns the cards the record holds in one state, in the order
+// sweptCardsIn returns the cards the record holds in one column, in the order
 // the queue fixes, which is ascending creation ordinal once every card of a
-// state arrived in the same second.
-func sweptCardsIn(r *sweptRecord, state int) []sweptCardRecord {
+// column arrived in the same second.
+func sweptCardsIn(r *sweptRecord, column int) []sweptCardRecord {
 	var kept []sweptCardRecord
 	for _, card := range r.cards {
-		if card.state == state {
+		if card.column == column {
 			kept = append(kept, card)
 		}
 	}
 	return kept
 }
 
-// expectMoves is the legal moves under a served instruction: every state but
+// expectMoves is the legal moves under a served instruction: every column but
 // the one the card stands in, under the head's own direction rule, which is
-// forward for a state further down the flow and backward for one behind it.
+// forward for a column further down the flow and backward for one behind it.
 // The reject cell reads no on every row, because the sweep's healthy fixture
-// declares reject_to on no state; the positive case belongs to dinah-207's own
+// declares reject_to on no column; the positive case belongs to dinah-207's own
 // tests rather than to a fixture whose point is column widths under wide,
 // matra-bearing and emoji-joined titles.
 func expectMoves(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	card := r.cards[0]
 	var rows [][]sweptCell
-	for at, state := range r.states {
-		if at == card.state {
+	for at, column := range r.columns {
+		if at == card.column {
 			continue
 		}
 		direction := verb.Backward
-		if at > card.state {
+		if at > card.column {
 			direction = verb.Forward
 		}
-		rows = append(rows, sweptTexts(state.ref(), state.title, sweptToken(tag, direction), sweptYesNo(tag, false)))
+		rows = append(rows, sweptTexts(column.ref(), column.title, sweptToken(tag, direction), sweptYesNo(tag, false)))
 	}
-	return sweptExpectation{rows: rows, source: "the record's states, other than the one the served card stands in"}
+	return sweptExpectation{rows: rows, source: "the record's columns, other than the one the served card stands in"}
 }
 
 // expectHolding is the cards you hold: the record's claims still held by the
@@ -1023,7 +1023,7 @@ func expectBlocked(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for _, card := range r.cards {
-		if card.standing != contract.SubstateBlocked {
+		if card.standing != contract.StateBlocked {
 			continue
 		}
 		rows = append(rows, sweptTexts(card.ref, card.reason))
@@ -1031,32 +1031,32 @@ func expectBlocked(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	return sweptExpectation{rows: rows, source: "the record's blocked cards"}
 }
 
-// expectStates is dinah states: one row per state the record holds, with the
+// expectColumns is dinah columns: one row per column the record holds, with the
 // occupancy counted off the record's own cards.
-func expectStates(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+func expectColumns(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
-	for at, state := range r.states {
-		owner := msg.For(tag).T("states.moved-by.agent")
-		if state.operatorOwned {
-			owner = msg.For(tag).T("states.moved-by.operator")
+	for at, column := range r.columns {
+		owner := msg.For(tag).T("columns.moved-by.agent")
+		if column.operatorOwned {
+			owner = msg.For(tag).T("columns.moved-by.operator")
 		}
-		work := msg.For(tag).T("states.work.taken")
-		if !state.state().TakesWorkUp() {
-			work = msg.For(tag).T("states.work.none")
+		work := msg.For(tag).T("columns.work.taken")
+		if !column.column().TakesWorkUp() {
+			work = msg.For(tag).T("columns.work.none")
 		}
-		if state.awaitingOutside {
-			work = msg.For(tag).T("states.work.waiting")
+		if column.awaitingOutside {
+			work = msg.For(tag).T("columns.work.waiting")
 		}
 		count := strconv.Itoa(len(sweptCardsIn(r, at)))
-		slug := sweptSlugCell(tag, state.slug)
-		kind := sweptToken(tag, state.kind)
-		rows = append(rows, sweptTexts(slug, state.title, kind, count, work, owner))
+		slug := sweptSlugCell(tag, column.slug)
+		kind := sweptToken(tag, column.kind)
+		rows = append(rows, sweptTexts(slug, column.title, kind, count, work, owner))
 	}
-	return sweptExpectation{rows: rows, source: "the record's states"}
+	return sweptExpectation{rows: rows, source: "the record's columns"}
 }
 
-// expectListing is dinah ls with no state named, which lists the cards of the
+// expectListing is dinah ls with no column named, which lists the cards of the
 // whole workbench.
 func expectListing(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
@@ -1064,18 +1064,18 @@ func expectListing(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	for _, card := range r.cards {
 		rows = append(rows, sweptTexts(card.ref, sweptToken(tag, card.standing), card.severity, card.priority, card.title))
 	}
-	return sweptExpectation{rows: rows, source: "the record's cards, since the entry runs ls with no state"}
+	return sweptExpectation{rows: rows, source: "the record's cards, since the entry runs ls with no column"}
 }
 
 // expectMatches is dinah query with no query, which selects every card of the
-// workbench and carries the state's title where the listing has no state
+// workbench and carries the column's title where the listing has no column
 // column at all.
 func expectMatches(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for _, card := range r.cards {
-		state := r.states[card.state]
-		rows = append(rows, sweptTexts(card.ref, state.title, sweptToken(tag, card.standing), card.title))
+		column := r.columns[card.column]
+		rows = append(rows, sweptTexts(card.ref, column.title, sweptToken(tag, card.standing), card.title))
 	}
 	return sweptExpectation{rows: rows, source: "the record's cards, since the entry runs query with no argument"}
 }
@@ -1111,46 +1111,46 @@ func expectWorkbenches(t *testing.T, r *sweptRecord, tag string) sweptExpectatio
 	return sweptExpectation{rows: rows, source: "the record's workbenches"}
 }
 
-// expectOffers is dinah next: one row per state, carrying the ready card of
-// lowest creation ordinal where the state has one and the catalog's own line
+// expectOffers is dinah next: one row per column, carrying the ready card of
+// lowest creation ordinal where the column has one and the catalog's own line
 // where it has none.
 func expectOffers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
-	for at, state := range r.states {
-		// A state offers its head card when some act could take it up. A
-		// claim could where the state takes work up, and a pull could where
+	for at, column := range r.columns {
+		// A column offers its head card when some act could take it up. A
+		// claim could where the column takes work up, and a pull could where
 		// the walk names a station to carry the card into. Where neither
-		// could, the state says so in its own words rather than in the
+		// could, the column says so in its own words rather than in the
 		// nothing-ready ones.
-		byPull := !state.state().TakesWorkUp() && carriesInto(r.states, at) >= 0
-		if !state.state().TakesWorkUp() && !byPull {
+		byPull := !column.column().TakesWorkUp() && carriesInto(r.columns, at) >= 0
+		if !column.column().TakesWorkUp() && !byPull {
 			absent := msg.For(tag).T("next.no-taker")
-			if state.awaitingOutside {
+			if column.awaitingOutside {
 				absent = msg.For(tag).T("next.awaiting-outside")
 			}
-			rows = append(rows, sweptTexts(state.title, absent, "", ""))
+			rows = append(rows, sweptTexts(column.title, absent, "", ""))
 			continue
 		}
 		offered := sweptCardRecord{}
 		for _, card := range sweptCardsIn(r, at) {
-			if card.standing != contract.SubstateReady {
+			if card.standing != contract.StateReady {
 				continue
 			}
 			offered = card
 			break
 		}
 		if offered.ref == "" {
-			rows = append(rows, sweptTexts(state.title, msg.For(tag).T("next.none"), "", ""))
+			rows = append(rows, sweptTexts(column.title, msg.For(tag).T("next.none"), "", ""))
 			continue
 		}
 		take := msg.For(tag).T("next.take.claim")
 		if byPull {
 			take = msg.For(tag).T("next.take.pull")
 		}
-		rows = append(rows, sweptTexts(state.title, offered.ref, offered.title, take))
+		rows = append(rows, sweptTexts(column.title, offered.ref, offered.title, take))
 	}
-	return sweptExpectation{rows: rows, source: "the record's states, each under the head's own ready-card condition"}
+	return sweptExpectation{rows: rows, source: "the record's columns, each under the head's own ready-card condition"}
 }
 
 // expectLinks is a card's links, which the fixture planted in its frontmatter.
@@ -1230,7 +1230,7 @@ func expectHistory(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 		if act.card != card.ref {
 			continue
 		}
-		carried := msg.For(tag).T("log.moved", "from", r.states[act.from].title, "to", r.states[act.to].title)
+		carried := msg.For(tag).T("log.moved", "from", r.columns[act.from].title, "to", r.columns[act.to].title)
 		rows = append(rows, sweptTexts("", sweptToken(tag, contract.EventMoved), act.actor, carried))
 	}
 	for _, act := range r.releases {
@@ -1309,14 +1309,14 @@ func expectChanges(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 }
 
 // expectAssignedSlugs is the slugs a migration assigned, which it derives from
-// each state's own title through the same call the head makes.
+// each column's own title through the same call the head makes.
 func expectAssignedSlugs(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
-	for _, state := range r.stripped {
-		rows = append(rows, sweptTexts(bench.SlugifyDashed(state.title), state.title))
+	for _, column := range r.stripped {
+		rows = append(rows, sweptTexts(bench.SlugifyDashed(column.title), column.title))
 	}
-	return sweptExpectation{rows: rows, source: "the states the stripped tree holds"}
+	return sweptExpectation{rows: rows, source: "the columns the stripped tree holds"}
 }
 
 // expectCatalogs is the catalog-coverage block, which walks the tags the
@@ -1446,14 +1446,14 @@ func expectWorkstreamFields(t *testing.T, r *sweptRecord, tag string) sweptExpec
 }
 
 // expectWorkstreamMembers is the cards belonging to one workstream, read out of
-// the joins the fixture ran and carrying each card's own state title.
+// the joins the fixture ran and carrying each card's own column title.
 func expectWorkstreamMembers(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	workstream := sweptWorkstreamNamed(t, r, sweptWorkstream)
 	var rows [][]sweptCell
 	for _, ref := range workstream.cards {
 		card := r.cards[sweptCardAt(r, ref)]
-		rows = append(rows, sweptTexts(card.ref, card.title, r.states[card.state].title))
+		rows = append(rows, sweptTexts(card.ref, card.title, r.columns[card.column].title))
 	}
 	return sweptExpectation{rows: rows, source: "the cards the record joined to " + sweptWorkstream}
 }
@@ -1739,40 +1739,40 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 	return rows
 }
 
-// sweptSubstates are the substates the grouped producer draws under one state,
+// sweptStates are the states the grouped producer draws under one column,
 // in the order it draws them, which is the order the contract declares them in
 // rather than an order this fixture chose.
 //
-// The set is not the same under every state, and the two reasons it varies are
-// different in kind. A state that takes no work up holds no active card, so no
+// The set is not the same under every column, and the two reasons it varies are
+// different in kind. A column that takes no work up holds no active card, so no
 // active group is drawn beneath one, and the expected side asks the head's own
 // predicate that question rather than restating which kinds those are. A
 // blocked group is drawn only where a card actually stands blocked, whatever
-// the state could hold, because a block is the exception and a blocked group
-// reading zero under every state reports the ordinary case on every row.
-func sweptSubstates(state sweptStateRecord, held []sweptCardRecord) []string {
+// the column could hold, because a block is the exception and a blocked group
+// reading zero under every column reports the ordinary case on every row.
+func sweptStates(column sweptColumnRecord, held []sweptCardRecord) []string {
 	var drawn []string
-	for _, substate := range state.state().Substates() {
-		if substate == contract.SubstateBlocked && !sweptAnyStanding(held, substate) {
+	for _, state := range column.column().States() {
+		if state == contract.StateBlocked && !sweptAnyStanding(held, state) {
 			continue
 		}
-		drawn = append(drawn, substate)
+		drawn = append(drawn, state)
 	}
 	return drawn
 }
 
-// sweptAnyStanding reports whether any of the cards stands in one substate.
-func sweptAnyStanding(held []sweptCardRecord, substate string) bool {
+// sweptAnyStanding reports whether any of the cards stands in one state.
+func sweptAnyStanding(held []sweptCardRecord, state string) bool {
 	for _, card := range held {
-		if card.standing == substate {
+		if card.standing == state {
 			return true
 		}
 	}
 	return false
 }
 
-// expectTree is dinah tree with no arguments: a group per declared state in
-// flow order, the substates that state draws under each one whether or not a
+// expectTree is dinah tree with no arguments: a group per declared column in
+// flow order, the states that column draws under each one whether or not a
 // card stands in them, and the cards themselves at the third level.
 //
 // A group carries its value under Reference, its axis under Entity, nothing
@@ -1785,35 +1785,35 @@ func sweptAnyStanding(held []sweptCardRecord, substate string) bool {
 // that breaks that reddens this expectation rather than passing quietly.
 func expectTree(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
-	var states []sweptTreeNode
-	for at, state := range r.states {
+	var columns []sweptTreeNode
+	for at, column := range r.columns {
 		held := sweptCardsIn(r, at)
-		node := sweptTreeNode{ref: state.ref(), entity: bench.KindState, count: strconv.Itoa(len(held))}
-		for _, substate := range sweptSubstates(state, held) {
+		node := sweptTreeNode{ref: column.ref(), entity: bench.KindColumn, count: strconv.Itoa(len(held))}
+		for _, state := range sweptStates(column, held) {
 			var cards []sweptTreeNode
 			for _, card := range held {
-				if card.standing != substate {
+				if card.standing != state {
 					continue
 				}
 				cards = append(cards, sweptTreeNode{ref: card.ref, entity: bench.KindCard, title: card.title})
 			}
 			group := sweptTreeNode{
-				ref:      substate,
-				entity:   verb.FieldSubstate,
+				ref:      state,
+				entity:   verb.FieldState,
 				count:    strconv.Itoa(len(cards)),
 				children: cards,
 			}
 			node.children = append(node.children, group)
 		}
-		states = append(states, node)
+		columns = append(columns, node)
 	}
 	return sweptExpectation{
-		rows:   sweptTreeRows(states, ""),
-		source: "the record's states and cards, nested the way the default chain groups them",
+		rows:   sweptTreeRows(columns, ""),
+		source: "the record's columns and cards, nested the way the default chain groups them",
 	}
 }
 
-// expectContents is dinah contents from the workbench root: the states in flow
+// expectContents is dinah contents from the workbench root: the columns in flow
 // order, then the cards in arrival order, then whatever each card holds.
 //
 // Every row carries a count here, including a card holding nothing, because
@@ -1822,11 +1822,11 @@ func expectTree(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 func expectContents(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var nodes []sweptTreeNode
-	for _, state := range r.states {
+	for _, column := range r.columns {
 		nodes = append(nodes, sweptTreeNode{
-			ref:    state.ref(),
-			entity: bench.KindState,
-			title:  state.title,
+			ref:    column.ref(),
+			entity: bench.KindColumn,
+			title:  column.title,
 			count:  "0",
 		})
 	}
@@ -1863,12 +1863,12 @@ func expectContents(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	}
 	return sweptExpectation{
 		rows:   sweptTreeRows(nodes, ""),
-		source: "the record's states and cards, walked the way the containment grammar mounts them",
+		source: "the record's columns and cards, walked the way the containment grammar mounts them",
 	}
 }
 
 // sweptArrivalOrder is the record's cards in the order the containment walk
-// draws them, which is the order they arrived in the state they now stand in.
+// draws them, which is the order they arrived in the column they now stand in.
 //
 // A card the fixture never moved arrived when it was filed, and every move the
 // fixture ran happened after every card was filed, so the unmoved cards come

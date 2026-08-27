@@ -15,9 +15,9 @@ import (
 )
 
 // crossHeadQueries are the query strings the declared readers are driven with.
-// One matches every card, one matches a substate, and one matches nothing, so
-// the comparison sees a populated answer and an empty one.
-var crossHeadQueries = []string{"", "substate:ready", "holder:nobody"}
+// One matches every card, one matches a card's state, and one matches nothing,
+// so the comparison sees a populated answer and an empty one.
+var crossHeadQueries = []string{"", "state:ready", "holder:nobody"}
 
 // crossHeadCase is one invocation a declared command is compared on: the free
 // text its rest slot carries, and a value per named parameter.

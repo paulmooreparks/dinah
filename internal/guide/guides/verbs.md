@@ -9,10 +9,10 @@ out, so you claim your own card and nobody assigns you one. A claim may carry
 an expiry with `--expires 8h`, and a lapsed claim returns the card to the
 queue with the lapse recorded.
 
-`move` carries a card to another state. It changes where the card is and
+`move` carries a card to another column. It changes where the card is and
 nothing else, so a holder who moves a card still holds it and a waiting card
-that is moved is still waiting. A state may declare a limit on how much work
-it holds, and a move into a full state is refused; the operator may carry one
+that is moved is still waiting. A column may declare a limit on how much work
+it holds, and a move into a full column is refused; the operator may carry one
 through with `--override`, which is recorded on the move.
 
 `release` gives a card back. Release it as soon as you stop working it, so
@@ -27,8 +27,8 @@ slow.
 is an obstacle handed to whoever answers for the workbench.
 
 `pull` is not a sixth verb. It is a claim and a move run as one act, over a
-card you did not have to name: `dinah pull <state>` takes whatever stands at
-the head of the queue in the state before the one you named, carries it in,
+card you did not have to name: `dinah pull <column>` takes whatever stands at
+the head of the queue in the column before the one you named, carries it in,
 and claims it for you. The card's history afterwards is the same claimed event
 and the same moved event the two commands write separately, so nothing about
 the record tells you which way the card was taken. Add `--no-claim` to move

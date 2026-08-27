@@ -1,5 +1,5 @@
 {
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Sample workbench",
   "instructions": "This workbench is a compatibility sample. Every command populate.txt replays runs against it.",
   "levels": {
@@ -16,7 +16,7 @@
       "now"
     ]
   },
-  "states": [
+  "columns": [
     {
       "id": "004acda2c28a",
       "title": "Intake",

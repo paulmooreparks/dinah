@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-// kindAnswer is one line that answers a question about a state's kind for
+// kindAnswer is one line that answers a question about a column's kind for
 // itself. Path is relative to the root the scan was given.
 type kindAnswer struct {
 	Path string
@@ -33,7 +33,7 @@ var theFourKinds = map[string]bool{
 	"dinah.buffer": true,
 }
 
-// theFourConstants are the constant selectors that name a state kind. A line
+// theFourConstants are the constant selectors that name a column kind. A line
 // referring to one of them is answering a question about a kind for itself
 // whatever it then does with the value.
 var theFourConstants = map[string]bool{
@@ -44,7 +44,7 @@ var theFourConstants = map[string]bool{
 }
 
 // scanForKindAnswers parses every .go file under root that is not a _test.go
-// file and returns each line that decides a state's kind question for itself.
+// file and returns each line that decides a column's kind question for itself.
 // It takes the root so the guard can read the product's own source while the
 // test that proves the guard red reads a planted file somewhere else.
 //
@@ -151,7 +151,7 @@ func readLines(path string) ([]string, error) {
 }
 
 // endsInKind reports whether an expression is a selector whose final name is
-// Kind, which is the shape every state-kind question is asked in.
+// Kind, which is the shape every column-kind question is asked in.
 func endsInKind(expr ast.Expr) bool {
 	selector, ok := expr.(*ast.SelectorExpr)
 	return ok && selector.Sel.Name == "Kind"
@@ -194,9 +194,9 @@ type kindExemption struct {
 	reason string
 }
 
-// kindAllowlist holds the four files that declare or validate a state's kind,
+// kindAllowlist holds the four files that declare or validate a column's kind,
 // and no others. A fifth file wanting an entry here is a second answer to a
-// question State.TakesWorkUp already answers, which is the defect this guard
+// question Column.TakesWorkUp already answers, which is the defect this guard
 // exists to catch; add the reader to the predicate rather than the file to this
 // list.
 // Only one of the four entries composes its path. The product's word is
@@ -209,9 +209,9 @@ func kindAllowlist(t *testing.T, root string) []kindExemption {
 	t.Helper()
 	return []kindExemption{
 		{path: "internal/contract/contract.go", lines: 5, reason: "declares the four constants and the list of the kinds Dinah mints"},
-		{path: ownPrincipalFile(t, root), lines: 3, reason: "holds the predicates every reader asks, and holds readState's vocabulary switch"},
+		{path: ownPrincipalFile(t, root), lines: 3, reason: "holds the predicates every reader asks, and holds readColumn's vocabulary switch"},
 		{path: "internal/bench/check.go", lines: 5, reason: "asks where a kind stands in the flow, which is a different question from whether work is taken up"},
-		{path: "internal/verb/beyond.go", lines: 3, reason: "declares the kinds of the three states dinah init writes"},
+		{path: "internal/verb/beyond.go", lines: 3, reason: "declares the kinds of the three columns dinah init writes"},
 	}
 }
 
@@ -244,14 +244,14 @@ func ownPrincipalFile(t *testing.T, root string) string {
 	return composed
 }
 
-// TestNoSecondAnswerAboutStateKind asserts that nothing outside the allow-list
-// decides for itself what a state's kind means. One predicate answers that
+// TestNoSecondAnswerAboutColumnKind asserts that nothing outside the allow-list
+// decides for itself what a column's kind means. One predicate answers that
 // question and every reader asks it, and a copy of the rule is one line of
 // ordinary-looking code that a review cannot be relied on to catch.
 //
 // The scan reads cmd/ and internal/ by name rather than walking the repository
 // root, so an untracked worktree inside the tree never reaches it.
-func TestNoSecondAnswerAboutStateKind(t *testing.T) {
+func TestNoSecondAnswerAboutColumnKind(t *testing.T) {
 	root := repositoryRoot(t)
 	allowed := kindAllowlist(t, root)
 	counted := map[string]int{}
@@ -263,7 +263,7 @@ func TestNoSecondAnswerAboutStateKind(t *testing.T) {
 		for _, answer := range found {
 			path := directory + "/" + answer.Path
 			if exemptionFor(allowed, path) == nil {
-				t.Errorf("%s:%d answers a question about a state's kind for itself, and no entry of kindAllowlist names it: %s",
+				t.Errorf("%s:%d answers a question about a column's kind for itself, and no entry of kindAllowlist names it: %s",
 					path, answer.Line, answer.Text)
 				continue
 			}
@@ -320,9 +320,9 @@ func terminal(kind string) bool {
 			name: "a case clause of a switch on a bare kind string",
 			source: `package planted
 
-type state struct{ Kind string }
+type column struct{ Kind string }
 
-func takesWorkUp(s *state) bool {
+func takesWorkUp(s *column) bool {
 	switch s.Kind {
 	case "intake", "done":
 		return false

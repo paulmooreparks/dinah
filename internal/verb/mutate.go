@@ -20,7 +20,7 @@ import (
 // The reference is resolved first, because the lock lives inside the card's
 // own directory and there is nothing to lock until the card is found; the
 // card is then read again under the lock, so the revision the basis is
-// compared against and the substate every precondition reads are the ones on
+// compared against and the state every precondition reads are the ones on
 // disk at the moment of the write rather than a snapshot taken before it. Two
 // processes reaching the same card therefore cannot both see it ready, since
 // the second is refused the lock outright.
@@ -110,7 +110,7 @@ func (l *Library) lapse(card *bench.Card) error {
 		Actor:   holder,
 		Expires: card.Expires,
 	}
-	card.Substate = contract.SubstateReady
+	card.State = contract.StateReady
 	card.Holder = ""
 	card.ClaimSince = ""
 	card.Expires = ""
@@ -131,69 +131,69 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	if req.Holder != "" && req.Holder != req.Actor {
 		return l.refuse(req, card, contract.NotRequester, req.Holder)
 	}
-	if refusal := l.claimableSubstate(req, card); refusal != nil {
+	if refusal := l.claimableState(req, card); refusal != nil {
 		return refusal
 	}
-	return l.claimableState(req, card)
+	return l.claimableColumn(req, card)
 }
 
-// claimableState carries the last two rows of the claim's list, which are the
-// rows that read the state a card stands in rather than the card. A state
+// claimableColumn carries the last two rows of the claim's list, which are the
+// rows that read the column a card stands in rather than the card. A column
 // where no owner takes work up refuses the claim whoever asks, the operator
-// included, because taking work up is a fact about the state and not a
+// included, because taking work up is a fact about the column and not a
 // permission.
 //
-// Two names answer that first rule. A state declaring awaiting_outside tells
+// Two names answer that first rule. A column declaring awaiting_outside tells
 // a reader who the workbench is waiting on, so that name wins wherever the
-// flag is set. A state that takes no work up by kind has nobody to name, so
+// flag is set. A column that takes no work up by kind has nobody to name, so
 // it answers dinah.takes-no-work instead.
 //
-// The second row asks a different question of a state that does take work
-// up. Such a state can still be reserved to the operator, and CORE-CLAIM-8
+// The second row asks a different question of a column that does take work
+// up. Such a column can still be reserved to the operator, and CORE-CLAIM-8
 // refuses the claim there to every other owner under the name CORE-MOVE-6
 // already reports for the departure side of the same reservation. The two
-// rows are not one axis wearing two names. A state declaring
+// rows are not one axis wearing two names. A column declaring
 // awaiting_outside says nobody inside the workbench can act yet, an
-// operator-owned state says only the operator may take the card up, and a
-// state can be either, both or neither.
+// operator-owned column says only the operator may take the card up, and a
+// column can be either, both or neither.
 //
-// It stands after claimableSubstate rather than before it so that a card
-// which is both blocked and standing at such a state answers the profile's
+// It stands after claimableState rather than before it so that a card
+// which is both blocked and standing at such a column answers the profile's
 // own blocked, which is the answer a reader of the contract expects and the
 // answer CORE-OUT-6 makes observable.
-func (l *Library) claimableState(req *Request, card *bench.Card) *Response {
-	state := l.Bench.State(card.State)
-	if state != nil && !state.HoldsSubstate(contract.SubstateActive) {
-		return l.refuse(req, card, takesNoWorkName(state), stateRef(state))
+func (l *Library) claimableColumn(req *Request, card *bench.Card) *Response {
+	column := l.Bench.Column(card.Column)
+	if column != nil && !column.HoldsState(contract.StateActive) {
+		return l.refuse(req, card, takesNoWorkName(column), columnRef(column))
 	}
-	if operatorReservesClaim(state, req.Actor, l.Bench.Operator) {
+	if operatorReservesClaim(column, req.Actor, l.Bench.Operator) {
 		return l.refuse(req, card, contract.NotOperator, req.Actor)
 	}
 	return nil
 }
 
-// takesNoWorkName picks the refusal name for a state where no owner takes
+// takesNoWorkName picks the refusal name for a column where no owner takes
 // work up. Both the claim path and the move's destination row choose between
 // the two names this way, so the choice is written once.
-func takesNoWorkName(state *bench.State) string {
-	if state.AwaitingOutside {
+func takesNoWorkName(column *bench.Column) string {
+	if column.AwaitingOutside {
 		return contract.AwaitingOutside
 	}
 	return contract.TakesNoWork
 }
 
-// operatorReservesClaim reports whether an operator-owned state refuses a
+// operatorReservesClaim reports whether an operator-owned column refuses a
 // claim to this actor. CORE-CLAIM-8 and canLand's destination row both read
-// it, so an operator-owned state means the same thing whichever act is
+// it, so an operator-owned column means the same thing whichever act is
 // taking a card up there: an ordinary claim in place, or a pull that lands
-// holding it. A card standing at a state the workbench no longer declares
-// reaches this with a nil state and is reserved to nobody.
-func operatorReservesClaim(state *bench.State, actor, operator string) bool {
-	return state != nil && state.OperatorOwned && actor != operator
+// holding it. A card standing at a column the workbench no longer declares
+// reaches this with a nil column and is reserved to nobody.
+func operatorReservesClaim(column *bench.Column, actor, operator string) bool {
+	return column != nil && column.OperatorOwned && actor != operator
 }
 
-// claimableSubstate runs the last two rows of the claim's list, blocked then
-// held, against the substate the card carries. It stands apart from canClaim
+// claimableState runs the last two rows of the claim's list, blocked then
+// held, against the state the card carries. It stands apart from canClaim
 // because pull evaluates these two rows at rows 9 and 10 of its own longer
 // list, between the move's departure row and the move's destination rows, and
 // a caller reaching them through canClaim would have to run the whole claim
@@ -201,14 +201,14 @@ func operatorReservesClaim(state *bench.State, actor, operator string) bool {
 // canClaim still evaluates no-owner, not-requester, blocked, held.
 //
 // The held row here is the stricter of the tool's two: it refuses a card
-// whose substate is active whoever holds it, where the move's row admits a
+// whose state is active whoever holds it, where the move's row admits a
 // card the owner asking already holds. A claim cannot take a card somebody is
 // already working, its own asker included.
-func (l *Library) claimableSubstate(req *Request, card *bench.Card) *Response {
-	if card.Substate == contract.SubstateBlocked {
+func (l *Library) claimableState(req *Request, card *bench.Card) *Response {
+	if card.State == contract.StateBlocked {
 		return l.refuse(req, card, contract.Blocked, card.BlockReason)
 	}
-	if card.Substate == contract.SubstateActive {
+	if card.State == contract.StateActive {
 		return l.refuse(req, card, contract.Held, card.Holder)
 	}
 	return nil
@@ -222,7 +222,7 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 		return refusal
 	}
 	now := l.Now()
-	card.Substate = contract.SubstateActive
+	card.State = contract.StateActive
 	card.Holder = req.Actor
 	card.ClaimSince = bench.Stamp(now)
 	if req.Expires > 0 {
@@ -244,7 +244,7 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 }
 
 // canMove runs the precondition sequence CORE-MOVE declares, in the order
-// section 6.4 states it. It returns the destination and departure state when
+// section 6.4 states it. It returns the destination and departure column when
 // the move is permitted, so a caller can write the journal event without
 // re-resolving either. The retiring check is intentionally the last of the
 // destination checks, read under the card lock this transaction already
@@ -259,11 +259,11 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 // are what pull writes into its moved event.
 //
 // The list is split across canRoute and canLand so that pull can run the
-// claim's two substate rows between them, which is where pull's own table
+// claim's two state rows between them, which is where pull's own table
 // puts them. Reading the two halves in this order is reading CORE-MOVE's
 // list in CORE-MOVE's order, and neither half is called anywhere in an order
 // this function does not also produce.
-func (l *Library) canMove(req *Request, card *bench.Card) (*bench.State, *bench.State, bool, *Response, error) {
+func (l *Library) canMove(req *Request, card *bench.Card) (*bench.Column, *bench.Column, bool, *Response, error) {
 	destination, departure, refusal := l.canRoute(req, card)
 	if refusal != nil {
 		return nil, nil, false, refusal, nil
@@ -279,27 +279,27 @@ func (l *Library) canMove(req *Request, card *bench.Card) (*bench.State, *bench.
 }
 
 // canRoute runs the rows of CORE-MOVE's list that read the request and the
-// two states, in that list's order: the request names an owner, the named
+// two columns, in that list's order: the request names an owner, the named
 // destination is declared, an override marker is the operator's, and the
 // departure is one the owner asking may move work out of. It returns the
 // resolved destination and departure so its caller resolves neither twice.
 //
-// The departure can be nil, when the card stands in a state the workbench no
+// The departure can be nil, when the card stands in a column the workbench no
 // longer declares, and the rows below carry that possibility rather than
 // refusing it here, exactly as the single list did.
-func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.State, *bench.State, *Response) {
+func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *bench.Column, *Response) {
 	if req.Actor == "" {
 		return nil, nil, l.refuse(req, card, contract.NoOwner, "")
 	}
-	destination := l.Bench.StateByRef(req.State)
+	destination := l.Bench.ColumnByRef(req.Column)
 	if destination == nil {
-		return nil, nil, l.refuse(req, card, contract.UnknownState, req.State)
+		return nil, nil, l.refuse(req, card, contract.UnknownColumn, req.Column)
 	}
 	operator := req.Actor == l.Bench.Operator
 	if req.Override && !operator {
 		return nil, nil, l.refuse(req, card, contract.NotOperator, req.Actor)
 	}
-	departure := l.Bench.State(card.State)
+	departure := l.Bench.Column(card.Column)
 	if departure != nil && departure.OperatorOwned && !operator {
 		return nil, nil, l.refuse(req, card, contract.NotOperator, req.Actor)
 	}
@@ -309,7 +309,7 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.State, *bench
 // canLand runs the rows of CORE-MOVE's list that read the card and the
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
-// state, the destination stands below its capacity, the destination does not
+// column, the destination stands below its capacity, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the
 // destination is not being retired. It reports whether the capacity limit was
@@ -320,8 +320,8 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.State, *bench
 // the operator-owned row read it, and it is a parameter rather than a reading
 // of req.Verb because it is a property of the act rather than of the word the
 // caller typed.
-func (l *Library) canLand(req *Request, card *bench.Card, destination, departure *bench.State, takesUp bool) (bool, *Response, error) {
-	if card.Substate == contract.SubstateBlocked {
+func (l *Library) canLand(req *Request, card *bench.Card, destination, departure *bench.Column, takesUp bool) (bool, *Response, error) {
+	if card.State == contract.StateBlocked {
 		return false, l.refuse(req, card, contract.Blocked, card.BlockReason), nil
 	}
 	if card.Holder != "" && card.Holder != req.Actor {
@@ -329,30 +329,30 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	}
 	forward := departure != nil && destination.Position > departure.Position
 	if forward && departure.Terminal() {
-		return false, l.refuse(req, card, contract.Terminal, stateRef(departure)), nil
+		return false, l.refuse(req, card, contract.Terminal, columnRef(departure)), nil
 	}
 	reached, err := l.atCapacity(destination)
 	if err != nil {
 		return false, nil, err
 	}
 	if reached && !req.Override {
-		return false, l.refuse(req, card, contract.AtCapacity, stateRef(destination)), nil
+		return false, l.refuse(req, card, contract.AtCapacity, columnRef(destination)), nil
 	}
-	// A state where no owner takes work up receives a card that arrives
+	// A column where no owner takes work up receives a card that arrives
 	// unheld, which is the ordinary handoff, and refuses one that arrives
-	// held, because a held card at such a state is work taken up where
+	// held, because a held card at such a column is work taken up where
 	// nobody takes work up. The claim is not cleared here on the holder's
-	// behalf: CORE-MOVE-8 says a move MUST NOT change a card's substate or
+	// behalf: CORE-MOVE-8 says a move MUST NOT change a card's state or
 	// its holder, so the holder releases and then moves. A pull is refused
-	// whichever substate the card it carries is in, because a pull takes the
+	// whichever state the card it carries is in, because a pull takes the
 	// card up where a move does not.
 	//
 	// The row stands after the capacity row and before the retiring one, so a
-	// full such state answers at-capacity and a retiring one answers this
+	// full such column answers at-capacity and a retiring one answers this
 	// name. The retiring check stays last for the concurrency reason its own
 	// comment gives.
 	if !destination.TakesWorkUp() && (card.Holder != "" || takesUp) {
-		return false, l.refuse(req, card, takesNoWorkName(destination), stateRef(destination)), nil
+		return false, l.refuse(req, card, takesNoWorkName(destination), columnRef(destination)), nil
 	}
 	// An operator-owned destination reserves the claim taken there to the
 	// operator, which is CORE-CLAIM-8 read at the far end of a pull rather
@@ -373,7 +373,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	return reached && req.Override, nil, nil
 }
 
-// move carries a card from one state to another. The list is CORE-MOVE's, in
+// move carries a card from one column to another. The list is CORE-MOVE's, in
 // the order section 6.4 declares it.
 func (l *Library) move(req *Request, card *bench.Card) *Response {
 	destination, departure, override, refusal, err := l.canMove(req, card)
@@ -387,7 +387,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 		TS:        bench.Stamp(l.Now()),
 		Event:     contract.EventMoved,
 		Actor:     req.Actor,
-		From:      card.State,
+		From:      card.Column,
 		FromTitle: titleOf(departure),
 		To:        destination.ID,
 		ToTitle:   destination.Title,
@@ -398,7 +398,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 			ev.Reject = true
 		}
 	}
-	card.State = destination.ID
+	card.Column = destination.ID
 	response, err := l.commit(req, card, ev)
 	if err != nil {
 		return l.FromError(req, err)
@@ -408,20 +408,20 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	return response
 }
 
-// titleOf names a state that may be absent, which a card carrying a state the
+// titleOf names a column that may be absent, which a card carrying a column the
 // bench no longer declares makes possible.
-func titleOf(state *bench.State) string {
-	if state == nil {
+func titleOf(column *bench.Column) string {
+	if column == nil {
 		return ""
 	}
-	return state.Title
+	return column.Title
 }
 
-// atCapacity reports whether a state has reached its declared limit. The
-// count is every live card in the state whatever its substate, because a
+// atCapacity reports whether a column has reached its declared limit. The
+// count is every live card in the column whatever its state, because a
 // blocked card still occupies the place.
-func (l *Library) atCapacity(state *bench.State) (bool, error) {
-	if state.Capacity <= 0 {
+func (l *Library) atCapacity(column *bench.Column) (bool, error) {
+	if column.Capacity <= 0 {
 		return false, nil
 	}
 	cards, err := l.Bench.Cards()
@@ -430,11 +430,11 @@ func (l *Library) atCapacity(state *bench.State) (bool, error) {
 	}
 	count := 0
 	for _, card := range cards {
-		if card.State == state.ID {
+		if card.Column == column.ID {
 			count++
 		}
 	}
-	return count >= state.Capacity, nil
+	return count >= column.Capacity, nil
 }
 
 // release gives a card back. The list is CORE-RELEASE's.
@@ -445,7 +445,7 @@ func (l *Library) release(req *Request, card *bench.Card) *Response {
 	if card.Holder != req.Actor {
 		return l.refuse(req, card, contract.NotHolder, card.Holder)
 	}
-	card.Substate = contract.SubstateReady
+	card.State = contract.StateReady
 	card.Holder = ""
 	card.ClaimSince = ""
 	card.Expires = ""
@@ -473,7 +473,7 @@ func (l *Library) block(req *Request, card *bench.Card) *Response {
 		return l.refuse(req, card, contract.Held, card.Holder)
 	}
 	now := bench.Stamp(l.Now())
-	card.Substate = contract.SubstateBlocked
+	card.State = contract.StateBlocked
 	card.Holder = ""
 	card.ClaimSince = ""
 	card.Expires = ""
@@ -495,9 +495,9 @@ func (l *Library) block(req *Request, card *bench.Card) *Response {
 }
 
 // unblock lifts an obstacle, and is the operator's alone. The list is
-// CORE-UNBLOCK's, with the operator check evaluated ahead of the substate
+// CORE-UNBLOCK's, with the operator check evaluated ahead of the state
 // check, so an owner who is not the operator is refused not-operator whatever
-// the card's substate.
+// the card's state.
 func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 	if req.Actor == "" {
 		return l.refuse(req, card, contract.NoOwner, "")
@@ -505,10 +505,10 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 	if req.Actor != l.Bench.Operator {
 		return l.refuse(req, card, contract.NotOperator, req.Actor)
 	}
-	if card.Substate != contract.SubstateBlocked {
-		return l.refuse(req, card, contract.NotBlocked, card.Substate)
+	if card.State != contract.StateBlocked {
+		return l.refuse(req, card, contract.NotBlocked, card.State)
 	}
-	card.Substate = contract.SubstateReady
+	card.State = contract.StateReady
 	card.BlockReason = ""
 	card.BlockKind = ""
 	card.BlockSince = ""

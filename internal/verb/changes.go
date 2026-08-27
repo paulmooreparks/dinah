@@ -23,7 +23,7 @@ type ChangeSet struct {
 	// total order, filtered to what the caller asked about.
 	Events []ChangeEvent `json:"events,omitempty"`
 	// Cards are the live cards this call has a reason to report, as they now
-	// stand, so a caller learns the new state without a second call.
+	// stand, so a caller learns the new column without a second call.
 	Cards []*CardView `json:"cards,omitempty"`
 	// Gone reports what left, one entry per archived or deleted event after
 	// the cursor's position. Read Kind before assuming an entry is a card.
@@ -296,7 +296,7 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 	}
 	// The cursor is read before the two filters, which is the order the
 	// command's own check list declares: a call carrying a bad token is not a
-	// call about a card or a state yet. A call carrying no token is still a
+	// call about a card or a column yet. A call carrying no token is still a
 	// call about a card, so the filters are checked either way.
 	minting := strings.TrimSpace(req.Since) == ""
 	var held cursor
@@ -310,7 +310,7 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 		}
 		held = read
 	}
-	wantedCard, wantedState, err := l.changeFilters(req)
+	wantedCard, wantedColumn, err := l.changeFilters(req)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func (l *Library) Changes(req *Request) (*ChangeSet, error) {
 		// caller comparing two answers compares tokens without decoding one.
 		return &ChangeSet{Cursor: req.Since, Changed: false, Affordances: l.changeAffordances()}, nil
 	}
-	return l.changedSince(held, terms, live, archive, wantedCard, wantedState)
+	return l.changedSince(held, terms, live, archive, wantedCard, wantedColumn)
 }
 
 // mintedChangeSet is the answer to a first call: a cursor and nothing else.
@@ -360,8 +360,8 @@ func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (
 // changeFilters resolves the two narrowing arguments, refusing over each by
 // the name its own check list declares. They narrow what is reported and
 // never what is read: the walk is always whole-bench, which is what makes
-// "did my card leave the state I was watching" answerable at all.
-func (l *Library) changeFilters(req *Request) (card string, state *bench.State, err error) {
+// "did my card leave the column I was watching" answerable at all.
+func (l *Library) changeFilters(req *Request) (card string, column *bench.Column, err error) {
 	if req.Card != "" {
 		found, resolveErr := l.watchedCard(req.Card)
 		if resolveErr != nil {
@@ -369,13 +369,13 @@ func (l *Library) changeFilters(req *Request) (card string, state *bench.State, 
 		}
 		card = found
 	}
-	if req.State != "" {
-		state = l.Bench.StateByRef(req.State)
-		if state == nil {
-			return "", nil, contract.Refuse(contract.UnknownState, req.State)
+	if req.Column != "" {
+		column = l.Bench.ColumnByRef(req.Column)
+		if column == nil {
+			return "", nil, contract.Refuse(contract.UnknownColumn, req.Column)
 		}
 	}
-	return card, state, nil
+	return card, column, nil
 }
 
 // watchedCard resolves the card filter to the identifier the walk keys on,
@@ -409,7 +409,7 @@ func (l *Library) watchedCard(ref string) (string, error) {
 // changedSince builds the answer to a call whose board moved: the events after
 // the cursor, the live cards this call has a reason to report, what left, and
 // the cursor that covers all of it.
-func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched, wantedCard string, wantedState *bench.State) (*ChangeSet, error) {
+func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched, wantedCard string, wantedColumn *bench.Column) (*ChangeSet, error) {
 	var delivered []position
 	var unreadable, liveUnreadable []string
 	if held.Live != terms.Live {
@@ -438,7 +438,7 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	}
 
 	answer := &ChangeSet{Cursor: token, Changed: true, Affordances: l.changeAffordances()}
-	answer.Gone = l.goneFrom(delivered, wantedCard, wantedState)
+	answer.Gone = l.goneFrom(delivered, wantedCard, wantedColumn)
 	// Evidence is counted across every entity the walk delivered, not only
 	// across cards. A workbench field rewrite, a workstream act, a deletion
 	// and a completed archiving each move the live term and each is a
@@ -451,8 +451,8 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	// the live one, so letting it stand as the explanation for a moved live
 	// term would suppress a resync the live half had earned.
 	explained := len(delivered) > 0 || len(liveUnreadable) > 0
-	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedState)
-	answer.Events = l.eventsFrom(delivered, wantedCard, wantedState)
+	answer.Cards = l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedColumn)
+	answer.Events = l.eventsFrom(delivered, wantedCard, wantedColumn)
 	answer.Unreadable = filterKeys(unreadable, wantedCard)
 	return answer, nil
 }
@@ -489,14 +489,14 @@ func readHalf(entries []bench.Watched, held cursor, only map[string]bool) (deliv
 
 // eventsFrom renders the delivered lines for the answer, narrowed by whichever
 // filters the caller named.
-func (l *Library) eventsFrom(delivered []position, wantedCard string, wantedState *bench.State) []ChangeEvent {
+func (l *Library) eventsFrom(delivered []position, wantedCard string, wantedColumn *bench.Column) []ChangeEvent {
 	var events []ChangeEvent
 	for _, at := range delivered {
 		scope, id := splitKey(at.key)
 		if wantedCard != "" && (scope != ScopeCard || id != wantedCard) {
 			continue
 		}
-		if wantedState != nil && !l.inState(scope, id, at.event, wantedState) {
+		if wantedColumn != nil && !l.inColumn(scope, id, at.event, wantedColumn) {
 			continue
 		}
 		events = append(events, ChangeEvent{Scope: scope, ID: id, Ref: l.entityRef(scope, id), Event: at.event})
@@ -504,17 +504,17 @@ func (l *Library) eventsFrom(delivered []position, wantedCard string, wantedStat
 	return events
 }
 
-// inState decides whether a state filter admits one line.
+// inColumn decides whether a column filter admits one line.
 //
-// A card the filter admits is one that sits in the named state now, or one
-// whose own line names that state on either side of a move. The second half is
-// what makes "did my card leave the state I was watching" answerable at all: a
-// card that left is no longer in the state, so a rule reading only where the
+// A card the filter admits is one that sits in the named column now, or one
+// whose own line names that column on either side of a move. The second half is
+// what makes "did my card leave the column I was watching" answerable at all: a
+// card that left is no longer in the column, so a rule reading only where the
 // card sits now would filter out the very departure the caller asked about.
 //
-// Nothing outside a card carries a state, so a workbench-scoped or
+// Nothing outside a card carries a column, so a workbench-scoped or
 // workstream-scoped line is not admitted by a filter that asks about one.
-func (l *Library) inState(scope, id string, event bench.Event, wanted *bench.State) bool {
+func (l *Library) inColumn(scope, id string, event bench.Event, wanted *bench.Column) bool {
 	if scope != ScopeCard {
 		return false
 	}
@@ -522,7 +522,7 @@ func (l *Library) inState(scope, id string, event bench.Event, wanted *bench.Sta
 		return true
 	}
 	card, err := bench.LoadCard(l.Bench.CardsRoot(), id)
-	return err == nil && card.State == wanted.ID
+	return err == nil && card.Column == wanted.ID
 }
 
 // changedCards reports the live cards this call has a per-card reason to
@@ -549,7 +549,7 @@ func (l *Library) inState(scope, id string, event bench.Event, wanted *bench.Sta
 // caller, over every entity the walk delivered rather than over cards alone,
 // because a workbench field rewrite, a workstream act, a deletion and a
 // completed archiving all move the live term and all explain it.
-func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedState *bench.State) []*CardView {
+func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedColumn *bench.Column) []*CardView {
 	named := map[string]bool{}
 	departed := map[string]bool{}
 	for _, at := range delivered {
@@ -591,7 +591,7 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 		if err != nil {
 			continue
 		}
-		if wantedState != nil && card.State != wantedState.ID {
+		if wantedColumn != nil && card.Column != wantedColumn.ID {
 			continue
 		}
 		views = append(views, l.view(card))
@@ -608,7 +608,7 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 // event in the workbench journal, which names neither the kind of the thing
 // it removed nor a reference to it, so the entry carries the identifier and
 // the title and claims nothing more.
-func (l *Library) goneFrom(delivered []position, wantedCard string, wantedState *bench.State) []GoneEntity {
+func (l *Library) goneFrom(delivered []position, wantedCard string, wantedColumn *bench.Column) []GoneEntity {
 	var gone []GoneEntity
 	for _, at := range delivered {
 		scope, id := splitKey(at.key)
@@ -623,19 +623,19 @@ func (l *Library) goneFrom(delivered []position, wantedCard string, wantedState 
 				entry.Ref = card.Ref(l.Bench.Slug)
 				entry.Title = card.Title
 			}
-			// A state filter reaches an archived entry through the state its
+			// A column filter reaches an archived entry through the column its
 			// surviving anchor records. An entry whose anchor is gone carries
-			// no state to match, so a filtered call cannot report it.
-			if wantedState != nil && (card == nil || card.State != wantedState.ID) {
+			// no column to match, so a filtered call cannot report it.
+			if wantedColumn != nil && (card == nil || card.Column != wantedColumn.ID) {
 				continue
 			}
 			gone = append(gone, entry)
 		case scope == ScopeWorkbench && at.event.Event == contract.EventDeleted:
 			// A removed entry is exempt from both filters. It carries no
-			// state to match and its reference no longer resolves, and a
+			// column to match and its reference no longer resolves, and a
 			// filtered caller told about one identifier it does not
 			// recognise is better served than one whose own card's
-			// destruction was filtered out for want of a state.
+			// destruction was filtered out for want of a column.
 			gone = append(gone, GoneEntity{ID: at.event.Note, Title: at.event.Title, Fate: FateRemoved})
 		}
 	}

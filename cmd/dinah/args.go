@@ -35,7 +35,7 @@ func declaredFlags() (valued, markers []string) {
 		for _, param := range verb.Params(name) {
 			// A positional whose own row says it is also written --name takes
 			// a value under that spelling, which is how ls, next and move
-			// accept --state beside the bare word.
+			// accept --column beside the bare word.
 			if param.AlsoFlag || (param.Flag && !param.Marker) {
 				valuedSeen[param.Name] = true
 				continue

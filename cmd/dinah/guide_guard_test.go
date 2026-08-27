@@ -781,7 +781,7 @@ func treePathsOf(text string) []string {
 }
 
 // exercisedWorkbench builds a workbench through the head and exercises it
-// until it carries a state, a card, a comment, an attachment, an archived
+// until it carries a column, a card, a comment, an attachment, an archived
 // card, and a journal of its own, which is every entity the layout guide's
 // tree draws.
 func exercisedWorkbench(t *testing.T) string {
@@ -915,7 +915,7 @@ var quotedWord = regexp.MustCompile("`([a-z][a-z-]*)`")
 // check means. The guide carries one line containing the phrase "the contract's
 // verbs", and the set is every backticked single word on it. Collecting every
 // invocation the guide teaches would be the obvious rule and the wrong one: the
-// guide also teaches the log and states commands and points at another guide,
+// guide also teaches the log and columns commands and points at another guide,
 // none of which the contract specifies, so that rule would fail on a guide that
 // is correct.
 //

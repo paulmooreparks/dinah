@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ type Finding struct {
 	// Key is the catalog key naming the defect, so the report is rendered
 	// in the reader's own language rather than in the checker's.
 	Key string
-	// Detail is the identifier, state or field the defect is about.
+	// Detail is the identifier, column or field the defect is about.
 	Detail string
 }
 
@@ -27,12 +28,12 @@ const (
 	FindingActiveWithoutClaim = "check.active-without-claim"
 	FindingBlockWithoutReason = "check.block-without-reason"
 	FindingHolderOnUnheld     = "check.holder-on-unheld"
-	FindingUnknownState       = "check.unknown-state"
+	FindingUnknownColumn      = "check.unknown-column"
 	FindingDanglingLink       = "check.dangling-link"
 	FindingPositionDiverges   = "check.position-diverges"
 	FindingMissingAnchor      = "check.missing-anchor"
 	FindingTornJournal        = "check.torn-journal"
-	FindingUnknownSubstate    = "check.unknown-substate"
+	FindingUnknownState       = "check.unknown-state"
 	FindingInterruptedAct     = "check.interrupted-act"
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
 	FindingOrdinalMissing     = "check.ordinal-missing"
@@ -40,40 +41,48 @@ const (
 	FindingSlugMissing        = "check.slug-missing"
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
-	FindingStrandedState      = "check.stranded-state"
+	FindingStrandedColumn     = "check.stranded-column"
 	// FindingUnknownLevel names a card whose stored severity or priority is
 	// no member of what this workbench declares for that axis, which covers
 	// a declaration that has since changed and one that was never made. It
-	// sits beside FindingUnknownState for the same reason: the write path is
+	// sits beside FindingUnknownColumn for the same reason: the write path is
 	// the only place a level is validated, because refusing on read would
 	// make a workbench unreadable the moment somebody edits its declaration.
 	FindingUnknownLevel  = "check.unknown-level"
 	FindingIgnoredAnchor = "check.ignored-anchor"
-	// FindingClaimWhereNoWorkIsTaken names a card held at a state where no
+	// FindingCardVocabularyMixed and FindingCardVocabularyRetired name the
+	// two headers the card reader refuses, and they exist because check is
+	// the tool a reader reaches for when the reader has refused. Without
+	// them every such card was reported as a directory carrying no anchor
+	// file, which is untrue of a file that is plainly there and which
+	// invites the reader to delete a directory holding a card.
+	FindingCardVocabularyMixed   = "check.card-vocabulary-mixed"
+	FindingCardVocabularyRetired = "check.card-vocabulary-retired"
+	// FindingClaimWhereNoWorkIsTaken names a card held at a column where no
 	// owner takes work up, which the acts are refused from the day this
 	// build ships and which a board written before that day can still carry.
 	// It sits beside FindingUnknownLevel on the same posture: refusing such
 	// a workbench on read would leave it unopenable with no route back.
 	FindingClaimWhereNoWorkIsTaken = "check.claim-where-no-work-is-taken"
-	// FindingKindOutOfPosition names a state whose kind is not allowed to
+	// FindingKindOutOfPosition names a column whose kind is not allowed to
 	// stand where it stands in the flow, and is reported rather than
 	// refused for the reason above. The repair is an edit to workbench.md or
-	// to a state.md, so no flag offers to make it.
+	// to a column.md, so no flag offers to make it.
 	FindingKindOutOfPosition = "check.kind-out-of-position"
-	// FindingRejectTargetUnknown names a state whose reject_to names no
-	// state this workbench carries.
+	// FindingRejectTargetUnknown names a column whose reject_to names no
+	// column this workbench carries.
 	FindingRejectTargetUnknown = "check.reject-target-unknown"
-	// FindingRejectTargetIsSelf names a state whose reject_to names itself.
+	// FindingRejectTargetIsSelf names a column whose reject_to names itself.
 	FindingRejectTargetIsSelf = "check.reject-target-is-self"
-	// FindingRejectTargetForward names a state whose reject_to names a state
+	// FindingRejectTargetForward names a column whose reject_to names a column
 	// standing ahead of it in the flow whose kind is not done. A forward
-	// reject_to landing in a done state is not reported, because a rejected
+	// reject_to landing in a done column is not reported, because a rejected
 	// card ends in the same done queue a finished one ends in and carries
 	// its own outcome, which is the ruling dinah-207 records as D-5. See the
-	// state.md reject_to section of docs/design/format.md for the reasoning.
+	// column.md reject_to section of docs/design/format.md for the reasoning.
 	FindingRejectTargetForward = "check.reject-target-forward"
-	// FindingUnknownKind names a state carrying a layer's kind this build
-	// does not implement. CORE-STATE-12 says such a state is read as though
+	// FindingUnknownKind names a column carrying a layer's kind this build
+	// does not implement. CORE-STATE-12 says such a column is read as though
 	// its kind were work, and the sentence says so, because a reader
 	// otherwise has no way to know what the tool did with it.
 	FindingUnknownKind = "check.unknown-kind"
@@ -81,7 +90,7 @@ const (
 	// that resolves in neither half of the workstreams collection, on the
 	// same terms FindingDanglingLink already reports a link's to.
 	FindingDanglingWorkstream = "check.dangling-workstream"
-	// The three workstream slug findings mirror the state's own three. None
+	// The three workstream slug findings mirror the column's own three. None
 	// of them turns on the profile revision the workbench declares, because
 	// the profile says nothing about a workstream at all.
 	FindingWorkstreamSlugMissing   = "check.workstream-slug-missing"
@@ -89,14 +98,14 @@ const (
 	FindingWorkstreamSlugDuplicate = "check.workstream-slug-duplicate"
 	// The last two are raised by the slug migration rather than by the
 	// checker, on the terms FindingSlugUnderivable and FindingSlugUnwritable
-	// are raised for a state. They are separate names because the sentence
-	// names the entity, and a workstream reported as a state would send a
+	// are raised for a column. They are separate names because the sentence
+	// names the entity, and a workstream reported as a column would send a
 	// reader to the wrong listing.
 	FindingWorkstreamSlugUnderivable = "check.workstream-slug-underivable"
 	FindingWorkstreamSlugUnwritable  = "check.workstream-slug-unwritable"
 	// FindingWorkbenchSlugMissing names a workbench written before the
 	// workbench-level slug field existed, on the same report-only terms
-	// FindingSlugMissing already reports a state's absence.
+	// FindingSlugMissing already reports a column's absence.
 	FindingWorkbenchSlugMissing = "check.workbench-slug-missing"
 	// FindingAttachmentFilenameDrift names an attachment whose payload
 	// file name differs from the filename the anchor records. A crash
@@ -113,7 +122,7 @@ const (
 	// because each names something only the run that did the work can know:
 	// which entity it placed by guesswork, which card a lock kept it out of,
 	// which entity it could not write to, which title it could derive no
-	// slug from, and which state or workbench anchor it could not write a
+	// slug from, and which column or workbench anchor it could not write a
 	// slug to. None of them survives on disk for a later check to find.
 	FindingOrdinalGuessed           = "check.ordinal-guessed"
 	FindingOrdinalLocked            = "check.ordinal-locked"
@@ -125,7 +134,7 @@ const (
 
 // The directions an interrupted structural act is reported and finished in.
 // The journal decides between the first two, the same way history determines
-// the present everywhere else in this format; the last two are the states the
+// the present everywhere else in this format; the last two are the columns the
 // tool reports and refuses to resolve.
 const (
 	// DirectionForward means the act was past its point of record, so the
@@ -164,18 +173,18 @@ func (b *Bench) Check() ([]Finding, error) {
 		}
 		card, err := LoadCard(b.CardsRoot(), id)
 		if err != nil {
-			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
+			findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id})
 			continue
 		}
 		findings = append(findings, b.checkCard(card)...)
 	}
-	findings = append(findings, b.checkStateKinds()...)
+	findings = append(findings, b.checkColumnKinds()...)
 	findings = append(findings, b.checkRejectTargets()...)
 	findings = append(findings, b.checkWorkstreams()...)
-	findings = append(findings, b.checkStateSlugs()...)
+	findings = append(findings, b.checkColumnSlugs()...)
 	findings = append(findings, b.checkWorkbenchSlug()...)
-	for _, id := range b.StrandedStates {
-		findings = append(findings, Finding{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingStrandedState, Detail: id})
+	for _, id := range b.StrandedColumns {
+		findings = append(findings, Finding{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingStrandedColumn, Detail: id})
 	}
 	for _, standing := range b.interruptions() {
 		findings = append(findings, standing.finding())
@@ -183,89 +192,89 @@ func (b *Bench) Check() ([]Finding, error) {
 	return findings, nil
 }
 
-// checkStateKinds applies the position rules to the flow and reports a state
+// checkColumnKinds applies the position rules to the flow and reports a column
 // carrying a kind this build does not implement.
 //
-// The rules are three. An intake state stands first, so at most one state is
-// of that kind. A done state stands in the terminal region, which is the run
-// of states at the end of the list every member of which is of kind done, and
-// no state that is not done stands after a state that is. A buffer stands
+// The rules are three. An intake column stands first, so at most one column is
+// of that kind. A done column stands in the terminal region, which is the run
+// of columns at the end of the list every member of which is of kind done, and
+// no column that is not done stands after a column that is. A buffer stands
 // neither first nor in the terminal region.
 //
 // Every rule is reported rather than refused. A board whose kinds sit outside
 // these positions opens and is read as it stands, because refusing it on read
 // would leave it unopenable the moment somebody reorders a flow, and the acts
 // that would create the condition afresh are refused on their own.
-func (b *Bench) checkStateKinds() []Finding {
+func (b *Bench) checkColumnKinds() []Finding {
 	var findings []Finding
 	start := b.terminalRegionStart()
-	for _, state := range b.States {
-		path := b.StateAnchorPath(state.ID)
-		if strings.Contains(state.Kind, ".") && state.Kind != contract.KindBuffer {
-			findings = append(findings, Finding{Path: path, Key: FindingUnknownKind, Detail: state.Ref()})
+	for _, column := range b.Columns {
+		path := b.ColumnAnchorPath(column.ID)
+		if strings.Contains(column.Kind, ".") && column.Kind != contract.KindBuffer {
+			findings = append(findings, Finding{Path: path, Key: FindingUnknownKind, Detail: column.Ref()})
 			continue
 		}
-		if b.kindStandsWrong(state, start) {
-			findings = append(findings, Finding{Path: path, Key: FindingKindOutOfPosition, Detail: state.Ref()})
+		if b.kindStandsWrong(column, start) {
+			findings = append(findings, Finding{Path: path, Key: FindingKindOutOfPosition, Detail: column.Ref()})
 		}
 	}
 	return findings
 }
 
 // checkRejectTargets reports a declared reject_to this build cannot cleanly
-// act on: one naming no state, one naming its own state, and one naming a
-// state ahead of it in the flow whose kind is not done. It resolves each
+// act on: one naming no column, one naming its own column, and one naming a
+// column ahead of it in the flow whose kind is not done. It resolves each
 // declaration for itself rather than calling RejectTarget, because
 // RejectTarget answers one nil for all three conditions and a reader telling a
 // person what to fix needs to tell them which one applies. Whether the target
-// is a done state is asked of State.Terminal rather than compared here, which
+// is a done column is asked of Column.Terminal rather than compared here, which
 // is the one answer dinah-273 left for that question.
 //
-// A forward declaration landing in a done state is not reported. A rejected
+// A forward declaration landing in a done column is not reported. A rejected
 // card ends where a finished card ends, carrying its own outcome, so naming
 // the terminal is a thing a board may legitimately want to say.
 func (b *Bench) checkRejectTargets() []Finding {
 	var findings []Finding
-	for _, state := range b.States {
-		if state.RejectTo == "" {
+	for _, column := range b.Columns {
+		if column.RejectTo == "" {
 			continue
 		}
-		path := b.StateAnchorPath(state.ID)
-		target := b.StateByRef(state.RejectTo)
+		path := b.ColumnAnchorPath(column.ID)
+		target := b.ColumnByRef(column.RejectTo)
 		switch {
 		case target == nil:
-			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetUnknown, Detail: state.Ref()})
-		case target.ID == state.ID:
-			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetIsSelf, Detail: state.Ref()})
-		case target.Position > state.Position && !target.Terminal():
-			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetForward, Detail: state.Ref()})
+			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetUnknown, Detail: column.Ref()})
+		case target.ID == column.ID:
+			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetIsSelf, Detail: column.Ref()})
+		case target.Position > column.Position && !target.Terminal():
+			findings = append(findings, Finding{Path: path, Key: FindingRejectTargetForward, Detail: column.Ref()})
 		}
 	}
 	return findings
 }
 
-// kindStandsWrong reports whether one state's kind is disallowed at the
-// position the state stands in, given where the terminal region starts.
-func (b *Bench) kindStandsWrong(state *State, terminalStart int) bool {
-	switch state.Kind {
+// kindStandsWrong reports whether one column's kind is disallowed at the
+// position the column stands in, given where the terminal region starts.
+func (b *Bench) kindStandsWrong(column *Column, terminalStart int) bool {
+	switch column.Kind {
 	case contract.KindIntake:
-		return state.Position != 0
+		return column.Position != 0
 	case contract.KindDone:
-		return state.Position < terminalStart
+		return column.Position < terminalStart
 	case contract.KindBuffer:
-		return state.Position == 0 || state.Position >= terminalStart
+		return column.Position == 0 || column.Position >= terminalStart
 	}
 	return false
 }
 
 // terminalRegionStart returns the position the terminal region begins at,
-// which is the length of the flow when the flow ends in a state that is not
+// which is the length of the flow when the flow ends in a column that is not
 // done. Walking back from the end is what makes the region a run rather than
-// a set: a done state with anything but done states after it lies outside it.
+// a set: a done column with anything but done columns after it lies outside it.
 func (b *Bench) terminalRegionStart() int {
-	start := len(b.States)
-	for i := len(b.States) - 1; i >= 0; i-- {
-		if b.States[i].Kind != contract.KindDone {
+	start := len(b.Columns)
+	for i := len(b.Columns) - 1; i >= 0; i-- {
+		if b.Columns[i].Kind != contract.KindDone {
 			break
 		}
 		start = i
@@ -278,36 +287,36 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	var findings []Finding
 	anchor := card.AnchorPath()
 	claimed := card.Holder != "" || card.ClaimSince != ""
-	switch card.Substate {
-	case contract.SubstateActive:
+	switch card.State {
+	case contract.StateActive:
 		if !claimed {
 			findings = append(findings, Finding{Path: anchor, Key: FindingActiveWithoutClaim, Detail: card.ID})
 		}
-	case contract.SubstateBlocked:
+	case contract.StateBlocked:
 		if card.BlockReason == "" {
 			findings = append(findings, Finding{Path: anchor, Key: FindingBlockWithoutReason, Detail: card.ID})
 		}
 		if claimed {
 			findings = append(findings, Finding{Path: anchor, Key: FindingHolderOnUnheld, Detail: card.ID})
 		}
-	case contract.SubstateReady:
+	case contract.StateReady:
 		if claimed {
 			findings = append(findings, Finding{Path: anchor, Key: FindingClaimWithoutActive, Detail: card.ID})
 		}
 	default:
-		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownSubstate, Detail: card.Substate})
-	}
-	state := b.State(card.State)
-	if state == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownState, Detail: card.State})
+	}
+	column := b.Column(card.Column)
+	if column == nil {
+		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownColumn, Detail: card.Column})
 	}
 	// A claim standing where no owner takes work up is history rather than
 	// something a card acquires afresh, since claim, move and pull all refuse
-	// to put one there. The finding names the state, because that is what an
+	// to put one there. The finding names the column, because that is what an
 	// operator edits or moves the card out of.
-	held := claimed || card.Substate == contract.SubstateActive
-	if state != nil && held && !state.TakesWorkUp() {
-		findings = append(findings, Finding{Path: anchor, Key: FindingClaimWhereNoWorkIsTaken, Detail: state.Ref()})
+	held := claimed || card.State == contract.StateActive
+	if column != nil && held && !column.TakesWorkUp() {
+		findings = append(findings, Finding{Path: anchor, Key: FindingClaimWhereNoWorkIsTaken, Detail: column.Ref()})
 	}
 	// Each axis is asked about its own declaration and never about whether
 	// the workbench declares any levels at all, so a card carrying a
@@ -344,7 +353,7 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	if torn {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
 	}
-	if position := replayPosition(events); position != "" && position != card.State {
+	if position := replayPosition(events); position != "" && position != card.Column {
 		findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
 	}
 	return findings
@@ -415,8 +424,8 @@ func checkAttachmentFilename(cardDir string) []Finding {
 	return findings
 }
 
-// replayPosition returns the state the journal says a card occupies, which is
-// the state of its last recorded move, or the state it was created in when it
+// replayPosition returns the column the journal says a card occupies, which is
+// the column of its last recorded move, or the column it was created in when it
 // has never moved. An empty answer means the journal says nothing about
 // position at all, which is not itself a divergence.
 func replayPosition(events []Event) string {
@@ -430,4 +439,25 @@ func replayPosition(events []Event) string {
 		}
 	}
 	return position
+}
+
+// unreadableCardFinding names the defect a card the reader refused actually
+// has. The reader owns the vocabulary conditions, because a card whose keys
+// mean the wrong thing cannot be read at all; the checker's job is to say so
+// in its own report rather than to translate every refusal into the one
+// finding it had a key for. Anything else the reader refuses is still a
+// directory the checker cannot make a card out of, which is what
+// FindingMissingAnchor says.
+func unreadableCardFinding(err error) string {
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		return FindingMissingAnchor
+	}
+	switch refusal.Name {
+	case contract.VocabularyMixed:
+		return FindingCardVocabularyMixed
+	case contract.VocabularyRetired:
+		return FindingCardVocabularyRetired
+	}
+	return FindingMissingAnchor
 }

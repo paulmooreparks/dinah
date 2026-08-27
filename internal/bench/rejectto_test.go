@@ -8,13 +8,13 @@ import (
 	"testing"
 )
 
-// rejectDefinition is a two-state flow whose second state declares reject_to
+// rejectDefinition is a two-column flow whose second column declares reject_to
 // naming the first. It is the interchange round trip's fixture, written in the
 // shape waitingDefinition already uses so the two read alike.
 const rejectDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Rejecting",
-  "states": [
+  "columns": [
     { "id": "e00000000001", "title": "Editing", "kind": "work",
       "instructions": "Editing instructions.\n" },
     { "id": "e00000000002", "title": "Accepting", "kind": "work",
@@ -22,12 +22,12 @@ const rejectDefinition = `{
   ]
 }`
 
-// TestReadStateCarriesTheDeclaredRejectTo is dinah-207 AC-1. readState takes
+// TestReadColumnCarriesTheDeclaredRejectTo is dinah-207 AC-1. readColumn takes
 // the declaration verbatim and refuses nothing, because a stale cross-reference
 // is a thing dinah check reports rather than a reason to take a whole board
 // away from the person who has to repair it.
-func TestReadStateCarriesTheDeclaredRejectTo(t *testing.T) {
-	t.Run("a state declaring reject_to carries the ref it declared", func(t *testing.T) {
+func TestReadColumnCarriesTheDeclaredRejectTo(t *testing.T) {
+	t.Run("a column declaring reject_to carries the ref it declared", func(t *testing.T) {
 		opened, err := Open(kindFixture(t, []map[string]any{
 			{"id": "a00000000001", "title": "Editing", "slug": "editing", "kind": "work"},
 			{"id": "a00000000002", "title": "Accepting", "slug": "accepting", "kind": "work", "reject_to": "editing"},
@@ -35,12 +35,12 @@ func TestReadStateCarriesTheDeclaredRejectTo(t *testing.T) {
 		if err != nil {
 			t.Fatalf("open: %v", err)
 		}
-		if got := opened.StateByRef("accepting").RejectTo; got != "editing" {
+		if got := opened.ColumnByRef("accepting").RejectTo; got != "editing" {
 			t.Errorf("wanted the declared ref editing, got %q", got)
 		}
 	})
 
-	t.Run("a state declaring none reads empty", func(t *testing.T) {
+	t.Run("a column declaring none reads empty", func(t *testing.T) {
 		opened, err := Open(kindFixture(t, []map[string]any{
 			{"id": "a00000000001", "title": "Editing", "slug": "editing", "kind": "work"},
 			{"id": "a00000000002", "title": "Accepting", "slug": "accepting", "kind": "work"},
@@ -48,53 +48,53 @@ func TestReadStateCarriesTheDeclaredRejectTo(t *testing.T) {
 		if err != nil {
 			t.Fatalf("open: %v", err)
 		}
-		if got := opened.StateByRef("accepting").RejectTo; got != "" {
-			t.Errorf("wanted the empty string on a state declaring nothing, got %q", got)
+		if got := opened.ColumnByRef("accepting").RejectTo; got != "" {
+			t.Errorf("wanted the empty string on a column declaring nothing, got %q", got)
 		}
 	})
 
-	t.Run("a ref naming no state opens the workbench anyway", func(t *testing.T) {
+	t.Run("a ref naming no column opens the workbench anyway", func(t *testing.T) {
 		opened, err := Open(kindFixture(t, []map[string]any{
 			{"id": "a00000000001", "title": "Only", "slug": "only", "kind": "work", "reject_to": "nowhere at all"},
 		}))
 		if err != nil {
-			t.Fatalf("a declaration naming no state should open, got %v", err)
+			t.Fatalf("a declaration naming no column should open, got %v", err)
 		}
-		if got := opened.StateByRef("only").RejectTo; got != "nowhere at all" {
+		if got := opened.ColumnByRef("only").RejectTo; got != "nowhere at all" {
 			t.Errorf("wanted the ref stored verbatim, got %q", got)
 		}
 	})
 }
 
 // TestRejectTargetResolvesUnknownAndSelf is dinah-207 AC-2. The resolver is
-// deliberately coarse: one nil covers the nil state, the empty declaration, the
+// deliberately coarse: one nil covers the nil column, the empty declaration, the
 // unknown ref and the self-naming ref, because its two callers only need to
 // know whether to act.
 func TestRejectTargetResolvesUnknownAndSelf(t *testing.T) {
-	editing := &State{ID: "e00000000001", Title: "Editing", Slug: "editing", Kind: "work", Position: 0}
-	accepting := &State{ID: "e00000000002", Title: "Accepting", Slug: "accepting", Kind: "work", Position: 1}
-	b := &Bench{States: []*State{editing, accepting}}
+	editing := &Column{ID: "e00000000001", Title: "Editing", Slug: "editing", Kind: "work", Position: 0}
+	accepting := &Column{ID: "e00000000002", Title: "Accepting", Slug: "accepting", Kind: "work", Position: 1}
+	b := &Bench{Columns: []*Column{editing, accepting}}
 
 	cases := []struct {
 		name    string
-		state   *State
+		column  *Column
 		declare string
-		want    *State
+		want    *Column
 	}{
-		{name: "a nil state", state: nil, want: nil},
-		{name: "an empty declaration", state: accepting, declare: "", want: nil},
-		{name: "a ref naming no state", state: accepting, declare: "nowhere", want: nil},
-		{name: "a ref naming the declaring state", state: accepting, declare: "accepting", want: nil},
-		{name: "a ref naming a sibling", state: accepting, declare: "editing", want: editing},
-		{name: "a ref naming a sibling by identifier", state: accepting, declare: "e00000000001", want: editing},
+		{name: "a nil column", column: nil, want: nil},
+		{name: "an empty declaration", column: accepting, declare: "", want: nil},
+		{name: "a ref naming no column", column: accepting, declare: "nowhere", want: nil},
+		{name: "a ref naming the declaring column", column: accepting, declare: "accepting", want: nil},
+		{name: "a ref naming a sibling", column: accepting, declare: "editing", want: editing},
+		{name: "a ref naming a sibling by identifier", column: accepting, declare: "e00000000001", want: editing},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			if one.state != nil {
-				one.state.RejectTo = one.declare
-				defer func() { one.state.RejectTo = "" }()
+			if one.column != nil {
+				one.column.RejectTo = one.declare
+				defer func() { one.column.RejectTo = "" }()
 			}
-			if got := b.RejectTarget(one.state); got != one.want {
+			if got := b.RejectTarget(one.column); got != one.want {
 				t.Errorf("wanted %v, got %v", one.want, got)
 			}
 		})
@@ -126,7 +126,7 @@ func TestCheckReportsASelfRejectTarget(t *testing.T) {
 }
 
 // TestCheckReportsAForwardRejectTargetUnlessItIsDone is dinah-207 AC-5, and the
-// done-state subtest is where the operator's ruling on that card lands: a
+// done-column subtest is where the operator's ruling on that card lands: a
 // rejected card ends in the same done queue a finished one ends in, so naming
 // the terminal is legal and nothing is reported.
 func TestCheckReportsAForwardRejectTargetUnlessItIsDone(t *testing.T) {
@@ -142,7 +142,7 @@ func TestCheckReportsAForwardRejectTargetUnlessItIsDone(t *testing.T) {
 		assertFindingNames(t, opened, FindingRejectTargetForward, "editing")
 	})
 
-	t.Run("a forward target that is a done state is not reported", func(t *testing.T) {
+	t.Run("a forward target that is a done column is not reported", func(t *testing.T) {
 		opened, err := Open(kindFixture(t, []map[string]any{
 			{"id": "a00000000001", "title": "Editing", "slug": "editing", "kind": "work", "reject_to": "finished"},
 			{"id": "a00000000002", "title": "Accepting", "slug": "accepting", "kind": "work"},
@@ -185,8 +185,8 @@ func assertNoRejectFinding(t *testing.T, b *Bench, what string) {
 }
 
 // TestRejectToRidesTheInterchange is dinah-207 AC-10. The round trip is what
-// catches a field added to the parser and forgotten in exportState or in
-// knownStateKeys, and it passes here with interchange.go untouched because
+// catches a field added to the parser and forgotten in exportColumn or in
+// knownColumnKeys, and it passes here with interchange.go untouched because
 // reject_to travels as an unrecognized member under CORE-JSON-7.
 func TestRejectToRidesTheInterchange(t *testing.T) {
 	first := filepath.Join(t.TempDir(), "first")
@@ -206,16 +206,16 @@ func TestRejectToRidesTheInterchange(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 
-	states := exportedStates(t, exported)
-	if len(states) != 2 {
-		t.Fatalf("wanted two states in the export, got %d", len(states))
+	columns := exportedColumns(t, exported)
+	if len(columns) != 2 {
+		t.Fatalf("wanted two columns in the export, got %d", len(columns))
 	}
-	if _, carried := states[0]["reject_to"]; carried {
-		t.Error("the export carried the member on a state that does not declare it")
+	if _, carried := columns[0]["reject_to"]; carried {
+		t.Error("the export carried the member on a column that does not declare it")
 	}
-	raw, carried := states[1]["reject_to"]
+	raw, carried := columns[1]["reject_to"]
 	if !carried {
-		t.Fatal("the export left the member off the state that declares it")
+		t.Fatal("the export left the member off the column that declares it")
 	}
 	var ref string
 	if err := json.Unmarshal(raw, &ref); err != nil || ref != "e00000000001" {
@@ -237,13 +237,13 @@ func TestRejectToRidesTheInterchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open the import: %v", err)
 	}
-	if got := imported.State("e00000000002").RejectTo; got != "e00000000001" {
+	if got := imported.Column("e00000000002").RejectTo; got != "e00000000001" {
 		t.Errorf("the import reproduced the declaration as %q", got)
 	}
-	if got := imported.State("e00000000001").RejectTo; got != "" {
-		t.Errorf("the import invented a declaration on a state that carries none: %q", got)
+	if got := imported.Column("e00000000001").RejectTo; got != "" {
+		t.Errorf("the import invented a declaration on a column that carries none: %q", got)
 	}
-	if target := imported.RejectTarget(imported.State("e00000000002")); target == nil || target.ID != "e00000000001" {
+	if target := imported.RejectTarget(imported.Column("e00000000002")); target == nil || target.ID != "e00000000001" {
 		t.Errorf("the imported declaration does not resolve, got %v", target)
 	}
 	again, err := imported.Export()
@@ -256,7 +256,7 @@ func TestRejectToRidesTheInterchange(t *testing.T) {
 
 	// The anchor on disk carries the key as the frontmatter it was declared
 	// in, rather than as a preserved unknown member with a JSON value.
-	text, err := os.ReadFile(filepath.Join(second, StatesDir, "e00000000002", StateAnchor))
+	text, err := os.ReadFile(filepath.Join(second, ColumnsDir, "e00000000002", ColumnAnchor))
 	if err != nil {
 		t.Fatalf("read the imported anchor: %v", err)
 	}
