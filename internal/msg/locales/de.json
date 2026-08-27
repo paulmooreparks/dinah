@@ -147,12 +147,12 @@
       "source": "7be94b9daf0a52fd"
     },
     "check.card.4": {
-      "text": "das Feld deklariert diesen Wert",
+      "text": "der Wert ist eine Stufe, die dieses Feld deklariert",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "4002d10f56f595e"
     },
     "check.card.5": {
-      "text": "die Anfrage nennt einen Eigner",
+      "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "bc538e33f1fcc933"
     },
@@ -172,7 +172,7 @@
       "source": "bc538e33f1fcc933"
     },
     "check.claim.3": {
-      "text": "der genannte Inhaber ist der Anfragende selbst",
+      "text": "der als Inhaber genannte Akteur ist der anfragende Akteur",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "source": "c0d9ab28131a636b"
     },
@@ -367,7 +367,7 @@
       "source": "de3b44cbfc03156a"
     },
     "check.mcp.2": {
-      "text": "die genannte Werkbank liegt unter --root",
+      "text": "die genannte Werkbank liegt unter dem Wurzelverzeichnis",
       "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root.",
       "source": "af2ab98a7a859f37"
     },
@@ -422,7 +422,7 @@
       "source": "e62d40d1c2938929"
     },
     "check.pull.1": {
-      "text": "die Anfrage benennt einen Eigentümer",
+      "text": "die Anfrage nennt einen Akteur",
       "context": "One row of the ordered precondition list of pull: the request must carry an actor, so the workbench has a name to record on the claim event.",
       "source": "bc538e33f1fcc933"
     },
@@ -1322,7 +1322,7 @@
       "source": "ef49aec68fd1dc66"
     },
     "column.states.owner": {
-      "text": "Eigner",
+      "text": "Akteur",
       "context": "Heading over who may move a card out of the state, reading agent or operator, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "b971debc37bf0b54"
     },
@@ -1877,7 +1877,7 @@
       "source": "e22a8531617af968"
     },
     "param.pull.override.summary": {
-      "text": "die Kapazitäts- und Rückzugsprüfungen für die Bedienung umgehen",
+      "text": "den Betreiber in einen Zustand an seiner Grenze ziehen lassen; für alle anderen verweigert",
       "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table.",
       "source": "b96795e8afda6ab4"
     },
@@ -3132,7 +3132,7 @@
       "source": "3d352fb090323d6"
     },
     "refusal.dinah.takes-no-work": {
-      "text": "in Zustand {detail} nimmt niemand Arbeit auf, und eine Karte wartet dort, bis ein Zug sie in den nächsten Zustand trägt",
+      "text": "in Zustand {detail} nimmt kein Akteur Arbeit auf, und eine Karte wartet dort, bis ein Zug sie in den nächsten Zustand trägt",
       "context": "The sentence printed after the refusal name dinah.takes-no-work. {detail} carries the state the refusal is about. A state that waits on somebody outside answers refusal.dinah.awaiting-outside instead, because that sentence also says who is being waited on.",
       "source": "23b785dc7ccbc01d"
     },
@@ -3142,7 +3142,7 @@
       "source": "6761fca1e15d9dc4"
     },
     "check.claim-where-no-work-is-taken": {
-      "text": "eine Karte wird in Zustand {detail} gehalten, wo niemand Arbeit aufnimmt",
+      "text": "eine Karte wird in Zustand {detail} gehalten, wo kein Akteur Arbeit aufnimmt",
       "context": "A check finding: no card is held at a state where no owner takes work up. {detail} carries the state, and the finding's own path names the card. The acts that would create the condition afresh are refused, so a card reported here was written before this build.",
       "source": "a2fc39e387edb7a5"
     },
