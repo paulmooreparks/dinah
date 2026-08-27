@@ -501,6 +501,18 @@ title, a column, and a state. A card may carry anything else a workbench
 needs, and a tool that does not know what a field means keeps it anyway,
 and that is what lets one tool hand a workbench to another without loss.
 
+This paragraph is non-normative. The four required fields are a floor, and a
+tool's own card model is ordinarily much larger. Ranked priority levels,
+ranked severity levels, structured items recording judgements, membership of
+a named grouping of cards, and prose a card's readers attach are all ordinary
+card fields, riding under CORE-CARD-8 and preserved across tools by
+CORE-CARD-9. Section 10 rules all five of those concepts out and records for
+each the condition that would bring it back, so a reader meeting one of them
+can see that this profile declined it deliberately. Each tool records the
+model it built instead in its own documents, and Dinah keeps its own in
+`docs/design/format.md` of its source tree. That document is not required
+reading, and nothing here rests on it.
+
 [CORE-CARD-1] Every card MUST carry an identifier unique within its workbench.
 
 [CORE-CARD-2] A card's identifier MUST NOT change when the card's title changes.
@@ -1004,6 +1016,14 @@ and each column carries the instructions of that position. They are served
 together, most general first, and they are never copied into one another. A tool that wrote the workbench's standing text into
 each column would freeze a copy that stops tracking its source, and every
 later edit would then reach some readers and not others.
+
+This profile fixes the order of those two instruction layers and says nothing
+about how many a tool serves. A tool may compose further instruction layers
+of its own, in any position that leaves the workbench's standing text ahead
+of the column's. CORE-INSTR-5 constrains the order of the two named here and
+nothing else. CORE-INSTR-6 forbids copying the text of one instruction layer
+into another, and that prohibition reaches a tool's own instruction layers
+too.
 
 Instructions are served at the two moments an owner's situation changes: when
 a claim succeeds, and when a move succeeds. Alongside them a tool says which
