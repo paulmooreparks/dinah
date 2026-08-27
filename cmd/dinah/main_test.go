@@ -7486,6 +7486,15 @@ func TestLangFlagIsHonouredWhateverItsPosition(t *testing.T) {
 		t.Fatalf("the fixture is not testing anything: de and en render this refusal the same way")
 	}
 
+	// The control for the absence assertion in the loop below. Without it,
+	// stderr that never names a flag at all would satisfy "no second
+	// complaint about --lang" word for word, and that reading is the more
+	// likely of the two. dinah --lang, whose only word is a session flag
+	// with no value left, is the invocation whose refusal does name --lang.
+	if named := runCLI(t, root, "--lang"); !strings.Contains(named.errw, "--lang") {
+		t.Fatalf("no refusal names --lang at all, so the absence checks below prove nothing: %q", named.errw)
+	}
+
 	cases := []struct {
 		name string
 		argv []string
