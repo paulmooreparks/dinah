@@ -2842,7 +2842,7 @@
     },
     "mcp.reach.nodefault.unbounded": {
       "text": "आप किसी भी ऐसी वर्कबेंच तक पहुँच सकते हैं जिसे आप नाम दे सकें; इस सर्वर को कोई रूट नहीं दिया गया है और यह तयशुदा रूप से कुछ भी नहीं परोस रहा है। workbenches उपकरण को खोजने के लिए रूट चाहिए और यहाँ dinah.no-workbench-found के साथ मना करता है, इसलिए जो वर्कबेंच चाहिए उसे किसी भी दूसरे उपकरण की workbench property में सीधे नामें।",
-      "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only bench.Open's own checks can refuse one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only the checks made when the workbench is opened can refuse one.",
       "source": "e0312a77ab34963a"
     },
     "mcp.reach.unbounded": {

@@ -3013,7 +3013,7 @@
     },
     "mcp.reach.nodefault.unbounded": {
       "text": "You may reach any workbench you can name; this server was given no root and is serving no default. The workbenches tool needs a root to search and refuses dinah.no-workbench-found here, so name the one you want directly on the workbench property of any other tool.",
-      "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only bench.Open's own checks can refuse one.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only the checks made when the workbench is opened can refuse one.",
       "skeleton": true
     },
     "mcp.reach.unbounded": {
