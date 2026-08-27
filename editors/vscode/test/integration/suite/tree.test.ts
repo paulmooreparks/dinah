@@ -72,12 +72,20 @@ suite("the sidebar tree against a real workbench", () => {
 			await until(() => cards.length > 0, 5_000),
 			"the fixture's cards reached no row in the tree",
 		);
-		// Every ready card in this fixture stands at a column that takes work
-		// up, so every one of them offers Claim. A provider reading the wrong
-		// field, or reading a field that moved, composes the other spelling.
+
+		// The fixture puts two cards in intake and carries one into the work
+		// column, so both take-up spellings are on the board at once. That is
+		// the whole assertion: a provider that read the wrong field, or a
+		// field that moved on the Go side, composes one spelling everywhere
+		// and passes any test that only ever sees one.
+		const menus = cards.map((row) => String(row.contextValue));
 		assert.ok(
-			cards.some((row) => row.contextValue === "dinah.card.ready.claim"),
-			`no card offered Claim: ${cards.map((row) => String(row.contextValue)).join(", ")}`,
+			menus.includes("dinah.card.ready.claim"),
+			`no card offered Claim, though one stands in a column that takes work up: ${menus.join(", ")}`,
+		);
+		assert.ok(
+			menus.includes("dinah.card.ready.none"),
+			`no card withheld Claim, though two stand in intake, which takes none: ${menus.join(", ")}`,
 		);
 		// Nothing anywhere offers a Pull, because dinah's pull verb takes a
 		// destination rather than a card.

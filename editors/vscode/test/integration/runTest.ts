@@ -16,6 +16,7 @@ import {
 	BINARY_NAME,
 	addCard,
 	buildBinary,
+	moveCard,
 	initBench,
 	pinBinary,
 } from "../support/fixtures";
@@ -90,9 +91,14 @@ async function main(): Promise<void> {
 	const tree = join(fixtures, "tree");
 	initBench(root, tree);
 	pinBinary(root, tree);
-	for (const title of ["Draw the guides", "Translate the headings", "Retire the second map"]) {
-		addCard(root, tree, title);
-	}
+	const treeCards = ["Draw the guides", "Translate the headings", "Retire the second map"].map(
+		(title) => addCard(root, tree, title),
+	);
+	// One card is carried into the work column, so the suite sees both
+	// take-up spellings. Every card dinah add files lands in intake, which is
+	// a queue column that takes no work up, and a fixture whose cards all sit
+	// there can only assert the no-Claim half.
+	moveCard(root, tree, treeCards[0], "doing");
 
 	// AC-15: the carried binary, arriving without its executable bit.
 	const carried = join(fixtures, "carried");

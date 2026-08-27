@@ -103,3 +103,24 @@ export function addCard(root: FixtureRoot, dir: string, title: string): string {
 	}
 	return ref;
 }
+
+/**
+ * Moves one card to a named column.
+ *
+ * The tree suite needs a card standing where work is taken up, and `dinah
+ * add` files every card into intake, which is a queue column that takes none.
+ * A fixture whose cards all sit in intake can only ever assert the one
+ * spelling, and would go on passing after the take-up half broke.
+ */
+export function moveCard(
+	root: FixtureRoot,
+	dir: string,
+	ref: string,
+	column: string,
+): void {
+	execFileSync(root.binary, ["--json", "move", ref, column], {
+		cwd: dir,
+		env: fixtureEnv(root),
+		stdio: "pipe",
+	});
+}
