@@ -2,9 +2,10 @@
 // agent or a person the coordination discipline of a board with no board.
 //
 // The binary is two heads over one library. The cli head renders the library's
-// canonical answers for a person and emits them unrendered under --json; the
-// mcp head passes the same answers through to an agent. Neither head computes
-// a refusal, an ordering or an instruction composition of its own.
+// canonical answers for a person and emits them unrendered in whichever
+// machine form --format names; the mcp head passes the same answers through to
+// an agent. Neither head computes a refusal, an ordering or an instruction
+// composition of its own.
 package main
 
 import (
@@ -29,9 +30,11 @@ type session struct {
 	in io.Reader
 	// r renders every string a person reads.
 	r *msg.Renderer
-	// json says the canonical machine form is wanted rather than a
-	// rendering.
-	json bool
+	// format says which projection of a verb's answer this invocation
+	// wants: the rendering a person reads, the canonical machine form, or
+	// the compact machine form. The zero value renders for a person, so a
+	// session nobody sets a format on behaves as it always has.
+	format outputFormat
 	// quiet suppresses the served instructions on the human rendering of a
 	// claim and a move. The machine forms always carry them.
 	quiet bool
@@ -103,7 +106,6 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		errw:            errw,
 		in:              in,
 		r:               msg.For(bench.ResolveLang(scanLangFlag(argv), cfg)),
-		json:            parsed.has("json") || os.Getenv("DINAH_FORMAT") == "json",
 		quiet:           parsed.has("quiet"),
 		home:            home,
 		nativeHome:      bench.NativeHome(),
@@ -115,14 +117,23 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	}
 	if parseErr != nil {
 		// The parse failed, and the refusal still reaches its reader in
-		// their own language: scanLangFlag read --lang from the whole
+		// their own language. scanLangFlag read --lang from the whole
 		// argument list above, so the flag is honoured wherever the caller
 		// wrote it rather than only ahead of the word the scan stopped at
 		// (dinah-97). The report is text alone, since the flags that would
-		// have carried --json are what failed.
-		s.json = false
+		// have carried a format are what failed, and the session's zero
+		// format is the rendering a person reads.
 		return s.reportError(parseErr)
 	}
+	format, formatRefusal := resolveFormat(parsed.has("json"), parsed.value("format"), os.Getenv("DINAH_FORMAT"))
+	if formatRefusal != nil {
+		// The report is text alone, by the rule the parse failure above
+		// follows: no format was resolved, so none is available to report
+		// this refusal in, and a caller who asked for a form the tool does
+		// not write is not owed that form back.
+		return s.reportError(formatRefusal)
+	}
+	s.format = format
 	if actor, err := bench.ResolveActor(parsed.value("actor"), cfg); err == nil {
 		s.actor = actor
 	}
@@ -279,7 +290,7 @@ func (s *session) reportError(err error) int {
 		io.WriteString(s.errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
 		return contract.ExitCode(contract.OutcomeUnreachable)
 	}
-	if s.json {
+	if s.format != formatHuman {
 		report := refusalReport{
 			Outcome: contract.OutcomeRefused,
 			Refusal: refusal.Name,
@@ -290,7 +301,7 @@ func (s *session) reportError(err error) int {
 			report.Detail = ""
 			report.Workbenches, _ = bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
 		}
-		s.emitJSON(report)
+		s.emitMachine(report)
 	}
 	for _, line := range s.composeRefusal(refusal) {
 		io.WriteString(s.errw, line+"\n")

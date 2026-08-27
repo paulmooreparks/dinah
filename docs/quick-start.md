@@ -1199,14 +1199,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        657/657
-  af        0/657
-  cs        0/657
-  de        657/657
-  es        0/657
-  fil       0/657
-  hi        657/657
-  id        0/657
+  en        660/660
+  af        0/660
+  cs        0/660
+  de        660/660
+  es        0/660
+  fil       0/660
+  hi        660/660
+  id        0/660
 [exit 0]
 ```
 
@@ -1472,14 +1472,19 @@ a person types commands.
 
 `dinah mcp` serves the workbench over MCP on its standard input and output, so
 an AI colleague can work the same board you do. Configure it in your MCP client
-as the command `dinah mcp`, and either run it from somewhere inside the
-workbench or point `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory, the
-same path `--workbench` takes. Dinah hands the client the rules for working this
-workbench and twenty-one tools against its twenty-nine commands. Every command
-that files, moves, or reads a card is there. Seven of the eight that are
-missing only make sense at a shell: `init`, `config`, `path`, `edit`,
-`extract`, `workbenches`, and `mcp` itself. The eighth is `guide`, and the
-client reads it as a resource rather than calling it as a tool. Your AI
+as the command `dinah mcp`, with no root: started this way, from anywhere, it
+serves no workbench by default, and each call names its own workbench by
+absolute path, so one server reaches every board. Starting it from inside a
+workbench, or pointing `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory,
+still gives a call that names none a default to fall back on, but no longer
+keeps the server from reaching any other workbench you name. Give the server a
+root, with `--root` or `DINAH_MCP_ROOT`, when you want it bounded to one tree; a
+workbench outside that root is then refused. Dinah hands the client the rules
+for working this workbench and twenty-one tools against its twenty-nine
+commands. Every command that files, moves, or reads a card is there. Seven of
+the eight that are missing only make sense at a shell: `init`, `config`, `path`,
+`edit`, `extract`, `workbenches`, and `mcp` itself. The eighth is `guide`, and
+the client reads it as a resource rather than calling it as a tool. Your AI
 colleague claims, moves, releases, and blocks under the same rules and leaves
 the same journal entries you do.
 
