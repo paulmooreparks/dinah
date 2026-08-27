@@ -177,13 +177,19 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("A successful claim or move carries the instructions of the position in three ")
 	b.WriteString("separate layers and the moves the flow allows. Tokens are canonical on this ")
 	b.WriteString("surface and are never translated.\n\n")
-	if defaultLib != nil {
+	switch {
+	case defaultLib != nil && root != "":
 		b.WriteString(catalog.T("mcp.reach", "root", root, "title", defaultLib.Bench.Title))
-		b.WriteString("\n\n")
-		b.WriteString("The operator of this workbench is " + defaultLib.Bench.Operator + ". ")
-	} else {
+	case defaultLib != nil && root == "":
+		b.WriteString(catalog.T("mcp.reach.unbounded", "title", defaultLib.Bench.Title))
+	case defaultLib == nil && root != "":
 		b.WriteString(catalog.T("mcp.reach.nodefault", "root", root))
-		b.WriteString("\n\n")
+	default:
+		b.WriteString(catalog.T("mcp.reach.nodefault.unbounded"))
+	}
+	b.WriteString("\n\n")
+	if defaultLib != nil {
+		b.WriteString("The operator of this workbench is " + defaultLib.Bench.Operator + ". ")
 	}
 	b.WriteString("Read the embedded guides through resources/list and resources/read.\n")
 	b.WriteString("Read the guide mcp through resources/read for the loop this surface expects.\n")
