@@ -94,6 +94,13 @@ func (r compactRecord) field(at int) string {
 // Malformed input is a hard error rather than a guess, so a payload carrying a
 // backslash before a byte the grammar does not escape fails here instead of
 // decoding to something plausible.
+//
+// The opening record is checked for its shape here and for its value in
+// TestTheCompactFormOpensOnItsVersionRecord. This reader is the wrong place to
+// pin the value: it runs under every compact test, so pinning it here would
+// turn a version change into a package-wide failure that names no cause, and
+// comparing the field against compactVersion instead would compare the
+// constant with itself and assert nothing at all.
 func decodeCompactPayload(payload string) ([]compactRecord, error) {
 	if !strings.HasSuffix(payload, "\n") {
 		return nil, errors.New("the payload does not end on a newline")
@@ -108,7 +115,7 @@ func decodeCompactPayload(payload string) ([]compactRecord, error) {
 		records = append(records, compactRecord{kind: fields[0], fields: fields[1:]})
 	}
 	opening := records[0]
-	if opening.kind != "fmt" || opening.field(0) != "compact" || opening.field(1) != compactVersion {
+	if opening.kind != "fmt" || opening.field(0) != "compact" || opening.field(1) == "" {
 		return nil, fmt.Errorf("the payload opens on %v rather than the version record", opening)
 	}
 	return records[1:], nil
@@ -872,6 +879,18 @@ func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 	}
 }
 
+// wantVersionLine is the line every compact payload opens on, written out as
+// the text a consumer matches against rather than composed from
+// compactVersion. Composing it would compare the constant with itself, and an
+// assertion that moves with the value it checks holds nothing still: the
+// grammar could renumber itself, break every consumer reading the marker, and
+// leave the suite green.
+//
+// So this literal is the pin. Changing compactVersion reddens the test below
+// by name and does not compile away, which makes whoever renumbers the grammar
+// say so here deliberately.
+const wantVersionLine = "fmt|compact|1"
+
 // TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision on
 // this card: every compact payload opens with fmt|compact|1, before any other
 // record, so a caller can check the version before it assumes the field order.
@@ -880,8 +899,8 @@ func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	for _, argv := range [][]string{{"ls"}, {"next"}, {"claim", "fx-2"}} {
 		got := runCLI(t, root, append([]string{"--format", "compact"}, argv...)...)
 		opening, _, _ := strings.Cut(got.out, "\n")
-		if opening != "fmt|compact|"+compactVersion {
-			t.Errorf("%v opens on %q rather than the version record", argv, opening)
+		if opening != wantVersionLine {
+			t.Errorf("%v opens on %q rather than %q, and a consumer checking the marker before it trusts the field order reads the wrong version", argv, opening, wantVersionLine)
 		}
 		if !strings.HasSuffix(got.out, "\n") || strings.HasSuffix(got.out, "\n\n") {
 			t.Errorf("%v does not end on exactly one newline: %q", argv, got.out)
