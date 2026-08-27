@@ -781,7 +781,7 @@ therefore carry an `observed` mapping recording what the check did before
 the work and after it, as the test citation above does, and a criterion
 whose citation uses a scheme demanding the observation leaves the pending
 column only where that citation recorded the check failing against the
-unfixed column and passing against the fixed one. A criterion whose cited
+unfixed state and passing against the fixed one. A criterion whose cited
 schemes demand no observation leaves the pending column on the citation
 alone.
 
@@ -1624,10 +1624,10 @@ classic lock-system injuries each have a structural answer here: the absent
 holder (leases with TTL and heartbeat, and release-when-idle as a
 working-agreement rule), the unbreakable lock (operator override, witnessed
 in the journal), lock hoarding (WIP limits bound the stations themselves),
-the invisible lock (claim column is the display).
+the invisible lock (claim state is the display).
 
 The arbiter rule follows: the moment two or more writers coordinate on one
-workbench concurrently, claim column and WIP accounting need a single live
+workbench concurrently, claim state and WIP accounting need a single live
 arbiter. Turn-taking writers over git transport need none, which is why the
 remote story holds. The live arbiter for many writers is the hosted
 product; that is the product boundary restated. Andoneer never re-platforms

@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 // out: fixtures set both deliberately.
 //
 // The ladder tests below clear the editor and locale variables per case as
-// well. Those loops column local intent, and t.Setenv composes with an
+// well. Those loops state local intent, and t.Setenv composes with an
 // already-unset starting point exactly as it composes with any other, so they
 // stay.
 var isolatedEnv = []string{

@@ -538,7 +538,7 @@ func (l *Library) inColumn(scope, id string, event bench.Event, wanted *bench.Co
 // The third case has no evidence anywhere. An anchor rewritten with no
 // journal line, which is what dinah edit produces, moves the live term and
 // leaves nothing behind that names which entity moved it, and the cursor
-// carries digests rather than per-entity column, so no comparison can single
+// carries digests rather than per-entity state, so no comparison can single
 // the card out. Only then, when the live term moved and the walk delivered
 // nothing at all to explain it, does the call report every live card, which is
 // a resync and is the answer a caller can act on. Attributing that case

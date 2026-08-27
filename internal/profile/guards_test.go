@@ -1130,7 +1130,7 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 }
 
 // TestInstallScriptSaysWhetherDinahIsReadyToRun runs scripts/install.sh to a
-// successful finish under four combinations of platform and PATH column, and
+// successful finish under four combinations of platform and PATH state, and
 // asserts the final message matches what is actually true of that run: ready
 // to run when the install directory is already on PATH, and the accurate,
 // platform-specific explanation when it is not. Debian and Ubuntu add

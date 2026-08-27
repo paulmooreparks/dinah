@@ -780,7 +780,7 @@ func TestTheArchiveIsSkippedUntilTheArchiveItselfMoves(t *testing.T) {
 // crash between the two leaves the event in a journal that is still in the
 // live half, with the anchor still beside it. The anchor is loaded live half
 // first and mirror second, which is the order linkRef already reads in, and
-// the card is suppressed from cards: an archived card has no live column a
+// the card is suppressed from cards: an archived card has no live state a
 // caller would act on, and one departure is reported in one place.
 func TestAnInterruptedArchiveIsReportedGoneAndNotAlsoLive(t *testing.T) {
 	h := newHarness(t)

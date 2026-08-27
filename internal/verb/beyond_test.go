@@ -1711,7 +1711,7 @@ func TestTheTwoUnresolvableCrashColumnsAreReportedAndNotRepaired(t *testing.T) {
 //
 // Arming: making the unwind unconditional takes the sibling off, the archived
 // event stands beside a live card, and nothing on disk says an act was in
-// flight, which is the recordless column lock-then-move was rejected for.
+// flight, which is the recordless state lock-then-move was rejected for.
 func TestALiveFailureAfterTheRecordReportsAnInterruption(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("interrupted")

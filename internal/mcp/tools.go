@@ -52,7 +52,7 @@ type tool struct {
 // should go for the current set rather than to this sentence.
 //
 // workbench falls inside that rule rather than outside it, even though config
-// does not. A workbench's own fields are workbench column that travels with the
+// does not. A workbench's own fields are workbench data that travels with the
 // repository, where a user setting is a machine artifact, and the operator
 // check guards the write here exactly as it does at a terminal, because the
 // library holds it.
