@@ -351,6 +351,14 @@ func (b Bucket) Label() string {
 // follows, one line per bucket, and every unaligned run. When all is set each
 // bucket is followed by all of its sites rather than by one example, which is
 // what a reader wants once a bucket looks wrong.
+//
+// Each unaligned line names the retired term as well as the file, because the
+// file it names is frequently unrelated to the rename being swept. A run
+// declined for its size is declined for its size alone, so the reader can be
+// looking at a stranger's catalog while their own term sits unread somewhere
+// else in the same range. Naming the term turns a line about another file into
+// a statement about this search, which is the only signal a reader gets when
+// the zero-result backstop is held off by that same declined run.
 func Report(w io.Writer, result Result, retired, adopted string, all bool) error {
 	buckets := Buckets(result.Replacements)
 	header := fmt.Sprintf(
@@ -383,7 +391,13 @@ func Report(w io.Writer, result Result, retired, adopted string, all bool) error
 		}
 	}
 	for _, run := range result.Unaligned {
-		refused := fmt.Sprintf("unaligned run   %s:%d   %s\n", run.File, run.Line, run.Reason)
+		refused := fmt.Sprintf(
+			"unaligned run   %s:%d   %s. Nothing in it was counted, including any %q it carries.\n",
+			run.File,
+			run.Line,
+			run.Reason,
+			retired,
+		)
 		if _, err := io.WriteString(w, refused); err != nil {
 			return err
 		}

@@ -138,7 +138,11 @@ their own, which is why `CrashStates` is judged against "Crash" and not
 against the comment marker that opens its line. A line beginning
 "unaligned run" names a run of changed text the sweep declined to read,
 and each of those is opened by hand, because a run the instrument skipped
-is exactly where a defect would survive it.
+is exactly where a defect would survive it. That line names the retired
+term beside the file, since a run is declined for its size alone and the
+file it names is often unrelated to the rename being swept. Without the
+term the line reads as news about somebody else's file, and the reader
+has no way to tell that their own search went unanswered inside it.
 
 ## What the pass does not do
 
@@ -181,9 +185,20 @@ reader could assume more than the tool delivers.
   this was found on: the tokenizer swallows a whole clause as one token,
   nothing inside it equals the term, and the alignment finds nothing to
   align. What the sweep does instead of counting is refuse, under the
-  backstop described in "A zero the diff contradicts" below, so the run
-  still cannot answer zero for a rename it could not read. A card
-  renaming a word in such a script reads its diff by hand.
+  backstop described in "A zero the diff contradicts" below, so a run
+  that could not read the rename ordinarily says so rather than answering
+  zero. The guarantee lapses in one case, and it is worth being able to
+  recognise from the report alone. The backstop fires only where the
+  sweep declined nothing else, so a range that also carries an unrelated
+  run too large to align lets the zero through: the report then holds a
+  zero, no groups at all, and an "unaligned run" line naming a file with
+  nothing to do with the rename. This repository's JSON catalogs are the
+  file shape that trips the cap, so a rename swept over a range that also
+  touches a large catalog edit lands there. The line carries the retired
+  term, which is the signal that the term went uncounted rather than
+  unfound, and the way out is to narrow the range until nothing is
+  declined, or to read the diff by hand. A card renaming a word in such a
+  script reads its diff by hand in any case.
 - The sweep reports and does not know which sense a group means. Nothing
   in it understands English or Hindi, and the counts and the ordering are
   the whole of its contribution.
@@ -264,6 +279,19 @@ line happens to mention the retired word and an added line the adopted
 one. The cost of that is one reader opening one diff. The cost of the
 zero it replaces is a rename card losing its only instrument without
 anybody finding out, which is why the trade runs in this direction.
+
+The condition in that first sentence is load-bearing and cuts a real hole
+in the check. A run the sweep declined is a run it announced, and the
+backstop stands down on the reasoning that the reader has already been
+told something went unread. That reasoning holds only while the declined
+run is the one carrying the rename. Nothing ties the two together: a run
+is declined for its size, so an oversized edit to an unrelated file
+suppresses the backstop for a rename elsewhere in the same range, and the
+report answers zero with one "unaligned run" line pointing at the
+stranger. That is why the line names the retired term. A reader who
+meets a zero, no groups, and an unaligned run in a file they were not
+renaming is looking at this case rather than at a clean range, and the
+answer is to narrow the range until nothing is declined.
 
 What this does not do is count anything. Nobody can read a report of a
 Chinese rename out of this pass, and adding a word segmenter to get one

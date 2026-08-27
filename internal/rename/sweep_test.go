@@ -340,6 +340,50 @@ func TestARunTheSweepDeclinedIsNotAnUnreadRename(t *testing.T) {
 	}
 }
 
+// TestADeclinedRunElsewhereHoldsTheBackstopOff pins the one case where the
+// zero-result backstop does not fire, which is the exception the design
+// document's limits section now states. A run is declined for its size alone,
+// so an oversized edit to an unrelated file stands the backstop down for a
+// rename the sweep could not read somewhere else in the same range. The zero
+// then reaches the reader, and the only thing distinguishing it from a clean
+// range is the unaligned line, which is why that line names the term. The
+// document and this test have to say the same thing, so the behaviour is
+// asserted here rather than described only in prose.
+func TestADeclinedRunElsewhereHoldsTheBackstopOff(t *testing.T) {
+	wide := strings.Repeat("alpha beta gamma delta ", 400)
+	unrelated := diffOf("catalog.json", 1, 1,
+		"-"+wide+"one tail",
+		"+"+wide+"a different tail entirely",
+	)
+	// A script the tokenizer merges: the whole clause comes back as one
+	// token, nothing inside it equals the term, and the alignment finds
+	// nothing to align.
+	unread := diffOf("board.md", 1, 1,
+		"-工作台的第一列",
+		"+板块的第一列",
+	)
+	result, err := Sweep(unrelated+unread, "工作台", "板块")
+	if err != nil {
+		t.Fatalf("Sweep refused, so the documented exception no longer holds and the limits bullet needs rewriting: %v", err)
+	}
+	if len(result.Replacements) != 0 {
+		t.Fatalf("wanted the merged-script rename to go unread, got %+v", result.Replacements)
+	}
+	if len(result.Unaligned) != 1 {
+		t.Fatalf("wanted the unrelated run declined, got %+v", result.Unaligned)
+	}
+	if result.Unaligned[0].File != "catalog.json" {
+		t.Errorf("wanted the declined run to be the unrelated file, got %q", result.Unaligned[0].File)
+	}
+	var out strings.Builder
+	if err := Report(&out, result, "工作台", "板块", false); err != nil {
+		t.Fatalf("Report: %v", err)
+	}
+	if !strings.Contains(out.String(), "including any \"工作台\" it carries.") {
+		t.Errorf("a zero beside a stranger's filename is the whole hazard, so the line must name the unread term, got:\n%s", out.String())
+	}
+}
+
 // TestATokenCarriesItsLineAndOffset asserts that a token knows where it came
 // from, since a report a reader cannot open is a report they will not use.
 func TestATokenCarriesItsLineAndOffset(t *testing.T) {
@@ -715,8 +759,12 @@ func TestReportNamesItsOwnSize(t *testing.T) {
 	if !strings.Contains(got, "\nthe column of   2 sites   b.go:4  the column\n") {
 		t.Errorf("wanted the common group counted in the plural, got:\n%s", got)
 	}
-	if !strings.Contains(got, "unaligned run   d.json:9   past the alignment cap") {
-		t.Errorf("wanted the unaligned run reported, got:\n%s", got)
+	// The line names the term as well as the file, because the file it names
+	// is often unrelated to the rename being swept. A reader who sees only a
+	// stranger's filename has no way to tell that their own search term went
+	// unread in it.
+	if !strings.Contains(got, "unaligned run   d.json:9   past the alignment cap. Nothing in it was counted, including any \"state\" it carries.\n") {
+		t.Errorf("wanted the unaligned run to name the term it did not read, got:\n%s", got)
 	}
 	if strings.Contains(got, "c.go:5") {
 		t.Errorf("wanted one example per bucket without --all, got:\n%s", got)
