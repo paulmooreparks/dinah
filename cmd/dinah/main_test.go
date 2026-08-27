@@ -6508,7 +6508,7 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "card", "depth", "description", "expires", "from",
+		"actor", "card", "depth", "description", "expires", "format", "from",
 		"group-by", "kind", "lang", "operator", "priority", "root",
 		"severity", "since", "slug", "state", "workbench",
 	}
@@ -6805,6 +6805,7 @@ const ratifiedGlobalFlagTable = `  Option             What it does
   -----------------  -----------------------------------------------------------
   --workbench <dir>  Use this workbench instead of the one discovered from here
   --json             Emit the canonical machine form
+  --format <name>    Select json or compact for the machine form
   --quiet            Suppress served instructions on claim and move
   --lang <tag>       Render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
   --actor <name>     Act as this owner`

@@ -1446,6 +1446,11 @@
       "context": "The one-line summary of the global flag --actor.",
       "source": "71ff34f554751060"
     },
+    "flag.format.summary": {
+      "text": "Wählen Sie json oder compact für die Maschinenform",
+      "context": "The one-line summary of the global flag --format. The two format names json and compact are machine vocabulary a caller types back, so they stand in Latin script in every language.",
+      "source": "fcf8b29f16c9bf88"
+    },
     "flag.help.summary": {
       "text": "Diese Hilfe ausgeben, oder die Seite eines Befehls, wenn ein Befehl genannt wird",
       "context": "The one-line summary of the global flag --help. The flag also answers to -h, -help, -?, --? and /?, and the syntax beside this summary lists the three the column has room for.",
@@ -1487,9 +1492,9 @@
       "source": "bda56dd7c6ff3d50"
     },
     "help.environment": {
-      "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
+      "text": "Umgebung: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR",
       "context": "The environment variables the tool reads. The variable names are machine vocabulary and are never translated.",
-      "source": "4387bf055b0f716f"
+      "source": "1da148f5755e9a98"
     },
     "help.exitcodes": {
       "text": "Exit-Codes: 0 ok, 2 abgelehnt, 3 veraltet, 4 nicht erreichbar.",
@@ -2315,6 +2320,16 @@
       "text": " Nur {instantField} nimmt >=, <=, > und < an.",
       "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are.",
       "source": "4f6de5e55bbd45d0"
+    },
+    "refusal.dinah.unknown-format": {
+      "text": "Dinah schreibt kein Ausgabeformat namens {detail}",
+      "context": "The opening sentence printed after the refusal name dinah.unknown-format, raised when --format or DINAH_FORMAT carries a name that is neither json nor compact. {detail} is the name the caller wrote. refusal.dinah.unknown-format.next follows as the closing clause naming the way forward.",
+      "source": "c036ef44c4934a8e"
+    },
+    "refusal.dinah.unknown-format.next": {
+      "text": "; schreiben Sie json oder compact, oder setzen Sie weder --format noch DINAH_FORMAT, dann rendert Dinah für einen Menschen",
+      "context": "Spliced onto refusal.dinah.unknown-format as the next step, naming the two format names a caller may write and the absence that selects the rendering. The format names and the variable name DINAH_FORMAT are machine vocabulary and are never translated.",
+      "source": "e0edbc2a35d207ba"
     },
     "refusal.dinah.unknown-guide": {
       "text": "unter dem Thema {detail} ist kein Leitfaden eingebettet; Dinah bringt Leitfäden zu diesen mit",

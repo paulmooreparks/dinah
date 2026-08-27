@@ -69,6 +69,9 @@ var globalFlags = []struct {
 }{
 	{name: "workbench", usage: "--workbench <dir>", value: "dir"},
 	{name: "json", usage: "--json", marker: true},
+	// --format sits directly under --json because the two answer one
+	// question, and a reader who found either row has found both.
+	{name: "format", usage: "--format <name>", value: "name"},
 	{name: "quiet", usage: "--quiet", marker: true},
 	{name: "lang", usage: "--lang <tag>", value: "tag"},
 	{name: "actor", usage: "--actor <name>", value: "name"},

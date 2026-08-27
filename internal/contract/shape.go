@@ -604,6 +604,16 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.no-upstream.next"}},
 		NextStep:  []string{"refusal.dinah.no-upstream.next"},
 	},
+	{
+		// A --format or DINAH_FORMAT value naming no output form. The
+		// detail carries what the caller wrote, so the sentence shows
+		// them their own spelling, and the next step names the forms
+		// they may write instead. The set is short enough to say in the
+		// sentence, so no listing is declared for it.
+		Name:      UnknownFormat,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-format.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-format.next"},
+	},
 }
 
 // ShapeOf returns the shape governing a refusal name, or nil for a name no
