@@ -341,11 +341,17 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 //
 // Sharing walkFlags with parseArgs, rather than a second pattern match
 // against the literal word "--lang", is what keeps this scan honest about a
-// word that belongs to somebody else: dinah move card1 --state --lang de
-// sets --state's value to the literal text "--lang" and gives the caller no
-// --lang at all, and walkFlags is what already knows --state takes a value
-// and consumes the next word for it, wherever in argv --state falls,
-// including after the word a failed parse stopped at.
+// word that belongs to somebody else. When a caller writes a valued flag and
+// then "--lang de", the value slot that flag opens takes the literal text
+// "--lang", and the caller is left with no --lang at all. walkFlags already
+// knows which names take a value and consumes the word after one wherever in
+// argv it falls, including after the word a failed parse stopped at, so this
+// scan places that word where parseArgs places it.
+//
+// No flag name stands in for "a valued flag" above, because a name spelled in
+// a comment goes stale in silence the day the flag tables are renamed.
+// TestScanLangFlagReadsOnlyALangThatIsAFlag builds the invocation instead, out
+// of a valued flag it reads from valuedFlags.
 //
 // The scan stops at the same POSIX "--" marker parseArgs does. A --lang
 // with no following word is incomplete and is not reported; the ladder

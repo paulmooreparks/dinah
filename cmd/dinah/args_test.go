@@ -183,7 +183,7 @@ func TestScanLangFlagReadsOnlyALangThatIsAFlag(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "an ordinary lang after a filled value slot still reads",
+			name: "an ordinary lang after " + domain + "'s filled value slot still reads",
 			argv: []string{"move", "card1", "--" + domain, "de", "--lang", "hi"},
 			want: "hi",
 		},
@@ -193,7 +193,7 @@ func TestScanLangFlagReadsOnlyALangThatIsAFlag(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "lang in a value slot past the word that fails to parse",
+			name: "lang in " + domain + "'s value slot past the word that fails to parse",
 			argv: []string{"--nosuchflag", "--" + domain, "--lang", "de"},
 			want: "",
 		},
