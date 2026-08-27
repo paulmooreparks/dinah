@@ -50,17 +50,19 @@ WORK
   card <get|set> <card> <field> [value]                  Read one of a card's own fields, or write one
 
 READ
-  status                                                 Where this workbench stands, and what you hold
+  status [--root <path>] [--max-depth <n>]               Where this workbench stands, and what you hold
   columns                                                The flow, in order
-  ls [column] [--ready]                                  The cards of a column, in queue order
-  next [column]                                          The card a column offers next
+  ls [column] [--ready] [--root <path>]                  The cards of a column, in queue order
+    [--max-depth <n>]
+  next [column] [--root <path>] [--max-depth <n>]        The card a column offers next
   query [query]                                          The cards of the workbench that match a query
   tree [query] [--group-by <axes>] [--depth <level>]     The workbench's cards nested along a chain of axes
+    [--root <path>] [--max-depth <n>]
   contents <ref> [--depth <level>]                       What an entity of the workbench contains
   show <ref>                                             A card, or anything below it
   log <card>                                             The recorded actions of a card, oldest first
   changes [--since <cursor>] [--card <ref>]              What has happened on this workbench since a cursor
-    [--column <column>]
+    [--column <column>] [--root <path>] [--max-depth <n>]
   instructions <card|column>                             The instructions served at a position
   guide [topic]                                          The embedded guides, or one of them
 
@@ -83,7 +85,8 @@ WORKBENCH
   workbench [get|set] [field] [value] [--yes]            Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field]    Read this workbench's workstreams, create one, or
     [value] [--yes]                                        write one's fields
-  workbenches                                            The workbenches reachable from here
+  workbenches [path] [--max-depth <n>]                   The workbenches beneath a directory, or the ones
+                                                           reachable from here
   version [--catalogs]                                   What Dinah is and what it conforms to
 
 SERVE
@@ -130,16 +133,16 @@ WORK
   card <get|set> <card> <field> [value]                                                                 Read one of a card's own fields, or write one
 
 READ
-  status                                                                                                Where this workbench stands, and what you hold
+  status [--root <path>] [--max-depth <n>]                                                              Where this workbench stands, and what you hold
   columns                                                                                               The flow, in order
-  ls [column] [--ready]                                                                                 The cards of a column, in queue order
-  next [column]                                                                                         The card a column offers next
+  ls [column] [--ready] [--root <path>] [--max-depth <n>]                                               The cards of a column, in queue order
+  next [column] [--root <path>] [--max-depth <n>]                                                       The card a column offers next
   query [query]                                                                                         The cards of the workbench that match a query
-  tree [query] [--group-by <axes>] [--depth <level>]                                                    The workbench's cards nested along a chain of axes
+  tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
   contents <ref> [--depth <level>]                                                                      What an entity of the workbench contains
   show <ref>                                                                                            A card, or anything below it
   log <card>                                                                                            The recorded actions of a card, oldest first
-  changes [--since <cursor>] [--card <ref>] [--column <column>]                                         What has happened on this workbench since a cursor
+  changes [--since <cursor>] [--card <ref>] [--column <column>] [--root <path>] [--max-depth <n>]       What has happened on this workbench since a cursor
   instructions <card|column>                                                                            The instructions served at a position
   guide [topic]                                                                                         The embedded guides, or one of them
 
@@ -155,7 +158,7 @@ WORKBENCH
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench [get|set] [field] [value] [--yes]                                                           Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field] [value] [--yes]                                   Read this workbench's workstreams, create one, or write one's fields
-  workbenches                                                                                           The workbenches reachable from here
+  workbenches [path] [--max-depth <n>]                                                                  The workbenches beneath a directory, or the ones reachable from here
   version [--catalogs]                                                                                  What Dinah is and what it conforms to
 
 SERVE

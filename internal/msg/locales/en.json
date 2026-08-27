@@ -862,8 +862,8 @@
       "context": "The one-line summary of the workbench command, shown beside its syntax in the help block."
     },
     "cmd.workbenches.summary": {
-      "text": "The workbenches reachable from here",
-      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block."
+      "text": "The workbenches beneath a directory, or the ones reachable from here",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block. It names both directions the command answers in, since dinah-281 gave it a positional path: downward from a directory you name, and the upward search it runs when you name none."
     },
     "cmd.workstream.summary": {
       "text": "Read this workbench's workstreams, create one, or write one's fields",
@@ -2650,8 +2650,8 @@
       "context": "The heading printed above one workbench's own answer under a root-scoped read, which is dinah tree, status, ls, next or changes given --root. It names the workbench the lines below it belong to. {title} is the workbench's title, {slug} is its slug or the missing-slug repair, and {path} is its directory. Its columns are the ones dinah workbenches already prints, in that order, so the two listings read alike."
     },
     "root.workbench.refused": {
-      "text": "{refusal}  {path}",
-      "context": "The heading printed in place of root.workbench for a workbench the walk could not read, which is followed by no answer at all. {refusal} is the bracketed refusal name workbenches.refused composes, and {path} is the directory. The title and slug are absent because nothing read them."
+      "text": "{path} would not read: {refusal}",
+      "context": "The heading printed in place of root.workbench for a workbench the walk could not read, which is followed by no answer at all. {path} is the directory, and {refusal} is the bracketed refusal name workbenches.refused composes. The path leads because it is the only identity a workbench nothing could read still has: no title and no slug were ever read off it."
     },
     "root.empty": {
       "text": "no workbench is beneath {root}",
@@ -2660,6 +2660,18 @@
     "workbenches.refused": {
       "text": "<{refusal}>",
       "context": "The workbench cell of a listing row the walk could not describe, standing where the title would be. {refusal} is the refusal name, such as dinah.unreadable-workbench, which is machine vocabulary and is never translated. The angle brackets say the cell holds the reason a value is missing rather than the value."
+    },
+    "param.root.summary": {
+      "text": "answer for every workbench beneath this directory instead of for the one you are standing in",
+      "context": "The meaning of the root argument, shared by every read that can answer about a whole directory of workbenches at once, which is status, ls, next, tree and changes."
+    },
+    "param.max-depth.summary": {
+      "text": "how many directories deep to look, counting down from the root; 8 when you name none, and 0 for no limit",
+      "context": "The meaning of the max-depth argument, shared by every command that walks downward from a root. It bounds the walk so a workspace holding a deep dependency directory is not read in full on every poll."
+    },
+    "param.workbenches.path.summary": {
+      "text": "list every workbench beneath this directory; naming none lists what is reachable from here instead",
+      "context": "The meaning of the path argument of `dinah workbenches`, printed in that command's arguments table. It names the two directions the command answers in: downward from a directory you name, and the upward search it runs when you name none."
     }
   }
 }

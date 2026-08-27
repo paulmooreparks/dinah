@@ -263,8 +263,16 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 	// of resolveLibrary because no single workbench is being resolved: the walk
 	// opens each one it finds, and the containment check that would have run on
 	// a workbench argument runs on the root instead.
-	if builder, scoped := rootScoped[args.Name]; scoped && strings.TrimSpace(request.Root) != "" {
-		return answerForest(root, defaultLib, request, builder)
+	if builder, scoped := rootScoped[args.Name]; scoped {
+		if strings.TrimSpace(request.Root) != "" {
+			return answerForest(root, defaultLib, request, builder)
+		}
+		// A depth bound with no root to bound would be read and dropped, which
+		// the terminal refuses. The two heads answer one question, so a caller
+		// who names one here is told the same thing.
+		if strings.TrimSpace(request.MaxDepth) != "" {
+			return answerRefusal(request, contract.Refuse(contract.DepthWithoutRoot, request.MaxDepth)), nil
+		}
 	}
 	candidate, _ := args.Arguments["workbench"].(string)
 	library, refusal := resolveLibrary(root, defaultLib, libraries, request, candidate)
@@ -424,7 +432,15 @@ func answerWorkbenches(root string, arguments map[string]any) (map[string]any, e
 func walkedWorkbenches(root string, arguments map[string]any) ([]bench.Candidate, error) {
 	named, _ := arguments["path"].(string)
 	named = strings.TrimSpace(named)
+	depth, _ := arguments["max-depth"].(string)
 	if named == "" {
+		// A depth bound with no path to bound would be read and dropped, and
+		// the terminal refuses that rather than accepting an argument that
+		// changes nothing. The two heads answer one question, so this one
+		// refuses it too.
+		if strings.TrimSpace(depth) != "" {
+			return nil, contract.Refuse(contract.DepthWithoutRoot, depth)
+		}
 		return bench.Enumerate(root)
 	}
 	abs, err := filepath.Abs(named)
@@ -435,7 +451,6 @@ func walkedWorkbenches(root string, arguments map[string]any) ([]bench.Candidate
 	if err != nil || !contained {
 		return nil, contract.RefuseWith(contract.OutsideRoot, abs, map[string]string{"root": root})
 	}
-	depth, _ := arguments["max-depth"].(string)
 	rungs, refusal := parseWalkDepth(depth)
 	if refusal != nil {
 		return nil, refusal

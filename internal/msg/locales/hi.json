@@ -1010,9 +1010,9 @@
       "source": "704668116bd24c97"
     },
     "cmd.workbenches.summary": {
-      "text": "यहाँ से पहुँच योग्य वर्कबेंच",
-      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block.",
-      "source": "a3e1e53b10bfb34"
+      "text": "किसी डायरेक्टरी के नीचे की वर्कबेंच, या यहाँ से पहुँच योग्य वर्कबेंच",
+      "context": "The one-line summary of the workbenches command, shown beside its syntax in the help block. It names both directions the command answers in, since dinah-281 gave it a positional path: downward from a directory you name, and the upward search it runs when you name none.",
+      "source": "f45cb9666975067c"
     },
     "cmd.workstream.summary": {
       "text": "इस वर्कबेंच की वर्कस्ट्रीम पढ़ें, नई बनाएँ, या किसी एक के क्षेत्र लिखें",
@@ -3285,6 +3285,73 @@
       "text": "इस रूट या उसके नीचे की हर वर्कबेंच को स्तंभ और स्थिति के पुनर्नामकरण के पार ले जाएँ",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table.",
       "source": "7384eb6c936bda3b"
+    },
+    "refusal.dinah.conflicting-scope": {
+      "text": "{detail} नीचे की ओर चलने के लिए एक डायरेक्टरी बताता है और {workbench} एक वर्कबेंच बताता है, और एक कमांड इनमें से किसी एक ही दायरे का उत्तर देता है",
+      "context": "The sentence printed after the refusal name dinah.conflicting-scope. {detail} is the root the caller named with --root or as the path workbenches takes, and {workbench} is the single workbench --workbench or DINAH_WORKBENCH resolved to. refusal.dinah.conflicting-scope.next is spliced on after this one.",
+      "source": "4630801893dbb9a0"
+    },
+    "refusal.dinah.conflicting-scope.next": {
+      "text": "; इनमें से एक हटा दें, क्योंकि --root किसी डायरेक्टरी के नीचे की हर वर्कबेंच के लिए उत्तर देता है और --workbench उस एक के लिए जिसे आप नामते हैं",
+      "context": "Spliced onto refusal.dinah.conflicting-scope as the next step, saying what each of the two scopes answers so the reader can tell which one they wanted.",
+      "source": "2b5fb70ce04e15e4"
+    },
+    "refusal.dinah.depth-without-root": {
+      "text": "--max-depth {detail} नीचे की ओर चलने को सीमित करता है और इस कमांड को चलने के लिए कोई डायरेक्टरी नहीं दी गई",
+      "context": "The sentence printed after the refusal name dinah.depth-without-root. {detail} is the depth the caller wrote. refusal.dinah.depth-without-root.next is spliced on after this one.",
+      "source": "13e21df683f2a18e"
+    },
+    "refusal.dinah.depth-without-root.next": {
+      "text": "; चलने योग्य डायरेक्टरी बताने के लिए --root <path> जोड़ें, या --max-depth हटा दें",
+      "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated.",
+      "source": "75f263d80da82c60"
+    },
+    "refusal.dinah.malformed-depth": {
+      "text": "--max-depth पूरी संख्या में सीढ़ियाँ लेता है और {detail} ऐसी नहीं है",
+      "context": "The sentence printed after the refusal name dinah.malformed-depth. {detail} is the value the caller wrote. refusal.dinah.malformed-depth.next is spliced on after this one.",
+      "source": "c26a98c77cc71a2f"
+    },
+    "refusal.dinah.malformed-depth.next": {
+      "text": "; नीचे उतरने के लिए सीढ़ियों की संख्या लिखें, या बिना सीमा के उतरने के लिए 0",
+      "context": "Spliced onto refusal.dinah.malformed-depth as the next step, naming what a legal value looks like and what zero means.",
+      "source": "75dd1376b00ccc4d"
+    },
+    "root.workbench": {
+      "text": "{title}  ({slug})  {path}",
+      "context": "The heading printed above one workbench's own answer under a root-scoped read, which is dinah tree, status, ls, next or changes given --root. It names the workbench the lines below it belong to. {title} is the workbench's title, {slug} is its slug or the missing-slug repair, and {path} is its directory. Its columns are the ones dinah workbenches already prints, in that order, so the two listings read alike.",
+      "source": "fbe0a5367374dd9a",
+      "verbatim": true
+    },
+    "root.workbench.refused": {
+      "text": "{path} पढ़ा नहीं जा सका: {refusal}",
+      "context": "The heading printed in place of root.workbench for a workbench the walk could not read, which is followed by no answer at all. {path} is the directory, and {refusal} is the bracketed refusal name workbenches.refused composes. The path leads because it is the only identity a workbench nothing could read still has: no title and no slug were ever read off it.",
+      "source": "890f64422895e534"
+    },
+    "root.empty": {
+      "text": "{root} के नीचे कोई वर्कबेंच नहीं है",
+      "context": "The whole answer to a root-scoped read, and to dinah workbenches given a path, that walked a real directory and found nothing. {root} is the directory walked. Finding nothing is an ordinary answer rather than a refusal, so the command exits 0 having printed this.",
+      "source": "aae1604098f8d56"
+    },
+    "workbenches.refused": {
+      "text": "<{refusal}>",
+      "context": "The workbench cell of a listing row the walk could not describe, standing where the title would be. {refusal} is the refusal name, such as dinah.unreadable-workbench, which is machine vocabulary and is never translated. The angle brackets say the cell holds the reason a value is missing rather than the value.",
+      "source": "debc1544926175af",
+      "verbatim": true
+    },
+    "param.root.summary": {
+      "text": "जिस वर्कबेंच में आप खड़े हैं उसके बजाय इस डायरेक्टरी के नीचे की हर वर्कबेंच के लिए उत्तर दें",
+      "context": "The meaning of the root argument, shared by every read that can answer about a whole directory of workbenches at once, which is status, ls, next, tree and changes.",
+      "source": "d22906d4e5dec021"
+    },
+    "param.max-depth.summary": {
+      "text": "रूट से नीचे गिनते हुए कितनी डायरेक्टरी गहराई तक देखना है; आप कोई न नामें तो 8, और बिना सीमा के लिए 0",
+      "context": "The meaning of the max-depth argument, shared by every command that walks downward from a root. It bounds the walk so a workspace holding a deep dependency directory is not read in full on every poll.",
+      "source": "e7c9be226dcac8a2"
+    },
+    "param.workbenches.path.summary": {
+      "text": "इस डायरेक्टरी के नीचे की हर वर्कबेंच सूचीबद्ध करें; कोई न नामें तो इसके बजाय यहाँ से पहुँच योग्य वर्कबेंच सूचीबद्ध होती हैं",
+      "context": "The meaning of the path argument of `dinah workbenches`, printed in that command's arguments table. It names the two directions the command answers in: downward from a directory you name, and the upward search it runs when you name none.",
+      "source": "9317b074ba10abb2"
     }
   }
 }

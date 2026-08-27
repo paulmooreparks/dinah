@@ -281,20 +281,20 @@ var params = map[string][]Param{
 		{Name: "name", Required: true, Rest: true, Field: "Value"},
 	},
 	"status": {
-		{Name: "root", Flag: true, Value: "path", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	"columns": {},
 	"ls": {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
-		{Name: "root", Flag: true, Value: "path", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	"next": {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
-		{Name: "root", Flag: true, Value: "path", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	// Pull combines a claim and a move into one atomic act. The column is
 	// the destination; the named form names it, the bare form chooses the
@@ -313,8 +313,8 @@ var params = map[string][]Param{
 		{Name: "query", Rest: true, Field: "Query"},
 		{Name: "group-by", Flag: true, Value: "axes", Field: "GroupBy"},
 		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
-		{Name: "root", Flag: true, Value: "path", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	// contents writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence ends "not this workbench" and the
@@ -334,8 +334,8 @@ var params = map[string][]Param{
 		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
 		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
-		{Name: "root", Flag: true, Value: "path", Field: "Root"},
-		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
@@ -421,7 +421,7 @@ var params = map[string][]Param{
 	// words and the machine surface off the tool call's own arguments.
 	"workbenches": {
 		{Name: "path"},
-		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
