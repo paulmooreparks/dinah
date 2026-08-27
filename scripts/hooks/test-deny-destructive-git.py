@@ -142,9 +142,15 @@ def windows_spelled(path):
 def load_guard():
     """The guard module itself, imported rather than re-implemented.
 
-    `test-guard-against-a-real-shell.py` loads it the same way. Importing
-    is what lets a case reach a pure function whose two branches cannot
-    both be exercised end to end on one host.
+    `test-guard-against-a-real-shell.py` holds the same three importlib
+    calls under the same module name, and the duplication is deliberate.
+    Both files are hyphen-named entry points, so neither can import the
+    other without a loader of its own, and a third module existing only
+    to hold three lines would cost each of them the loader it is trying
+    to avoid. Change one and change the other.
+
+    Importing is what lets a case reach a pure function whose two
+    branches cannot both be exercised end to end on one host.
     """
     spec = importlib.util.spec_from_file_location("deny_destructive_git", HOOK)
     module = importlib.util.module_from_spec(spec)
@@ -386,6 +392,8 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         # back. A guard that clears `C:/...` and refuses `/c/...` refuses
         # the form every agent on this board writes first.
         if os.name == "nt":
+            assert msys(linked) != slashed(linked), (
+                "msys() left %r in its plain spelling" % linked)
             table.append(("%s, -C a worktree spelled the Git Bash way" % name,
                           qualified(command, msys(linked)), main, ALLOW))
 
@@ -438,13 +446,26 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
     for name, command in leaks(linked):
         table.append((name, command, main, DENY))
 
+    # The nested worktree again, in the spelling Git Bash hands back.
+    # Guarded like every other case built through `msys`, because that
+    # helper rewrites a drive letter and off Windows there is none to
+    # rewrite: the case would build the same command as its plain twin
+    # below and then demand the opposite verdict, so one of the two
+    # would fail on every host that is not Windows. A conditional
+    # expectation cannot rescue a case whose distinguishing input the
+    # constructor has already erased. The assertion says the rewrite
+    # fired, so a later change to `msys` fails here rather than leaving
+    # a duplicate wearing a name that claims otherwise.
+    if os.name == "nt":
+        assert msys(nested) != slashed(nested), (
+            "msys() left %r in its plain spelling" % nested)
+        table.append(("-C a nested worktree spelled the Git Bash way",
+                      'git -C "%s" clean -fdx' % msys(nested), main, ALLOW))
+
     table.extend([
         # What a -C has to name before it grants anything.
         ("-C a nested worktree is still a linked worktree",
          'git -C "%s" clean -fdx' % nested, main, ALLOW),
-        ("-C a nested worktree spelled the Git Bash way",
-         'git -C "%s" clean -fdx' % msys(nested), main,
-         ALLOW if os.name == "nt" else DENY),
         ("-C a directory that is not a git work tree",
          'git -C "%s" clean -fdx' % tempfile.gettempdir(), main, DENY),
         # A path shaped like a Git Bash drive mount whose first segment

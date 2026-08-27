@@ -948,7 +948,7 @@ DEFAULT_REMEDY = (
     "A command running this class of git verb has to name its worktree on "
     "the invocation itself, as git -C <worktree> ... , and nothing else "
     "grants it permission. The shell's working directory does not persist "
-    "between calls: it resets to the session's primary directory, which is "
+    "between calls. It resets to the session's primary directory, which is "
     "the operator's checkout, so a command that does not say where it runs "
     "runs there. On this repository worktrees belong under "
     "C:\\dinah-scratch\\, never inside the checkout, because Dinah's "
