@@ -8,7 +8,10 @@ import (
 // The root-scoped renderers draw what a read answered for every workbench
 // beneath one directory. Each is the same two moves: a heading naming the
 // workbench, then that workbench's own single-workbench rendering, or nothing
-// further when the row carries a refusal in place of an answer.
+// further when the row carries a refusal in place of an answer. A row carries
+// one of two refusals and they print differently, because a workbench nothing
+// could read and a workbench that read and declined the question are different
+// things to be told about.
 //
 // The inner rendering is the existing single-workbench renderer, called
 // unchanged. That is the point of the wrapping design rather than an economy:
@@ -17,10 +20,26 @@ import (
 
 // rootHeading names the workbench whose answer comes next, so two workbenches'
 // rows are never printed with nothing between them to say which is which. It
-// reports whether the row carries a refusal, which is what tells the caller
-// there is nothing further to draw for it.
-func (s *session) rootHeading(candidate bench.Candidate) bool {
-	if candidate.Refused != "" {
+// reports whether the row was left with nothing further to draw, which is what
+// tells each renderer to move on to the next workbench.
+//
+// unanswered is the member's own Unanswered, the refusal this read raised
+// against a workbench that opened, and it is passed in beside the candidate
+// because it belongs to the answer rather than to the workbench.
+//
+// Three headings come out of this, one per condition, because one sentence
+// covering all three is false of two of them. A directory nothing could be
+// read off has no identity but its path, so the path leads and the sentence
+// says the directory would not read. A workbench whose anchor gave a title and
+// which then would not open keeps its identity line and is told, underneath
+// it, that the workbench would not open, since throwing away a title the row
+// is holding leaves a reader unable to say which workbench failed. A workbench
+// that opened and refused this particular read keeps its identity line too,
+// and the sentence under it says the workbench read, because it did: what
+// refused was the question, and a --column naming a column this workbench does
+// not have is the ordinary way to produce one.
+func (s *session) rootHeading(candidate bench.Candidate, unanswered string) bool {
+	if candidate.Refused != "" && candidate.Title == "" && candidate.Slug == "" {
 		s.line(s.r.T("root.workbench.refused",
 			"refusal", s.refusedCell(candidate.Refused),
 			"path", candidate.Path,
@@ -32,6 +51,14 @@ func (s *session) rootHeading(candidate bench.Candidate) bool {
 		"slug", s.slugCell(candidate.Slug),
 		"path", candidate.Path,
 	))
+	if candidate.Refused != "" {
+		s.line(s.r.T("root.workbench.unreadable", "refusal", s.refusedCell(candidate.Refused)))
+		return true
+	}
+	if unanswered != "" {
+		s.line(s.r.T("root.workbench.unanswered", "refusal", s.refusedCell(unanswered)))
+		return true
+	}
 	return false
 }
 
@@ -62,7 +89,7 @@ func (s *session) renderForest(forest *verb.Forest) {
 		if i > 0 {
 			s.line("")
 		}
-		if s.rootHeading(member.Candidate) {
+		if s.rootHeading(member.Candidate, member.Unanswered) {
 			continue
 		}
 		s.renderTree(member.Tree)
@@ -79,7 +106,7 @@ func (s *session) renderRootStatus(answer *verb.RootStatus) {
 		if i > 0 {
 			s.line("")
 		}
-		if s.rootHeading(member.Candidate) {
+		if s.rootHeading(member.Candidate, member.Unanswered) {
 			continue
 		}
 		s.renderStatus(member.Status)
@@ -96,7 +123,7 @@ func (s *session) renderRootListing(answer *verb.RootListing) {
 		if i > 0 {
 			s.line("")
 		}
-		if s.rootHeading(member.Candidate) {
+		if s.rootHeading(member.Candidate, member.Unanswered) {
 			continue
 		}
 		s.renderListing(member.Listing)
@@ -113,7 +140,7 @@ func (s *session) renderRootOffers(answer *verb.RootOffers) {
 		if i > 0 {
 			s.line("")
 		}
-		if s.rootHeading(member.Candidate) {
+		if s.rootHeading(member.Candidate, member.Unanswered) {
 			continue
 		}
 		s.renderOffers(member.Offers)
@@ -129,7 +156,9 @@ func (s *session) renderRootOffers(answer *verb.RootOffers) {
 // what the merged token exists to keep them from having to know.
 //
 // A minting call reports no events for any workbench by contract, so its rows
-// are headings alone under the sentence that says so.
+// are headings alone, followed by the cursor. Nothing says in words that this
+// is a minting call, and the single-workbench form says nothing either: what a
+// caller reads on both is a cursor and no events.
 func (s *session) renderRootChanges(answer *verb.RootChangeSet) {
 	if len(answer.Workbenches) == 0 {
 		s.rootEmpty(answer.Root)
@@ -140,7 +169,7 @@ func (s *session) renderRootChanges(answer *verb.RootChangeSet) {
 		if i > 0 {
 			s.line("")
 		}
-		if s.rootHeading(member.Candidate) {
+		if s.rootHeading(member.Candidate, member.Unanswered) {
 			continue
 		}
 		if member.Changes == nil {

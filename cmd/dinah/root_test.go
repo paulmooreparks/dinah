@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -480,6 +481,139 @@ func TestTheHumanFormNamesTheWorkbenchEachAnswerBelongsTo(t *testing.T) {
 			}
 		})
 	}
+}
+
+// identityLine composes the heading the head prints above one workbench's own
+// answer, out of the same catalog entry the head reads and the identity that
+// row's own JSON reports, so a case asserts the line a reader sees rather than
+// a shape typed here.
+func identityLine(row map[string]any) string {
+	title, _ := row["title"].(string)
+	slug, _ := row["slug"].(string)
+	path, _ := row["path"].(string)
+	return msg.For(msg.Base).T("root.workbench", "title", title, "slug", slug, "path", path)
+}
+
+// unreadableAnchor rewrites one workbench's anchor so that its identity still
+// reads and opening it refuses. The declared format is moved to a revision no
+// binary serves, which is the one edit that leaves the frontmatter parseable
+// while stopping bench.Open, so the row comes back carrying a title, a slug
+// and a refusal at once.
+func unreadableAnchor(t *testing.T, dir string) {
+	t.Helper()
+	path := filepath.Join(dir, bench.WorkbenchAnchor)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read the anchor at %s: %v", dir, err)
+	}
+	broken := strings.Replace(string(raw), "format: 1", "format: 99", 1)
+	if broken == string(raw) {
+		t.Fatalf("the anchor at %s declares no format to move, so this case cannot be built", dir)
+	}
+	if err := os.WriteFile(path, []byte(broken), 0o644); err != nil {
+		t.Fatalf("write the anchor at %s: %v", dir, err)
+	}
+}
+
+// TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer asserts
+// that the two conditions a root-scoped row can carry are two facts rather
+// than one, on both surfaces.
+//
+// They were one field before this test existed. A workbench that read
+// perfectly well and then declined the question wrote its refusal onto
+// bench.Candidate.Refused, the field whose own documentation says it means the
+// workbench would not read, so a client had one field holding two meanings and
+// could only tell them apart by inspecting how a refusal name was spelled. The
+// consumer this card exists for, a sidebar drawing a broken workbench
+// differently from one that answered a refusal, is exactly the reader that
+// cannot do that.
+//
+// So each leg asserts the field that must be set and the field that must not.
+// Asserting only the first would pass on a row that set both, which is the
+// defect in its purest form.
+func TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer(t *testing.T) {
+	t.Run("read and did not answer", func(t *testing.T) {
+		root := newForest(t, "alpha", "beta")
+		rows := members(t, forestJSON(t, root, "ls", "--root", root, "--column", "nosuchcolumn"))
+		if len(rows) != 2 {
+			t.Fatalf("the answer carries %d workbenches, wanted the two the fixture holds", len(rows))
+		}
+		for _, row := range rows {
+			if row["unanswered"] != contract.UnknownColumn {
+				t.Errorf("a workbench that read and declined the column reports unanswered %v, wanted %s", row["unanswered"], contract.UnknownColumn)
+			}
+			if _, refused := row["refused"]; refused {
+				t.Errorf("a workbench that read perfectly well carries refused %v, which says it would not read", row["refused"])
+			}
+			if row["title"] == "" || row["slug"] == "" {
+				t.Errorf("the row threw away the identity it read: %v", row)
+			}
+		}
+		got := runCLI(t, root, "ls", "--root", root, "--column", "nosuchcolumn")
+		unanswered := msg.For(msg.Base).T("root.workbench.unanswered",
+			"refusal", "<"+contract.UnknownColumn+">")
+		if !strings.Contains(got.out, unanswered) {
+			t.Errorf("the human form does not say the workbench read and did not answer:\n%s", got.out)
+		}
+		if strings.Contains(got.out, msg.For(msg.Base).T("root.workbench.unreadable", "refusal", "<"+contract.UnknownColumn+">")) {
+			t.Errorf("the human form says a workbench that read would not open:\n%s", got.out)
+		}
+		for _, row := range rows {
+			heading := identityLine(row)
+			if !strings.Contains(got.out, heading) {
+				t.Errorf("the human form lost the identity line %q:\n%s", heading, got.out)
+			}
+		}
+	})
+
+	t.Run("described and would not open", func(t *testing.T) {
+		root := newForest(t, "alpha", "beta")
+		broken := soleBenchDir(t, filepath.Join(root, "beta"))
+		unreadableAnchor(t, broken)
+		rows := members(t, forestJSON(t, root, "ls", "--root", root))
+		var row map[string]any
+		for _, one := range rows {
+			if one["path"] == broken {
+				row = one
+			}
+		}
+		if row == nil {
+			t.Fatalf("the walk lost the workbench it could not open: %v", rows)
+		}
+		if row["refused"] != contract.UnsupportedVer {
+			t.Errorf("a workbench that would not open reports refused %v, wanted %s", row["refused"], contract.UnsupportedVer)
+		}
+		if _, unanswered := row["unanswered"]; unanswered {
+			t.Errorf("a workbench that never opened carries unanswered %v, which says its own read declined", row["unanswered"])
+		}
+		if row["title"] == "" || row["slug"] == "" {
+			t.Errorf("the anchor read and the row threw its identity away: %v", row)
+		}
+		got := runCLI(t, root, "ls", "--root", root)
+		heading := identityLine(row)
+		if !strings.Contains(got.out, heading) {
+			t.Errorf("the human form lost the identity line %q:\n%s", heading, got.out)
+		}
+		unreadable := msg.For(msg.Base).T("root.workbench.unreadable",
+			"refusal", "<"+contract.UnsupportedVer+">")
+		if !strings.Contains(got.out, unreadable) {
+			t.Errorf("the human form does not say the workbench would not open:\n%s", got.out)
+		}
+	})
+
+	t.Run("nothing read at all", func(t *testing.T) {
+		var out bytes.Buffer
+		session := &session{out: &out, r: msg.For(msg.Base), width: 107}
+		path := filepath.FromSlash("/forest/broken")
+		if drawn := session.rootHeading(bench.Candidate{Path: path, Refused: contract.UnreadableBench}, ""); !drawn {
+			t.Error("a row nothing could be read off left the renderer expecting an answer to draw")
+		}
+		want := msg.For(msg.Base).T("root.workbench.refused",
+			"refusal", "<"+contract.UnreadableBench+">", "path", path)
+		if strings.TrimRight(out.String(), "\n") != want {
+			t.Errorf("a workbench nothing read printed %q, wanted %q", out.String(), want)
+		}
+	})
 }
 
 // TestARefusedRowRendersItsRefusalWhereTheTitleWouldGo asserts the listing's

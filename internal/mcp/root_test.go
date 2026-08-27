@@ -88,6 +88,46 @@ func rootScopedTools(t *testing.T) map[string]string {
 	return paired
 }
 
+// TestTheRootScopedRosterIsTheParamsTableRootCarryingSet asserts that
+// rootScoped is not a second, hand-maintained declaration of which reads take
+// a root. internal/verb's params table already declares that set, by which
+// commands carry a root parameter, and the two have to name the same tools.
+//
+// The gap this closes is silent in both directions and neither build nor vet
+// can see it. A sixth command growing a root parameter there would have its
+// schema advertise the argument and assignValue would fill req.Root, so
+// dinah-282's TestEveryDeclaredParameterReachesItsDeclaredField would pass
+// while this handler quietly ignored the argument and answered for one
+// workbench. A tool dispatched here whose command declares no root parameter
+// has the opposite defect: it reads an argument no schema advertises.
+//
+// The CLI head is already safe by another route, since
+// TestEveryDeclaredParameterIsReadByItsCommand reads the run function, which
+// is why the missing pairing showed up on this head alone.
+func TestTheRootScopedRosterIsTheParamsTableRootCarryingSet(t *testing.T) {
+	declared := map[string]bool{}
+	for _, one := range tools {
+		for _, param := range verb.Params(one.command) {
+			if param.Name == "root" {
+				declared[one.name] = true
+			}
+		}
+	}
+	if len(declared) == 0 {
+		t.Fatal("no tool's command declares a root parameter, so this case compares two empty sets and asserts nothing")
+	}
+	for name := range declared {
+		if _, dispatched := rootScoped[name]; !dispatched {
+			t.Errorf("%s declares a root parameter, so its schema advertises the argument, and no root-scoped read is dispatched for it", name)
+		}
+	}
+	for name := range rootScoped {
+		if !declared[name] {
+			t.Errorf("%s dispatches a root-scoped read and its command declares no root parameter, so it reads an argument no schema advertises", name)
+		}
+	}
+}
+
 // TestEveryRootScopedToolAnswersForEveryWorkbenchBeneathTheRoot asserts
 // dinah-281 AC-6's first half for all five tools: a root argument is read, the
 // walk runs, and the answer carries one member per workbench beneath it.

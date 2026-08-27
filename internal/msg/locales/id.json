@@ -3326,6 +3326,16 @@
       "context": "The heading printed in place of root.workbench for a workbench the walk could not read, which is followed by no answer at all. {path} is the directory, and {refusal} is the bracketed refusal name workbenches.refused composes. The path leads because it is the only identity a workbench nothing could read still has: no title and no slug were ever read off it.",
       "skeleton": true
     },
+    "root.workbench.unreadable": {
+      "text": "this workbench would not open: {refusal}",
+      "context": "The line printed under root.workbench for a workbench the walk described off its anchor and then could not open, so its title and its slug are known and nothing further about it is. {refusal} is the bracketed refusal name workbenches.refused composes. It follows the identity line rather than replacing it, because that identity was read, and a reader who loses it cannot tell which directory of the listing failed.",
+      "skeleton": true
+    },
+    "root.workbench.unanswered": {
+      "text": "this workbench read, and did not answer: {refusal}",
+      "context": "The line printed under root.workbench for a workbench that opened and whose own read then refused, which is what naming a column one workbench has and another does not produces. {refusal} is the bracketed refusal name workbenches.refused composes. The sentence says the workbench read, because it did: what refused was the question asked of it rather than the directory, and root.workbench.refused is the heading for the other case.",
+      "skeleton": true
+    },
     "root.empty": {
       "text": "no workbench is beneath {root}",
       "context": "The whole answer to a root-scoped read, and to dinah workbenches given a path, that walked a real directory and found nothing. {root} is the directory walked. Finding nothing is an ordinary answer rather than a refusal, so the command exits 0 having printed this.",

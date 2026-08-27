@@ -97,8 +97,18 @@ type WorkbenchChangeSet struct {
 	// no since to report against, which is the contract a first
 	// single-workbench changes call already carries.
 	New bool `json:"new,omitempty"`
-	// Changes is this workbench's own answer, absent on a refused row and on
-	// every row of a minting call.
+	// Unanswered is the refusal name this workbench's own Changes call
+	// raised, empty on a row that answered and on a row that never opened. It
+	// is separate from the embedded Candidate.Refused, which says the
+	// workbench would not read: a row carrying Unanswered read perfectly
+	// well, carries its title and its slug, and declined the question. A
+	// client drawing a workbench it could not read differently from one that
+	// declined a read asks which field is set, rather than inspecting how a
+	// refusal name is spelled.
+	Unanswered string `json:"unanswered,omitempty"`
+	// Changes is this workbench's own answer, absent on every row of a
+	// minting call, on a row that would not read, and on a row that read and
+	// did not answer.
 	Changes *ChangeSet `json:"changes,omitempty"`
 }
 
@@ -183,9 +193,10 @@ func (w WorkbenchChangeSet) Changed() bool {
 }
 
 // changesFor asks one row its own Changes question, exactly once, and returns
-// the row and the token that row's answer minted. A row that would not open,
-// or whose own call refused, carries its refusal, answers with no token, and
-// leaves every sibling still to be asked.
+// the row and the token that row's answer minted. A row that would not open
+// carries the walk's own Refused, a row whose Changes call refused carries
+// that name on Unanswered instead, and either way the row answers with no
+// token and leaves every sibling still to be asked.
 //
 // The token is returned beside the row rather than read back off it, because a
 // minting call reports no ChangeSet by contract while still having a token to
@@ -203,7 +214,7 @@ func changesFor(row forestRow, req *Request, held rootCursor, minting bool) (Wor
 	own.Since = entry
 	set, err := row.Library.Changes(&own)
 	if err != nil {
-		member.Refused = refusalNameOf(err)
+		member.Unanswered = refusalNameOf(err)
 		return member, ""
 	}
 	if minting {

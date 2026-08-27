@@ -11,6 +11,12 @@ import (
 // bench.Open's own refusal on a candidate EnumerateDeep could describe but
 // could not open, which is a malformed definition or a mid-walk removal.
 // Exactly one of Library and Candidate.Refused is set.
+//
+// Both of those are the one fact that the workbench itself would not read, so
+// both belong on Candidate.Refused. A workbench that opened and then refused
+// the question this read asks of it is a different fact, and it never reaches
+// this type: it arises inside each builder's loop, after the row is made, and
+// is reported on the member's own Unanswered field.
 type forestRow struct {
 	Candidate bench.Candidate
 	Library   *Library
@@ -61,6 +67,13 @@ func openCandidate(candidate bench.Candidate, home string) forestRow {
 // an error that is not a refusal. A row reports why it carries no answer, so
 // the fallback names the condition rather than leaving the field empty beside
 // an equally empty answer.
+//
+// internal/bench/bench.go holds a copy of this function, spelled identically,
+// because that package's own walk needs the same answer and an unexported
+// helper cannot cross a package boundary. Change one and change the other.
+// The copy exists rather than an exported name because naming it in bench's
+// public surface would publish an error-classification detail no caller
+// outside these two files has any use for.
 func refusalNameOf(err error) string {
 	if refusal, ok := err.(*contract.Refusal); ok {
 		return refusal.Name
@@ -83,8 +96,19 @@ type Forest struct {
 // read off its anchor, and the tree that workbench answered with.
 type WorkbenchTree struct {
 	bench.Candidate
+	// Unanswered is the refusal name this workbench's own Tree call raised,
+	// empty on a row that answered and on a row that never opened. It is
+	// separate from the embedded Candidate.Refused, which says the workbench
+	// would not read: a row carrying Unanswered read perfectly well, carries
+	// its title and its slug, and declined the question. A client drawing a
+	// workbench it could not read differently from one that declined a read
+	// asks which field is set, rather than inspecting how a refusal name is
+	// spelled.
+	Unanswered string `json:"unanswered,omitempty"`
 	// Tree is this workbench's own answer, byte for byte what a single
-	// workbench call produces, and absent on a row carrying a refusal.
+	// workbench call produces. It is absent on a row that would not read and
+	// on a row that read and did not answer, which the two refusal fields
+	// tell apart.
 	Tree *Tree `json:"tree,omitempty"`
 }
 
@@ -95,7 +119,7 @@ type WorkbenchTree struct {
 // is a mistake in what the caller typed rather than a fact about any workbench
 // that answers it, so refusing it once, the way Library.Tree already refuses
 // it for one workbench, is truer than refusing it twenty-five times or burying
-// it in one row's Refused.
+// it in one row's Unanswered.
 func TreeForest(root, home string, req *Request, chain []string, level string, maxDepth int) (*Forest, error) {
 	if len(chain) == 0 {
 		chain = DefaultChain()
@@ -116,7 +140,7 @@ func TreeForest(root, home string, req *Request, chain []string, level string, m
 		if row.Library != nil {
 			tree, err := row.Library.Tree(req, chain, level)
 			if err != nil {
-				member.Refused = refusalNameOf(err)
+				member.Unanswered = refusalNameOf(err)
 			} else {
 				member.Tree = tree
 			}
@@ -137,7 +161,17 @@ type RootStatus struct {
 // WorkbenchStatus is one workbench's row of a RootStatus.
 type WorkbenchStatus struct {
 	bench.Candidate
-	// Status is this workbench's own answer, absent on a refused row.
+	// Unanswered is the refusal name this workbench's own Status call raised,
+	// empty on a row that answered and on a row that never opened. It is
+	// separate from the embedded Candidate.Refused, which says the workbench
+	// would not read: a row carrying Unanswered read perfectly well, carries
+	// its title and its slug, and declined the question. A client drawing a
+	// workbench it could not read differently from one that declined a read
+	// asks which field is set, rather than inspecting how a refusal name is
+	// spelled.
+	Unanswered string `json:"unanswered,omitempty"`
+	// Status is this workbench's own answer, absent on a row that would not
+	// read and on a row that read and did not answer.
 	Status *Status `json:"status,omitempty"`
 }
 
@@ -156,7 +190,7 @@ func StatusForest(root, home string, req *Request, maxDepth int) (*RootStatus, e
 		if row.Library != nil {
 			status, err := row.Library.Status(req)
 			if err != nil {
-				member.Refused = refusalNameOf(err)
+				member.Unanswered = refusalNameOf(err)
 			} else {
 				member.Status = status
 			}
@@ -177,7 +211,17 @@ type RootListing struct {
 // WorkbenchListing is one workbench's row of a RootListing.
 type WorkbenchListing struct {
 	bench.Candidate
-	// Listing is this workbench's own answer, absent on a refused row.
+	// Unanswered is the refusal name this workbench's own List call raised,
+	// empty on a row that answered and on a row that never opened. It is
+	// separate from the embedded Candidate.Refused, which says the workbench
+	// would not read: a row carrying Unanswered read perfectly well, carries
+	// its title and its slug, and declined the question. A client drawing a
+	// workbench it could not read differently from one that declined a read
+	// asks which field is set, rather than inspecting how a refusal name is
+	// spelled.
+	Unanswered string `json:"unanswered,omitempty"`
+	// Listing is this workbench's own answer, absent on a row that would not
+	// read and on a row that read and did not answer.
 	Listing *Listing `json:"listing,omitempty"`
 }
 
@@ -200,7 +244,7 @@ func ListForest(root, home string, req *Request, maxDepth int) (*RootListing, er
 		if row.Library != nil {
 			listing, err := row.Library.List(req)
 			if err != nil {
-				member.Refused = refusalNameOf(err)
+				member.Unanswered = refusalNameOf(err)
 			} else {
 				member.Listing = listing
 			}
@@ -221,7 +265,17 @@ type RootOffers struct {
 // WorkbenchOffers is one workbench's row of a RootOffers.
 type WorkbenchOffers struct {
 	bench.Candidate
-	// Offers is this workbench's own answer, absent on a refused row.
+	// Unanswered is the refusal name this workbench's own Next call raised,
+	// empty on a row that answered and on a row that never opened. It is
+	// separate from the embedded Candidate.Refused, which says the workbench
+	// would not read: a row carrying Unanswered read perfectly well, carries
+	// its title and its slug, and declined the question. A client drawing a
+	// workbench it could not read differently from one that declined a read
+	// asks which field is set, rather than inspecting how a refusal name is
+	// spelled.
+	Unanswered string `json:"unanswered,omitempty"`
+	// Offers is this workbench's own answer, absent on a row that would not
+	// read and on a row that read and did not answer.
 	Offers []Offer `json:"offers,omitempty"`
 }
 
@@ -238,7 +292,7 @@ func NextForest(root, home string, req *Request, maxDepth int) (*RootOffers, err
 		if row.Library != nil {
 			offers, err := row.Library.Next(req)
 			if err != nil {
-				member.Refused = refusalNameOf(err)
+				member.Unanswered = refusalNameOf(err)
 			} else {
 				member.Offers = offers
 			}
