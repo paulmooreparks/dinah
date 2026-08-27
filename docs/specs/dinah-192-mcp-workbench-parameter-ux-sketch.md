@@ -169,6 +169,14 @@ one instance. `version` acts on no workbench and gets the property anyway, becau
 of tools that need it. `workbenches` is the one tool held out, and it is held out because a
 caller answering the question of what the property may say cannot already know the answer.
 
+The description drawn above is not the one that shipped. Dinah answers `tools/list` with
+"the absolute path of the workbench this call acts on, such as
+`C:\Users\you\projects\plans`; omitted to act on the workbench the server started with", and
+the operator ruled that shipped sentence canonical rather than the one drawn here. The
+`workbench` section of `dinah guide mcp` carries the current description in full. It also
+states the one fact neither sentence states, that Dinah accepts a relative path and resolves
+it against the directory the server process was started in.
+
 ## 3. The discovery tool
 
 Proposed. The surface grows to twenty-seven tools. The new one is `workbenches`, and it is
@@ -307,8 +315,8 @@ An earlier draft of `check.mcp.2` ran to 70 columns and pushed `dinah.outside-ro
 line of its own, which is the renderer obeying its own rule rather than a fault:
 `chooseWidths` in `cmd/dinah/table.go` leaves a field the window cannot hold out of the
 measurement, and the row renderer gives that field the rest of its line. The sentence was
-shortened instead, and 51 display columns is the width at which the row still fits, measured
-by rendering the page at 51 columns and again at 52. Naming both `--workbench` and
+shortened instead, and 52 display columns is the width at which the row still fits, measured
+by rendering the page at 52 columns and again at 53. Naming both `--workbench` and
 `DINAH_WORKBENCH` cannot be done inside that width, and after the startup rule split on
 where the default came from the sentence does not need to: the check applies exactly when
 somebody named a workbench, whichever of the two spellings they named it with.
@@ -448,10 +456,12 @@ are drawn in section 5 rather than here because the page is where a reader meets
 | `check.mcp.1` | `--root names a directory that exists` |
 | `check.mcp.2` | `the workbench you name lies under the root` |
 
-A translation of either sentence stays at or under 51 display columns. That is the width the
-row's other fields leave, and a sentence over it takes a line of its own and puts the page
-over 80 columns, because this table does not wrap. The translator's note on both keys says
-so.
+A translation of either sentence stays at or under 52 display columns. That is the width the
+row's other fields leave, and a sentence over it takes the row to itself and pushes the
+refusal name down to the line beneath. The page survives that, and stays inside 80 columns
+until the sentence itself reaches 72 columns, at which point the row's own line is wider
+than the page, because this table does not wrap. The translator's note on both keys carries
+the 52-column ceiling and says what a longer sentence does to the row.
 
 ## 8. What the operator is being asked to accept
 

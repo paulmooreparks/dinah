@@ -31,11 +31,25 @@ type tool struct {
 	// summaryKey, when set, replaces "cmd.<command>.summary" as the catalog
 	// key toolList reads.
 	summaryKey string
+	// wrapper names the single member this tool publishes its answer under,
+	// and is empty on a tool that publishes the answer's own object with no
+	// member around it. The name is part of what an agent reads, since a
+	// caller that decodes the payload and looks the answer up by member gets
+	// nothing when the member is spelled differently, so it is declared here
+	// where a test can read it rather than left implicit in the wrap call
+	// that produces it.
+	//
+	// It is filled on the commands verb.CrossHeadIdentical names, which is
+	// where the cross-head guard checks it. Elsewhere it is empty, and empty
+	// carries no claim: a tool this field says nothing about is one no test
+	// reads it for.
+	wrapper string
 }
 
 // tools is the whole MCP surface. A command that exists only because a shell
-// and a filesystem exist gets no tool, which leaves out path, edit, init,
-// extract, config and mcp itself, and guide is a resource rather than a tool.
+// and a filesystem exist gets no tool, and every command this head leaves out
+// is named in toolExemptions below with the reason, which is where a reader
+// should go for the current set rather than to this sentence.
 //
 // workbench falls inside that rule rather than outside it, even though config
 // does not. A workbench's own fields are workbench column that travels with the
@@ -62,13 +76,14 @@ var tools = []tool{
 	{name: "attach", command: "attach", run: func(l *verb.Library, r *verb.Request) any { return l.Attach(r) }},
 	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
 	{name: "delete", command: "delete", run: func(l *verb.Library, r *verb.Request) any { return l.Delete(r) }},
+	{name: "rename", command: "rename", run: func(l *verb.Library, r *verb.Request) any { return l.Rename(r) }},
 	{name: "status", command: "status", run: readStatus},
 	{name: "columns", command: "columns", run: readColumns},
 	{name: "list_cards", command: "ls", run: readList},
 	{name: "next_card", command: "next", run: readNext},
 	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
-	{name: "query", command: "query", run: readQuery},
-	{name: "tree", command: "tree", run: readTree},
+	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
+	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
 	{name: "contents", command: "contents", run: readContents},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
@@ -82,6 +97,54 @@ var tools = []tool{
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},
 	{name: "workbenches", command: "workbenches", run: nil, summaryKey: "tool.workbenches.summary"},
+}
+
+// toolExemptions names every library command this head deliberately does not
+// serve, with the reason it is absent. The comment above tools states the same
+// reasoning in prose; this map is what a test can read, and the roster check
+// requires every command to be either served or named here with a reason, so a
+// gap nobody has argued for cannot reach a green build.
+var toolExemptions = map[string]string{
+	"path":    "resolves a filesystem path for a shell to consume, so it means nothing over a protocol",
+	"edit":    "opens a file in the reader's own editor, which needs a terminal this head does not have",
+	"init":    "creates a workbench in a directory, which is a filesystem act rather than a workbench act",
+	"extract": "copies a workbench definition out to a directory, which is the same filesystem act",
+	"config":  "writes the user's own machine settings, which travel with the person rather than the workbench",
+	"mcp":     "starts this head, so a tool for it would be the server offering to start itself",
+	"guide":   "served as a resource rather than a tool, because a guide is read rather than run",
+	"help":    "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal",
+}
+
+// ToolNameFor returns the name this head publishes for a library command, and
+// the empty string when the head serves no tool for it. A caller outside this
+// package that has a command and needs the tool behind it asks here rather
+// than keeping its own copy of the mapping, which would be one more surface to
+// keep in step with this one.
+func ToolNameFor(command string) string {
+	for _, entry := range tools {
+		if entry.command == command {
+			return entry.name
+		}
+	}
+	return ""
+}
+
+// WrapperMemberFor returns the member name this head publishes a library
+// command's answer under, and the empty string both for a command whose answer
+// carries no wrapping member and for one this surface serves no tool for.
+//
+// The two empties are not distinguished here because nothing is served by
+// distinguishing them in this function. The caller that matters is the
+// cross-head comparison, which already knows the tool exists before it asks,
+// and which proves an empty answer right or wrong by comparing the unwrapped
+// payload against the terminal's rather than by trusting this declaration.
+func WrapperMemberFor(command string) string {
+	for _, entry := range tools {
+		if entry.command == command {
+			return entry.wrapper
+		}
+	}
+	return ""
 }
 
 // toolsByName indexes the surface for dispatch.
