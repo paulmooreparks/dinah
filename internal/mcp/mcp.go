@@ -413,38 +413,21 @@ func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Req
 
 // answerWorkbenches serves the workbenches tool.
 //
-// With no path argument it keeps its existing contract exactly: bench.Enumerate
-// walks the server's own configured root, the rows are sorted by path, and the
-// answer carries the same shape every tool's payload carries. Enumerate refuses
-// with NoWorkbenchFound when its cache lookup fails, which is what an MCP
-// caller would otherwise see as a transport error; translating here keeps the
-// refusal on the response side.
+// With no path argument it keeps its existing contract exactly, down to how
+// its refusals travel: bench.Enumerate walks the server's own configured root
+// and whatever comes back reaches the caller as it did before this argument
+// existed. An unbounded server has no directory to search, and the refusal
+// that says so is a transport error rather than a payload, which is dinah-307's
+// contract and is not this card's to change.
 //
 // With a non-empty path argument it switches to the same downward walk
 // dinah workbenches <path> runs at a terminal: the path is resolved and checked
 // against the root with bench.PathUnderRoot, refusing contract.OutsideRoot on
-// escape, and bench.EnumerateDeep replaces bench.Enumerate. The rows are sorted
-// by path there too, so the two modes hand back one order.
+// escape, and bench.EnumerateDeep replaces bench.Enumerate. Those refusals are
+// about an argument the caller sent, so they travel on the response the way
+// every other argument-level refusal on this surface does, which is what
+// resolveLibrary already does for a workbench argument that escapes the root.
 func answerWorkbenches(root string, arguments map[string]any) (map[string]any, error) {
-	listed, err := walkedWorkbenches(root, arguments)
-	if err != nil {
-		if refusal, ok := err.(*contract.Refusal); ok {
-			return answerRefusal(&verb.Request{Verb: "workbenches"}, refusal), nil
-		}
-		return nil, err
-	}
-	sort.SliceStable(listed, func(i, j int) bool {
-		return listed[i].Path < listed[j].Path
-	})
-	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
-	return textResult(payload)
-}
-
-// walkedWorkbenches answers which enumeration the workbenches tool runs, and
-// runs it. A path argument switches the tool from the server's own configured
-// root to a downward walk from that path, which is the same two-mode switch the
-// terminal makes on its positional, so the two heads answer one question.
-func walkedWorkbenches(root string, arguments map[string]any) ([]bench.Candidate, error) {
 	named, _ := arguments["path"].(string)
 	named = strings.TrimSpace(named)
 	depth, _ := arguments["max-depth"].(string)
@@ -452,12 +435,27 @@ func walkedWorkbenches(root string, arguments map[string]any) ([]bench.Candidate
 		// A depth bound with no path to bound would be read and dropped, and
 		// the terminal refuses that rather than accepting an argument that
 		// changes nothing. The two heads answer one question, so this one
-		// refuses it too.
+		// refuses it too, and it is an argument-level refusal like the rest.
 		if strings.TrimSpace(depth) != "" {
-			return nil, contract.Refuse(contract.DepthWithoutRoot, depth)
+			return workbenchesRefusal(contract.Refuse(contract.DepthWithoutRoot, depth)), nil
 		}
-		return bench.Enumerate(root)
+		listed, err := bench.Enumerate(root)
+		if err != nil {
+			return nil, err
+		}
+		return workbenchesPayload(listed)
 	}
+	listed, refusal := walkFromPath(root, named, depth)
+	if refusal != nil {
+		return workbenchesRefusal(refusal), nil
+	}
+	return workbenchesPayload(listed)
+}
+
+// walkFromPath runs the downward walk a path argument asks for, after the two
+// checks that argument has to pass: it resolves to somewhere, and that
+// somewhere lies under the root the server was started with.
+func walkFromPath(root, named, depth string) ([]bench.Candidate, *contract.Refusal) {
 	abs, err := filepath.Abs(named)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownRoot, named)
@@ -470,7 +468,31 @@ func walkedWorkbenches(root string, arguments map[string]any) ([]bench.Candidate
 	if refusal != nil {
 		return nil, refusal
 	}
-	return bench.EnumerateDeep(abs, rungs)
+	walked, err := bench.EnumerateDeep(abs, rungs)
+	if err != nil {
+		if walkRefusal, ok := err.(*contract.Refusal); ok {
+			return nil, walkRefusal
+		}
+		return nil, contract.Refuse(contract.UnknownRoot, abs)
+	}
+	return walked, nil
+}
+
+// workbenchesRefusal puts one argument-level refusal on the response, which is
+// where this surface carries a refusal the caller can correct by sending
+// different arguments.
+func workbenchesRefusal(refusal *contract.Refusal) map[string]any {
+	return answerRefusal(&verb.Request{Verb: "workbenches"}, refusal)
+}
+
+// workbenchesPayload renders a listing, sorted by path so the two modes and
+// the two heads hand back one order.
+func workbenchesPayload(listed []bench.Candidate) (map[string]any, error) {
+	sort.SliceStable(listed, func(i, j int) bool {
+		return listed[i].Path < listed[j].Path
+	})
+	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
+	return textResult(payload)
 }
 
 // textResult puts one payload into the shape every tool call answers with,
