@@ -67,6 +67,17 @@ all here. The strings are generated now, with the second invocation
 spelled four ways, because the guard's counter once excluded three of
 them and cleared the reset that followed.
 
+A RELAXATION IS DECLARED OR IT IS A REGRESSION. The rule above stops a
+branch quietly refusing less than the trunk, and a card whose whole
+purpose is to refuse less would fail every run under it. So a string this
+branch means to allow is generated with a name that says so, and the
+harness then holds it to both halves of the claim: the trunk has to
+refuse it, or the declaration is stale and has stopped describing
+anything, and this branch has to allow it, or the fix it was written for
+has been reverted. Every declared string still goes to the shell like any
+other, so a relaxation that lets a deny-set verb through is a fail-open
+and is reported as one.
+
 SAFETY. Every generated string is git and nothing else, wrapped in
 punctuation. `git` is the stub, so no repository is touched, and the
 shell runs with its working directory in a temporary sandbox. The one
@@ -189,22 +200,30 @@ class Trunk:
         kinds = {}
         original = module.worktree_kind
 
-        def cached(target, base):
-            key = (target, base)
-            if key not in kinds:
-                kinds[key] = original(target, base)
-            return kinds[key]
+        # One argument, because that is what `worktree_kind` takes. This
+        # wrapper asked for two, so every trunk verdict on a command
+        # carrying a `-C` raised a TypeError, `refuses` swallowed it, and
+        # the string was recorded as one the deployed guard allows. The
+        # second oracle was answering "no refusal" for precisely the
+        # commands it exists to compare, which is why an unanswerable
+        # trunk is now fatal to the run rather than a number in the
+        # report.
+        def cached(target):
+            if target not in kinds:
+                kinds[target] = original(target)
+            return kinds[target]
 
         module.worktree_kind = cached
 
     def refuses(self, command):
         """True when the deployed guard denies this command.
 
-        A command the trunk cannot read at all, which `shlex` raises on
-        for an unbalanced quotation mark, counts as no verdict rather
-        than as a refusal. Counting it as a refusal would make every
-        such string a failure of this branch for something the trunk
-        never did.
+        A command the trunk cannot read at all counts as no verdict
+        rather than as a refusal, because counting it as a refusal would
+        make every such string a failure of this branch for something the
+        trunk never did. The count is kept, and the run fails on it: a
+        trunk that answers nothing is not a comparison, and the report
+        used to carry that number where nobody read it.
         """
         payload = json.dumps({"tool_input": {"command": command}, "cwd": self.cwd})
         with self.lock:
@@ -248,7 +267,12 @@ def build_repo(root):
     git("worktree", "add", "--detach", "-q", linked, "HEAD", cwd=main)
     spaced = os.path.join(root, "dinah scratch", "card-impl", "wt")
     git("worktree", "add", "--detach", "-q", spaced, "HEAD", cwd=main)
-    return main, linked, spaced
+    # A worktree named for a card at the merge stage, which is the shape
+    # this board's own convention produces and the shape whose verb the
+    # guard used to read as a subcommand.
+    verbnamed = os.path.join(root, "scratch", "dinah-249-merge", "wt")
+    git("worktree", "add", "--detach", "-q", verbnamed, "HEAD", cwd=main)
+    return main, linked, spaced, verbnamed
 
 
 # ---------------------------------------------------------------------------
@@ -488,6 +512,87 @@ def between_git_and_verb():
     ]
 
 
+def parameter_expansions():
+    """Ways of writing a word so that a shell hands git the word alone.
+
+    The braces and the operator are syntax the shell consumes, so what
+    reaches git is whatever stands after the operator. That is the whole
+    of the sixth cycle's defect: the guard grew a pair of lookarounds
+    refusing the characters that continue a shell word, and four of the
+    seven characters it refused (`-`, `=`, `+`, `/`) are the operators
+    below. Each of them can therefore stand in the command text right
+    beside a literal verb and be gone before git starts.
+
+    This generator went without the shape for six cycles. It carried
+    `${OPTS}` and `${OPTS:-}` as empty fillers in the gap between `git`
+    and the subcommand, so the gap was exercised and the subcommand
+    never was, and 27,081 strings reported no regression over a deny set
+    that was open on every verb in it. One character's difference, the
+    verb moving inside the braces, is the whole finding.
+
+    The two shapes that need the parameter set carry their assignment in
+    front across a separator rather than as a prefix on the same command.
+    A shell performs the assignments of a simple command after expanding
+    the rest of its words, so `x=1 git ${x+reset}` would read the old
+    value and generate a string that runs nothing.
+    """
+    return [
+        ("a default for an unset parameter", "", "${x-%s}"),
+        ("a default for an unset or empty parameter", "", "${x:-%s}"),
+        ("an assigned default", "", "${x=%s}"),
+        ("an assigned default for an empty parameter", "", "${x:=%s}"),
+        ("an alternate value for a set parameter", "x=1 ; ", "${x+%s}"),
+        ("an alternate value for a set, non-empty parameter", "x=1 ; ", "${x:+%s}"),
+        ("the first match substituted", "x=y ; ", "${x/y/%s}"),
+        ("every match substituted", "x=y ; ", "${x//y/%s}"),
+    ]
+
+
+def deciding_operand(command):
+    """Where the flag or refspec that condemns the verb stands, or None.
+
+    A verb the guard refuses on its own carries no such word, and those
+    commands are covered by the verb half of this crossing alone.
+
+    The condemning word is found by taking the first argument from index
+    2 onward that starts with `-` or `:`, which covers every deciding
+    operand in the guard's table today. A future verb whose deciding
+    operand is spelled some other way returns None here and loses its
+    half of the crossing without turning any run red, so a rule added to
+    the guard wants a look at this line as well.
+    """
+    words = command.split(" ")
+    for index, word in enumerate(words):
+        if index >= 2 and (word.startswith("-") or word.startswith(":")):
+            return index
+    return None
+
+
+def inside_an_expansion(command):
+    """The command with its verb, and then its deciding flag, expanded.
+
+    Both halves are generated, because the two blockers of the sixth
+    cycle arrived through different helpers. The verb half defeats the
+    lookarounds around a subcommand and the flag half defeats the one in
+    front of a long flag, and a fix for either that does not fix the
+    other leaves the deny set open through the half it missed.
+    """
+    words = command.split(" ")
+    positions = [1]
+    operand = deciding_operand(command)
+    if operand is not None:
+        positions.append(operand)
+    shapes = []
+    for position in positions:
+        where = "the verb" if position == 1 else "the deciding operand"
+        for name, assignment, form in parameter_expansions():
+            spelled = list(words)
+            spelled[position] = form % words[position]
+            shapes.append(("%s inside %s" % (where, name),
+                           assignment + " ".join(spelled)))
+    return shapes
+
+
 def brace_expanded(command):
     """The command with its whole argument list written as a brace expansion.
 
@@ -619,7 +724,79 @@ def two_in_one_span(linked, stub):
     return shapes
 
 
-def strings(linked, spaced, stub):
+# The name a declared relaxation carries. A string generated under this
+# prefix is one this branch intends to allow and the deployed guard
+# refuses; anything else that the trunk refuses and this branch allows is
+# a regression.
+RELAXATION = "declared relaxation: "
+
+# The deny-set verbs a path segment can trip on its own. The rules left
+# out want a flag as well, or a second word, and a directory name
+# supplies neither, so a path alone never reached them.
+PATH_VERBS = ["restore", "stash", "commit", "merge", "rebase", "cherry-pick",
+              "revert", "am", "apply", "rm", "mv", "bisect", "pull"]
+
+# The two verbs the deployed guard already excluded a trailing hyphen
+# after, so that `merge-base` and `rebase-todo` stayed out of its rules.
+# A segment beginning with one of them was therefore never refused, and
+# claiming it as a relaxation would claim something the trunk never did.
+# The fast suite still holds both shapes, because there the question is
+# what the guard does rather than what it stopped doing.
+HYPHEN_EXCLUDED = ("merge", "rebase")
+
+
+def slashed(path):
+    """`path` written with forward slashes, which is how this board writes one.
+
+    A backslash is how a shell quotes the letter after it rather than a
+    separator, and the guard does not read one as ending a word, so a
+    backslash-spelled fixture would ask a different question from the one
+    these strings are for.
+    """
+    return path.replace("\\", "/")
+
+
+def declares_relaxation(name):
+    return name.startswith(RELAXATION)
+
+
+def relaxations(checkout, verbnamed):
+    """Strings this branch allows and the deployed guard refuses.
+
+    Every verb in the deny set is also a word a directory can be named
+    after, and this board names them that way, because a worktree belongs
+    to a card at a stage and is written `<card>-<stage>/wt`. A regular
+    expression ends a word at a hyphen where a shell does not, so the
+    deployed guard reads `merge` out of `dinah-249-merge` and refuses a
+    status, a log or a diff for a verb the command never ran. The worst
+    of them is the last string here, which is the command the guard's own
+    refusal text prescribes: a worktree is added from the repository it
+    belongs to, so a creating command names the main checkout with its
+    `-C` and cannot avoid doing so.
+
+    The count is fixed and small, at three shapes for each of the verbs a
+    path can trip plus two spelled-out cases, because every string here
+    starts a shell.
+    """
+    scratch = slashed(os.path.dirname(os.path.dirname(verbnamed)))
+    shapes = []
+    for name in PATH_VERBS:
+        for shape, segment in (("ending a segment", "card-%s" % name),
+                               ("beginning a segment", "%s-fixture" % name),
+                               ("standing as a whole segment", name)):
+            if shape == "beginning a segment" and name in HYPHEN_EXCLUDED:
+                continue
+            shapes.append((RELAXATION + "%s %s of a -C path" % (name, shape),
+                           "git -C %s/%s/wt rev-parse HEAD" % (scratch, segment)))
+    shapes.append((RELAXATION + "a status read through a merge-stage path",
+                   "git -C %s/dinah-250-merge/wt status --short" % scratch))
+    shapes.append((RELAXATION + "the board's own merge-stage worktree is created",
+                   "git -C %s worktree add --detach %s/dinah-293-merge/wt HEAD"
+                   % (slashed(checkout), scratch)))
+    return shapes
+
+
+def strings(checkout, linked, spaced, verbnamed, stub):
     """Every generated string, as `(name, command)`.
 
     The crossing is deliberate and it is the point. Each deny-set verb is
@@ -644,6 +821,19 @@ def strings(linked, spaced, stub):
             generated.append(
                 ("%s, %s between git and the verb, %s" % (command, where, shape),
                  form % spelled))
+
+    # The verb, and the flag that condemns it, written as the value of a
+    # parameter expansion. This is the class the generator could not
+    # reach for six cycles, and while it could not reach it a guard that
+    # had opened every verb in the deny set passed here.
+    for command in VERBS:
+        for shape, spelled in inside_an_expansion(command):
+            generated.append(("%s, %s" % (command, shape), spelled))
+            for wrapper, form in wrappings():
+                if wrapper == "bare":
+                    continue
+                generated.append(("%s, %s, %s" % (command, shape, wrapper),
+                                  form % spelled))
 
     for command in VERBS:
         spelled = brace_expanded(command)
@@ -718,6 +908,9 @@ def strings(linked, spaced, stub):
     # Two invocations sharing one span, which the crossing above cannot
     # produce because it always puts a separator between them.
     generated.extend(two_in_one_span(linked, stub))
+
+    # The strings this branch means to allow and the trunk refuses.
+    generated.extend(relaxations(checkout, verbnamed))
 
     return generated
 
@@ -806,11 +999,12 @@ def main():
     regressions = []
     shapes = {}
     over_refusals = 0
+    relaxed = 0
     total = 0
     reached = 0
     trunk = None
     try:
-        checkout, linked, spaced = build_repo(root)
+        checkout, linked, spaced, verbnamed = build_repo(root)
 
         stubdir = os.path.join(root, "stub")
         os.makedirs(stubdir)
@@ -888,9 +1082,24 @@ def main():
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
             for name, command, allowed, offences, trunk_refused in pool.map(
-                    examine, strings(linked, spaced, stub)):
+                    examine, strings(checkout, linked, spaced, verbnamed, stub)):
                 total += 1
-                if trunk_refused:
+                if declares_relaxation(name):
+                    # Held to both halves of what it claims. A string the
+                    # trunk no longer refuses has stopped being a
+                    # relaxation, and a string this branch refuses is the
+                    # fix gone missing.
+                    if not allowed:
+                        failures.append((name, command,
+                                         "declared as a relaxation and refused by this branch",
+                                         None))
+                    elif trunk is not None and not trunk_refused:
+                        failures.append((name, command,
+                                         "declared as a relaxation and allowed by the deployed "
+                                         "guard too, so it relaxes nothing", None))
+                    else:
+                        relaxed += 1
+                elif trunk_refused:
                     regressions.append((name, command))
                 if offences is None:
                     failures.append((name, command, "the shell did not finish", None))
@@ -913,6 +1122,8 @@ def main():
           "(over-refusal, not a failure)" % over_refusals)
     for shape, count in sorted(shapes.items(), key=lambda pair: -pair[1])[:12]:
         print("    %4d  %s" % (count, shape))
+    print("%d of them are declared relaxations, allowed here and refused by the "
+          "deployed guard" % relaxed)
     if trunk is None:
         print("the deployed guard at %s could not be read, so no string was "
               "compared against it" % TRUNK_REF)
@@ -943,6 +1154,11 @@ def main():
     if trunk is None:
         print("no fail-open in %d generated strings, but the comparison against "
               "%s did not run" % (total, TRUNK_REF))
+        return 1
+
+    if trunk.errors:
+        print("the deployed guard could not read %d of the %d strings, so those "
+              "were compared against nothing" % (trunk.errors, total))
         return 1
 
     print("no fail-open and no regression against %s in %d generated strings"
