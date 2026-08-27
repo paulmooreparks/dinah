@@ -34,6 +34,16 @@ const (
 	bufferDone   = "b00000000004"
 )
 
+// The slugs of the same four columns, which is what a group drawn on the
+// column axis carries as its value, because columnRef prefers a column's slug
+// over its identifier.
+const (
+	bufferIntakeSlug = "intake"
+	bufferQueueSlug  = "waiting"
+	bufferDoingSlug  = "doing"
+	bufferDoneSlug   = "done"
+)
+
 // newBufferHarness builds a harness over the buffered flow above.
 func newBufferHarness(t *testing.T) *harness {
 	t.Helper()
