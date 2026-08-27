@@ -699,7 +699,7 @@ and it would leave recognition unsolved on a board writing its notes in
 another language.
 
 Where a workbench declares an `evidence:` block, an acceptance criterion
-leaving the pending column carries at least one `citations` entry. Each
+leaving the pending state carries at least one `citations` entry. Each
 entry names a scheme drawn from that block, together with the target it
 points at.
 
@@ -780,9 +780,9 @@ quietly stopped asserting passes a citation check cleanly. An entry may
 therefore carry an `observed` mapping recording what the check did before
 the work and after it, as the test citation above does, and a criterion
 whose citation uses a scheme demanding the observation leaves the pending
-column only where that citation recorded the check failing against the
+state only where that citation recorded the check failing against the
 unfixed state and passing against the fixed one. A criterion whose cited
-schemes demand no observation leaves the pending column on the citation
+schemes demand no observation leaves the pending state on the citation
 alone.
 
 The pair covers both failures with one rule. A check nobody wrote cannot
@@ -803,7 +803,7 @@ pass after it, while a test does exactly that.
 The `observed` values are a closed set of two, `fail` and `pass`, closed
 by the rule that settles the question, since contract behavior hangs on
 the members. A criterion whose citation uses a scheme demanding the
-observation leaves the pending column on a `fail` before and a `pass`
+observation leaves the pending state on a `fail` before and a `pass`
 after, so a value the tool has never heard of cannot be weighed against
 that rule, and a board spelling the pair its own way would put the rule
 out of reach of any tool reading the item. Both values join the
@@ -1642,7 +1642,7 @@ mirror read history, consumers of the arbiter read the present.
 Coordination truth is consulted, never replicated. Claim, move, release,
 block, and the WIP check inside a move are synchronous questions asked at
 the moment of action; there is no background synchronization of claim
-column, because there is no local copy with standing to disagree. The only
+state, because there is no local copy with standing to disagree. The only
 timer is the lease: a claim carries a TTL and is kept alive by heartbeat,
 and expiry lapses it visibly and journaled rather than silently
 reassigning.

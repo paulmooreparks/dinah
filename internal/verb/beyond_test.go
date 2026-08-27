@@ -1631,11 +1631,11 @@ func TestAnInterruptedDeletionIsFinishedFromTheBenchJournal(t *testing.T) {
 	})
 }
 
-// TestTheTwoUnresolvableCrashColumnsAreReportedAndNotRepaired asserts the row
+// TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired asserts the row
 // that keeps directory-rename atomicity out of the correctness argument: a
 // directory found at both paths and one found at neither are each reported,
 // and the finish leaves the bench exactly as it found it.
-func TestTheTwoUnresolvableCrashColumnsAreReportedAndNotRepaired(t *testing.T) {
+func TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired(t *testing.T) {
 	cases := []struct {
 		name  string
 		plant func(*harness, string)
