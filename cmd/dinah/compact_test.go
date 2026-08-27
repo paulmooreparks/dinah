@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -19,10 +21,17 @@ import (
 // a ready card to offer, a work column to claim in, a column that waits on
 // somebody outside the workbench, and a done column that offers nothing and
 // holds nothing. It declares both level axes, so a card can carry a severity
-// and a priority and a write can be refused over a level name. The workbench
-// carries standing text and Doing carries column text, so the instr record's
-// three fields hold three different strings and a claim answered from Doing
-// cannot pass this file's comparisons with any two of them transposed.
+// and a priority and a write can be refused over a level name.
+//
+// Doing declares a reject route back to Intake, which is what puts a value in
+// the move record's reject field. Every legal move the fixture offered before
+// that declaration carried the field empty, so a transposition that wrote it
+// somewhere else changed no byte any test read.
+//
+// The workbench carries standing text, Doing carries column text, and
+// newCompactBench writes the third layer into the user base, so the instr
+// record's three fields hold three different strings and a claim answered from
+// Doing cannot pass this file's comparisons with any two of them transposed.
 const compactFixtureDefinition = `{
   "profile": "dinah-core/0.7",
   "title": "Compact fixture",
@@ -30,7 +39,7 @@ const compactFixtureDefinition = `{
   "instructions": "Standing text the workbench serves under every column.",
   "columns": [
     { "id": "c00000000001", "title": "Intake", "kind": "intake" },
-    { "id": "c00000000002", "title": "Doing", "kind": "work", "instructions": "Column text Doing serves on its own." },
+    { "id": "c00000000002", "title": "Doing", "kind": "work", "instructions": "Column text Doing serves on its own.", "reject_to": "intake" },
     { "id": "c00000000003", "title": "Approval", "kind": "work", "awaiting_outside": true },
     { "id": "c00000000004", "title": "Done", "kind": "done" }
   ]
@@ -42,35 +51,75 @@ const compactFixtureDefinition = `{
 // after it into an escape, and a literal newline would end the record.
 const awkwardTitle = "a|b\\c\nd"
 
-// newCompactBench builds the fixture workbench and populates it: one card
-// carrying the awkward title, and one card belonging to two workstreams with a
-// severity and a priority set. Approval and Done are left holding nothing.
+// newCompactBench builds the fixture workbench and populates it. fx-1 carries
+// the awkward title. fx-2 belongs to two workstreams and carries a severity and
+// a priority. fx-3 and fx-4 carry the four fields nothing else here reaches:
+// fx-3 is claimed with an expiry, and fx-4 is blocked with a kind.
+//
+// Those last two cards exist because the comparison below strips an empty
+// field before comparing, so a field standing empty in every case the suite
+// runs is compared as one absence against another and a transposition of two
+// such fields decodes to the same thing. Before fx-3 and fx-4 the card
+// record's expires and block_kind fields were empty in every payload the
+// package produced, so swapping them changed nothing any test could see. A
+// card holds either a lease or a block and never both, which is why filling
+// the pair takes two cards rather than one. Approval and Done are left
+// holding nothing.
 func newCompactBench(t *testing.T) string {
 	t.Helper()
 	root := newBenchFromDefinition(t, compactFixtureDefinition)
-	if got := runCLI(t, root, "--json", "add", awkwardTitle); got.code != 0 {
-		t.Fatalf("add the awkward card: %d %s", got.code, got.errw)
-	}
-	if got := runCLI(t, root, "--json", "add", "Second card"); got.code != 0 {
-		t.Fatalf("add the second card: %d %s", got.code, got.errw)
-	}
+	writeGlobalInstructions(t)
+	mustRunCLI(t, root, "add", awkwardTitle)
+	mustRunCLI(t, root, "add", "Second card")
 	for _, title := range []string{"Alpha", "Beta"} {
-		if got := runCLI(t, root, "--json", "workstream", "new", title); got.code != 0 {
-			t.Fatalf("workstream new %s: %d %s", title, got.code, got.errw)
-		}
-		if got := runCLI(t, root, "--json", "join", "fx-2", strings.ToLower(title)); got.code != 0 {
-			t.Fatalf("join fx-2 to %s: %d %s", title, got.code, got.errw)
-		}
+		mustRunCLI(t, root, "workstream", "new", title)
+		mustRunCLI(t, root, "join", "fx-2", strings.ToLower(title))
 	}
 	for _, pair := range [][2]string{{"severity", "major"}, {"priority", "now"}} {
-		if got := runCLI(t, root, "--json", "card", "set", "fx-2", pair[0], pair[1]); got.code != 0 {
-			t.Fatalf("card set fx-2 %s: %d %s", pair[0], got.code, got.errw)
-		}
+		mustRunCLI(t, root, "card", "set", "fx-2", pair[0], pair[1])
 	}
-	if got := runCLI(t, root, "--json", "move", "fx-2", "doing"); got.code != 0 {
-		t.Fatalf("move fx-2 to doing: %d %s", got.code, got.errw)
-	}
+	mustRunCLI(t, root, "move", "fx-2", "doing")
+	mustRunCLI(t, root, "add", "Third card")
+	mustRunCLI(t, root, "move", "fx-3", "doing")
+	mustRunCLI(t, root, "claim", "fx-3", "--expires", "2h")
+	mustRunCLI(t, root, "add", "Fourth card")
+	mustRunCLI(t, root, "block", "fx-4", "an obstacle outside", "--kind", "external")
 	return root
+}
+
+// writeGlobalInstructions gives the user base the instruction layer a
+// workbench cannot carry, which is the third of the three the instr record
+// holds. The layer is a file rather than anything the definition declares, so
+// nothing the fixture's own definition says can produce it, and without it
+// Instructions.Global stands empty in every payload this package writes and
+// the instr record is asserted at two of its three positions.
+//
+// The text ends on a newline on purpose. It is the one instruction layer whose
+// served value carries a byte the grammar has to escape, so the escaping is
+// exercised here on a value the tool serves rather than only on the title the
+// fixture invents.
+func writeGlobalInstructions(t *testing.T) {
+	t.Helper()
+	base := bench.UserBase(os.Getenv("DINAH_HOME"))
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		t.Fatalf("the user base: %v", err)
+	}
+	path := filepath.Join(base, bench.InstructionsName)
+	if err := os.WriteFile(path, []byte("Global text every workbench on this machine serves.\n"), 0o644); err != nil {
+		t.Fatalf("the global instructions: %v", err)
+	}
+}
+
+// mustRunCLI runs one canonical invocation the fixture depends on and fails
+// the test where it is refused, so a setup step that stops working is named
+// where it happened rather than through whatever the fixture lacks later.
+func mustRunCLI(t *testing.T, root string, argv ...string) invocation {
+	t.Helper()
+	got := runCLI(t, root, append([]string{"--json"}, argv...)...)
+	if got.code != 0 {
+		t.Fatalf("%v: %d %s", argv, got.code, got.errw)
+	}
+	return got
 }
 
 // compactRecord is one decoded record: the kind that leads it, and its fields
@@ -579,10 +628,17 @@ func TestTheCompactGrammarSurvivesTheBytesItEscapes(t *testing.T) {
 
 // TestTheCompactListingCarriesEveryFieldTheCanonicalListingCarries asserts
 // dinah-31 AC-3: a listing's cards decode to the same field values in the same
-// order under both machine forms, for the whole workbench and for one state,
+// order under both machine forms, for the whole workbench and for one column,
 // over a fixture carrying a title with a pipe, a backslash and a newline in
-// it, a card in two workstreams with both levels set, and a state holding no
+// it, a card in two workstreams with both levels set, and a column holding no
 // ready card.
+//
+// The counters at the end hold the fixture to what it presents rather than to
+// what it contains. Two of them, the leased card and the blocked one, are here
+// because the card record's expires and block_kind fields are compared as an
+// absence when nothing fills them, so a fixture that quietly stopped producing
+// either would leave a transposition of the two undetectable and every test
+// green.
 func TestTheCompactListingCarriesEveryFieldTheCanonicalListingCarries(t *testing.T) {
 	root := newCompactBench(t)
 	listings := [][]string{
@@ -592,7 +648,7 @@ func TestTheCompactListingCarriesEveryFieldTheCanonicalListingCarries(t *testing
 		{"ls", "approval"},
 		{"ls", "done"},
 	}
-	awkward, workstreams, empty := 0, 0, 0
+	awkward, workstreams, empty, leased, blocked := 0, 0, 0, 0, 0
 	for _, argv := range listings {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			compact, canonical := machineForms(t, root, argv...)
@@ -615,19 +671,25 @@ func TestTheCompactListingCarriesEveryFieldTheCanonicalListingCarries(t *testing
 				if len(card.Workstreams) == 2 && card.Severity != "" && card.Priority != "" {
 					workstreams++
 				}
+				if card.Holder != "" && card.ClaimSince != "" && card.Expires != "" {
+					leased++
+				}
+				if card.BlockReason != "" && card.BlockKind != "" {
+					blocked++
+				}
 			}
 		})
 	}
-	if awkward == 0 || workstreams == 0 || empty == 0 {
-		t.Fatalf("the fixture did not present all three cases: awkward %d, two-workstream %d, empty %d", awkward, workstreams, empty)
+	if awkward == 0 || workstreams == 0 || empty == 0 || leased == 0 || blocked == 0 {
+		t.Fatalf("the fixture did not present all five cases: awkward %d, two-workstream %d, empty %d, leased %d, blocked %d", awkward, workstreams, empty, leased, blocked)
 	}
 }
 
 // TestTheCompactOffersCarryEveryFieldTheCanonicalOffersCarry asserts dinah-31
-// AC-4: each state's offer decodes to the same field values in the same order
+// AC-4: each column's offer decodes to the same field values in the same order
 // under both machine forms, including whether the offer carries a card, over a
-// fixture holding a state with a card to offer, a state with nothing ready and
-// a state that waits on somebody outside.
+// fixture holding a column with a card to offer, a column with nothing ready
+// and a column that waits on somebody outside.
 func TestTheCompactOffersCarryEveryFieldTheCanonicalOffersCarry(t *testing.T) {
 	root := newCompactBench(t)
 	compact, canonical := machineForms(t, root, "next")
@@ -712,6 +774,12 @@ func TestEveryRefusedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 // OK outcome, and a pull that finds nothing, which is the answer on this path
 // carrying a Message and its named values.
 //
+// The counters at the end read what the acts actually presented rather than
+// how many of them ran. Three of them hold a field that would otherwise be
+// asserted only as an absence: an instr record carrying all three layers, a
+// legal move carrying the reject flag, and a response carrying the stale-prefix
+// warning with its detail.
+//
 // An accepted act changes the workbench, so a second run of it answers about a
 // card that has moved and a revision that has changed. The head is therefore
 // run once, in the canonical form, and its own answer is encoded compactly and
@@ -722,10 +790,20 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 	root := newCompactBench(t)
 	// The order is what each act's own preconditions admit: an unblock leaves
 	// the card ready rather than held, so the claim before a release is taken
-	// again, and the pull is aimed at the state whose upstream is empty, which
+	// again, and the pull is aimed at the column whose upstream is empty, which
 	// is the answer on this path that carries a Message and its named values.
+	//
+	// The first claim addresses fx-2 by a prefix the workbench no longer
+	// carries. A reference resolves on its number, so the card is the same one
+	// and the act succeeds, and the response carries the stale-prefix warning
+	// with the prefix that earned it. That is the only way this suite reaches
+	// the rsp record's warning and warning_detail fields, which stood empty in
+	// every payload the package produced until this case named a stale prefix,
+	// leaving a transposition of the two invisible to the comparison below.
+	// The second claim addresses the same card as fx-2, so the pair carries a
+	// value in one act and none in the other rather than a value in all.
 	cases := [][]string{
-		{"claim", "fx-2"},
+		{"claim", "yokoten-2"},
 		{"block", "fx-2", "an obstacle"},
 		{"unblock", "fx-2"},
 		{"claim", "fx-2"},
@@ -735,7 +813,7 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 		{"workstream", "new", "Gamma"},
 		{"workstream", "set", "gamma", "status", "paused"},
 	}
-	instructions, moves, messages, workstreams := 0, 0, 0, 0
+	instructions, moves, messages, workstreams, warnings := 0, 0, 0, 0, 0
 	for _, argv := range cases {
 		t.Run(strings.Join(argv, " "), func(t *testing.T) {
 			got := runCLI(t, root, append([]string{"--json"}, argv...)...)
@@ -755,11 +833,13 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 				t.Fatalf("decode the compact response: %v\n%s", err, encoded)
 			}
 			sameFields(t, strings.Join(argv, " "), decoded, &wanted)
-			if wanted.Instructions != nil {
+			if served := wanted.Instructions; served != nil && served.Global != "" && served.Standing != "" && served.Column != "" {
 				instructions++
 			}
-			if len(wanted.LegalMoves) > 0 {
-				moves++
+			for _, move := range wanted.LegalMoves {
+				if move.Reject {
+					moves++
+				}
 			}
 			if wanted.Message != "" && len(wanted.MessageValues) > 0 {
 				messages++
@@ -767,10 +847,13 @@ func TestEveryAcceptedActDecodesTheSameUnderBothMachineForms(t *testing.T) {
 			if wanted.Workstream != nil {
 				workstreams++
 			}
+			if wanted.Warning != "" && wanted.WarningDetail != "" {
+				warnings++
+			}
 		})
 	}
-	if instructions == 0 || moves == 0 || messages == 0 || workstreams == 0 {
-		t.Fatalf("the acts did not present all four members: instructions %d, legal moves %d, message values %d, workstream %d", instructions, moves, messages, workstreams)
+	if instructions == 0 || moves == 0 || messages == 0 || workstreams == 0 || warnings == 0 {
+		t.Fatalf("the acts did not present all five members: three-layer instructions %d, reject moves %d, message values %d, workstream %d, warning %d", instructions, moves, messages, workstreams, warnings)
 	}
 }
 
