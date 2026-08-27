@@ -40,12 +40,13 @@ type TreeVocabularyFailure struct {
 // MigrateVocabularyTree carries every workbench at or beneath a root from the
 // retired state/substate vocabulary to the current column/state one.
 //
-// The walk is deliberately two calls rather than one. bench.Enumerate reads a
-// root's entries and tests each child, so a root that is itself directly a
-// workbench is invisible to it; bench.RecognizedAt asks the same question of
-// the root itself, which is what the ordinary discovery climb already does at
-// its first rung. Taking the union of the two is what makes a single workbench
-// a tree of size one rather than an empty tree.
+// bench.Enumerate alone answers the root and everything beneath it. The walk
+// used to be two calls, one asking the root whether it was itself a workbench
+// and one listing what sat below it, and the two disagreed about whether the
+// root's own .dinah counted: neither of them opened it, so a workbench living
+// there, which is where dinah init writes one, was invisible to both halves of
+// the union and the command reported an empty tree over a board that was
+// sitting in front of it (dinah-312).
 //
 // A failure on one workbench does not end the walk. The operator's own boards
 // sit spread across customer directories, and one unwritable anchor should not
@@ -73,29 +74,18 @@ func MigrateVocabularyTree(root string, apply bool) (*TreeVocabularyReport, erro
 }
 
 // vocabularyCandidates answers every directory at or beneath the root that
-// offers a workbench, the root itself first and in walk order after that, with
-// no directory named twice.
+// offers a workbench, including the root itself, with no directory named
+// twice. bench.Enumerate is the one place that question is answered, and a
+// second, independent root check here was what let the root's own .dinah go
+// unopened while every other directory's was opened (dinah-312).
 func vocabularyCandidates(root string) ([]string, error) {
-	var candidates []string
-	seen := map[string]bool{}
-	add := func(path string) {
-		if path == "" || seen[path] {
-			return
-		}
-		seen[path] = true
-		candidates = append(candidates, path)
-	}
-	found, err := bench.RecognizedAt(root)
-	if err != nil {
-		return nil, err
-	}
-	add(found)
 	listed, err := bench.Enumerate(root)
 	if err != nil {
 		return nil, err
 	}
+	candidates := make([]string, 0, len(listed))
 	for _, candidate := range listed {
-		add(candidate.Path)
+		candidates = append(candidates, candidate.Path)
 	}
 	return candidates, nil
 }
