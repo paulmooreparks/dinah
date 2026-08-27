@@ -183,6 +183,20 @@ func BaseEntry(key string) (Entry, bool) {
 	return entry, ok
 }
 
+// CatalogEntry returns one entry exactly as tag's own catalog carries it: no
+// fallback to Base, no placeholder substitution. BaseEntry is this function
+// specialized to tag == Base. A caller outside this package that needs a
+// translation's own Skeleton flag or raw Text, rather than what a reader
+// would see rendered, calls this instead of reaching into Renderer.
+func CatalogEntry(tag, key string) (Entry, bool) {
+	catalog, ok := loaded[tag]
+	if !ok {
+		return Entry{}, false
+	}
+	entry, ok := catalog.Entries[key]
+	return entry, ok
+}
+
 // Coverage reports how many of the base catalog's keys a language carries
 // translated, and how many it carries at all. A generated skeleton carries
 // every key and translates none of them.

@@ -296,6 +296,124 @@ func TestATranslationTracksItsEnglishSource(t *testing.T) {
 	}
 }
 
+// TestCatalogEntryReadsWithoutFallback asserts that CatalogEntry answers out
+// of one catalog alone: it finds a German entry, refuses a tag no catalog
+// answers to, and refuses a key the catalog does not carry, rather than
+// falling back to English the way a Renderer does. A guard outside this
+// package reads a translation's own text through it, so a silent fallback
+// here would make that guard pass on an entry the catalog never carried.
+func TestCatalogEntryReadsWithoutFallback(t *testing.T) {
+	if entry, ok := CatalogEntry("de", "word.yes"); !ok || entry.Text == "" {
+		t.Fatalf("wanted the German entry, got %+v, %v", entry, ok)
+	}
+	if _, ok := CatalogEntry("qq", "word.yes"); ok {
+		t.Error("wanted false for a language no catalog answers to")
+	}
+	if _, ok := CatalogEntry("de", "no.such.key"); ok {
+		t.Error("wanted false for a key the catalog does not carry")
+	}
+}
+
+// machineSpans are the four shapes the catalog spells machine vocabulary in.
+// A glossary trigger reads the base English as prose, so these come out of
+// the text before it is matched: each names a thing rather than saying a
+// word about it, and a trigger firing on one demands a translated word where
+// a correct translation carries none. card.line's "[{state} / {substate}]"
+// is a placeholder line with no prose in it at all, and
+// refusal.dinah.ambiguous-state.next's "name one as `dinah pull <state>`, or
+// pass --state <state>" names the flag three times and the concept never.
+var machineSpans = []*regexp.Regexp{
+	regexp.MustCompile(`\{[^}]*\}`),
+	regexp.MustCompile("`[^`]*`"),
+	regexp.MustCompile(`<[^>]*>`),
+	regexp.MustCompile(`--[A-Za-z0-9-]+`),
+}
+
+// prose returns text with every machine-vocabulary span removed, which is
+// what a glossary trigger matches against.
+func prose(text string) string {
+	for _, span := range machineSpans {
+		text = span.ReplaceAllString(text, "")
+	}
+	return text
+}
+
+// TestATranslationUsesTheDeclaredWord asserts that a translation renders each
+// recurring concept glossary.json declares with one of that language's
+// declared words for it. It is the guard for the failure a fingerprint cannot
+// see: an entry current with the English it was translated from, and carrying
+// the wrong word for a term the rest of the catalog is consistent about.
+// German said Eigentuemer, Eigner and Akteur for one owner, and dropped the
+// word for a level on one row of a pair whose other row carries it.
+//
+// The trigger is the English phrase, matched case-insensitively and on word
+// boundaries against the base text with its machine-vocabulary spans removed.
+// The match is containment of a declared form in the translated text, because
+// a language inflects its own words and spells them inside compounds, so
+// German's Zielzustand carries Zustand and is not a wrong word. A form the
+// corpus turns out to need is added to glossary.json with the evidence for
+// it; neither the trigger nor the match is loosened to make a failure go away.
+func TestATranslationUsesTheDeclaredWord(t *testing.T) {
+	if len(glossary) == 0 {
+		t.Fatal("the glossary carries no terms, so this guard is asserting nothing")
+	}
+	trigger := make(map[string]*regexp.Regexp, len(glossary))
+	for _, term := range glossary {
+		pattern := `(?i)\b` + regexp.QuoteMeta(term.EN) + `\b`
+		trigger[term.EN] = regexp.MustCompile(pattern)
+	}
+	checked := 0
+	for _, tag := range Tags() {
+		if tag == Base {
+			continue
+		}
+		t.Run(tag, func(t *testing.T) {
+			for _, key := range Keys() {
+				base, ok := BaseEntry(key)
+				if !ok {
+					continue
+				}
+				if strings.Contains(base.Context, "never translated") {
+					continue
+				}
+				entry, carried := CatalogEntry(tag, key)
+				if !carried || entry.Skeleton {
+					continue
+				}
+				plain := prose(base.Text)
+				for _, term := range glossary {
+					if !trigger[term.EN].MatchString(plain) {
+						continue
+					}
+					forms, declared := term.Forms[tag]
+					if !declared {
+						continue
+					}
+					checked++
+					if carriesAForm(entry.Text, forms) {
+						continue
+					}
+					t.Errorf("%s: wanted the glossary word for %q (one of %v), got %q", key, term.EN, forms, entry.Text)
+				}
+			}
+		})
+	}
+	if checked == 0 {
+		t.Fatal("no entry triggered a glossary term, so this guard is asserting nothing")
+	}
+}
+
+// carriesAForm reports whether text spells the term in any of the renderings
+// the language declares for it.
+func carriesAForm(text string, forms []string) bool {
+	for _, form := range forms {
+		if strings.Contains(text, form) {
+			return true
+		}
+	}
+	return false
+}
+
 // TestEveryUntranslatableIdentifierSurvivesTranslation asserts that a
 // translation carries through, unchanged, every machine identifier its English
 // source names, for each entry whose context declares those identifiers are

@@ -3182,7 +3182,7 @@
       "source": "3d352fb090323d6"
     },
     "refusal.dinah.takes-no-work": {
-      "text": "स्तंभ {detail} में कोई भी कार्य नहीं लेता, और कार्ड वहाँ तब तक प्रतीक्षा करता है जब तक कोई खींच उसे आगे के स्तंभ में नहीं ले जाता",
+      "text": "स्तंभ {detail} में कोई स्वामी कार्य नहीं लेता, और कार्ड वहाँ तब तक प्रतीक्षा करता है जब तक कोई खींच उसे आगे के स्तंभ में नहीं ले जाता",
       "context": "The sentence printed after the refusal name dinah.takes-no-work. {detail} carries the column the refusal is about. A column that waits on somebody outside answers refusal.dinah.awaiting-outside instead, because that sentence also says who is being waited on.",
       "source": "a828873782ad75a9"
     },
@@ -3192,7 +3192,7 @@
       "source": "8792d94e3109495"
     },
     "check.claim-where-no-work-is-taken": {
-      "text": "एक कार्ड स्तंभ {detail} में रखा गया है, जहाँ कोई कार्य नहीं लेता",
+      "text": "एक कार्ड स्तंभ {detail} में रखा गया है, जहाँ कोई स्वामी कार्य नहीं लेता",
       "context": "A check finding: no card is held at a column where no owner takes work up. {detail} carries the column, and the finding's own path names the card. The acts that would create the condition afresh are refused, so a card reported here was written before this build.",
       "source": "f625c96b6e2fa008"
     },
