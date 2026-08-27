@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.4
+conforms to dinah-core/0.7
 storage format 1
 [exit 0]
 ```
@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all thirty-nine commands, in the four groups Dinah sorts
+`dinah help` lists all forty commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -133,8 +133,8 @@ Dinah put everything it wrote in one place rather than scattering it through the
 directory you were standing in. It made a `.dinah` directory there, and inside
 that one more directory named with the workbench's own twelve-hex identifier,
 and everything it writes from now on lives under that. Inside it you have
-`workbench.md`, a `states/` directory holding one directory per state with a
-`state.md` inside it, and a `.gitignore` that keeps Dinah's lock files out of
+`workbench.md`, a `columns/` directory holding one directory per column with a
+`column.md` inside it, and a `.gitignore` that keeps Dinah's lock files out of
 your commits. You have nothing else yet.
 
 Every card in a workbench has a human-readable prefix, called a slug. Because
@@ -240,32 +240,63 @@ where you put it.
 ## Look at the flow
 
 ```console
-$ dinah states
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0      agent
-  done    Done    done    0      agent
+$ dinah columns
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0      taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 ```
 
-You get one row per state. The slug is the short name you type, the name is what
-you called the state, the kind is one of `intake`, `work`, and `done`, and the
+You get one row per column. The slug is the short name you type, the name is what
+you called the column, the kind is one of `intake`, `work`, `done`, and `dinah.buffer`, and the
 count is how many cards stand there. Dinah runs the flow in the order
-`workbench.md` lists the states. When you move a card to a later state you move
-it forward, and when you move it to an earlier state you move it backward.
+`workbench.md` lists the columns. When you move a card to a later column you move
+it forward, and when you move it to an earlier column you move it backward.
 
-That last column says who may move a card out of the state. It reads `agent` for
-a state anybody can work and `operator` for one where the departure is the
+The last column says who may move a card out of the column. It reads `agent` for
+a column anybody can work and `operator` for one where the departure is the
 operator's alone, and you choose the second by writing `operator_owned: true`
-into the state's own file. Every state starts out an agent's.
+into the column's own file. Every column starts out an agent's.
 
-Dinah also gives each state a twelve-hex identifier, which you will meet in
+The column before it says whether work is taken up at the column at all, and it
+reads one of three things. It reads `taken` for a column where somebody works a
+card: you claim the card there, work it, and move it on.
+
+It reads `waiting` for a column where the workbench is waiting on somebody
+outside it: a reviewer, a customer, a supplier. You choose that by writing
+`awaiting_outside: true` into the column's own file. Nobody claims a card there,
+`dinah next` offers nothing from it, and `dinah pull` neither takes a card out
+of it nor lands one in it, but a card standing there is ready in the ordinary
+way, carries no block, and anybody may move it on when the answer comes.
+
+It reads `none taken` for a column where nobody works a card and a card is
+waiting for the column beyond rather than for a person. An intake column and a
+done column both read this way, and so does a column you mark `kind: dinah.buffer`
+to hold cards between two stations. You cannot claim a card at such a column, and
+you cannot move a card you are holding into one, so you release it first. What
+you can do is pull the card into the station beyond, which is what a card
+standing there is waiting for. A block still works wherever a card stands,
+because a block says something about the card rather than about a worker.
+
+The two columns answer different questions, so a column can be either, both, or
+neither.
+
+If you have been keeping such cards out of the queue by blocking them, the way
+across is short and there is no migration command, because nothing can tell a
+workaround block from a real one. Write `awaiting_outside: true` into the
+column's file, then run `dinah unblock <card>` as the operator once for each card
+you had blocked to keep it out of the way. Each card returns to `ready`, the
+unblock is journaled so the record says when the workaround ended, and the flag
+keeps the cards out of the ready queue from that moment.
+
+Dinah also gives each column a twelve-hex identifier, which you will meet in
 `workbench.md`, in `export`, and in the card files themselves, though no listing
-prints it at you. Every command that takes a state accepts the identifier, the
+prints it at you. Every command that takes a column accepts the identifier, the
 slug, or the title, and Dinah ignores case when it matches them. Dinah derives
 the slugs from the titles when it creates the workbench. If you have a workbench
-made before slugs existed, though, its states carry none, and you fill them in
+made before slugs existed, though, its columns carry none, and you fill them in
 with `dinah check --migrate-slugs`.
 
 Run `status` when you sit down. Dinah prints you that same list, tells you which
@@ -276,11 +307,11 @@ $ dinah status
 release-notes  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0      agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0      taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 ```
 
@@ -295,11 +326,11 @@ transcript:
 ```file path=<workbench>/workbench.md
 ---
 format: 1
-profile: dinah-core/0.4
+profile: dinah-core/0.7
 title: Release 0.2
 slug: rel
 operator: ana
-states:
+columns:
   - 003b09ee6e31
   - 780659205f6b
   - fcd0d92e167a
@@ -307,10 +338,10 @@ states:
 Every card on this workbench ends with a line in the changelog.
 ```
 
-Then open the `state.md` of one state and do the same. If you set a `wip_limit`,
-Dinah caps that state at that many cards:
+Then open the `column.md` of one column and do the same. If you set a `wip_limit`,
+Dinah caps that column at that many cards:
 
-```file path=<workbench>/states/<state:doing>/state.md
+```file path=<workbench>/columns/<column:doing>/column.md
 ---
 wip_limit: 1
 title: Doing
@@ -333,16 +364,16 @@ $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0/1    agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 ```
 
 You can see the limit in the count column, where `doing` now reads `0/1`. To
-read the instructions a state serves without touching a card, ask for them:
+read the instructions a column serves without touching a card, ask for them:
 
 ```console
 $ dinah instructions doing
@@ -350,7 +381,7 @@ $ dinah instructions doing
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
-Instructions, this state:
+Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 [exit 0]
@@ -368,19 +399,52 @@ rel-1  Write the release notes  [Intake / ready]
 $ dinah add "Draft the changelog"
 rel-2  Draft the changelog  [Intake / ready]
 [exit 0]
-$ dinah add "Check the download links" --state doing
-rel-3  Check the download links  [Doing / ready]
+$ dinah add "Check the download links"
+rel-3  Check the download links  [Intake / ready]
 [exit 0]
 ```
 
-Dinah puts a new card in the first state of the flow, unless you name another
-state with `--state`. Your card arrives with the substate `ready`, and anybody
-may pull a ready card. You read where the card stands out of the bracket after
-its title: first the state it stands in, then its substate.
+Dinah puts a new card in the first column of the flow. Your card arrives with
+the state `ready`, and anybody may pull a ready card. You read where the
+card stands out of the bracket after its title: first the column it stands in,
+then its state.
+
+All three cards are standing in `Intake`, so nothing has gone anywhere yet and
+you have not yet seen a column as somewhere a card travels to. Send one of them
+on:
+
+```console
+$ dinah move rel-3 doing
+rel-3  Check the download links  [Doing / ready]
+
+Instructions, this workbench:
+Every card on this workbench ends with a line in the changelog.
+
+Instructions, this column:
+Work the card until it is finished or until something stops you.
+Leave a comment saying what you did before you carry it on.
+
+Moves this card may make:
+  Column  Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  done    Done    forward    no
+[exit 0]
+```
+
+`move` carries a card to the column you name and changes nothing else about it.
+`rel-3` now stands in `Doing`, still waiting for somebody to pull it, and Dinah
+shows you the instructions that column serves along with the moves the card may
+make from there. You have met the first of the five commands that change where
+a card stands, and you meet the other four under "The five commands underneath"
+below. If you already know as you file a card that it belongs somewhere other
+than the first column, you can name that column with `--column`, as in `dinah add
+"Check the download links" --column doing`, and reach the same place in one
+command instead of two.
 
 You read the board back with three commands. `ls` lists cards, and takes an
-optional state and an optional `--ready` filter. `next` tells you what each
-state is offering right now. `show` prints one card. Dinah lists cards in queue
+optional column and an optional `--ready` filter. `next` tells you what each
+column is offering right now. `show` prints one card. Dinah lists cards in queue
 order, oldest arrival first, and when two cards arrived inside the same second
 it falls back to the order you filed them in. You get that same order however
 fast you type.
@@ -405,16 +469,16 @@ $ dinah ls intake --ready
   rel-2  ready     Draft the changelog
 [exit 0]
 $ dinah next
-  State   Card   Title
-  ------  -----  ------------------------
-  Intake  rel-1  Write the release notes
-  Doing   rel-3  Check the download links
-  Done    nothing ready
+  Column  Card   Title                     Take
+  ------  -----  ------------------------  -----
+  Intake  rel-1  Write the release notes   pull
+  Doing   rel-3  Check the download links  claim
+  Done    nothing is taken from here
 [exit 0]
 $ dinah next doing
-  State  Card   Title
-  -----  -----  ------------------------
-  Doing  rel-3  Check the download links
+  Column  Card   Title                     Take
+  ------  -----  ------------------------  -----
+  Doing   rel-3  Check the download links  claim
 [exit 0]
 $ dinah show rel-1
 rel-1  Write the release notes  [Intake / ready]
@@ -425,7 +489,7 @@ rel-1  Write the release notes  [Intake / ready]
 
 A workbench is a pull system, which means nobody hands you work. You take the
 next card yourself, and `dinah pull` is the one command that does it. Name a
-state, and Dinah takes the card at the head of the state before it, moves it
+column, and Dinah takes the card at the head of the column before it, moves it
 in, and claims it for you.
 
 You capped `Doing` at one card earlier, and `rel-3` is already standing there,
@@ -433,11 +497,11 @@ so Dinah refuses to pull another card into it:
 
 ```console
 $ dinah pull doing
-at-capacity state doing has reached its limit; move a card out of doing first, or raise that state's wip_limit
+at-capacity column doing has reached its limit; move a card out of doing first, or raise that column's wip_limit
 [exit 2]
 ```
 
-Only the operator can carry a card through a full state, and Dinah records the
+Only the operator can carry a card through a full column, and Dinah records the
 override:
 
 ```console
@@ -448,26 +512,26 @@ rel-1  Write the release notes  [Doing / active]
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
-Instructions, this state:
+Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 
 Moves this card may make:
-  State   Name    Direction
-  ------  ------  ---------
-  intake  Intake  backward
-  done    Done    forward
+  Column  Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  done    Done    forward    no
 [exit 0]
 ```
 
 Dinah picked `rel-1` because it stood at the head of the queue in `Intake`, the
-state before `Doing`. That is the card `dinah next intake` was offering you a
+column before `Doing`. That is the card `dinah next intake` was offering you a
 moment ago, and pull and next read the queue the same way. When a claim
 succeeds, Dinah shows you the instructions for where the card now stands and
 the moves the flow allows from there, so you do not have to remember either.
 Pass `--quiet` when you have read them already.
 
-You can leave the state out. Dinah then works out which state you could pull
+You can leave the column out. Dinah then works out which column you could pull
 into and uses that one, and when more than one qualifies it stops and asks you
 to name one rather than choosing for you. What qualifies depends on what is
 standing on the workbench at the moment you type the command, and on who you
@@ -476,8 +540,8 @@ are, so the bare form can mean one thing today and another tomorrow. Run
 card.
 
 Add `--no-claim` when you want to carry a card forward and leave it for
-somebody else. The card lands in the new state still waiting, and the next
-person to pull that state's own queue takes it from there.
+somebody else. The card lands in the new column still waiting, and the next
+person to pull that column's own queue takes it from there.
 
 ## The five commands underneath
 
@@ -499,29 +563,33 @@ and `unblock`. Dinah's own guide calls these five the verbs, and you can read it
 with `dinah guide verbs`. The shared rules fix what each one does. A second tool
 reading the same workbench answers you the same way.
 
-You can run the two halves of a pull separately whenever you want the card
-rather than the next card. `claim` takes up a card you name:
+`claim` takes up a card you name, where it already stands, and `move` carries
+it on. `rel-3` is standing in `Doing`, so you can take it up there:
 
 ```console
-$ dinah claim rel-2
-rel-2  Draft the changelog  [Intake / active]
+$ dinah claim rel-3
+rel-3  Check the download links  [Doing / active]
   held by ana
 
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
+Instructions, this column:
+Work the card until it is finished or until something stops you.
+Leave a comment saying what you did before you carry it on.
+
 Moves this card may make:
-  State  Name   Direction
-  -----  -----  ---------
-  doing  Doing  forward
-  done   Done   forward
+  Column  Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  done    Done    forward    no
 [exit 0]
 ```
 
 Dinah will not let anybody else take a card you hold:
 
 ```console
-$ dinah claim rel-2 --actor bo
+$ dinah claim rel-3 --actor bo
 held ana holds this card; wait for ana to release it
 [exit 2]
 ```
@@ -530,14 +598,16 @@ held ana holds this card; wait for ana to release it
 because a card you are still holding is a card nobody else will pull:
 
 ```console
-$ dinah release rel-2
-rel-2  Draft the changelog  [Intake / ready]
+$ dinah release rel-3
+rel-3  Check the download links  [Doing / ready]
 [exit 0]
 ```
 
-`move` carries a card to another state and changes nothing else. If you move a
-card you hold, you still hold it afterwards. `move` obeys the same capacity
-limit `pull` obeyed above, and the operator overrides it the same way.
+You already ran `move` once, to carry `rel-3` into `Doing`, so what follows is
+the fuller account rather than a first introduction. `move` carries a card to
+another column and changes nothing else. If you move a card you hold, you still
+hold it afterwards. `move` obeys the same capacity limit `pull` obeyed above,
+and the operator overrides it the same way.
 
 Say what you did while you are there:
 
@@ -576,11 +646,11 @@ $ dinah status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [search]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  1      agent
-  doing   Doing   work    2/1    agent
-  done    Done    done    0      agent
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  1      none taken  agent
+  doing   Doing   work    2/1    taken       agent
+  done    Done    done    0      none taken  agent
 
 You are holding:
   Card   Title
@@ -618,23 +688,30 @@ $ dinah claim rel-1 --expires 8h --quiet
 rel-1  Write the release notes  [Doing / active]
   held by ana
 [exit 0]
+$ dinah release rel-1
+rel-1  Write the release notes  [Doing / ready]
+[exit 0]
 $ dinah move rel-1 done
-rel-1  Write the release notes  [Done / active]
-  held by ana
+rel-1  Write the release notes  [Done / ready]
 
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
 Moves this card may make:
-  State   Name    Direction
-  ------  ------  ---------
-  intake  Intake  backward
-  doing   Doing   backward
+  Column  Name    Direction  Reject
+  ------  ------  ---------  ------
+  intake  Intake  backward   no
+  doing   Doing   backward   no
 [exit 0]
 ```
 
-You can always move a card backward out of a done state, but if you try to move
-one forward out of a done state, Dinah refuses with `terminal`. Dinah therefore
+Nobody takes work up at a done column, so Dinah will not carry a card you are
+holding into one. Release the card first, as the transcript does, and then move
+it. The card arrives ready and nobody holds it, which is what a finished card
+looks like.
+
+You can always move a card backward out of a done column, but if you try to move
+one forward out of a done column, Dinah refuses with `terminal`. Dinah therefore
 offers you only backward moves above.
 
 ## Everything below a card
@@ -652,8 +729,7 @@ Then attach it to the card:
 
 ```console
 $ dinah attach rel-1 notes.txt
-rel-1  Write the release notes  [Done / active]
-  held by ana
+rel-1  Write the release notes  [Done / ready]
 [exit 0]
 ```
 
@@ -691,8 +767,7 @@ arrive.
 
 ```console
 $ dinah rename rel-1/attachments/1 cert-notes.txt
-rel-1  Write the release notes  [Done / active]
-  held by ana
+rel-1  Write the release notes  [Done / ready]
 [exit 0]
 $ dinah show rel-1/attachments/1
 ---
@@ -747,14 +822,15 @@ $ dinah log rel-1
   2026-08-18T21:02:23Z  commented           ana
   2026-08-18T21:02:23Z  released            ana
   2026-08-18T21:02:23Z  claimed             ana
+  2026-08-18T21:02:23Z  released            ana
   2026-08-18T21:02:23Z  moved               ana    Doing to Done
   2026-08-18T21:02:23Z  attached            ana    notes.txt
   2026-08-18T21:02:23Z  attachment renamed  ana    notes.txt to cert-notes.txt
 [exit 0]
 ```
 
-You can see the override on the move that used it. Dinah names each state in the
-log as it was titled at the time. If you rename a state later, your history
+You can see the override on the move that used it. Dinah names each column in the
+log as it was titled at the time. If you rename a column later, your history
 still reads as it did.
 
 ## Group cards into a workstream
@@ -791,8 +867,7 @@ file is what changes:
 
 ```console
 $ dinah join rel-1 autumn
-rel-1  Write the release notes  [Done / active]  autumn
-  held by ana
+rel-1  Write the release notes  [Done / ready]  autumn
 [exit 0]
 $ dinah join rel-2 autumn
 rel-2  Draft the changelog  [Intake / ready]  autumn
@@ -813,7 +888,7 @@ $ dinah workstream
 
 Naming one reads its fields and the cards belonging to it:
 
-```console skip=the member listing orders by the stamp a card arrived in its state under, and the replay runs the whole narrative inside one second, so whether the two cards tie on that stamp and fall back to the creation ordinal is decided by where a second boundary falls
+```console skip=the member listing orders by the stamp a card arrived in its column under, and the replay runs the whole narrative inside one second, so whether the two cards tie on that stamp and fall back to the creation ordinal is decided by where a second boundary falls
 $ dinah workstream get autumn
   Field   Value
   ------  --------------
@@ -823,7 +898,7 @@ $ dinah workstream get autumn
   status  active
   cards   2
 
-  Card   Title                    State
+  Card   Title                    Column
   -----  -----------------------  ------
   rel-1  Write the release notes  Done
   rel-2  Draft the changelog      Intake
@@ -853,12 +928,12 @@ If you want the workstream out of your listings when the effort is over, run
 and those cards keep the membership. `dinah delete workstream/autumn --yes`
 destroys it instead, and Dinah refuses that while a live card still belongs to
 it. A workstream names its kind in both of those commands, and nothing else
-does, so a workstream and a state may share a name without either one hiding
+does, so a workstream and a column may share a name without either one hiding
 the other.
 
 ## Taking things out
 
-`archive` takes a card, a state, or a comment or attachment on one, out of the
+`archive` takes a card, a column, or a comment or attachment on one, out of the
 listings and keeps its files. `delete` destroys the same things and their
 history. Dinah says nothing to you when either one succeeds.
 
@@ -868,7 +943,7 @@ $ dinah archive rel-3
 $ dinah ls done
   Card   Standing  Title
   -----  --------  -----------------------
-  rel-1  active    Write the release notes
+  rel-1  ready     Write the release notes
 [exit 0]
 $ dinah delete rel-1/comments/2
 dinah.unconfirmed delete destroys history, so it needs --yes
@@ -878,8 +953,8 @@ $ dinah delete rel-1/comments/2 --yes
 ```
 
 When you archive a card, Dinah moves it under `archive/cards/` in the workbench
-and stops listing it. Archiving a state asks more of you, since Dinah refuses
-while any card still stands there and refuses again if the state is the last one
+and stops listing it. Archiving a column asks more of you, since Dinah refuses
+while any card still stands there and refuses again if the column is the last one
 left. `delete` makes you pass `--yes`, because you cannot recover anything you
 delete.
 
@@ -888,14 +963,14 @@ delete.
 You may edit the files by hand, and when you do you can make mistakes in them.
 Run `check` to find them. The workbench answering below is not the one you have
 been working in. It was damaged on purpose for this example, and its cards name
-a state that no longer exists:
+a column that no longer exists:
 
 ```console skip=the transcript answers from a workbench damaged on purpose, which the narrative never builds
 $ dinah check
-  a card names state 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
-  the journal puts this card in state fcd0d92e167a, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
-  a card names state 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
-  the journal puts this card in state 003b09ee6e31, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
+  a card names column 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
+  the journal puts this card in column fcd0d92e167a, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/73ca475d0aaa/card.md)
+  a card names column 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
+  the journal puts this card in column 003b09ee6e31, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
 4 defects.
 [exit 2]
 ```
@@ -903,7 +978,7 @@ $ dinah check
 Dinah names the file to open on every line. Open each one in your editor, fix
 it, and run `check` again.
 
-`check` also catches a claim without the substate that implies it, a block with
+`check` also catches a claim without the state that implies it, a block with
 no reason, a link pointing at no card, a journal whose last line was cut off,
 and a directory carrying no anchor file where a comment or an attachment should
 be. It only reads and reports, and it changes nothing unless you ask it to.
@@ -911,23 +986,23 @@ be. It only reads and reports, and it changes nothing unless you ask it to.
 `check` reports three things that mark an older workbench rather than a mistake,
 and you repair each of them with a flag. The workbench answering below is that
 older one, kept for this example rather than the workbench you have been
-building. Your own `check` still reports nothing at this point. A state written
+building. Your own `check` still reports nothing at this point. A column written
 before slugs existed carries no slug, a comment or an attachment written before
-ordinals existed carries no ordinal, and a state that was moved or removed
+ordinals existed carries no ordinal, and a column that was moved or removed
 without an edit to `workbench.md` leaves its identifier stranded in the list:
 
 ```console skip=the transcript answers from a legacy workbench, which the narrative never builds
 $ dinah check
   aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
   fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
-  state 003b09ee6e31 carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/states/003b09ee6e31/state.md)
-  state 780659205f6b carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/states/780659205f6b/state.md)
-  state fcd0d92e167a carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/states/fcd0d92e167a/state.md)
-  the workbench names a state whose directory is not there (000000000000); dinah check --migrate-states removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
+  column 003b09ee6e31 carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/003b09ee6e31/column.md)
+  column 780659205f6b carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/780659205f6b/column.md)
+  column fcd0d92e167a carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/fcd0d92e167a/column.md)
+  the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 6 defects.
 [exit 2]
 $ dinah check --migrate-slugs
-Assigned 3 state slugs.
+Assigned 3 column slugs.
   Slug    Title
   ------  ------
   intake  Intake
@@ -935,16 +1010,16 @@ Assigned 3 state slugs.
   done    Done
   aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
   fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
-  the workbench names a state whose directory is not there (000000000000); dinah check --migrate-states removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
+  the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 3 defects.
 [exit 2]
 $ dinah check --migrate-ordinals
 Stamped 2 creation ordinals.
-  the workbench names a state whose directory is not there (000000000000); dinah check --migrate-states removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
+  the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 1 defect.
 [exit 2]
-$ dinah check --migrate-states
-Removed 1 stranded state from the list.
+$ dinah check --migrate-columns
+Removed 1 stranded column from the list.
   000000000000
 No structural defects found.
 [exit 0]
@@ -993,7 +1068,7 @@ $ dinah claim rel-9 --json
   "detail": "rel-9",
   "affordances": [
     "status",
-    "states",
+    "columns",
     "ls",
     "next"
   ]
@@ -1054,15 +1129,15 @@ any language setting.
 ```console
 $ dinah ls intake --json
 {
-  "state": "003b09ee6e31",
+  "column": "003b09ee6e31",
   "cards": [
     {
       "id": "9a556a230e09",
       "ref": "rel-2",
       "title": "Draft the changelog",
-      "state": "003b09ee6e31",
-      "state_title": "Intake",
-      "substate": "ready",
+      "column": "003b09ee6e31",
+      "column_title": "Intake",
+      "state": "ready",
       "revision": "sha256:433dfb7fa7a8a24d20c91ca5f9a3d9c50796139787358b7bbeaae9a35717db6c"
     }
   ]
@@ -1103,16 +1178,11 @@ $ dinah --lang hi status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [खोज]
 ana के रूप में, संचालक: हाँ
 
-  उपनाम   नाम     प्रकार  कार्ड  स्वामी
-  ------  ------  -----  ----  -----
-  intake  Intake  आवक    1     एजेंट
-  doing   Doing   काम    0/1   एजेंट
-  done    Done    समाप्त  1     एजेंट
-
-आपके पास:
-  कार्ड   शीर्षक
-  -----  -----------------------
-  rel-1  Write the release notes
+  उपनाम   नाम     प्रकार  कार्ड  कार्य          स्वामी
+  ------  ------  -----  ----  ------------  -----
+  intake  Intake  आवक    1     कोई कार्य नहीं  एजेंट
+  doing   Doing   काम    0/1   लिया जाता है   एजेंट
+  done    Done    समाप्त  1     कोई कार्य नहीं  एजेंट
 [exit 0]
 ```
 
@@ -1123,20 +1193,20 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.4
+conforms to dinah-core/0.7
 storage format 1
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        592/592
-  af        0/592
-  cs        0/592
-  de        592/592
-  es        0/592
-  fil       0/592
-  hi        592/592
-  id        0/592
+  en        676/676
+  af        0/676
+  cs        0/676
+  de        676/676
+  es        0/676
+  fil       0/676
+  hi        676/676
+  id        0/676
 [exit 0]
 ```
 
@@ -1161,11 +1231,8 @@ $ dinah edit rel-1
 ---
 title: Write the release notes
 number: 1
-state: fcd0d92e167a
-substate: active
-claim_holder: ana
-claim_since: 2026-08-18T21:02:23Z
-claim_expires: 2026-08-19T05:02:23Z
+column: fcd0d92e167a
+state: ready
 workstreams:
   - 8c3b92a3c21a
 ---
@@ -1216,16 +1283,11 @@ $ dinah --workbench release-notes/.dinah/d0e41d414bb5 status
 Release 0.2  (/home/ana/release-notes/.dinah/d0e41d414bb5)  [flag]
 acting as ana, operator: yes
 
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  1      agent
-  doing   Doing   work    0/1    agent
-  done    Done    done    1      agent
-
-You are holding:
-  Card   Title
-  -----  -----------------------
-  rel-1  Write the release notes
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  1      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  done    Done    done    1      none taken  agent
 [exit 0]
 ```
 
@@ -1299,9 +1361,7 @@ and another program built to the same rules can read what it prints:
 $ cd release-notes
 $ dinah export
 {
-  "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.4",
-  "states": [
+  "columns": [
     {
       "id": "003b09ee6e31",
       "kind": "intake",
@@ -1323,10 +1383,19 @@ $ dinah export
       "title": "Done"
     }
   ],
+  "instructions": "Every card on this workbench ends with a line in the changelog.\n",
+  "profile": "dinah-core/0.7",
   "title": "Release 0.2"
 }
 [exit 0]
 ```
+
+The printed definition carries the workbench's declared level sets, and any
+other block its frontmatter holds, as JSON of the same shape: a nested mapping
+prints as an object, a list prints as an array, and a level entry carrying a
+hint prints as a one-member object inside that array. A workbench you start
+from the result gets those blocks back in its own frontmatter, so nothing you
+declared is left behind by the trip through the exchange format.
 
 `extract` writes that same definition to a directory as a template you can use
 again. It carries the flow and the instructions, and none of the cards. You
@@ -1342,26 +1411,26 @@ $ cd release-0.3
 $ dinah init --from ../release-template --slug rel3 --operator ana
 Workbench created at /home/ana/release-0.3/.dinah/e65a73e02874.
 [exit 0]
-$ dinah states
-  Slug    Name    Kind    Cards  Owner
-  ------  ------  ------  -----  -----
-  intake  Intake  intake  0      agent
-  doing   Doing   work    0/1    agent
-  done    Done    done    0      agent
+$ dinah columns
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  done    Done    done    0      none taken  agent
 [exit 0]
 $ dinah instructions doing
 
 Instructions, this workbench:
 Every card on this workbench ends with a line in the changelog.
 
-Instructions, this state:
+Instructions, this column:
 Work the card until it is finished or until something stops you.
 Leave a comment saying what you did before you carry it on.
 [exit 0]
 ```
 
-The template carries the state identifiers, the slugs, and both layers of
-instructions. A workbench you start from it names its states exactly as the old
+The template carries the column identifiers, the slugs, and both layers of
+instructions. A workbench you start from it names its columns exactly as the old
 one does and serves the same standing text. That last `cd` puts you back in the
 workbench this guide started in, and the commands below expect you to run them
 there.
@@ -1403,14 +1472,19 @@ a person types commands.
 
 `dinah mcp` serves the workbench over MCP on its standard input and output, so
 an AI colleague can work the same board you do. Configure it in your MCP client
-as the command `dinah mcp`, and either run it from somewhere inside the
-workbench or point `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory, the
-same path `--workbench` takes. Dinah hands the client the rules for working this
-workbench and twenty-one tools against its twenty-nine commands. Every command
-that files, moves, or reads a card is there. Seven of the eight that are
-missing only make sense at a shell: `init`, `config`, `path`, `edit`,
-`extract`, `workbenches`, and `mcp` itself. The eighth is `guide`, and the
-client reads it as a resource rather than calling it as a tool. Your AI
+as the command `dinah mcp`, with no root: started this way, from anywhere, it
+serves no workbench by default, and each call names its own workbench by
+absolute path, so one server reaches every board. Starting it from inside a
+workbench, or pointing `DINAH_WORKBENCH` at the `.dinah/<identifier>` directory,
+still gives a call that names none a default to fall back on, but no longer
+keeps the server from reaching any other workbench you name. Give the server a
+root, with `--root` or `DINAH_MCP_ROOT`, when you want it bounded to one tree; a
+workbench outside that root is then refused. Dinah hands the client the rules
+for working this workbench and twenty-one tools against its twenty-nine
+commands. Every command that files, moves, or reads a card is there. Seven of
+the eight that are missing only make sense at a shell: `init`, `config`, `path`,
+`edit`, `extract`, `workbenches`, and `mcp` itself. The eighth is `guide`, and
+the client reads it as a resource rather than calling it as a tool. Your AI
 colleague claims, moves, releases, and blocks under the same rules and leaves
 the same journal entries you do.
 
@@ -1427,7 +1501,7 @@ out which of two possible errors you are looking at.
 $ dinah help claim
 claim <card> [--expires <duration>]
 
-take up a ready card
+Take up a ready card
 
 What you may write:
   As you write it         What it is
@@ -1443,8 +1517,9 @@ What can go wrong, in the order each is checked:
   3      the card exists                                            unknown-card
   4      the request names an owner                                 no-owner
   5      the owner named as holder is the owner asking              not-requester
-  6      the card's substate is not `blocked`                       blocked
-  7      the card's substate is not `active`                        held
+  6      the card's state is not `blocked`                          blocked
+  7      the card's state is not `active`                           held
+  8      taking the card up is legal for whoever asks               not-operator
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

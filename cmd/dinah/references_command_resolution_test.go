@@ -113,7 +113,7 @@ func TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
 	// fixture that happens to miss one proves nothing about that column, the
 	// same reasoning TestAWalkRootedAtAReferenceDrawsThatReferenceBack gives
 	// for naming kinds rather than counting them.
-	for _, want := range []string{"This workbench", "A state", "A card", "Below a card"} {
+	for _, want := range []string{"This workbench", "A column", "A card", "Below a card"} {
 		if !seen[want] {
 			t.Fatalf("the walk drew no node in the %q column, so this guard proves nothing about it", want)
 		}
@@ -129,8 +129,8 @@ func column(kind string) string {
 	switch kind {
 	case bench.KindWorkbench:
 		return "This workbench"
-	case bench.KindState:
-		return "A state"
+	case bench.KindColumn:
+		return "A column"
 	case bench.KindCard:
 		return "A card"
 	default:

@@ -132,7 +132,7 @@ type Attachment struct {
 }
 
 // AddAttachment copies a file into a new attachment entity of the collection
-// belonging to any entity directory: the bench, a state, a card or a comment.
+// belonging to any entity directory: the bench, a column, a card or a comment.
 // The caller holds the lock covering that collection, which is what makes the
 // ordinal scan race-free.
 func AddAttachment(ownerDir, source, description, provenance string) (*Attachment, error) {
@@ -320,17 +320,17 @@ func RestoreTarget(dir string) string {
 // itself.
 //
 // A workstream is the one kind that names itself in that grammar. A bare
-// reference is tried against the states before anything else, so a bare
-// workstream reference would be shadowed by a state of the same name,
+// reference is tried against the columns before anything else, so a bare
+// workstream reference would be shadowed by a column of the same name,
 // silently, and only in the workbenches unlucky enough to have picked one.
-// Naming the kind costs one word and lets a workstream and a state share a
+// Naming the kind costs one word and lets a workstream and a column share a
 // name.
 const WorkstreamRefPrefix = "workstream/"
 
 // resolveWorkstreamRef resolves a reference that names the workstream kind.
 // The second return value reports whether the reference named that kind at all,
 // which is what tells ResolveEntity to stop rather than fall through to the
-// states and the cards: a caller who wrote workstream/ meant a workstream, so
+// columns and the cards: a caller who wrote workstream/ meant a workstream, so
 // a name no workstream answers to is refused here rather than reported as an
 // unknown card.
 func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
@@ -354,7 +354,7 @@ func (b *Bench) resolveWorkstreamRef(ref string) (*EntityRef, bool, error) {
 // MoveEntity carries an entity's whole directory to another path, history and
 // all. A rename the filesystem refuses is reported as a refusal and never
 // retried as a copy followed by a delete, which would trade one short
-// non-atomic operation for a long one and multiply the states a crash leaves.
+// non-atomic operation for a long one and multiply the columns a crash leaves.
 func MoveEntity(dir, target string) error {
 	if Exists(target) {
 		return contract.Refuse(contract.Exists, target)
@@ -381,13 +381,13 @@ func DeleteEntity(dir string) error {
 	return os.RemoveAll(dir)
 }
 
-// StateOccupied reports whether a state may be retired, which is what keeps a
-// state from being archived or deleted underneath its cards. A nil answer
+// ColumnOccupied reports whether a column may be retired, which is what keeps a
+// column from being archived or deleted underneath its cards. A nil answer
 // means it may; anything else is the refusal to report, naming what was found.
 //
 // The scan runs after the retiring act's own sibling exists, never before, so
 // a writer that reaches the destination's sibling first is one this walk
-// cannot miss. It refuses on three conditions. A live card whose state is
+// cannot miss. It refuses on three conditions. A live card whose column is
 // this one is the ordinary occupancy refusal. A card whose own lock is held
 // is a write whose destination cannot be read yet, and a card directory that
 // will not load is a creation whose destination cannot be read either; both
@@ -397,7 +397,7 @@ func DeleteEntity(dir string) error {
 // Per card the lock is stated first and the anchor read second, never the
 // reverse. A pass that loaded every anchor and stated locks afterwards would
 // leave a gap a mover's whole critical section fits inside, since the read
-// could take the old state, the mover could then write and release, and the
+// could take the old column, the mover could then write and release, and the
 // later stat would find a free lock with nothing having fired. That two-pass
 // shape is the natural one to reach for, because Cards loads every anchor in
 // a single pass, so this is written as its own walk rather than as a call to
@@ -405,9 +405,9 @@ func DeleteEntity(dir string) error {
 // load, and not the loop.
 //
 // id is what the occupancy comparison runs against; ref is what the
-// occupancy refusal names the state by, so a caller who typed a slug reads
+// occupancy refusal names the column by, so a caller who typed a slug reads
 // that same slug back rather than the raw identifier behind it.
-func (b *Bench) StateOccupied(id, ref string) error {
+func (b *Bench) ColumnOccupied(id, ref string) error {
 	for _, cardID := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), cardID)
 		locked := Exists(filepath.Join(dir, LockName))
@@ -418,7 +418,7 @@ func (b *Bench) StateOccupied(id, ref string) error {
 		if err != nil {
 			return contract.Refuse(contract.Locked, cardID)
 		}
-		if card.State == id {
+		if card.Column == id {
 			return contract.Refuse(contract.Occupied, ref)
 		}
 		if locked {
@@ -447,15 +447,15 @@ type StructuralAct struct {
 	Actor string
 	// Now is the timestamp every lock the act takes records.
 	Now string
-	// StateID is the identifier of the state being retired, empty for an
+	// ColumnID is the identifier of the column being retired, empty for an
 	// act on any other kind. A non-empty one arms the occupancy scan.
-	StateID string
-	// StateRef is what a person typed, or could type, to reach that same
-	// state (its slug, falling back to its identifier). A refusal raised
-	// over the state names it by StateRef, never by the bare StateID, so
+	ColumnID string
+	// ColumnRef is what a person typed, or could type, to reach that same
+	// column (its slug, falling back to its identifier). A refusal raised
+	// over the column names it by ColumnRef, never by the bare ColumnID, so
 	// a person who typed a slug is never told about an identifier they
-	// never saw. Empty exactly when StateID is.
-	StateRef string
+	// never saw. Empty exactly when ColumnID is.
+	ColumnRef string
 	// WorkstreamID is the identifier of the workstream being deleted, empty
 	// for an act on any other kind and for an archiving. A non-empty one
 	// arms the membership scan, which archiving does not run: archiving a
@@ -463,7 +463,7 @@ type StructuralAct struct {
 	// an archived workstream still resolves, so no card is left dangling.
 	WorkstreamID string
 	// WorkstreamRef is what a person typed, or could type, to reach that
-	// same workstream, on the terms StateRef states. Empty exactly when
+	// same workstream, on the terms ColumnRef states. Empty exactly when
 	// WorkstreamID is.
 	WorkstreamRef string
 	// Record appends the act's event, and is called at the fourth step. It
@@ -538,12 +538,12 @@ func (b *Bench) Run(act *StructuralAct) error {
 			return unwind(err, sibling, benchLock)
 		}
 	}
-	if act.StateID != "" {
-		if err := b.StateOccupied(act.StateID, act.StateRef); err != nil {
+	if act.ColumnID != "" {
+		if err := b.ColumnOccupied(act.ColumnID, act.ColumnRef); err != nil {
 			return unwind(err, sibling, benchLock)
 		}
-		if act.Op != OpRestore && len(b.States) <= 1 {
-			return unwind(contract.Refuse(contract.LastState, act.StateRef), sibling, benchLock)
+		if act.Op != OpRestore && len(b.Columns) <= 1 {
+			return unwind(contract.Refuse(contract.LastColumn, act.ColumnRef), sibling, benchLock)
 		}
 	}
 
@@ -580,8 +580,8 @@ func (b *Bench) Run(act *StructuralAct) error {
 	if err := act.apply(); err != nil {
 		return reportInterruption(err, act, benchLock)
 	}
-	if act.StateID != "" && act.Op != OpRestore {
-		if err := b.RemoveStateID(act.StateID); err != nil {
+	if act.ColumnID != "" && act.Op != OpRestore {
+		if err := b.RemoveColumnID(act.ColumnID); err != nil {
 			return reportInterruption(err, act, benchLock)
 		}
 	}
@@ -646,7 +646,7 @@ func reportInterruption(err error, act *StructuralAct, benchLock *Lock) error {
 // thing that directory holds.
 type EntityRef struct {
 	// Kind is one of the containment grammar's kinds, as Contains names
-	// them: workbench, state, card, comment, item and attachment, plus
+	// them: workbench, column, card, comment, item and attachment, plus
 	// workstream, which resolves through its own dedicated prefix rather
 	// than through the containment grammar.
 	Kind string
@@ -655,7 +655,7 @@ type EntityRef struct {
 	// ID is the entity's identifier, empty for the bench itself.
 	ID string
 	// Ref is what a person typed, or could type, to reach this entity: a
-	// state's or a workstream's slug (falling back to its identifier), and
+	// column's or a workstream's slug (falling back to its identifier), and
 	// for anything below a head, that head's own reference followed by the
 	// path down to it. It is empty only for the workbench itself, whose own
 	// spelling is a question this resolver does not settle. A refusal
@@ -669,7 +669,7 @@ type EntityRef struct {
 }
 
 // ResolveEntity resolves the reference the entity-shaped commands take: the
-// bench itself, a state, a workstream, a card, or any entity below one of
+// bench itself, a column, a workstream, a card, or any entity below one of
 // those. It accepts the same references ResolvePath does, so a reference a
 // walk prints names the same entity to every command that takes one.
 //
@@ -687,20 +687,20 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 		return &EntityRef{Kind: KindWorkbench, Dir: b.Root}, nil
 	}
 	// A workstream names its own kind in the grammar, per WorkstreamRefPrefix,
-	// so it is tried before the states and the cards rather than falling
+	// so it is tried before the columns and the cards rather than falling
 	// through to them: a bare workstream reference would otherwise be
-	// shadowed by a state or a card sharing its name.
+	// shadowed by a column or a card sharing its name.
 	if entity, named, err := b.resolveWorkstreamRef(ref); named {
 		return entity, err
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	if rest == "" {
-		if state := b.StateByRef(ref); state != nil {
+		if column := b.ColumnByRef(ref); column != nil {
 			return &EntityRef{
-				Kind: KindState,
-				Dir:  filepath.Join(b.Root, StatesDir, state.ID),
-				ID:   state.ID,
-				Ref:  state.Ref(),
+				Kind: KindColumn,
+				Dir:  filepath.Join(b.Root, ColumnsDir, column.ID),
+				ID:   column.ID,
+				Ref:  column.Ref(),
 			}, nil
 		}
 		found, err := b.ResolveCard(head)
@@ -731,9 +731,9 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 	if card != nil {
 		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
 	} else if !IsWorkbenchRef(head) && head != b.Slug {
-		if state := b.StateByRef(head); state != nil {
-			headKind, headRef = KindState, state.Ref()
-			headDir = filepath.Join(b.Root, StatesDir, state.ID)
+		if column := b.ColumnByRef(head); column != nil {
+			headKind, headRef = KindColumn, column.Ref()
+			headDir = filepath.Join(b.Root, ColumnsDir, column.ID)
 		}
 	}
 	return &EntityRef{
@@ -747,7 +747,7 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 
 // refBelowHead composes the reference of an entity sitting below a head: the
 // head's own reference, then one collection name and one position for each
-// level down to the entity. The head is whichever of the workbench, a state,
+// level down to the entity. The head is whichever of the workbench, a column,
 // or a card the reference was resolved through.
 //
 // A position is the entity's place in its collection's creation order, which

@@ -187,6 +187,12 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 	for _, name := range contract.Introduced {
 		legal[name] = true
 	}
+	// A kind Dinah mints carries the same prefix as a refusal Dinah mints and
+	// is quoted in the same documents, so the shape this guard reads is a name
+	// under the layer's prefix rather than a refusal name alone.
+	for _, name := range contract.MintedKinds {
+		legal[name] = true
+	}
 	checked := 0
 	recognised := 0
 	for _, document := range guardedDocuments(t) {
@@ -227,8 +233,8 @@ var placeholder = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\}`)
 var wordyLiteral = regexp.MustCompile(`^[A-Za-z0-9 ]*$`)
 
 // separatorLiteral matches the literal text of a rendering whose placeholders
-// are joined by one punctuation mark and nothing else. Such an entry is two
-// wildcards with a separator between them, so every line carrying that mark
+// are joined by punctuation and spaces and nothing else. Such an entry is
+// wildcards with separators between them, so every line carrying those marks
 // answers it and a line it finds is evidence of nothing.
 //
 // The narrowing above cannot reach this case, because a mark is not a letter,
@@ -236,7 +242,18 @@ var wordyLiteral = regexp.MustCompile(`^[A-Za-z0-9 ]*$`)
 // the document. tree.hidden.join, whose stored text is `{first}, {second}`, is
 // the entry that showed it: the rule found it in four blocks that print no
 // tree at all, one of them the installer transcript Dinah writes no line of.
-var separatorLiteral = regexp.MustCompile(`^ *[^A-Za-z0-9 ] *$`)
+//
+// The count of marks is not what makes an entry evidence of nothing, and
+// reading it as one mark was too narrow by exactly the second instance.
+// root.workbench, whose stored text is `{title} ({slug}) {path}`, joins three
+// wildcards with a pair of parentheses, and the rule found it in the installer
+// transcript on a sentence whose parenthesis is prose. So the expression asks
+// what the literal is made of rather than how many pieces it has: punctuation
+// and spaces, carrying at least one mark. The trailing requirement keeps a
+// rendering that is one bare placeholder outside this rule, exactly where the
+// one-mark form left it, since widening two cases at once would change a
+// behaviour no failure has asked about.
+var separatorLiteral = regexp.MustCompile(`^[^A-Za-z0-9]*[^A-Za-z0-9 ][^A-Za-z0-9]*$`)
 
 // rendering is one catalog entry compiled for the discovery rule: the form
 // that matches at an anchor and ends at a boundary, and the form that matches
@@ -775,7 +792,7 @@ func treePathsOf(text string) []string {
 }
 
 // exercisedWorkbench builds a workbench through the head and exercises it
-// until it carries a state, a card, a comment, an attachment, an archived
+// until it carries a column, a card, a comment, an attachment, an archived
 // card, and a journal of its own, which is every entity the layout guide's
 // tree draws.
 func exercisedWorkbench(t *testing.T) string {
@@ -909,7 +926,7 @@ var quotedWord = regexp.MustCompile("`([a-z][a-z-]*)`")
 // check means. The guide carries one line containing the phrase "the contract's
 // verbs", and the set is every backticked single word on it. Collecting every
 // invocation the guide teaches would be the obvious rule and the wrong one: the
-// guide also teaches the log and states commands and points at another guide,
+// guide also teaches the log and columns commands and points at another guide,
 // none of which the contract specifies, so that rule would fail on a guide that
 // is correct.
 //

@@ -220,11 +220,11 @@ var Shapes = []Shape{
 		// The next step names the command the reader typed, because this
 		// refusal answers ls, move, add and next, and a sentence naming any
 		// one of them reads as wrong advice from the other three.
-		Name:      UnknownState,
+		Name:      UnknownColumn,
 		Values:    []string{ValueCommand},
-		Listing:   "states",
-		Fragments: []Fragment{{Key: "refusal.unknown-state.next"}},
-		NextStep:  []string{"refusal.unknown-state.next"},
+		Listing:   "columns",
+		Fragments: []Fragment{{Key: "refusal.unknown-column.next"}},
+		NextStep:  []string{"refusal.unknown-column.next"},
 	},
 	{
 		// The window clause says what this build reads, so the next step
@@ -238,9 +238,9 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.unsupported-version.next"},
 	},
 	{
-		Name:      AddNeedsAState,
-		Fragments: []Fragment{{Key: "refusal.dinah.add-needs-a-state.next"}},
-		NextStep:  []string{"refusal.dinah.add-needs-a-state.next"},
+		Name:      AddNeedsAColumn,
+		Fragments: []Fragment{{Key: "refusal.dinah.add-needs-a-column.next"}},
+		NextStep:  []string{"refusal.dinah.add-needs-a-column.next"},
 	},
 	{
 		Name:      AmbiguousWorkbench,
@@ -248,6 +248,14 @@ var Shapes = []Shape{
 		Listing:   "workbenches",
 		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-workbench.next"}},
 		NextStep:  []string{"refusal.dinah.ambiguous-workbench.next"},
+	},
+	{
+		// One next step covers every raise site, because the two ways
+		// forward at a waiting column, releasing the card and moving it on
+		// once the answer comes, are the same whichever act was refused.
+		Name:      AwaitingOutside,
+		Fragments: []Fragment{{Key: "refusal.dinah.awaiting-outside.next"}},
+		NextStep:  []string{"refusal.dinah.awaiting-outside.next"},
 	},
 	{
 		Name:      Exists,
@@ -260,9 +268,9 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.interrupted.next"},
 	},
 	{
-		Name:      LastState,
-		Fragments: []Fragment{{Key: "refusal.dinah.last-state.next"}},
-		NextStep:  []string{"refusal.dinah.last-state.next"},
+		Name:      LastColumn,
+		Fragments: []Fragment{{Key: "refusal.dinah.last-column.next"}},
+		NextStep:  []string{"refusal.dinah.last-column.next"},
 	},
 	{
 		// One unconditional next step covers both branches, since the
@@ -315,9 +323,52 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.occupied.next"},
 	},
 	{
-		Name:      RepairWouldEmptyStates,
-		Fragments: []Fragment{{Key: "refusal.dinah.repair-would-empty-states.next"}},
-		NextStep:  []string{"refusal.dinah.repair-would-empty-states.next"},
+		// One next step covers every raise site, because the two ways
+		// forward at a column that takes no work up, releasing the card and
+		// pulling it into the column beyond, are the same whichever act was
+		// refused. It reads as awaiting-outside's does, since the two names
+		// carry one rule and differ only in whether a person can be named.
+		Name:      TakesNoWork,
+		Fragments: []Fragment{{Key: "refusal.dinah.takes-no-work.next"}},
+		NextStep:  []string{"refusal.dinah.takes-no-work.next"},
+	},
+	{
+		Name:      RepairWouldEmptyColumns,
+		Fragments: []Fragment{{Key: "refusal.dinah.repair-would-empty-columns.next"}},
+		NextStep:  []string{"refusal.dinah.repair-would-empty-columns.next"},
+	},
+	{
+		Name:      NeedsVocabularyMigration,
+		Fragments: []Fragment{{Key: "refusal.dinah.needs-vocabulary-migration.next"}},
+		NextStep:  []string{"refusal.dinah.needs-vocabulary-migration.next"},
+	},
+	{
+		// The detail names the file inside the workbench, and path names it
+		// on disk, so a reader of a tree-wide run learns which of several
+		// hundred cards is the one refused. Malformed's location clause is
+		// the model, and this refusal keeps only the half of it that
+		// applies: every raise site holds a path and none of them reads a
+		// definition file or a request argument.
+		Name:   VocabularyMixed,
+		Values: []string{"path"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.vocabulary-mixed.at", When: "path"},
+			{Key: "refusal.dinah.vocabulary-mixed.next"},
+		},
+		NextStep: []string{"refusal.dinah.vocabulary-mixed.next"},
+	},
+	{
+		// The retired-vocabulary refusal reads as the mixed one does, and
+		// carries its own sentence because its file is not mixed. The detail
+		// names the card inside the workbench and path names it on disk, so
+		// a reader of a tree-wide run learns which card to edit.
+		Name:   VocabularyRetired,
+		Values: []string{"path"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.vocabulary-retired.at", When: "path"},
+			{Key: "refusal.dinah.vocabulary-retired.next"},
+		},
+		NextStep: []string{"refusal.dinah.vocabulary-retired.next"},
 	},
 	{
 		// One refusal name answers two acts here. delete destroys history,
@@ -450,7 +501,7 @@ var Shapes = []Shape{
 		// Two of the raise sites name a path on the filesystem and the rest
 		// name something inside the workbench, so the next step splits on the
 		// value that separates the families. A third family is a reader
-		// reaching a card or a state through whatever holds it, where the
+		// reaching a card or a column through whatever holds it, where the
 		// segment is a collection that plainly exists and the advice is to
 		// name the thing by its own reference instead.
 		Name:   UnknownPath,
@@ -469,7 +520,7 @@ var Shapes = []Shape{
 	{
 		// A closed vocabulary either has values to offer or it does not, and
 		// the two branches need different advice: a reader who mistyped a
-		// substate is told to name one of the values the clause just listed,
+		// state is told to name one of the values the clause just listed,
 		// and a reader who named a workstream no live card lists has nothing
 		// to be pointed at, so the term itself is what has to go.
 		//
@@ -543,6 +594,29 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-root.next"},
 	},
 	{
+		// The workbench the second scope named rides as a value beside the
+		// root in the detail, because the reader has to see both to know
+		// which of the two to drop, and a sentence naming only the one they
+		// typed last would tell them nothing about the other.
+		Name:      ConflictingScope,
+		Values:    []string{"workbench"},
+		Fragments: []Fragment{{Key: "refusal.dinah.conflicting-scope.next"}},
+		NextStep:  []string{"refusal.dinah.conflicting-scope.next"},
+	},
+	{
+		// The detail is the depth the caller wrote, so the sentence quotes
+		// the flag back rather than describing it, and the next step names
+		// the option that would give it something to bound.
+		Name:      DepthWithoutRoot,
+		Fragments: []Fragment{{Key: "refusal.dinah.depth-without-root.next"}},
+		NextStep:  []string{"refusal.dinah.depth-without-root.next"},
+	},
+	{
+		Name:      MalformedDepth,
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-depth.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-depth.next"},
+	},
+	{
 		// A name selector against a collection that declares a name field
 		// matched more than one entity. The sentence names the selector and
 		// the ordinal of every match, so the caller can retry with one of
@@ -563,23 +637,33 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.not-renamable.next"},
 	},
 	{
-		// A bare pull found more than one state it could pull into, and
-		// the qualifying states ride as a Carried set rather than a Listing
+		// A bare pull found more than one column it could pull into, and
+		// the qualifying columns ride as a Carried set rather than a Listing
 		// since the value depends on the invocation. The next step names
 		// the syntax the reader should type to pick one.
-		Name:      AmbiguousState,
-		Carried:   "states",
-		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-state.next"}},
-		NextStep:  []string{"refusal.dinah.ambiguous-state.next"},
+		Name:      AmbiguousColumn,
+		Carried:   "columns",
+		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-column.next"}},
+		NextStep:  []string{"refusal.dinah.ambiguous-column.next"},
 	},
 	{
-		// A state standing first in the flow refuses at the named form,
-		// because no upstream state precedes it. The detail names the
-		// state, which a reader needs to see alongside the rule.
+		// A column standing first in the flow refuses at the named form,
+		// because no upstream column precedes it. The detail names the
+		// column, which a reader needs to see alongside the rule.
 		Name:      NoUpstream,
-		Values:    []string{"state"},
+		Values:    []string{"column"},
 		Fragments: []Fragment{{Key: "refusal.dinah.no-upstream.next"}},
 		NextStep:  []string{"refusal.dinah.no-upstream.next"},
+	},
+	{
+		// A --format or DINAH_FORMAT value naming no output form. The
+		// detail carries what the caller wrote, so the sentence shows
+		// them their own spelling, and the next step names the forms
+		// they may write instead. The set is short enough to say in the
+		// sentence, so no listing is declared for it.
+		Name:      UnknownFormat,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-format.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-format.next"},
 	},
 }
 

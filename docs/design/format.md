@@ -13,7 +13,7 @@ design history, because much of this format encodes lessons that
 implementation paid for first, and as the named boundary for concerns this
 format deliberately excludes.
 
-Terminology note: "workbench", "state", "card", and "substate" are working
+Terminology note: "workbench", "column", "card", and "state" are working
 terms. Whether Dinah keeps Andoneer's vocabulary wholesale is an open
 question tracked on the board, and nothing below depends on the final names.
 
@@ -35,13 +35,13 @@ truth.
 An entity is a thing the format tracks as an individual: it has an identity
 that survives renaming, a lifecycle (created, possibly archived, possibly
 deleted), and rules attached to it. The entity kinds are the workbench
-itself, its states, its cards, its workstreams, each card's comments and
+itself, its columns, its cards, its workstreams, each card's comments and
 checklist items, attachments (which any entity may carry), and the folders
 that organize attachments.
 
 Everything else in a workbench is one of two lesser things: content (prose
 bodies, attachment payloads), which belongs to the human and carries no
-imposed shape, or declarations (levels, groups, the states list, a card's
+imposed shape, or declarations (levels, groups, the columns list, a card's
 links), which are configuration inside an entity's anchor and have no
 identity of their own.
 An attachment shows the three-way split at its clearest. The entity wraps
@@ -49,7 +49,7 @@ its payload, carrying identity, metadata, and a journaled lifecycle around
 bytes the format never inspects.
 
 Containment is a closed grammar, stated here once and in full. The
-workbench contains states, cards, workstreams, and attachments. A card
+workbench contains columns, cards, workstreams, and attachments. A card
 contains comments, checklist items, and attachments (and bears a journal,
 as do the workbench and each workstream). A comment contains attachments,
 and so does a checklist item. An attachment contains exactly
@@ -65,9 +65,9 @@ Formally, with `?` optional, `*` zero or more, and every collection
 governed by absent-means-empty:
 
 ```
-workbench   ::= workbench.md journal.ndjson? attachments? states?
+workbench   ::= workbench.md journal.ndjson? attachments? columns?
                 cards? workstreams? archive?
-state       ::= state.md attachments?
+column       ::= column.md attachments?
 card        ::= card.md journal.ndjson comments? checklist? attachments?
 checklist   ::= item*
 item        ::= item.md attachments?
@@ -77,7 +77,7 @@ attachment  ::= attachment.md payload/
 payload/    ::= exactly one payload-file
 folder      ::= folder.md (attachment | folder)*
 attachments ::= (attachment | folder)*
-states      ::= state*        cards ::= card*
+columns      ::= column*        cards ::= card*
 comments    ::= comment*      workstreams ::= workstream*
 archive     ::= mirrors of the sibling collections, recursively
 
@@ -112,8 +112,8 @@ asked.
   journal.ndjson            # append-only history of workbench-scoped acts
   attachments/
     <12-hex>/...            # workbench-level attachments, same shape as below
-  states/
-    <12-hex>/state.md       # anchor: one state of the flow
+  columns/
+    <12-hex>/column.md       # anchor: one column of the flow
   cards/
     <12-hex>/
       card.md               # anchor: identity, position, content
@@ -158,7 +158,7 @@ garbage by definition, which gives check a free validity rule and gives
 entity creation a free crash story: make the directory, write the anchor,
 and an interruption leaves a detectably incomplete thing.
 
-The anchor's name is typed (`card.md`, `state.md`, `comment.md`) rather
+The anchor's name is typed (`card.md`, `column.md`, `comment.md`) rather
 than a uniform `entity.md`. The parent collection already carries the type,
 so the typed name adds redundancy, and it is redundancy in the good
 direction: an editor showing three open anchors names what each is instead
@@ -166,7 +166,7 @@ of three tabs all reading alike, a detached or mailed entity directory
 stays self-describing, and grep targets stay narrow. Generic tooling needs
 only the kind-to-anchor map, which the token registry serves.
 
-Collections (`states/`, `cards/`, `comments/`, `attachments/`) get no
+Collections (`columns/`, `cards/`, `comments/`, `attachments/`) get no
 ceremony files. An absent collection directory means an empty collection;
 implementations create them on first use and tolerate their absence. No
 `.gitkeep` convention.
@@ -234,7 +234,7 @@ versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
 
 A `workbench.md` on disk claims its directory only when its frontmatter
-carries `profile`, or carries `format` or `states` without it. The three keys
+carries `profile`, or carries `format` or `columns` without it. The three keys
 are what a Dinah workbench always writes, and testing for them is what keeps
 the climb from stopping at somebody else's document that happens to share the
 filename. A `workbench.md` carrying none of the three is passed over in
@@ -266,24 +266,24 @@ promise is testable, so the conformance suite can probe a claimed home.
 
 ## The card owns its position
 
-A card's `card.md` frontmatter carries its state id and its substate. States
+A card's `card.md` frontmatter carries its column id and its state. Columns
 never list their member cards; membership is derived by scanning (or by a
 rebuildable index). This is the single-writer rule: the thing that moves owns
 its position. A move is one atomic frontmatter write plus a journal append.
 Deleting a card is one directory removal, complete everywhere at once. The
-alternative, states listing members, makes every move a two-file transaction
+alternative, columns listing members, makes every move a two-file transaction
 whose interruption strands a card nowhere or in two places, which is a
 strictly worse failure than any dangling reference.
 
 The dangling-reference risk this creates is handled from both ends. Forward,
-the tool refuses to delete a state that cards currently occupy. Backward,
-`dinah check` verifies that every card's state id resolves and that the
+the tool refuses to delete a column that cards currently occupy. Backward,
+`dinah check` verifies that every card's column id resolves and that the
 invariants hold. Check is what makes "manually editable if absolutely
 necessary" safe: edit by hand, then ask the tool whether you broke anything.
 
-### Substate
+### State
 
-`substate` is one of `ready`, `active`, `blocked`. The invariants: `active`
+`state` is one of `ready`, `active`, `blocked`. The invariants: `active`
 and the presence of claim fields imply each other; `blocked` carries a reason
 and is cleared only by the operator; `ready` means pullable. This maps onto
 Andoneer's zone concept.
@@ -292,10 +292,10 @@ Andoneer's zone concept.
 
 A claim is two frontmatter fields on the card: `claim_holder` (an actor
 string, see Actors below) and `claim_since` (a timestamp). Present together
-with `substate: active`, absent together otherwise; check enforces the
+with `state: active`, absent together otherwise; check enforces the
 implication both ways. A block is `block_reason` (required, posed so the
 operator can answer it without opening the card) and optionally `block_kind`
-and `block_since`, present exactly when `substate: blocked`. Clearing a block
+and `block_since`, present exactly when `state: blocked`. Clearing a block
 is the operator's act and is journaled.
 
 ### What the card file carries
@@ -317,13 +317,17 @@ concept as attachments.
 
 ### Lifecycle defaults
 
-A new card enters the first state of the ordered list, substate `ready`, and
-its journal opens with the created event. Pull order is deterministic so two
-implementations agree on "the next card": highest declared priority first,
-cards without a priority after all cards with one, ties broken by ascending
-creation ordinal, which for a card is the `number` it was born with. A pull
-honors the destination's WIP limit and never takes a card out of an
-operator-owned state.
+A new card enters the first column of the ordered list, state `ready`, and
+its journal opens with the created event. Pull order is deterministic, so two
+implementations agree on what "the next card" is. CORE-QUEUE-3 in the profile
+fixes that order: the card that entered the column earliest, ties broken by
+ascending creation ordinal, which for a card is the `number` it was born
+with. Severity and priority are declared, visible, and filterable, but
+neither takes part in that order. CORE-QUEUE-4 lets a tool offer another
+order alongside the fixed one, and a priority-ordered pull would be such an
+order, not a replacement for it. A pull honors the destination's WIP limit,
+never takes a card out of an operator-owned column, and neither takes a card
+out of nor lands one in a column that waits on somebody outside the workbench.
 
 Removal has two shapes with different promises. Archiving moves the card's
 whole directory to `archive/cards/<id>/`, history and all; see Archive
@@ -334,44 +338,190 @@ deliberate act.
 ### Manual edits are witnessed, not prevented
 
 Hand-editing frontmatter is legal the way editing a git ref with an editor is
-legal. The CLI notices divergence between current state and the journal on
+legal. The CLI notices divergence between current column and the journal on
 next touch and records a manual-correction event rather than pretending the
 edit did not happen.
 
 ## Flow definition
 
-`workbench.md` frontmatter carries the ordered list of state ids. A YAML
+`workbench.md` frontmatter carries the ordered list of column ids. A YAML
 sequence is ordered by definition, so this list is both the membership and
-the sequence of the flow, and it is the single authority for order. State
+the sequence of the flow, and it is the single authority for order. Column
 files carry no position field; reordering the flow is reordering lines in one
 file. Trailing comments on the list entries are annotation for humans, and a
-lint warns when a comment drifts from the state's actual title.
+lint warns when a comment drifts from the column's actual title.
 
-Retiring a state, whether by archiving it or by deleting it, removes its
+Retiring a column, whether by archiving it or by deleting it, removes its
 identifier from this ordered list in the same act, under the workbench lock
 the retiring act already holds. A workbench declaring an id whose directory does
 not exist at all still opens: the id is excluded from the flow and `dinah
-check` reports it, and `dinah check --migrate-states` removes it from the
-list. `dinah check --migrate-states` refuses instead of writing when removing
-every stranded id would leave the workbench with no states at all, and
+check` reports it, and `dinah check --migrate-columns` removes it from the
+list. `dinah check --migrate-columns` refuses instead of writing when removing
+every stranded id would leave the workbench with no columns at all, and
 `dinah add` refuses the same way, naming the workbench file and the fix,
-instead of crashing, when a workbench's states list has already been
-emptied by any means. That tolerance covers only a state directory that is
-not there at all, the shape retiring a state produces; a state directory
+instead of crashing, when a workbench's columns list has already been
+emptied by any means. That tolerance covers only a column directory that is
+not there at all, the shape retiring a column produces; a column directory
 that is present but whose anchor cannot be read or parsed is the narrower
 case the "Corruption and recovery" section's quarantine promise below still
 answers, unimplemented today.
 
-Each `states/<id>/state.md` carries the state's own nature in frontmatter
+Each `columns/<id>/column.md` carries the column's own nature in frontmatter
 (title, kind, operator flag) and its instructions as the body. `kind` is one
-of `intake`, `work`, `done`. A state marked operator-owned is one an agent
-never moves a card out of; only the operator does.
+of `intake`, `work`, `done`, and `dinah.buffer`. A column marked
+operator-owned is one an agent never moves a card out of; only the operator
+does.
 
-A state may declare `wip_limit: <n>`; absent means unlimited. The limit
-counts every card in the state regardless of substate, because a blocked
+Two words run through the rest of this section. A **station** is a column where
+an owner takes work up: a card there is claimed, worked, and moved on. A
+**queue column** is a column where no owner takes work up: a card there waits,
+and it leaves when a pull carries it into the station beyond. Three of the four
+kinds are queue columns, since nobody claims a card at an intake column, at a
+done column, or at a buffer, and a column declaring `awaiting_outside: true` is
+one whatever its kind. The phrase that decides between them is **takes work
+up**, which is the name of the predicate every path in the tool reads, so one
+rule reads the same wherever somebody meets it.
+
+A queue column refuses a claim and permits a block. The claim is refused because
+a claim says somebody is working the card now, and letting one stand where
+nobody works lets the board describe work that is not happening. The block
+stays because a block is a statement about the card rather than about a worker,
+and it is as true at a buffer as anywhere else. The same rule refuses a move
+that would carry a card its holder is still holding into a queue column, so the
+holder releases the card and then moves it.
+
+`dinah.buffer` is the kind for a column that holds cards between two stations.
+The word is `buffer` because Lean uses it for the inventory between two
+operations and the profile's own boundary table already reasons about the
+concept as a buffer, and because `queue` is unavailable: the profile fixes
+that word for the cards waiting at a column, so a kind called `queue` would
+give one word two meanings in one document. The word is also wrong on the
+merits, since an intake column and a done column are queue columns too, and naming
+only the interstitial one for the category would claim a distinction it does
+not have. The token carries the `dinah.` prefix because the profile admits a
+kind this profile declares and a kind carrying a layer's prefix and nothing
+else, so a bare fourth word is a value every conforming tool refuses as
+malformed. Andoneer, the other implementation of the shared contract, spells
+the same concept `pull_queue`, one of its eight column kinds, and the
+divergence is deliberate on the same ground the `external_wait` divergence
+below is: nothing obliges two implementations to agree on a name for a concept
+neither has promoted into the core.
+
+A card enters a buffer by a move and leaves it by a pull:
+
+```
+dinah release rel-1      # a queue column takes an unheld card
+dinah move rel-1 waiting # rel-1 now stands ready in the buffer
+dinah pull doing         # the station beyond takes the head of the buffer
+```
+
+A pull looks through a buffer rather than stopping at it, because a queue is a
+place to wait rather than a place to arrive. On a flow running `intake`,
+`waiting` and `doing`, with the buffer empty and one card ready at the intake
+column, `dinah pull doing` carries that card straight into `doing` and writes
+nothing into the buffer on the way. With the buffer holding a card as well, the
+same command takes the buffer's card and leaves the intake column's where it
+stands, so a full buffer drains before a pull reaches behind it.
+
+Position is constrained by kind, and the constraint is a fact about the flow's
+shape rather than about where a card may be filed. An `intake` column stands
+first, so at most one column carries that kind. A `done` column stands in the
+terminal region, which is the run of columns at the end of the ordered list
+every member of which is `done`, and no column that is not `done` stands after
+a column that is. A `dinah.buffer` stands neither first nor in the terminal
+region. The terminal region is a region rather than a single column because a
+board that ends cards two ways, finished and rejected, needs two terminals, and
+allowing it costs nothing: a forward move out of any `done` column is already
+refused, so no card walks from one terminal into the next. `dinah add --column`
+goes on filing a card into any column the workbench declares, a buffer and a
+done column included, so intake-first governs which column is the default door
+rather than which doors exist.
+
+A column may declare `reject_to`, naming the column a card goes to when the work
+at this column is refused. An acceptance station sending a card that fails
+review back to the column it was edited in is the case the declaration was
+written for. The declaration names an ordinary destination, and moving a card
+there is an ordinary move, legal on the same terms CORE-STATE-8 already gives a
+move to any column, so declaring it changes nothing about what a move is allowed
+to do. What it changes is discoverability. The destination it names is marked
+on the card's legal moves, and a move that lands there is marked on the
+journal, so a reader can tell a rejection from an ordinary backward move
+without having read the board's own prose for it. A `reject_to` naming no column
+this workbench carries, naming the declaring column itself, or naming a column
+ahead of it in the flow that is not a done column, opens without complaint and
+is reported by `dinah check` under one of three findings, on the same posture
+every position rule above takes: the repair is an edit to a `column.md`, and the
+operator makes it.
+
+A declaration naming a done column ahead of the declaring one is legal and is
+reported under none of the three. A rejected card ends where a finished card
+ends, in the flow's one terminal region, carrying its own outcome on the card
+rather than in the shape of the board, so a station can say that refusing the
+work here closes the card without the board growing a second terminal to hold
+the cards it refused.
+
+`reject_to` travels through interchange as a member of its own on the column
+element, present wherever the declaration is and absent where it is not. It
+reaches the wire by a different route from `awaiting_outside` below, which is
+listed in `knownColumnKeys` and written out by name: `reject_to` is not listed,
+so the generic pass `exportColumn` makes over the rest of a column's frontmatter
+carries it, and an import writes it back into the anchor's frontmatter
+unchanged. CORE-JSON-9 lists the column members the profile blesses and does not
+list this one, which is correct rather than a defect. To another tool it is an
+unrecognized member, and CORE-JSON-7 obliges that tool to preserve it. The
+concept's boundary-table row in section 10 of the profile is ruled out, with
+the reason and the reopen condition that go with staying out, and no version of
+`dinah-core` moves to admit it.
+
+No board becomes unopenable under any of this. A workbench whose kinds sit
+outside these positions opens, is read as it stands, and is reported by `dinah
+check` under `check.kind-out-of-position`. A card standing held at a column
+that takes no work up opens on the same terms and is reported under
+`check.claim-where-no-work-is-taken`. A column carrying a layer's kind this
+build does not implement opens too, is read as an ordinary `work` column, and
+is reported under `check.unknown-kind`. A column whose `reject_to` names no
+column this workbench carries is reported under `check.reject-target-unknown`,
+one naming itself under `check.reject-target-is-self`, and one naming a column
+ahead of it that is not a done column under `check.reject-target-forward`. None
+of the six gets a repair flag, because the repair is an edit to `workbench.md`
+or to a `column.md` and the operator makes it. The acts that would create the
+first three afresh are refused, so those findings name history and never grow.
+The last three name a declaration no act of the tool writes, so they are
+checked rather than refused, and a board that acquires one acquires it the way
+it acquired everything else in a `column.md`, which is that somebody typed it.
+
+A column may declare `awaiting_outside: true`, which says the workbench waits
+at that column on somebody who is not an owner of it: a reviewer, a customer, a
+supplier. No owner takes work up there, so a claim is refused, `dinah next`
+offers nothing from the column, and a pull neither takes a card out of it nor
+lands one in it. A card standing there is `ready` in the ordinary way and
+carries no block, and departure stays an ordinary move open to any owner, which
+is what separates this flag from `operator_owned` beside it: one answers whether
+work is taken up at the station, the other answers who may move a card on from
+it. A column may declare both, and then the workbench waits there and only the
+operator moves the card onward. Absent means false, and the value is exactly
+`true` or `false`, following `wip_limit` below rather than `operator_owned`,
+whose lenient reading takes anything else for false and says nothing about it.
+
+Andoneer, the other implementation of the shared contract, carries the same idea
+as `external_wait`, one of its eight column kinds. The spellings differ on
+purpose: that one is a kind of station and this one is a property of one, so an
+identical name would claim an identity the two structures do not have. The
+divergence is recorded here rather than left for somebody to discover.
+
+`awaiting_outside` travels through interchange as a member of its own on the
+column element, written only where the flag is set. CORE-JSON-9 lists the column
+members the profile blesses and does not list this one, which is correct rather
+than a defect: to another tool it is an unrecognized member, and CORE-JSON-7
+obliges that tool to preserve it. The concept's boundary-table row in section 10
+of the profile is ruled out, with the reason and the reopen condition that go
+with staying out.
+
+A column may declare `wip_limit: <n>`; absent means unlimited. The limit
+counts every card in the column regardless of state, because a blocked
 card still occupies the station and exempting it would make blocking a way
 to hide overload. Enforcement happens at entry: a move or pull into a full
-state is refused, and an operator override is witnessed in the journal.
+column is refused, and an operator override is witnessed in the journal.
 `wip_limit` is a closed registry token with enforced semantics, and it is
 flagged for the profile's boundary table as a candidate for the core, since
 it passes the wedding-planning test and is the most load-bearing mechanism
@@ -379,15 +529,15 @@ of the discipline.
 
 Flow is linear for now. Real branching, such as lanes or a shortcut jump, is
 deliberately deferred until building the CLI forces the question; the format
-can absorb it later as an additive change (per-state transitions or a lane
+can absorb it later as an additive change (per-column transitions or a lane
 construct in the definition), which the versioning posture below classifies
 as non-breaking.
 
-Groups, the folders a wide board subdivides its states into, are a display
+Groups, the folders a wide board subdivides its columns into, are a display
 overlay, not entities and not core: no verb consults a group, and an
 implementation that ignores them loses only visual comfort. A `groups:` map
-in `workbench.md` frontmatter names lists of state ids, kept separate from
-the states list so the single authority for order stays intact; the check
+in `workbench.md` frontmatter names lists of column ids, kept separate from
+the columns list so the single authority for order stays intact; the check
 verifies only that the referenced ids resolve. Whether groups enter the
 contract at all is a boundary-table row.
 
@@ -395,9 +545,9 @@ contract at all is a boundary-table row.
 
 Instructions are an overlay chain, served most general first and never
 copied between layers: the user-global layer (`~/.dinah/instructions.md`,
-optional), then the workbench body, then the state body. The global layer
+optional), then the workbench body, then the column body. The global layer
 carries what applies to every workbench on this machine, the workbench body
-the standing context of this workbench, the state body the station's own
+the standing context of this workbench, the column body the station's own
 work. Nothing is ever written from one layer into another; composition
 happens at serve time. This chain is Andoneer's agent-context layering
 reproduced at file scale, and it is the socket that role-scoped method packs
@@ -405,21 +555,21 @@ plug into later: a shared layer can be served ahead of the whole chain
 without any workbench storing a copy, and Andoneer paid for that same
 lesson.
 
-Changes to the definition files themselves (states edited, list reordered)
+Changes to the definition files themselves (columns edited, list reordered)
 get no journal; a workbench versioned by git has that history in git, and a
 workbench outside git accepts that definition history is unwitnessed. The
 journal is for cards.
 
 ### No structural inheritance
 
-A workbench never derives its structure (states, order, levels, groups) from
+A workbench never derives its structure (columns, order, levels, groups) from
 another workbench or a global base at read time. The temptation splits into
 two safe halves this format already provides, and a dangerous middle it
 refuses. Guidance composes live through the overlay chain. That is safe
 because concatenation has no override semantics, so layers cannot conflict.
 Structure copies once through templates, and that is safe because
 instantiate-and-own has no ongoing coupling. Live structural derivation is
-the fragile-base-class problem with running work attached: cards hold state
+the fragile-base-class problem with running work attached: cards hold column
 ids and claims hang off stations, so a base edit would mutate every derived
 workbench's flow mid-flight, orphaning cards on boards whose operators
 changed nothing, and the override rulebook it would demand is pure cost. The
@@ -438,9 +588,9 @@ workstream's journal traveling in its directory like a card's. Every other
 event is recorded in the nearest enclosing journal-bearing entity: a card's
 moves, claims, comments, attachments, and workstream-membership changes in
 the card's journal, so the card's story stays one readable narrative; a
-state archived, or a workbench attachment replaced, in the workbench's. One
-asymmetry is accepted deliberately: an archived state's history does not
-travel with its directory, because states are definition, and definition
+column archived, or a workbench attachment replaced, in the workbench's. One
+asymmetry is accepted deliberately: an archived column's history does not
+travel with its directory, because columns are definition, and definition
 history is git's when the workbench is versioned. Definition file edits remain
 unjournaled per the composition section; it is lifecycle acts that are
 witnessed. A journal is append-only, one JSON object per line, recording
@@ -493,18 +643,18 @@ and stores nothing.
 ## Checklist items
 
 A checklist item is a card-scoped entity recording a structured judgment:
-`checklist/<12-hex>/item.md`, with `kind`, `state`, `owner`, timestamps, and
-a creation ordinal in frontmatter, the item's text as the body, a resolution
-note required to leave pending, and attachments for evidence per the
-universal rule. Kinds are a closed set of three
-(acceptance_criterion, open_question, decision)
-and states a closed set (pending, resolved, verified, failed), closed
-because method text travels between boards and "file it with owner
-operator" must mean the same thing everywhere. Items are per-item entities
-rather than a list in the card anchor for the same reason comments are:
-different actors add items concurrently, and per-item directories are the
-conflict-free shape. Item lifecycle events land in the card's journal per
-the nearest-enclosing rule.
+`checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `citations`,
+timestamps, and a creation ordinal in frontmatter, the item's text as the
+body, a resolution note required to leave pending, and attachments for
+evidence per the universal rule. Kinds are a closed set of three
+(acceptance_criterion, open_question, decision) and states a closed set
+(pending, resolved, verified, failed), closed because method text travels
+between boards and "file it with owner operator" must mean the same thing
+everywhere. Items are per-item entities rather than a list in the card
+anchor for the same reason comments are: different actors add items
+concurrently, and per-item directories are the conflict-free shape. Item
+lifecycle events land in the card's journal per the nearest-enclosing
+rule.
 
 Checklist items are not in the spec-and-notes category of imposed card
 fields, and the distinction is the field-versus-collection line: a field
@@ -515,6 +665,216 @@ is fixed is only the shape when used, which is what lets shared method
 packs speak one vocabulary. Whether contract behavior ever attaches to
 items (gating a move on unresolved items) is a boundary-table ruling, not
 assumed here.
+
+### Citations
+
+A resolution note says what was checked and what the check showed, in
+whatever words fit, and nothing outside the card can resolve it. An item
+therefore carries its evidence in frontmatter as well, in a `citations`
+sequence whose entries each map a scheme to the target it names.
+
+```yaml
+citations:
+  - scheme: test
+    target: internal/verb/query_test.go#TestQueryNamesSeverity
+    observed:
+      before: fail
+      after: pass
+  - scheme: attachment
+    target: 4f2c19ab77e0
+```
+
+A citation is a declaration rather than an entity, by the reasoning that
+already keeps a link out of one. It has no identity of its own, nothing
+accumulates on it and it bears no journal, so it earns no directory, and
+the item carrying it is the only file that changes when a citation is
+added or removed.
+
+Putting the citation in frontmatter makes recognition free. A checker
+enumerating a field never has to decide whether a sentence naming a file
+was a citation or ordinary prose that mentioned one, and check's reference
+checks already run over frontmatter and never over journals. A marked span
+inside the note would put a parser in front of prose people write by hand,
+and it would leave recognition unsolved on a board writing its notes in
+another language.
+
+Where a workbench declares an `evidence:` block, an acceptance criterion
+leaving the pending column carries at least one `citations` entry. Each
+entry names a scheme drawn from that block, together with the target it
+points at.
+
+A workbench declaring no `evidence:` block imposes no citation obligation,
+on the terms severity and priority already work, where a card that omits
+the field is a card without one and absence is legal rather than an error.
+
+### What a workbench declares as evidence
+
+A workbench declares what counts as evidence on it, in an `evidence:`
+block in `workbench.md` frontmatter, and each name in the block is a
+scheme an item's `citations` entry may then use. The declaration adapts
+the freedom `levels:` grants, where an entry may be a bare name or a name
+carrying a one-line hint and the two forms mix freely. It adapts rather
+than reuses, because `levels:` grants that freedom to the members of a
+sequence and this block grants it to the values of a mapping.
+
+```yaml
+evidence:
+  test:
+    hint: A Go test, written as the file path, a hash, and the test function name.
+    observed: required
+  attachment:
+    hint: The 12-hex id of an attachment on this card.
+    resolves: attachments
+  record: The inspection record's reference number as the county issues it.
+```
+
+The declaration and the use carry different names on purpose, the way
+`levels:` declares the axes a card's `severity:` and `priority:` draw
+from. Every frontmatter key the format defines is a single word, so a
+two-word key would invent a convention, and naming both the block and the
+item's field `citations` would put two shapes under one name.
+
+`resolves:` tells a checker whether it can do anything. A scheme carrying
+one names a collection of the workbench, so its targets are ids the tool
+walks, and the legal values are the collections the format already
+defines, which are `cards`, `columns`, `workstreams`, `comments`,
+`attachments`, and `checklist`. A scheme carrying no `resolves:` points
+outside the workbench and its targets are external, so the tool resolves
+nothing about them. Reading the answer off the declaration rather than off
+the scheme's name lets a workbench invent a scheme the format never heard
+of and still tell the checker what to do with it.
+
+Where the tool looks depends on how the named collection is scoped, and
+the six divide in two. `cards`, `columns`, and `workstreams` are
+workbench-level, each one flat namespace, and that is what lets the
+existing dangling-link and dangling-workstream checks resolve an id by
+asking the workbench alone. `comments`, `attachments`, and `checklist` are
+card-scoped, and the Creation ordinals rule already fixes that scope,
+where a particular card's `comments/` is one sequence and the same id
+under two cards' collections is legal. A target naming a card-scoped
+collection resolves against the citing item's own card and nowhere else.
+Searching every card instead would ask the format for an identity it does
+not give, since an id in one card's collection says nothing about the same
+id in another's.
+
+Because the workbench declares the scheme, the format stays out of the
+target namespace. A board that runs no tests declares no `test` scheme and
+cites what its own method can resolve, so a renovation workbench declares
+a `record` scheme and closes a criterion against the inspection the work
+was done for.
+
+```yaml
+citations:
+  - scheme: record
+    target: BC-2026-04417
+```
+
+Naming a test in the format would travel to neither that board nor a
+wedding workbench whose criterion closes against a signed contract.
+
+### The observation a citation carries
+
+A citation that resolves proves the named thing exists. It proves nothing
+about whether the named thing asserts anything, so a check that has
+quietly stopped asserting passes a citation check cleanly. An entry may
+therefore carry an `observed` mapping recording what the check did before
+the work and after it, as the test citation above does, and a criterion
+whose citation uses a scheme demanding the observation leaves the pending
+column only where that citation recorded the check failing against the
+unfixed state and passing against the fixed one. A criterion whose cited
+schemes demand no observation leaves the pending column on the citation
+alone.
+
+The pair covers both failures with one rule. A check nobody wrote cannot
+produce the failing observation, and a check that asserts nothing cannot
+fail, so one requirement catches the absent test and the test that has
+stopped meaning anything. The cost falls on whoever implements, who runs
+the check before writing the fix rather than after.
+
+Whether a scheme demands the observation is the workbench's to declare, on
+the same terms as everything else in the block. A scheme carrying
+`observed: required` obliges every citation using it to record the pair,
+and a scheme carrying nothing leaves the field optional. The declaration
+above shows both, since `test` demands the observation and `record` does
+not, and declaring it per scheme keeps the rule off the boards it makes no
+sense on. An inspection record does not fail before the inspection and
+pass after it, while a test does exactly that.
+
+The `observed` values are a closed set of two, `fail` and `pass`, closed
+by the rule that settles the question, since contract behavior hangs on
+the members. A criterion whose citation uses a scheme demanding the
+observation leaves the pending column on a `fail` before and a `pass`
+after, so a value the tool has never heard of cannot be weighed against
+that rule, and a board spelling the pair its own way would put the rule
+out of reach of any tool reading the item. Both values join the
+token registry, stored canonically and never translated, on the terms the
+Language independence tiers already set for the members of a closed enum.
+
+What a checker verifies here is presence and shape, since nothing in the
+tool ran the check and nothing on disk proves it did. An entry whose
+scheme demands the observation and carries none is a structural defect
+the checker reports under `check.citation-without-observation`, and an
+entry claiming a failing before and a passing after is taken at its word.
+
+### What check resolves, and what it cannot
+
+The field produces three findings. Two of them turn on what the tool can
+see of the workbench, and the third turns on what the entry itself
+carries.
+
+`check.unknown-scheme` names a citation whose scheme the workbench's
+`evidence:` block never declared. The name follows `check.unknown-level`,
+which reports a card carrying a severity or priority its workbench does
+not declare, because the two are one finding about different fields. The
+check is always possible, since both halves of the comparison live inside
+the workbench. The finding reports the item, the entry, and the scheme.
+
+`check.dangling-citation` names a citation whose scheme carries a
+`resolves:` collection and whose target names nothing in that collection,
+searched at the scope that collection carries. The name follows
+`check.dangling-link` and `check.dangling-workstream`, and the check is
+the walk those two already perform. The finding reports the item, the
+entry, and the collection the target failed to resolve against, so a
+reader has the reason resolution failed without opening the workbench.
+
+A scheme with no `resolves:` key produces neither of those two findings
+beyond the first. Its target lies outside the workbench, past what the
+tool can see, so the checker says nothing about it rather than promising
+a check that never runs.
+
+`check.citation-without-observation` names an entry whose scheme carries
+`observed: required` and which records no observation, or which records a
+pair that is incomplete or carries a value outside the closed set. The
+name follows `check.block-without-reason` and `check.claim-without-active`,
+which report the same shape of failure, a record missing the part that
+gives it meaning. The finding reports the item, the entry, and which half
+of the pair is missing or unrecognized. It reaches no further than that,
+since an entry claiming a failing before and a passing after is taken at
+its word.
+
+Nothing creates a checklist item yet, so none of the three has anything to
+run against until the verbs that write items exist. All three are named
+here so that whatever eventually writes an item reports under these names
+rather than minting others.
+
+### Refusing a move on a citation
+
+Refusing a move because a criterion cites nothing resolvable is a change
+to the core profile rather than to this format. The section 10 boundary
+table rules out "Structured items on a card recording judgements", and its
+reopen condition reads "Such an item is used to refuse a move, which would
+put the refusal in the contract", which such a refusal satisfies as
+worded. The same refusal engages the row beside it, "Conditions that must
+be satisfied before a card may enter a column [gates]", whose reopen
+condition reads "A gate condition emerges that every workbench needs,
+rather than one each workbench defines."
+
+Either promotion carries new normative statements, a refusal name joining
+the closed set, the row moved with the table's own checker satisfied, a
+version increment, a changelog entry, and conformance coverage a second
+implementation must then pass. This format fixes where a citation is
+written, what an entry looks like, what it resolves to, and what
+observation it carries, and it stops there.
 
 ## Comments and attachments
 
@@ -537,7 +897,7 @@ by the format; the
 entity around it is what makes the attachment referenceable, replaceable
 accountably, and archivable. Any entity may carry an `attachments/`
 collection: the workbench itself (reference documents that belong to the
-board rather than to any card), a state, a card, a comment. Replacing a
+board rather than to any card), a column, a card, a comment. Replacing a
 payload is a journaled act (attached, attachment_replaced,
 attachment_renamed, and attachment_removed are registry members of the
 closed event set, carrying the attachment id and its filename as of the
@@ -562,7 +922,7 @@ act on the subtree, via the recursive archive pattern), and an anchor
 other folders; uniqueness stays per containing collection; refiling an
 attachment is a directory move journaled with names as of the event.
 Folders exist only inside attachment collections: cards are organized by
-states and workstreams and states by groups, and a folders-of-anything
+columns and workstreams and columns by groups, and a folders-of-anything
 generalization would compete with all three. Folders are additive and
 deferred from the first cut: a new entity kind inherits the whole rulebook
 by construction, so shipping them later leaks into no interface.
@@ -653,9 +1013,9 @@ account. A read-back would find nothing either, because on POSIX the
 replacement genuinely succeeded and the bytes on disk genuinely are the new
 ones. The write path therefore stays as it is.
 
-## State slugs
+## Column slugs
 
-A state carries a `slug` in its anchor, beside its title and its kind. The
+A column carries a `slug` in its anchor, beside its title and its kind. The
 identifier is exact and nobody remembers one, and a title carrying a space
 has to be quoted at whatever shell meets it, so the slug is the spelling a
 person types on a command line and the spelling a path or a URL takes. Its
@@ -666,23 +1026,23 @@ card reference splits at its last dash, which is what keeps the boundary
 between the prefix and the number sharp however many dashes the prefix
 carries. What a workbench slug may not do is end in a dash and a segment of
 digits alone, since Dinah would read the slug itself as a card reference.
-Nothing rides after a state slug, so a state may end in `-2` and the exclusion
+Nothing rides after a column slug, so a column may end in `-2` and the exclusion
 that makes sense on a workbench makes none here.
 
-A reference to a state resolves against the identifier, then the slug, then
+A reference to a column resolves against the identifier, then the slug, then
 the title, each of the last two compared by ASCII case rules. Uniqueness is
-per workbench, exactly as it is for a state identifier, so the slug pass
-never has two answers. A slug on one state can still equal the title of
-another, and the reference then names the state whose slug it is, because the
+per workbench, exactly as it is for a column identifier, so the slug pass
+never has two answers. A slug on one column can still equal the title of
+another, and the reference then names the column whose slug it is, because the
 slug pass runs first and answers.
 
-A state written before the field existed carries no slug, and a workbench of
+A column written before the field existed carries no slug, and a workbench of
 those keeps opening while it declares a profile major below the one that
 introduced the requirement. Past that major the tool refuses it, so the repair
 runs first and the workbench claims the new major afterwards. The repair is
 `dinah check --migrate-slugs`, which derives a slug from each title, suffixes
 a collision with `-2` and upward, writes what it derived to the anchor, and
-names the slug it gave each state. A slug already on disk is left alone, a
+names the slug it gave each column. A slug already on disk is left alone, a
 malformed or duplicated one included, because a stored value is a decision
 somebody made and the checker reports it for a person rather than having the
 repair overwrite it.
@@ -693,9 +1053,9 @@ introduces the requirement, nothing binds a workbench to it, and every
 command has to open a workbench before it can look at one, so a reader
 refusing a stored slug there would take the whole workbench away over a
 single mistyped line, the `dinah check` that names the mistake and the
-`dinah check --migrate-slugs` that fills in the states around it included.
+`dinah check --migrate-slugs` that fills in the columns around it included.
 Past that major the tool refuses the workbench, and the refusal names the
-state and the anchor file, because by then a person has to open that file
+column and the anchor file, because by then a person has to open that file
 before anything else will run.
 
 ## Encoding
@@ -793,13 +1153,40 @@ drift.
 ### Closed versus open enums
 
 An enum is closed when the contract attaches behavior to its members:
-`substate`, `kind`, and the journal event set are closed, because the tool
+`state`, `kind`, and the journal event set are closed, because the tool
 enforces their meanings and a member it has never heard of cannot be
 enforced. Adding a member is a spec change. An enum is open when only humans
 interpret it: severity and priority level sets are the proof case, declared
 per workbench, because no contract behavior hangs on their members. The
 registry marks which is which, and this rule is the test that settles every
 future "should this be configurable?" argument.
+
+The same rule decides where a column's own behaviour is written, and the answer
+is that a column never declares its behaviour freely in its own file. Prose says
+what a worker should do; a closed vocabulary says what the tool enforces. A
+board author who wants a column where nobody claims marks it with a kind the
+tool implements rather than writing a rule of their own, and the kinds are a
+shared vocabulary rather than a limit on what a board can express.
+
+Three reasons stand behind that, and they are recorded here because the
+question gets asked again by whoever has not had it. Conformance is the first
+casualty of free declaration: this project's premise is a written contract with
+a suite that says whether an implementation honours it, and if behaviour is
+per-board data then whether a tool implements the contract stops having an
+answer. The second reason is that an open behaviour vocabulary does not produce
+correct boards; it produces several authors inventing several spellings of one
+idea. The third is that the behaviour has to exist in code either way, so
+declaring "no claim is taken here" in a column file does not remove the path
+that refuses the claim, it moves the decision somewhere nothing validates and
+no test covers.
+
+What the rule permits is the half that matters in practice. A column's body is
+unbounded and per-board, and stays that way. The prose that tells a worker what
+to do on arrival is where boards genuinely differ, and no schema should try to
+hold it. What the rule costs is that when the fixed set turns out to be short,
+a kind is added deliberately, with a conformance row, as a card rather than as
+a configuration change. That is the correct price for changing what the tool
+guarantees.
 
 ## Workstreams
 
@@ -816,7 +1203,7 @@ directory to `archive/workstreams/<id>/` like any other entity, and it is
 allowed while cards still belong to it, because archiving a finished effort is
 the ordinary case and an archived workstream still resolves.
 
-The slug follows the state slug's grammar rather than the workbench slug's. A
+The slug follows the column slug's grammar rather than the workbench slug's. A
 workbench slug excludes a final segment of digits alone, because a card
 reference splits at its last dash; nothing rides after a workstream reference,
 so a workstream may be slugged `phase-2`. A reference resolves against the
@@ -896,7 +1283,7 @@ rules out.
 Severity and priority are both optional, workbench-declared level sets. A
 card that omits the field is a card without one; absence is legal, not an
 error. The declaration reuses the ordered-sequence-as-data precedent from
-the states list: a `levels:` block in `workbench.md` frontmatter lists each
+the columns list: a `levels:` block in `workbench.md` frontmatter lists each
 axis's members from low to high, and the sequence order is the rank.
 
 ```yaml
@@ -919,6 +1306,23 @@ levels:
     - major: A person's work is wrong or blocked; fix before new work.
     - critical: Data loss or money; drop everything.
 ```
+
+A declaration reaches the JSON interchange as an object of arrays, one member
+per axis, where a bare name is a string and a name carrying a hint is a
+one-member object, since a JSON object preserves no member order and the
+sequence order is the rank.
+
+```json
+"levels": {
+  "severity": ["trivial", "minor", {"major": "fix before new work."}],
+  "priority": ["later", "soon", "next", "now"]
+}
+```
+
+The axes reach it in a fixed order, severity first, then priority, then any
+further axis in sorted order, whichever order the workbench declared them in.
+A reader of the interchange therefore never has to ask what an axis's position
+in the object meant.
 
 A hint is content-tier text in the author's language. Guidance longer than
 a hint, a real rubric with examples, is ordinary prose in the workbench
@@ -1060,7 +1464,7 @@ Lock scope is the nearest enclosing journal-bearing entity, a card for
 anything inside a card and the workbench for everything else. Commenting on
 a card, attaching a file to it and moving it all take that card's lock, so
 the write inside the card's subtree and the event appended to its journal
-land on the same side of one acquisition. A write inside a state's directory
+land on the same side of one acquisition. A write inside a column's directory
 or at workbench level takes the workbench's own `lock`, which sits beside
 `workbench.md` the way a card's sits beside `card.md`; the workbench is an
 entity like every other and the no-exceptions rule reaches it too. Every
@@ -1070,7 +1474,7 @@ that blocks, so no process ever holds one lock while waiting for another.
 Archiving, restoring and deleting need more than that scoping gives, since
 they move or remove the very directory an entity's lock lives in. An entity
 below a card is already safe, because the card's lock sits above the directory
-that moves and outlives it. A card is not safe, and neither is a state, and
+that moves and outlives it. A card is not safe, and neither is a column, and
 the two are exposed differently enough to need different answers.
 
 Those acts follow a protocol of three acquisitions in a fixed order. The
@@ -1078,8 +1482,8 @@ workbench's lock comes first and serializes the act against every other
 structural act and against anything appending to the workbench journal. A
 sibling lock comes second, created beside the directory that is about to
 move and named for the entity within the entity's own collection:
-`cards/<id>.lock` beside `cards/<id>/`, `states/<id>.lock` beside
-`states/<id>/`. The sibling carries the same single JSON line every lock
+`cards/<id>.lock` beside `cards/<id>/`, `columns/<id>.lock` beside
+`columns/<id>/`. The sibling carries the same single JSON line every lock
 carries, extended with the operation (`archive`, `restore` or `delete`) and,
 where the act has a destination, the path the directory is going to. The
 entity's own `lock` comes last, and a lock another process holds refuses the
@@ -1107,18 +1511,18 @@ paths that write included. A writer that got there first holds the lock and
 stops the structural act outright; a writer arriving later finds the sibling
 and stops itself.
 
-A state carries a second exposure those three acquisitions do not reach. A
-card enters a state through a move, which takes that card's own lock and none
+A column carries a second exposure those three acquisitions do not reach. A
+card enters a column through a move, which takes that card's own lock and none
 of the three, and through creation, which takes no lock at all, while the
-refusal to archive or delete an occupied state is a read. A card entering
+refusal to archive or delete an occupied column is a read. A card entering
 between that read and the move of the directory would be left pointing at a
 station resolvable only in the archive, and that is the pointer this format
 requires to resolve. Closing it needs no new machinery, only the same
 acquire-then-verify shape read from both sides. A write that stores a card's
-state reads the destination's sibling first, under the card lock it already
+column reads the destination's sibling first, under the card lock it already
 holds; a creation reads it once `mkdir` has claimed the identifier and before
 the anchor is written. The structural act scans the live cards only after its
-own sibling exists, and refuses when it finds a card in the state, a card
+own sibling exists, and refuses when it finds a card in the column, a card
 whose own lock is held, or a card directory that will not load. The last two
 refuse conservatively, since a held lock and a half-written directory are both
 writes whose destination cannot be read yet, and a refusal costs a retry while
@@ -1182,7 +1586,7 @@ whatever the act had already taken comes off on the way out.
 
 A rename the filesystem refuses is reported as a refusal and never retried as
 a copy followed by a delete. The fallback would trade one short non-atomic
-operation for a long one and multiply the states a crash can leave behind, and
+operation for a long one and multiply the columns a crash can leave behind, and
 an archive mirror on a different volume from the workbench it belongs to is a
 layout this format does not support.
 
@@ -1209,7 +1613,7 @@ git's DNA: it snapshots, distributes, and merges, and a change to a
 workbench's definition arriving as a reviewable diff is a better workflow
 than editing live.
 
-The coordination plane is decisions about now: claims, substates, positions
+The coordination plane is decisions about now: claims, states, positions
 as facts of the present, WIP accounting. It has the checkout DNA of the
 lock-based SCMs, and unapologetically so, because the general rule is that
 concurrency style follows mergeability, and a claim locks effort, the least
@@ -1238,7 +1642,7 @@ mirror read history, consumers of the arbiter read the present.
 Coordination truth is consulted, never replicated. Claim, move, release,
 block, and the WIP check inside a move are synchronous questions asked at
 the moment of action; there is no background synchronization of claim
-state, because there is no local copy with standing to disagree. The only
+column, because there is no local copy with standing to disagree. The only
 timer is the lease: a claim carries a TTL and is kept alive by heartbeat,
 and expiry lapses it visibly and journaled rather than silently
 reassigning.
@@ -1289,7 +1693,7 @@ trail instead of a mystery.
 
 Archiving moves an entity's whole directory into `archive/`, which mirrors
 collection structure (`archive/cards/<id>/`, and the same shape serves
-retired states). History travels with the directory. The pattern recurses:
+retired columns). History travels with the directory. The pattern recurses:
 any collection at any depth may have an archive mirror at its own level, so
 a card's noisy old comments archive to `cards/<id>/archive/comments/<id>/`
 exactly the way a card archives at workbench level, and the live-is-fair-game,
@@ -1314,7 +1718,7 @@ journals; an implementation that verified historical ids against the live
 workbench would turn normal housekeeping into false corruption reports across
 every old journal. Replay needs only the id sequence, and the present-tense
 pointer that must resolve is guarded from the front by the refusal to
-delete an occupied state. Identifier uniqueness keeps its per-collection
+delete an occupied column. Identifier uniqueness keeps its per-collection
 scope from the Identifiers rule, with a collection spanning its live and
 archived halves: a card id may not repeat between cards/ and
 archive/cards/, while the same id under two different cards' comments/
@@ -1327,9 +1731,9 @@ finishable operation rather than an ambiguous one.
 ## The worked example
 
 `~/.dinah/c1eeb1998b99/` holds a filled example: a Jira-ticket-resolution
-workbench with thirteen states (an eleven-step agent workflow plus intake and
-done, four states operator-owned), one card mid-flight with a nine-event
-journal and a comment. It exists to be walked and edited; the state set is
+workbench with thirteen columns (an eleven-step agent workflow plus intake and
+done, four columns operator-owned), one card mid-flight with a nine-event
+journal and a comment. It exists to be walked and edited; the column set is
 knowingly imperfect as a Kanban board, and editing it after creation is the
 point being exercised.
 
@@ -1343,6 +1747,6 @@ point being exercised.
   this.
 - Human handles: whether cards get a slug or number alias for CLI ergonomics,
   or titles resolved by search are enough.
-- Terminology: whether "workbench", "state", "card" survive into the
+- Terminology: whether "workbench", "column", "card" survive into the
   contract, coherent with Andoneer either way.
 - The CLI, API, and MCP surfaces, which are the next conversation.

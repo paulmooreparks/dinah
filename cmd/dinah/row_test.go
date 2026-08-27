@@ -141,7 +141,7 @@ func TestFormatRowKeepsEveryContinuationWithinTheWindow(t *testing.T) {
 // that fails if somebody later adds truncation for tidiness.
 func TestFormatRowTruncatesNothing(t *testing.T) {
 	values := []string{
-		`C:\dinah-scratch\a-long-path\.dinah\ac2ee28fb26d\states\doing\state.md`,
+		`C:\dinah-scratch\a-long-path\.dinah\ac2ee28fb26d\columns\doing\column.md`,
 		"aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior",
 		"作業台管理という長い題名",
 	}
@@ -270,5 +270,46 @@ func TestAWrappedTailIsMeasuredForTheColumnBeforeIt(t *testing.T) {
 	plain := measure(table{indent: 2, columns: columns, rows: rows}, 80)
 	if plain.widths[0] != displayWidth("As you write it") {
 		t.Errorf("a table that does not wrap measured its first column at %d, want its heading's %d", plain.widths[0], displayWidth("As you write it"))
+	}
+}
+
+// TestBreakWordsJoinsWordsWithExactlyOneSpace pins two properties of
+// breakWords that the guide wrap in guide_wrap.go depends on and that no
+// other test in this package asserts.
+//
+// The single-space join is the load-bearing one, and it matters for more than
+// appearance. checkColumnsLineUp runs over both streams of every runCLI
+// invocation and folds any line carrying a run of two or more spaces into a
+// columnar block, then requires that block to line up. Wrapped guide prose
+// passes that check only because breakWords never emits a double space, so a
+// breaker that preserved runs of whitespace would start tripping the
+// alignment check on every test that renders a guide, far from the change
+// that caused it.
+//
+// The room floor is the second: a room below one returns the text whole
+// rather than breaking it a character at a time. That case is unreachable
+// through the renderer, since windowWidth clamps to minTailColumns, but
+// wrapGuideText is called directly at narrow widths by the guide wrap's own
+// tests and rests on it.
+//
+// Both are pinned here rather than left to whichever card lands second
+// because dinah-220 rewrites this function into a delegate over a new
+// packTokens helper, and a property nobody wrote down is a property that
+// rewrite is free to lose.
+func TestBreakWordsJoinsWordsWithExactlyOneSpace(t *testing.T) {
+	text := "one  two\tthree\n\nfour"
+	if got, want := breakWords(text, 0, 40), "one two three four"; got != want {
+		t.Errorf("breakWords rendered %q, want %q", got, want)
+	}
+	long := strings.Repeat("alpha bravo  charlie\t", 6)
+	for _, line := range strings.Split(breakWords(long, 3, 20), "\n") {
+		if strings.Contains(strings.TrimLeft(line, " "), "  ") {
+			t.Errorf("a wrapped line carries a run of two spaces: %q", line)
+		}
+	}
+	for _, room := range []int{0, -1} {
+		if got := breakWords(text, 0, room); got != text {
+			t.Errorf("breakWords at room %d returned %q, want the text whole", room, got)
+		}
 	}
 }

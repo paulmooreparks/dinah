@@ -13,16 +13,16 @@ import (
 	"dinah/internal/verb"
 )
 
-// emit reports a verb's canonical response: the machine form under --json,
-// the rendering otherwise, and on any non-zero outcome the outcome's own
-// token leading stderr.
+// emit reports a verb's canonical response: a machine form where one was
+// asked for, the rendering otherwise, and on any non-zero outcome the
+// outcome's own token leading stderr.
 func (s *session) emit(response *verb.Response) int {
 	if response.Outcome != contract.OutcomeOK {
 		s.reportOutcome(response)
 	}
-	if s.json {
-		s.emitJSON(response)
-		return contract.ExitCode(response.Outcome)
+	if s.format != formatHuman {
+		// emitMachine carries the outcome's own exit code back.
+		return s.emitMachine(response)
 	}
 	if response.Outcome != contract.OutcomeOK {
 		return contract.ExitCode(response.Outcome)
@@ -62,10 +62,10 @@ func (s *session) reportOutcome(response *verb.Response) {
 	}
 }
 
-// emitJSON writes a value as the canonical machine form. The form carries
+// emitCanonical writes a value as the canonical machine form. The form carries
 // canonical tokens only, so the same command under any language setting emits
 // byte-identical JSON.
-func (s *session) emitJSON(value any) int {
+func (s *session) emitCanonical(value any) int {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		io.WriteString(s.errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
@@ -76,7 +76,7 @@ func (s *session) emitJSON(value any) int {
 }
 
 // renderCard prints the one line a person needs after an act: where the card
-// is, what it is called, what state it is in, and which workstreams it belongs
+// is, what it is called, what column it is in, and which workstreams it belongs
 // to.
 //
 // A card belonging to at least one workstream draws from a sibling key
@@ -93,8 +93,8 @@ func (s *session) renderCard(card *verb.CardView) {
 	values := []string{
 		"ref", card.Ref,
 		"title", card.Title,
-		"state", card.StateTitle,
-		"substate", s.token(card.Substate),
+		"column", card.ColumnTitle,
+		"state", s.token(card.State),
 	}
 	key := "card.line"
 	if len(card.Workstreams) > 0 {
@@ -155,7 +155,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	}{
 		{label: "instructions.global", text: instructions.Global},
 		{label: "instructions.standing", text: instructions.Standing},
-		{label: "instructions.state", text: instructions.State},
+		{label: "instructions.column", text: instructions.Column},
 	}
 	for _, layer := range layers {
 		if layer.text == "" {
@@ -170,9 +170,9 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 	}
 	s.line("")
 	s.line(s.r.T("instructions.moves"))
-	t := table{indent: 2, columns: s.columns("moves", "state", "name", "direction")}
+	t := table{indent: 2, columns: s.columns("moves", "column", "name", "direction", "reject")}
 	for _, move := range moves {
-		fields := []string{move.Ref, move.Title, s.token(move.Direction)}
+		fields := []string{move.Ref, move.Title, s.token(move.Direction), s.yesNo(move.Reject)}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -180,14 +180,10 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.workbench",
-		"title", status.Bench,
-		"root", status.Root,
-		"source", s.token(status.WorkbenchSource),
-	))
+	s.line(s.workbenchLine(status))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
-	s.renderStates(status.States)
+	s.renderColumns(status.Columns)
 	if len(status.Holding) > 0 {
 		s.line("")
 		s.line(s.r.T("status.holding"))
@@ -208,6 +204,28 @@ func (s *session) renderStatus(status *verb.Status) {
 	}
 }
 
+// workbenchLine is the first line of a status: the workbench, where it was
+// discovered, and the rung that resolved it.
+//
+// A root-scoped read resolves no single workbench by any rung, since the walk
+// found every one of them, so its answer carries no source and this line leaves
+// the bracket off rather than drawing an empty one. The two forms are separate
+// catalog entries rather than one entry with a blank in it, because a bracket
+// with nothing inside reads as a value that failed to render.
+func (s *session) workbenchLine(status *verb.Status) string {
+	if status.WorkbenchSource == "" {
+		return s.r.T("status.workbench.unsourced",
+			"title", status.Bench,
+			"root", status.Root,
+		)
+	}
+	return s.r.T("status.workbench",
+		"title", status.Bench,
+		"root", status.Root,
+		"source", s.token(status.WorkbenchSource),
+	)
+}
+
 // yesNo renders a boolean for a person.
 func (s *session) yesNo(value bool) string {
 	if value {
@@ -216,25 +234,41 @@ func (s *session) yesNo(value bool) string {
 	return s.r.T("word.no")
 }
 
-// renderStates prints the flow in order with each station's occupancy.
-func (s *session) renderStates(states []verb.StateView) {
-	t := table{indent: 2, columns: s.columns("states", "slug", "name", "kind", "cards", "owner")}
-	for _, state := range states {
-		count := strconv.Itoa(state.Count)
-		if state.Capacity > 0 {
-			count += "/" + strconv.Itoa(state.Capacity)
+// renderColumns prints the flow in order with each station's occupancy.
+func (s *session) renderColumns(columns []verb.ColumnView) {
+	t := table{indent: 2, columns: s.columns("columns", "slug", "name", "kind", "cards", "work", "owner")}
+	for _, column := range columns {
+		count := strconv.Itoa(column.Count)
+		if column.Capacity > 0 {
+			count += "/" + strconv.Itoa(column.Capacity)
 		}
-		owner := s.r.T("states.moved-by.agent")
-		if state.OperatorOwned {
-			owner = s.r.T("states.moved-by.operator")
+		owner := s.r.T("columns.moved-by.agent")
+		if column.OperatorOwned {
+			owner = s.r.T("columns.moved-by.operator")
 		}
-		fields := []string{s.slugCell(state.Slug), state.Title, s.token(state.Kind), count, owner}
+		// The Work cell answers whether work is taken up at the column and
+		// the Owner cell answers who may move a card out of it. They are two
+		// questions, so they are two cells, and a column where nobody takes
+		// work up and nobody owner-owns still reads agent under Owner.
+		//
+		// The three values run most specific first. A column declaring the
+		// flag reads waiting, because a reader is told the workbench is
+		// waiting on somebody; a column where no owner takes work up for any
+		// other reason reads none taken; every other column reads taken.
+		work := s.r.T("columns.work.taken")
+		if !column.TakesWorkUp {
+			work = s.r.T("columns.work.none")
+		}
+		if column.AwaitingOutside {
+			work = s.r.T("columns.work.waiting")
+		}
+		fields := []string{s.slugCell(column.Slug), column.Title, s.token(column.Kind), count, work, owner}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
 }
 
-// renderListing prints a state's cards in queue order.
+// renderListing prints a column's cards in queue order.
 func (s *session) renderListing(listing *verb.Listing) {
 	if len(listing.Cards) == 0 {
 		s.line(s.r.T("ls.empty"))
@@ -242,23 +276,23 @@ func (s *session) renderListing(listing *verb.Listing) {
 	}
 	t := table{indent: 2, columns: s.columns("ls", "card", "standing", "severity", "priority", "title")}
 	for _, card := range listing.Cards {
-		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.Substate), card.Severity, card.Priority, card.Title}})
+		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), card.Severity, card.Priority, card.Title}})
 	}
 	s.table(t)
 }
 
 // renderMatches prints the cards a query selected. A query spans the whole
-// workbench where ls lists one state at a time, so the reader needs a state
-// column that ls has no use for, and it carries the state's title rather than
+// workbench where ls lists one column at a time, so the reader needs a column
+// column that ls has no use for, and it carries the column's title rather than
 // its identifier.
 func (s *session) renderMatches(matches *verb.Matches) {
 	if len(matches.Cards) == 0 {
 		s.line(s.r.T("query.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("query", "card", "state", "standing", "title")}
+	t := table{indent: 2, columns: s.columns("query", "card", "column", "standing", "title")}
 	for _, card := range matches.Cards {
-		fields := []string{card.Ref, card.StateTitle, s.token(card.Substate), card.Title}
+		fields := []string{card.Ref, card.ColumnTitle, s.token(card.State), card.Title}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -374,8 +408,12 @@ func (s *session) renderSettings(settings []verb.SettingView) {
 // says so when none is reachable. The row carries what a reader needs to
 // recognise a workbench and to select it, so the path it ends on is the one
 // --workbench takes.
-func (s *session) renderWorkbenches(rows []bench.Candidate) {
+func (s *session) renderWorkbenches(rows []bench.Candidate, root string) {
 	if len(rows) == 0 {
+		if root != "" {
+			s.line(s.r.T("root.empty", "root", root))
+			return
+		}
 		s.line(s.r.T("workbenches.empty"))
 		return
 	}
@@ -389,13 +427,29 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 // two-space lead. dinah.ambiguous-workbench prints the same rows beneath its
 // opening sentence, so this is the one place the column widths live; the two
 // callers can never draw the same candidates in different columns.
+// A row the walk could not describe carries its refusal name in the workbench
+// cell, in place of the title it has none of, and leaves the slug cell empty
+// rather than printing the missing-slug repair: a workbench nothing could read
+// is not a workbench whose slug is worth deriving.
 func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
 	t := table{indent: 2, columns: s.columns("workbenches", "workbench", "slug", "path")}
 	for _, candidate := range rows {
 		fields := []string{candidate.Title, s.slugCell(candidate.Slug), candidate.Path}
+		if candidate.Refused != "" {
+			fields = []string{s.refusedCell(candidate.Refused), "", candidate.Path}
+		}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	return s.tableLines(t)
+}
+
+// refusedCell renders the refusal name a row could not be described past. The
+// angle brackets are the convention that tells a reader the cell holds the
+// reason a value is missing rather than the value itself, and one function
+// composes it so the listing and the root-scoped headings cannot spell it two
+// ways.
+func (s *session) refusedCell(name string) string {
+	return s.r.T("workbenches.refused", "refusal", name)
 }
 
 // slugCell renders a slug column's value: the slug itself when the entity has
@@ -410,15 +464,34 @@ func (s *session) slugCell(slug string) string {
 	return slug
 }
 
-// renderOffers prints what each state offers next.
+// renderOffers prints what each column offers next.
 func (s *session) renderOffers(offers []verb.Offer) {
-	t := table{indent: 2, columns: s.columns("next", "state", "card", "title")}
+	t := table{indent: 2, columns: s.columns("next", "column", "card", "title", "take")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			t.rows = append(t.rows, tableRow{fields: []string{offer.Title, s.r.T("next.none")}})
+			// Three empty answers, most specific first. A column that waits on
+			// somebody outside says who it waits on. A column where no act
+			// could take a card up says so, which is a different fact from
+			// nothing ready, because a done column holding four ready cards
+			// offers none of them. Everything else has nothing ready.
+			absent := s.r.T("next.none")
+			if offer.NoTaker {
+				absent = s.r.T("next.no-taker")
+			}
+			if offer.AwaitingOutside {
+				absent = s.r.T("next.awaiting-outside")
+			}
+			t.rows = append(t.rows, tableRow{fields: []string{offer.Title, absent}})
 			continue
 		}
-		fields := []string{offer.Title, offer.Card.Ref, offer.Card.Title}
+		// The Take cell names the act that takes the offered card, since a
+		// claim is refused where nobody takes work up and a pull into the
+		// column beyond is what moves the card instead.
+		take := s.r.T("next.take.claim")
+		if offer.TakenByPull {
+			take = s.r.T("next.take.pull")
+		}
+		fields := []string{offer.Title, offer.Card.Ref, offer.Card.Title, take}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -471,26 +544,81 @@ func (s *session) renderDetail(detail *verb.Detail) {
 func (s *session) renderHistory(events []bench.Event) {
 	t := table{indent: 2, columns: s.columns("log", "when", "action", "actor", "detail")}
 	for _, ev := range events {
-		var tail string
-		switch ev.Event {
-		case contract.EventMoved:
-			tail = s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
-			if ev.Override {
-				tail += " " + s.r.T("log.override")
-			}
-		case contract.EventBlocked:
-			tail = ev.Reason
-		case contract.EventCreated:
-			tail = ev.Title
-		case contract.EventAttached, contract.EventAttachmentReplaced, contract.EventAttachmentRemoved:
-			tail = ev.Filename
-		case contract.EventAttachmentRenamed:
-			tail = s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
-		}
-		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, tail}
+		fields := []string{ev.TS, s.token(ev.Event), ev.Actor, s.eventDetail(ev)}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
+}
+
+// eventDetail composes what an act carried, which is what the detail column of
+// a journal line reads. Both blocks that draw journal lines read it, so one
+// act cannot say one thing under log and another under changes.
+func (s *session) eventDetail(ev bench.Event) string {
+	switch ev.Event {
+	case contract.EventMoved:
+		tail := s.r.T("log.moved", "from", ev.FromTitle, "to", ev.ToTitle)
+		if ev.Override {
+			tail += " " + s.r.T("log.override")
+		}
+		if ev.Reject {
+			tail += " " + s.r.T("log.reject")
+		}
+		return tail
+	case contract.EventBlocked:
+		return ev.Reason
+	case contract.EventCreated:
+		return ev.Title
+	case contract.EventAttached, contract.EventAttachmentReplaced, contract.EventAttachmentRemoved:
+		return ev.Filename
+	case contract.EventAttachmentRenamed:
+		return s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
+	}
+	return ""
+}
+
+// renderChanges prints what one checkpoint answered with: the journal lines
+// after the caller's cursor, in the order the merged walk imposes, and then
+// the cursor to hand back next time.
+//
+// The cursor is printed on every answer, including one reporting nothing, so
+// a reader always has the value the next call wants and never has to go and
+// find the previous run. The columns are log's, with the entity each line was
+// read from added, since a merged stream cannot say otherwise.
+func (s *session) renderChanges(set *verb.ChangeSet) {
+	s.renderChangesBody(set)
+	s.line(s.r.T("changes.cursor", "cursor", set.Cursor))
+}
+
+// renderChangesBody is the journal half of a checkpoint's answer, without the
+// cursor line beneath it. It is split out for the root-scoped form, where one
+// merged cursor is printed once at the end and a member's own token is not the
+// value the next call takes, so printing it under every workbench would offer
+// a reader twenty-five tokens none of which is the one they need.
+func (s *session) renderChangesBody(set *verb.ChangeSet) {
+	t := table{indent: 2, columns: s.columns("changes", "when", "card", "action", "actor", "detail")}
+	for _, ev := range set.Events {
+		// ChangeEvent embeds bench.Event, so ev.Event is the whole line and
+		// ev.Event.Event is the act's own name. The two are spelled apart
+		// here rather than aliased, since the shape is the one the machine
+		// surface publishes.
+		fields := []string{ev.TS, changeSubject(ev), s.token(ev.Event.Event), ev.Actor, s.eventDetail(ev.Event)}
+		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+}
+
+// changeSubject is what the card column of a checkpoint reads: the reference
+// of the entity the line came from where one could be composed, the bare
+// identifier where the anchor that would name it is gone, and the scope word
+// for the workbench, which is what a person types to name it.
+func changeSubject(ev verb.ChangeEvent) string {
+	if ev.Ref != "" {
+		return ev.Ref
+	}
+	if ev.ID != "" {
+		return ev.ID
+	}
+	return ev.Scope
 }
 
 // renderCheck prints what a check answered with: the account of the repair it
@@ -529,10 +657,10 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedWorkstreams {
 		s.line(s.r.TN("check.workstream-adopted", len(report.AdoptedWorkstreams)))
 	}
-	if report.MigratedStates {
-		s.line(s.r.TN("check.states-removed", len(report.RemovedStrandedStates)))
+	if report.MigratedColumns {
+		s.line(s.r.TN("check.columns-removed", len(report.RemovedStrandedColumns)))
 		removed := table{indent: 2, columns: listColumn()}
-		for _, id := range report.RemovedStrandedStates {
+		for _, id := range report.RemovedStrandedColumns {
 			removed.rows = append(removed.rows, tableRow{fields: []string{id}})
 		}
 		s.table(removed)
@@ -598,17 +726,17 @@ func (s *session) outcomeValues(response *verb.Response) map[string]string {
 // prints, one per row. The enumerable sets live in three different places, so
 // this map is what keeps the composer from knowing about any of them.
 //
-// A refusal raised before the workbench opens carries no states, which costs
-// nothing in practice because unknown-state is only ever raised once one is
+// A refusal raised before the workbench opens carries no columns, which costs
+// nothing in practice because unknown-column is only ever raised once one is
 // open.
 var refusalListings = map[string]func(*session) []string{
-	"states": func(s *session) []string {
+	"columns": func(s *session) []string {
 		if s.library == nil {
 			return nil
 		}
-		rows := make([]string, 0, len(s.library.Bench.States))
-		for _, state := range s.library.Bench.States {
-			rows = append(rows, state.Ref())
+		rows := make([]string, 0, len(s.library.Bench.Columns))
+		for _, column := range s.library.Bench.Columns {
+			rows = append(rows, column.Ref())
 		}
 		return rows
 	},
@@ -779,7 +907,7 @@ func sortedKeys(values map[string]string) []string {
 // The field names travel untranslated, the way `config`'s keys do, because a
 // field name is machine vocabulary a caller types back. The slug row is served
 // through slugCell, so a workbench carrying none names its repair rather than
-// standing blank, and this listing says what `dinah states` and `dinah
+// standing blank, and this listing says what `dinah columns` and `dinah
 // workbenches` already say about a missing slug.
 func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 	t := table{indent: 2, columns: s.columns("workbench", "field", "value")}
@@ -795,7 +923,7 @@ func (s *session) renderWorkbenchFields(fields *verb.WorkbenchView) {
 
 // renderWorkstreams prints every live workstream of the workbench, and the
 // sentence that says so when the workbench carries none. The columns are the
-// shape dinah states already draws, and a workstream carrying no slug prints
+// shape dinah columns already draws, and a workstream carrying no slug prints
 // through slugCell rather than as a blank.
 func (s *session) renderWorkstreams(listing *verb.WorkstreamListing) {
 	if len(listing.Workstreams) == 0 {
@@ -842,9 +970,9 @@ func (s *session) renderWorkstreamDetail(detail *verb.WorkstreamDetail) {
 		return
 	}
 	s.line("")
-	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "state")}
+	members := table{indent: 2, columns: s.columns("workstream", "card", "title", "column")}
 	for _, card := range detail.Cards {
-		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.StateTitle}})
+		members.rows = append(members.rows, tableRow{fields: []string{card.Ref, card.Title, card.ColumnTitle}})
 	}
 	s.table(members)
 }
@@ -872,7 +1000,7 @@ func (s *session) renderWorkstreamLine(workstream *verb.WorkstreamView) {
 // surface carries the identifiers the card's frontmatter stores, deliberately,
 // and a reader of the JSON resolves them the way a reader of a link's to
 // already does. The head reads the open workbench for the same reason the
-// composer reads its states to list them.
+// composer reads its columns to list them.
 func (s *session) workstreamsCell(ids []string) string {
 	refs := make([]string, 0, len(ids))
 	for _, id := range ids {
@@ -892,4 +1020,67 @@ func (s *session) workstreamRef(id string) string {
 		return workstream.Ref()
 	}
 	return id
+}
+
+// renderVocabulary prints what a tree-wide vocabulary migration did, one
+// section per outcome, and prints only the sections that hold something. A
+// section nobody needs is a line a reader has to skip, and the counts alone
+// already say that nothing was silently dropped.
+//
+// The rows are printed as whole lines rather than drawn as a table, and they
+// carry no indent. A row is one filesystem path, sometimes with a reason after
+// it, and a path is both the longest thing this head prints and the one thing a
+// reader most often copies: measuring it into a column would wrap it or pad
+// every other row out to it, and neither helps. The indent goes with the table,
+// for the reason TestNoRowIsLaidOutOutsideTheOneRenderer gives: a run of spaces
+// written here counts characters where a terminal counts columns, and one
+// renderer owns that arithmetic.
+func (s *session) renderVocabulary(report *verb.TreeVocabularyReport) {
+	if report.Preview {
+		s.renderVocabularyPreview(report)
+	} else {
+		s.line(s.r.TN("check.vocabulary-migrated", len(report.Migrated)))
+		for _, entry := range report.Migrated {
+			s.line(s.r.TN("check.vocabulary-cards", entry.Cards, "path", entry.Path))
+		}
+	}
+	s.vocabularySection("check.vocabulary-already-current", report.AlreadyCurrent)
+	s.vocabularySection("check.vocabulary-malformed", report.Malformed)
+	unsupported := make([]string, 0, len(report.Unsupported))
+	for _, entry := range report.Unsupported {
+		unsupported = append(unsupported, entry.Path+" ("+entry.Revision+")")
+	}
+	s.vocabularySection("check.vocabulary-unsupported", unsupported)
+	failed := make([]string, 0, len(report.Failed))
+	for _, entry := range report.Failed {
+		failed = append(failed, entry.Path+": "+entry.Reason)
+	}
+	s.vocabularySection("check.vocabulary-failed", failed)
+	if report.Preview {
+		s.line(s.r.T("check.vocabulary-confirm"))
+	}
+}
+
+// renderVocabularyPreview prints what a run carrying the confirmation would
+// rewrite, and the line telling the reader how to authorize it. The heading
+// and the closing line are both printed even when the walk found nothing,
+// because a reader who ran the command wants to be told that his tree holds
+// nothing to carry forward rather than to be shown an empty page.
+func (s *session) renderVocabularyPreview(report *verb.TreeVocabularyReport) {
+	s.line(s.r.TN("check.vocabulary-would-migrate", len(report.Migrated)))
+	for _, entry := range report.Migrated {
+		s.line(entry.Path + " (" + entry.Revision + ")")
+	}
+}
+
+// vocabularySection prints one heading and its rows, or nothing at all when
+// the outcome caught no workbench.
+func (s *session) vocabularySection(key string, rows []string) {
+	if len(rows) == 0 {
+		return
+	}
+	s.line(s.r.TN(key, len(rows)))
+	for _, row := range rows {
+		s.line(row)
+	}
 }

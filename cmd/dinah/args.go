@@ -35,7 +35,7 @@ func declaredFlags() (valued, markers []string) {
 		for _, param := range verb.Params(name) {
 			// A positional whose own row says it is also written --name takes
 			// a value under that spelling, which is how ls, next and move
-			// accept --state beside the bare word.
+			// accept --column beside the bare word.
 			if param.AlsoFlag || (param.Flag && !param.Marker) {
 				valuedSeen[param.Name] = true
 				continue
@@ -77,7 +77,7 @@ func sortedNames(set map[string]bool) []string {
 // sits inside the free text's own quoting, where nothing examines it.
 var sessionFlagNames = map[string]bool{
 	"workbench": true, "lang": true, "actor": true, "json": true, "quiet": true,
-	"help": true, "version": true,
+	"help": true, "version": true, "format": true,
 }
 
 // askedFor maps every spelling of "what does this do" and "what is this" onto
@@ -119,7 +119,7 @@ var askedFor = map[string]string{
 }
 
 // domainCapture is one occurrence of a domain flag (a flag belonging to some
-// command's own vocabulary, not one of the five session flags) that
+// command's own vocabulary, not one of the session flags) that
 // parseArgs recognized while scanning. It is recorded rather than applied
 // outright, because parseArgs runs before any command is known and cannot
 // yet tell whether this occurrence sits inside an open-tail command's own
@@ -162,6 +162,94 @@ type arguments struct {
 	domainCaptures []domainCapture
 }
 
+// walkFlags is the walk parseArgs and scanLangFlag both run over argv. It
+// recognizes the POSIX "--" marker, every askedFor spelling, and every flag
+// in known, and for a valued flag it decides whether the following word is
+// that flag's own value, all without knowing which command the caller named:
+// valuedFlags and markerFlags are declared once across every command's
+// parameter table (declaredFlags, above), so the walk is the same walk
+// whatever command argv turns out to name. Splitting it out is what makes
+// scanLangFlag agree with parseArgs on which word belongs to which flag,
+// rather than a second reading of argv reaching its own answer.
+//
+// onPositional is called for every word the walk does not place as a flag:
+// every word once the marker has been seen, and every word before it that
+// carries no "--" prefix (or is the bare "-").
+//
+// visit is called once per recognized flag occurrence, in argv order: name
+// is the flag's own name (or the value askedFor maps a spelling to), value
+// is what a valued flag's occurrence carried (empty for a marker or an
+// askedFor spelling), and complete is false only for a valued flag whose
+// name was the last word in argv, with no word left to serve as its value.
+// tokens is the literal argv word or words this occurrence consumed, in the
+// order the caller wrote them. Every recognized occurrence carries at least
+// one token, the askedFor spellings among them, so a caller that splices
+// tokens back into the line can do so for any occurrence it is handed.
+//
+// onUnknown is called once for each "--name" word the walk cannot place. It
+// receives the whole argv word, any inline "=value" included, which is the
+// word contract.RefuseWith names today. Its return says whether the walk
+// stops there. parseArgs stops, since an unrecognized flag is refused before
+// anything past it is read. scanLangFlag does not, since reading past the
+// word that fails to parse is the reason it exists. A word onUnknown lets pass is left as one
+// consumed word: the walk was never told this name takes a value, so it has
+// no ground to claim the next word as that value either, and the next word
+// is read on its own terms by the following iteration.
+func walkFlags(
+	argv []string,
+	valued, known map[string]bool,
+	onPositional func(word string),
+	visit func(name, value string, complete bool, tokens []string),
+	onUnknown func(word string) bool,
+) {
+	markerSeen := false
+	for i := 0; i < len(argv); i++ {
+		word := argv[i]
+		if markerSeen {
+			onPositional(word)
+			continue
+		}
+		if word == "--" {
+			markerSeen = true
+			continue
+		}
+		if asked, ok := askedFor[word]; ok {
+			// The spelling the caller wrote is the one word this occurrence
+			// consumed, and it is reported like any other. Reporting no
+			// tokens here would hand a caller an occurrence it could not
+			// splice back into the line, which is a shape nothing
+			// downstream has ever been asked to handle.
+			visit(asked, "", true, []string{word})
+			continue
+		}
+		if word == "-" || !strings.HasPrefix(word, "--") {
+			onPositional(word)
+			continue
+		}
+		name, inline, joined := strings.Cut(strings.TrimPrefix(word, "--"), "=")
+		if !known[name] {
+			if onUnknown(word) {
+				return
+			}
+			continue
+		}
+		if !valued[name] {
+			visit(name, "", true, []string{word})
+			continue
+		}
+		if joined {
+			visit(name, inline, true, []string{word})
+			continue
+		}
+		if i+1 >= len(argv) {
+			visit(name, "", false, []string{word})
+			continue
+		}
+		i++
+		visit(name, argv[i], true, []string{word, argv[i]})
+	}
+}
+
 // parseArgs takes a command line apart. A flag may appear anywhere, because
 // the global flags belong to the invocation rather than to the command, and a
 // reader who writes them last should not be told off for it.
@@ -170,10 +258,13 @@ type arguments struct {
 // its argument from a pipe.
 //
 // A refusal comes back with whatever the scan had taken apart so far rather
-// than with a nil pointer, so the caller resolves the language from the flags
-// the reader actually wrote ahead of the offending word. No second reading of
-// argv exists anywhere to disagree with this one about whether a given word is
-// a flag at all.
+// than with a nil pointer, so the caller still has the session flags the
+// reader wrote ahead of the offending word instead of working from nothing.
+// The display language is no longer read from them. run resolves it through
+// scanLangFlag, which walks the whole argument list, so a --lang written
+// after the offending word is honoured too (dinah-97). scanLangFlag shares
+// walkFlags with this function rather than reading argv on its own terms, so
+// the two cannot disagree about whether a given word is a flag at all.
 //
 // A bare "--" is the POSIX end-of-options marker. The first one seen is
 // consumed rather than added to positional, and every word after it,
@@ -186,75 +277,113 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 	for _, flag := range append(append([]string{}, valuedFlags...), markerFlags...) {
 		known[flag] = true
 	}
-	markerSeen := false
-	for i := 0; i < len(argv); i++ {
-		word := argv[i]
-		if markerSeen {
+	var refusal *contract.Refusal
+	walkFlags(argv, valued, known,
+		func(word string) {
 			parsed.positional = append(parsed.positional, word)
-			continue
-		}
-		if word == "--" {
-			markerSeen = true
-			continue
-		}
-		if asked, ok := askedFor[word]; ok {
-			// Recorded as a flag rather than as a positional, and not as a
-			// domainCapture: help and version belong to the invocation the
-			// way --json does, so no command's free-text zone reclaims one.
-			parsed.flags[asked] = ""
-			continue
-		}
-		if word == "-" || !strings.HasPrefix(word, "--") {
-			parsed.positional = append(parsed.positional, word)
-			continue
-		}
-		name, inline, joined := strings.Cut(strings.TrimPrefix(word, "--"), "=")
-		if !known[name] {
-			return parsed, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
-		}
-		session := sessionFlagNames[name]
-		if !valued[name] {
-			parsed.flags[name] = ""
+		},
+		func(name, value string, complete bool, tokens []string) {
+			// A session flag, help and version among them, is recorded as a
+			// flag and never as a domainCapture, because it belongs to the
+			// invocation the way --json does and no command's free-text zone
+			// may reclaim one.
+			//
+			// For help and version, sessionFlagNames is the whole of that
+			// guarantee. Their askedFor spellings used to reach a branch of
+			// their own that carried no capture code, so no table could have
+			// changed what became of them. They arrive here through the same
+			// visit callback as every other flag now, which leaves the table
+			// as the only thing keeping them out of the capture list, and
+			// TestParseArgsRecordsNoDomainCaptureForASessionFlag names them
+			// beside the other six for that reason.
+			session := sessionFlagNames[name]
+			if !complete {
+				// A session flag missing its value still refuses
+				// immediately, exactly as before dinah-96. A domain flag
+				// missing its value is recorded instead: whether this
+				// refuses at all now depends on where it falls relative to
+				// an open-tail command's own free-text boundary, which is
+				// not known until the command is looked up.
+				if session {
+					refusal = contract.RefuseWith(contract.Usage, tokens[0], map[string]string{"dashHint": "1"})
+					return
+				}
+				parsed.domainCaptures = append(parsed.domainCaptures, domainCapture{
+					name: name, tokens: tokens, posAt: len(parsed.positional), complete: false,
+				})
+				return
+			}
+			parsed.flags[name] = value
 			if !session {
 				parsed.domainCaptures = append(parsed.domainCaptures, domainCapture{
-					name: name, tokens: []string{word}, posAt: len(parsed.positional), complete: true,
+					name: name, value: value, tokens: tokens, posAt: len(parsed.positional), complete: true,
 				})
 			}
-			continue
-		}
-		if joined {
-			parsed.flags[name] = inline
-			if !session {
-				parsed.domainCaptures = append(parsed.domainCaptures, domainCapture{
-					name: name, value: inline, tokens: []string{word}, posAt: len(parsed.positional), complete: true,
-				})
-			}
-			continue
-		}
-		if i+1 >= len(argv) {
-			// A session flag missing its value still refuses immediately,
-			// exactly as before dinah-96. A domain flag missing its value is
-			// recorded instead: whether this refuses at all now depends on
-			// where it falls relative to an open-tail command's own
-			// free-text boundary, which is not known until the command is
-			// looked up.
-			if session {
-				return parsed, contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
-			}
-			parsed.domainCaptures = append(parsed.domainCaptures, domainCapture{
-				name: name, tokens: []string{word}, posAt: len(parsed.positional), complete: false,
-			})
-			continue
-		}
-		i++
-		parsed.flags[name] = argv[i]
-		if !session {
-			parsed.domainCaptures = append(parsed.domainCaptures, domainCapture{
-				name: name, value: argv[i], tokens: []string{word, argv[i]}, posAt: len(parsed.positional), complete: true,
-			})
-		}
+		},
+		func(word string) bool {
+			refusal = contract.RefuseWith(contract.Usage, word, map[string]string{"dashHint": "1"})
+			return true
+		},
+	)
+	if refusal != nil {
+		return parsed, refusal
 	}
 	return parsed, nil
+}
+
+// scanLangFlag finds the value the caller gave --lang, walking the whole
+// argument list through walkFlags rather than stopping at the first word
+// parseArgs cannot place. DINAH_LANG, the user config and the OS locale are
+// not attached to argv at all, so nothing about them depends on where a
+// word sits; --lang was the one rung a scan that stops early could still
+// silence. dinah-97 is the record of that: the same invocation answered in
+// two languages depending on where the flag was typed.
+//
+// Sharing walkFlags with parseArgs, rather than a second pattern match
+// against the literal word "--lang", is what keeps this scan honest about a
+// word that belongs to somebody else. When a caller writes a valued flag and
+// then "--lang de", the value slot that flag opens takes the literal text
+// "--lang", and the caller is left with no --lang at all. walkFlags already
+// knows which names take a value and consumes the word after one wherever in
+// argv it falls, including after the word a failed parse stopped at, so this
+// scan places that word where parseArgs places it.
+//
+// No flag name stands in for "a valued flag" above, because a name spelled in
+// a comment goes stale in silence the day the flag tables are renamed.
+// TestScanLangFlagReadsOnlyALangThatIsAFlag builds the invocation instead, out
+// of a valued flag it reads from valuedFlags.
+//
+// The scan stops at the same POSIX "--" marker parseArgs does. A --lang
+// with no following word is incomplete and is not reported; the ladder
+// falls through to its next rung exactly as it does when --lang is absent
+// altogether. An incomplete flag can only be the last word in argv, so
+// there is nothing after it the scan could have missed either way. An
+// unrecognized "--word" does not stop the scan, since reading past it is
+// the whole point, and walkFlags does not treat the word that follows it as
+// anyone's value, since nothing declared the unrecognized name as taking
+// one. The last complete --lang the scan finds wins, matching parseArgs's
+// own last-value-wins rule for a repeated flag.
+func scanLangFlag(argv []string) string {
+	valued := map[string]bool{}
+	known := map[string]bool{}
+	for _, flag := range valuedFlags {
+		valued[flag] = true
+		known[flag] = true
+	}
+	for _, flag := range markerFlags {
+		known[flag] = true
+	}
+	value := ""
+	walkFlags(argv, valued, known,
+		func(string) {},
+		func(name, v string, complete bool, tokens []string) {
+			if complete && name == "lang" {
+				value = v
+			}
+		},
+		func(string) bool { return false },
+	)
+	return value
 }
 
 // looksLikeMistypedFlag reports whether a word has exactly one leading dash

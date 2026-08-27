@@ -10,22 +10,41 @@ import (
 	"dinah/internal/msg"
 )
 
-// StateView is one state as a read reports it.
-type StateView struct {
-	// ID is the state's identifier.
+// ColumnView is one column as a read reports it.
+type ColumnView struct {
+	// ID is the column's identifier.
 	ID string `json:"id"`
-	// Slug is the state's short handle. It is absent on a state written
+	// Slug is the column's short handle. It is absent on a column written
 	// before the field existed and left out until the migration runs.
 	Slug string `json:"slug,omitempty"`
-	// Title is the state's title.
+	// Title is the column's title.
 	Title string `json:"title"`
-	// Kind is one of intake, work and done.
+	// Kind is one the profile declares, which is intake, work or done, or
+	// one carrying a layer's prefix. TakesWorkUp answers the question a
+	// reader of this field usually means.
 	Kind string `json:"kind"`
-	// OperatorOwned marks a state only the operator moves a card out of.
+	// OperatorOwned marks a column only the operator moves a card out of.
 	OperatorOwned bool `json:"operator_owned"`
+	// AwaitingOutside marks a column where the workbench waits on somebody
+	// who is not an owner of it, so no owner takes work up there. It
+	// answers a different question from OperatorOwned, which is about
+	// departure alone, and a column may carry both.
+	AwaitingOutside bool `json:"awaiting_outside"`
+	// TakesWorkUp says an owner takes work up at this column. A reader that
+	// wants the fact reads it here rather than deriving it from Kind, which is
+	// the whole point of publishing it.
+	TakesWorkUp bool `json:"takes_work_up"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
-	// Count is the number of live cards the state holds.
+	// RejectTo is the column a card goes to when the work at this column is
+	// refused, empty where the column declares no such destination. It is
+	// published as the reference the declaration carries rather than as a
+	// resolved identifier, because a reference naming no column opens the
+	// workbench anyway and a reader is owed what was written. Whether the
+	// reference resolves is `dinah check`'s question, under
+	// check.reject-target-unknown.
+	RejectTo string `json:"reject_to,omitempty"`
+	// Count is the number of live cards the column holds.
 	Count int `json:"count"`
 }
 
@@ -44,8 +63,8 @@ type Status struct {
 	Operator string `json:"operator,omitempty"`
 	// Profile is the conformance claim of the bench definition.
 	Profile string `json:"profile"`
-	// States are the flow with each station's occupancy.
-	States []StateView `json:"states"`
+	// Columns are the flow with each station's occupancy.
+	Columns []ColumnView `json:"columns"`
 	// Holding are the cards this actor holds right now.
 	Holding []CardView `json:"holding"`
 	// Blocked are the cards waiting on the operator.
@@ -77,59 +96,62 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		if err := l.lapseRead(card); err != nil {
 			return nil, err
 		}
-		counts[card.State]++
+		counts[card.Column]++
 		if card.Holder != "" && card.Holder == req.Actor {
 			status.Holding = append(status.Holding, *l.view(card))
 		}
-		if card.Substate == contract.SubstateBlocked {
+		if card.State == contract.StateBlocked {
 			status.Blocked = append(status.Blocked, *l.view(card))
 		}
 	}
-	status.States = l.stateViews(counts)
+	status.Columns = l.columnViews(counts)
 	return status, nil
 }
 
-// States reports the flow in order, which is the order of the list in
+// Columns reports the flow in order, which is the order of the list in
 // workbench.md frontmatter and the single authority for it.
-func (l *Library) States() ([]StateView, error) {
+func (l *Library) Columns() ([]ColumnView, error) {
 	cards, err := l.Bench.Cards()
 	if err != nil {
 		return nil, err
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
-		counts[card.State]++
+		counts[card.Column]++
 	}
-	return l.stateViews(counts), nil
+	return l.columnViews(counts), nil
 }
 
-// stateViews renders the flow with each station's occupancy.
-func (l *Library) stateViews(counts map[string]int) []StateView {
-	views := make([]StateView, 0, len(l.Bench.States))
-	for _, state := range l.Bench.States {
-		view := StateView{
-			ID:            state.ID,
-			Slug:          state.Slug,
-			Title:         state.Title,
-			Kind:          state.Kind,
-			OperatorOwned: state.OperatorOwned,
-			Capacity:      state.Capacity,
-			Count:         counts[state.ID],
+// columnViews renders the flow with each station's occupancy.
+func (l *Library) columnViews(counts map[string]int) []ColumnView {
+	views := make([]ColumnView, 0, len(l.Bench.Columns))
+	for _, column := range l.Bench.Columns {
+		view := ColumnView{
+			ID:              column.ID,
+			Slug:            column.Slug,
+			Title:           column.Title,
+			Kind:            column.Kind,
+			OperatorOwned:   column.OperatorOwned,
+			AwaitingOutside: column.AwaitingOutside,
+			TakesWorkUp:     column.TakesWorkUp(),
+			Capacity:        column.Capacity,
+			RejectTo:        column.RejectTo,
+			Count:           counts[column.ID],
 		}
 		views = append(views, view)
 	}
 	return views
 }
 
-// Listing is the cards of a state in queue order.
+// Listing is the cards of a column in queue order.
 type Listing struct {
-	// State is the state listed, empty when the listing spans the bench.
-	State string `json:"state,omitempty"`
+	// Column is the column listed, empty when the listing spans the bench.
+	Column string `json:"column,omitempty"`
 	// Cards are the cards, in the order CORE-QUEUE-3 fixes.
 	Cards []CardView `json:"cards"`
 }
 
-// List presents a state's cards in the profile's fixed order: earliest
+// List presents a column's cards in the profile's fixed order: earliest
 // arrival first, ties broken by ascending identifier. A tool may offer other
 // orders beside it, and this one stays available.
 func (l *Library) List(req *Request) (*Listing, error) {
@@ -138,23 +160,23 @@ func (l *Library) List(req *Request) (*Listing, error) {
 		return nil, err
 	}
 	listing := &Listing{Cards: []CardView{}}
-	var wanted *bench.State
-	if req.State != "" {
-		wanted = l.Bench.StateByRef(req.State)
+	var wanted *bench.Column
+	if req.Column != "" {
+		wanted = l.Bench.ColumnByRef(req.Column)
 		if wanted == nil {
-			return nil, contract.Refuse(contract.UnknownState, req.State)
+			return nil, contract.Refuse(contract.UnknownColumn, req.Column)
 		}
-		listing.State = wanted.ID
+		listing.Column = wanted.ID
 	}
 	var kept []*bench.Card
 	for _, card := range cards {
-		if wanted != nil && card.State != wanted.ID {
+		if wanted != nil && card.Column != wanted.ID {
 			continue
 		}
 		if err := l.lapseRead(card); err != nil {
 			return nil, err
 		}
-		if req.ReadyOnly && card.Substate != contract.SubstateReady {
+		if req.ReadyOnly && card.State != contract.StateReady {
 			continue
 		}
 		kept = append(kept, card)
@@ -166,17 +188,30 @@ func (l *Library) List(req *Request) (*Listing, error) {
 	return listing, nil
 }
 
-// Offer is the card a state offers next, or the absence of one.
+// Offer is the card a column offers next, or the absence of one.
 type Offer struct {
-	// State is the state the offer concerns.
-	State string `json:"state"`
-	// Title is that state's title.
+	// Column is the column the offer concerns.
+	Column string `json:"column"`
+	// Title is that column's title.
 	Title string `json:"title"`
-	// Card is the card offered, absent when the state has nothing ready.
+	// Card is the card offered, absent when the column has nothing ready.
 	Card *CardView `json:"card,omitempty"`
+	// AwaitingOutside says the column waits on somebody outside the
+	// workbench, so it offers nothing whatever is standing there. It tells a
+	// reader an empty offer here means waiting rather than nothing ready.
+	AwaitingOutside bool `json:"awaiting_outside,omitempty"`
+	// NoTaker says no act can take a card up from this column, so it offers
+	// nothing whatever is standing there. AwaitingOutside beside it says the
+	// same thing and says who the workbench is waiting on, so a column carrying
+	// the flag sets both.
+	NoTaker bool `json:"no_taker,omitempty"`
+	// TakenByPull says the card offered leaves by a pull into the column beyond
+	// rather than by a claim here, because nobody takes work up where it
+	// stands. A reader that acts on an offer needs to know which act to use.
+	TakenByPull bool `json:"taken_by_pull,omitempty"`
 }
 
-// Next reports the card a state offers, and changes nothing. Offering a card
+// Next reports the card a column offers, and changes nothing. Offering a card
 // is not assigning it: the owner reads what is next and claims it in a second
 // command, which is the pull discipline of section 6.3.
 func (l *Library) Next(req *Request) ([]Offer, error) {
@@ -184,24 +219,38 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 	if err != nil {
 		return nil, err
 	}
-	states := l.Bench.States
-	if req.State != "" {
-		wanted := l.Bench.StateByRef(req.State)
+	columns := l.Bench.Columns
+	if req.Column != "" {
+		wanted := l.Bench.ColumnByRef(req.Column)
 		if wanted == nil {
-			return nil, contract.Refuse(contract.UnknownState, req.State)
+			return nil, contract.Refuse(contract.UnknownColumn, req.Column)
 		}
-		states = []*bench.State{wanted}
+		columns = []*bench.Column{wanted}
 	}
 	for _, card := range cards {
 		if err := l.lapseRead(card); err != nil {
 			return nil, err
 		}
 	}
-	offers := make([]Offer, 0, len(states))
-	for _, state := range states {
-		offer := Offer{State: state.ID, Title: state.Title}
-		if head := headOfReady(state.ID, cards); head != nil {
+	offers := make([]Offer, 0, len(columns))
+	for _, column := range columns {
+		offer := Offer{Column: column.ID, Title: column.Title}
+		// A column offers its head card when some act could take that card up,
+		// and offers nothing when none could. A claim could take it where the
+		// column takes work up. A pull could take it where carriesInto names a
+		// column to carry it to, which is the function the pull itself reads,
+		// so the offer and the act cannot disagree.
+		//
+		// The lookup reads the whole flow rather than the columns this request
+		// reports, since a named column's downstream is a fact about the
+		// workbench rather than about the request.
+		byPull := !column.TakesWorkUp() && carriesInto(column, l.Bench.Columns) != nil
+		if !column.TakesWorkUp() && !byPull {
+			offer.NoTaker = true
+			offer.AwaitingOutside = column.AwaitingOutside
+		} else if head := headOfReady(column.ID, cards); head != nil {
 			offer.Card = l.view(head)
+			offer.TakenByPull = byPull
 		}
 		offers = append(offers, offer)
 	}
@@ -209,20 +258,20 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 }
 
 // headOfReady returns the next card pull (or next) would take from the given
-// state, or nil if the state holds no ready card. The order is the queue
-// order CORE-QUEUE-3 fixes, namely arrival into the current state first with
+// column, or nil if the column holds no ready card. The order is the queue
+// order CORE-QUEUE-3 fixes, namely arrival into the current column first with
 // the lower card identifier breaking a tie, and only ready cards are eligible.
 //
 // Reading the cards out of the bench's own latch-free snapshot means the
 // returned card may have lapsed in between; both call sites re-read under the
 // card's lock inside their own transaction, so a held card here is filtered
-// again with `claim`'s substate test at the only moment it would matter. A
+// again with `claim`'s state test at the only moment it would matter. A
 // pull that reaches a held or blocked card re-reads it under its lock and
 // refuses accordingly.
-func headOfReady(stateID string, cards []*bench.Card) *bench.Card {
+func headOfReady(columnID string, cards []*bench.Card) *bench.Card {
 	var ready []*bench.Card
 	for _, card := range cards {
-		if card.State == stateID && card.Substate == contract.SubstateReady {
+		if card.Column == columnID && card.State == contract.StateReady {
 			ready = append(ready, card)
 		}
 	}
@@ -254,7 +303,8 @@ type AttachmentView struct {
 	// ID is the attachment's identifier.
 	ID string `json:"id"`
 	// Ordinal is the attachment's one-based position among the attachments
-	// of the entity it hangs from.
+	// of the entity it hangs from: the stored ordinal, or the
+	// directory-order position on an attachment whose anchor carries none.
 	Ordinal int `json:"ordinal"`
 	// Ref is what a person types to name the attachment: the card's own
 	// reference, then attachments and the attachment's ordinal. Resolved
@@ -304,12 +354,12 @@ type CommentView struct {
 // pair rather than assuming the Detail.
 func (l *Library) Show(req *Request) (*Detail, string, error) {
 	head, rest, _ := strings.Cut(req.Card, "/")
-	// A state is an entity of the workbench, and the containment walk prints
+	// A column is an entity of the workbench, and the containment walk prints
 	// a reference for one, so show reads it the way path and edit do rather
 	// than refusing over a reference the tool told the reader to type.
 	if rest == "" {
-		if state := l.Bench.StateByRef(head); state != nil {
-			text, err := bench.ReadText(l.Bench.StateAnchorPath(state.ID))
+		if column := l.Bench.ColumnByRef(head); column != nil {
+			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
 				return nil, "", contract.Refuse(contract.UnknownPath, head)
 			}
@@ -318,7 +368,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	// A composed reference is whatever the resolver reaches, which is why the
 	// resolution comes before the card is loaded: the head may name the
-	// workbench or a state rather than a card, and every one of those forms is
+	// workbench or a column rather than a card, and every one of those forms is
 	// a reference the containment walk prints.
 	if rest != "" {
 		path, err := l.Bench.ResolvePath(req.Card)
@@ -349,10 +399,11 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	}
 	cardRef := card.Ref(l.Bench.Slug)
 	for _, attachment := range attachments {
+		ordinal := displayOrdinal(attachment)
 		view := AttachmentView{
 			ID:          attachment.ID,
-			Ordinal:     attachment.Ordinal,
-			Ref:         attachmentRef(cardRef, attachment),
+			Ordinal:     ordinal,
+			Ref:         attachmentRef(cardRef, ordinal),
 			Filename:    attachment.Filename,
 			Description: attachment.Description,
 			Provenance:  attachment.Provenance,
@@ -370,37 +421,40 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	return detail, "", nil
 }
 
-// attachmentRef composes the reference a person types to reach one attachment
-// from its card: the card's own reference, then attachments and the
-// attachment's one-based ordinal.
+// displayOrdinal is the one-based position a read reports for an attachment,
+// and the only number the position column, the JSON view and the printed ref
+// are built from.
 //
-// The ordinal is read off the anchor rather than taken from the attachment's
-// in-memory position, since an attachment carrying no stored ordinal still
-// needs a ref the resolver will answer: directory-order ordinal is what
-// resolve.go's pick already serves, so the ref printed here is what the
-// reader can type to land back on the same attachment.
-func attachmentRef(cardRef string, attachment *bench.Attachment) string {
-	ordinal := attachment.Ordinal
-	if ordinal == 0 {
-		ordinal = directoryOrdinal(attachment)
-	}
-	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
-}
-
-// directoryOrdinal falls back to the attachment's directory-order position
-// when its anchor carries no stored ordinal. It mirrors what SortByOrdinal
-// does on a collection with no ordinals stamped, so the ref printed in show
-// is the same one path would answer to.
-func directoryOrdinal(attachment *bench.Attachment) int {
+// It counts the attachment's place in the sorted collection and never reads
+// the anchor's stored ordinal, because a position and a stored ordinal are
+// different things. resolve.go's position arm answers a reference by indexing
+// SortByOrdinal(ListIDs(collection)), so a position is an index into that
+// sequence. The stored ordinal is the sort key that orders the sequence, and
+// NextOrdinal hands out highest-plus-one, so one delete leaves a permanent gap
+// after which the two stop coinciding. Counting the place here makes the
+// display, contents and the resolver agree by construction on a stamped
+// collection, on an unstamped one, and on a gapped one alike.
+//
+// Zero means the attachment is not a member of the collection its directory
+// sits in, which no caller can produce today, since Show's attachments come
+// out of that same listing. It is reported rather than smoothed over, so that
+// an unaddressable row shows up as one instead of pointing at the first file.
+func displayOrdinal(attachment *bench.Attachment) int {
 	collection := filepath.Dir(attachment.Dir)
-	ids := bench.ListIDs(collection)
-	ids = bench.SortByOrdinal(collection, bench.AttachmentAnchor, ids)
+	ids := bench.SortByOrdinal(collection, bench.AttachmentAnchor, bench.ListIDs(collection))
 	for n, id := range ids {
 		if id == attachment.ID {
 			return n + 1
 		}
 	}
-	return 1
+	return 0
+}
+
+// attachmentRef composes the reference a person types to reach one attachment
+// from its card: the card's own reference, then attachments and the position
+// the caller resolved through displayOrdinal.
+func attachmentRef(cardRef string, ordinal int) string {
+	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
 }
 
 // linkRef resolves a link's stored card identifier to what a person types to
@@ -422,7 +476,7 @@ func (l *Library) linkRef(id string) string {
 
 // History reports a card's recorded acts in the order they were recorded. An
 // identifier carried in an act is never resolved against the bench as it now
-// stands, so a state renamed after a move still reads under its old title.
+// stands, so a column renamed after a move still reads under its old title.
 func (l *Library) History(req *Request) ([]bench.Event, error) {
 	found, err := l.Bench.ResolveCard(req.Card)
 	if err != nil {
@@ -442,19 +496,28 @@ type Served struct {
 	Instructions Instructions `json:"instructions"`
 	// LegalMoves are the departures legal for the card at this moment.
 	LegalMoves []LegalMove `json:"legal_moves,omitempty"`
-	// State is the state the instructions were served for.
-	State string `json:"state"`
+	// Column is the column the instructions were served for.
+	Column string `json:"column"`
 }
 
-// Instructions serves the chain at a position named by a card or by a state.
+// instructionColumn answers the column a request names directly, and nil when
+// the reference names a card standing in one instead. It is the one place the
+// two branches of an instruction request are told apart: the chain is served
+// from it and the affordances are chosen from it, so the chain and the list
+// can never disagree about which of the two the caller asked for.
+func (l *Library) instructionColumn(req *Request) *bench.Column {
+	return l.Bench.ColumnByRef(req.Card)
+}
+
+// Instructions serves the chain at a position named by a card or by a column.
 func (l *Library) Instructions(req *Request) (*Served, error) {
-	if state := l.Bench.StateByRef(req.Card); state != nil {
+	if column := l.instructionColumn(req); column != nil {
 		served := &Served{
-			State: state.ID,
+			Column: column.ID,
 			Instructions: Instructions{
 				Global:   bench.GlobalInstructions(l.Home),
 				Standing: l.Bench.Standing,
-				State:    state.Instructions,
+				Column:   column.Instructions,
 			},
 		}
 		return served, nil
@@ -464,7 +527,7 @@ func (l *Library) Instructions(req *Request) (*Served, error) {
 		return nil, contract.Refuse(contract.UnknownPath, req.Card)
 	}
 	served := &Served{
-		State:        found.Card.State,
+		Column:       found.Card.Column,
 		Instructions: *l.serve(found.Card),
 		LegalMoves:   l.legalMoves(found.Card),
 	}
@@ -509,7 +572,7 @@ type CheckReport struct {
 	// StampedOrdinals counts the creation ordinals the migration wrote, and
 	// is absent from a request that did not ask for the migration.
 	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
-	// AssignedSlugs are the states the slug migration repaired with the slug
+	// AssignedSlugs are the columns the slug migration repaired with the slug
 	// each one was given. It is absent from a request that asked for no
 	// migration and from a request that asked and found nothing to repair,
 	// which MigratedSlugs below is what separates.
@@ -521,17 +584,17 @@ type CheckReport struct {
 	// for the workbench itself, absent when the workbench already carried
 	// one or when no migration was asked for.
 	AssignedWorkbenchSlug *bench.WorkbenchSlugAssignment `json:"assigned_workbench_slug,omitempty"`
-	// RemovedStrandedStates are the identifiers the states migration removed
-	// from the workbench's own states list. It is absent from a request that
+	// RemovedStrandedColumns are the identifiers the columns migration removed
+	// from the workbench's own columns list. It is absent from a request that
 	// asked for no migration and from a request that asked and found nothing
-	// to repair, which MigratedStates below is what separates.
-	RemovedStrandedStates []string `json:"removed_stranded_states,omitempty"`
-	// MigratedStates says the stranded-state migration ran, so a caller can
+	// to repair, which MigratedColumns below is what separates.
+	RemovedStrandedColumns []string `json:"removed_stranded_columns,omitempty"`
+	// MigratedColumns says the stranded-column migration ran, so a caller can
 	// tell an empty list of removals from a migration nobody asked for.
-	MigratedStates bool `json:"migrated_states,omitempty"`
+	MigratedColumns bool `json:"migrated_columns,omitempty"`
 	// AssignedWorkstreamSlugs are the workstreams the slug migration
 	// repaired with the slug each one was given, on the terms AssignedSlugs
-	// carries the states.
+	// carries the columns.
 	AssignedWorkstreamSlugs []bench.WorkstreamSlugAssignment `json:"assigned_workstream_slugs,omitempty"`
 	// AdoptedWorkstreams are the identifiers the adoption repair created a
 	// workstream at, each one a membership the live cards already carried
@@ -553,11 +616,11 @@ type CheckReport struct {
 // request carrying the migrate-ordinals marker stamps the creation ordinals a
 // workbench written before the field carries none of, which is a one-time
 // repair rather than a read-path fallback. A request carrying the
-// migrate-slugs marker does the same for the states of a workbench that
+// migrate-slugs marker does the same for the columns of a workbench that
 // predate the slug field, names the slug it gave each one, and derives the
 // workbench's own slug when the workbench itself predates that field. A
-// request carrying the migrate-states marker removes every stranded
-// identifier from the workbench's own states list.
+// request carrying the migrate-columns marker removes every stranded
+// identifier from the workbench's own columns list.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -566,7 +629,7 @@ type CheckReport struct {
 func (l *Library) Check(req *Request) (*CheckReport, error) {
 	report := &CheckReport{}
 	if req != nil && req.MigrateSlugs {
-		assigned, reported := l.Bench.BackfillStateSlugs()
+		assigned, reported := l.Bench.BackfillColumnSlugs()
 		report.MigratedSlugs = true
 		report.AssignedSlugs = assigned
 		report.Findings = append(report.Findings, reported...)
@@ -588,10 +651,10 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
-	if req != nil && req.MigrateStates {
-		removed, err := l.Bench.RemoveStrandedStates()
-		report.MigratedStates = true
-		report.RemovedStrandedStates = removed
+	if req != nil && req.MigrateColumns {
+		removed, err := l.Bench.RemoveStrandedColumns()
+		report.MigratedColumns = true
+		report.RemovedStrandedColumns = removed
 		if err != nil {
 			return report, err
 		}

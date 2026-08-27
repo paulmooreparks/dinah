@@ -104,15 +104,15 @@ func TestChecksColumnNeverGluesInAnyLanguage(t *testing.T) {
 	}
 }
 
-// TestKindAndSubstateTokensNeverGlueInAnyLanguage sweeps the three state-kind
-// tokens and the three card-substate tokens against every shipped locale,
-// asserting none glues at the 10-rune width renderStates and renderListing
+// TestKindAndStateTokensNeverGlueInAnyLanguage sweeps the three column-kind
+// tokens and the three card-state tokens against every shipped locale,
+// asserting none glues at the 10-rune width renderColumns and renderListing
 // pad them to.
-func TestKindAndSubstateTokensNeverGlueInAnyLanguage(t *testing.T) {
+func TestKindAndStateTokensNeverGlueInAnyLanguage(t *testing.T) {
 	const width = 10
 	names := []string{
 		contract.KindIntake, contract.KindWork, contract.KindDone,
-		contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked,
+		contract.StateReady, contract.StateActive, contract.StateBlocked,
 	}
 	for _, name := range names {
 		key := "token." + name
@@ -207,7 +207,7 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	}
 	want := 2 + order + 2 + check + 2
 	names := []string{
-		contract.Malformed, contract.UnknownState, contract.AtCapacity,
+		contract.Malformed, contract.UnknownColumn, contract.AtCapacity,
 		contract.NoLevels, contract.UnknownLevel,
 	}
 	found := 0
@@ -241,7 +241,7 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 // typed in: the indent, half of the window the block draws at (assumedWindow,
 // since bare dinah draws with no width stated), and the gutter. A command
 // whose usage is wider than that half needs more than one line for it, and
-// this asserts the count of those against the seven the fixture is known to
+// this asserts the count of those against the eleven the fixture is known to
 // carry, so a change to the command list that stops exercising the wrap is
 // caught here rather than by a coincidence elsewhere. It separately counts
 // how many summaries wrap, against no fixed number, since which summaries
@@ -288,11 +288,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
-	if summaries != 39 {
-		t.Errorf("read %d command entries out of the block, want 39", summaries)
+	if summaries != 40 {
+		t.Errorf("read %d command entries out of the block, want 40", summaries)
 	}
-	if wrapped != 8 {
-		t.Errorf("%d entries wrapped across more than one line, want the eight whose syntax is wider than half the window", wrapped)
+	if wrapped != 11 {
+		t.Errorf("%d entries wrapped across more than one line, want the eleven whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")
@@ -319,37 +319,12 @@ func firstChunk(value string, indent, room int) string {
 }
 
 // hasOptionBoundary is true when value carries at least one boundary the
-// breakOnOptions rule recognises. The check is structural and exists to match
-// splitOnOptionBoundaries's own view, so the two never disagree on what the
-// rule applies to.
+// breakOnOptions rule recognises. It asks splitOnOptionBoundaries itself
+// rather than carrying a second copy of the rule, so the two cannot disagree
+// on what the rule applies to: the splitter returns the whole input as one
+// piece when it finds no boundary, which is exactly the question asked here.
 func hasOptionBoundary(value string) bool {
-	depth := 0
-	for i := 0; i < len(value); i++ {
-		switch value[i] {
-		case '[':
-			if i+2 < len(value) && value[i+1] == '-' && value[i+2] == '-' {
-				depth++
-			}
-		case ']':
-			if depth > 0 {
-				depth--
-			}
-		case ' ':
-			if depth > 0 {
-				continue
-			}
-			j := i + 1
-			switch {
-			case j+2 < len(value) && value[j] == '[' && value[j+1] == '-' && value[j+2] == '-':
-				return true
-			case j < len(value) && value[j] == '<':
-				return true
-			case j+1 < len(value) && value[j] == '-' && value[j+1] == '-':
-				return true
-			}
-		}
-	}
-	return false
+	return len(splitOnOptionBoundaries(value)) > 1
 }
 
 // TestAWideWorkbenchTitleStartsTheColumnsAfterItWhereTheyBelong asserts that a
@@ -458,7 +433,7 @@ func TestANarrowWindowClampsEveryContinuationLine(t *testing.T) {
 		indent:  2,
 		columns: headed("Command", "What it does"),
 		rows: rowsOf(
-			[]string{"add <title> [--state]", "file a card"},
+			[]string{"add <title> [--column]", "file a card"},
 			[]string{strings.Repeat("x", 60), "does a thing"},
 		),
 	})

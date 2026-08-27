@@ -12,7 +12,7 @@ Dinah keeps work moving. Your tasks live as cards on a board made of plain files
 
 There is no server to run and no account to create. A workbench is a folder of Markdown you can read, edit, search, and commit like any other part of your project, and the whole tool is one small binary. Agents drive it as naturally as people do, because Dinah was designed for work where AI colleagues take on real tasks and need to know what each one expects without being told every time.
 
-Under the hood, Dinah is a reference implementation of a shared coordination contract for board-based work: workbench definitions, states and transitions, per-state instruction serving, and the claim, move, release, and block actions a worker takes on a unit of work.
+Under the hood, Dinah is a reference implementation of a shared coordination contract for board-based work: workbench definitions, columns and transitions, per-column instruction serving, and the claim, move, release, and block actions a worker takes on a unit of work.
 
 <br clear="right">
 

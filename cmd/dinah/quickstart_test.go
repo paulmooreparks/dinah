@@ -507,7 +507,7 @@ var normalisationTable = []normalisationClass{
 		group:   2,
 	},
 	{
-		// Minted per workbench, state, card, comment, attachment, and workstream.
+		// Minted per workbench, column, card, comment, attachment, and workstream.
 		name:    "identifier",
 		token:   "<id>",
 		pattern: regexp.MustCompile(`\b[0-9a-f]{12}\b`),
@@ -1225,7 +1225,7 @@ func replayQuickStart(t *testing.T, blocks []quickBlock, columns string) map[int
 // A listing the document shows carries the narrative's own identifiers, and
 // the sandbox minted its own, so the identifiers standing in the file this run
 // built are restored into those bytes before they land. Writing the document's
-// values would name states no workbench here declares.
+// values would name columns no workbench here declares.
 func writeNarrativeFile(t *testing.T, cwd string, block quickBlock) {
 	t.Helper()
 	where, ok := block.directive("path")
@@ -1249,10 +1249,10 @@ func writeNarrativeFile(t *testing.T, cwd string, block quickBlock) {
 	}
 }
 
-// stateReference matches the one placeholder a file block's path may carry
-// below the workbench, which names a state by its slug because the identifier
+// columnReference matches the one placeholder a file block's path may carry
+// below the workbench, which names a column by its slug because the identifier
 // naming its directory is minted per run.
-var stateReference = regexp.MustCompile(`<state:([a-z0-9-]+)>`)
+var columnReference = regexp.MustCompile(`<column:([a-z0-9-]+)>`)
 
 // narrativeFileTarget resolves a file block's path= against the sandbox.
 // `<workbench>` expands to the sole workbench directory under the current
@@ -1265,26 +1265,26 @@ func narrativeFileTarget(t *testing.T, cwd, where string) string {
 	}
 	root := soleBenchDir(t, cwd)
 	rest = strings.TrimPrefix(rest, "/")
-	if found := stateReference.FindStringSubmatchIndex(rest); found != nil {
-		rest = rest[:found[0]] + stateDirectoryOf(t, root, rest[found[2]:found[3]]) + rest[found[1]:]
+	if found := columnReference.FindStringSubmatchIndex(rest); found != nil {
+		rest = rest[:found[0]] + columnDirectoryOf(t, root, rest[found[2]:found[3]]) + rest[found[1]:]
 	}
 	return filepath.Join(root, filepath.FromSlash(rest))
 }
 
-// stateDirectoryOf returns the identifier naming the directory of the state
+// columnDirectoryOf returns the identifier naming the directory of the column
 // carrying a slug.
-func stateDirectoryOf(t *testing.T, root, slug string) string {
+func columnDirectoryOf(t *testing.T, root, slug string) string {
 	t.Helper()
 	opened, err := bench.Open(root)
 	if err != nil {
 		t.Fatalf("open the workbench at %s: %v", root, err)
 	}
-	for _, state := range opened.States {
-		if state.Slug == slug {
-			return state.ID
+	for _, column := range opened.Columns {
+		if column.Slug == slug {
+			return column.ID
 		}
 	}
-	t.Fatalf("the workbench at %s declares no state with the slug %s", root, slug)
+	t.Fatalf("the workbench at %s declares no column with the slug %s", root, slug)
 	return ""
 }
 

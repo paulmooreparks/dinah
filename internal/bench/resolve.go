@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -25,13 +26,41 @@ type Resolved struct {
 // 12-hex identifier and the dash-joined reference whose last segment is the
 // card's number.
 func (b *Bench) ResolveCard(ref string) (*Resolved, error) {
+	return b.resolveCardIn(b.CardsRoot(), ref)
+}
+
+// ResolveArchivedCard finds a card in the archive mirror, by the same grammar
+// ResolveCard accepts. Only a caller that has already failed to resolve a
+// reference against the live half has any business here, because reading the
+// mirror's anchors is work the live path never does.
+func (b *Bench) ResolveArchivedCard(ref string) (*Resolved, error) {
+	return b.resolveCardIn(b.ArchivedCardsRoot(), ref)
+}
+
+// resolveCardIn is the resolution both halves of the collection share. The
+// grammar is identical either side; only the directory the numbers are read
+// out of differs.
+func (b *Bench) resolveCardIn(root, ref string) (*Resolved, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return nil, contract.Refuse(contract.UnknownCard, ref)
 	}
 	if IsID(ref) {
-		card, err := LoadCard(b.CardsRoot(), ref)
+		card, err := LoadCard(root, ref)
 		if err != nil {
+			// A card the reader refused is a card this workbench has, so
+			// its own refusal travels rather than being rewritten into a
+			// report that the workbench carries no such card. Only the
+			// reader's own unknown-card, which is what an unreadable anchor
+			// gives back, is restated here against the reference the caller
+			// typed. Without this, the same card answered one way when it
+			// was addressed by identifier and another way when it was
+			// addressed by its human reference, because the reference route
+			// reads the collection and lets the refusal through.
+			var refusal *contract.Refusal
+			if errors.As(err, &refusal) && refusal.Name != contract.UnknownCard {
+				return nil, err
+			}
 			return nil, contract.Refuse(contract.UnknownCard, ref)
 		}
 		return &Resolved{Card: card}, nil
@@ -40,7 +69,7 @@ func (b *Bench) ResolveCard(ref string) (*Resolved, error) {
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownCard, ref)
 	}
-	cards, err := b.Cards()
+	cards, err := cardsIn(root)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +115,7 @@ var checklistKinds = map[string]string{
 }
 
 // ResolvePath resolves a reference to an absolute path: the workbench itself,
-// a state, a workstream, a card, or anything below any of the first three
+// a column, a workstream, a card, or anything below any of the first three
 // composed by path. It is what the plumbing guarantee of `path` rests on,
 // what `edit` walks, and what `show` walks for the composed form.
 //
@@ -115,9 +144,9 @@ func (b *Bench) ResolvePath(ref string) (string, error) {
 // two readings of that pair, so both accept the same references.
 //
 // The head segment names where the walk starts and the rest descends through
-// the containment grammar. A state is an entity of the workbench and the
+// the containment grammar. A column is an entity of the workbench and the
 // containment walk draws one, so the reference a walk prints for it opens the
-// state the way every other reference opens what it names. The slug heads a
+// column the way every other reference opens what it names. The slug heads a
 // path below the workbench without naming the workbench itself, which is the
 // form the walk prints for a workbench attachment; whether the bare slug also
 // opens the workbench is a separate question and this does not answer it.
@@ -130,12 +159,12 @@ func (b *Bench) resolveBelow(ref string) (string, *Card, error) {
 		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil)
 		return path, nil, err
 	}
-	if state := b.StateByRef(head); state != nil {
+	if column := b.ColumnByRef(head); column != nil {
 		if rest == "" {
-			return b.StateAnchorPath(state.ID), nil, nil
+			return b.ColumnAnchorPath(column.ID), nil, nil
 		}
-		dir := filepath.Join(b.Root, StatesDir, state.ID)
-		path, err := descend(dir, KindState, strings.Split(rest, "/"), nil)
+		dir := filepath.Join(b.Root, ColumnsDir, column.ID)
+		path, err := descend(dir, KindColumn, strings.Split(rest, "/"), nil)
 		return path, nil, err
 	}
 	found, err := b.ResolveCard(head)
@@ -193,7 +222,7 @@ func checklistMount() (Mount, bool) {
 // that may name, so a reference reaches as deep as the grammar goes.
 //
 // A collection holding a kind that is addressed in its own right is refused,
-// so the workbench's cards and states are reached by the address a person
+// so the workbench's cards and columns are reached by the address a person
 // types for them and by nothing else. See addressedInItsOwnRight.
 //
 // A segment the grammar does not know is refused rather than dropped. The
@@ -258,7 +287,7 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 
 // addressedInItsOwnRight reports whether a kind is one a person names directly
 // rather than by its position in the collection that holds it. A card is named
-// by its reference and a state by its slug, and each of those addresses is the
+// by its reference and a column by its slug, and each of those addresses is the
 // only one either kind has.
 //
 // The containment walk mounts both under the workbench and draws a row for
@@ -270,7 +299,7 @@ func descend(dir, kind string, segments []string, narrow *string) (string, error
 // wrote a card's own history into the workbench journal under the workbench's
 // lock.
 func addressedInItsOwnRight(kind string) bool {
-	return kind == KindCard || kind == KindState
+	return kind == KindCard || kind == KindColumn
 }
 
 // payloadOf is the file an attachment wraps, which is the one file its payload
@@ -313,8 +342,9 @@ func filterByKind(collection, anchor string, ids []string, kind string) []string
 //
 // Two attachments may carry the same filename, since attach permits it now
 // and this card does not narrow attach. A name selector matching more than
-// one entity refuses ambiguous-name and carries the ordinal of every match
-// alongside the selector, so the caller retries with attachments/<n>.
+// one entity refuses ambiguous-name and carries the position of every match
+// alongside the selector, so the caller retries with attachments/<n> and the
+// number it retries with is one this same function's position arm answers.
 func pick(collection string, mount Mount, ids []string, selector string) (string, error) {
 	if IsID(selector) {
 		for _, id := range ids {
@@ -335,13 +365,13 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 		matches := matchByName(collection, mount, ids, selector)
 		switch len(matches) {
 		case 1:
-			return matches[0], nil
+			return ids[matches[0]], nil
 		case 0:
 			return "", contract.Refuse(contract.UnknownPath, selector)
 		default:
 			ordinals := make([]string, 0, len(matches))
-			for _, id := range matches {
-				ordinals = append(ordinals, strconv.Itoa(EntityOrdinal(collection, id, mount.Anchor)))
+			for _, index := range matches {
+				ordinals = append(ordinals, strconv.Itoa(index+1))
 			}
 			return "", contract.RefuseWith(contract.AmbiguousName, selector, map[string]string{
 				"selector": selector,
@@ -352,15 +382,23 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 	return "", contract.Refuse(contract.UnknownPath, selector)
 }
 
-// matchByName returns the identifiers of the entities whose anchor declares
-// the collection's name field with the selector as its value. Order matches
-// ids, so a single match returns that match's id in its place.
-func matchByName(collection string, mount Mount, ids []string, selector string) []string {
-	var matches []string
-	for _, id := range ids {
+// matchByName returns the positions within ids of the entities whose anchor
+// declares the collection's name field with the selector as its value.
+//
+// It answers positions rather than identifiers because a position is what the
+// refusal has to report: the sentence tells the caller to retry as
+// attachments/<n>, and the arm that answers that retry is the one above, which
+// indexes this same ids sequence. Reading the anchor's stored ordinal instead
+// names a number the retry cannot resolve, since an unstamped anchor carries
+// no ordinal at all and a gapped collection carries ordinals that have drifted
+// off their positions. The caller reaches the identifier of a single match as
+// ids[position].
+func matchByName(collection string, mount Mount, ids []string, selector string) []int {
+	var matches []int
+	for index, id := range ids {
 		fm, _ := loadAnchor(filepath.Join(collection, id, mount.Anchor))
 		if fm.Value(mount.NameField) == selector {
-			matches = append(matches, id)
+			matches = append(matches, index)
 		}
 	}
 	return matches

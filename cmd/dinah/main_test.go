@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -28,11 +29,12 @@ import (
 // package's tests exercise through the CLI cannot climb out of its own
 // synthetic fixture tree and reach the real workbenches sitting above it.
 // See internal/testenv's package comment for what this does and does not
-// cover. It also clears COLUMNS for the whole run, so a shell that exports
-// it does not reach a test that never asked to see it.
+// cover. It also clears the variables isolatedEnv names for the whole run,
+// so a shell that exports one does not reach a test that never asked to see
+// it.
 func TestMain(m *testing.M) {
 	restoreTemp := testenv.IsolateTempDir()
-	restoreColumns := isolateColumns()
+	restoreIsolated := testenv.ClearVars(isolatedEnv...)
 	tableSiteRecorder = recordReachedTableSite
 	code := m.Run()
 	tableSiteRecorder = nil
@@ -40,32 +42,100 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, complaint)
 		code = 1
 	}
-	restoreColumns()
+	restoreIsolated()
 	restoreTemp()
 	os.Exit(code)
 }
 
-// isolateColumns clears COLUMNS for the whole test binary before any test
-// runs, restoring whatever the environment held once every test has
-// finished. windowWidth (row.go) reads COLUMNS straight from the
-// environment, so an exported COLUMNS reaches every test in this package,
-// not only the ones that set it on purpose. A handful of tests already call
-// t.Setenv("COLUMNS", ...) to control the value they need, and that call
-// keeps working exactly as before: t.Setenv overrides for the one test and
-// restores automatically when it ends, so it composes with an unset starting
-// point the same way it composes with any other. What clearing it here buys
-// is every test that never mentions COLUMNS at all, present or future,
-// which is where the hazard actually lives.
-func isolateColumns() (restore func()) {
-	prev, had := os.LookupEnv("COLUMNS")
-	os.Unsetenv("COLUMNS")
-	return func() {
-		if had {
-			os.Setenv("COLUMNS", prev)
-			return
-		}
-		os.Unsetenv("COLUMNS")
+// isolatedEnv names the variables production code reads straight from the
+// environment and that no test in this binary asked to see. dinah-229.
+//
+// windowWidth (row.go) reads COLUMNS. ResolveEditorSource
+// (internal/bench/config.go) reads DINAH_EDITOR, VISUAL and EDITOR, with
+// DINAH_EDITOR sitting above the config rung a fixture can write, so a
+// developer who exports it draws an editor row no expectation predicts.
+// osLocale (internal/bench/config.go) reads LC_ALL, LC_MESSAGES and LANG and
+// feeds the lang ladder's fourth rung; the sweep does not fail on those only
+// because it always passes --lang, which is a fixture accident rather than
+// isolation.
+//
+// resolveFormat (format.go) reads DINAH_FORMAT and is the reason this list is
+// eight rather than seven. Before dinah-31 the variable was harmless in a
+// shell, because main.go compared it against "json" and every other value fell
+// through to the human rendering unremarked. It now selects the compact form
+// and refuses a value it does not recognise, so a developer who exports it
+// changes what three tests that have nothing to do with it see: a plausible
+// DINAH_FORMAT=compact reddens the rendering-head coverage sweep, the
+// attachment-history alignment test and the missing-slug listing test, and a
+// mistyped one reddens a fixture at its own init with dinah.unknown-format.
+// The audience for the compact form is a driver loop, which is exactly the
+// caller that exports this variable, so the reader who meets those failures
+// reads a working trunk as broken.
+//
+// The list deliberately stops short of DINAH_ACTOR and DINAH_LANG. Fixtures
+// set both on purpose, and clearing them at the binary boundary would change
+// what currently-passing tests start from.
+//
+// It is a named variable rather than a literal at the call site so
+// TestIsolatedEnvNamesEveryVariableTheBinaryClears can read it back.
+var isolatedEnv = []string{
+	"DINAH_FORMAT",
+	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+	"LC_ALL", "LC_MESSAGES", "LANG",
+}
+
+// TestIsolatedEnvNamesEveryVariableTheBinaryClears guards the isolation this
+// binary depends on, in the two halves that fail in different places.
+// dinah-229.
+//
+// The first half compares isolatedEnv against a copy written out here. That is
+// a golden list on purpose: reading the names off the list under test would
+// assert only that a slice equals itself. It catches a name dropped from
+// isolatedEnv later, and it fails on any machine, including a CI runner
+// exporting none of the eight.
+//
+// The second half asserts that TestMain actually made the call, by reading
+// each name back while tests run. That one can only fail where the name is
+// exported, so it is the developer's machine that arms it and no CI leg. Both
+// halves are needed: without the first, a dropped name is invisible on CI;
+// without the second, a list nothing acts on passes.
+func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
+	want := []string{
+		"DINAH_FORMAT",
+		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+		"LC_ALL", "LC_MESSAGES", "LANG",
 	}
+	for _, name := range want {
+		if !namesVariable(isolatedEnv, name) {
+			t.Errorf("isolatedEnv no longer names %s, so this binary inherits it from whoever runs the tests", name)
+		}
+	}
+	for _, name := range isolatedEnv {
+		if !namesVariable(want, name) {
+			t.Errorf("isolatedEnv names %s, which this test does not expect: add it here with the reason, or take it out of the list", name)
+		}
+	}
+	if len(isolatedEnv) != len(want) {
+		t.Errorf("isolatedEnv carries %d names, wanted %d: %v", len(isolatedEnv), len(want), isolatedEnv)
+	}
+
+	for _, name := range want {
+		if value, set := os.LookupEnv(name); set {
+			t.Errorf("%s is still set to %q while tests run, so TestMain did not clear it", name, value)
+		}
+	}
+}
+
+// namesVariable reports whether a list of environment variable names carries
+// one, which is what lets the guard above name the variable that went missing
+// rather than print two slices and leave the reader to diff them.
+func namesVariable(names []string, want string) bool {
+	for _, name := range names {
+		if name == want {
+			return true
+		}
+	}
+	return false
 }
 
 // invocation is one run of the head with its streams captured.
@@ -155,6 +225,16 @@ func newBench(t *testing.T) string {
 	return root
 }
 
+// carryToDoing moves a card to the doing station, which is where a test that
+// goes on to claim it needs the card: no owner takes work up at an intake
+// column, so a claim standing there is refused.
+func carryToDoing(t *testing.T, root, card string) {
+	t.Helper()
+	if got := runCLI(t, root, "move", card, "doing"); got.code != 0 {
+		t.Fatalf("move %s to doing: %d %s", card, got.code, got.errw)
+	}
+}
+
 // soleBenchDir resolves the one workbench directory a container built by
 // newBench actually holds, which sits under container's own .dinah rather
 // than at container itself since dinah-76. Tests that hand a workbench path
@@ -185,7 +265,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists thirty-nine commands, and every command the binary
+	// The block lists forty commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -201,8 +281,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 39 {
-		t.Errorf("wanted thirty-nine listed commands, got %d", listed)
+	if listed != 40 {
+		t.Errorf("wanted forty listed commands, got %d", listed)
 	}
 }
 
@@ -213,25 +293,37 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 // reconstructs the same wrap the renderer draws and reads it back off the
 // block rather than looking for the usage as one contiguous run of text,
 // which a wrapped entry never is.
+//
+// Since dinah-220 a continuation line can carry the summary's own
+// continuation after the syntax fragment, so each chunk is matched as a
+// prefix of its line rather than as the whole of it, with the same
+// space-or-end-of-line rule that keeps one usage from matching another's
+// prefix.
 func blockLists(block, usage string) bool {
 	wrapIndent := 2 + ceilingContinuationIndent
 	room := halfWindow(assumedWindow)
 	chunks := strings.Split(firstChunk(usage, wrapIndent, room), "\n")
 	lines := strings.Split(block, "\n")
-	for i, line := range lines {
-		if !strings.HasPrefix(line, "  "+chunks[0]) {
-			continue
+	// carries reports that a line opens with a chunk and ends the chunk at a
+	// space or at the line's end. The character right after the chunk has to
+	// be a space (the padding before the summary, or before the summary's
+	// own continuation) or nothing at all (a line the summary has run out
+	// on), so a usage that is merely a prefix of a longer one is not read as
+	// a match.
+	carries := func(line, chunk string) bool {
+		if !strings.HasPrefix(line, chunk) {
+			return false
 		}
-		// The character right after the first chunk has to be a space (the
-		// padding before the summary) or the end of the line (a value the
-		// ceiling left whole), so a usage that is merely a prefix of a
-		// longer one is not read as a match.
-		if rest := line[len("  "+chunks[0]):]; rest != "" && rest[0] != ' ' {
+		rest := line[len(chunk):]
+		return rest == "" || rest[0] == ' '
+	}
+	for i, line := range lines {
+		if !carries(line, "  "+chunks[0]) {
 			continue
 		}
 		matched := true
 		for j := 1; j < len(chunks); j++ {
-			if i+j >= len(lines) || lines[i+j] != chunks[j] {
+			if i+j >= len(lines) || !carries(lines[i+j], chunks[j]) {
 				matched = false
 				break
 			}
@@ -265,6 +357,11 @@ func diffLines(wanted, got string) string {
 func TestExitCodesAndTheLeadingToken(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
+	// The second card keeps the intake column occupied, which is what the
+	// archive case below refuses over, while the first is carried to a
+	// station so the claim cases can take it up.
+	runCLI(t, root, "add", "A second card")
+	carryToDoing(t, root, "fx-1")
 
 	cases := []struct {
 		name  string
@@ -279,7 +376,7 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "an act that succeeded", argv: []string{"claim", "fx-1"}, code: 0, token: ""},
 		{name: "a card the workbench does not carry", argv: []string{"claim", "fx-99"}, code: 2, token: contract.UnknownCard, sentence: "this workbench carries no card fx-99"},
 		{name: "a card another owner holds", argv: []string{"claim", "fx-1", "--actor", "bob"}, code: 2, token: contract.Held},
-		{name: "a state the workbench does not declare", argv: []string{"move", "fx-1", "nowhere"}, code: 2, token: contract.UnknownState, sentence: "this workbench declares no state nowhere"},
+		{name: "a column the workbench does not declare", argv: []string{"move", "fx-1", "nowhere"}, code: 2, token: contract.UnknownColumn, sentence: "this workbench declares no column nowhere"},
 		{name: "a block carrying no reason", argv: []string{"block", "fx-1"}, code: 2, token: contract.NoReason},
 		{name: "an unblock by another owner", argv: []string{"unblock", "fx-1", "--actor", "bob"}, code: 2, token: contract.NotOperator},
 		{name: "a release by another owner", argv: []string{"release", "fx-1", "--actor", "bob"}, code: 2, token: contract.NotHolder},
@@ -289,7 +386,7 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a guide topic nothing answers to", argv: []string{"guide", "nothing"}, code: 2, token: contract.UnknownGuide},
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
 		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
-		{name: "an archive of a state cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
+		{name: "an archive of a column cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
 		{name: "an extract into a directory that already holds one", argv: []string{"extract", benchDir(t, root)}, code: 2, token: contract.Exists},
 		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
 		// The explicit basis arrives with the remote arbiter, so this head
@@ -628,7 +725,7 @@ func TestInitHelpKeepsItsRefusalList(t *testing.T) {
 		t.Fatalf("help init: %d %s", got.code, got.errw)
 	}
 	for _, carried := range []string{
-		"create a workbench here, optionally from a template",
+		"Create a workbench here, optionally from a template",
 		"no workbench.md file sits at this exact path",
 		contract.Exists,
 		"the source definition carries what the profile requires",
@@ -710,7 +807,7 @@ func TestJSONIsIdenticalUnderEveryLanguage(t *testing.T) {
 
 	commands := [][]string{
 		{"status"},
-		{"states"},
+		{"columns"},
 		{"ls"},
 		{"next"},
 		{"show", "fx-1"},
@@ -759,7 +856,7 @@ func TestHindiRendersDevanagari(t *testing.T) {
 
 	got := runCLI(t, root, "ls", "--lang", "hi")
 	if !strings.Contains(got.out, "बाधित") {
-		t.Errorf("wanted the Devanagari rendering of the blocked substate, got %q", got.out)
+		t.Errorf("wanted the Devanagari rendering of the blocked state, got %q", got.out)
 	}
 	if strings.ContainsRune(got.out, '�') {
 		t.Error("the output carries a replacement character")
@@ -1053,9 +1150,9 @@ func TestEveryCatalogKeyTheCodeNamesExists(t *testing.T) {
 // done station, which is what the refusals below need and the default flow
 // `init` writes does not carry.
 const limitedDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Limited",
-  "states": [
+  "columns": [
     { "id": "b00000000001", "title": "Intake", "kind": "intake" },
     { "id": "b00000000002", "title": "Doing", "kind": "work", "capacity": 1 },
     { "id": "b00000000003", "title": "Finished", "kind": "done" },
@@ -1100,7 +1197,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			token: contract.AtCapacity,
 		},
 		{
-			name: "a forward move out of a done state",
+			name: "a forward move out of a done column",
 			build: func(t *testing.T) (string, []string) {
 				root := newLimitedBench(t)
 				runCLI(t, root, "add", "First")
@@ -1315,8 +1412,8 @@ func TestTheGuidesTeachOnlyDeclaredFlags(t *testing.T) {
 // command names them from the same definition, and the argument parser accepts
 // them. One completes an interrupted structural act, one stamps the creation
 // ordinals a workbench written before the field carries none of, one derives
-// the slugs of states and workstreams written before that field existed, one
-// removes the stranded identifiers from the states list, and one creates a
+// the slugs of columns and workstreams written before that field existed, one
+// removes the stranded identifiers from the columns list, and one creates a
 // workstream at every membership the live cards carry that names none.
 //
 // The change to the fixture's check line is a ratified one rather than drift.
@@ -1327,7 +1424,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-workstreams] [--yes]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -1340,7 +1437,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-states", "--migrate-workstreams"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-workstreams"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -1897,17 +1994,17 @@ func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
 	}
 }
 
-// TestStatesCarryTheirSlugOnBothSurfaces asserts that the slug reaches every
-// surface a caller reads a state through: the human listing prints it beside
-// the identifier, the machine form carries it as a member of each state
-// object, and a reference typed as the slug reaches the state without the
+// TestColumnsCarryTheirSlugOnBothSurfaces asserts that the slug reaches every
+// surface a caller reads a column through: the human listing prints it beside
+// the identifier, the machine form carries it as a member of each column
+// object, and a reference typed as the slug reaches the column without the
 // quoting a spaced title needs.
-func TestStatesCarryTheirSlugOnBothSurfaces(t *testing.T) {
+func TestColumnsCarryTheirSlugOnBothSurfaces(t *testing.T) {
 	root := newBench(t)
 
-	human := runCLI(t, root, "states")
+	human := runCLI(t, root, "columns")
 	if human.code != 0 {
-		t.Fatalf("states: %d %s", human.code, human.errw)
+		t.Fatalf("columns: %d %s", human.code, human.errw)
 	}
 	for _, slug := range []string{"intake", "doing", "done"} {
 		if !strings.Contains(human.out, slug) {
@@ -1915,51 +2012,51 @@ func TestStatesCarryTheirSlugOnBothSurfaces(t *testing.T) {
 		}
 	}
 
-	machine := runCLI(t, root, "--json", "states")
+	machine := runCLI(t, root, "--json", "columns")
 	if machine.code != 0 {
-		t.Fatalf("states --json: %d %s", machine.code, machine.errw)
+		t.Fatalf("columns --json: %d %s", machine.code, machine.errw)
 	}
-	var states []verb.StateView
-	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+	var columns []verb.ColumnView
+	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
 	}
-	if len(states) != 3 {
-		t.Fatalf("the machine form carries %d states", len(states))
+	if len(columns) != 3 {
+		t.Fatalf("the machine form carries %d columns", len(columns))
 	}
 	for position, wanted := range []string{"intake", "doing", "done"} {
-		if got := states[position].Slug; got != wanted {
-			t.Errorf("state %d carries slug %q, wanted %q", position+1, got, wanted)
+		if got := columns[position].Slug; got != wanted {
+			t.Errorf("column %d carries slug %q, wanted %q", position+1, got, wanted)
 		}
 	}
 
 	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
-	listed := runCLI(t, root, "ls", "--state", "intake")
+	listed := runCLI(t, root, "ls", "--column", "intake")
 	if listed.code != 0 {
 		t.Fatalf("ls by slug: %d %s", listed.code, listed.errw)
 	}
 	if !strings.Contains(listed.out, "A card") {
-		t.Errorf("a slug should name a state on the command line:\n%s", listed.out)
+		t.Errorf("a slug should name a column on the command line:\n%s", listed.out)
 	}
 }
 
-// TestStatesRenderNamesTheRepairInsteadOfPaddingBlank asserts AC-3: a state
+// TestColumnsRenderNamesTheRepairInsteadOfPaddingBlank asserts AC-3: a column
 // with no slug prints a catalog-served placeholder naming the repair, not an
 // equal-width run of spaces indistinguishable from a rendering glitch.
-func TestStatesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
+func TestColumnsRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
 	root := newBench(t)
 	stripSlugs(t, root)
-	got := runCLI(t, root, "states")
+	got := runCLI(t, root, "columns")
 	if got.code != 0 {
-		t.Fatalf("states: %d %s", got.code, got.errw)
+		t.Fatalf("columns: %d %s", got.code, got.errw)
 	}
 	if !strings.Contains(got.out, "no slug") || !strings.Contains(got.out, "migrate-slugs") {
-		t.Errorf("the listing should name the repair for a state with no slug:\n%s", got.out)
+		t.Errorf("the listing should name the repair for a column with no slug:\n%s", got.out)
 	}
 	for _, title := range []string{"Intake", "Doing", "Done"} {
 		if !strings.Contains(got.out, title) {
-			t.Errorf("the listing should still carry state %s:\n%s", title, got.out)
+			t.Errorf("the listing should still carry column %s:\n%s", title, got.out)
 		}
 	}
 }
@@ -2011,8 +2108,8 @@ func TestWorkbenchesRenderNamesTheRepairInsteadOfPaddingBlank(t *testing.T) {
 }
 
 // TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField asserts the
-// one-time repair end to end: the checker names each state carrying no slug,
-// the repair derives one from the title and says which state got which slug on
+// one-time repair end to end: the checker names each column carrying no slug,
+// the repair derives one from the title and says which column got which slug on
 // both surfaces, and the workbench checks clean afterwards.
 func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
 	root := newBench(t)
@@ -2027,7 +2124,7 @@ func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
 	if migrated.code != 0 {
 		t.Fatalf("check --migrate-slugs: %d %s", migrated.code, migrated.errw)
 	}
-	if !strings.Contains(migrated.out, "Assigned 3 state slugs.") {
+	if !strings.Contains(migrated.out, "Assigned 3 column slugs.") {
 		t.Errorf("the migration did not say what it assigned:\n%s", migrated.out)
 	}
 	for _, slug := range []string{"intake", "doing", "done"} {
@@ -2048,119 +2145,119 @@ func TestTheSlugMigrationRepairsAWorkbenchWrittenBeforeTheField(t *testing.T) {
 	}
 }
 
-// TestCheckMigrateStatesNamesWhatItRemovedOnTheTerminal asserts the terminal
-// rendering of the stranded-state repair, not just the internal function it
+// TestCheckMigrateColumnsNamesWhatItRemovedOnTheTerminal asserts the terminal
+// rendering of the stranded-column repair, not just the internal function it
 // calls: a clean check and a real repair must not print the same line, and
-// the repair must say which state identifier it took out of the list.
+// the repair must say which column identifier it took out of the list.
 //
-// dinah check --migrate-states edits workbench.md whether or not the caller
+// dinah check --migrate-columns edits workbench.md whether or not the caller
 // is told, so this is the one place that confirms the edit is also reported;
 // a change to the internal repair function alone would leave this test
 // passing or failing on its own, with no dependency on the renderer at all.
-func TestCheckMigrateStatesNamesWhatItRemovedOnTheTerminal(t *testing.T) {
+func TestCheckMigrateColumnsNamesWhatItRemovedOnTheTerminal(t *testing.T) {
 	root := newBench(t)
-	gone := strandState(t, root, 2)
+	gone := strandColumn(t, root, 2)
 
 	clean := runCLI(t, root, "check")
 	if clean.code == 0 {
-		t.Fatalf("a stranded state should be reported, not pass clean")
+		t.Fatalf("a stranded column should be reported, not pass clean")
 	}
 	if !strings.Contains(clean.out, gone) {
-		t.Errorf("the checker did not name the stranded state:\n%s", clean.out)
+		t.Errorf("the checker did not name the stranded column:\n%s", clean.out)
 	}
 
-	migrated := runCLI(t, root, "check", "--migrate-states")
+	migrated := runCLI(t, root, "check", "--migrate-columns")
 	if migrated.code != 0 {
-		t.Fatalf("check --migrate-states: %d %s", migrated.code, migrated.errw)
+		t.Fatalf("check --migrate-columns: %d %s", migrated.code, migrated.errw)
 	}
-	if !strings.Contains(migrated.out, "Removed 1 stranded state") {
-		t.Errorf("the migration did not say how many states it removed:\n%s", migrated.out)
+	if !strings.Contains(migrated.out, "Removed 1 stranded column") {
+		t.Errorf("the migration did not say how many columns it removed:\n%s", migrated.out)
 	}
 	if !strings.Contains(migrated.out, gone) {
-		t.Errorf("the migration did not name the state it removed:\n%s", migrated.out)
+		t.Errorf("the migration did not name the column it removed:\n%s", migrated.out)
 	}
 
-	again := runCLI(t, root, "check", "--migrate-states")
+	again := runCLI(t, root, "check", "--migrate-columns")
 	if again.code != 0 {
 		t.Fatalf("a second run: %d %s", again.code, again.errw)
 	}
 	if strings.Contains(again.out, gone) {
 		t.Errorf("a second run should have nothing left to name:\n%s", again.out)
 	}
-	if !strings.Contains(again.out, "Removed 0 stranded states") {
+	if !strings.Contains(again.out, "Removed 0 stranded columns") {
 		t.Errorf("a second run did not say it removed nothing:\n%s", again.out)
 	}
 }
 
-// strandState hand-strands one state of a workbench the way retirement's own
-// pre-fix defect used to: it removes the state's directory without touching
-// workbench.md's states list, and returns the identifier left dangling.
-func strandState(t *testing.T, root string, position int) string {
+// strandColumn hand-strands one column of a workbench the way retirement's own
+// pre-fix defect used to: it removes the column's directory without touching
+// workbench.md's columns list, and returns the identifier left dangling.
+func strandColumn(t *testing.T, root string, position int) string {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "states")
-	var states []verb.StateView
-	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+	machine := runCLI(t, root, "--json", "columns")
+	var columns []verb.ColumnView
+	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
 	}
-	if position >= len(states) {
-		t.Fatalf("the workbench carries %d states", len(states))
+	if position >= len(columns) {
+		t.Fatalf("the workbench carries %d columns", len(columns))
 	}
-	id := states[position].ID
-	dir := filepath.Join(benchDir(t, root), bench.StatesDir, id)
+	id := columns[position].ID
+	dir := filepath.Join(benchDir(t, root), bench.ColumnsDir, id)
 	if err := os.RemoveAll(dir); err != nil {
 		t.Fatalf("remove %s: %v", dir, err)
 	}
 	return id
 }
 
-// strandAllStates hand-strands every state a fresh newBench declares, one at
-// a time: each call to strandState re-reads the live list, which shrinks by
+// strandAllColumns hand-strands every column a fresh newBench declares, one at
+// a time: each call to strandColumn re-reads the live list, which shrinks by
 // one member as its predecessor is stranded, so position 0 always names
-// whichever state is still live. It returns the stranded identifiers in the
-// order they were stranded, leaving workbench.md's raw states list
+// whichever column is still live. It returns the stranded identifiers in the
+// order they were stranded, leaving workbench.md's raw columns list
 // unchanged and every id on it stranded, which is the shape a real
-// workbench reaches after every other state was already retired and this
+// workbench reaches after every other column was already retired and this
 // last one was retired or removed under the pre-dinah-49 code.
-func strandAllStates(t *testing.T, root string) []string {
+func strandAllColumns(t *testing.T, root string) []string {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "states")
-	var states []verb.StateView
-	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+	machine := runCLI(t, root, "--json", "columns")
+	var columns []verb.ColumnView
+	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
 	}
-	gone := make([]string, 0, len(states))
-	for range states {
-		gone = append(gone, strandState(t, root, 0))
+	gone := make([]string, 0, len(columns))
+	for range columns {
+		gone = append(gone, strandColumn(t, root, 0))
 	}
 	return gone
 }
 
-// TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition asserts AC-2:
-// dinah check --migrate-states against a workbench whose states list is
+// TestCheckMigrateColumnsRefusesRatherThanEmptyingTheDefinition asserts AC-2:
+// dinah check --migrate-columns against a workbench whose columns list is
 // entirely stranded ids exits 2 with the new refusal, leaves workbench.md
 // unchanged, and a following plain dinah check reports the same
-// check.stranded-state finding(s) it would have reported before the
+// check.stranded-column finding(s) it would have reported before the
 // migration attempt.
-func TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition(t *testing.T) {
+func TestCheckMigrateColumnsRefusesRatherThanEmptyingTheDefinition(t *testing.T) {
 	root := newBench(t)
 	anchor := filepath.Join(benchDir(t, root), bench.WorkbenchAnchor)
-	gone := strandAllStates(t, root)
+	gone := strandAllColumns(t, root)
 
 	before, err := os.ReadFile(anchor)
 	if err != nil {
 		t.Fatalf("read anchor: %v", err)
 	}
 
-	migrated := runCLI(t, root, "check", "--migrate-states")
+	migrated := runCLI(t, root, "check", "--migrate-columns")
 	if migrated.code != 2 {
-		t.Fatalf("check --migrate-states: wanted exit 2, got %d\n%s", migrated.code, migrated.errw)
+		t.Fatalf("check --migrate-columns: wanted exit 2, got %d\n%s", migrated.code, migrated.errw)
 	}
-	if !strings.Contains(migrated.errw, contract.RepairWouldEmptyStates) {
-		t.Errorf("wanted the repair-would-empty-states refusal, got:\n%s", migrated.errw)
+	if !strings.Contains(migrated.errw, contract.RepairWouldEmptyColumns) {
+		t.Errorf("wanted the repair-would-empty-columns refusal, got:\n%s", migrated.errw)
 	}
 	for _, id := range gone {
 		if !strings.Contains(migrated.errw, id) {
-			t.Errorf("the refusal did not name the stranded state %s:\n%s", id, migrated.errw)
+			t.Errorf("the refusal did not name the stranded column %s:\n%s", id, migrated.errw)
 		}
 	}
 
@@ -2174,7 +2271,7 @@ func TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition(t *testing.T) 
 
 	plain := runCLI(t, root, "check")
 	if plain.code == 0 {
-		t.Fatalf("a following check should still report the stranded states")
+		t.Fatalf("a following check should still report the stranded columns")
 	}
 	for _, id := range gone {
 		if !strings.Contains(plain.out, id) {
@@ -2183,22 +2280,22 @@ func TestCheckMigrateStatesRefusesRatherThanEmptyingTheDefinition(t *testing.T) 
 	}
 }
 
-// TestAddRefusesWithNoLiveStates asserts AC-8's CLI-level half: dinah add
-// against a workbench whose states list is entirely stranded prints and
-// exits on the AddNeedsAState refusal, naming the workbench.md path and the
+// TestAddRefusesWithNoLiveColumns asserts AC-8's CLI-level half: dinah add
+// against a workbench whose columns list is entirely stranded prints and
+// exits on the AddNeedsAColumn refusal, naming the workbench.md path and the
 // dinah check / dinah add follow-up, and creates no card directory.
-func TestAddRefusesWithNoLiveStates(t *testing.T) {
+func TestAddRefusesWithNoLiveColumns(t *testing.T) {
 	root := newBench(t)
 	dir := benchDir(t, root)
 	anchor := filepath.Join(dir, bench.WorkbenchAnchor)
-	strandAllStates(t, root)
+	strandAllColumns(t, root)
 
 	got := runCLI(t, root, "add", "stranded card")
 	if got.code != 2 {
 		t.Fatalf("add: wanted exit 2, got %d\n%s", got.code, got.errw)
 	}
-	if !strings.Contains(got.errw, contract.AddNeedsAState) {
-		t.Errorf("wanted the add-needs-a-state refusal, got:\n%s", got.errw)
+	if !strings.Contains(got.errw, contract.AddNeedsAColumn) {
+		t.Errorf("wanted the add-needs-a-column refusal, got:\n%s", got.errw)
 	}
 	if !strings.Contains(got.errw, anchor) {
 		t.Errorf("the refusal did not name the workbench.md path:\n%s", got.errw)
@@ -2218,9 +2315,9 @@ func TestAddRefusesWithNoLiveStates(t *testing.T) {
 
 // TestAHandTypedSlugLeavesTheWorkbenchOpenable asserts the corner an operator
 // has to be able to get out of with the tool: somebody types a slug into a
-// state anchor by hand and gets it wrong, and the workbench goes on opening,
-// the checker names the state and the file, and the repair that fills in the
-// states around it still runs.
+// column anchor by hand and gets it wrong, and the workbench goes on opening,
+// the checker names the column and the file, and the repair that fills in the
+// columns around it still runs.
 //
 // Every command opens the workbench before it can do anything with it, so a
 // reader refusing a stored slug would take the whole workbench away over one
@@ -2232,9 +2329,9 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 	t.Run("a slug outside the grammar", func(t *testing.T) {
 		root := newBench(t)
 		stripSlugs(t, root)
-		state, anchor := writeStateSlug(t, root, 0, "Caf--Corner")
+		column, anchor := writeColumnSlug(t, root, 0, "Caf--Corner")
 
-		listed := runCLI(t, root, "states")
+		listed := runCLI(t, root, "columns")
 		if listed.code != 0 {
 			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
 		}
@@ -2243,21 +2340,21 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 		}
 
 		reported := runCLI(t, root, "check")
-		for _, fragment := range []string{state, anchor, "is not a letter followed by"} {
+		for _, fragment := range []string{column, anchor, "is not a letter followed by"} {
 			if !strings.Contains(reported.out, fragment) {
 				t.Errorf("the checker should carry %q:\n%s", fragment, reported.out)
 			}
 		}
 
 		migrated := runCLI(t, root, "check", "--migrate-slugs")
-		if !strings.Contains(migrated.out, "Assigned 2 state slugs.") {
-			t.Errorf("the repair did not reach the states around the bad one:\n%s", migrated.out)
+		if !strings.Contains(migrated.out, "Assigned 2 column slugs.") {
+			t.Errorf("the repair did not reach the columns around the bad one:\n%s", migrated.out)
 		}
-		if !strings.Contains(migrated.out, state) || !strings.Contains(migrated.out, anchor) {
-			t.Errorf("the repair stopped naming the state it left alone:\n%s", migrated.out)
+		if !strings.Contains(migrated.out, column) || !strings.Contains(migrated.out, anchor) {
+			t.Errorf("the repair stopped naming the column it left alone:\n%s", migrated.out)
 		}
 
-		reopened := runCLI(t, root, "states")
+		reopened := runCLI(t, root, "columns")
 		if reopened.code != 0 {
 			t.Fatalf("the repaired workbench should open: %d %s", reopened.code, reopened.errw)
 		}
@@ -2268,46 +2365,46 @@ func TestAHandTypedSlugLeavesTheWorkbenchOpenable(t *testing.T) {
 		}
 	})
 
-	t.Run("a slug another state already carries", func(t *testing.T) {
+	t.Run("a slug another column already carries", func(t *testing.T) {
 		root := newBench(t)
-		writeStateSlug(t, root, 0, "done")
+		writeColumnSlug(t, root, 0, "done")
 
-		listed := runCLI(t, root, "states")
+		listed := runCLI(t, root, "columns")
 		if listed.code != 0 {
 			t.Fatalf("the workbench should still open: %d %s", listed.code, listed.errw)
 		}
 
-		// The walk names the second state to carry the value, which is the
+		// The walk names the second column to carry the value, which is the
 		// one whose reference has stopped answering for it alone.
-		duplicate, anchor := writeStateSlug(t, root, 2, "done")
+		duplicate, anchor := writeColumnSlug(t, root, 2, "done")
 		reported := runCLI(t, root, "check")
-		for _, fragment := range []string{duplicate, anchor, "another state of this workbench also carries"} {
+		for _, fragment := range []string{duplicate, anchor, "another column of this workbench also carries"} {
 			if !strings.Contains(reported.out, fragment) {
 				t.Errorf("the checker should carry %q:\n%s", fragment, reported.out)
 			}
 		}
 
 		migrated := runCLI(t, root, "check", "--migrate-slugs")
-		if !strings.Contains(migrated.out, "Assigned 0 state slugs.") {
+		if !strings.Contains(migrated.out, "Assigned 0 column slugs.") {
 			t.Errorf("the repair should run and find nothing to assign:\n%s", migrated.out)
 		}
 	})
 }
 
-// writeStateSlug types a slug into one state anchor of a workbench the way a
-// person editing the file by hand would, and returns the state's identifier
+// writeColumnSlug types a slug into one column anchor of a workbench the way a
+// person editing the file by hand would, and returns the column's identifier
 // and the anchor's path, which are the two things a report about it names.
-func writeStateSlug(t *testing.T, root string, position int, slug string) (string, string) {
+func writeColumnSlug(t *testing.T, root string, position int, slug string) (string, string) {
 	t.Helper()
-	machine := runCLI(t, root, "--json", "states")
-	var states []verb.StateView
-	if err := json.Unmarshal([]byte(machine.out), &states); err != nil {
+	machine := runCLI(t, root, "--json", "columns")
+	var columns []verb.ColumnView
+	if err := json.Unmarshal([]byte(machine.out), &columns); err != nil {
 		t.Fatalf("decode: %v\n%s", err, machine.out)
 	}
-	if position >= len(states) {
-		t.Fatalf("the workbench carries %d states", len(states))
+	if position >= len(columns) {
+		t.Fatalf("the workbench carries %d columns", len(columns))
 	}
-	path := filepath.Join(benchDir(t, root), "states", states[position].ID, "state.md")
+	path := filepath.Join(benchDir(t, root), "columns", columns[position].ID, "column.md")
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
@@ -2325,20 +2422,20 @@ func writeStateSlug(t *testing.T, root string, position int, slug string) (strin
 	if err := os.WriteFile(path, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
-	return states[position].ID, path
+	return columns[position].ID, path
 }
 
-// stripSlugs removes the slug from every state anchor of a workbench, which is
+// stripSlugs removes the slug from every column anchor of a workbench, which is
 // the shape a workbench written before the field has on disk.
 func stripSlugs(t *testing.T, root string) {
 	t.Helper()
-	states := filepath.Join(benchDir(t, root), "states")
-	entries, err := os.ReadDir(states)
+	columns := filepath.Join(benchDir(t, root), "columns")
+	entries, err := os.ReadDir(columns)
 	if err != nil {
-		t.Fatalf("read states: %v", err)
+		t.Fatalf("read columns: %v", err)
 	}
 	for _, entry := range entries {
-		path := filepath.Join(states, entry.Name(), "state.md")
+		path := filepath.Join(columns, entry.Name(), "column.md")
 		text, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
@@ -2563,9 +2660,9 @@ func emptyTree(t *testing.T) string {
 // the title as its one argument. It stands in for the flow `init` builds when
 // no source is named.
 const baseDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": %q,
-  "states": [
+  "columns": [
     { "id": "c00000000001", "title": "Intake", "kind": "intake" },
     { "id": "c00000000002", "title": "Doing", "kind": "work" },
     { "id": "c00000000003", "title": "Done", "kind": "done" }
@@ -2702,7 +2799,7 @@ func stackedValues(lines []string, heading string) []string {
 }
 
 // jsonRows reads a listing's machine form, which is a bare array with no
-// envelope, the shape `states --json` and `config --json` already emit.
+// envelope, the shape `columns --json` and `config --json` already emit.
 func jsonRows(t *testing.T, got invocation) []bench.Candidate {
 	t.Helper()
 	if got.code != 0 {
@@ -2850,7 +2947,7 @@ func TestTheListingAndTheRefusalNameTheSameCandidates(t *testing.T) {
 	if !reflect.DeepEqual(listing, shown) {
 		t.Errorf("the two listings disagree: %v against %v", listing, shown)
 	}
-	refusal := runCLI(t, tree, "states")
+	refusal := runCLI(t, tree, "columns")
 	if refusal.code != 2 {
 		t.Fatalf("a command needing one workbench should still refuse, got %d", refusal.code)
 	}
@@ -2970,7 +3067,7 @@ func TestTheOverrideIsSpelledInFull(t *testing.T) {
 }
 
 // TestAForeignWorkbenchFileIsPassedOverByTheClimb asserts AC-7: a directory
-// holding a workbench.md that carries none of profile, format or states,
+// holding a workbench.md that carries none of profile, format or columns,
 // sitting below a real workbench, no longer stops the search. `dinah
 // workbenches`, run from inside the foreign-holding directory, lists the real
 // ancestor workbench by title and does not list the foreign directory.
@@ -3025,7 +3122,7 @@ func TestCheckReportsTheForeignAnchorsAWalkPassedOver(t *testing.T) {
 // TestTheOverrideSkipsRecognitionAndLeavesItToOpen asserts AC-9: --workbench
 // and DINAH_WORKBENCH test only file presence, unchanged. A recognition
 // problem in the pointed-at file (no frontmatter carrying profile, format or
-// states at all) is reported by Open's existing malformed refusal rather than
+// columns at all) is reported by Open's existing malformed refusal rather than
 // by a refusal the walk's new recognition test would raise.
 func TestTheOverrideSkipsRecognitionAndLeavesItToOpen(t *testing.T) {
 	root := newBench(t)
@@ -3086,6 +3183,7 @@ func TestCardAliasResolvesAcrossTheDeclaredCommandSurface(t *testing.T) {
 	}
 
 	// claim, status, instructions and comment resolve the alias.
+	carryToDoing(t, root, first)
 	if claimed := runCLI(t, root, "claim", first); claimed.code != 0 || !strings.Contains(claimed.out, first) {
 		t.Fatalf("claim %s: %d %q", first, claimed.code, claimed.out)
 	}
@@ -3241,15 +3339,16 @@ func TestShowResolvesALinkToTheAliasNotTheBareIdentifier(t *testing.T) {
 	}
 }
 
-// TestLegalMovesReportTheAliasNotTheBareStateIdentifier is armed by
-// asserting the ref field of a legal move rather than its state identifier.
+// TestLegalMovesReportTheAliasNotTheBareColumnIdentifier is armed by
+// asserting the ref field of a legal move rather than its column identifier.
 // The moves-this-card-may-make listing, printed after claim, move and show,
 // used to print the destination's bare identifier while move itself already
-// accepted the state's slug, so the one place the tool told a person what to
+// accepted the column's slug, so the one place the tool told a person what to
 // type next showed them something they could not comfortably type.
-func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
+func TestLegalMovesReportTheAliasNotTheBareColumnIdentifier(t *testing.T) {
 	root := newBench(t)
 	first := addCard(t, root, "First")
+	carryToDoing(t, root, first)
 
 	claimed := runCLI(t, root, "--json", "claim", first)
 	if claimed.code != 0 {
@@ -3266,13 +3365,18 @@ func TestLegalMovesReportTheAliasNotTheBareStateIdentifier(t *testing.T) {
 	}
 	for _, move := range response.LegalMoves {
 		if move.Ref == "" {
-			t.Fatalf("legal move to %s carries no ref: %+v", move.State, move)
+			t.Fatalf("legal move to %s carries no ref: %+v", move.Column, move)
 		}
-		if move.Ref == move.State {
-			t.Errorf("legal move to %s: ref fell back to the bare identifier though the state carries a slug", move.State)
+		if move.Ref == move.Column {
+			t.Errorf("legal move to %s: ref fell back to the bare identifier though the column carries a slug", move.Column)
 		}
 		// The ref is what move actually accepts, proving it is not merely
-		// displayed but usable.
+		// displayed but usable. The card is released first, because every
+		// move out of the doing station on this flow lands at a column where
+		// no owner takes work up, and such a column takes an unheld card.
+		if released := runCLI(t, root, "release", first); released.code != 0 {
+			t.Fatalf("release %s: %d %s", first, released.code, released.errw)
+		}
 		moved := runCLI(t, root, "move", first, move.Ref)
 		if moved.code != 0 {
 			t.Fatalf("move %s %s: %d %s", first, move.Ref, moved.code, moved.errw)
@@ -3446,7 +3550,7 @@ func wantUsage(t *testing.T, got invocation, word string) {
 // refuses with dinah.usage naming the word, in place of today's silent exit
 // 0, and that nothing about a successful run of the same command changes.
 func TestMistypedSingleDashRefusesOnAZeroBoundedCommand(t *testing.T) {
-	for _, name := range []string{"status", "states", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+	for _, name := range []string{"status", "columns", "version", "workbenches", "export", "mcp", "check", "whoami"} {
 		t.Run(name, func(t *testing.T) {
 			wantUsage(t, runCLI(t, t.TempDir(), name, "-w"), "-w")
 		})
@@ -3505,10 +3609,10 @@ func editWorkbenchAnchor(t *testing.T, path, from, to string) {
 }
 
 // TestMistypedSingleDashRefusesBeforeTheDomainCheck asserts dinah-69's AC-2:
-// every command whose bounded slot is a card reference, a state name, or a
+// every command whose bounded slot is a card reference, a column name, or a
 // guide/help topic refuses with dinah.usage naming the word when a
 // single-dash word fills that slot, rather than today's unknown-card,
-// unknown-state, unknown-command or unknown-guide refusal.
+// unknown-column, unknown-command or unknown-guide refusal.
 func TestMistypedSingleDashRefusesBeforeTheDomainCheck(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
@@ -3529,7 +3633,7 @@ func TestMistypedSingleDashRefusesBeforeTheDomainCheck(t *testing.T) {
 		{"guide", []string{"guide", "-w"}},
 		{"help", []string{"help", "-w"}},
 		{"move's card slot", []string{"move", "-w", "ready"}},
-		{"move's state slot", []string{"move", "fx-1", "-w"}},
+		{"move's column slot", []string{"move", "fx-1", "-w"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3622,10 +3726,10 @@ func TestOpenTailContinuesToAcceptALeadingDashWord(t *testing.T) {
 
 	// A single-dash word given as an explicit flag's own value is unaffected
 	// and still reaches the domain refusal, not dinah.usage.
-	got = runCLI(t, root, "move", "fx-1", "nowhere", "--state", "-w")
+	got = runCLI(t, root, "move", "fx-1", "nowhere", "--column", "-w")
 	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
-	if leading != contract.UnknownState {
-		t.Errorf("an explicit flag value: wanted %s, got %q", contract.UnknownState, got.errw)
+	if leading != contract.UnknownColumn {
+		t.Errorf("an explicit flag value: wanted %s, got %q", contract.UnknownColumn, got.errw)
 	}
 
 	// The top-level command name itself is unaffected.
@@ -3677,7 +3781,7 @@ func TestMistypedSingleDashBeyondACommandsOwnArityStillRefuses(t *testing.T) {
 // leading dash) refuses with dinah.usage naming that exact word, in place of
 // today's silent exit 0.
 func TestPlainWordBeyondAZeroBoundedCommandRefuses(t *testing.T) {
-	for _, name := range []string{"status", "states", "version", "workbenches", "export", "mcp", "check", "whoami"} {
+	for _, name := range []string{"status", "columns", "version", "export", "mcp", "check", "whoami"} {
 		t.Run(name, func(t *testing.T) {
 			wantUsage(t, runCLI(t, t.TempDir(), name, "somejunk"), "somejunk")
 		})
@@ -3708,6 +3812,11 @@ func TestPlainWordBeyondAOneBoundedCommandRefuses(t *testing.T) {
 		{"help", []string{"help", "claim"}},
 		{"extract", []string{"extract", filepath.Join(t.TempDir(), "out")}},
 		{"path", []string{"path", "fx-1"}},
+		// workbenches joined this table on dinah-281, which gave it a
+		// positional: the directory to walk downward from. Its own bounded
+		// slot is a path rather than a card reference, so the baseline call
+		// names a real directory.
+		{"workbenches", []string{"workbenches", t.TempDir()}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4178,16 +4287,16 @@ func TestUsageRefusalNamesTheMarker(t *testing.T) {
 func TestTrailingDomainFlagStillApplies(t *testing.T) {
 	root := newBench(t)
 
-	got := runCLI(t, root, "add", "the rollout failed because of", "--state", "doing")
+	got := runCLI(t, root, "add", "the rollout failed because of", "--column", "doing")
 	if got.code != 0 {
-		t.Fatalf("add trailing --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("add trailing --column: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 	added := showDetail(t, root, "fx-1")
 	if added.Card.Title != "the rollout failed because of" {
 		t.Errorf("title: wanted %q, got %q", "the rollout failed because of", added.Card.Title)
 	}
-	if added.Card.StateTitle != "Doing" {
-		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
+	if added.Card.ColumnTitle != "Doing" {
+		t.Errorf("column: wanted Doing, got %q", added.Card.ColumnTitle)
 	}
 
 	got = runCLI(t, root, "block", "fx-1", "the rollout failed", "--kind", "external")
@@ -4215,16 +4324,16 @@ func TestTrailingDomainFlagStillApplies(t *testing.T) {
 func TestNonTrailingDomainFlagIsLiteral(t *testing.T) {
 	root := newBench(t)
 
-	got := runCLI(t, root, "add", "--state", "doing", "the rollout failed")
+	got := runCLI(t, root, "add", "--column", "doing", "the rollout failed")
 	if got.code != 0 {
-		t.Fatalf("add with a leading --state: wanted exit 0, got %d (%s)", got.code, got.errw)
+		t.Fatalf("add with a leading --column: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 	added := showDetail(t, root, "fx-1")
 	if added.Card.Title != "the rollout failed" {
 		t.Errorf("title: wanted %q, got %q", "the rollout failed", added.Card.Title)
 	}
-	if added.Card.StateTitle != "Doing" {
-		t.Errorf("state: wanted Doing, got %q", added.Card.StateTitle)
+	if added.Card.ColumnTitle != "Doing" {
+		t.Errorf("column: wanted Doing, got %q", added.Card.ColumnTitle)
 	}
 
 	runCLI(t, root, "add", "a card to block")
@@ -4252,23 +4361,23 @@ func TestCommentAndConfigSetDeclareNoFlagOfTheirOwn(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "a card")
 
-	got := runCLI(t, root, "comment", "fx-1", "please --state deploy done")
+	got := runCLI(t, root, "comment", "fx-1", "please --column deploy done")
 	if got.code != 0 {
 		t.Fatalf("comment: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 	detail := showDetail(t, root, "fx-1")
-	if len(detail.Comments) != 1 || detail.Comments[0].Body != "please --state deploy done" {
-		t.Fatalf("wanted one comment %q, got %v", "please --state deploy done", detail.Comments)
+	if len(detail.Comments) != 1 || detail.Comments[0].Body != "please --column deploy done" {
+		t.Fatalf("wanted one comment %q, got %v", "please --column deploy done", detail.Comments)
 	}
 
 	_, dir := settingsHome(t)
-	got = runCLI(t, dir, "config", "set", "actor", "please --state deploy done")
+	got = runCLI(t, dir, "config", "set", "actor", "please --column deploy done")
 	if got.code != 0 {
 		t.Fatalf("config set: wanted exit 0, got %d (%s)", got.code, got.errw)
 	}
 	got = runCLI(t, dir, "config", "get", "actor")
-	if got.code != 0 || strings.TrimSpace(got.out) != "please --state deploy done" {
-		t.Errorf("config get actor: wanted %q, got %d %q", "please --state deploy done", got.code, got.out)
+	if got.code != 0 || strings.TrimSpace(got.out) != "please --column deploy done" {
+		t.Errorf("config get actor: wanted %q, got %d %q", "please --column deploy done", got.code, got.out)
 	}
 }
 
@@ -4319,22 +4428,22 @@ func TestAValueStarvedFlagRefusesRatherThanFallingThrough(t *testing.T) {
 		t.Errorf("wanted %s (no reason given, not the flag name landing in the reason), got %q", contract.NoReason, got.errw)
 	}
 
-	wantUsage(t, runCLI(t, root, "move", "fx-1", "doing", "--state"), "--state")
+	wantUsage(t, runCLI(t, root, "move", "fx-1", "doing", "--column"), "--column")
 }
 
 // TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText asserts the
 // reverse of dinah-96's AC-18/D-7, dinah-100 (D-3): add's own domain flag is
 // read as a flag wherever it is typed relative to the one-word free text,
 // leading or trailing, so a bogus value now reaches add's own downstream
-// state check and refuses, in place of the literal text dinah-96 would have
+// column check and refuses, in place of the literal text dinah-96 would have
 // accepted for the same input.
 func TestANonTrailingFlagNowReachesValidationInsteadOfLiteralText(t *testing.T) {
 	root := newBench(t)
 
-	got := runCLI(t, root, "add", "--state", "bogus", "the rollout failed")
+	got := runCLI(t, root, "add", "--column", "bogus", "the rollout failed")
 	leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
-	if got.code == 0 || leading != contract.UnknownState {
-		t.Errorf("add with a leading bogus --state: wanted %s, got %d (%s)", contract.UnknownState, got.code, got.errw)
+	if got.code == 0 || leading != contract.UnknownColumn {
+		t.Errorf("add with a leading bogus --column: wanted %s, got %d (%s)", contract.UnknownColumn, got.code, got.errw)
 	}
 }
 
@@ -4361,7 +4470,7 @@ var refusalDoubleSpace = regexp.MustCompile(`  +`)
 // beside a successful act rather than a refusal.
 //
 // Two bounds are worth stating. The double-space rule is a proxy rather than
-// the property itself, since a card title, a path or a state name a caller
+// the property itself, since a card title, a path or a column name a caller
 // typed could carry a run of its own; it holds because the corpus supplies
 // every input the package's tests use, and it is a rule about this corpus
 // rather than about the tool. And the check sees only the refusals some test
@@ -4529,6 +4638,7 @@ func TestARefusalWithAnAbsentSubjectSaysSomethingElse(t *testing.T) {
 	if got := runCLI(t, root, "add", "Something"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
+	carryToDoing(t, root, "fx-1")
 	english := msg.For(msg.Base)
 
 	unheld := runCLI(t, root, "release", "fx-1")
@@ -4623,7 +4733,7 @@ func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 	t.Run("a definition file", func(t *testing.T) {
 		root := newBench(t)
 		template := filepath.Join(root, "template.json")
-		if err := os.WriteFile(template, []byte(`{"profile":"dinah/1.0","title":"a template","states":[]}`), 0o644); err != nil {
+		if err := os.WriteFile(template, []byte(`{"profile":"dinah/1.0","title":"a template","columns":[]}`), 0o644); err != nil {
 			t.Fatalf("write the template: %v", err)
 		}
 		elsewhere := filepath.Join(t.TempDir(), "target")
@@ -4678,21 +4788,21 @@ func TestAMembershipRefusalPrintsWhatTheToolAccepts(t *testing.T) {
 	}
 	english := msg.For(msg.Base)
 
-	t.Run("the states a workbench declares", func(t *testing.T) {
+	t.Run("the columns a workbench declares", func(t *testing.T) {
 		got := runCLI(t, root, "ls", "nowhere")
 		if got.code != 2 {
-			t.Fatalf("listing an unknown state exited %d, wanted 2", got.code)
+			t.Fatalf("listing an unknown column exited %d, wanted 2", got.code)
 		}
 		for _, want := range []string{"  intake", "  doing", "  done"} {
 			if !strings.Contains(got.errw, want+"\n") {
 				t.Errorf("the listing should carry %q, got %q", want, got.errw)
 			}
 		}
-		if !strings.HasSuffix(got.errw, english.T("refusal.unknown-state.next", "command", "ls")+"\n") {
+		if !strings.HasSuffix(got.errw, english.T("refusal.unknown-column.next", "command", "ls")+"\n") {
 			t.Errorf("the next step should name the command the reader typed, got %q", got.errw)
 		}
 		moved := runCLI(t, root, "move", "fx-1", "nowhere")
-		if !strings.HasSuffix(moved.errw, english.T("refusal.unknown-state.next", "command", "move")+"\n") {
+		if !strings.HasSuffix(moved.errw, english.T("refusal.unknown-column.next", "command", "move")+"\n") {
 			t.Errorf("the next step should name move from a move, got %q", moved.errw)
 		}
 	})
@@ -4837,7 +4947,7 @@ func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	for _, key := range []string{"profile:", "format:", "states:"} {
+	for _, key := range []string{"profile:", "format:", "columns:"} {
 		if !strings.Contains(string(after), key) {
 			t.Errorf("the write dropped the %s key from the anchor:\n%s", key, after)
 		}
@@ -4886,7 +4996,7 @@ func TestWorkbenchListsReadsAndWritesItsOwnFields(t *testing.T) {
 
 // TestWorkbenchListingNamesTheRepairForAMissingSlug asserts that a workbench
 // written before the slug field existed draws its slug row through the helper
-// the states and workbenches listings already use, so all three say the same
+// the columns and workbenches listings already use, so all three say the same
 // thing rather than one of them padding an empty string.
 func TestWorkbenchListingNamesTheRepairForAMissingSlug(t *testing.T) {
 	root := newBench(t)
@@ -5150,8 +5260,9 @@ func TestADashedWorkbenchSlugResolvesEveryReference(t *testing.T) {
 		{"ls"},
 		{"show", "fx-dev-1"},
 		{"path", "fx-dev-1"},
-		{"claim", "fx-dev-1"},
 		{"move", "fx-dev-1", "doing"},
+		{"claim", "fx-dev-1"},
+		{"release", "fx-dev-1"},
 	} {
 		if got := runCLI(t, root, argv...); got.code != 0 {
 			t.Errorf("%v under a dashed slug: %d %s", argv, got.code, got.errw)
@@ -5208,7 +5319,7 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 // so it says the same thing wherever the command is run.
 const ratifiedWorkbenchHelp = `workbench [get|set] [field] [value] [--yes]
 
-read this workbench's own fields, or write one
+Read this workbench's own fields, or write one
 
 What you may write:
   As you write it  What it is
@@ -5658,6 +5769,7 @@ func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
 	if joined.out != strings.TrimSuffix(plain.out, "\n")+"  portfolio-work\n" {
 		t.Errorf("the two forms differ by more than the trailing field:\n%q\n%q", plain.out, joined.out)
 	}
+	carryToDoing(t, root, "fx-1")
 	for _, command := range [][]string{{"show", "fx-1"}, {"claim", "fx-1"}, {"release", "fx-1"}} {
 		got := runCLI(t, root, command...)
 		if got.code != 0 {
@@ -5695,33 +5807,33 @@ func TestTheCardLineCarriesTheWorkstreamsACardBelongsTo(t *testing.T) {
 	}
 }
 
-// TestAWorkstreamAndAStateMayShareAName asserts the one asymmetry in the
+// TestAWorkstreamAndAColumnMayShareAName asserts the one asymmetry in the
 // reference grammar. A workstream names its kind wherever the generic entity
-// commands take a reference, so a state of the same name shadows neither it
+// commands take a reference, so a column of the same name shadows neither it
 // nor itself.
-func TestAWorkstreamAndAStateMayShareAName(t *testing.T) {
+func TestAWorkstreamAndAColumnMayShareAName(t *testing.T) {
 	root := newBench(t)
 	if got := runCLI(t, root, "workstream", "new", "review"); got.code != 0 {
 		t.Fatalf("workstream new: %d %s", got.code, got.errw)
 	}
-	states := filepath.Join(soleBenchDir(t, root), bench.StatesDir)
+	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
 	renamed := false
-	for _, id := range bench.ListIDs(states) {
-		path := filepath.Join(states, id, bench.StateAnchor)
+	for _, id := range bench.ListIDs(columns) {
+		path := filepath.Join(columns, id, bench.ColumnAnchor)
 		text, err := bench.ReadText(path)
 		if err != nil {
-			t.Fatalf("read a state: %v", err)
+			t.Fatalf("read a column: %v", err)
 		}
 		if !strings.Contains(text, "title: Doing") {
 			continue
 		}
 		if err := os.WriteFile(path, []byte(strings.Replace(text, "slug: doing", "slug: review", 1)), 0o644); err != nil {
-			t.Fatalf("write a state: %v", err)
+			t.Fatalf("write a column: %v", err)
 		}
 		renamed = true
 	}
 	if !renamed {
-		t.Fatal("the fixture flow carries no state to rename")
+		t.Fatal("the fixture flow carries no column to rename")
 	}
 	if got := runCLI(t, root, "workstream", "get", "review", "title"); got.out != "review\n" {
 		t.Errorf("the bare reference inside the workstream command read %q", got.out)
@@ -5729,14 +5841,14 @@ func TestAWorkstreamAndAStateMayShareAName(t *testing.T) {
 	if got := runCLI(t, root, "archive", "workstream/review"); got.code != 0 {
 		t.Fatalf("archiving the workstream: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "states"); !strings.Contains(got.out, "review") {
-		t.Errorf("archiving the workstream took the state with it:\n%s", got.out)
+	if got := runCLI(t, root, "columns"); !strings.Contains(got.out, "review") {
+		t.Errorf("archiving the workstream took the column with it:\n%s", got.out)
 	}
 	if got := runCLI(t, root, "archive", "review"); got.code != 0 {
-		t.Fatalf("archiving the state: %d %s", got.code, got.errw)
+		t.Fatalf("archiving the column: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "states"); strings.Contains(got.out, "review") {
-		t.Errorf("the state survived its own archiving:\n%s", got.out)
+	if got := runCLI(t, root, "columns"); strings.Contains(got.out, "review") {
+		t.Errorf("the column survived its own archiving:\n%s", got.out)
 	}
 }
 
@@ -5755,7 +5867,7 @@ func TestCheckReportsAndAdoptsAMembershipNamingNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the card: %v", err)
 	}
-	planted := strings.Replace(text, "substate: ready", "substate: ready\nworkstreams:\n  - f00000000009\nunknown_key: kept", 1)
+	planted := strings.Replace(text, "state: ready", "state: ready\nworkstreams:\n  - f00000000009\nunknown_key: kept", 1)
 	if err := os.WriteFile(path, []byte(planted), 0o644); err != nil {
 		t.Fatalf("write the card: %v", err)
 	}
@@ -5940,9 +6052,9 @@ func TestAWorkstreamsNotesAndItsEmptyMembershipBothDraw(t *testing.T) {
 // renderings of the query command: the table it draws through the one renderer,
 // and the single line it prints instead when nothing matched.
 //
-// The state column is what separates this rendering from the one ls draws. A
-// query spans the whole workbench, so the reader is shown which state each card
-// is in, and it carries the state's title rather than its identifier.
+// The column column is what separates this rendering from the one ls draws. A
+// query spans the whole workbench, so the reader is shown which column each card
+// is in, and it carries the column's title rather than its identifier.
 func TestQueryRendersATableAndSaysSoWhenNothingMatched(t *testing.T) {
 	root := newBench(t)
 	for _, title := range []string{"first", "second"} {
@@ -5950,6 +6062,7 @@ func TestQueryRendersATableAndSaysSoWhenNothingMatched(t *testing.T) {
 			t.Fatalf("add %s: %d %s", title, got.code, got.errw)
 		}
 	}
+	carryToDoing(t, root, "fx-1")
 	if got := runCLI(t, root, "claim", "fx-1"); got.code != 0 {
 		t.Fatalf("claim: %d %s", got.code, got.errw)
 	}
@@ -5959,13 +6072,13 @@ func TestQueryRendersATableAndSaysSoWhenNothingMatched(t *testing.T) {
 		t.Fatalf("query: %d %s", drawn.code, drawn.errw)
 	}
 	catalog := msg.For(msg.Base)
-	for _, heading := range []string{"column.query.card", "column.query.state", "column.query.standing", "column.query.title"} {
+	for _, heading := range []string{"column.query.card", "column.query.column", "column.query.standing", "column.query.title"} {
 		if !strings.Contains(drawn.out, catalog.T(heading)) {
 			t.Errorf("the query table carries no %s heading:\n%s", heading, drawn.out)
 		}
 	}
 	if !strings.Contains(drawn.out, "Intake") {
-		t.Errorf("the query table names no state title:\n%s", drawn.out)
+		t.Errorf("the query table names no column title:\n%s", drawn.out)
 	}
 	for _, ref := range []string{"fx-1", "fx-2"} {
 		if !strings.Contains(drawn.out, ref) {
@@ -5985,7 +6098,7 @@ func TestQueryRendersATableAndSaysSoWhenNothingMatched(t *testing.T) {
 // TestQueryEmitsTheDocumentTheEscapeHatchReads asserts the machine form: one
 // object carrying the query as it was received, the matched cards nested under
 // cards, and a count. The nesting is what the guide's downstream reader unnests,
-// and state_title is the member it groups by, so a card view that stopped
+// and column_title is the member it groups by, so a card view that stopped
 // carrying one would break the guide's example while every other test passed.
 func TestQueryEmitsTheDocumentTheEscapeHatchReads(t *testing.T) {
 	root := newBench(t)
@@ -5995,8 +6108,8 @@ func TestQueryEmitsTheDocumentTheEscapeHatchReads(t *testing.T) {
 	var document struct {
 		Query string `json:"query"`
 		Cards []struct {
-			Ref        string `json:"ref"`
-			StateTitle string `json:"state_title"`
+			Ref         string `json:"ref"`
+			ColumnTitle string `json:"column_title"`
 		} `json:"cards"`
 		Count int `json:"count"`
 	}
@@ -6010,8 +6123,8 @@ func TestQueryEmitsTheDocumentTheEscapeHatchReads(t *testing.T) {
 	if len(document.Cards) != 1 || document.Count != 1 {
 		t.Fatalf("the emitted document carries %d cards and a count of %d", len(document.Cards), document.Count)
 	}
-	if document.Cards[0].StateTitle == "" {
-		t.Error("the card the document carries has no state_title, which is the member the escape hatch groups by")
+	if document.Cards[0].ColumnTitle == "" {
+		t.Error("the card the document carries has no column_title, which is the member the escape hatch groups by")
 	}
 
 	// The echo is the argument as received, so a caller comparing a stored
@@ -6037,7 +6150,7 @@ func TestQueryEmitsTheDocumentTheEscapeHatchReads(t *testing.T) {
 		}
 	}
 
-	refused := runCLI(t, root, "query", "substate:reday", "--json")
+	refused := runCLI(t, root, "query", "state:reday", "--json")
 	if refused.code != 2 {
 		t.Errorf("a query naming a value outside a closed vocabulary exited %d, want 2", refused.code)
 	}
@@ -6049,14 +6162,14 @@ func TestQueryEmitsTheDocumentTheEscapeHatchReads(t *testing.T) {
 // rebuilt for them instead of a second refusal saying the same thing.
 func TestQueryTakesItsTermsAsOneQuotedArgument(t *testing.T) {
 	root := newBench(t)
-	got := runCLI(t, root, "query", "state:doing", "holder:alka")
+	got := runCLI(t, root, "query", "column:doing", "holder:alka")
 	if got.code != 2 {
 		t.Fatalf("an unquoted query exited %d, want 2\n%s", got.code, got.out)
 	}
 	if !strings.HasPrefix(got.errw, contract.MultipleWords+" ") {
 		t.Errorf("an unquoted query refused with %q", got.errw)
 	}
-	if !strings.Contains(got.errw, `dinah query "state:doing holder:alka"`) {
+	if !strings.Contains(got.errw, `dinah query "column:doing holder:alka"`) {
 		t.Errorf("the refusal did not rebuild the quoted line:\n%s", got.errw)
 	}
 }
@@ -6177,14 +6290,14 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 		{command: "check", carries: []string{
 			"[--finish]", "complete or roll back a structural act that was interrupted",
 			"[--migrate-ordinals]", "stamp a creation ordinal on every entity that carries none",
-			"[--migrate-slugs]", "derive a slug for every state of this workbench that carries none",
-			"[--migrate-states]", "remove stranded identifiers from this workbench's own list of states",
+			"[--migrate-slugs]", "derive a slug for every column of this workbench that carries none",
+			"[--migrate-columns]", "remove stranded identifiers from this workbench's own list of columns",
 			"Dinah exits 2 when it finds a defect",
 		}},
 		{command: "attach", carries: []string{
 			"attach <ref> <file> [--description <text>] [--replace]",
 			"[--description <text>]", "a line describing the attachment, stored beside it",
-			"what the file hangs off: this workbench, a state, a card, or a comment or an attachment below a card",
+			"what the file hangs off: this workbench, a column, a card, or a comment or an attachment below a card",
 			"with --replace, the attachment whose bytes you are replacing",
 			"For more, run `dinah guide references`.",
 		}},
@@ -6213,12 +6326,12 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "instructions", carries: []string{
-			"instructions <card|state>",
+			"instructions <card|column>",
 			"instructions takes neither this workbench nor anything below a card",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "archive", carries: []string{
-			"a state, a card, or something below a card such as wb-1/comments/1; not this workbench",
+			"a column, a card, or something below a card such as wb-1/comments/1; not this workbench",
 			"For more, run `dinah guide references`.",
 		}},
 		{command: "delete", carries: []string{
@@ -6248,7 +6361,7 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 	}
 }
 
-// TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside asserts
+// TestTheColumnVocabularyAnswersInsideAWorkbenchAndIsSilentOutside asserts
 // dinah-172 AC-3: a vocabulary living in the reader's own workbench is printed
 // where one opens and left out where none does, and the page answers either
 // way.
@@ -6260,12 +6373,12 @@ func TestEveryPageSaysWhatEachArgumentIs(t *testing.T) {
 // says nothing about the environment exercises the inside case twice.
 //
 // Two separate refusals to answer hold the outside case, and this test cannot
-// tell them apart. vocabularyValues declines to resolve a states vocabulary
-// when no workbench opens, and refusalListings["states"] returns nothing when
+// tell them apart. vocabularyValues declines to resolve a columns vocabulary
+// when no workbench opens, and refusalListings["columns"] returns nothing when
 // the session carries no library. Removing either one alone leaves the outside
 // half of this test green, so a reader must not take a pass here as proof that
 // the guard in vocabularyValues is doing the work.
-func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.T) {
+func TestTheColumnVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.T) {
 	t.Setenv("COLUMNS", "80")
 	inside := runCLI(t, newBench(t), "help", "ls")
 	if inside.code != 0 {
@@ -6273,10 +6386,10 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 	}
 	flat := strings.Join(strings.Fields(inside.out), " ")
 	if !strings.Contains(flat, "(one of: intake, doing, done)") {
-		t.Errorf("the state row does not name the workbench's own states:\n%s", inside.out)
+		t.Errorf("the column row does not name the workbench's own columns:\n%s", inside.out)
 	}
-	if !strings.Contains(flat, "also written --state <state>") {
-		t.Errorf("the state row does not say the argument is also written --state:\n%s", inside.out)
+	if !strings.Contains(flat, "also written --column <column>") {
+		t.Errorf("the column row does not say the argument is also written --column:\n%s", inside.out)
 	}
 
 	tree := emptyTree(t)
@@ -6291,7 +6404,7 @@ func TestTheStateVocabularyAnswersInsideAWorkbenchAndIsSilentOutside(t *testing.
 		t.Errorf("the page names a set it cannot read from here:\n%s", outside.out)
 	}
 	bare := strings.Join(strings.Fields(outside.out), " ")
-	if !strings.Contains(bare, "also written --state <state>") {
+	if !strings.Contains(bare, "also written --column <column>") {
 		t.Errorf("the page dropped the rest of the row along with the set:\n%s", outside.out)
 	}
 
@@ -6415,14 +6528,16 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "depth", "description", "expires", "from", "group-by",
-		"kind", "lang", "operator", "priority", "root", "severity", "slug",
-		"state", "workbench",
+		"actor", "card", "column", "depth", "description", "expires",
+		"format", "from", "group-by", "kind", "lang", "max-depth",
+		"operator", "priority", "root",
+		"severity", "since", "slug", "workbench",
 	}
 	wantMarkers := []string{
-		"catalogs", "finish", "help", "json", "migrate-ordinals",
-		"migrate-slugs", "migrate-states", "migrate-workstreams", "no-claim",
-		"override", "quiet", "ready", "replace", "version", "yes",
+		"catalogs", "finish", "help", "json", "migrate-columns",
+		"migrate-ordinals", "migrate-slugs", "migrate-vocabulary",
+		"migrate-workstreams", "no-claim", "override", "quiet", "ready",
+		"replace", "version", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))
@@ -6564,6 +6679,7 @@ func TestExpiresTakesTheDaySuffixAndRefusesTheWeek(t *testing.T) {
 	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
 		t.Fatalf("add: %d %s", got.code, got.errw)
 	}
+	carryToDoing(t, root, "fx-1")
 	if got := runCLI(t, root, "claim", "fx-1", "--expires", "7d"); got.code != 0 {
 		t.Errorf("--expires 7d: %d %s", got.code, got.errw)
 	}
@@ -6579,14 +6695,28 @@ func TestExpiresTakesTheDaySuffixAndRefusesTheWeek(t *testing.T) {
 	}
 }
 
-// TestTheTwoTranslatedCatalogsAreReportedComplete asserts dinah-172 AC-14:
-// every key this card adds reached both real catalogs and the six skeletons,
-// so `dinah version --catalogs` still reports two catalogs at N/N and the rest
-// at 0/N.
-func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
+// TestEveryCatalogIsReportedAgainstItsOwnRoster asserts dinah-172 AC-14: every
+// key a card adds reaches every catalog, so `dinah version --catalogs` reports
+// each one against the roster it is on and none of them short of a key.
+//
+// The rosters are read rather than inferred from the coverage numbers. Until
+// dinah-287 every catalog was either fully translated or a generated skeleton,
+// and reading "not N/N" as "must be 0/N" was true by accident. Hindi and German
+// now carry hundreds of real translations and a run of entries the vocabulary
+// rename left in English, so they are on neither roster and the numbers in
+// between are the honest report rather than a defect.
+func TestEveryCatalogIsReportedAgainstItsOwnRoster(t *testing.T) {
 	total := len(msg.Keys())
 	if total == 0 {
 		t.Fatal("the base catalog carries no keys")
+	}
+	isComplete := map[string]bool{}
+	for _, tag := range msg.Complete {
+		isComplete[tag] = true
+	}
+	isSkeleton := map[string]bool{}
+	for _, tag := range msg.Skeleton {
+		isSkeleton[tag] = true
 	}
 	complete := 0
 	for _, tag := range msg.Tags() {
@@ -6599,14 +6729,16 @@ func TestTheTwoTranslatedCatalogsAreReportedComplete(t *testing.T) {
 		}
 		if translated == total {
 			complete++
-			continue
 		}
-		if translated != 0 {
-			t.Errorf("%s is a skeleton and reports %d keys translated", tag, translated)
+		if isComplete[tag] && translated != total {
+			t.Errorf("%s ships complete and reports %d of %d keys translated", tag, translated, total)
+		}
+		if isSkeleton[tag] && translated != 0 {
+			t.Errorf("%s ships as a skeleton and reports %d keys translated", tag, translated)
 		}
 	}
-	if complete != 3 {
-		t.Errorf("%d catalogs report every key translated, want the three that are really translated", complete)
+	if complete != len(msg.Complete) {
+		t.Errorf("%d catalogs report every key translated, want the %d the roster names", complete, len(msg.Complete))
 	}
 }
 
@@ -6626,10 +6758,10 @@ var placeholderWord = regexp.MustCompile(`^[A-Za-z0-9 -]*[A-Za-z][A-Za-z0-9 -]*$
 // listed with the string that carries it, so the list is read as a set of
 // findings rather than as a way around the rule.
 var placeholdersOutsideTheParameterTable = map[string]string{
-	// The path of a state's own file, in the repair for a workbench whose
-	// states list names a state it carries no directory for. The identifier
+	// The path of a column's own file, in the repair for a workbench whose
+	// columns list names a column it carries no directory for. The identifier
 	// belongs to the workbench's own storage rather than to any argument.
-	"id": "refusal.dinah.add-needs-a-state.next",
+	"id": "refusal.dinah.add-needs-a-column.next",
 	// The position of one attachment among several matching a name selector,
 	// in the form rename's caller is told to spell. The argument rename
 	// declares is a reference, not an ordinal.
@@ -6709,11 +6841,12 @@ func TestEveryPlaceholderNamesSomethingDeclared(t *testing.T) {
 // table wraps at.
 const ratifiedGlobalFlagTable = `  Option             What it does
   -----------------  -----------------------------------------------------------
-  --workbench <dir>  use this workbench instead of the one discovered from here
-  --json             emit the canonical machine form
-  --quiet            suppress served instructions on claim and move
-  --lang <tag>       render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
-  --actor <name>     act as this owner`
+  --workbench <dir>  Use this workbench instead of the one discovered from here
+  --json             Emit the canonical machine form
+  --format <name>    Select json or compact for the machine form
+  --quiet            Suppress served instructions on claim and move
+  --lang <tag>       Render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
+  --actor <name>     Act as this owner`
 
 const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
   -----  --------------------------------------------------  -------------------
@@ -6721,12 +6854,12 @@ const ratifiedMoveRefusalTable = `  Order  What can go wrong                    
                                                             unsupported-version
   2      the workbench designates an operator                no-operator
   3      the card exists                                     unknown-card
-  4      the destination is a state the workbench declares   unknown-state
+  4      the destination is a column the workbench declares  unknown-column
   5      an override marker, if carried, is the operator's   not-operator
   6      the departure is legal for whoever asks             not-operator
-  7      the card's substate is not ` + "`blocked`" + `                blocked
+  7      the card's state is not ` + "`" + `blocked` + "`" + `                   blocked
   8      the card is unheld or held by whoever asks          held
-  9      the move is not a forward move out of a ` + "`done`" + ` state
+  9      the move is not a forward move out of a ` + "`" + `done` + "`" + ` column
                                                             terminal
   10     the destination is below its capacity limit         at-capacity`
 
@@ -6794,7 +6927,7 @@ func TestEveryVocabularySourceHasAListingThatAnswersIt(t *testing.T) {
 // TestPullOnTheCommandLine asserts the head's half of the pull command: the
 // named form takes the card at the head of the upstream queue and claims it,
 // both forms answer at exit 0 with a sentence when nothing is waiting, and a
-// bare form with more than one qualifying state refuses and prints the states
+// bare form with more than one qualifying column refuses and prints the columns
 // it could not choose between.
 //
 // The refusal's rows are the reason this lives here rather than in
@@ -6816,7 +6949,7 @@ func TestPullOnTheCommandLine(t *testing.T) {
 			t.Fatalf("a named pull with nothing waiting: wanted exit 0, got %d %s", named.code, named.errw)
 		}
 		if strings.TrimSpace(named.out) == "" {
-			t.Error("the named form should print a sentence naming the upstream state it found empty")
+			t.Error("the named form should print a sentence naming the upstream column it found empty")
 		}
 		if named.out == bare.out {
 			t.Error("the two forms answer different questions and should not print the same sentence")
@@ -6843,21 +6976,23 @@ func TestPullOnTheCommandLine(t *testing.T) {
 		}
 	})
 
-	t.Run("a bare form with two qualifying states refuses and lists them", func(t *testing.T) {
-		root := newBench(t)
-		// intake holds a ready card, so doing qualifies, and doing holds a
-		// ready card of its own, so done qualifies too. The default flow
-		// declares no capacity limit, so neither is filtered out.
+	t.Run("a bare form with two qualifying columns refuses and lists them", func(t *testing.T) {
+		// The flow runs intake, doing, review and done. Intake holds a ready
+		// card, so doing qualifies, and doing holds a ready card of its own,
+		// so review qualifies too. The done column never qualifies, because a
+		// pull lands no card where no owner takes work up, which is why the
+		// ambiguity needs a flow one column wider than the default one.
+		root := newBenchFromDefinition(t, ambiguousFlow)
 		runCLI(t, root, "add", "Waiting in intake")
-		runCLI(t, root, "add", "Waiting in doing", "--state", "doing")
+		runCLI(t, root, "add", "Waiting in doing", "--column", "doing")
 		got := runCLI(t, root, "pull")
 		if got.code != 2 {
 			t.Fatalf("an ambiguous bare pull: wanted exit 2, got %d %q %q", got.code, got.out, got.errw)
 		}
-		if !strings.HasPrefix(got.errw, contract.AmbiguousState+" ") {
+		if !strings.HasPrefix(got.errw, contract.AmbiguousColumn+" ") {
 			t.Errorf("wanted the refusal name first on stderr, got %q", got.errw)
 		}
-		for _, slug := range []string{"doing", "done"} {
+		for _, slug := range []string{"doing", "review"} {
 			if !regexp.MustCompile(`(?m)^\s+` + slug + `\s*$`).MatchString(got.errw) {
 				t.Errorf("the refusal should draw %s as a row of its own, got %q", slug, got.errw)
 			}
@@ -6870,7 +7005,7 @@ func TestPullOnTheCommandLine(t *testing.T) {
 		if got.code != 0 {
 			t.Fatalf("help pull: %d %s", got.code, got.errw)
 		}
-		for _, argument := range []string{"state", "no-claim", "expires", "override"} {
+		for _, argument := range []string{"column", "no-claim", "expires", "override"} {
 			if !strings.Contains(got.out, argument) {
 				t.Errorf("the help should name the %s argument, got %q", argument, got.out)
 			}
@@ -6893,4 +7028,589 @@ func TestPullOnTheCommandLine(t *testing.T) {
 			rest = rest[at+len(check.Refusal):]
 		}
 	})
+}
+
+// guideLinesOutsideFences returns the lines of a rendered guide that sit
+// outside its fenced blocks, which are the lines this card's wrap governs.
+// A fenced block is reproduced whole and is the terminal's problem, so it is
+// dropped here rather than measured.
+func guideLinesOutsideFences(text string) []string {
+	var prose []string
+	inside := false
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inside = !inside
+			continue
+		}
+		if inside {
+			continue
+		}
+		prose = append(prose, line)
+	}
+	return prose
+}
+
+// TestAGuideIsWrappedToTheWindowItIsReadIn asserts dinah-239 AC-11: the body
+// of a guide reaches the stream laid out for the window rather than raw, so
+// different widths produce different pages and none of them reaches past the
+// window it was asked for. Only the prose is measured; a fenced block is
+// reproduced whole by design.
+//
+// The widths are a spread reaching down to the 20 windowWidth clamps to,
+// rather than the 40 and 80 this test first carried. Wrapping that overruns
+// by a marker's width is invisible at a roomy window and shows at a narrow
+// one, so a pair of widths either side of the fault line proves the pair and
+// not the rule. The whole-corpus form of this sweep lives in
+// TestEveryShippedGuideFitsEveryWindowItIsWrappedFor, which measures
+// wrapGuideText directly; this test's own job is the wiring, that runGuide
+// reaches the wrap at all.
+//
+// The measure excuses the same shapes that sweep excuses, and it has to: at
+// 20 columns principles.md carries the single 23-column token
+// `columns/<id>/column.md`, which breakWords writes whole because it has
+// nowhere to break, exactly as the spec's overflow rule says it will.
+func TestAGuideIsWrappedToTheWindowItIsReadIn(t *testing.T) {
+	root := newBench(t)
+	widths := []int{20, 24, 32, 40, 56, 80}
+	pages := map[int]string{}
+	for _, width := range widths {
+		t.Setenv("COLUMNS", strconv.Itoa(width))
+		got := runCLI(t, root, "guide", "principles")
+		if got.code != 0 {
+			t.Fatalf("guide principles at %d columns: %d %s", width, got.code, got.errw)
+		}
+		for _, line := range guideLinesOutsideFences(got.out) {
+			if guideIsIndentedCode(line) || guideIsTableRow(line) || guideWrapsNoFurther(line) {
+				continue
+			}
+			if displayWidth(line) > width {
+				t.Errorf("at %d columns a line draws %d: %q", width, displayWidth(line), line)
+			}
+		}
+		pages[width] = got.out
+	}
+	for i := 1; i < len(widths); i++ {
+		if pages[widths[i-1]] == pages[widths[i]] {
+			t.Errorf("the guide reads the same at %d columns as at %d, so nothing wrapped it", widths[i-1], widths[i])
+		}
+	}
+}
+
+// TestAGuideTableSurvivesTheWindowItIsReadIn asserts dinah-239 AC-12: the
+// reference guide's support table is reproduced rather than re-flowed, so the
+// columns still line up under the check runCLI runs over every stream. The
+// alignment is confirmed by running that check here rather than argued from
+// the table's own authored padding.
+func TestAGuideTableSurvivesTheWindowItIsReadIn(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("COLUMNS", "40")
+	got := runCLI(t, root, "guide", "references")
+	if got.code != 0 {
+		t.Fatalf("guide references at 40 columns: %d %s", got.code, got.errw)
+	}
+	for _, row := range []string{
+		"| Command      | This workbench | A column | A card | Below a card |",
+		"|--------------|----------------|---------|--------|--------------|",
+		"| path         | yes            | yes     | yes    | yes          |",
+		"| rename       | no             | no      | no     | yes          |",
+	} {
+		if !strings.Contains(got.out, row) {
+			t.Errorf("the table lost the row %q at 40 columns", row)
+		}
+	}
+}
+
+// TestTheGuideListingIsUnchangedByTheBodyWrap asserts dinah-239 AC-13's first
+// half: the topic listing is served by the branch this card did not touch, so
+// the body wrap never reaches it and every topic still draws its whole title
+// on one line, however narrow the window is. A listing routed through the
+// body wrap would break those titles onto continuation lines at 40 columns,
+// which is what this refuses.
+func TestTheGuideListingIsUnchangedByTheBodyWrap(t *testing.T) {
+	root := newBench(t)
+	for _, width := range []string{"80", "40"} {
+		t.Setenv("COLUMNS", width)
+		got := runCLI(t, root, "guide")
+		if got.code != 0 {
+			t.Fatalf("guide at %s columns: %d %s", width, got.code, got.errw)
+		}
+		for _, topic := range guide.Topics() {
+			row := topic + "  "
+			at := strings.Index(got.out, row)
+			if at < 0 {
+				t.Fatalf("at %s columns the listing has no row for %q:\n%s", width, topic, got.out)
+			}
+			rest := got.out[at:]
+			line := rest[:strings.IndexByte(rest, '\n')]
+			if !strings.HasSuffix(line, guide.Title(topic)) {
+				t.Errorf("at %s columns the listing wrapped the title of %q: %q", width, topic, line)
+			}
+		}
+	}
+}
+
+// TestAnAttachmentCarryingNoOrdinalStillNumbersFromOne asserts dinah-186 AC-1,
+// AC-2 and AC-21 on the branch that shipped broken: a workbench written before
+// the ordinal field existed carries attachments whose anchor declares none, and
+// both read surfaces numbered every one of them 0. A position column reading 0
+// twice tells a reader the collection has no first member, and the ref built
+// from that number answers to nothing, so the fallback has to run everywhere
+// the number is printed rather than only where the ref is composed.
+//
+// The rows are checked as a set rather than in a fixed order, because the
+// fallback's order is the directory listing's and a hex identifier is random.
+// What the test holds is that the positions are 1 and 2, that they name
+// different attachments, and that each printed ref resolves to the attachment
+// whose row printed it.
+func TestAnAttachmentCarryingNoOrdinalStillNumbersFromOne(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	sources := t.TempDir()
+	for _, name := range []string{"a.txt", "b.txt"} {
+		file := filepath.Join(sources, name)
+		if err := os.WriteFile(file, []byte(name), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		if got := runCLI(t, root, "attach", "fx-1", file); got.code != 0 {
+			t.Fatalf("attach %s: %d %s", name, got.code, got.errw)
+		}
+	}
+	located := runCLI(t, root, "path", "fx-1")
+	if located.code != 0 {
+		t.Fatalf("path: %d %s", located.code, located.errw)
+	}
+	stripOrdinals(t, filepath.Join(filepath.Dir(strings.TrimSpace(located.out)), "attachments"))
+
+	machine := runCLI(t, root, "--json", "show", "fx-1")
+	if machine.code != 0 {
+		t.Fatalf("show --json: %d %s", machine.code, machine.errw)
+	}
+	var detail struct {
+		Attachments []verb.AttachmentView `json:"attachments"`
+	}
+	if err := json.Unmarshal([]byte(machine.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	if len(detail.Attachments) != 2 {
+		t.Fatalf("wanted both attachments, got %d:\n%s", len(detail.Attachments), machine.out)
+	}
+	seen := map[int]string{}
+	for _, attachment := range detail.Attachments {
+		if attachment.Ordinal < 1 {
+			t.Errorf("the attachment %s carries the position %d, and a position counts from one", attachment.Filename, attachment.Ordinal)
+			continue
+		}
+		if held, taken := seen[attachment.Ordinal]; taken {
+			t.Errorf("the position %d names both %s and %s", attachment.Ordinal, held, attachment.Filename)
+		}
+		seen[attachment.Ordinal] = attachment.Filename
+		resolved := runCLI(t, root, "path", attachment.Ref)
+		if resolved.code != 0 {
+			t.Errorf("the printed ref %s resolves to nothing: %d %s", attachment.Ref, resolved.code, resolved.errw)
+			continue
+		}
+		payload := runCLI(t, root, "path", attachment.Ref+"/payload")
+		if payload.code != 0 {
+			t.Errorf("the payload of %s resolves to nothing: %d %s", attachment.Ref, payload.code, payload.errw)
+			continue
+		}
+		if got := filepath.Base(strings.TrimSpace(payload.out)); got != attachment.Filename {
+			t.Errorf("the ref %s reaches the payload %s, and its row printed %s", attachment.Ref, got, attachment.Filename)
+		}
+	}
+	if seen[1] == "" || seen[2] == "" {
+		t.Errorf("wanted the positions 1 and 2, got %v", seen)
+	}
+
+	human := runCLI(t, root, "show", "fx-1")
+	if human.code != 0 {
+		t.Fatalf("show: %d %s", human.code, human.errw)
+	}
+	for position, filename := range seen {
+		row := strconv.Itoa(position) + "  " + filename
+		if !strings.Contains(human.out, row) {
+			t.Errorf("the attachments block draws no row %q:\n%s", row, human.out)
+		}
+	}
+	if strings.Contains(human.out, "0  ") {
+		t.Errorf("the attachments block still numbers from zero:\n%s", human.out)
+	}
+}
+
+// stripOrdinals removes the ordinal line from every anchor of an attachments
+// collection, which is the shape a workbench written before the field existed
+// has on disk. The rest of each anchor is left byte-identical, so what the
+// read path meets is the legacy anchor rather than a rewritten one.
+func stripOrdinals(t *testing.T, collection string) {
+	t.Helper()
+	for _, id := range bench.ListIDs(collection) {
+		anchor := filepath.Join(collection, id, bench.AttachmentAnchor)
+		text, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read %s: %v", anchor, err)
+		}
+		var kept []string
+		for _, line := range strings.Split(string(text), "\n") {
+			if strings.HasPrefix(line, bench.OrdinalField+":") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		if err := os.WriteFile(anchor, []byte(strings.Join(kept, "\n")), 0o644); err != nil {
+			t.Fatalf("write %s: %v", anchor, err)
+		}
+	}
+}
+
+// attachOne writes a file of the given name under its own directory and
+// attaches it to fx-1, so that two attachments can carry one filename without
+// the second write clobbering the first.
+func attachOne(t *testing.T, root, name string, nth int) {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), strconv.Itoa(nth))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	file := filepath.Join(dir, name)
+	if err := os.WriteFile(file, []byte(name), 0o644); err != nil {
+		t.Fatalf("write %s: %v", file, err)
+	}
+	if got := runCLI(t, root, "attach", "fx-1", file); got.code != 0 {
+		t.Fatalf("attach %s: %d %s", name, got.code, got.errw)
+	}
+}
+
+// attachmentsCollection is the directory holding fx-1's attachments.
+func attachmentsCollection(t *testing.T, root string) string {
+	t.Helper()
+	located := runCLI(t, root, "path", "fx-1")
+	if located.code != 0 {
+		t.Fatalf("path: %d %s", located.code, located.errw)
+	}
+	return filepath.Join(filepath.Dir(strings.TrimSpace(located.out)), "attachments")
+}
+
+// shownAttachments decodes the attachments block of show --json for fx-1.
+func shownAttachments(t *testing.T, root string) []verb.AttachmentView {
+	t.Helper()
+	machine := runCLI(t, root, "--json", "show", "fx-1")
+	if machine.code != 0 {
+		t.Fatalf("show --json: %d %s", machine.code, machine.errw)
+	}
+	var detail struct {
+		Attachments []verb.AttachmentView `json:"attachments"`
+	}
+	if err := json.Unmarshal([]byte(machine.out), &detail); err != nil {
+		t.Fatalf("decode: %v\n%s", err, machine.out)
+	}
+	return detail.Attachments
+}
+
+// TestAGappedAttachmentCollectionAgreesAcrossEveryReadSurface asserts dinah-186
+// AC-1 and AC-2 on the collection the earlier rounds never built: one a delete
+// has left with a hole in its stored ordinals.
+//
+// The two tests that came before this one attach and never delete, so their
+// stored ordinals run 1, 2, 3 with no gaps, and on such a collection a stored
+// ordinal and a position happen to be the same number. NextOrdinal hands out
+// highest-plus-one, so the hole a delete leaves is permanent, and from then on
+// the two disagree for every member after it. A display reading the stored
+// field then labels a row with a number the resolver answers to some other
+// file, or to no file, which is how following show into rename renamed the
+// wrong attachment.
+//
+// So the collection here is gapped on purpose, and what the test holds is that
+// show, contents and path name one file per position: the positions run 1 and
+// 2 with no hole in them, each ref show prints reaches the payload its own row
+// named, and contents draws the same refs show does.
+func TestAGappedAttachmentCollectionAgreesAcrossEveryReadSurface(t *testing.T) {
+	root := newBench(t)
+	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	for nth, name := range []string{"one.txt", "two.txt", "three.txt"} {
+		attachOne(t, root, name, nth)
+	}
+	if got := runCLI(t, root, "delete", "fx-1/attachments/1", "--yes"); got.code != 0 {
+		t.Fatalf("delete: %d %s", got.code, got.errw)
+	}
+
+	shown := shownAttachments(t, root)
+	if len(shown) != 2 {
+		t.Fatalf("wanted the two surviving attachments, got %d", len(shown))
+	}
+	seen := map[int]string{}
+	for _, attachment := range shown {
+		if held, taken := seen[attachment.Ordinal]; taken {
+			t.Errorf("the position %d names both %s and %s", attachment.Ordinal, held, attachment.Filename)
+		}
+		seen[attachment.Ordinal] = attachment.Filename
+		if attachment.Ref != "fx-1/attachments/"+strconv.Itoa(attachment.Ordinal) {
+			t.Errorf("the row at position %d prints the ref %s", attachment.Ordinal, attachment.Ref)
+		}
+		payload := runCLI(t, root, "path", attachment.Ref+"/payload")
+		if payload.code != 0 {
+			t.Errorf("the printed ref %s reaches no payload: %d %s", attachment.Ref, payload.code, payload.errw)
+			continue
+		}
+		if got := filepath.Base(strings.TrimSpace(payload.out)); got != attachment.Filename {
+			t.Errorf("the ref %s reaches the payload %s, and its row printed %s", attachment.Ref, got, attachment.Filename)
+		}
+	}
+	if seen[1] == "" || seen[2] == "" {
+		t.Errorf("a delete left a hole in the positions: wanted 1 and 2, got %v", seen)
+	}
+	if gone := runCLI(t, root, "path", "fx-1/attachments/3"); gone.code == 0 {
+		t.Errorf("the collection holds two attachments and answers to a third position: %s", gone.out)
+	}
+
+	human := runCLI(t, root, "show", "fx-1")
+	if human.code != 0 {
+		t.Fatalf("show: %d %s", human.code, human.errw)
+	}
+	listed := runCLI(t, root, "contents", "fx-1")
+	if listed.code != 0 {
+		t.Fatalf("contents: %d %s", listed.code, listed.errw)
+	}
+	for position, filename := range seen {
+		row := strconv.Itoa(position) + "  " + filename
+		if !strings.Contains(human.out, row) {
+			t.Errorf("the attachments block draws no row %q:\n%s", row, human.out)
+		}
+		ref := "fx-1/attachments/" + strconv.Itoa(position)
+		if !strings.Contains(listed.out, ref) {
+			t.Errorf("contents draws no %s, which is the ref show printed for %s:\n%s", ref, filename, listed.out)
+		}
+	}
+	if strings.Contains(listed.out, "fx-1/attachments/3") {
+		t.Errorf("contents draws a third position the collection has no member at:\n%s", listed.out)
+	}
+}
+
+// TestTheAmbiguousNameRefusalNamesPositionsThatResolve asserts dinah-186 AC-5
+// on the two collections where a stored ordinal is not a position: the
+// unstamped one this card exists to repair, and the gapped one a delete makes.
+//
+// The refusal tells the caller to retry as attachments/<n>, so the numbers it
+// prints have to be numbers that arm answers. Reading them off the anchor gave
+// "0,0" on an unstamped collection, where attachments/0 reaches nothing at all,
+// and gave a number past the end of a gapped one. Both boards drew a table
+// saying 1 and 2 in the same session as a sentence saying something else.
+func TestTheAmbiguousNameRefusalNamesPositionsThatResolve(t *testing.T) {
+	for _, shape := range []struct {
+		name  string
+		build func(t *testing.T, root string)
+	}{
+		{
+			name: "an unstamped collection",
+			build: func(t *testing.T, root string) {
+				for nth, name := range []string{"dup.txt", "dup.txt"} {
+					attachOne(t, root, name, nth)
+				}
+				stripOrdinals(t, attachmentsCollection(t, root))
+			},
+		},
+		{
+			name: "a collection a delete has gapped",
+			build: func(t *testing.T, root string) {
+				for nth, name := range []string{"first.txt", "dup.txt", "dup.txt"} {
+					attachOne(t, root, name, nth)
+				}
+				if got := runCLI(t, root, "delete", "fx-1/attachments/1", "--yes"); got.code != 0 {
+					t.Fatalf("delete: %d %s", got.code, got.errw)
+				}
+			},
+		},
+	} {
+		t.Run(shape.name, func(t *testing.T) {
+			root := newBench(t)
+			if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+				t.Fatalf("add: %d %s", got.code, got.errw)
+			}
+			shape.build(t, root)
+
+			var wanted []string
+			for _, attachment := range shownAttachments(t, root) {
+				if attachment.Filename == "dup.txt" {
+					wanted = append(wanted, strconv.Itoa(attachment.Ordinal))
+				}
+			}
+			sort.Strings(wanted)
+			if len(wanted) != 2 {
+				t.Fatalf("wanted two rows named dup.txt, got %v", wanted)
+			}
+
+			refused := runCLI(t, root, "path", "fx-1/attachments/dup.txt")
+			if refused.code == 0 {
+				t.Fatalf("two attachments answer to dup.txt and the path resolved: %s", refused.out)
+			}
+			if !strings.Contains(refused.errw, contract.AmbiguousName) {
+				t.Fatalf("wanted %s, got: %s", contract.AmbiguousName, refused.errw)
+			}
+			if joined := strings.Join(wanted, ","); !strings.Contains(refused.errw, joined) {
+				t.Errorf("the table draws the positions %s and the refusal says something else: %s", joined, refused.errw)
+			}
+			for _, position := range wanted {
+				ref := "fx-1/attachments/" + position
+				resolved := runCLI(t, root, "path", ref+"/payload")
+				if resolved.code != 0 {
+					t.Errorf("the refusal names %s and it reaches nothing: %d %s", ref, resolved.code, resolved.errw)
+					continue
+				}
+				if got := filepath.Base(strings.TrimSpace(resolved.out)); got != "dup.txt" {
+					t.Errorf("the refusal names %s and it reaches %s rather than a dup.txt", ref, got)
+				}
+			}
+		})
+	}
+}
+
+// TestEverySplicedFragmentCarriesItsOwnSeparator asserts dinah-186 AC-5's
+// rule at the catalog rather than at one refusal: a fragment that renders
+// onto the end of the refusal's own sentence has to begin with the
+// punctuation that joins it there, because renderRefusal concatenates the two
+// with nothing between them.
+//
+// The shipped ambiguous-name refusal read "sketch.txtname one as
+// attachments/<ordinal>", and the catalog test that holds a translation to
+// its base entry's splice could not catch it, since the base entry was the
+// one at fault. A shape drawing a listing or a carried set is exempt: its
+// fragment renders as a line of its own, where a leading separator would be
+// the mistake.
+func TestEverySplicedFragmentCarriesItsOwnSeparator(t *testing.T) {
+	catalog := msg.For(msg.Base)
+	for _, shape := range contract.Shapes {
+		if shape.Listing != "" || shape.Carried != "" {
+			continue
+		}
+		for _, fragment := range shape.Fragments {
+			text := catalog.T(fragment.Key)
+			if text == "" {
+				continue
+			}
+			if !strings.ContainsRune(";,. ", rune(text[0])) {
+				t.Errorf("%s begins %q, and it is spliced onto the end of a sentence with nothing between them", fragment.Key, text)
+			}
+		}
+	}
+}
+
+// usageRefusalIn composes the stderr a parse-time dinah.usage refusal prints
+// in one language, which is the refusal name, the sentence naming the word,
+// the next step, and the two-dash hint. The tests below compare against this
+// rather than against the absence of English, because the catalogs keep the
+// product name and the flag spellings in Latin script on purpose.
+func usageRefusalIn(r *msg.Renderer, detail string) string {
+	return contract.Usage + " " +
+		r.T("refusal.dinah.usage", "detail", detail) +
+		r.T("refusal.dinah.usage.next") +
+		r.T("refusal.dinah.usage.dash-hint") + "\n"
+}
+
+// TestLangFlagIsHonouredWhateverItsPosition asserts dinah-97's AC-1, AC-3,
+// AC-4 and the rendering half of its AC-8. A --lang written after the word
+// that fails to parse reaches the reader exactly as one written before it
+// does, so the same mistake typed in either order is answered in the same
+// language. DINAH_LANG is cleared and the fixture configures no lang, so the
+// German and Hindi answers below can only have come from the flag.
+func TestLangFlagIsHonouredWhateverItsPosition(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("DINAH_LANG", "")
+	german := msg.For("de")
+	hindi := msg.For("hi")
+	english := msg.For(msg.Base)
+	if usageRefusalIn(german, "--nosuchflag") == usageRefusalIn(english, "--nosuchflag") {
+		t.Fatalf("the fixture is not testing anything: de and en render this refusal the same way")
+	}
+
+	// The control for the absence assertion in the loop below. Without it,
+	// stderr that never names a flag at all would satisfy "no second
+	// complaint about --lang" word for word, and that reading is the more
+	// likely of the two. dinah --lang, whose only word is a session flag
+	// with no value left, is the invocation whose refusal does name --lang.
+	if named := runCLI(t, root, "--lang"); !strings.Contains(named.errw, "--lang") {
+		t.Fatalf("no refusal names --lang at all, so the absence checks below prove nothing: %q", named.errw)
+	}
+
+	// The example of "some other flag that takes a value" is read out of the
+	// declared flag tables rather than spelled here, so that renaming a flag
+	// cannot leave this case naming a word the parser no longer recognizes.
+	// Such a case goes on passing while the value-slot scenario it exists to
+	// exercise has stopped happening, since an unrecognized word claims no
+	// value slot for the --lang behind it to sit in.
+	valueSlotFlag, _ := exampleValuedFlags(t)
+	cases := []struct {
+		name string
+		argv []string
+		want string
+	}{
+		{
+			name: "the flag ahead of the word that fails to parse",
+			argv: []string{"--lang", "de", "--nosuchflag"},
+			want: usageRefusalIn(german, "--nosuchflag"),
+		},
+		{
+			name: "the flag behind the word that fails to parse",
+			argv: []string{"--nosuchflag", "--lang", "de"},
+			want: usageRefusalIn(german, "--nosuchflag"),
+		},
+		{
+			name: "an incomplete flag behind it falls through to English",
+			argv: []string{"--nosuchflag", "--lang"},
+			want: usageRefusalIn(english, "--nosuchflag"),
+		},
+		{
+			name: "the last complete flag on the line wins",
+			argv: []string{"--lang", "de", "--nosuchflag", "--lang", "hi"},
+			want: usageRefusalIn(hindi, "--nosuchflag"),
+		},
+		{
+			name: "a flag in " + valueSlotFlag + "'s value slot behind it is not a language choice",
+			argv: []string{"--nosuchflag", "--" + valueSlotFlag, "--lang", "de"},
+			want: usageRefusalIn(english, "--nosuchflag"),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := runCLI(t, root, c.argv...)
+			if got.code != 2 {
+				t.Fatalf("dinah %s exited %d, wanted 2", strings.Join(c.argv, " "), got.code)
+			}
+			if got.errw != c.want {
+				t.Errorf("dinah %s printed the wrong refusal:\n got  %q\n want %q", strings.Join(c.argv, " "), got.errw, c.want)
+			}
+			if strings.Count(got.errw, "--lang") != 0 {
+				t.Errorf("dinah %s raised a second complaint about --lang: %q", strings.Join(c.argv, " "), got.errw)
+			}
+		})
+	}
+}
+
+// TestLangPastTheEndOfOptionsMarkerIsLiteralText asserts dinah-97's AC-5: the
+// scan that reads --lang stops at the POSIX marker exactly as the parse does,
+// so `dinah add -- --lang de` hands both words to add as its title and is
+// answered in English. Two words in that slot is itself a refusal under
+// dinah-100's one-word rule, which is what this reads back.
+func TestLangPastTheEndOfOptionsMarkerIsLiteralText(t *testing.T) {
+	root := newBench(t)
+	t.Setenv("DINAH_LANG", "")
+	german := msg.For("de")
+	english := msg.For(msg.Base)
+	if german.T("slot.title") == english.T("slot.title") {
+		t.Fatalf("the fixture is not testing anything: de and en render slot.title the same way")
+	}
+
+	got := runCLI(t, root, "add", "--", "--lang", "de")
+	if got.code != 2 {
+		t.Fatalf("dinah add -- --lang de exited %d, wanted 2", got.code)
+	}
+	wantSentence := english.T("refusal.dinah.multiple-words", "count", "2", "label", english.T("slot.title"))
+	if !strings.Contains(got.errw, wantSentence) {
+		t.Errorf("the refusal should be the English multiple-words sentence:\n got      %q\n wanted a %q", got.errw, wantSentence)
+	}
+	if strings.Contains(got.errw, german.T("slot.title")) {
+		t.Errorf("a --lang past the marker set the language anyway: %q", got.errw)
+	}
 }

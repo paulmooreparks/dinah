@@ -47,8 +47,8 @@ type Request struct {
 	Card string
 	// Ref is the entity reference the entity-shaped commands name.
 	Ref string
-	// State is the destination a move names, or the state a read narrows to.
-	State string
+	// Column is the destination a move names, or the column a read narrows to.
+	Column string
 	// Action is the word a command dispatching on its own first word was
 	// given: get, set, or empty for the bare invocation.
 	Action string
@@ -78,7 +78,7 @@ type Request struct {
 	// Override is the marker CORE-MOVE-9 admits and CORE-MOVE-11 reserves.
 	Override bool
 	// NoClaim is the marker a pull carries to move a card without claiming
-	// it. The card lands in the ready substate an ordinary move leaves, so
+	// it. The card lands in the ready state an ordinary move leaves, so
 	// the next owner to claim it or to pull it onward takes it from there.
 	// The marker weakens no precondition: a pull still runs the claim's own
 	// rows, so a card a claim would refuse is a card a pull refuses.
@@ -107,20 +107,40 @@ type Request struct {
 	// Depth is the named level a tree projection stops at, empty for the
 	// command's own default.
 	Depth string
-	// ReadyOnly narrows a listing to the cards whose substate is ready.
+	// ReadyOnly narrows a listing to the cards whose state is ready.
 	ReadyOnly bool
+	// Since is the opaque cursor a checkpoint hands back, empty on a first
+	// call, which mints one rather than replaying the board's history.
+	Since string
+	// Root is the root a root-scoped read walks from, as the caller wrote it,
+	// empty for the ordinary single-workbench read. A read carrying one
+	// answers for every workbench beneath it rather than for the one the
+	// caller is standing in.
+	Root string
+	// MaxDepth is the root walk's depth bound, as the caller wrote it, empty
+	// for the surface's own default, which is bench.DefaultEnumerateDepth. It
+	// is a string for the same reason GroupBy and Depth are: the verb that
+	// reads a flag parses it, so the request builder never has to know what
+	// any one verb's arguments mean.
+	MaxDepth string
 	// Finish asks check to complete or roll back the interrupted structural
 	// acts it reports, rather than only reporting them.
 	Finish bool
 	// MigrateOrdinals asks check to stamp a creation ordinal on every entity
 	// of the workbench that predates the field, before it reports.
 	MigrateOrdinals bool
-	// MigrateSlugs asks check to derive a slug for every state of the
+	// MigrateSlugs asks check to derive a slug for every column of the
 	// workbench that predates the field, before it reports.
 	MigrateSlugs bool
-	// MigrateStates asks check to remove every stranded identifier from the
-	// workbench's own states list, before it reports.
-	MigrateStates bool
+	// MigrateColumns asks check to remove every stranded identifier from the
+	// workbench's own columns list, before it reports.
+	MigrateColumns bool
+	// MigrateVocabulary asks check to carry every workbench at or beneath the
+	// discovered root from the retired state and substate vocabulary to the
+	// current column and state one. It is the one marker check reads before a
+	// workbench is opened rather than after, because a workbench still written
+	// in the old vocabulary is exactly what the ordinary open refuses.
+	MigrateVocabulary bool
 	// MigrateWorkstreams asks check to create a workstream at every
 	// identifier the live cards list that names none, before it reports.
 	MigrateWorkstreams bool
@@ -139,12 +159,12 @@ type CardView struct {
 	Ref string `json:"ref,omitempty"`
 	// Title is the card's title.
 	Title string `json:"title,omitempty"`
-	// State is the identifier of the state the card occupies.
+	// Column is the identifier of the column the card occupies.
+	Column string `json:"column,omitempty"`
+	// ColumnTitle is that column's title, so a reader needs no second call.
+	ColumnTitle string `json:"column_title,omitempty"`
+	// State is one of ready, active and blocked.
 	State string `json:"state,omitempty"`
-	// StateTitle is that state's title, so a reader needs no second call.
-	StateTitle string `json:"state_title,omitempty"`
-	// Substate is one of ready, active and blocked.
-	Substate string `json:"substate,omitempty"`
 	// Severity and Priority are the levels the card records on the two axes
 	// a workbench may declare, empty when the card carries none. Displayed
 	// verbatim: no lookup against Bench.Levels or Bench.Level runs here, so
@@ -176,23 +196,27 @@ type Instructions struct {
 	Global string `json:"global,omitempty"`
 	// Standing is the workbench's own standing text.
 	Standing string `json:"standing,omitempty"`
-	// State is the station's own instructions.
-	State string `json:"state,omitempty"`
+	// Column is the station's own instructions.
+	Column string `json:"column,omitempty"`
 }
 
 // LegalMove is one departure the workbench allows a card at this moment.
 type LegalMove struct {
-	// State is the destination's identifier.
-	State string `json:"state"`
+	// Column is the destination's identifier.
+	Column string `json:"column"`
 	// Ref is what a person types to name this destination on a move: the
-	// state's own slug when it has one, the identifier otherwise. Mirrors
-	// CardView.Ref's fallback, so a state written before the slug field
+	// column's own slug when it has one, the identifier otherwise. Mirrors
+	// CardView.Ref's fallback, so a column written before the slug field
 	// existed still gives a caller something to type.
 	Ref string `json:"ref"`
 	// Title is the destination's title.
 	Title string `json:"title"`
 	// Direction is forward or backward along the declared flow.
 	Direction string `json:"direction"`
+	// Reject marks the one row, if any, that the departure's own reject_to
+	// declaration names. At most one row of a card's legal moves ever
+	// carries this, since RejectTarget answers at most one column.
+	Reject bool `json:"reject,omitempty"`
 }
 
 // The two directions a legal move can carry.
@@ -255,8 +279,8 @@ func (l *Library) view(card *bench.Card) *CardView {
 		ID:          card.ID,
 		Ref:         card.Ref(l.Bench.Slug),
 		Title:       card.Title,
+		Column:      card.Column,
 		State:       card.State,
-		Substate:    card.Substate,
 		Severity:    card.Severity,
 		Priority:    card.Priority,
 		Holder:      card.Holder,
@@ -267,8 +291,8 @@ func (l *Library) view(card *bench.Card) *CardView {
 		Workstreams: card.Workstreams,
 		Revision:    card.Revision,
 	}
-	if state := l.Bench.State(card.State); state != nil {
-		v.StateTitle = state.Title
+	if column := l.Bench.Column(card.Column); column != nil {
+		v.ColumnTitle = column.Title
 	}
 	return v
 }
@@ -281,58 +305,135 @@ func (l *Library) serve(card *bench.Card) *Instructions {
 		Global:   bench.GlobalInstructions(l.Home),
 		Standing: l.Bench.Standing,
 	}
-	if state := l.Bench.State(card.State); state != nil {
-		instructions.State = state.Instructions
+	if column := l.Bench.Column(card.Column); column != nil {
+		instructions.Column = column.Instructions
 	}
 	return instructions
 }
 
 // legalMoves reports the departures the workbench allows a card now. A card in
-// a state whose kind is done has no forward move, which is CORE-STATE-9.
+// a column whose kind is done has no forward move, which is CORE-STATE-9.
 func (l *Library) legalMoves(card *bench.Card) []LegalMove {
-	current := l.Bench.State(card.State)
+	current := l.Bench.Column(card.Column)
 	if current == nil {
 		return nil
 	}
+	target := l.Bench.RejectTarget(current)
 	var moves []LegalMove
-	for _, state := range l.Bench.States {
-		if state.ID == current.ID {
+	for _, column := range l.Bench.Columns {
+		if column.ID == current.ID {
 			continue
 		}
 		direction := Backward
-		if state.Position > current.Position {
+		if column.Position > current.Position {
 			direction = Forward
 		}
-		if direction == Forward && current.Kind == contract.KindDone {
+		if direction == Forward && current.Terminal() {
 			continue
 		}
-		moves = append(moves, LegalMove{State: state.ID, Ref: stateRef(state), Title: state.Title, Direction: direction})
+		moves = append(moves, LegalMove{
+			Column:    column.ID,
+			Ref:       columnRef(column),
+			Title:     column.Title,
+			Direction: direction,
+			Reject:    target != nil && column.ID == target.ID,
+		})
 	}
 	return moves
 }
 
-// stateRef is what a person types to reach a state. Thin wrapper over
-// bench.State.Ref so every caller in this package reads the same name it
+// columnRef is what a person types to reach a column. Thin wrapper over
+// bench.Column.Ref so every caller in this package reads the same name it
 // already used before that method existed.
-func stateRef(state *bench.State) string {
-	return state.Ref()
+func columnRef(column *bench.Column) string {
+	return column.Ref()
 }
 
 // affordances names what a caller may do next with a card, which is the same
 // question every response answers whatever its outcome.
+//
+// The ready list asks where the card is standing rather than deciding from the
+// state alone. A claim is refused at a column that takes no work up, so a
+// list naming claim there advertises an act the tool refuses, and the reader
+// most likely to act on it is an agent that cannot see the board.
 func (l *Library) affordances(card *bench.Card) []string {
 	if card == nil {
-		return []string{"status", "states", "ls", "next"}
+		return []string{"status", "columns", "ls", "next"}
 	}
-	switch card.Substate {
-	case contract.SubstateReady:
-		return []string{Claim, Move, Block, "comment", "show", "log"}
-	case contract.SubstateActive:
+	switch card.State {
+	case contract.StateReady:
+		return append(l.takeUpActs(l.Bench.Column(card.Column)), Move, Block, "comment", "show", "log")
+	case contract.StateActive:
 		return []string{Move, Release, Block, "comment", "show", "log"}
-	case contract.SubstateBlocked:
+	case contract.StateBlocked:
 		return []string{Unblock, "comment", "show", "log"}
 	}
 	return []string{"show", "log"}
+}
+
+// takeUpActs names the act that would take a ready card up at a column. It
+// asks the two predicates the acts themselves ask rather than repeating
+// either rule: claimableColumn admits a claim exactly where the column holds an
+// active card, and carriesInto answers where a pull would put a card standing
+// at this one, which is nil when no pull can reach it.
+//
+// It takes the column rather than a card because the question is the column's
+// alone, and because the instructions chain is served for a bare column as
+// often as for a card. A caller holding either one reaches the same rule.
+//
+// A column taking no work up loses the claim and gains a pull, because an agent
+// reading a list with the claim simply missing would meet the refusal with
+// nothing telling it what to reach for instead. That is the same reason the
+// next_card tool's list carries pull beside claim.
+func (l *Library) takeUpActs(column *bench.Column) []string {
+	if column == nil || column.HoldsState(contract.StateActive) {
+		return []string{Claim}
+	}
+	if carriesInto(column, l.Bench.Columns) != nil {
+		return []string{Pull}
+	}
+	return nil
+}
+
+// CardAffordances answers, for the card a request names, the list every
+// card-shaped response already carries. A head that assembles its own payload
+// instead of returning a Response reaches this rather than writing out a list
+// of its own, since a written-out list is a second answer to the question
+// affordances answers and goes stale the moment an act's rules change. A
+// reference naming no card falls back to the list a response with no card
+// carries, which spells two of its reads as library commands. A head serving
+// a vocabulary of its own translates what it publishes; the mcp head does
+// that in surfaceAffordances.
+func (l *Library) CardAffordances(req *Request) []string {
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil || found == nil {
+		return l.affordances(nil)
+	}
+	return l.affordances(found.Card)
+}
+
+// ServedAffordances answers what a caller may do where an instruction chain
+// was served. Instructions answers for a card or for a bare column, and this
+// answers for whichever of the two the request reached, from the one rule the
+// card list already reads.
+//
+// A written-out list here is worse than a written-out list anywhere else,
+// because instructions is the tool a caller reaches for precisely to learn
+// what it may do where the card is standing. A list naming claim at a column
+// that takes no work up walks the reader into the refusal it came here to
+// avoid, and it does so in the answer that was supposed to prevent that.
+//
+// The bare-column branch carries no card acts, since there is no card to move,
+// comment on or read. What it carries is the act that would take work up here
+// and the two reads that find a card to take it with.
+func (l *Library) ServedAffordances(req *Request, served *Served) []string {
+	if served == nil {
+		return nil
+	}
+	if l.instructionColumn(req) != nil {
+		return append(l.takeUpActs(l.Bench.Column(served.Column)), "ls", "next", "show")
+	}
+	return l.CardAffordances(req)
 }
 
 // refuse builds a refused response. It keeps its signature and delegates to

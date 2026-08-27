@@ -46,6 +46,22 @@ type Param struct {
 	// AlsoFlag marks a positional argument the parser also accepts in its
 	// --name <value> spelling.
 	AlsoFlag bool
+	// Field names the Request field this parameter's resolved value is
+	// assigned to. Empty means the parameter never reaches a Request field,
+	// which is true of every parameter belonging to a command that builds no
+	// Request at all (guide, init, extract, path, edit, config, mcp, help,
+	// and version's own rendering), and of catalogs on version, whose marker
+	// runVersion reads straight off the parsed arguments and whose mcp
+	// counterpart is deliberately discarded because that head always reports
+	// full catalog coverage.
+	//
+	// The binding is declared here rather than inferred from the parameter's
+	// spelling because the spelling does not carry it: yes fills Confirm,
+	// ready fills ReadyOnly, and catalogs fills nothing. A parameter that
+	// does reach a Request field and carries no Field here is a half-written
+	// table rather than a legal state, and the argument-coverage tests on
+	// both heads fail on it by name.
+	Field string
 }
 
 // Type is the JSON schema type of a parameter on a machine surface.
@@ -118,7 +134,7 @@ type Vocabulary struct {
 	// Values are the members when the set is fixed in the source.
 	Values []string
 	// Source names a set a head resolves when it runs, because the set lives
-	// outside this package: "states" reads the workbench's own states, and
+	// outside this package: "columns" reads the workbench's own columns, and
 	// "guides" reads the topics embedded in the binary.
 	Source string
 }
@@ -127,10 +143,10 @@ type Vocabulary struct {
 // the sets the commands themselves check against, so neither can drift from
 // what a command accepts, and two name a set only a head can resolve.
 var vocabularies = map[string]Vocabulary{
-	"key":   {Values: bench.ConfigKeys},
-	"field": {Values: bench.WorkbenchFields},
-	"topic": {Source: "guides"},
-	"state": {Source: "states"},
+	"key":    {Values: bench.ConfigKeys},
+	"field":  {Values: bench.WorkbenchFields},
+	"topic":  {Source: "guides"},
+	"column": {Source: "columns"},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -213,91 +229,117 @@ var params = map[string][]Param{
 	// this source are sets the source itself holds, and a level set is per
 	// workbench, so the refusal is what tells a reader the set.
 	"add": {
-		{Name: "title", Required: true, Rest: true},
-		{Name: "state", Flag: true, Value: "state", Vocabulary: "state"},
-		{Name: "severity", Flag: true, Value: "level"},
-		{Name: "priority", Flag: true, Value: "level"},
+		{Name: "title", Required: true, Rest: true, Field: "Title"},
+		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
+		{Name: "severity", Flag: true, Value: "level", Field: "Severity"},
+		{Name: "priority", Flag: true, Value: "level", Field: "Priority"},
 	},
 	Claim: {
-		{Name: "card", Required: true},
-		{Name: "expires", Flag: true, Value: "duration"},
+		{Name: "card", Required: true, Field: "Card"},
+		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
 	},
 	Move: {
-		{Name: "card", Required: true, Shared: "card"},
-		{Name: "state", Required: true, Vocabulary: "state", AlsoFlag: true},
-		{Name: "override", Flag: true, Marker: true},
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "column", Required: true, Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "override", Flag: true, Marker: true, Field: "Override"},
 	},
-	Release: {{Name: "card", Required: true, Shared: "card"}},
+	Release: {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
 	Block: {
-		{Name: "card", Required: true},
-		{Name: "reason", Required: true, Rest: true},
-		{Name: "kind", Flag: true, Value: "kind"},
+		{Name: "card", Required: true, Field: "Card"},
+		{Name: "reason", Required: true, Rest: true, Field: "Reason"},
+		{Name: "kind", Flag: true, Value: "kind", Field: "Kind"},
 	},
-	Unblock: {{Name: "card", Required: true, Shared: "card"}},
+	Unblock: {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
 	Join: {
-		{Name: "card", Required: true, Shared: "card"},
-		{Name: "workstream", Required: true, Shared: "workstream"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},
 	},
 	Leave: {
-		{Name: "card", Required: true, Shared: "card"},
-		{Name: "workstream", Required: true, Shared: "workstream"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "workstream", Required: true, Shared: "workstream", Field: "Workstream"},
 	},
 	"comment": {
-		{Name: "card", Required: true, Shared: "card"},
-		{Name: "text", Display: "text|-", Required: true, Rest: true},
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "text", Display: "text|-", Required: true, Rest: true, Field: "Text"},
 	},
 	"attach": {
-		{Name: "ref", Required: true, Guide: "references"},
-		{Name: "file", Required: true},
-		{Name: "description", Flag: true, Value: "text"},
-		{Name: "replace", Flag: true, Marker: true},
+		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
+		{Name: "file", Required: true, Field: "File"},
+		{Name: "description", Flag: true, Value: "text", Field: "Description"},
+		{Name: "replace", Flag: true, Marker: true, Field: "Replace"},
 	},
-	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references"}},
+	"archive": {{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"}},
 	"delete": {
-		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
-		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes"},
+		{Name: "ref", Required: true, Shared: "ref", Guide: "references", Field: "Ref"},
+		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes", Field: "Confirm"},
 	},
+	// rename writes its own sentence for ref rather than taking the shared
+	// one, because the shared sentence names a column, a card or anything
+	// below one, and rename renames an attachment alone.
 	"rename": {
-		{Name: "ref", Required: true, Shared: "ref", Guide: "references"},
-		{Name: "name", Required: true, Rest: true},
+		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
+		{Name: "name", Required: true, Rest: true, Field: "Value"},
 	},
-	"status": {},
-	"states": {},
+	"status": {
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+	},
+	"columns": {},
 	"ls": {
-		{Name: "state", Vocabulary: "state", AlsoFlag: true},
-		{Name: "ready", Flag: true, Marker: true},
+		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
-	"next": {{Name: "state", Vocabulary: "state", AlsoFlag: true}},
-	// Pull combines a claim and a move into one atomic act. The state is
+	"next": {
+		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+	},
+	// Pull combines a claim and a move into one atomic act. The column is
 	// the destination; the named form names it, the bare form chooses the
-	// one state that qualifies and refuses when more than one does. The
+	// one column that qualifies and refuses when more than one does. The
 	// three flags sit on the move's own shape: --no-claim drops the
-	// claim half, --override lets the operator pick a state at its limit,
+	// claim half, --override lets the operator pick a column at its limit,
 	// and --expires sets the claim's lease exactly as it does on claim.
 	Pull: {
-		{Name: "state", Vocabulary: "state", AlsoFlag: true},
-		{Name: "no-claim", Flag: true, Marker: true},
-		{Name: "expires", Flag: true, Value: "duration"},
-		{Name: "override", Flag: true, Marker: true},
+		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "no-claim", Flag: true, Marker: true, Field: "NoClaim"},
+		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
+		{Name: "override", Flag: true, Marker: true, Field: "Override"},
 	},
-	"query": {{Name: "query", Rest: true}},
+	"query": {{Name: "query", Rest: true, Field: "Query"}},
 	"tree": {
-		{Name: "query", Rest: true},
-		{Name: "group-by", Flag: true, Value: "axes"},
-		{Name: "depth", Flag: true, Value: "level"},
+		{Name: "query", Rest: true, Field: "Query"},
+		{Name: "group-by", Flag: true, Value: "axes", Field: "GroupBy"},
+		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	// contents writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence ends "not this workbench" and the
 	// workbench is the one reference contents is most often given.
 	"contents": {
-		{Name: "ref", Required: true, Guide: "references"},
-		{Name: "depth", Flag: true, Value: "level"},
+		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
+		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
 	},
-	"show": {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
-	"log":  {{Name: "card", Required: true, Shared: "card"}},
+	"show": {{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"}},
+	"log":  {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
+	// Every argument of changes is a flag, including the two a read usually
+	// takes positionally, because the cursor is the argument a caller reaches
+	// for and a positional slot ahead of it would be the one they type by
+	// accident. The card slot takes the shared sentence, since the argument
+	// means here what it means everywhere.
+	"changes": {
+		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
+		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
+		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+	},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
-	"instructions": {{Name: "card", Display: "card|state", Required: true, Guide: "references"}},
+	"instructions": {{Name: "card", Display: "card|column", Required: true, Guide: "references", Field: "Card"}},
 	"guide":        {{Name: "topic", Vocabulary: "topic"}},
 	// init has always read a positional directory and never declared one, so
 	// the syntax line omitted an argument the command honours.
@@ -324,10 +366,10 @@ var params = map[string][]Param{
 	// refuses over rather than the syntax line. The confirmation flag is
 	// unrequired because a title change and an operator change take none.
 	"workbench": {
-		{Name: "action", Display: "get|set"},
-		{Name: "field", Vocabulary: "field"},
-		{Name: "value"},
-		{Name: "yes", Flag: true, Marker: true, Shared: "yes"},
+		{Name: "action", Display: "get|set", Field: "Action"},
+		{Name: "field", Vocabulary: "field", Field: "Field"},
+		{Name: "value", Field: "Value"},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	// The bare invocation lists every live workstream, so neither the action
 	// nor the workstream is required; new, get and set still need one, which
@@ -335,11 +377,11 @@ var params = map[string][]Param{
 	// slot carries a reference on get and set and the title on new, which is
 	// what its two-word display says.
 	"workstream": {
-		{Name: "action", Display: "new|get|set"},
-		{Name: "workstream", Display: "workstream|title"},
-		{Name: "field"},
-		{Name: "value"},
-		{Name: "yes", Flag: true, Marker: true, Shared: "yes"},
+		{Name: "action", Display: "new|get|set", Field: "Action"},
+		{Name: "workstream", Display: "workstream|title", Field: "Workstream"},
+		{Name: "field", Field: "Field"},
+		{Name: "value", Field: "Value"},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	// Three of the four slots are required, which is where card departs from
 	// its three grammar siblings. Each of those has a bare invocation that
@@ -351,25 +393,65 @@ var params = map[string][]Param{
 	// own arity check; what the declaration buys is a schema that refuses a
 	// call naming no action, no card or no field before the tool runs.
 	"card": {
-		{Name: "action", Display: "get|set", Required: true},
-		{Name: "card", Required: true, Shared: "card"},
-		{Name: "field", Required: true},
-		{Name: "value"},
+		{Name: "action", Display: "get|set", Required: true, Field: "Action"},
+		{Name: "card", Required: true, Shared: "card", Field: "Card"},
+		{Name: "field", Required: true, Field: "Field"},
+		{Name: "value", Field: "Value"},
 	},
 	"check": {
-		{Name: "finish", Flag: true, Marker: true},
-		{Name: "migrate-ordinals", Flag: true, Marker: true},
-		{Name: "migrate-slugs", Flag: true, Marker: true},
-		{Name: "migrate-states", Flag: true, Marker: true},
-		{Name: "migrate-workstreams", Flag: true, Marker: true},
+		{Name: "finish", Flag: true, Marker: true, Field: "Finish"},
+		{Name: "migrate-ordinals", Flag: true, Marker: true, Field: "MigrateOrdinals"},
+		{Name: "migrate-slugs", Flag: true, Marker: true, Field: "MigrateSlugs"},
+		{Name: "migrate-columns", Flag: true, Marker: true, Field: "MigrateColumns"},
+		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
+		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
+		// Read by migrate-vocabulary alone, which is the one repair here
+		// that walks a whole tree of workbenches rather than acting on the
+		// one the caller is standing in, and whose rewrite has no undo.
+		// Without it that repair reports what it would carry forward and
+		// writes nothing.
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
-	"whoami":      {},
-	"workbenches": {},
+	"whoami": {},
+	// workbenches takes its scope as a positional rather than as --workbench,
+	// because the two name different things: --workbench names one workbench to
+	// act on, and this path names a directory to walk downward from. The
+	// positional declares no request field, since neither head puts it on a
+	// verb.Request; each reads it where it arrives, the terminal off the parsed
+	// words and the machine surface off the tool call's own arguments.
+	"workbenches": {
+		{Name: "path"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+	},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
 	"mcp":  {{Name: "root", Flag: true, Value: "dir"}},
 	"help": {{Name: "command", Required: true}},
+}
+
+// crossHeadIdentical names every command whose reader is required to answer
+// with the payload the cli head prints under --json for the same arguments,
+// and records the one clause that makes the guarantee hold. The property is
+// declared here, beside the parameter table, rather than left in a doc comment
+// on the reader itself, because a doc comment is prose that nothing reads and
+// a guard built on its wording is a guard that a rewording breaks. A command
+// earns its place here by somebody writing the clause and standing behind it,
+// which is the same shape each head's exemption map already has.
+var crossHeadIdentical = map[string]string{
+	"query":   "both heads hand the one library call the one query string",
+	"tree":    "both heads hand the one library call the one chain, the one level and the one query string",
+	"changes": "both heads hand the one library call the one cursor, the one card and the one state",
+}
+
+// CrossHeadIdentical returns the commands whose payload is declared to match
+// across the heads, each mapped to the reason the match holds.
+func CrossHeadIdentical() map[string]string {
+	declared := make(map[string]string, len(crossHeadIdentical))
+	for name, reason := range crossHeadIdentical {
+		declared[name] = reason
+	}
+	return declared
 }
 
 // Params returns a command's argument list.

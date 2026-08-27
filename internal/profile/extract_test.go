@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -24,8 +25,14 @@ var tradeTerms = []string{
 // productTerms is the profile's second excluded list: the product vocabulary
 // of tools that already implement work like this one, which a reader of the
 // profile alone has no way to interpret.
+//
+// `column` left this list at profile 0.7, which is the revision that made it
+// one of the profile's own words. The list bars a word that arrives carrying a
+// meaning the document never states; section 4 now states this one, so it no
+// longer qualifies, and section 3.5 records the removal in the document
+// itself rather than leaving this file as the only place it is written down.
 var productTerms = []string{
-	"lane", "gate", "loop limit", "column", "station", "swimlane", "zone",
+	"lane", "gate", "loop limit", "station", "swimlane", "zone",
 	"persona", "capability tier", "shopping queue", "external wait",
 	"workstream",
 }
@@ -352,6 +359,67 @@ func TestBoundaryTableCatchesADefect(t *testing.T) {
 	good := BoundaryTable("| A thing | in | Because. | | CORE-A-1, CORE-A-2 |\n")
 	if len(good) != 1 || len(good[0].Statements) != 2 || good[0].Reopen != "" {
 		t.Errorf("a well-formed row parsed as %+v", good)
+	}
+}
+
+// boundaryTally matches the sentence section 10 carries beneath its table,
+// stating how many rows the table holds. That sentence is a derived reference
+// of the same class as a line-number-keyed fixture: somebody writes it by
+// hand, adding a row falsifies it, and nothing in the document or the tool
+// reads it, so it goes stale in silence.
+var boundaryTally = regexp.MustCompile(`^Rows ruled in: (\d+)\. Rows ruled out: (\d+)\. Total rows: (\d+)\.$`)
+
+// TestTheBoundaryTallyCountsTheRowsTheTableCarries holds section 10's own
+// count of its rows against the rows the extraction reads.
+//
+// No other guard in this package looks at the sentence.
+// TestBoundaryTableRulesEveryStatement reads each row's four properties and
+// never counts the rows, so a row added with a correct ruling, reason and
+// reopen condition leaves that check green and the sentence beside the table
+// false. dinah-207 added such a row and the tally stood at the old numbers
+// through a whole implementation pass.
+func TestTheBoundaryTallyCountsTheRowsTheTableCarries(t *testing.T) {
+	text := readProfile(t)
+	rows := BoundaryTable(text)
+	if len(rows) == 0 {
+		t.Fatal("the boundary table returned no rows")
+	}
+
+	var in, out int
+	for _, r := range rows {
+		switch r.Ruling {
+		case "in":
+			in++
+		case "out":
+			out++
+		}
+	}
+	want := []int{in, out, in + out}
+	names := []string{"rows ruled in", "rows ruled out", "total rows"}
+
+	var found int
+	for i, line := range strings.Split(text, "\n") {
+		m := boundaryTally.FindStringSubmatch(strings.TrimRight(line, "\r"))
+		if m == nil {
+			continue
+		}
+		found++
+		if found > 1 {
+			t.Errorf("line %d: the document states its row count a second time, so two sentences now go stale independently", i+1)
+			continue
+		}
+		for k, name := range names {
+			got, err := strconv.Atoi(m[k+1])
+			if err != nil {
+				t.Fatalf("line %d: reading the count of %s: %v", i+1, name, err)
+			}
+			if got != want[k] {
+				t.Errorf("line %d: the tally counts %s as %d, the table carries %d", i+1, name, got, want[k])
+			}
+		}
+	}
+	if found == 0 {
+		t.Fatal("section 10 states no row count, so either the sentence was removed or its wording drifted out of the shape this guard reads")
 	}
 }
 

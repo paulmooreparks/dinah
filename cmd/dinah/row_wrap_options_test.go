@@ -71,53 +71,89 @@ func TestContinuationIndentClamp(t *testing.T) {
 	}
 }
 
-// TestBreakOnOptions asserts the three boundary shapes Contract B names:
-// a space followed by `[--`, a space followed by `<`, and a bare `--`. Each
-// shape produces its own line, kept whole, indented to the call's indent.
-// The first chunk is returned without a leading indent, so the caller can
-// lay it on the row's first line in place.
+// TestBreakOnOptions asserts the boundary shapes Contract B names, now that
+// dinah-220 has widened them: a space before any `[` (an option group like
+// `[--column <column>]` and a vocabulary group like `[new|get|set]` alike), a
+// space before `<`, and a bare `--`. Each group is kept whole, and the
+// groups pack as many to a line as the room allows rather than taking one
+// line each. Every line after the first is indented to the call's indent;
+// the first is returned without one, so the caller can lay it on the row's
+// own first line in place.
 //
 // What the test guards against is a parser that catches one shape and misses
-// the other two, or that consumes the boundary space into the next chunk
-// rather than dropping it. Each case states the input and the expected
-// per-line output.
+// the others, that consumes the boundary space into the next group rather
+// than dropping it, or that breaks a group across a line end. The room in
+// each case is narrow enough to force a break, so a packing rule that has
+// stopped packing shows up here rather than passing on a line nothing had
+// to fit into.
 func TestBreakOnOptions(t *testing.T) {
 	cases := []struct {
 		name   string
 		text   string
 		indent int
+		room   int
 		want   string
 	}{
 		{
 			name:   "square bracket",
-			text:   "add <title> [--state <state>]",
+			text:   "add <title> [--column <column>]",
 			indent: 2,
-			want:   "add\n  <title>\n  [--state <state>]",
+			room:   20,
+			want:   "add <title>\n  [--column <column>]",
 		},
 		{
 			name:   "angle bracket",
 			text:   "claim <card> [--expires <duration>]",
 			indent: 2,
-			want:   "claim\n  <card>\n  [--expires <duration>]",
+			room:   20,
+			want:   "claim <card>\n  [--expires <duration>]",
 		},
 		{
 			name:   "bare dash dash",
 			text:   "delete <ref> --yes",
 			indent: 2,
-			want:   "delete\n  <ref>\n  --yes",
+			room:   12,
+			want:   "delete <ref>\n  --yes",
+		},
+		{
+			name:   "vocabulary group",
+			text:   "workstream [new|get|set] [workstream|title] [field] [value] [--yes]",
+			indent: 4,
+			room:   53,
+			want:   "workstream [new|get|set] [workstream|title] [field]\n    [value] [--yes]",
+		},
+		{
+			// The room here is narrower than the command name and its first
+			// group together, so a rule that opens a group only on `[--`
+			// carries the two as one atomic piece and draws them on one line.
+			// Splitting before any `[` is what puts them on lines of their
+			// own.
+			name:   "a plain group after a word is its own piece",
+			text:   "workstream [new|get|set] [field]",
+			indent: 2,
+			room:   15,
+			want:   "workstream\n  [new|get|set]\n  [field]",
 		},
 		{
 			name:   "one indent for the square bracket piece",
-			text:   "add <title> [--state <state>]",
+			text:   "add <title> [--column <column>]",
 			indent: 4,
-			want:   "add\n    <title>\n    [--state <state>]",
+			room:   20,
+			want:   "add <title>\n    [--column <column>]",
+		},
+		{
+			name:   "everything that fits packs onto one line",
+			text:   "add <title> [--column <column>]",
+			indent: 2,
+			room:   100,
+			want:   "add <title> [--column <column>]",
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := breakOnOptions(c.text, c.indent, 100)
+			got := breakOnOptions(c.text, c.indent, c.room)
 			if got != c.want {
-				t.Errorf("breakOnOptions(%q, %d):\n got  %q\n want %q", c.text, c.indent, got, c.want)
+				t.Errorf("breakOnOptions(%q, %d, %d):\n got  %q\n want %q", c.text, c.indent, c.room, got, c.want)
 			}
 		})
 	}
@@ -174,21 +210,27 @@ func TestTwoOverflowingCells(t *testing.T) {
 }
 
 // TestBreakOnOptionsFallsBackToWordWrap asserts Contract B's fallback rule:
-// once the last option boundary has passed and the trailing prose still
-// does not fit, the trailing prose is word-wrapped at the call's indent.
-// A value with no option boundary at all falls back to the existing
-// wrapTail behaviour, word-wrap whole.
+// once the last option boundary has passed, trailing prose is exploded into
+// its own words and packed at the word level rather than being carried
+// whole as though it were one more option group. A value with no option
+// boundary at all falls back to the existing wrapTail behaviour, word-wrap
+// whole.
 //
 // What the test guards against is a parser that renders the trailing
 // prose on a single line past the window, or that word-wraps the option
-// chunks themselves rather than keeping each option group whole. The
-// fixture mixes three option boundaries and a long trailing sentence to
-// exercise the join.
+// groups themselves rather than keeping each group whole. The fixture mixes
+// three option boundaries and a long trailing sentence to exercise the
+// join; the boundary after the closing `]` is what separates that sentence
+// from the option group before it.
 func TestBreakOnOptionsFallsBackToWordWrap(t *testing.T) {
 	t.Run("trailing prose word-wraps", func(t *testing.T) {
-		text := "add <title> [--state <state>] file a new card in the first state"
-		got := breakOnOptions(text, 2, 30)
-		want := "add\n  <title>\n  [--state <state>] file a new\n  card in the first state"
+		// The window is one the fixture's own first line fits in. What this
+		// case is about is where the trailing prose goes once the last option
+		// boundary has passed, and a window too narrow for the option group
+		// itself would exercise the overflow rule instead.
+		text := "add <title> [--column <column>] file a new card in the first column"
+		got := breakOnOptions(text, 2, 32)
+		want := "add <title> [--column <column>]\n  file a new card in the first\n  column"
 		if got != want {
 			t.Errorf("trailing prose word-wraps:\n got  %q\n want %q", got, want)
 		}

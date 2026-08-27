@@ -32,9 +32,71 @@ jobs:
       - run: go version
       - name: gofmt
         run: |
-          unformatted="$(gofmt -l .)"
+          # Scoped to the Go trees rather than run from the root. `gofmt -l .`
+          # descends into editors/vscode/node_modules/, so an npm dependency
+          # that vendors an unformatted .go file as testdata would turn this
+          # job red for a reason that has nothing to do with this repository's
+          # own code.
+          unformatted="$(gofmt -l cmd internal)"
           if [ -n "$unformatted" ]; then
             echo "gofmt would reformat:"
             echo "$unformatted"
             exit 1
           fi
+
+  # The VS Code extension builds beside the Go jobs rather than inside them.
+  # Windows is not optional: path handling, the .exe suffix and PATH
+  # resolution are the most platform-sensitive code in editors/vscode, and
+  # Windows is where they break. macOS is left off because the split this code
+  # cares about is Windows against POSIX, and the Linux leg covers the POSIX
+  # side.
+  extension:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: editors/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      # The integration tests build their fixtures with this commit's own
+      # binary, so the Go toolchain is a dependency of the extension job too.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: npm ci
+      - run: npm run check-types
+      - run: npm run lint
+      - run: npm run test:unit
+
+      # @vscode/test-electron downloads a real VS Code and runs the tests
+      # inside a real extension host, which needs a display on Linux.
+      - name: Integration tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:integration
+      - name: Integration tests (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:integration
+
+      # Every platform vsix carries one binary, so the six are cross-compiled
+      # here. dinah has no cgo, so six cross-builds on one runner cost a few
+      # seconds and buy an archive check that can actually run.
+      - name: Cross-compile the six release binaries
+        shell: bash
+        run: node scripts/build-binaries.mjs .binaries
+      - run: npm run package -- --binaries .binaries
+      - run: npm run verify-package
+
+      - name: Upload the packaged extensions
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.os }}
+          path: editors/vscode/vsix/*.vsix
+          if-no-files-found: error

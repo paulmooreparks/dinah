@@ -18,34 +18,116 @@ import (
 // package's Discover and Reachable tests exercise cannot climb out of its
 // own synthetic fixture tree and reach the real workbenches sitting above
 // it. See internal/testenv's package comment for what this does and does
-// not cover.
+// not cover. It also clears the variables isolatedEnv names, so a shell that
+// exports one does not reach a test that never asked to see it.
 func TestMain(m *testing.M) {
 	restore := testenv.IsolateTempDir()
+	restoreIsolated := testenv.ClearVars(isolatedEnv...)
 	code := m.Run()
+	restoreIsolated()
 	restore()
 	os.Exit(code)
+}
+
+// isolatedEnv names the variables this package's own resolvers read straight
+// from the environment and that no test here asked to see. dinah-229.
+//
+// It is a twin of cmd/dinah's list rather than a reference to it, since that
+// package is package main and nothing can import it. Each package asserts its
+// own copy against its own written-out names, and the two lists agree on the
+// seven below rather than being one list in two places.
+//
+// They stopped being identical at dinah-31, which added DINAH_FORMAT to the
+// cmd/dinah list alone. Nothing this package resolves reads that variable, and
+// carrying a name here that no resolver here reads would say this package
+// needs an isolation it does not. The rule the two lists share is that a list
+// names what its own package reads, so divergence is what the rule produces
+// once one package reads something the other does not.
+//
+// ResolveEditorSource reads DINAH_EDITOR, VISUAL and EDITOR; osLocale reads
+// LC_ALL, LC_MESSAGES and LANG. COLUMNS is carried so both lists read the
+// same, and because a renderer moving into this package would inherit the
+// protection rather than have to remember it. DINAH_ACTOR and DINAH_LANG stay
+// out: fixtures set both deliberately.
+//
+// The ladder tests below clear the editor and locale variables per case as
+// well. Those loops state local intent, and t.Setenv composes with an
+// already-unset starting point exactly as it composes with any other, so they
+// stay.
+var isolatedEnv = []string{
+	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+	"LC_ALL", "LC_MESSAGES", "LANG",
+}
+
+// TestIsolatedEnvNamesEveryVariableTheBinaryClears is the twin of the test of
+// the same name in cmd/dinah, over this package's own list. dinah-229.
+//
+// Two copies rather than one shared list, because cmd/dinah is package main
+// and no package can import it. Each asserts its own copy against names
+// written out by hand here, so a name dropped from this package's list shows
+// up here whatever the other package carries.
+//
+// The first half fails anywhere. The second half only fails on a machine that
+// exports the name, which is the developer's and no CI leg; see the cmd/dinah
+// twin's comment for why both halves are carried.
+func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
+	want := []string{
+		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
+		"LC_ALL", "LC_MESSAGES", "LANG",
+	}
+	for _, name := range want {
+		if !namesVariable(isolatedEnv, name) {
+			t.Errorf("isolatedEnv no longer names %s, so this binary inherits it from whoever runs the tests", name)
+		}
+	}
+	for _, name := range isolatedEnv {
+		if !namesVariable(want, name) {
+			t.Errorf("isolatedEnv names %s, which this test does not expect: add it here with the reason, or take it out of the list", name)
+		}
+	}
+	if len(isolatedEnv) != len(want) {
+		t.Errorf("isolatedEnv carries %d names, wanted %d: %v", len(isolatedEnv), len(want), isolatedEnv)
+	}
+
+	for _, name := range want {
+		if value, set := os.LookupEnv(name); set {
+			t.Errorf("%s is still set to %q while tests run, so TestMain did not clear it", name, value)
+		}
+	}
+}
+
+// namesVariable reports whether a list of environment variable names carries
+// one, which is what lets the guard above name the variable that went missing
+// rather than print two slices and leave the reader to diff them.
+func namesVariable(names []string, want string) bool {
+	for _, name := range names {
+		if name == want {
+			return true
+		}
+	}
+	return false
 }
 
 // benchDefinition is the smallest bench check can be run against.
 const benchDefinition = `---
 format: 1
-profile: dinah-core/1.0
+profile: dinah-core/0.7
 title: Fixture
 slug: fx
 operator: alka
-states:
+columns:
   - b00000000001
 ---
 Standing text.
 `
 
-// stateDefinition is the one state that bench declares.
-const stateDefinition = `---
+// columnDefinition is the one column that bench declares.
+const columnDefinition = `---
 title: Only
 slug: only
 kind: work
 ---
-State text.
+Column text.
 `
 
 // cleanCard is a card carrying no defect, which every case below breaks in
@@ -53,8 +135,8 @@ State text.
 const cleanCard = `---
 title: A card
 number: 1
-state: b00000000001
-substate: ready
+column: b00000000001
+state: ready
 ---
 Framing.
 `
@@ -68,7 +150,7 @@ func newFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	write(t, filepath.Join(root, WorkbenchAnchor), benchDefinition)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), stateDefinition)
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	write(t, filepath.Join(root, CardsDir, "c00000000001", JournalName), cleanJournal)
 	return root
@@ -100,37 +182,37 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			key:     "",
 		},
 		{
-			name: "claim fields without substate active",
+			name: "claim fields without state active",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "substate: ready", "substate: ready\nclaim_holder: alka\nclaim_since: 2026-08-17T09:00:00Z")
+				edit(t, root, "state: ready", "state: ready\nclaim_holder: alka\nclaim_since: 2026-08-17T09:00:00Z")
 			},
 			key: FindingClaimWithoutActive,
 		},
 		{
-			name: "substate active without claim fields",
+			name: "state active without claim fields",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "substate: ready", "substate: active")
+				edit(t, root, "state: ready", "state: active")
 			},
 			key: FindingActiveWithoutClaim,
 		},
 		{
 			name: "a block missing its reason",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "substate: ready", "substate: blocked")
+				edit(t, root, "state: ready", "state: blocked")
 			},
 			key: FindingBlockWithoutReason,
 		},
 		{
-			name: "a card naming a state the workbench does not declare",
+			name: "a card naming a column the workbench does not declare",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "state: b00000000001", "state: b00000000009")
+				edit(t, root, "column: b00000000001", "column: b00000000009")
 			},
-			key: FindingUnknownState,
+			key: FindingUnknownColumn,
 		},
 		{
 			name: "a link whose to resolves to no card",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "substate: ready", "substate: ready\nlinks:\n  - kind: relates\n    to: d00000000009")
+				edit(t, root, "state: ready", "state: ready\nlinks:\n  - kind: relates\n    to: d00000000009")
 			},
 			key: FindingDanglingLink,
 		},
@@ -203,7 +285,7 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 		{
 			name: "a card belonging to a workstream that resolves to nothing",
 			breakIt: func(t *testing.T, root string) {
-				edit(t, root, "substate: ready", "substate: ready\nworkstreams:\n  - f00000000009")
+				edit(t, root, "state: ready", "state: ready\nworkstreams:\n  - f00000000009")
 			},
 			key: FindingDanglingWorkstream,
 		},
@@ -320,7 +402,7 @@ func editWorkbench(t *testing.T, root, from, to string) {
 }
 
 // appendText adds to the end of a file, which is how the journal cases build
-// the state they check.
+// the column they check.
 func appendText(t *testing.T, path, text string) {
 	t.Helper()
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
@@ -369,7 +451,7 @@ func writeItem(t *testing.T, root, id string, ordinal int) {
 	t.Helper()
 	fm := NewFrontmatter()
 	fm.Set("kind", "decision")
-	fm.Set("state", "pending")
+	fm.Set("column", "pending")
 	if ordinal > 0 {
 		fm.Set(OrdinalField, strconv.Itoa(ordinal))
 	}
@@ -553,19 +635,19 @@ acme.department: catering
 acme.people:
   - ada
   - grace
-substate: ready
+state: ready
 ---
 Body text.
 `
 	fm, body := ParseAnchor(original)
-	fm.Set("substate", "active")
+	fm.Set("state", "active")
 	rewritten := fm.Render(body)
 	for _, wanted := range []string{"acme.department: catering", "  - ada", "  - grace", "Body text."} {
 		if !strings.Contains(rewritten, wanted) {
 			t.Errorf("the rewrite lost %q:\n%s", wanted, rewritten)
 		}
 	}
-	if !strings.Contains(rewritten, "substate: active") {
+	if !strings.Contains(rewritten, "state: active") {
 		t.Errorf("the rewrite did not apply the change:\n%s", rewritten)
 	}
 	again, _ := ParseAnchor(rewritten)
@@ -591,17 +673,17 @@ func TestReadersTolerateCarriageReturns(t *testing.T) {
 }
 
 // TestAsciiCaseRulesIgnoreTheLocale asserts CORE-TEXT-2 through the one place
-// the tool lowercases a name a person typed: a state reference. The Turkish
+// the tool lowercases a name a person typed: a column reference. The Turkish
 // dotless i is the case that separates ASCII rules from locale-aware ones.
 func TestAsciiCaseRulesIgnoreTheLocale(t *testing.T) {
 	root := newFixture(t)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: INTAKE\nkind: work\n---\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: INTAKE\nkind: work\n---\n")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	if state := opened.StateByRef("intake"); state == nil {
-		t.Error("a state title should match without regard to ASCII case")
+	if column := opened.ColumnByRef("intake"); column == nil {
+		t.Error("a column title should match without regard to ASCII case")
 	}
 	if got := asciiLower("I"); got != "i" {
 		t.Errorf("ASCII lowercasing of I: wanted i, got %q", got)
@@ -923,15 +1005,15 @@ func TestSlugsAreDerivedToTheGrammar(t *testing.T) {
 	if ValidSlug("My Project") {
 		t.Error("a slug outside the grammar should not be valid")
 	}
-	// The exclusion, from both sides. A slug the state grammar admits and this
+	// The exclusion, from both sides. A slug the column grammar admits and this
 	// one refuses is exactly one ending in a dash and digits alone, so the
 	// second list is what stops the check from refusing every dashed slug.
 	for _, refused := range []string{"sprint-2", "release-2-candidate-7", "a-0"} {
 		if ValidSlug(refused) {
 			t.Errorf("%q ends in a dash and digits alone and should not be a workbench slug", refused)
 		}
-		if !ValidStateSlug(refused) {
-			t.Errorf("%q should still be a state slug, which is what makes the exclusion the workbench grammar's own", refused)
+		if !ValidColumnSlug(refused) {
+			t.Errorf("%q should still be a column slug, which is what makes the exclusion the workbench grammar's own", refused)
 		}
 	}
 	for _, admitted := range []string{"sprint2", "release-2-candidate", "dinah-dev", "a-2b"} {
@@ -1171,7 +1253,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 }
 
 // TestMalformedCarriesTheFileItWasRaisedOver asserts that every malformed
-// refusal Open and readState raise names the file a reader has to repair,
+// refusal Open and readColumn raise names the file a reader has to repair,
 // which is what the sentence's location fragment renders from.
 func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 	cases := []struct {
@@ -1183,7 +1265,7 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 		{
 			name: "a workbench predating the profile line",
 			damage: func(t *testing.T, root string) {
-				write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "profile: dinah-core/1.0\n", "", 1))
+				write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "profile: dinah-core/0.7\n", "", 1))
 			},
 			detail: "profile",
 			path:   func(root string) string { return filepath.Join(root, WorkbenchAnchor) },
@@ -1207,13 +1289,13 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 			path:   func(root string) string { return filepath.Join(root, WorkbenchAnchor) },
 		},
 		{
-			name: "a state whose kind is outside the three",
+			name: "a column whose kind is outside the three",
 			damage: func(t *testing.T, root string) {
-				write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), "---\ntitle: Only\nkind: dawdling\n---\n")
+				write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: Only\nkind: dawdling\n---\n")
 			},
-			detail: "state b00000000001",
+			detail: "column b00000000001",
 			path: func(root string) string {
-				return filepath.Join(root, StatesDir, "b00000000001", StateAnchor)
+				return filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor)
 			},
 		},
 	}
@@ -1718,5 +1800,44 @@ func TestAnUnwritableDirectoryIsAnUnwritableEntity(t *testing.T) {
 	}
 	if !named {
 		t.Errorf("wanted the entity in the unwritable directory named, got %+v", reported)
+	}
+}
+
+// TestRenamingOntoAKeyTheHeaderAlreadyCarriesRefuses asserts that a
+// Frontmatter
+// Rename refuses a collision and leaves the header untouched, rather than
+// making room by deleting whatever the target held.
+//
+// The refusal is not a defensive extra. Renaming one key onto another is how
+// the vocabulary migration moves a card across the rename, and the two names
+// it moves overlap: the column key's old name is the state key's new one. A
+// caller that reaches this function with a mistaken idea of which keys the
+// header carries is one statement away from destroying a value no journal can
+// recover, and a header this format writes has no journal behind it.
+func TestRenamingOntoAKeyTheHeaderAlreadyCarriesRefuses(t *testing.T) {
+	fm, body := ParseAnchor("---\ntitle: A card\ncolumn: 004acda2c28a\nstate: ready\n---\nStanding text.\n")
+	before := fm.Render(body)
+
+	err := fm.Rename("state", "column")
+	if !errors.Is(err, ErrRenameCollides) {
+		t.Fatalf("renaming state onto column answered %v, wanted ErrRenameCollides", err)
+	}
+	if got := fm.Value("column"); got != "004acda2c28a" {
+		t.Errorf("the column now holds %q, so the refused rename wrote over it anyway", got)
+	}
+	if got := fm.Value("state"); got != "ready" {
+		t.Errorf("the state now holds %q, so the refused rename moved it", got)
+	}
+	if got := fm.Render(body); got != before {
+		t.Errorf("the refused rename changed the header:\n%s\nwanted:\n%s", got, before)
+	}
+	if err := fm.Rename("nothing-here", "column"); err != nil {
+		t.Errorf("renaming a key the header does not carry answered %v, and there is nothing there to lose", err)
+	}
+	if err := fm.Rename("state", "condition"); err != nil {
+		t.Errorf("renaming onto a free name answered %v", err)
+	}
+	if got := fm.Value("condition"); got != "ready" {
+		t.Errorf("the renamed key holds %q", got)
 	}
 }

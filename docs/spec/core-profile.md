@@ -1,13 +1,13 @@
 # The core profile
 
-Version identity: `dinah-core 0.4`, maturity channel `dev`.
+Version identity: `dinah-core 0.5`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
 This profile specifies how a tool coordinates board-based work: how a
 workbench declares its flow, what a card is, what it means for somebody to
 hold a card, which acts on a card are legal and which are refused, what a
-state tells whoever arrives at it, and what history a tool owes the people
+column tells whoever arrives at it, and what history a tool owes the people
 who read it later.
 
 The audience is somebody building a second tool. Everything needed to build
@@ -29,7 +29,7 @@ job is to serve them faithfully at the moment they are needed.
 
 The subject matter is deliberately domain-neutral. A workbench may plan a
 wedding, resolve support requests, run a research programme, or organize a
-harvest. Section 10.1 walks a wedding through every state, act and refusal
+harvest. Section 10.1 walks a wedding through every column, act and refusal
 the profile defines, and that walkthrough is the standing demonstration that
 nothing domain-specific has crept in.
 
@@ -43,7 +43,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.4 of the profile whose identity string is
+This document is version 0.7 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -232,7 +232,7 @@ conformance is evaluated over cannot itself be evaluated by driving a tool.
 
 Words in `this typeface` are tokens. A token is machine vocabulary with a
 fixed spelling, stored and transmitted as written here, and never translated.
-The tokens this profile defines are the state kinds, the substates, the
+The tokens this profile defines are the column kinds, the states, the
 outcome names, the refusal names, and the member names of the interchange
 form in section 5.7.
 
@@ -282,9 +282,19 @@ no way to know, and a later revision that admits one would be importing a
 model this document never states:
 
 ```
-lane, gate, loop limit, column, station, swimlane, zone, persona,
+lane, gate, loop limit, station, swimlane, zone, persona,
 capability tier, shopping queue, external wait, workstream
 ```
+
+One word left this list at 0.7, and the removal is recorded here rather than
+left for a reader to infer, the same way the paragraph above records
+`release`. The word `column` now names one of this profile's own concepts,
+defined in section 4 and used by the statements below, so the reason the list
+existed no longer applies to it: a reader does not have to know another
+tool's model to know what a column is here, because this document says what
+one is. The test the list exists for is whether a word arrives carrying a
+meaning this document never states, and a word this document defines cannot
+fail it.
 
 The boundary table of section 10 falls outside all three places, because
 naming what stayed out is that table's whole function and it could not do its
@@ -295,31 +305,31 @@ reader meets an undefined name standing alone.
 
 ## 4. Core vocabulary
 
-**Workbench.** One coordinated body of work, carrying a flow of states and
+**Workbench.** One coordinated body of work, carrying a flow of columns and
 the cards travelling it.
 
 **Workbench definition.** The declaration of a workbench: its title, its
-ordered states, and whatever a state carries.
+ordered columns, and whatever a column carries.
 
-**State.** One named position in a workbench's flow, which cards occupy.
+**Column.** One named position in a workbench's flow, which cards occupy.
 
-**Kind.** The nature of a thing, drawn from a declared set. A state's kind is
+**Kind.** The nature of a thing, drawn from a declared set. A column's kind is
 one of three and says whether cards enter there, are worked there, or come to
 rest there. A block's kind names the class of the obstacle and is drawn from
 whatever set a workbench finds useful. A link's kind names what one card is
 to another and is drawn from whatever set a workbench finds useful.
 
-**Flow.** The ordered sequence of a workbench's states.
+**Flow.** The ordered sequence of a workbench's columns.
 
-**Position.** Where a state stands in the flow, which is where it stands in
-the workbench's ordered list of states.
+**Position.** Where a column stands in the flow, which is where it stands in
+the workbench's ordered list of columns.
 
-**Card.** One unit of work, occupying exactly one state at a time.
+**Card.** One unit of work, occupying exactly one column at a time.
 
-**Title.** The short prose name of a workbench, a state or a card, which a
+**Title.** The short prose name of a workbench, a column or a card, which a
 person reads and which may change without changing identity.
 
-**Identifier.** The name by which a workbench, a state or a card is referred
+**Identifier.** The name by which a workbench, a column or a card is referred
 to, unique in its context, which never changes.
 
 **Field.** One named value carried on a card.
@@ -327,7 +337,7 @@ to, unique in its context, which never changes.
 **Link.** A reference one card carries to another card of the same workbench,
 naming a kind and the card it points to.
 
-**Substate.** The condition of a card within its state, drawn from a closed
+**State.** The condition of a card within its column, drawn from a closed
 set of three, which says whether the card is waiting, being worked, or held
 up.
 
@@ -343,7 +353,7 @@ may take the acts this profile reserves.
 **Expiry.** The lapse of a claim after a declared interval, which returns the
 card to waiting.
 
-**Queue.** The cards waiting in one state, in the order the profile defines.
+**Queue.** The cards waiting in one column, in the order the profile defines.
 
 **Verb.** One of the acts a tool offers on a card.
 
@@ -353,7 +363,7 @@ name, whatever the verb needs, and any marker the act requires.
 **Act.** One entry in a card's history, recording either a performance of a
 verb or the expiry of a claim.
 
-**Move.** The verb that carries a card from one state to another.
+**Move.** The verb that carries a card from one column to another.
 
 **Release.** The verb by which a holder gives up a claim.
 
@@ -370,12 +380,12 @@ otherwise refuse, asked for by an override marker and recorded as such.
 **Override marker.** The mark an operator puts on a request to say that the
 act is meant to pass a limit that would otherwise refuse it.
 
-**Capacity limit.** The greatest number of cards a state accepts.
+**Capacity limit.** The greatest number of cards a column accepts.
 
-**Count.** The number of cards a state holds, whatever their substate, which
+**Count.** The number of cards a column holds, whatever their state, which
 is what a capacity limit is compared against.
 
-**Instructions.** The prose a workbench or a state carries for whoever
+**Instructions.** The prose a workbench or a column carries for whoever
 arrives.
 
 **Outcome.** What a tool reports back from a verb, drawn from a closed set of
@@ -420,66 +430,74 @@ about how one workbench relates to another.
 
 [CORE-BENCH-1] A workbench definition MUST carry a title.
 
-[CORE-BENCH-2] A workbench definition MUST carry an ordered list of one or more states.
+[CORE-BENCH-2] A workbench definition MUST carry an ordered list of one or more columns.
 
 [CORE-BENCH-3] A workbench definition MUST declare the major number and the minor number of the profile version it targets.
 
 [CORE-BENCH-4] A tool MUST refuse to act on a workbench definition whose declared major number it does not implement, reporting the refusal name `unsupported-version`.
 
-### 5.2 States
+### 5.2 Columns
 
-A state is a named position in the flow. Its position in the workbench's
+A column is a named position in the flow. Its position in the workbench's
 ordered list is its position in the flow, so reordering the flow is
-reordering that list, and a state carries no position of its own.
+reordering that list, and a column carries no position of its own.
 
-A state's kind says what happens there. Cards enter a workbench at a state of
-kind `intake`. Work happens at a state of kind `work`. A card that has
-finished its journey comes to rest at a state of kind `done`, and such a
-state is terminal.
+A column's kind says what happens there. Cards enter a workbench at a column of
+kind `intake`. Work happens at a column of kind `work`. A card that has
+finished its journey comes to rest at a column of kind `done`, and such a
+column is terminal.
 
-A state may be operator-owned, which reserves departure from it to the
-operator. A workbench uses this where a person has to look at the work before
-it goes on, and it is the mechanism behind ACTOR-4.
+Those are the three kinds this profile declares, and a tool may mint another
+under a layer's prefix, as section 9 describes. A tool that meets a kind it
+does not implement reads the column as an ordinary `work` column, so a
+workbench carrying one still opens and its cards still move.
 
-A state also carries a slug, which is the short handle somebody types in
+A column may be operator-owned. That reserves two things to the operator:
+departure from the column, and the claim that would let anybody else act on a
+card standing there. A workbench uses this where a person has to look at the
+work before it goes on, and it is the mechanism behind ACTOR-4.
+
+A column also carries a slug, which is the short handle somebody types in
 place of a title. An identifier is exact and nobody remembers one, and a
 title carrying a space has to be quoted at every shell that meets it, so a
-slug is what makes a state nameable in a command, a path, and a URL. It is
+slug is what makes a column nameable in a command, a path, and a URL. It is
 unique within the workbench for the same reason an identifier is: a name
-resolving to two states resolves to neither.
+resolving to two columns resolves to neither.
 
-[CORE-STATE-1] Each state MUST carry an identifier unique within its workbench.
+[CORE-STATE-1] Each column MUST carry an identifier unique within its workbench.
 
-[CORE-STATE-2] Each state MUST carry a title.
+[CORE-STATE-2] Each column MUST carry a title.
 
-[CORE-STATE-3] Each state MUST carry exactly one kind from `intake`, `work` and `done`.
+[CORE-STATE-11] Each column MUST carry exactly one kind, either one this profile declares or one carrying a layer's prefix.
 
-[CORE-STATE-4] A state MAY declare itself operator-owned.
+[CORE-STATE-12] A tool that does not implement a kind carrying a layer's prefix MUST treat the column carrying it as though its kind were `work`.
 
-[CORE-STATE-5] A state MAY declare a capacity limit, which is a whole number greater than zero.
+[CORE-STATE-4] A column MAY declare itself operator-owned.
 
-[CORE-STATE-6] A tool MUST treat a state's position in its workbench's ordered list as that state's position in the flow.
+[CORE-STATE-5] A column MAY declare a capacity limit, which is a whole number greater than zero.
 
-[CORE-STATE-7] A tool MUST offer, as the forward move from a state, a move to the next state in the workbench's ordered list.
+[CORE-STATE-6] A tool MUST treat a column's position in its workbench's ordered list as that column's position in the flow.
 
-[CORE-STATE-8] A tool MAY offer a move to a state other than the next one in the workbench's ordered list.
+[CORE-STATE-7] A tool MUST offer, as the forward move from a column, a move to the next column in the workbench's ordered list.
 
-[CORE-STATE-9] A tool MUST NOT offer a forward move out of a state whose kind is `done`.
+[CORE-STATE-8] A tool MAY offer a move to a column other than the next one in the workbench's ordered list.
 
-[CORE-STATE-10] Each state MUST carry a slug unique within its workbench.
+[CORE-STATE-9] A tool MUST NOT offer a forward move out of a column whose kind is `done`.
+
+[CORE-STATE-10] Each column MUST carry a slug unique within its workbench.
 
 ### 5.3 Cards
 
-A card is one unit of work. It occupies exactly one state and carries exactly
-one substate, and those two values together are the whole of its position.
+A card is one unit of work. It occupies exactly one column and carries exactly
+one state, and those two values together are the whole of its position.
 
-The substates are `ready`, `active` and `blocked`. A card that is `ready` is
+The states are `ready`, `active` and `blocked`. A card that is `ready` is
 waiting and may be taken up. A card that is `active` is being worked by its
 holder. A card that is `blocked` is held up for a reason, and only the
 operator lifts that.
 
 The profile requires four things of a card and no more: an identifier, a
-title, a state, and a substate. A card may carry anything else a workbench
+title, a column, and a state. A card may carry anything else a workbench
 needs, and a tool that does not know what a field means keeps it anyway,
 and that is what lets one tool hand a workbench to another without loss.
 
@@ -489,13 +507,13 @@ and that is what lets one tool hand a workbench to another without loss.
 
 [CORE-CARD-3] Every card MUST carry a title.
 
-[CORE-CARD-4] Every card MUST carry exactly one state identifier that resolves to a state its workbench declares.
+[CORE-CARD-4] Every card MUST carry exactly one column identifier that resolves to a column its workbench declares.
 
-[CORE-CARD-5] Every card MUST carry exactly one substate from `ready`, `active` and `blocked`.
+[CORE-CARD-5] Every card MUST carry exactly one state from `ready`, `active` and `blocked`.
 
-[CORE-CARD-6] A card whose substate is `active` MUST carry its holder and the time the claim began.
+[CORE-CARD-6] A card whose state is `active` MUST carry its holder and the time the claim began.
 
-[CORE-CARD-7] A card whose substate is not `active` MUST NOT carry a holder.
+[CORE-CARD-7] A card whose state is not `active` MUST NOT carry a holder.
 
 [CORE-CARD-8] A card MAY carry fields this profile does not define.
 
@@ -515,7 +533,7 @@ operator, and several statements reserve acts to that owner, so a tool has to
 be able to answer whether a given owner is the operator of a given workbench.
 How a workbench designates one is outside this profile, but that it does so
 is not, because a workbench with no operator has blocks nobody can lift and
-operator-owned states nobody can leave. A tool refuses such a workbench
+operator-owned columns nobody can leave. A tool refuses such a workbench
 rather than serving one whose two reserved acts are dead.
 
 [CORE-OWNER-1] Every recorded act MUST name the owner it is attributed to.
@@ -530,18 +548,18 @@ rather than serving one whose two reserved acts are dead.
 
 ### 5.5 Queues
 
-The queue of a state is the cards waiting there. Two tools reading one
+The queue of a column is the cards waiting there. Two tools reading one
 workbench have to agree on which card is next, or a workbench handed from one
 to the other reorders itself for no reason a reader can see, so the profile
 fixes one order and lets a tool offer others beside it.
 
-The fixed order is arrival: the card that entered the state earliest comes
+The fixed order is arrival: the card that entered the column earliest comes
 first. Ties are broken by ascending creation ordinal, which makes the order
 total. The order deliberately consults nothing about the card except when it
 arrived, because every richer ordering would import a ranking the profile does
 not define.
 
-[CORE-QUEUE-3] The next card of a state MUST be the card in that state whose substate is `ready` that entered the state earliest, with ties broken by ascending creation ordinal.
+[CORE-QUEUE-3] The next card of a column MUST be the card in that column whose state is `ready` that entered the column earliest, with ties broken by ascending creation ordinal.
 
 [CORE-QUEUE-4] A tool MAY offer orders beside the one CORE-QUEUE-3 defines, provided the order CORE-QUEUE-3 defines remains available.
 
@@ -577,7 +595,7 @@ with the meanings RFC 8259 gives them.
 {
   "profile": "dinah-core/0.4",
   "title": "Wedding",
-  "states": [
+  "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
     { "id": "s2", "title": "Deciding", "kind": "work",
       "instructions": "Pick one and say why.", "capacity": 3 },
@@ -590,13 +608,13 @@ with the meanings RFC 8259 gives them.
 
 [CORE-JSON-2] The interchange form MUST be one JSON object encoded in UTF-8.
 
-[CORE-JSON-3] The interchange object MUST carry the members `profile`, `title` and `states`.
+[CORE-JSON-3] The interchange object MUST carry the members `profile`, `title` and `columns`.
 
-[CORE-JSON-4] The member `states` MUST be a JSON array whose element order is the order of the flow.
+[CORE-JSON-4] The member `columns` MUST be a JSON array whose element order is the order of the flow.
 
-[CORE-JSON-5] Each element of `states` MUST be a JSON object carrying the members `id`, `title` and `kind`.
+[CORE-JSON-5] Each element of `columns` MUST be a JSON object carrying the members `id`, `title` and `kind`.
 
-[CORE-JSON-9] A state object MAY carry the members `instructions`, `operator_owned`, `capacity`, and `slug`.
+[CORE-JSON-9] A column object MAY carry the members `instructions`, `operator_owned`, `capacity`, and `slug`.
 
 [CORE-JSON-7] A tool MUST preserve the members it does not recognize in an interchange object it has read and written back.
 
@@ -663,13 +681,13 @@ different next moves.
 
 [CORE-OUT-4] A tool MUST report `unreachable` when it cannot reach whatever answers for the workbench.
 
-[CORE-OUT-5] A tool MUST report the refusal name `malformed` when it refuses a workbench definition, a state, a card or an interchange object for want of something this profile requires it to carry and no more particular refusal name this profile declares applies.
+[CORE-OUT-5] A tool MUST report the refusal name `malformed` when it refuses a workbench definition, a column, a card or an interchange object for want of something this profile requires it to carry and no more particular refusal name this profile declares applies.
 
 The refusal names this profile declares are these, and each is carried by the
 statement that names it:
 
 ```
-unknown-card, unknown-state, unsupported-version, held, not-requester,
+unknown-card, unknown-column, unsupported-version, held, not-requester,
 blocked, not-blocked, not-holder, at-capacity, not-operator,
 no-operator, no-owner, no-reason, terminal, malformed, layer-collision
 ```
@@ -679,8 +697,8 @@ offered to a tool without what section 5 requires it to carry is refused as
 `malformed`, because a separate name for each missing title and each absent
 member would leave a caller holding a dozen names it cannot act on
 differently. Where a more particular name fits, that name is reported
-instead, so a card naming a state its workbench does not declare is
-`unknown-state` rather than `malformed`.
+instead, so a card naming a column its workbench does not declare is
+`unknown-column` rather than `malformed`.
 
 Two refusals belong to the workbench rather than to any verb, and they are
 evaluated before the verb's own list. CORE-BENCH-4 refuses a workbench whose
@@ -757,8 +775,8 @@ A claim is also where the profile's pull discipline lives. Work here is
 taken, never handed out: the owner that asks for a claim is the owner the
 claim names, and no owner assigns a card to another. This is what makes the
 flow pull rather than push, and it binds every conforming tool whether or not
-any state in the workbench declares a capacity limit. A limit governs how
-much work a state accepts; this rule governs who decides that a piece of it
+any column in the workbench declares a capacity limit. A limit governs how
+much work a column accepts; this rule governs who decides that a piece of it
 begins. A tool wanting to point an owner at a card offers that owner the
 card, and the owner claims it or does not.
 
@@ -766,30 +784,33 @@ card, and the owner claims it or does not.
 1  the card exists                                  unknown-card
 2  the request names an owner                       no-owner
 3  the owner named as holder is the owner asking    not-requester
-4  the card's substate is not `blocked`             blocked
-5  the card's substate is not `active`              held
+4  the card's state is not `blocked`             blocked
+5  the card's state is not `active`              held
+6  taking the card up is legal for whoever asks     not-operator
 ```
 
-Effect: the substate becomes `active`, and the card carries its holder and
+Effect: the state becomes `active`, and the card carries its holder and
 the time.
 
-[CORE-CLAIM-1] A tool MUST refuse a claim on a card whose substate is `blocked`, reporting the refusal name `blocked`.
+[CORE-CLAIM-1] A tool MUST refuse a claim on a card whose state is `blocked`, reporting the refusal name `blocked`.
 
-[CORE-CLAIM-2] A tool MUST refuse a claim on a card whose substate is `active`, reporting the refusal name `held`.
+[CORE-CLAIM-2] A tool MUST refuse a claim on a card whose state is `active`, reporting the refusal name `held`.
 
-[CORE-CLAIM-3] A claim that succeeds MUST set the card's substate to `active` and record its holder and the time the claim began.
+[CORE-CLAIM-3] A claim that succeeds MUST set the card's state to `active` and record its holder and the time the claim began.
 
 [CORE-CLAIM-4] A claim MAY carry an expiry.
 
-[CORE-CLAIM-5] A tool MUST set a card's substate to `ready` and record the expiry when a claim on it expires.
+[CORE-CLAIM-5] A tool MUST set a card's state to `ready` and record the expiry when a claim on it expires.
 
 [CORE-CLAIM-6] A tool MUST NOT change a card's holder except through release, expiry or block.
 
 [CORE-CLAIM-7] A tool MUST refuse a claim naming as holder an owner other than the one asking for it, reporting the refusal name `not-requester`.
 
+[CORE-CLAIM-8] A tool MUST refuse a claim on a card standing at an operator-owned column, asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
+
 ### 6.4 Move
 
-Moving carries a card from one state to another. A move changes where the
+Moving carries a card from one column to another. A move changes where the
 card is and nothing else about it, which settles a question two
 implementations would otherwise answer opposite ways: a holder who moves a
 card still holds it afterwards, and a waiting card that is moved is still
@@ -797,23 +818,23 @@ waiting.
 
 ```
 1  the card exists                                      unknown-card
-2  the destination is a state the workbench declares    unknown-state
+2  the destination is a column the workbench declares    unknown-column
 3  an override marker, if carried, is the operator's    not-operator
 4  the departure is legal for whoever asks              not-operator
-5  the card's substate is not `blocked`                 blocked
+5  the card's state is not `blocked`                 blocked
 6  the card is unheld or held by whoever asks           held
-7  the move is not a forward move out of a `done` state terminal
+7  the move is not a forward move out of a `done` column terminal
 8  the destination is below its capacity limit          at-capacity
 ```
 
-Effect: the card's state becomes the destination.
+Effect: the card's column becomes the destination.
 
-Capacity is how a state says how much work it will hold. A card enters a
-state because that state has room, so a state whose limit is reached stops
+Capacity is how a column says how much work it will hold. A card enters a
+column because that column has room, so a column whose limit is reached stops
 accepting work no matter how much is waiting upstream. The count is every
-card in the state whatever its substate, because a blocked card still
+card in the column whatever its state, because a blocked card still
 occupies the place, and exempting it would turn blocking into a way of hiding
-an overloaded state. The pull discipline itself does not rest on this
+an overloaded column. The pull discipline itself does not rest on this
 mechanism, which a workbench may decline to use; it rests on the claim, as
 section 6.3 states.
 
@@ -822,28 +843,28 @@ nothing sees it, so the profile gives the operator a way through it and makes
 that way visible. The operator marks the request as an override, and the act
 that results is recorded as an override rather than passing as an ordinary
 move. The marker is the whole of the exception: a request that does not carry
-one is refused at a full state however senior whoever asks, and a request
+one is refused at a full column however senior whoever asks, and a request
 that carries one from an owner who is not the operator is refused as well. A
-tool is free to offer no override at all, in which case a full state refuses
+tool is free to offer no override at all, in which case a full column refuses
 every entry.
 
-[CORE-MOVE-1] A tool MUST refuse a move to a state the workbench does not declare, reporting the refusal name `unknown-state`.
+[CORE-MOVE-1] A tool MUST refuse a move to a column the workbench does not declare, reporting the refusal name `unknown-column`.
 
-[CORE-MOVE-2] A tool MUST refuse a move of a card whose substate is `blocked`, reporting the refusal name `blocked`.
+[CORE-MOVE-2] A tool MUST refuse a move of a card whose state is `blocked`, reporting the refusal name `blocked`.
 
 [CORE-MOVE-3] A tool MUST refuse a move of a card held by an owner other than the one asking, reporting the refusal name `held`.
 
-[CORE-MOVE-4] A tool MUST refuse a move into a state whose count of cards has reached that state's declared capacity limit, reporting the refusal name `at-capacity`, except where CORE-MOVE-9 permits the move.
+[CORE-MOVE-4] A tool MUST refuse a move into a column whose count of cards has reached that column's declared capacity limit, reporting the refusal name `at-capacity`, except where CORE-MOVE-9 permits the move.
 
-[CORE-MOVE-5] The count CORE-MOVE-4 compares MUST include every card in the state whatever its substate.
+[CORE-MOVE-5] The count CORE-MOVE-4 compares MUST include every card in the column whatever its state.
 
-[CORE-MOVE-6] A tool MUST refuse a move out of an operator-owned state asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
+[CORE-MOVE-6] A tool MUST refuse a move out of an operator-owned column asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
 
-[CORE-MOVE-7] A tool MUST refuse a forward move out of a state whose kind is `done`, reporting the refusal name `terminal`.
+[CORE-MOVE-7] A tool MUST refuse a forward move out of a column whose kind is `done`, reporting the refusal name `terminal`.
 
-[CORE-MOVE-8] A move MUST NOT change a card's substate or its holder.
+[CORE-MOVE-8] A move MUST NOT change a card's state or its holder.
 
-[CORE-MOVE-9] A tool MAY admit a move into a state that has reached its capacity limit when the request carries an override marker and the owner asking is the operator of the workbench.
+[CORE-MOVE-9] A tool MAY admit a move into a column that has reached its capacity limit when the request carries an override marker and the owner asking is the operator of the workbench.
 
 [CORE-MOVE-10] A tool that admits a move under CORE-MOVE-9 MUST record that move as one act marked an override.
 
@@ -860,11 +881,11 @@ waits on somebody who has walked away.
 2  whoever asks holds the card     not-holder
 ```
 
-Effect: the substate becomes `ready` and the holder is removed.
+Effect: the state becomes `ready` and the holder is removed.
 
 [CORE-RELEASE-1] A tool MUST refuse a release asked for by an owner that does not hold the card, reporting the refusal name `not-holder`.
 
-[CORE-RELEASE-2] A release that succeeds MUST set the card's substate to `ready` and remove the card's holder.
+[CORE-RELEASE-2] A release that succeeds MUST set the card's state to `ready` and remove the card's holder.
 
 ### 6.6 Block
 
@@ -891,14 +912,14 @@ raising an obstacle on their behalf.
 4  the card is unheld or held by whoever asks  held
 ```
 
-Effect: the substate becomes `blocked`, the card carries the reason, and the
+Effect: the state becomes `blocked`, the card carries the reason, and the
 holder is removed.
 
 [CORE-BLOCK-1] A block MUST carry a reason in prose.
 
 [CORE-BLOCK-2] A tool MUST refuse a block carrying no reason, reporting the refusal name `no-reason`.
 
-[CORE-BLOCK-3] A block that succeeds MUST set the card's substate to `blocked` and remove the card's holder.
+[CORE-BLOCK-3] A block that succeeds MUST set the card's state to `blocked` and remove the card's holder.
 
 [CORE-BLOCK-4] A block MAY carry a kind naming the class of the obstacle.
 
@@ -923,23 +944,23 @@ likely to ask is an automated one working from knowledge that has gone out
 of date, and a refusal tells it what it got wrong where a success would
 hide it. The condition is evaluated after the one naming the operator, so
 an owner that is not the operator is refused `not-operator` whatever the
-card's substate.
+card's state.
 
 ```
 1  the card exists                     unknown-card
 2  whoever asks is the operator        not-operator
-3  the card's substate is `blocked`    not-blocked
+3  the card's state is `blocked`    not-blocked
 ```
 
-Effect: the substate becomes `ready`.
+Effect: the state becomes `ready`.
 
-[CORE-UNBLOCK-1] A tool MUST offer a verb that sets a card whose substate is `blocked` to substate `ready`.
+[CORE-UNBLOCK-1] A tool MUST offer a verb that sets a card whose state is `blocked` to state `ready`.
 
 [CORE-UNBLOCK-2] A tool MUST refuse an unblock asked for by an owner that is not the operator, reporting the refusal name `not-operator`.
 
-[CORE-UNBLOCK-3] A tool MUST NOT set a card's substate away from `blocked` as a consequence of any verb other than unblock.
+[CORE-UNBLOCK-3] A tool MUST NOT set a card's state away from `blocked` as a consequence of any verb other than unblock.
 
-[CORE-UNBLOCK-4] A tool MUST refuse an unblock of a card whose substate is not `blocked`, reporting the refusal name `not-blocked`.
+[CORE-UNBLOCK-4] A tool MUST refuse an unblock of a card whose state is not `blocked`, reporting the refusal name `not-blocked`.
 
 ### 6.8 History
 
@@ -948,8 +969,8 @@ say who did what and when, in the order it happened, and nothing rewrites
 them.
 
 An act carries the names of whatever it refers to as they stood at the time.
-A move records the title of the state it left as well as that state's
-identifier, so the history still reads years later when the state has been
+A move records the title of the column it left as well as that column's
+identifier, so the history still reads years later when the column has been
 renamed or removed. The names in history are a snapshot, and a tool reading
 history back never resolves them against the workbench as it stands now.
 
@@ -966,7 +987,7 @@ overridden move produces one act and not two.
 
 [CORE-HIST-3] A tool MUST NOT alter or remove a recorded act.
 
-[CORE-HIST-4] A recorded move MUST carry the identifier and the title, as they stood at the time of the move, of the state left and the state entered.
+[CORE-HIST-4] A recorded move MUST carry the identifier and the title, as they stood at the time of the move, of the column left and the column entered.
 
 [CORE-HIST-5] A tool MUST present a card's recorded acts in the order they were recorded.
 
@@ -979,9 +1000,9 @@ it at the moment they need it. Serving is what turns a workbench definition
 from a diagram into working guidance.
 
 The workbench carries standing instructions that apply wherever a card is,
-and each state carries the instructions of that position. They are served
+and each column carries the instructions of that position. They are served
 together, most general first, and they are never copied into one another. A tool that wrote the workbench's standing text into
-each state would freeze a copy that stops tracking its source, and every
+each column would freeze a copy that stops tracking its source, and every
 later edit would then reach some readers and not others.
 
 Instructions are served at the two moments an owner's situation changes: when
@@ -989,15 +1010,15 @@ a claim succeeds, and when a move succeeds. Alongside them a tool says which
 moves are legal for that card at that moment, so an owner is never left
 guessing which departures the workbench allows.
 
-[CORE-INSTR-1] A state MAY carry instructions in prose.
+[CORE-INSTR-1] A column MAY carry instructions in prose.
 
 [CORE-INSTR-2] A workbench MAY carry standing instructions in prose.
 
-[CORE-INSTR-3] A tool MUST serve the instructions of a card's state to the owner whose claim on that card has just succeeded.
+[CORE-INSTR-3] A tool MUST serve the instructions of a card's column to the owner whose claim on that card has just succeeded.
 
-[CORE-INSTR-4] A tool MUST serve the instructions of the state entered to the owner whose move has just succeeded.
+[CORE-INSTR-4] A tool MUST serve the instructions of the column entered to the owner whose move has just succeeded.
 
-[CORE-INSTR-5] A tool MUST serve a workbench's standing instructions ahead of the state's instructions.
+[CORE-INSTR-5] A tool MUST serve a workbench's standing instructions ahead of the column's instructions.
 
 [CORE-INSTR-6] A tool MUST NOT write the text of one instruction layer into another.
 
@@ -1017,7 +1038,7 @@ fact, so an owner's departure from the agreement leaves a trace.
 
 [ACTOR-3] An owner MUST treat the workbench as the authority for where a card stands and who holds it.
 
-[ACTOR-4] An owner that is not the operator MUST NOT move a card out of an operator-owned state.
+[ACTOR-4] An owner that is not the operator MUST NOT move a card out of an operator-owned column.
 
 The tool-directed statements that make these rules observable are CORE-CLAIM-3
 for the first, CORE-RELEASE-2 and CORE-CLAIM-5 for the second, CORE-HIST-1
@@ -1060,7 +1081,7 @@ carry one.
 
 One item means one concept. Where a familiar phrase bundles two concepts that
 could be ruled differently, the two are separate rows, so a capacity limit
-on a state and a limit on who may take up a card are counted apart.
+on a column and a limit on who may take up a card are counted apart.
 
 Rows ruled in are named in the vocabulary of section 4, and rows ruled out
 are named by a neutral description of the concept, with a familiar word
@@ -1079,12 +1100,12 @@ quietly.
 | Item | Ruling | Reason | Reopens when | Statements |
 | --- | --- | --- | --- | --- |
 | The workbench definition | in | Without a declared flow there is nothing for two tools to agree about, and every other concept hangs off it. | | CORE-BENCH-1, CORE-BENCH-2 |
-| States and the moves between them | in | The flow is the thing a board is. A tool that could not say where a card stands would not be coordinating anything. | | CORE-STATE-1, CORE-STATE-2, CORE-STATE-6, CORE-STATE-7, CORE-STATE-8, CORE-STATE-10, CORE-MOVE-1, CORE-MOVE-8 |
-| Per-state instruction serving, with the legal moves alongside | in | A workbench carries its method in prose, and the method is worthless if it does not reach whoever arrives at the position it describes. Saying which moves are legal at the same moment is part of the same service, since an owner told what to do and not where it may go is told half of it. | | CORE-INSTR-1, CORE-INSTR-2, CORE-INSTR-3, CORE-INSTR-4, CORE-INSTR-5, CORE-INSTR-6, CORE-INSTR-7 |
+| Columns and the moves between them | in | The flow is the thing a board is. A tool that could not say where a card stands would not be coordinating anything. | | CORE-STATE-1, CORE-STATE-2, CORE-STATE-6, CORE-STATE-7, CORE-STATE-8, CORE-STATE-10, CORE-MOVE-1, CORE-MOVE-8 |
+| Per-column instruction serving, with the legal moves alongside | in | A workbench carries its method in prose, and the method is worthless if it does not reach whoever arrives at the position it describes. Saying which moves are legal at the same moment is part of the same service, since an owner told what to do and not where it may go is told half of it. | | CORE-INSTR-1, CORE-INSTR-2, CORE-INSTR-3, CORE-INSTR-4, CORE-INSTR-5, CORE-INSTR-6, CORE-INSTR-7 |
 | The verbs claim, move, release and block | in | These four are the whole of what an owner does to a card, and each has refusals a second tool would otherwise invent differently. | | CORE-VERB-1, CORE-VERB-2, CORE-CLAIM-3, CORE-RELEASE-2, CORE-BLOCK-3 |
 | The four-rule working agreement | in | The discipline is what makes a shared workbench trustworthy, and stating it in the contract keeps it from being reinvented per tool. | | ACTOR-1, ACTOR-2, ACTOR-3, ACTOR-4 |
 | Card identity and required fields | in | A card handed between tools has to survive the trip, and the four required fields are the fewest that keep its position meaningful. | | CORE-CARD-1, CORE-CARD-2, CORE-CARD-3, CORE-CARD-4, CORE-CARD-8, CORE-CARD-9 |
-| The substate, and the claim's dependence on it | in | Waiting and being worked are different situations, and a claim that ignored the difference would let two owners take up one card. | | CORE-CARD-5, CORE-CARD-6, CORE-CARD-7, CORE-CLAIM-1, CORE-CLAIM-6, CORE-MOVE-2 |
+| The state, and the claim's dependence on it | in | Waiting and being worked are different situations, and a claim that ignored the difference would let two owners take up one card. | | CORE-CARD-5, CORE-CARD-6, CORE-CARD-7, CORE-CLAIM-1, CORE-CLAIM-6, CORE-MOVE-2 |
 | The pull invariant | in | Work here is taken and never handed out, which is what makes a flow pull rather than push. The invariant is stated as a rule about agency rather than about capacity, because a rule about capacity binds only the workbenches that declare a limit, and a tool declaring none would otherwise conform while pushing work at people. CORE-CLAIM-7 carries it: the owner that asks is the owner the claim names, so nobody assigns a card to anybody else. The limit below is the capacity layer built on top of that, not the invariant itself. | | CORE-CLAIM-7 |
 | The unblock verb, reserved to the operator | in | A block with no defined lift is a one-way door, and reserving the lift is what keeps a block from becoming a private pause the blocker alone can end. The verb's answer when there is nothing to lift belongs to the same row, because a caller that cannot tell a lift from a request that changed nothing cannot drive the verb without watching it. | | CORE-UNBLOCK-1, CORE-UNBLOCK-2, CORE-UNBLOCK-3, CORE-UNBLOCK-4 |
 | The reason on a block, as free prose | in | The obstacles that stop real work are various, and a closed list would send whoever hits an unlisted one to the nearest wrong answer. | | CORE-BLOCK-1, CORE-BLOCK-2, CORE-BLOCK-5 |
@@ -1092,10 +1113,10 @@ quietly.
 | The owner and operator identity model | in | Every act names who took it, and several rules turn on whether that owner is the operator, so the concept cannot be deferred, and a workbench that designates none has reserved acts nobody can take. Whether a name is proved is left to deployment, which is what lets one tool serve one person and another serve many. | | CORE-OWNER-1, CORE-OWNER-2, CORE-OWNER-3 |
 | Recorded history | in | A workbench that cannot say who did what is not answerable, and the append-only rule is what makes the record worth reading. | | CORE-HIST-1, CORE-HIST-3, CORE-HIST-5 |
 | Self-contained references in history | in | History that resolved its names against the present would turn ordinary renaming into apparent corruption. | | CORE-HIST-4, CORE-HIST-6 |
-| State kinds | in | Where cards enter, where they are worked and where they come to rest are three different situations, and a tool has to tell them apart to know what to offer. | | CORE-STATE-3 |
-| Terminal states | in | Somewhere the journey ends, and a tool that offered a forward move out of the end would be inviting a card into nowhere. | | CORE-STATE-9, CORE-MOVE-7 |
-| States a workbench reserves to its operator | in | Some positions exist so that a person looks at the work before it goes on, and a flow that could not express one would push that check outside the tool where nothing records it. | | CORE-STATE-4, CORE-MOVE-6 |
-| The capacity limit on a state | in | This is the capacity layer of the discipline, and it is what stops a state accepting more work than it can hold. It is optional per workbench, which is why the pull invariant above is stated separately rather than resting on it. | | CORE-STATE-5, CORE-MOVE-4, CORE-MOVE-5 |
+| Column kinds | in | Where cards enter, where they are worked and where they come to rest are three different situations, and a tool has to tell them apart to know what to offer. A tool meeting a kind it does not implement has to keep the card movable rather than refuse the board, and reading such a column as an ordinary work column is the reading that constrains nothing. | | CORE-STATE-11, CORE-STATE-12 |
+| Terminal columns | in | Somewhere the journey ends, and a tool that offered a forward move out of the end would be inviting a card into nowhere. | | CORE-STATE-9, CORE-MOVE-7 |
+| Columns a workbench reserves to its operator | in | Some positions exist so that a person looks at the work before it goes on, and a flow that could not express one would push that check outside the tool where nothing records it. | | CORE-STATE-4, CORE-MOVE-6, CORE-CLAIM-8 |
+| The capacity limit on a column | in | This is the capacity layer of the discipline, and it is what stops a column accepting more work than it can hold. It is optional per workbench, which is why the pull invariant above is stated separately rather than resting on it. | | CORE-STATE-5, CORE-MOVE-4, CORE-MOVE-5 |
 | The operator's override of a capacity limit, recorded as an override | in | A limit nobody can ever set aside gets worked around outside the tool, where nothing sees it. Requiring an explicit marker from the operator, and recording the resulting act as an override, keeps the exception inside the record. | | CORE-MOVE-9, CORE-MOVE-10, CORE-MOVE-11 |
 | The closed set of refusal names | in | A caller that cannot tell one refusal from another cannot decide what to do next, and a refusal reported as prose is a refusal nobody can act on. | | CORE-OUT-2, CORE-OUT-3, CORE-OUT-5 |
 | The order in which a tool evaluates its checks | in | Several mandatory refusals can apply to one request, and a caller that cannot predict which name comes back cannot decide what to do with the name it gets. The order fixes which name that is, and DOC-ORDER-2 and DOC-ORDER-3 put the order under the same version discipline as the statements, so no later revision changes a tool's answer by rearranging a list. | | CORE-OUT-6, DOC-ORDER-2, DOC-ORDER-3 |
@@ -1104,17 +1125,17 @@ quietly.
 | The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-4 |
 | The conformance claim and what it is evaluated over | in | A claim nobody can check is a claim worth nothing, so the profile fixes what a claim names and which statements a run exercises. | | CORE-VER-1, CORE-VER-2, SUITE-CONF-1 |
 | This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-11, DOC-VER-12, DOC-VER-4, DOC-VER-7, DOC-VER-8, DOC-VER-9, DOC-VER-10, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
-| The waiting order within a state | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
+| The waiting order within a column | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
 | The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4, CORE-BASIS-5 |
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
 | The claim as a lease that may expire | in | An owner that disappears must not be able to hold a card forever, and expiry that is recorded rather than silent keeps the record honest. | | CORE-CLAIM-4, CORE-CLAIM-5, CORE-HIST-2 |
 | The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-9, CORE-JSON-7, CORE-JSON-8 |
 | Text encoding and the untranslated token | in | Two tools that disagree about encoding or that translate a token cannot read each other at all. | | CORE-TEXT-1, CORE-TEXT-2, CORE-TEXT-3, CORE-TEXT-4 |
 | Parallel routes through the flow [lanes] | out | The core gains a simple model by having one route, and a tool that needs several can declare them in a layer. A real board already routes work three ways, so this is the likeliest first promotion. | A second tool needs routes and the layer form proves too weak to carry them. | |
-| Conditions that must be satisfied before a card may enter a state [gates] | out | The core would gain enforcement it cannot describe generally, since what is worth gating differs per workbench. | A gate condition emerges that every workbench needs, rather than one each workbench defines. | |
+| Conditions that must be satisfied before a card may enter a column [gates] | out | The core would gain enforcement it cannot describe generally, since what is worth gating differs per workbench. | A gate condition emerges that every workbench needs, rather than one each workbench defines. | |
 | A limit on how many times a card may travel one backward edge [loop limits] | out | The core does not model backward edges as a distinct thing, so there is nothing yet for such a limit to count. | Backward edges are modelled, at which point counting travel over one becomes describable. | |
-| Display grouping of states [column groups] | out | The core loses nothing, because no verb consults a grouping and a tool that ignores it loses only visual comfort. | A grouping starts carrying meaning a verb has to consult. | |
-| A group of states behaving as one stage of the flow | out | The core would gain a second notion of position competing with the state, and two positions is one too many. | A workbench needs to move a card between groups without naming a state. | |
+| Display grouping of columns [column groups] | out | The core loses nothing, because no verb consults a grouping and a tool that ignores it loses only visual comfort. | A grouping starts carrying meaning a verb has to consult. | |
+| A group of columns behaving as one stage of the flow | out | The core would gain a second notion of position competing with the column, and two positions is one too many. | A workbench needs to move a card between groups without naming a column. | |
 | Named groupings of cards within one workbench | out | The core loses only convenience. Grouping is a view over cards, and no verb changes behaviour because of one. | Membership starts constraining an act, such as a limit counted per grouping. | |
 | Declared working identities with attached configuration [personas] | out | Configuration for whoever drives a tool is a property of that tool rather than of the shared model, and putting it here would make every conforming tool carry somebody else's settings. | Two tools need to agree on the identity of an automated owner beyond its name. | |
 | A declared capability level attached to a card | out | Rating a card's difficulty is a judgement each workbench makes differently, and the core gains nothing by fixing the scale. | A capability level is used to refuse an act, at which point the refusal belongs to the contract. | |
@@ -1128,13 +1149,14 @@ quietly.
 | The link a card carries to another card | in | Owners record that one card repeats, follows from or bears on another whether or not the contract has a place for it, and a reference kept in prose is text to the second tool rather than a reference. The kind stays open on the same ground as a block's kind, since nothing in the core consults it, and the card a link names stays inside the workbench because the profile is scoped to one throughout. The behaviour such a reference might carry is a separate concept and is ruled out in the row below. | | CORE-LINK-1, CORE-LINK-2, CORE-LINK-3, CORE-LINK-4, CORE-LINK-5, CORE-LINK-6 |
 | Behaviour attached to a reference between cards [dependency ordering, ready-work listing] | out | The core would gain enforcement whose meaning each workbench sets differently, and what a workbench should do about a reference is exactly the judgement that differs between them. A tool that wants one card to hold another back declares a layer and refuses under that layer's own name, which CORE-LINK-5 leaves it free to do. | A relationship must refuse an act, such as one card holding another back. | |
 | Documents belonging to a workbench rather than a card | out | Standing prose already has a home in the workbench's instructions, so a second one would be a slot with no rule attached. | A document must be served differently from the standing instructions. | |
-| A state that buffers for a downstream state | out | The core already has capacity limits and arrival order, which is what a buffer is made of, and the extra kind would add a name without adding a rule. | A buffer needs a rule that a plain state cannot express. | |
-| Charging a downstream state's budget at the moment a card is taken from a buffer | out | The core has no notion of a budget, so there is nothing yet to charge. | A budget enters the core, at which point the moment it is charged matters. | |
-| A state where the workbench waits on somebody outside it | out | The core can express this already, as a state whose cards nobody claims, and a distinct kind would add machinery for the same result. | Waiting on an outside party needs a rule the block verb cannot express. | |
+| A column that buffers for a downstream column | out | The core already has capacity limits and arrival order, which is what a buffer is made of, and the extra kind would add a name without adding a rule. One implementation now carries a buffer in a layer of its own, where the kind does carry a rule a plain column cannot express: no owner takes work up there, and a pull carries the card through into the station beyond. The reopen condition this row used to carry has therefore fired, and the row records the firing rather than acting on it, because the promotion path outranks a reopen condition and nothing joins the core vocabulary that did not work somewhere first. The condition now standing beside this row is the one its neighbour already uses. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
+| Charging a downstream column's budget at the moment a card is taken from a buffer | out | The core has no notion of a budget, so there is nothing yet to charge. | A budget enters the core, at which point the moment it is charged matters. | |
+| A column where the workbench waits on somebody outside it | out | The core has no rule for this, and the convention that stood in for one, a column whose cards nobody claims, holds only while every owner is a person who knows the convention. An automated owner takes up whatever is waiting, so a workbench reaches for the block instead, which records a routine handoff as an impediment and hands the ordinary way onward to whoever answers for the workbench. That is the block verb failing to express a routine handoff, which is what the reopen condition this row used to carry named, so the trigger has fired and is being recorded rather than acted on: the promotion path, under which nothing joins the core vocabulary that did not work somewhere first, is an independent constraint that outranks a reopen condition, and the honest answer to a trigger a standing rule forbids acting on is a better-specified condition, which is the one now standing beside this row. The earlier reason's second clause survives, narrowed to the concept this row rules on: a distinct kind would still add machinery for the same result, and that is the argument against a fourth column kind for waiting on somebody outside. It does not reach a kind carrying a rule no flag expresses, such as a column a pull carries cards through, since the flag stops a pull taking a card out and that kind exists so that a pull can. One implementation now carries the concept outside the core, as a property of a column rather than a kind of column, and the core waits on that rather than naming it first. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
+| A column's own declared destination for a card the work there refuses | out | The core already has an ordinary move to any column, which is what a rejection is made of, and the extra declaration would add a name for a destination without adding a rule the tool enforces beyond what CORE-STATE-8 already permits. Andoneer's own board configuration already carries a column-level directive naming where a pushed-back card lands, which is the same shape one layer up; whether that directive is the same concept closely enough to satisfy the reopen condition is a question for whoever reviews this promotion path next, and this row does not answer it. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 33. Rows ruled out: 22. Total rows: 55.
+Rows ruled in: 33. Rows ruled out: 23. Total rows: 56.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1144,7 +1166,7 @@ specialist's vocabulary. It is bound by the excluded-word lists of section
 smuggles a trade's vocabulary into the profile fails loudly here.
 
 Priya and Sam are getting married. They keep a workbench called Wedding, and
-they are its operators. Their flow has four states in this order: Ideas,
+they are its operators. Their flow has four columns in this order: Ideas,
 which is of kind `intake`; Deciding, of kind `work`, with a capacity limit of
 three; Booking, of kind `work`, operator-owned; and Booked, of kind `done`.
 The workbench's standing instructions say that nothing is agreed until both
@@ -1152,7 +1174,7 @@ of them have said so. Deciding carries its own instructions, which say to get
 two quotes and write down why the chosen one won.
 
 Priya writes a card titled "Flowers for the tables" into Ideas, where it
-waits at substate `ready`. Two others are already waiting there, and the
+waits at state `ready`. Two others are already waiting there, and the
 queue puts hers third because it arrived last.
 
 Priya notices that a card in Ideas titled "Table centrepieces" covers the same
@@ -1164,7 +1186,7 @@ She takes the next card from Ideas, which is the earliest arrival rather than
 hers, and moves it to Deciding. The tool serves her the standing instructions
 about both of them agreeing, followed by Deciding's own instructions about
 two quotes, and tells her the moves that card can make now. She claims it,
-and the card's substate becomes `active` with her named as holder and the
+and the card's state becomes `active` with her named as holder and the
 time recorded.
 
 Sam tries to claim the same card. The tool refuses him, reporting `held`, and
@@ -1185,7 +1207,7 @@ whether she was still working.
 
 Sam moves a third card into Deciding, which now holds three. He tries a
 fourth and the tool refuses him, reporting `at-capacity`, because the limit
-counts every card in Deciding whatever its substate. The refusal is the whole
+counts every card in Deciding whatever its state. The refusal is the whole
 point of the limit: they finish what they have started before they start
 more. As an operator he could ask again with the override marker on the
 request, and that move would be admitted and recorded as an override rather
@@ -1195,7 +1217,7 @@ would refuse the marker in that guest's hands.
 
 Priya returns, claims the flowers card, and finds that the florist she wanted
 will not answer. She blocks the card with the reason "Florist has not replied
-in nine days; do we go to the second quote?". The substate becomes `blocked`
+in nine days; do we go to the second quote?". The state becomes `blocked`
 and her claim is gone, so the card is visibly stuck rather than looking like
 somebody being slow. Sam tries to move it and the tool refuses him, reporting
 `blocked`.
@@ -1207,7 +1229,7 @@ else.
 
 Booking is operator-owned. Priya, having paid the deposit, tries to move the
 card onward and the tool refuses her, reporting `not-operator`, because
-leaving that state is a decision the two of them take together. Sam moves it
+leaving that column is a decision the two of them take together. Sam moves it
 to Booked.
 
 Booked is of kind `done`. The tool offers no forward move out of it, and when
@@ -1226,15 +1248,15 @@ as it stood that day. Nothing in the history was ever altered.
 Priya later opens their workbench in a different tool. The first one hands
 over the workbench definition in the interchange form, naming the profile
 version it targets. The new tool reads it, keeps the two fields it does not
-recognize, and shows the same four states in the same order.
+recognize, and shows the same four columns in the same order.
 
-Coverage. Every state kind: `intake` at Ideas, `work` at Deciding and
-Booking, `done` at Booked. Every substate: `ready` while waiting, `active`
+Coverage. Every column kind: `intake` at Ideas, `work` at Deciding and
+Booking, `done` at Booked. Every state: `ready` while waiting, `active`
 under Priya's claim, `blocked` at the florist. Every verb: claim, move,
 release by expiry, block, unblock, and the reads for the next card and the
 served instructions. Every refusal name reached by a person's act: `held`,
 `not-requester`, `at-capacity`, `blocked`, `not-operator` and `terminal`.
-Also exercised: the capacity count including a card of every substate, the
+Also exercised: the capacity count including a card of every state, the
 pull invariant on a claim, the operator's override and its marker, the
 attribution of an expiry, the claim surviving a move, the queue's arrival
 order, the two layers of instructions served together, the recorded history
@@ -1266,24 +1288,25 @@ themselves carry meaning.
 | DOC-CHG-1 | must not | document | Every changelog entry of the prior revision appears unchanged in the current one. |
 | DOC-CHG-2 | must | document | Each changelog entry carries a version, a channel, a date, at least one marked identifier, and prose. |
 | CORE-BENCH-1 | must | tool | A workbench definition offered with no title is refused with `malformed`. |
-| CORE-BENCH-2 | must | tool | A workbench definition offered with an empty state list is refused with `malformed`. |
+| CORE-BENCH-2 | must | tool | A workbench definition offered with an empty column list is refused with `malformed`. |
 | CORE-BENCH-3 | must | tool | A workbench definition offered with no declared profile version is refused with `malformed`. |
 | CORE-BENCH-4 | must | tool | A definition declaring a major number the tool does not implement is refused with `unsupported-version`. |
-| CORE-STATE-1 | must | tool | A definition carrying two states under one identifier is refused with `malformed`. |
-| CORE-STATE-2 | must | tool | A definition carrying a state with no title is refused with `malformed`. |
-| CORE-STATE-3 | must | tool | A definition carrying a state whose kind is outside the three is refused with `malformed`. |
-| CORE-STATE-4 | may | tool | A definition marking a state operator-owned is accepted. |
+| CORE-STATE-1 | must | tool | A definition carrying two columns under one identifier is refused with `malformed`. |
+| CORE-STATE-2 | must | tool | A definition carrying a column with no title is refused with `malformed`. |
+| CORE-STATE-11 | must | tool | A definition carrying a column whose kind is neither one this profile declares nor one carrying a layer's prefix is refused with `malformed`. |
+| CORE-STATE-12 | must | tool | A workbench carrying a column whose kind the tool does not implement opens, and that column behaves as a `work` column. |
+| CORE-STATE-4 | may | tool | A definition marking a column operator-owned is accepted. |
 | CORE-STATE-5 | may | tool | A definition declaring a capacity limit is accepted. |
-| CORE-STATE-6 | must | tool | Reordering the state list reorders the flow the tool reports, with nothing else changed. |
-| CORE-STATE-7 | must | tool | The legal moves reported for a card include a move to the next state in the list. |
-| CORE-STATE-8 | may | tool | A move to a state other than the next one is accepted where no other rule refuses it. |
-| CORE-STATE-9 | must not | tool | The legal moves reported for a card in a `done` state include no move to a later state. |
-| CORE-STATE-10 | must | tool | Over a fixture of two or more states, every state carries a slug, and no two states in one workbench share one. |
+| CORE-STATE-6 | must | tool | Reordering the column list reorders the flow the tool reports, with nothing else changed. |
+| CORE-STATE-7 | must | tool | The legal moves reported for a card include a move to the next column in the list. |
+| CORE-STATE-8 | may | tool | A move to a column other than the next one is accepted where no other rule refuses it. |
+| CORE-STATE-9 | must not | tool | The legal moves reported for a card in a `done` column include no move to a later column. |
+| CORE-STATE-10 | must | tool | Over a fixture of two or more columns, every column carries a slug, and no two columns in one workbench share one. |
 | CORE-CARD-1 | must | tool | No two cards in one workbench carry one identifier, and a card offered with an identifier already in use is refused. |
 | CORE-CARD-2 | must not | tool | Retitling a card leaves its identifier unchanged. |
 | CORE-CARD-3 | must | tool | A card offered with no title is refused with `malformed`. |
-| CORE-CARD-4 | must | tool | A card naming a state the workbench does not declare is refused with `unknown-state`. |
-| CORE-CARD-5 | must | tool | Every card the tool reports carries exactly one of the three substates. |
+| CORE-CARD-4 | must | tool | A card naming a column the workbench does not declare is refused with `unknown-column`. |
+| CORE-CARD-5 | must | tool | Every card the tool reports carries exactly one of the three states. |
 | CORE-CARD-6 | must | tool | A card the tool reports as `active` carries a holder and a claim time. |
 | CORE-CARD-7 | must not | tool | A card the tool reports as `ready` or `blocked` carries no holder. |
 | CORE-CARD-8 | may | tool | A card offered with a field the profile does not define is accepted. |
@@ -1299,12 +1322,12 @@ themselves carry meaning.
 | CORE-TEXT-2 | must not | tool | Identifier and token comparison gives the same answers under a Turkish locale as under a neutral one. |
 | CORE-TEXT-3 | must not | tool | A machine-readable response carries the canonical token whatever language is asked for. |
 | CORE-TEXT-4 | may | tool | A rendering meant for a person may carry a translated token while the machine-readable surface is unchanged. |
-| CORE-JSON-1 | must | tool | A workbench definition written in the interchange form reads back with the same title, states and order. |
+| CORE-JSON-1 | must | tool | A workbench definition written in the interchange form reads back with the same title, columns and order. |
 | CORE-JSON-2 | must | tool | The interchange form the tool writes parses as one JSON object and decodes as UTF-8. |
-| CORE-JSON-3 | must | tool | The written object carries `profile`, `title` and `states`, and an object missing one of them is refused with `malformed`. |
-| CORE-JSON-4 | must | tool | The order of `states` in the written object is the order of the flow. |
-| CORE-JSON-5 | must | tool | Every element of `states` carries `id`, `title` and `kind`, and an element missing one of them is refused with `malformed`. |
-| CORE-JSON-9 | may | tool | A state object carrying `slug` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
+| CORE-JSON-3 | must | tool | The written object carries `profile`, `title` and `columns`, and an object missing one of them is refused with `malformed`. |
+| CORE-JSON-4 | must | tool | The order of `columns` in the written object is the order of the flow. |
+| CORE-JSON-5 | must | tool | Every element of `columns` carries `id`, `title` and `kind`, and an element missing one of them is refused with `malformed`. |
+| CORE-JSON-9 | may | tool | A column object carrying `slug` alongside `instructions`, `operator_owned`, or `capacity` is accepted. |
 | CORE-JSON-7 | must | tool | An interchange object read and written back carries the unrecognized member it arrived with. |
 | CORE-JSON-8 | may | tool | A tool holding definitions in some other form still produces the interchange form on request. |
 | CORE-LINK-1 | may | tool | A card offered with a link is accepted. |
@@ -1317,7 +1340,7 @@ themselves carry meaning.
 | CORE-OUT-2 | must | tool | Every response of `refused` carries exactly one refusal name. |
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
 | CORE-OUT-4 | must | tool | With whatever answers for the workbench made unavailable, a verb reports `unreachable`. |
-| CORE-OUT-5 | must | tool | A definition, state, card or interchange object missing something the profile requires of it is refused with `malformed` wherever no more particular refusal name applies. |
+| CORE-OUT-5 | must | tool | A definition, column, card or interchange object missing something the profile requires of it is refused with `malformed` wherever no more particular refusal name applies. |
 | CORE-OUT-6 | must | tool | A request failing two checks is refused with the name carried by the earlier of the two in the order section 6 declares. |
 | DOC-ORDER-2 | must | document | While the document's major number is 0, two revisions stating section 6's checks in different orders differ by a minor number and carry the same major number. |
 | DOC-ORDER-3 | must | document | Once the document's major number has reached 1, two revisions stating section 6's checks in different orders differ by a major number. |
@@ -1333,15 +1356,16 @@ themselves carry meaning.
 | CORE-CLAIM-5 | must | tool | After an expiry, the card reads `ready` and the history carries the expiry. |
 | CORE-CLAIM-6 | must not | tool | No sequence other than release, expiry or block changes a card's holder. |
 | CORE-CLAIM-7 | must | tool | A claim naming as holder an owner other than the one asking is refused with `not-requester`. |
-| CORE-MOVE-1 | must | tool | A move to a state the workbench does not declare is refused with `unknown-state`. |
+| CORE-CLAIM-8 | must | tool | A claim on a card standing at an operator-owned column is refused with `not-operator` when the owner asking is not the operator. |
+| CORE-MOVE-1 | must | tool | A move to a column the workbench does not declare is refused with `unknown-column`. |
 | CORE-MOVE-2 | must | tool | A move of a `blocked` card is refused with `blocked`. |
 | CORE-MOVE-3 | must | tool | A move asked for by an owner other than the holder is refused with `held`. |
-| CORE-MOVE-4 | must | tool | A move carrying no override marker into a state that has reached its limit is refused with `at-capacity`. |
-| CORE-MOVE-5 | must | tool | A state whose limit is reached by cards of mixed substate refuses the next entry. |
-| CORE-MOVE-6 | must | tool | A move out of an operator-owned state asked for by another owner is refused with `not-operator`. |
-| CORE-MOVE-7 | must | tool | A forward move out of a `done` state is refused with `terminal`. |
-| CORE-MOVE-8 | must not | tool | A card's substate and holder read the same before and after a move. |
-| CORE-MOVE-9 | may | tool | An operator's move into a full state carrying the override marker is accepted where the tool offers the override. |
+| CORE-MOVE-4 | must | tool | A move carrying no override marker into a column that has reached its limit is refused with `at-capacity`. |
+| CORE-MOVE-5 | must | tool | A column whose limit is reached by cards of mixed state refuses the next entry. |
+| CORE-MOVE-6 | must | tool | A move out of an operator-owned column asked for by another owner is refused with `not-operator`. |
+| CORE-MOVE-7 | must | tool | A forward move out of a `done` column is refused with `terminal`. |
+| CORE-MOVE-8 | must not | tool | A card's state and holder read the same before and after a move. |
+| CORE-MOVE-9 | may | tool | An operator's move into a full column carrying the override marker is accepted where the tool offers the override. |
 | CORE-MOVE-10 | must | tool | The history of a move admitted under CORE-MOVE-9 carries one act for that move, marked an override, and no second act beside it. |
 | CORE-MOVE-11 | must | tool | A request carrying an override marker from an owner that is not the operator is refused with `not-operator`. |
 | CORE-RELEASE-1 | must | tool | A release asked for by an owner that is not the holder is refused with `not-holder`. |
@@ -1354,25 +1378,25 @@ themselves carry meaning.
 | CORE-BLOCK-6 | must | tool | A block on a card another owner holds is refused with `held`. |
 | CORE-UNBLOCK-1 | must | tool | The tool offers a verb after which a `blocked` card reads `ready`. |
 | CORE-UNBLOCK-2 | must | tool | An unblock asked for by an owner that is not the operator is refused with `not-operator`. |
-| CORE-UNBLOCK-3 | must not | tool | No verb other than unblock leaves a card that was `blocked` in another substate. |
-| CORE-UNBLOCK-4 | must | tool | An unblock of a card whose substate is not `blocked` is refused with `not-blocked`. |
+| CORE-UNBLOCK-3 | must not | tool | No verb other than unblock leaves a card that was `blocked` in another state. |
+| CORE-UNBLOCK-4 | must | tool | An unblock of a card whose state is not `blocked` is refused with `not-blocked`. |
 | CORE-HIST-1 | must | tool | After each of the five verbs, the card's history carries an entry with a time, an owner and the verb's name. |
 | CORE-HIST-2 | must | tool | After a claim lapses, the history carries an entry with the time, attributed to the owner whose claim lapsed. |
 | CORE-HIST-3 | must not | tool | History read after later acts still carries every earlier act unchanged. |
-| CORE-HIST-4 | must | tool | A recorded move carries the identifier and the title of the state left and of the state entered. |
+| CORE-HIST-4 | must | tool | A recorded move carries the identifier and the title of the column left and of the column entered. |
 | CORE-HIST-5 | must | tool | The order of acts reported matches the order in which they were performed. |
-| CORE-HIST-6 | must not | tool | A recorded act still reports its titles after the states it names have been renamed or removed. |
-| CORE-INSTR-1 | may | tool | A state carrying instructions is accepted. |
+| CORE-HIST-6 | must not | tool | A recorded act still reports its titles after the columns it names have been renamed or removed. |
+| CORE-INSTR-1 | may | tool | A column carrying instructions is accepted. |
 | CORE-INSTR-2 | may | tool | A workbench carrying standing instructions is accepted. |
-| CORE-INSTR-3 | must | tool | The response to a claim that succeeded carries the state's instructions. |
-| CORE-INSTR-4 | must | tool | The response to a move that succeeded carries the entered state's instructions. |
-| CORE-INSTR-5 | must | tool | The served text carries the workbench's standing instructions ahead of the state's. |
-| CORE-INSTR-6 | must not | tool | After serving, neither the workbench's nor the state's stored instructions carry the other's text. |
+| CORE-INSTR-3 | must | tool | The response to a claim that succeeded carries the column's instructions. |
+| CORE-INSTR-4 | must | tool | The response to a move that succeeded carries the entered column's instructions. |
+| CORE-INSTR-5 | must | tool | The served text carries the workbench's standing instructions ahead of the column's. |
+| CORE-INSTR-6 | must not | tool | After serving, neither the workbench's nor the column's stored instructions carry the other's text. |
 | CORE-INSTR-7 | must | tool | The response to a claim or a move carries the moves legal for that card. |
 | ACTOR-1 | must | history | The card's history carries a claim by that owner ahead of any other act by that owner on it. |
 | ACTOR-2 | must not | history | No claim in the history extends past its owner's last act on the card without a release or an expiry. |
 | ACTOR-3 | must | history | No act in the history was taken against a position the workbench did not hold at that time. |
-| ACTOR-4 | must not | history | No move out of an operator-owned state in the history names an owner other than the operator. |
+| ACTOR-4 | must not | history | No move out of an operator-owned column in the history names an owner other than the operator. |
 | CORE-LAYER-1 | must | tool | A layer declared under a dotted name is accepted, and one declared under an undotted name is refused. |
 | DOC-LAYER-1 | must not | document | No token, member name or refusal name this document defines contains a full stop. |
 | DOC-LAYER-2 | must not | document | No statement whose identifier begins with CORE names a layer among the things it requires. |
@@ -1395,8 +1419,8 @@ this being the first published revision.
 Consequence for a caller. This is the first statement of the profile, so
 everything a conforming tool owes is new. A tool may now claim conformance to
 `dinah-core 1.0` if it carries a workbench definition with an ordered flow of
-titled and kinded states, cards with an identifier, a title, a state and a
-substate, the five verbs claim, move, release, block and unblock with the
+titled and kinded columns, cards with an identifier, a title, a column and a
+state, the five verbs claim, move, release, block and unblock with the
 refusals section 6 names, claims that name the owner asking for them,
 capacity limits enforced at entry with the operator's marked override as the
 one way past one, instruction serving at claim and at move with the legal
@@ -1415,7 +1439,7 @@ identifier. CORE-QUEUE-4, introduced, carrying CORE-QUEUE-2's demand with its
 cross-reference reworded to name CORE-QUEUE-3 instead of the identifier it
 retires. No other identifier in the section 11 index is affected.
 
-Consequence for a caller. A tool computing the next `ready` card in a state
+Consequence for a caller. A tool computing the next `ready` card in a column
 now breaks a same-arrival-time tie by the card's creation ordinal (the
 `number` field the interchange form and every reference implementation
 already carry) rather than by the card's identifier. A tool that offers
@@ -1431,17 +1455,17 @@ caller who has not already opted into `dinah-core 2.0`.
 ### 3.0, channel `dev`, 2026-08-17
 
 Identifiers affected: CORE-JSON-6, retired. CORE-JSON-9, introduced, carrying
-CORE-JSON-6's demand with `slug` added to the set of members a state object
-may carry. CORE-STATE-10, introduced: every state carries a slug unique
+CORE-JSON-6's demand with `slug` added to the set of members a column object
+may carry. CORE-STATE-10, introduced: every column carries a slug unique
 within its workbench. No other identifier in the section 11 index is
 affected.
 
 Consequence for a caller. A tool reading or writing the interchange form may
-now carry a `slug` member on a state object, and a tool that does not
+now carry a `slug` member on a column object, and a tool that does not
 recognise `slug` and has not read this revision sees it travel through as an
 unrecognized member under CORE-JSON-7, unaffected. A tool asked to open a
-workbench claiming this revision now requires every state to carry a unique
-slug, so a workbench whose states predate the field is not conformant until
+workbench claiming this revision now requires every column to carry a unique
+slug, so a workbench whose columns predate the field is not conformant until
 it has been migrated, and the tool's own migration path is where that is
 done. A tool claiming an earlier major is not evaluated against
 CORE-STATE-10 at all, because a conformance claim names one major under
@@ -1520,7 +1544,7 @@ publishes 1.0 is governed by DOC-VER-9, DOC-VER-10, DOC-VER-12, and
 DOC-ORDER-3 and takes the major increment they demand. The entry after
 this one carries no such self-reference: whoever writes it classifies it
 under whichever of DOC-VER-7 through DOC-VER-12 the document's crossing
-state calls for, with no renaming step of its own to apply.
+column calls for, with no renaming step of its own to apply.
 
 Consequence for a caller. No statement about a tool changed in this entry, so
 a tool that conformed to the revision this changelog called 3.0 conforms to
@@ -1539,3 +1563,132 @@ DOC-VER-3, DOC-VER-5, and DOC-ORDER-1, so while the major number is 0, a
 retirement, a reorder, or a change the other rules cannot classify moves the
 minor number and leaves the major number where it is. The document sits on the `dev` channel, so nothing
 here binds a caller who has not already opted into `dinah-core 0.4`.
+
+### 0.5, channel `dev`, 2026-08-24
+
+Identifiers affected: CORE-STATE-3, retired. CORE-STATE-11, introduced,
+carrying CORE-STATE-3's demand that a column carry exactly one kind, with the
+vocabulary widened from the three this profile declares to those three and
+any kind carrying a layer's prefix. CORE-STATE-12, introduced: a tool that
+does not implement a kind carrying a layer's prefix reads the column carrying
+it as a `work` column. No other identifier in the section 11 index is
+affected.
+
+CORE-STATE-3 is retired because it fixed the vocabulary of kinds at three and
+left a tool with a fourth situation to express no way to say so. Section 9
+already lets a tool declare a layer and mint a name under its prefix, and a
+refusal name is minted that way today, so the ground CORE-STATE-11 opens for
+a kind is ground the profile had already given for a name. CORE-STATE-12 is
+what makes such a kind safe for a second tool to meet: `work` is the kind
+that constrains nothing, so a tool reading a board it does not fully
+understand permits what it permits today rather than refusing a card its
+owner can still move.
+
+Consequence for a caller. A tool may now carry a column whose kind is neither
+`intake`, `work` nor `done`, provided the kind carries its layer's prefix, and
+a definition carrying a bare fourth word is still refused with `malformed` as
+it was before. A tool that meets a prefixed kind it does not implement opens
+the workbench and treats that column as a `work` column, so no board becomes
+unreadable and no card becomes unmovable on account of a kind. A tool that
+mints no kind of its own sees no change at all. The document sits on the
+`dev` channel, so nothing here binds a caller who has not already opted into
+`dinah-core 0.5`.
+
+### 0.6, channel `dev`, 2026-08-25
+
+Identifiers affected: CORE-CLAIM-8, introduced, extending the claim
+precondition list with the reservation CORE-MOVE-6 already states for
+departure. No other identifier in the section 11 index is affected.
+
+Consequence for a caller. A tool claiming this revision now refuses a claim
+on a card standing at an operator-owned column when the owner asking is not
+the operator, reporting `not-operator`, the same name CORE-MOVE-6 already
+reports for the departure side of the same reservation. A tool that has not
+opted into 0.6 keeps admitting such a claim and discovers the reservation
+only when it tries to move the card out, which leaves an owner holding a card
+they cannot carry anywhere. A workbench with no operator-owned column sees no
+behaviour change. The document sits on the `dev` channel, so nothing here
+binds a caller who has not already opted into `dinah-core 0.6`.
+
+### 0.7, channel `dev`, 2026-08-26
+
+Identifiers affected: none. Every normative statement in the section 11 index
+stands exactly as it stood at 0.6, in the same order and with the same
+identifier. What changed is the words this document uses for two of the
+concepts those statements govern.
+
+The place a card stands is now called a column, and the condition it is in
+there is now called a state. Both words moved at once, because the second
+word was `substate` and it existed only to sit underneath the first. The two
+were swapped relative to ordinary usage: what the document called a state was
+a place, and every reader learned that inversion on the way in.
+
+The identifiers do not follow the words. The `CORE-STATE-n` family goes on
+governing what is now called a column, the way the `CORE-BENCH-n` family
+already governs a workbench, and renumbering a published index is a larger
+act than this revision performs. This follows the precedent of the 0.4 entry,
+which renamed the revisions this document had recorded as 1.0, 2.0 and 3.0
+without renumbering anything they governed.
+
+Consequence for a caller. On disk, the collection directory `states/` is now
+`columns/`, each member's anchor `state.md` is now `column.md`, a card's
+`state:` key is now `column:` and its `substate:` key is now `state:`, and a
+workbench anchor's own `states:` sequence is now `columns:`. In the served
+JSON, `state` is now `column`, `state_title` is now `column_title`, and
+`substate` is now `state`. The three values a state takes, `ready`, `active`
+and `blocked`, are unchanged, and so is `workbench`.
+
+Section 3.5's second excluded list loses one word in the same act. `column`
+was on that list as another tool's vocabulary, and this revision makes it one
+of this document's own words, defined in section 4. The paragraph beside the
+list records the removal, following the precedent the `release` note above it
+set.
+
+A tool reading this revision cannot read a workbench that declares an earlier
+one, and that is deliberate rather than an oversight. A version-unaware reader
+would take an old card's `state:` field, which under the earlier vocabulary
+holds a column identifier, for one of the three values the same key now names,
+and would mislabel every card's condition without failing. A workbench
+declaring a revision from `dinah-core 0.1` through `dinah-core 0.6` is
+therefore refused by name, and the refusal says which migration to run.
+
+That migration walks down from a directory rather than acting on the single
+workbench a caller is standing in, so it waits to be told to write. A run
+that is not confirmed names every workbench it would carry forward and the
+revision each declares, opens nothing and writes nothing. The rewrite is not
+reversible and the walk's reach is whatever the caller's directory contains,
+which together make an unconfirmed rewrite the wrong default however
+convenient it would be. A run that is confirmed is safe to repeat: a
+workbench a failure left half converted is finished rather than started
+again, and a workbench already carried forward is reported and left byte for
+byte as it stood.
+
+The version gate reads the revision a workbench's own anchor declares, so it
+cannot see a workbench whose anchor was carried across the rename and whose
+cards were not. A card that carries no `column:` key inside a workbench
+declaring this revision is therefore refused where it is read, under the
+layer refusal `dinah.vocabulary-retired`, and the refusal names the card. The
+key the reader asks about is `column:` rather than the retired `substate:`,
+because the harm comes from `state:`, which named the column before the
+rename and names the condition after it. A card carrying `state:` and nothing
+else holds a column identifier where the reader expects one of ready, active
+and blocked, and it carries no retired key at all, so a check keyed on the
+retired keys does not see it. No card written before the rename carries
+`column:` and every card this build writes carries it, which is what makes
+its absence the whole question.
+
+A second layer refusal, `dinah.vocabulary-mixed`, answers the two shapes that
+mix the vocabularies within one file: a card carrying `column:` beside
+`substate:`, and a workbench anchor carrying `states:` beside `columns:`.
+Those two really do hold half of each vocabulary, and their reader is told to
+remove one of the two. The card written wholly in the retired vocabulary is
+consistent within itself and disagrees with the anchor above it, which is a
+different defect with a different repair, so it carries its own sentence
+rather than being told to undo a mixture that is not there. No writer
+produces any of the three shapes, and Dinah refuses rather than guessing
+which key holds the column.
+
+A reader who meets either refusal reaches for `dinah check`, so the checker
+reports both conditions itself, under `check.card-vocabulary-retired` and
+`check.card-vocabulary-mixed`. It does not report such a card as a directory
+carrying no anchor file, which is untrue of a file that is plainly there.

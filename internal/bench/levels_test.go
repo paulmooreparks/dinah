@@ -14,9 +14,9 @@ import (
 func benchDeclaring(t *testing.T, block string) *Bench {
 	t.Helper()
 	root := t.TempDir()
-	anchor := strings.Replace(benchDefinition, "states:\n  - b00000000001\n", "states:\n  - b00000000001\n"+block, 1)
+	anchor := strings.Replace(benchDefinition, "columns:\n  - b00000000001\n", "columns:\n  - b00000000001\n"+block, 1)
 	write(t, filepath.Join(root, WorkbenchAnchor), anchor)
-	write(t, filepath.Join(root, StatesDir, "b00000000001", StateAnchor), stateDefinition)
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -229,8 +229,8 @@ func TestACardKeepsEveryFrontmatterKeyItDoesNotKnowAroundALevel(t *testing.T) {
 	const anchor = `---
 title: A card
 number: 1
-state: b00000000001
-substate: ready
+column: b00000000001
+state: ready
 project: awan-saya
 repository: git@example.com:awan/saya.git
 ---
@@ -252,8 +252,8 @@ Framing.
 			t.Errorf("writing a level dropped %q:\n%s", key, written)
 		}
 	}
-	if !strings.Contains(written, "substate: ready\nseverity: major\n") {
-		t.Errorf("the level did not land directly under substate:\n%s", written)
+	if !strings.Contains(written, "state: ready\nseverity: major\n") {
+		t.Errorf("the level did not land directly under state:\n%s", written)
 	}
 	cleared, err := LoadCard(collection, "c00000000001")
 	if err != nil {
@@ -274,10 +274,10 @@ Framing.
 	}
 }
 
-// TestBothLevelsLandUnderSubstateInOneOrder asserts the placement rule of
+// TestBothLevelsLandUnderStateInOneOrder asserts the placement rule of
 // dinah-193 section 2 for the case Card.Save owns: a card carrying neither
-// level and written with both reads severity, then priority, under substate.
-func TestBothLevelsLandUnderSubstateInOneOrder(t *testing.T) {
+// level and written with both reads severity, then priority, under state.
+func TestBothLevelsLandUnderStateInOneOrder(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, CardsDir, "c00000000001", CardAnchor), cleanCard)
 	collection := filepath.Join(root, CardsDir)
@@ -289,8 +289,8 @@ func TestBothLevelsLandUnderSubstateInOneOrder(t *testing.T) {
 	if err := card.Save(); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if written := readCardAnchor(t, collection); !strings.Contains(written, "substate: ready\nseverity: major\npriority: now\n") {
-		t.Errorf("the pair did not land under substate in order:\n%s", written)
+	if written := readCardAnchor(t, collection); !strings.Contains(written, "state: ready\nseverity: major\npriority: now\n") {
+		t.Errorf("the pair did not land under state in order:\n%s", written)
 	}
 }
 
@@ -407,10 +407,10 @@ func TestAFurtherAxisIsRenderedAfterTheTwoInSortedOrder(t *testing.T) {
 func instantiateWithLevels(t *testing.T, root, member string) {
 	t.Helper()
 	source := `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Levelled",
   "levels": ` + member + `,
-  "states": [{ "id": "b00000000001", "title": "Only", "kind": "work" }]
+  "columns": [{ "id": "b00000000001", "title": "Only", "kind": "work" }]
 }`
 	definition, err := ReadDefinition([]byte(source))
 	if err != nil {
@@ -431,10 +431,11 @@ func readWorkbenchAnchor(t *testing.T, root string) string {
 	return string(data)
 }
 
-// TestLevelsIsARecognizedInterchangeMember guards the one thing section 1.1
-// changes about Export as a side effect: levels joins knownBenchKeys, so the
-// member is no longer emitted as the empty string a nested block reads as.
-func TestLevelsIsARecognizedInterchangeMember(t *testing.T) {
+// TestTheInterchangeFormCarriesTheLevelsBlock asserts dinah-196 AC-12, which
+// inverts the guard dinah-193 left here. Export used to skip levels for being
+// a known key and print no member at all; it now emits the declared block as
+// the object of arrays the importer already reads.
+func TestTheInterchangeFormCarriesTheLevelsBlock(t *testing.T) {
 	opened := benchDeclaring(t, "levels:\n  severity: [minor, major]\n")
 	encoded, err := opened.Export()
 	if err != nil {
@@ -444,7 +445,18 @@ func TestLevelsIsARecognizedInterchangeMember(t *testing.T) {
 	if err := json.Unmarshal(encoded, &object); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if raw, carried := object[LevelsKey]; carried {
-		t.Errorf("export carried levels as %s, and the export half of the interchange is dinah-196's", raw)
+	raw, carried := object[LevelsKey]
+	if !carried {
+		t.Fatalf("export carried no levels member:\n%s", encoded)
+	}
+	declared := map[string][]string{}
+	if err := json.Unmarshal(raw, &declared); err != nil {
+		t.Fatalf("the levels member is not an object of arrays: %v", err)
+	}
+	if got := strings.Join(declared["severity"], ","); got != "minor,major" {
+		t.Errorf("the exported severity axis is %q, wanted the declared members in order", got)
+	}
+	if _, invented := declared["priority"]; invented {
+		t.Errorf("export carries a priority axis the workbench does not declare: %s", raw)
 	}
 }

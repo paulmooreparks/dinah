@@ -36,5 +36,5 @@ func ComposeRefusal(req *Request, refusal *contract.Refusal) *Response {
 // nil card, lifted out of the method so a caller with no library reads one
 // thing rather than reading a method that wants one.
 func defaultAffordances() []string {
-	return []string{"status", "states", "ls", "next"}
+	return []string{"status", "columns", "ls", "next"}
 }

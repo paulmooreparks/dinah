@@ -1,0 +1,3 @@
+{"ts":"2026-08-24T13:50:16Z","event":"created","actor":"sam","title":"fourth card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-08-24T13:50:17Z","event":"blocked","actor":"sam","reason":"a vendor has not answered","kind":"external"}
+{"ts":"2026-08-24T13:50:17Z","event":"unblocked","actor":"sam"}

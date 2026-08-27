@@ -1,0 +1,10 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d" fill="currentColor" stroke="currentColor">
+  <title id="t">Dinah</title>
+  <desc id="d">A railroad hand lantern in a single colour, for icon masks and theme-tinted surfaces.</desc>
+  <path d="M8.5 5 a3.5 3.2 0 0 1 7 0" fill="none" stroke-width="1.8" stroke-linecap="round"/>
+  <rect x="7.8" y="5.2" width="8.4" height="2" rx="1" stroke="none"/>
+  <circle cx="12" cy="13.2" r="5.1" fill="none" stroke-width="2.2"/>
+  <circle cx="12" cy="13.2" r="1.7" stroke="none"/>
+  <rect x="7" y="19.2" width="10" height="2.2" rx="1.1" stroke="none"/>
+  <path d="M9.2 17.6 L8.4 19.2 M14.8 17.6 L15.6 19.2" fill="none" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

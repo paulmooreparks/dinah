@@ -61,10 +61,11 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.NotRequester, Key: "check.claim.3"},
 		{Refusal: contract.Blocked, Key: "check.claim.4"},
 		{Refusal: contract.Held, Key: "check.claim.5"},
+		{Refusal: contract.NotOperator, Key: "check.claim.6"},
 	},
 	Move: {
 		{Refusal: contract.UnknownCard, Key: "check.move.1"},
-		{Refusal: contract.UnknownState, Key: "check.move.2"},
+		{Refusal: contract.UnknownColumn, Key: "check.move.2"},
 		{Refusal: contract.NotOperator, Key: "check.move.3"},
 		{Refusal: contract.NotOperator, Key: "check.move.4"},
 		{Refusal: contract.Blocked, Key: "check.move.5"},
@@ -93,24 +94,30 @@ var checkLists = map[string][]Check{
 // IsContractVerb continues to answer false for pull while Checks still returns
 // the full list for the help and the refusal-set tests.
 //
-// These are rows 3 to 13 of pull's thirteen-row list, in order; rows 1 and 2
+// These are rows 3 to 14 of pull's fourteen-row list, in order; rows 1 and 2
 // are the workbench pair Checks prefixes. Two of them are pull's own names:
-// ambiguous-state is what the bare form answers when more than one state
-// qualifies, and no-upstream is what the named form answers for a state
+// ambiguous-column is what the bare form answers when more than one column
+// qualifies, and no-upstream is what the named form answers for a column
 // standing first in the flow. Pull raises both before any lock is taken,
 // which is why neither reaches a generic precondition walker.
+//
+// Two rows carry not-operator for the operator-owned reservation, one at each
+// end of the pull. Row 6 reads the column the card is leaving, which is
+// CORE-MOVE-6, and row 11 reads the column it would land in and be claimed at,
+// which is CORE-CLAIM-8.
 var pullChecks = []Check{
 	{Refusal: contract.NoOwner, Key: "check.pull.1"},
-	{Refusal: contract.UnknownState, Key: "check.pull.2"},
+	{Refusal: contract.UnknownColumn, Key: "check.pull.2"},
 	{Refusal: contract.NotOperator, Key: "check.pull.3"},
-	{Refusal: contract.AmbiguousState, Key: "check.pull.4"},
+	{Refusal: contract.AmbiguousColumn, Key: "check.pull.4"},
 	{Refusal: contract.NoUpstream, Key: "check.pull.5"},
 	{Refusal: contract.NotOperator, Key: "check.pull.6"},
 	{Refusal: contract.Blocked, Key: "check.pull.7"},
 	{Refusal: contract.Held, Key: "check.pull.8"},
 	{Refusal: contract.Terminal, Key: "check.pull.9"},
 	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
-	{Refusal: contract.Locked, Key: "check.pull.11"},
+	{Refusal: contract.NotOperator, Key: "check.pull.11"},
+	{Refusal: contract.Locked, Key: "check.pull.12"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -124,7 +131,7 @@ var beyondChecks = map[string][]Check{
 	// priority a --severity is filed and only a --priority refuses.
 	"add": {
 		{Refusal: contract.Malformed, Key: "check.add.1"},
-		{Refusal: contract.UnknownState, Key: "check.add.2"},
+		{Refusal: contract.UnknownColumn, Key: "check.add.2"},
 		{Refusal: contract.AtCapacity, Key: "check.add.3"},
 		{Refusal: contract.NoLevels, Key: "check.add.4"},
 		{Refusal: contract.UnknownLevel, Key: "check.add.5"},
@@ -173,13 +180,13 @@ var beyondChecks = map[string][]Check{
 	"archive": {
 		{Refusal: contract.UnknownPath, Key: "check.archive.1"},
 		{Refusal: contract.Occupied, Key: "check.archive.2"},
-		{Refusal: contract.LastState, Key: "check.archive.3"},
+		{Refusal: contract.LastColumn, Key: "check.archive.3"},
 	},
 	"delete": {
 		{Refusal: contract.UnknownPath, Key: "check.delete.1"},
 		{Refusal: contract.Unconfirmed, Key: "check.delete.2"},
 		{Refusal: contract.Occupied, Key: "check.delete.3"},
-		{Refusal: contract.LastState, Key: "check.delete.4"},
+		{Refusal: contract.LastColumn, Key: "check.delete.4"},
 	},
 	"guide": {
 		{Refusal: contract.UnknownGuide, Key: "check.guide.1"},
@@ -204,33 +211,45 @@ var beyondChecks = map[string][]Check{
 	"show": {
 		{Refusal: contract.UnknownPath, Key: "check.show.1"},
 	},
-	// rename checks UnknownPath first so a reference that resolves to
-	// anything but an attachment fails on the resolution it tried rather
-	// than on the rename-specific name it did not try yet, then NoOwner
-	// for the same reason the workbench-level pair does, then Malformed
-	// for the name itself, then NotRenamable for the case the reference
-	// resolved to something the verb refuses.
+	// rename checks UnknownPath first so a reference naming nothing fails on
+	// the resolution it tried rather than on the rename-specific name it did
+	// not try yet, then NotRenamable for the reference that resolved to
+	// something the verb does not rename, then NoOwner for the same reason
+	// the workbench-level pair does, then the name itself. Both name rules
+	// are Malformed, since ValidAttachmentName is one gate raising one
+	// refusal, and the list draws them as two rows because a reader asking
+	// what a name may carry is owed both rules rather than a summary.
 	"rename": {
 		{Refusal: contract.UnknownPath, Key: "check.rename.1"},
-		{Refusal: contract.NoOwner, Key: "check.rename.2"},
-		{Refusal: contract.Malformed, Key: "check.rename.3"},
-		{Refusal: contract.NotRenamable, Key: "check.rename.4"},
+		{Refusal: contract.NotRenamable, Key: "check.rename.2"},
+		{Refusal: contract.NoOwner, Key: "check.rename.3"},
+		{Refusal: contract.Malformed, Key: "check.rename.4"},
+		{Refusal: contract.Malformed, Key: "check.rename.5"},
 	},
 	"log": {
 		{Refusal: contract.UnknownCard, Key: "check.log.1"},
 	},
+	// The cursor is asked first because a call carrying a bad one is not a
+	// call about a card or a column yet. A malformed token and a token minted
+	// against another workbench raise the one name, since both are the same
+	// finding: the value handed back is not a cursor this workbench issued.
+	"changes": {
+		{Refusal: contract.Malformed, Key: "check.changes.1"},
+		{Refusal: contract.UnknownCard, Key: "check.changes.2"},
+		{Refusal: contract.UnknownColumn, Key: "check.changes.3"},
+	},
 	"ls": {
-		{Refusal: contract.UnknownState, Key: "check.ls.1"},
+		{Refusal: contract.UnknownColumn, Key: "check.ls.1"},
 	},
 	"next": {
-		{Refusal: contract.UnknownState, Key: "check.next.1"},
+		{Refusal: contract.UnknownColumn, Key: "check.next.1"},
 	},
 	"query": {
 		{Refusal: contract.Malformed, Key: "check.query.1"},
 		{Refusal: contract.UnknownField, Key: "check.query.2"},
 		{Refusal: contract.UnknownField, Key: "check.query.3"},
 		{Refusal: contract.UnknownValue, Key: "check.query.4"},
-		{Refusal: contract.UnknownState, Key: "check.query.5"},
+		{Refusal: contract.UnknownColumn, Key: "check.query.5"},
 		{Refusal: contract.UnknownValue, Key: "check.query.6"},
 		{Refusal: contract.UnknownValue, Key: "check.query.7"},
 	},
