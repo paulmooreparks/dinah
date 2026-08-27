@@ -104,6 +104,16 @@ interface EntryState {
 	 */
 	cursor?: string;
 	debounce?: unknown;
+	/**
+	 * When this entry was last checked off-cycle, which the throttle measures
+	 * against.
+	 *
+	 * An entry that has never been checked starts at negative infinity rather
+	 * than at zero, so that its first save is not held for a floor that has
+	 * already elapsed. Zero looks harmless against a wall clock, whose reading
+	 * is always far past the floor, and holds the very first check for a full
+	 * second against any clock that starts near it.
+	 */
 	lastOffCycle: number;
 	watcher?: Watcher;
 }
@@ -126,7 +136,10 @@ export class CheckpointLoop {
 	start(entries: readonly CheckpointEntry[]): void {
 		this.stop();
 		for (const entry of entries) {
-			const state: EntryState = { entry, lastOffCycle: 0 };
+			const state: EntryState = {
+				entry,
+				lastOffCycle: Number.NEGATIVE_INFINITY,
+			};
 			if (this.deps.watchFiles && this.deps.createWatcher !== undefined) {
 				state.watcher = this.deps.createWatcher(entry, () => {
 					this.onFileEvent(entry.folder);
