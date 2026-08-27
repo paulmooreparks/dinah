@@ -13,16 +13,16 @@ import (
 	"dinah/internal/verb"
 )
 
-// emit reports a verb's canonical response: the machine form under --json,
-// the rendering otherwise, and on any non-zero outcome the outcome's own
-// token leading stderr.
+// emit reports a verb's canonical response: a machine form where one was
+// asked for, the rendering otherwise, and on any non-zero outcome the
+// outcome's own token leading stderr.
 func (s *session) emit(response *verb.Response) int {
 	if response.Outcome != contract.OutcomeOK {
 		s.reportOutcome(response)
 	}
-	if s.json {
-		s.emitJSON(response)
-		return contract.ExitCode(response.Outcome)
+	if s.format != formatHuman {
+		// emitMachine carries the outcome's own exit code back.
+		return s.emitMachine(response)
 	}
 	if response.Outcome != contract.OutcomeOK {
 		return contract.ExitCode(response.Outcome)
@@ -62,10 +62,10 @@ func (s *session) reportOutcome(response *verb.Response) {
 	}
 }
 
-// emitJSON writes a value as the canonical machine form. The form carries
+// emitCanonical writes a value as the canonical machine form. The form carries
 // canonical tokens only, so the same command under any language setting emits
 // byte-identical JSON.
-func (s *session) emitJSON(value any) int {
+func (s *session) emitCanonical(value any) int {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		io.WriteString(s.errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")

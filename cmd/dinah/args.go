@@ -77,7 +77,7 @@ func sortedNames(set map[string]bool) []string {
 // sits inside the free text's own quoting, where nothing examines it.
 var sessionFlagNames = map[string]bool{
 	"workbench": true, "lang": true, "actor": true, "json": true, "quiet": true,
-	"help": true, "version": true,
+	"help": true, "version": true, "format": true,
 }
 
 // askedFor maps every spelling of "what does this do" and "what is this" onto
