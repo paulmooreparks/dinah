@@ -73,7 +73,7 @@ func TestAHardWrappedGuideParagraphRewrapsToTheWindow(t *testing.T) {
 // paragraph the source wrote as one continuous line, which is the shape the
 // terminal breaks mid-word today.
 func TestAnUnwrappedGuideParagraphRewrapsToTheWindow(t *testing.T) {
-	source := "If you let a state accept every card offered to it, you stop having a station and start having a pile. Cards standing in a state are inventory. None of them are finished, and the time they spend waiting is time you have already paid for. A card that sits does not announce what stopped it either, so whatever stalled it stays out of sight for as long as you tolerate the pile. Setting a limit on how much a state holds means you meet that cost on the day the queue grows, as a refusal, instead of working it out a month later.\n"
+	source := "If you let a column accept every card offered to it, you stop having a station and start having a pile. Cards standing in a column are inventory. None of them are finished, and the time they spend waiting is time you have already paid for. A card that sits does not announce what stopped it either, so whatever stalled it stays out of sight for as long as you tolerate the pile. Setting a limit on how much a column holds means you meet that cost on the day the queue grows, as a refusal, instead of working it out a month later.\n"
 	checkWrappedTo(t, source, wrapGuideText(source, 40), 40)
 }
 
@@ -96,7 +96,7 @@ func TestAFencedBlockIsReproducedWhole(t *testing.T) {
 // indented blocks the query guide spells its examples with.
 func TestAnIndentedCodeBlockIsReproducedWhole(t *testing.T) {
 	source := "    dinah query \"actor:alka\"\n" +
-		"    dinah query \"state:doing substate:ready\"\n" +
+		"    dinah query \"column:doing state:ready\"\n" +
 		"    dinah query \"entered:done at>=2026-08-01\"\n"
 	for _, width := range guideTestWidths {
 		if got := wrapGuideText(source, width); got != source {
@@ -108,7 +108,7 @@ func TestAnIndentedCodeBlockIsReproducedWhole(t *testing.T) {
 // TestATableIsReproducedWhole asserts that the reference guide's support
 // table keeps the padding its columns line up on.
 func TestATableIsReproducedWhole(t *testing.T) {
-	source := "| Command      | This workbench | A state | A card | Below a card |\n" +
+	source := "| Command      | This workbench | A column | A card | Below a card |\n" +
 		"|--------------|----------------|---------|--------|--------------|\n" +
 		"| path         | yes            | yes     | yes    | yes          |\n" +
 		"| rename       | no             | no      | no     | yes          |\n"
@@ -125,7 +125,7 @@ func TestATableIsReproducedWhole(t *testing.T) {
 // three claims are held at every window from 20 to 60 columns rather than at
 // the one the fixture was written against.
 func TestALongHeadingWrapsUnderItsMarker(t *testing.T) {
-	source := "## A state says how much work it will hold and says so before you ask\n"
+	source := "## A column says how much work it will hold and says so before you ask\n"
 	for _, width := range guideWrapWidths() {
 		wrapped := wrapGuideText(source, width)
 		lines := strings.Split(strings.TrimRight(wrapped, "\n"), "\n")
@@ -133,7 +133,7 @@ func TestALongHeadingWrapsUnderItsMarker(t *testing.T) {
 			t.Errorf("at %d columns the heading did not wrap: %q", width, wrapped)
 			continue
 		}
-		if !strings.HasPrefix(lines[0], "## A state") {
+		if !strings.HasPrefix(lines[0], "## A column") {
 			t.Errorf("at %d columns the first line lost its marker: %q", width, lines[0])
 		}
 		for _, line := range lines[1:] {
@@ -152,8 +152,8 @@ func TestALongHeadingWrapsUnderItsMarker(t *testing.T) {
 // two shapes agreeing at one width says nothing about their agreeing at
 // another, and neither does one width's continuation fitting.
 func TestBothListItemSourceShapesWrapAlike(t *testing.T) {
-	broken := "- `state` is the state the card is in. Give it a state's short name or its\n  identifier.\n"
-	whole := "- `state` is the state the card is in. Give it a state's short name or its identifier.\n"
+	broken := "- `column` is the column the card is in. Give it a column's short name or its\n  identifier.\n"
+	whole := "- `column` is the column the card is in. Give it a column's short name or its identifier.\n"
 	for _, width := range guideWrapWidths() {
 		fromBroken := wrapGuideText(broken, width)
 		fromWhole := wrapGuideText(whole, width)

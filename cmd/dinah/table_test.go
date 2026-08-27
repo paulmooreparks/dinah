@@ -235,17 +235,17 @@ type backstopFixture struct {
 }
 
 // backstopFixtures are the shapes a narrow window is hardest on: a listing of
-// ordinary state names, where many values sit a column or two apart, and a
+// ordinary column names, where many values sit a column or two apart, and a
 // listing whose slugs draw a contiguous run of widths, where every width
 // between a narrowed column's floor and its measured width is present in some
 // row.
 func backstopFixtures() []backstopFixture {
-	states := table{indent: 2, columns: headed("Slug", "Name", "Kind", "Cards", "Owner")}
+	columns := table{indent: 2, columns: headed("Slug", "Name", "Kind", "Cards", "Owner")}
 	for _, slug := range []string{
 		"intake", "spec", "design-review", "build-queue", "implement",
 		"code-review", "test", "operator-review", "merge", "done",
 	} {
-		states.rows = append(states.rows, tableRow{fields: []string{slug, slug, "work", "3", "agent"}})
+		columns.rows = append(columns.rows, tableRow{fields: []string{slug, slug, "work", "3", "agent"}})
 	}
 	run := table{indent: 2, columns: headed("Slug", "Name", "Kind", "Cards", "Owner")}
 	for width := 4; width <= 16; width++ {
@@ -262,9 +262,9 @@ func backstopFixtures() []backstopFixture {
 		),
 	}
 	return []backstopFixture{
-		{name: "ten ordinary state names", table: states},
+		{name: "ten ordinary column names", table: columns},
 		{name: "a contiguous run of slug widths", table: run},
-		{name: "a fresh workbench's three states", table: fresh},
+		{name: "a fresh workbench's three columns", table: fresh},
 	}
 }
 
@@ -474,7 +474,7 @@ func TestTheCeilingBoundsAColumnWithoutWideningIt(t *testing.T) {
 // hand, so the test reads the rule the renderer follows rather than a
 // number this test produced independently of it.
 func TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine(t *testing.T) {
-	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-workstreams]"
 	summary := "look for structural defects"
 	laid := tableSession(100).layOut(table{
 		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
@@ -517,7 +517,7 @@ func TestACappedValueWrapsWithTheFieldAfterItPinnedToTheFirstLine(t *testing.T) 
 // under test, and the fixture carries a second row so the column measures
 // wide enough for the continuation lines to sit inside it.
 func TestACappedValueThatWrapsThreeLinesWithAWrappingSummaryInterleavesTheTwo(t *testing.T) {
-	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-states] [--migrate-workstreams]"
+	value := "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-workstreams]"
 	summary := "look for structural defects in this workbench and repair what can be repaired automatically"
 	laid := tableSession(80).layOut(table{
 		indent: 2, columns: headed("Command", "What"), labels: labelInTheStack,
@@ -635,7 +635,7 @@ func TestTheCeilingIgnoresAnOutOfRangeColumn(t *testing.T) {
 		laid := measure(table{
 			indent: 2, columns: headed("Command", "What"),
 			hasCeiling: true, ceilingColumn: column,
-			rows: rowsOf([]string{"add <title> [--state <state>]", "file a new card"}),
+			rows: rowsOf([]string{"add <title> [--column <column>]", "file a new card"}),
 		}, 100)
 		before := laid.widths[0]
 		applyCeiling(&laid)
@@ -684,8 +684,8 @@ func TestTheUnbreakableTailAsksForItsMeasureOnlyWhenItFits(t *testing.T) {
 		}
 		return laid
 	}
-	unbreakable := []string{"dinah.ambiguous-state", "unsupported-version"}
-	breakable := []string{"dinah.ambiguous-state", "one that reads as prose"}
+	unbreakable := []string{"dinah.ambiguous-column", "unsupported-version"}
+	breakable := []string{"dinah.ambiguous-column", "one that reads as prose"}
 
 	cases := []struct {
 		name string

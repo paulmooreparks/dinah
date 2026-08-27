@@ -91,7 +91,7 @@ func (w *Workstream) JournalPath() string {
 }
 
 // Ref is what a person types to reach this workstream: its own slug when it
-// carries one, its identifier otherwise. Mirrors State.Ref's fallback, so a
+// carries one, its identifier otherwise. Mirrors Column.Ref's fallback, so a
 // workstream carrying no slug still gives a caller something to type.
 func (w *Workstream) Ref() string {
 	if w.Slug != "" {
@@ -132,8 +132,8 @@ func (w *Workstream) SetField(name, value string) {
 // LoadWorkstream reads one workstream from a workstreams collection.
 //
 // An anchor carrying no parseable frontmatter loads with empty fields rather
-// than failing, which is the state the adoption repair leaves a workstream in
-// and the state a hand-written directory may already be in. The slug findings
+// than failing, which is the column the adoption repair leaves a workstream in
+// and the column a hand-written directory may already be in. The slug findings
 // name it, so nothing here has to refuse over it.
 func LoadWorkstream(collection, id string) (*Workstream, error) {
 	dir := filepath.Join(collection, id)
@@ -221,10 +221,10 @@ func (b *Bench) Workstream(id string) *Workstream {
 // identifier first and the slug second, both halves of the collection at each
 // pass. It never resolves a title.
 //
-// The order is load-bearing rather than tidy. ValidStateSlug admits a slug of
+// The order is load-bearing rather than tidy. ValidColumnSlug admits a slug of
 // twelve characters drawn from the letters a to f, so one workstream's slug
 // can be another workstream's identifier, and the identifier wins. Dropping
-// the title pass StateByRef makes keeps one rule on every surface: no
+// the title pass ColumnByRef makes keeps one rule on every surface: no
 // workstream is ever named by its title, so `dinah workstream new Portfolio`
 // and `dinah workstream get Portfolio` cannot read the same word two ways.
 func (b *Bench) WorkstreamByRef(ref string) *Workstream {
@@ -255,7 +255,7 @@ func (b *Bench) HasWorkstream(id string) bool {
 
 // WorkstreamCounts reports how many live cards belong to each workstream,
 // keyed by identifier. Membership is card-owned, so the count is derived by
-// walking the cards the way the Cards column of dinah states already is.
+// walking the cards the way the Cards column of dinah columns already is.
 func (b *Bench) WorkstreamCounts() (map[string]int, error) {
 	cards, err := b.Cards()
 	if err != nil {
@@ -395,7 +395,7 @@ func (b *Bench) DanglingWorkstreams() ([]string, error) {
 // colliding pair happened to sort later by identifier. Ordered by creation, the
 // earlier workstream fills seen first, so the finding names the later one,
 // which is the workstream whose slug is now shadowed and the one WorkstreamByRef
-// no longer reaches. checkStateSlugs reports a duplicate the same way, since it
+// no longer reaches. checkColumnSlugs reports a duplicate the same way, since it
 // walks a flow that is already in order.
 //
 // A directory whose name is not a 12-hex identifier is invisible to this walk,
@@ -424,7 +424,7 @@ func (b *Bench) checkWorkstreams() []Finding {
 		switch {
 		case workstream.Slug == "":
 			findings = append(findings, Finding{Path: path, Key: FindingWorkstreamSlugMissing, Detail: id})
-		case !ValidStateSlug(workstream.Slug):
+		case !ValidColumnSlug(workstream.Slug):
 			findings = append(findings, Finding{Path: path, Key: FindingWorkstreamSlugMalformed, Detail: id})
 		case seen[workstream.Slug]:
 			findings = append(findings, Finding{Path: path, Key: FindingWorkstreamSlugDuplicate, Detail: id})
@@ -440,7 +440,7 @@ func (b *Bench) checkWorkstreams() []Finding {
 //
 // It stands beside SlugAssignment rather than reusing it because the member
 // naming the entity is part of the machine surface, and reporting a workstream
-// under a member called state would tell a caller it repaired something else.
+// under a member called column would tell a caller it repaired something else.
 type WorkstreamSlugAssignment struct {
 	// Workstream is the identifier of the workstream repaired.
 	Workstream string `json:"workstream"`
@@ -455,7 +455,7 @@ type WorkstreamSlugAssignment struct {
 // none and writes it to that workstream's anchor, reporting what it assigned
 // and returning a finding for every workstream it could not repair.
 //
-// It follows BackfillStateSlugs in every respect that matters: the walk takes
+// It follows BackfillColumnSlugs in every respect that matters: the walk takes
 // the workstreams in creation order so the answers are the same on every
 // machine, a slug already on disk is left exactly as it stands including a
 // malformed or duplicated one, and a workstream this run cannot write is

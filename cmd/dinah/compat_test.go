@@ -49,8 +49,8 @@ var wantedTemplates = []string{
 	".gitignore",
 	"workbench.md",
 	"journal.ndjson",
-	"states/<id>/state.md",
-	"archive/states/<id>/state.md",
+	"columns/<id>/column.md",
+	"archive/columns/<id>/column.md",
 	"cards/<id>/card.md",
 	"cards/<id>/journal.ndjson",
 	"cards/<id>/comments/<id>/comment.md",
@@ -69,14 +69,14 @@ var wantedTemplates = []string{
 
 // wantedKeys is the union of top-level frontmatter keys the sequence writes,
 // per file kind. Nested members sit outside the comparison, meaning the
-// entries under the anchor's states sequence and under a card's links and
+// entries under the anchor's columns sequence and under a card's links and
 // workstreams, and the head writes none of them as mappings today.
 var wantedKeys = map[string][]string{
-	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "states", "levels"},
-	"states/<id>/state.md":                              {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"archive/states/<id>/state.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                                {"title", "number", "state", "substate", "severity", "priority", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
-	"archive/cards/<id>/card.md":                        {"title", "number", "state", "substate"},
+	"workbench.md":                                      {"format", "profile", "title", "slug", "operator", "columns", "levels"},
+	"columns/<id>/column.md":                            {"title", "slug", "kind", "operator_owned", "wip_limit"},
+	"archive/columns/<id>/column.md":                    {"title", "slug", "kind", "operator_owned", "wip_limit"},
+	"cards/<id>/card.md":                                {"title", "number", "column", "state", "severity", "priority", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"archive/cards/<id>/card.md":                        {"title", "number", "column", "state"},
 	"cards/<id>/comments/<id>/comment.md":               {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md":       {"ts", "author", "ordinal"},
 	"cards/<id>/attachments/<id>/attachment.md":         {"filename", "description", "provenance", "ordinal"},
@@ -180,9 +180,9 @@ func TestReplayingThePopulationSequenceReachesEveryShapeItNames(t *testing.T) {
 // bytes came from; provenance rests on the capture commit named in the
 // fixture's manifest row and on a reader replaying it, not on any assertion
 // here. wantedKeys above tells a reader which top-level keys the sequence
-// samples, and it does not say that Instantiate and writeStateFromMember copy
-// an unrecognised definition or state member straight into the anchor they
-// write, so the workbench.md and state.md key sets are open in a way this
+// samples, and it does not say that Instantiate and writeColumnFromMember copy
+// an unrecognised definition or column member straight into the anchor they
+// write, so the workbench.md and column.md key sets are open in a way this
 // comparison cannot see (OQ-7).
 func TestTheSampleFixtureCarriesEveryShapeThisBuildWrites(t *testing.T) {
 	sample := readShape(t, sampleFixture(t))
@@ -557,14 +557,35 @@ func readJournalMembers(t *testing.T, path string, into map[string]map[string]bo
 // TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused drives the window
 // through the head, one declared string at a time, which is what a person meets
 // when their own workbench declares one of them.
+//
+// Three answers rather than two, since dinah-287. A revision this build reads
+// opens. A revision written in the retired vocabulary is refused by name and
+// told which migration to run, which is the whole point of the gate that
+// refuses it. A revision nothing has ever read is refused with the window.
 func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
-	opens := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/1.0"}
-	refuses := []string{"dinah-core/0.0", "dinah-core/0.6", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
+	opens := []string{"dinah-core/0.7"}
+	migrates := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/0.6", "dinah-core/1.0"}
+	refuses := []string{"dinah-core/0.0", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
 	for _, declared := range opens {
 		root := newBench(t)
 		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: "+declared)
 		if got := runCLI(t, root, "status"); got.code != 0 {
 			t.Errorf("a workbench declaring %s was refused: %d %s", declared, got.code, got.errw)
+		}
+	}
+	for _, declared := range migrates {
+		root := newBench(t)
+		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: "+declared)
+		got := runCLI(t, root, "status")
+		if got.code != 2 {
+			t.Errorf("a workbench declaring %s exited %d, wanted 2", declared, got.code)
+		}
+		leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+		if leading != contract.NeedsVocabularyMigration {
+			t.Errorf("a workbench declaring %s was refused %q, wanted %s", declared, got.errw, contract.NeedsVocabularyMigration)
+		}
+		if !strings.Contains(got.errw, "dinah check --migrate-vocabulary") {
+			t.Errorf("the refusal over %s does not name the migration to run: %s", declared, got.errw)
 		}
 	}
 	for _, declared := range refuses {
@@ -581,6 +602,29 @@ func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
 	}
 }
 
+// TestEveryCommandThatOpensAWorkbenchRefusesAnUnsupportedRevision drives three
+// commands against a workbench declaring a revision no build has ever
+// conformed to. All three open the workbench through the same gate before they
+// do anything else, so all three should refuse by name at exit 2.
+//
+// The gate does this today, and the guard exists so that a later change to
+// profile resolution cannot quietly let an unreadable workbench through one
+// command while the others go on refusing it.
+func TestEveryCommandThatOpensAWorkbenchRefusesAnUnsupportedRevision(t *testing.T) {
+	for _, command := range []string{"status", "columns", "check"} {
+		root := newBench(t)
+		editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
+		got := runCLI(t, root, command)
+		if got.code != 2 {
+			t.Errorf("dinah %s exited %d against dinah-core/9.9, wanted 2", command, got.code)
+		}
+		leading := strings.SplitN(strings.TrimSpace(got.errw), " ", 2)[0]
+		if leading != contract.UnsupportedVer {
+			t.Errorf("dinah %s refused dinah-core/9.9 with %q, wanted a message beginning %s", command, got.errw, contract.UnsupportedVer)
+		}
+	}
+}
+
 // TestTheUnsupportedVersionRefusalNamesTheWindow asserts the clause a person
 // reads when their revision falls outside the window, and that the same refusal
 // name raised for a storage format carries no window and reads as it did
@@ -589,7 +633,11 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	root := newBench(t)
 	editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
 	got := runCLI(t, root, "status")
-	wanted := "; this build reads dinah-core 0.1 through dinah-core 0.5"
+	// The window is one revision wide while the floor sits at the rename, and
+	// the clause is composed from the constants rather than spelled here, so
+	// this reads the sentence's shape without pinning the numbers a later
+	// bump moves.
+	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.7"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}
@@ -627,7 +675,7 @@ func TestAMalformedProfileKeepsItsTwoSentences(t *testing.T) {
 
 	root := newBench(t)
 	template := filepath.Join(root, "template.json")
-	definition := `{"profile":"dinah/1.0","title":"a template","states":[{"id":"004acda2c28a","title":"Intake","kind":"intake"}]}`
+	definition := `{"profile":"dinah/1.0","title":"a template","columns":[{"id":"004acda2c28a","title":"Intake","kind":"intake"}]}`
 	if err := os.WriteFile(template, []byte(definition), 0o644); err != nil {
 		t.Fatalf("write the template: %v", err)
 	}
@@ -647,16 +695,68 @@ func TestAMalformedProfileKeepsItsTwoSentences(t *testing.T) {
 	}
 }
 
+// migratedCopy copies a pre-vocabulary fixture somewhere a test may write and
+// carries it across the rename with the head's own migration, which is the
+// route a person with a workbench of that age takes. It answers the anchor
+// directory of the migrated copy.
+//
+// Two things are asserted on the way past, because this is the one helper that
+// runs the migration through the head: the run reports success, and the copy
+// opens afterwards. A test using this helper is entitled to assume both.
+func migratedCopy(t *testing.T, fixture string) string {
+	t.Helper()
+	source, err := filepath.Abs(filepath.Join(compatDir, fixture))
+	if err != nil {
+		t.Fatalf("resolve the fixture: %v", err)
+	}
+	copied := filepath.Join(t.TempDir(), fixture)
+	copyFixture(t, source, copied)
+	if got := runCLI(t, copied, "--workbench", copied, "check", "--migrate-vocabulary", "--yes"); got.code != 0 {
+		t.Fatalf("migrate %s: %d %s", fixture, got.code, got.errw)
+	}
+	if got := runCLI(t, copied, "--workbench", copied, "columns"); got.code != 0 {
+		t.Fatalf("the migrated %s does not open: %d %s", fixture, got.code, got.errw)
+	}
+	return copied
+}
+
+// copyFixture copies a fixture tree, since a migration rewrites what it is
+// given and a fixture in the tree is evidence rather than scratch.
+func copyFixture(t *testing.T, from, to string) {
+	t.Helper()
+	err := filepath.WalkDir(from, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(from, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(to, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
+	if err != nil {
+		t.Fatalf("copy %s: %v", from, err)
+	}
+}
+
 // TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision drives both
 // forms dinah init --from accepts, the anchor directory and an exported .json
 // file, against a fixture declaring the retired spelling. The clone declares
 // this build's own revision, because a workbench names the revision it was
 // written against.
 func TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision(t *testing.T) {
-	source, err := filepath.Abs(filepath.Join(compatDir, "dinah-core-1.0"))
-	if err != nil {
-		t.Fatalf("resolve the fixture: %v", err)
-	}
+	// The fixture declares the retired spelling, which this build reads only
+	// after the vocabulary migration has run over it, so the clone starts from
+	// a migrated copy rather than from the fixture where it sits.
+	source := migratedCopy(t, "dinah-core-1.0")
 	exported := filepath.Join(t.TempDir(), "definition.json")
 	b, err := bench.Open(source)
 	if err != nil {
@@ -694,15 +794,16 @@ func TestInitFromAnOlderFixtureClonesItAndStampsThisBuildsRevision(t *testing.T)
 }
 
 // TestThePreSlugFixtureOpensAndReportsItsMissingSlugs asserts that a workbench
-// written before state slugs and creation ordinals existed opens under this
-// build, lists its states, and has its defects reported rather than repaired,
+// written before column slugs and creation ordinals existed opens under this
+// build, lists its columns, and has its defects reported rather than repaired,
 // with every file left byte-identical afterwards. That last clause is what
 // proves no migration ran on open.
 func TestThePreSlugFixtureOpensAndReportsItsMissingSlugs(t *testing.T) {
-	fixture, err := filepath.Abs(filepath.Join(compatDir, "dinah-core-1.0-pre-slug"))
-	if err != nil {
-		t.Fatalf("resolve the fixture: %v", err)
-	}
+	// The snapshot is taken after the vocabulary migration rather than before
+	// it, because that migration is a write and this test is about what a read
+	// does not write. What it asserts is unchanged: the slug defects are
+	// reported and left alone.
+	fixture := migratedCopy(t, "dinah-core-1.0-pre-slug")
 	before := fixtureContents(t, fixture)
 	root := t.TempDir()
 	t.Setenv("DINAH_HOME", filepath.Join(root, "home"))
@@ -710,8 +811,8 @@ func TestThePreSlugFixtureOpensAndReportsItsMissingSlugs(t *testing.T) {
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
-	if got := runCLI(t, root, "--workbench", fixture, "states"); got.code != 0 {
-		t.Fatalf("states: %d %s", got.code, got.errw)
+	if got := runCLI(t, root, "--workbench", fixture, "columns"); got.code != 0 {
+		t.Fatalf("columns: %d %s", got.code, got.errw)
 	}
 	checked := runCLI(t, root, "--workbench", fixture, "check")
 	for _, wanted := range []string{"1a2b3c4d5e6f", "2b3c4d5e6f70", "carries no slug"} {

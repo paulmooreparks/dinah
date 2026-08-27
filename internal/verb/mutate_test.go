@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,17 +72,17 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 			name: "move reports the destination before the override marker",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
-				return &Request{Verb: Move, Card: ref, Actor: "bob", State: "nowhere", Override: true}
+				return &Request{Verb: Move, Card: ref, Actor: "bob", Column: "nowhere", Override: true}
 			},
-			refusal: contract.UnknownState,
-			why:     "unknown-state precedes the override check",
+			refusal: contract.UnknownColumn,
+			why:     "unknown-column precedes the override check",
 		},
 		{
 			name: "move reports the override marker before the block",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
 				h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "stopped"})
-				return &Request{Verb: Move, Card: ref, Actor: "bob", State: doing, Override: true}
+				return &Request{Verb: Move, Card: ref, Actor: "bob", Column: doing, Override: true}
 			},
 			refusal: contract.NotOperator,
 			why:     "the override check precedes blocked",
@@ -90,20 +91,20 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 			name: "move reports the departure before the held card",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
-				h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
+				h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: review})
 				h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
-				return &Request{Verb: Move, Card: ref, Actor: "bob", State: doing}
+				return &Request{Verb: Move, Card: ref, Actor: "bob", Column: doing}
 			},
 			refusal: contract.NotOperator,
 			why:     "the operator-owned departure precedes held",
 		},
 		{
-			name: "move reports the block before the terminal state",
+			name: "move reports the block before the terminal column",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
-				h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: finished})
+				h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
 				h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "stopped"})
-				return &Request{Verb: Move, Card: ref, Actor: "alka", State: finished}
+				return &Request{Verb: Move, Card: ref, Actor: "alka", Column: finished}
 			},
 			refusal: contract.Blocked,
 			why:     "blocked precedes terminal",
@@ -136,13 +137,24 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 			why:     "unknown-card precedes not-holder",
 		},
 		{
-			name: "unblock reports the operator before the substate",
+			name: "unblock reports the operator before the state",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
 				return &Request{Verb: Unblock, Card: ref, Actor: "bob"}
 			},
 			refusal: contract.NotOperator,
 			why:     "not-operator precedes not-blocked, per section 6.7",
+		},
+		{
+			name: "claim reports the block before the operator-owned column",
+			build: func(h *harness) *Request {
+				ref := h.add("ordering")
+				h.at(ref, review)
+				h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "stopped"})
+				return &Request{Verb: Claim, Card: ref, Actor: "bob"}
+			},
+			refusal: contract.Blocked,
+			why:     "blocked precedes the operator-owned row, because claimableState runs ahead of claimableColumn",
 		},
 	}
 	for _, c := range cases {
@@ -176,15 +188,15 @@ func TestWorkbenchChecksPrecedeEveryVerb(t *testing.T) {
 }
 
 // TestClaimTakesUpACard asserts CORE-CLAIM-3 and CORE-CARD-6: a claim that
-// succeeds sets the substate to active and records the holder and the time,
+// succeeds sets the state to active and records the holder and the time,
 // which is also what makes an active card one that carries both.
 func TestClaimTakesUpACard(t *testing.T) {
 	h := newHarness(t)
 	ref := h.ready("claimable")
 	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
 	card := h.card(ref)
-	if card.Substate != contract.SubstateActive {
-		t.Errorf("substate: wanted active, got %s", card.Substate)
+	if card.State != contract.StateActive {
+		t.Errorf("state: wanted active, got %s", card.State)
 	}
 	if card.Holder != "alka" {
 		t.Errorf("holder: wanted alka, got %q", card.Holder)
@@ -192,6 +204,49 @@ func TestClaimTakesUpACard(t *testing.T) {
 	if card.ClaimSince == "" {
 		t.Error("claim time: wanted one, got none")
 	}
+}
+
+// TestClaimAtAnOperatorOwnedColumnIsReservedToTheOperator drives CORE-CLAIM-8.
+// A column reserved to the operator refuses the claim to every other owner
+// under the name the move already reports for the departure side of the same
+// reservation, so nobody takes a card up somewhere they could never carry it
+// out of.
+//
+// The admitted half is doing real work here. An implementation refusing every
+// claim at the column would pass the refused half on its own, and the operator's
+// own claim is what tells a reservation apart from a closed door.
+func TestClaimAtAnOperatorOwnedColumnIsReservedToTheOperator(t *testing.T) {
+	t.Run("a non-operator is refused", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("waiting in review")
+		h.at(ref, review)
+
+		response := h.do(&Request{Verb: Claim, Card: ref, Actor: "bob"})
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
+			t.Fatalf("the claim at an operator-owned column: wanted %s, got %s %s",
+				contract.NotOperator, response.Outcome, response.Refusal)
+		}
+		if response.Detail != "bob" {
+			t.Errorf("the refusal should name the owner asking, got %q", response.Detail)
+		}
+		if card := h.card(ref); card.State != contract.StateReady || card.Holder != "" {
+			t.Errorf("the refused claim wrote to the card: state %q holder %q", card.State, card.Holder)
+		}
+	})
+
+	t.Run("the operator is admitted", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("waiting in review")
+		h.at(ref, review)
+
+		response := h.do(&Request{Verb: Claim, Card: ref, Actor: "alka"})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the operator's own claim: wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+		if card := h.card(ref); card.State != contract.StateActive || card.Holder != "alka" {
+			t.Errorf("the admitted claim: state %q holder %q", card.State, card.Holder)
+		}
+	})
 }
 
 // TestExpiryLapsesTheClaim asserts CORE-CLAIM-5 and CORE-HIST-2: after a
@@ -229,23 +284,23 @@ func TestExpiryLapsesTheClaim(t *testing.T) {
 
 // TestMoveHonoursItsStatements asserts the effects and refusals of CORE-MOVE,
 // including CORE-MOVE-4, the capacity count of CORE-MOVE-5 over cards of
-// mixed substate, and the override of CORE-MOVE-9 and CORE-MOVE-10.
+// mixed state, and the override of CORE-MOVE-9 and CORE-MOVE-10.
 func TestMoveHonoursItsStatements(t *testing.T) {
 	h := newHarness(t)
 	first := h.ready("first")
 	second := h.add("second")
 
 	h.mustDo(&Request{Verb: Claim, Card: first, Actor: "alka"})
-	h.mustDo(&Request{Verb: Move, Card: first, Actor: "alka", State: doing})
+	h.mustDo(&Request{Verb: Move, Card: first, Actor: "alka", Column: doing})
 	card := h.card(first)
-	if card.Substate != contract.SubstateActive || card.Holder != "alka" {
-		t.Errorf("CORE-MOVE-8: a move changed the substate or the holder: %s %q", card.Substate, card.Holder)
+	if card.State != contract.StateActive || card.Holder != "alka" {
+		t.Errorf("CORE-MOVE-8: a move changed the state or the holder: %s %q", card.State, card.Holder)
 	}
 
 	// Doing is limited to one card, and the card occupying it is blocked, so
 	// the count of CORE-MOVE-5 still includes it.
 	h.mustDo(&Request{Verb: Block, Card: first, Actor: "alka", Reason: "stopped"})
-	refused := h.do(&Request{Verb: Move, Card: second, Actor: "alka", State: doing})
+	refused := h.do(&Request{Verb: Move, Card: second, Actor: "alka", Column: doing})
 	if refused.Refusal != contract.AtCapacity {
 		t.Fatalf("wanted at-capacity over a blocked occupant, got %s %s", refused.Outcome, refused.Refusal)
 	}
@@ -257,9 +312,9 @@ func TestMoveHonoursItsStatements(t *testing.T) {
 
 	// The operator carries one through with the marker, and the act is one
 	// act marked an override.
-	admitted := h.mustDo(&Request{Verb: Move, Card: second, Actor: "alka", State: doing, Override: true})
-	if admitted.Card.State != doing {
-		t.Errorf("override move: wanted state %s, got %s", doing, admitted.Card.State)
+	admitted := h.mustDo(&Request{Verb: Move, Card: second, Actor: "alka", Column: doing, Override: true})
+	if admitted.Card.Column != doing {
+		t.Errorf("override move: wanted column %s, got %s", doing, admitted.Card.Column)
 	}
 	overrides := 0
 	moves := 0
@@ -276,33 +331,33 @@ func TestMoveHonoursItsStatements(t *testing.T) {
 		t.Errorf("CORE-MOVE-10: wanted one move marked an override, got %d moves and %d marks", moves, overrides)
 	}
 
-	// A forward move out of a done state is terminal; a backward one is not.
+	// A forward move out of a done column is terminal; a backward one is not.
 	third := h.add("third")
-	h.mustDo(&Request{Verb: Move, Card: third, Actor: "alka", State: finished})
-	if response := h.do(&Request{Verb: Move, Card: third, Actor: "alka", State: intake}); response.Outcome != contract.OutcomeOK {
-		t.Errorf("a backward move out of a done state should be admitted, got %s", response.Refusal)
+	h.mustDo(&Request{Verb: Move, Card: third, Actor: "alka", Column: finished})
+	if response := h.do(&Request{Verb: Move, Card: third, Actor: "alka", Column: intake}); response.Outcome != contract.OutcomeOK {
+		t.Errorf("a backward move out of a done column should be admitted, got %s", response.Refusal)
 	}
 }
 
 // TestForwardMoveOutOfDoneIsTerminal asserts CORE-MOVE-7 on its own, since the
-// combined test above cannot reach it once the card has left the done state.
+// combined test above cannot reach it once the card has left the done column.
 func TestForwardMoveOutOfDoneIsTerminal(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("finished")
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: finished})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
 	// CORE-STATE-9: the same card is offered no forward move at all, so the
 	// refusal below is not the only place the rule shows.
 	for _, move := range h.library.legalMoves(h.card(ref)) {
 		if move.Direction == Forward {
-			t.Errorf("CORE-STATE-9: a card in a done state was offered the forward move %s", move.State)
+			t.Errorf("CORE-STATE-9: a card in a done column was offered the forward move %s", move.Column)
 		}
 	}
-	response := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", State: closed})
+	response := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: closed})
 	if response.Refusal != contract.Terminal {
-		t.Fatalf("wanted terminal on a forward move out of a done state, got %s %s", response.Outcome, response.Refusal)
+		t.Fatalf("wanted terminal on a forward move out of a done column, got %s %s", response.Outcome, response.Refusal)
 	}
 	if response.Detail != "finished" {
-		// Named by the departure state's slug ("finished"), not by its raw
+		// Named by the departure column's slug ("finished"), not by its raw
 		// identifier: this refusal is the one dinah-29 cycle 2's own
 		// counterexample entry was written about.
 		t.Fatalf("terminal refusal: wanted the slug %q, got %q", "finished", response.Detail)
@@ -320,8 +375,8 @@ func TestReleaseGivesTheCardBack(t *testing.T) {
 	}
 	h.mustDo(&Request{Verb: Release, Card: ref, Actor: "bob"})
 	card := h.card(ref)
-	if card.Substate != contract.SubstateReady || card.Holder != "" {
-		t.Errorf("after release: wanted ready with no holder, got %s %q", card.Substate, card.Holder)
+	if card.State != contract.StateReady || card.Holder != "" {
+		t.Errorf("after release: wanted ready with no holder, got %s %q", card.State, card.Holder)
 	}
 }
 
@@ -336,8 +391,8 @@ func TestBlockRaisesAnObstacle(t *testing.T) {
 		h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
 		h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: reason, Kind: "external"})
 		card := h.card(ref)
-		if card.Substate != contract.SubstateBlocked {
-			t.Errorf("substate: wanted blocked, got %s", card.Substate)
+		if card.State != contract.StateBlocked {
+			t.Errorf("state: wanted blocked, got %s", card.State)
 		}
 		if card.Holder != "" {
 			t.Errorf("CORE-BLOCK-3: wanted the holder removed, got %q", card.Holder)
@@ -362,19 +417,19 @@ func TestOnlyUnblockLeavesBlocked(t *testing.T) {
 	h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "stopped"})
 	others := []*Request{
 		{Verb: Claim, Card: ref, Actor: "alka"},
-		{Verb: Move, Card: ref, Actor: "alka", State: doing},
+		{Verb: Move, Card: ref, Actor: "alka", Column: doing},
 		{Verb: Release, Card: ref, Actor: "alka"},
 		{Verb: Block, Card: ref, Actor: "alka", Reason: "still stopped"},
 	}
 	for _, req := range others {
 		h.do(req)
-		if card := h.card(ref); card.Substate != contract.SubstateBlocked {
-			t.Fatalf("CORE-UNBLOCK-3: %s left the card at %s", req.Verb, card.Substate)
+		if card := h.card(ref); card.State != contract.StateBlocked {
+			t.Fatalf("CORE-UNBLOCK-3: %s left the card at %s", req.Verb, card.State)
 		}
 	}
 	h.mustDo(&Request{Verb: Unblock, Card: ref, Actor: "alka"})
-	if card := h.card(ref); card.Substate != contract.SubstateReady {
-		t.Errorf("after unblock: wanted ready, got %s", card.Substate)
+	if card := h.card(ref); card.State != contract.StateReady {
+		t.Errorf("after unblock: wanted ready, got %s", card.State)
 	}
 	if response := h.do(&Request{Verb: Unblock, Card: ref, Actor: "alka"}); response.Refusal != contract.NotBlocked {
 		t.Errorf("wanted not-blocked, got %s %s", response.Outcome, response.Refusal)
@@ -385,12 +440,12 @@ func TestOnlyUnblockLeavesBlocked(t *testing.T) {
 // CORE-INSTR-5, CORE-INSTR-6 and CORE-INSTR-7
 // and the format's user-global layer, with CORE-INSTR-1 and CORE-INSTR-2
 // exercised by the fixture carrying both kinds of prose: three separate
-// layers in the order global, standing, state, with no layer written into another, the legal
+// layers in the order global, standing, column, with no layer written into another, the legal
 // moves alongside, and an absent global file as an absent layer.
 func TestInstructionsAreServedAsThreeLayers(t *testing.T) {
 	h := newHarness(t)
 	// The card is stood at the review station before the claim, because no
-	// owner takes work up at an intake state and a claim there is refused.
+	// owner takes work up at an intake column and a claim there is refused.
 	// Review rather than doing, so that the move below still has room to
 	// land the card in doing, which holds one card at a time.
 	ref := h.add("served")
@@ -406,46 +461,46 @@ func TestInstructionsAreServedAsThreeLayers(t *testing.T) {
 	if !strings.Contains(served.Instructions.Standing, "standing text") {
 		t.Errorf("standing layer: got %q", served.Instructions.Standing)
 	}
-	if !strings.Contains(served.Instructions.State, "Review instructions") {
-		t.Errorf("state layer: got %q", served.Instructions.State)
+	if !strings.Contains(served.Instructions.Column, "Review instructions") {
+		t.Errorf("column layer: got %q", served.Instructions.Column)
 	}
 	if len(served.LegalMoves) == 0 {
 		t.Fatal("CORE-INSTR-7: wanted the legal moves alongside the instructions")
 	}
-	// CORE-STATE-7: the moves reported include one to the next state in the
+	// CORE-STATE-7: the moves reported include one to the next column in the
 	// declared list, which is the departure a flow exists to offer.
 	next := false
 	for _, move := range served.LegalMoves {
-		if move.State == aftercare && move.Direction == Forward {
+		if move.Column == aftercare && move.Direction == Forward {
 			next = true
 		}
 	}
 	if !next {
-		t.Errorf("CORE-STATE-7: the legal moves omit the next state: %+v", served.LegalMoves)
+		t.Errorf("CORE-STATE-7: the legal moves omit the next column: %+v", served.LegalMoves)
 	}
 
 	global := filepath.Join(h.home, bench.UserBaseName, bench.InstructionsName)
 	if err := os.WriteFile(global, []byte("The global text.\n"), 0o644); err != nil {
 		t.Fatalf("global layer: %v", err)
 	}
-	moved := h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: doing})
+	moved := h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing})
 	if !strings.Contains(moved.Instructions.Global, "global text") {
 		t.Errorf("an edit to the global layer did not reach the serve: %q", moved.Instructions.Global)
 	}
-	if !strings.Contains(moved.Instructions.State, "Doing instructions") {
-		t.Errorf("CORE-INSTR-4: wanted the entered state's instructions, got %q", moved.Instructions.State)
+	if !strings.Contains(moved.Instructions.Column, "Doing instructions") {
+		t.Errorf("CORE-INSTR-4: wanted the entered column's instructions, got %q", moved.Instructions.Column)
 	}
 
 	// No layer carries another's text, on the serve or on disk.
-	if strings.Contains(moved.Instructions.State, "standing text") {
-		t.Error("CORE-INSTR-6: the state layer carries the standing text")
+	if strings.Contains(moved.Instructions.Column, "standing text") {
+		t.Error("CORE-INSTR-6: the column layer carries the standing text")
 	}
-	stored, err := bench.ReadText(filepath.Join(h.root, bench.StatesDir, doing, bench.StateAnchor))
+	stored, err := bench.ReadText(filepath.Join(h.root, bench.ColumnsDir, doing, bench.ColumnAnchor))
 	if err != nil {
-		t.Fatalf("state anchor: %v", err)
+		t.Fatalf("column anchor: %v", err)
 	}
 	if strings.Contains(stored, "standing text") || strings.Contains(stored, "global text") {
-		t.Error("CORE-INSTR-6: a stored state anchor carries another layer's text")
+		t.Error("CORE-INSTR-6: a stored column anchor carries another layer's text")
 	}
 }
 
@@ -491,11 +546,11 @@ func TestQueueOrderIsArrivalThenOrdinal(t *testing.T) {
 
 	// Move the middle card away and back, so its arrival is the most recent
 	// while its identifier order is unchanged.
-	h.mustDo(&Request{Verb: Move, Card: second, Actor: "alka", State: doing})
+	h.mustDo(&Request{Verb: Move, Card: second, Actor: "alka", Column: doing})
 	h.advance(time.Hour)
-	h.mustDo(&Request{Verb: Move, Card: second, Actor: "alka", State: intake})
+	h.mustDo(&Request{Verb: Move, Card: second, Actor: "alka", Column: intake})
 
-	listing, err := h.library.List(&Request{Verb: "ls", State: intake})
+	listing, err := h.library.List(&Request{Verb: "ls", Column: intake})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -510,11 +565,11 @@ func TestQueueOrderIsArrivalThenOrdinal(t *testing.T) {
 	}
 
 	// The ready filter narrows without disturbing the order. The card is
-	// blocked rather than claimed, because an intake state takes no work up
+	// blocked rather than claimed, because an intake column takes no work up
 	// and refuses a claim, where a block says something about the card and
 	// stays available wherever the card stands.
 	h.mustDo(&Request{Verb: Block, Card: first, Actor: "alka", Reason: "stopped"})
-	ready, err := h.library.List(&Request{Verb: "ls", State: intake, ReadyOnly: true})
+	ready, err := h.library.List(&Request{Verb: "ls", Column: intake, ReadyOnly: true})
 	if err != nil {
 		t.Fatalf("list ready: %v", err)
 	}
@@ -524,7 +579,7 @@ func TestQueueOrderIsArrivalThenOrdinal(t *testing.T) {
 }
 
 // TestTiesBreakByCreationOrdinal asserts the tie-break half of CORE-QUEUE-3
-// over two cards that entered a state at the same instant.
+// over two cards that entered a column at the same instant.
 //
 // The numbers are rewritten so that the creation order runs against the
 // identifier order, because the retired CORE-QUEUE-1 broke the same tie by
@@ -549,7 +604,7 @@ func TestTiesBreakByCreationOrdinal(t *testing.T) {
 	}
 	h.reopen()
 
-	listing, err := h.library.List(&Request{Verb: "ls", State: intake})
+	listing, err := h.library.List(&Request{Verb: "ls", Column: intake})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -568,21 +623,21 @@ func TestTiesBreakByCreationOrdinal(t *testing.T) {
 // TestHistoryNeverResolvesAgainstTheBench asserts CORE-HIST-1 and CORE-HIST-4
 // to CORE-HIST-6:
 // the recorded acts keep their order and carry the titles as they stood, so a
-// state renamed after a move still reads under its old title.
+// column renamed after a move still reads under its old title.
 func TestHistoryNeverResolvesAgainstTheBench(t *testing.T) {
 	h := newHarness(t)
 	// The setup move stands the card where an owner takes work up, since a
-	// claim at an intake state is refused, and it is the first of the two
+	// claim at an intake column is refused, and it is the first of the two
 	// moves the history below carries.
 	ref := h.add("historic")
 	h.at(ref, doing)
 	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: review})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: review})
 
-	anchor := filepath.Join(h.root, bench.StatesDir, doing, bench.StateAnchor)
+	anchor := filepath.Join(h.root, bench.ColumnsDir, doing, bench.ColumnAnchor)
 	text, err := bench.ReadText(anchor)
 	if err != nil {
-		t.Fatalf("state anchor: %v", err)
+		t.Fatalf("column anchor: %v", err)
 	}
 	if err := os.WriteFile(anchor, []byte(strings.Replace(text, "title: Doing", "title: Renamed", 1)), 0o644); err != nil {
 		t.Fatalf("rename: %v", err)
@@ -617,7 +672,7 @@ func TestNextOffersWithoutTaking(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("offered")
 	before := h.card(ref)
-	offers, err := h.library.Next(&Request{Verb: "next", State: intake})
+	offers, err := h.library.Next(&Request{Verb: "next", Column: intake})
 	if err != nil {
 		t.Fatalf("next: %v", err)
 	}
@@ -625,21 +680,21 @@ func TestNextOffersWithoutTaking(t *testing.T) {
 		t.Fatalf("wanted the intake station to offer %s, got %+v", ref, offers)
 	}
 	after := h.card(ref)
-	if after.Substate != before.Substate || after.Holder != before.Holder || after.Revision != before.Revision {
+	if after.State != before.State || after.Holder != before.Holder || after.Revision != before.Revision {
 		t.Error("next changed the card it offered")
 	}
 
-	// With no argument it reports every state in flow order.
+	// With no argument it reports every column in flow order.
 	all, err := h.library.Next(&Request{Verb: "next"})
 	if err != nil {
 		t.Fatalf("next over the workbench: %v", err)
 	}
-	if len(all) != len(h.library.Bench.States) {
-		t.Fatalf("wanted one offer per state, got %d", len(all))
+	if len(all) != len(h.library.Bench.Columns) {
+		t.Fatalf("wanted one offer per column, got %d", len(all))
 	}
 	for i, offer := range all {
-		if offer.State != h.library.Bench.States[i].ID {
-			t.Errorf("position %d: wanted %s, got %s", i, h.library.Bench.States[i].ID, offer.State)
+		if offer.Column != h.library.Bench.Columns[i].ID {
+			t.Errorf("position %d: wanted %s, got %s", i, h.library.Bench.Columns[i].ID, offer.Column)
 		}
 	}
 }
@@ -717,8 +772,8 @@ func TestALapseNoticedByAReadTakesTheLock(t *testing.T) {
 	if _, err := h.library.List(&Request{Verb: "ls"}); err != nil {
 		t.Fatalf("a read against a locked card should not fail: %v", err)
 	}
-	if card := h.card(ref); card.Substate != contract.SubstateActive {
-		t.Errorf("the read wrote through another process's lock, leaving %s", card.Substate)
+	if card := h.card(ref); card.State != contract.StateActive {
+		t.Errorf("the read wrote through another process's lock, leaving %s", card.State)
 	}
 	held.Release()
 
@@ -727,8 +782,8 @@ func TestALapseNoticedByAReadTakesTheLock(t *testing.T) {
 		t.Fatalf("list: %v", err)
 	}
 	card := h.card(ref)
-	if card.Substate != contract.SubstateReady || card.Holder != "" {
-		t.Errorf("after the lapse: wanted ready with no holder, got %s %q", card.Substate, card.Holder)
+	if card.State != contract.StateReady || card.Holder != "" {
+		t.Errorf("after the lapse: wanted ready with no holder, got %s %q", card.State, card.Holder)
 	}
 	lapses := 0
 	for _, ev := range h.events(ref) {
@@ -860,7 +915,7 @@ func TestALapseNoticedInsideTheWindowWritesNothing(t *testing.T) {
 	}
 }
 
-// TestAMoveIntoARetiringStateCannotLand asserts the state closure from both
+// TestAMoveIntoARetiringColumnCannotLand asserts the column closure from both
 // sides of the interleaving. A mover that reached its card lock first is one
 // the retiring act's own scan cannot miss, and a mover arriving after the
 // sibling exists reads it and stops itself. Either way no card is left
@@ -868,9 +923,9 @@ func TestALapseNoticedInsideTheWindowWritesNothing(t *testing.T) {
 //
 // Arming: moving the scan back before the sibling is created lets the first
 // order through, and removing the destination check from move lets the second
-// through; each lands a card in a state that resolves only under
-// archive/states/.
-func TestAMoveIntoARetiringStateCannotLand(t *testing.T) {
+// through; each lands a card in a column that resolves only under
+// archive/columns/.
+func TestAMoveIntoARetiringColumnCannotLand(t *testing.T) {
 	t.Run("the mover got there first", func(t *testing.T) {
 		h := newHarness(t)
 		ref := h.add("mover")
@@ -880,7 +935,7 @@ func TestAMoveIntoARetiringStateCannotLand(t *testing.T) {
 		h.library.Interleave = func() {
 			blocked = other.Archive(&Request{Verb: "archive", Actor: "bob", Ref: aftercare})
 		}
-		moved := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "alka", State: aftercare})
+		moved := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare})
 		h.library.Interleave = nil
 		h.reopen()
 
@@ -896,8 +951,8 @@ func TestAMoveIntoARetiringStateCannotLand(t *testing.T) {
 		if blocked.Detail != card.ID {
 			t.Errorf("the refusal should name the card whose lock is held, got %q", blocked.Detail)
 		}
-		if !bench.Exists(filepath.Join(h.root, bench.StatesDir, aftercare, bench.StateAnchor)) {
-			t.Error("the refused archive retired the state anyway")
+		if !bench.Exists(filepath.Join(h.root, bench.ColumnsDir, aftercare, bench.ColumnAnchor)) {
+			t.Error("the refused archive retired the column anyway")
 		}
 	})
 
@@ -910,13 +965,13 @@ func TestAMoveIntoARetiringStateCannotLand(t *testing.T) {
 		h.library.Bench.Hooks = &bench.Hooks{
 			AfterStep: func(n int) error {
 				if n == 2 {
-					blocked = other.Do(&Request{Verb: Move, Card: ref, Actor: "alka", State: aftercare})
+					blocked = other.Do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare})
 				}
 				return nil
 			},
 		}
-		// A retired state leaves the bench unopenable until its identifier
-		// comes out of the states list, which is a gap of its own, so the
+		// A retired column leaves the bench unopenable until its identifier
+		// comes out of the columns list, which is a gap of its own, so the
 		// card is read from disk here rather than through a reopen.
 		archived := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
 		h.library.Bench.Hooks = nil
@@ -937,20 +992,20 @@ func TestAMoveIntoARetiringStateCannotLand(t *testing.T) {
 		if err != nil {
 			t.Fatalf("load: %v", err)
 		}
-		if card.State != intake {
-			t.Errorf("the refused move stored a state anyway, card is in %s", card.State)
+		if card.Column != intake {
+			t.Errorf("the refused move stored a column anyway, card is in %s", card.Column)
 		}
 	})
 }
 
-// TestACreationIntoARetiringStateCannotLand asserts the closure's other half,
+// TestACreationIntoARetiringColumnCannotLand asserts the closure's other half,
 // which needs a row of its own because a creation takes no lock at all and is
 // therefore observed through a single fact.
 //
 // The refused creation gives up the directory mkdir claimed as well as the
 // identifier, because an empty hex directory makes Cards return an error and
 // every listing on the bench fail with it.
-func TestACreationIntoARetiringStateCannotLand(t *testing.T) {
+func TestACreationIntoARetiringColumnCannotLand(t *testing.T) {
 	t.Run("the creation is between mkdir and its anchor", func(t *testing.T) {
 		h := newHarness(t)
 		claimed := filepath.Join(h.library.Bench.CardsRoot(), "cccccccccccc")
@@ -975,7 +1030,7 @@ func TestACreationIntoARetiringStateCannotLand(t *testing.T) {
 		h.library.Bench.Hooks = &bench.Hooks{
 			AfterStep: func(n int) error {
 				if n == 2 {
-					blocked = other.Add(&Request{Verb: "add", Actor: "alka", Title: "latecomer", State: aftercare})
+					blocked = other.Add(&Request{Verb: "add", Actor: "alka", Title: "latecomer", Column: aftercare})
 				}
 				return nil
 			},
@@ -998,7 +1053,7 @@ func TestACreationIntoARetiringStateCannotLand(t *testing.T) {
 	})
 }
 
-// TestTheStateScanRefusesOnAllThreeConditionsInOrder asserts what the scan
+// TestTheColumnScanRefusesOnAllThreeConditionsInOrder asserts what the scan
 // refuses on, that it says which condition fired, that it runs only once the
 // retiring act's own sibling exists, and that per card it stats the lock
 // before it reads the anchor.
@@ -1007,14 +1062,14 @@ func TestACreationIntoARetiringStateCannotLand(t *testing.T) {
 // other way round the scan learns nothing from either observation about a move
 // that landed between them, and both of the other armings pass a scan with the
 // per-card order reversed, so it gets a case of its own.
-func TestTheStateScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
-	t.Run("a card sits in the state", func(t *testing.T) {
+func TestTheColumnScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
+	t.Run("a card sits in the column", func(t *testing.T) {
 		h := newHarness(t)
 		ref := h.add("occupant")
-		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: aftercare})
+		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare})
 		response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
 		if response.Refusal != contract.Occupied || response.Detail != aftercareSlug {
-			t.Fatalf("wanted %s naming the state by its slug %q, got %s %q", contract.Occupied, aftercareSlug, response.Refusal, response.Detail)
+			t.Fatalf("wanted %s naming the column by its slug %q, got %s %q", contract.Occupied, aftercareSlug, response.Refusal, response.Detail)
 		}
 	})
 
@@ -1024,7 +1079,7 @@ func TestTheStateScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
 		card := h.card(ref)
 		held := h.hold(card.Dir, "someone")
 		defer held.Release()
-		sibling := bench.SiblingPath(filepath.Join(h.root, bench.StatesDir, aftercare))
+		sibling := bench.SiblingPath(filepath.Join(h.root, bench.ColumnsDir, aftercare))
 		stood := false
 		h.library.Bench.Hooks = &bench.Hooks{
 			BeforeAnchorRead: func(string) { stood = bench.Exists(sibling) },
@@ -1070,7 +1125,7 @@ func TestTheStateScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
 					t.Errorf("load: %v", err)
 					return
 				}
-				fresh.State = aftercare
+				fresh.Column = aftercare
 				if err := fresh.Save(); err != nil {
 					t.Errorf("save: %v", err)
 				}
@@ -1082,7 +1137,7 @@ func TestTheStateScanRefusesOnAllThreeConditionsInOrder(t *testing.T) {
 			t.Fatal("the move never landed in the gap, so this test proves nothing")
 		}
 		if response.Refusal != contract.Occupied || response.Detail != aftercareSlug {
-			t.Fatalf("wanted %s naming the state by its slug %q, got %s %q", contract.Occupied, aftercareSlug, response.Refusal, response.Detail)
+			t.Fatalf("wanted %s naming the column by its slug %q, got %s %q", contract.Occupied, aftercareSlug, response.Refusal, response.Detail)
 		}
 	})
 }
@@ -1159,6 +1214,72 @@ func TestTheSafeInterleavingsAreCleanRefusals(t *testing.T) {
 		}
 		if got := strings.Join(h.locks(), ", "); got != "" {
 			t.Errorf("the loser left %q behind", got)
+		}
+	})
+}
+
+// TestMoveRecordsRejectOnTheJournalEventForTheDeclaredTarget is dinah-207 AC-7.
+// The flag is what makes a rejection countable after the fact: without it a
+// reader of the journal cannot tell a rejection from any other backward move,
+// which is the column the customer board that raised the card is in today.
+func TestMoveRecordsRejectOnTheJournalEventForTheDeclaredTarget(t *testing.T) {
+	// lastMoved is the moved event of the act under test, which is the last
+	// one on the journal because each case moves the card exactly once after
+	// its setup.
+	lastMoved := func(t *testing.T, h *harness, ref string) bench.Event {
+		t.Helper()
+		events := h.events(ref)
+		for i := len(events) - 1; i >= 0; i-- {
+			if events[i].Event == contract.EventMoved {
+				return events[i]
+			}
+		}
+		t.Fatalf("the journal of %s carries no moved event", ref)
+		return bench.Event{}
+	}
+
+	t.Run("a move to the declared target records the flag", func(t *testing.T) {
+		h := newHarness(t)
+		h.declare(aftercare, "reject_to", "doing")
+		ref := h.add("refused work")
+		h.at(ref, aftercare)
+		h.at(ref, doing)
+		if ev := lastMoved(t, h, ref); !ev.Reject {
+			t.Errorf("the move to the declared target recorded %+v", ev)
+		}
+	})
+
+	t.Run("a move to some other column does not", func(t *testing.T) {
+		h := newHarness(t)
+		h.declare(aftercare, "reject_to", "doing")
+		ref := h.add("ordinary work")
+		h.at(ref, aftercare)
+		h.at(ref, review)
+		if ev := lastMoved(t, h, ref); ev.Reject {
+			t.Errorf("a move to a column the declaration does not name recorded %+v", ev)
+		}
+	})
+
+	t.Run("a move out of a column declaring nothing does not", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("ordinary work")
+		h.at(ref, aftercare)
+		h.at(ref, doing)
+		if ev := lastMoved(t, h, ref); ev.Reject {
+			t.Errorf("a move out of a column declaring nothing recorded %+v", ev)
+		}
+	})
+
+	t.Run("the absent flag never serializes", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("ordinary work")
+		h.at(ref, aftercare)
+		line, err := json.Marshal(lastMoved(t, h, ref))
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if strings.Contains(string(line), "reject") {
+			t.Errorf("the unset flag reached the journal line: %s", line)
 		}
 	})
 }

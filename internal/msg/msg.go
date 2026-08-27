@@ -3,7 +3,7 @@
 // language is adding a catalog rather than hunting literals through the code.
 //
 // Machine vocabulary never passes through this package. Refusal names,
-// substates, state kinds, outcome names, block kinds, link kinds, command
+// states, column kinds, outcome names, block kinds, link kinds, command
 // names, flag names and the interchange member names travel as the profile
 // spells them on every surface under every language setting, which is what
 // CORE-TEXT-3 requires and what CORE-TEXT-4 leaves room around.
@@ -12,6 +12,7 @@ package msg
 import (
 	"embed"
 	"encoding/json"
+	"hash/fnv"
 	"path"
 	"sort"
 	"strconv"
@@ -36,6 +37,39 @@ type Entry struct {
 	// Skeleton marks an entry carrying the English text unchanged, which is
 	// what a generated catalog ships until somebody translates it.
 	Skeleton bool `json:"skeleton,omitempty"`
+	// Verbatim marks an entry a translator really did translate and whose
+	// answer is the English text, letter for letter, because the language
+	// uses the same word. A table heading reading "Name" in German is the
+	// ordinary case.
+	//
+	// The flag exists so that the guard over the catalogs can tell such an
+	// entry from English left standing where a translation should be. Every
+	// other entry that is not a skeleton is required to differ from its
+	// English source, which is what makes a catalog quietly refilled with
+	// English fail rather than pass, and a language does not have to be on
+	// the Complete roster for that to hold. Nothing outside the guard reads
+	// this field: to a reader a verbatim entry is an ordinary translation,
+	// and Coverage counts it as one.
+	Verbatim bool `json:"verbatim,omitempty"`
+	// Source is a fingerprint of the English text this entry was translated
+	// from, written when the entry is translated and checked against the
+	// current base entry by TestATranslationTracksItsEnglishSource. It is
+	// empty on the base catalog itself and on any entry carrying Skeleton,
+	// neither of which is a translation of anything.
+	Source string `json:"source,omitempty"`
+}
+
+// Fingerprint returns a short, stable digest of text, and it is the one place
+// this project computes that digest. A translated entry records the
+// fingerprint of the English it was translated from, and the guard over the
+// catalogs recomputes it from the English of the day to find out whether the
+// translation has fallen behind. Two calls on the same text return the same
+// value on any machine and under any Go release, because FNV-1a is a pure
+// function of the bytes handed to it and hash/fnv fixes the algorithm.
+func Fingerprint(text string) string {
+	digest := fnv.New64a()
+	digest.Write([]byte(text))
+	return strconv.FormatUint(digest.Sum64(), 16)
 }
 
 // Catalog is one language's messages.
@@ -89,6 +123,22 @@ func readAll() map[string]*Catalog {
 // internal/verb both read them rather than each carrying its own copy of the
 // same fact, which is what let German ship translated while two separate
 // hardcoded rosters still called it a skeleton.
+//
+// Hindi and German nearly left this list at dinah-287. That rename moved the
+// English text of a large block of entries, no fluent editor of either
+// language was available in the pass that made the move, and the card's D-6
+// took both tags off the roster and shipped the moved entries as skeletons
+// carrying renamed English. The operator ruled the other way on 2026-08-27,
+// in his words "I am not going to ship something with incomplete
+// translations, so fix them first", so the entries were retranslated on that
+// same card and both tags stayed here.
+//
+// What the near miss left behind is worth knowing, because the reasoning
+// outlived the decision. Taking a language off this list used to take its
+// contents out of every check, so nothing would have noticed either language
+// rotting afterwards. Two guards in msg_test.go now key on the entry rather
+// than on the roster its catalog is on, and they hold whichever roster a
+// language is on.
 var Complete = []string{Base, "hi", "de"}
 
 // Skeleton is documented on Complete, which it is the other half of.
@@ -126,6 +176,20 @@ func Keys() []string {
 // BaseEntry returns one entry of the base catalog.
 func BaseEntry(key string) (Entry, bool) {
 	catalog, ok := loaded[Base]
+	if !ok {
+		return Entry{}, false
+	}
+	entry, ok := catalog.Entries[key]
+	return entry, ok
+}
+
+// CatalogEntry returns one entry exactly as tag's own catalog carries it: no
+// fallback to Base, no placeholder substitution. BaseEntry is this function
+// specialized to tag == Base. A caller outside this package that needs a
+// translation's own Skeleton flag or raw Text, rather than what a reader
+// would see rendered, calls this instead of reaching into Renderer.
+func CatalogEntry(tag, key string) (Entry, bool) {
+	catalog, ok := loaded[tag]
 	if !ok {
 		return Entry{}, false
 	}

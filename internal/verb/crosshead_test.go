@@ -1,0 +1,55 @@
+package verb
+
+import (
+	"sort"
+	"testing"
+)
+
+// TestCrossHeadIdenticalIsWellFormed asserts that every command declared to
+// answer alike on every head is a command the table actually defines, and that
+// each one carries the clause somebody wrote to justify it.
+//
+// The map is the single declared source of the cross-head payload check that
+// runs at the terminal, so a key naming nothing and a reason nobody wrote are
+// the two ways it could quietly cover less than it claims.
+func TestCrossHeadIdenticalIsWellFormed(t *testing.T) {
+	declared := map[string]bool{}
+	for _, name := range Commands() {
+		declared[name] = true
+	}
+	if len(CrossHeadIdentical()) == 0 {
+		t.Fatal("no command is declared cross-head identical, so the payload check reads nothing")
+	}
+	for name, reason := range CrossHeadIdentical() {
+		if !declared[name] {
+			t.Errorf("%q is declared cross-head identical and the table defines no such command", name)
+		}
+		if reason == "" {
+			t.Errorf("%q is declared cross-head identical with no reason, so nobody has said why the guarantee holds", name)
+		}
+	}
+}
+
+// TestCrossHeadIdenticalCannotBeEditedThroughItsAccessor asserts that a caller
+// writing into the returned map does not reach the declaration behind it, so
+// the guard's own source cannot be rewritten by whoever reads it.
+//
+// The key it writes through is whichever one the map carries rather than a
+// command named here. Naming one made this test report that the accessor
+// leaked whenever that command was renamed or dropped, which is a check
+// failing for a reason that is not the one it tests for.
+func TestCrossHeadIdenticalCannotBeEditedThroughItsAccessor(t *testing.T) {
+	names := make([]string, 0, len(CrossHeadIdentical()))
+	for name := range CrossHeadIdentical() {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		t.Fatal("no command is declared cross-head identical, so there is no entry to try writing through")
+	}
+	written := names[0]
+	CrossHeadIdentical()[written] = ""
+	if CrossHeadIdentical()[written] == "" {
+		t.Errorf("writing into the returned map reached the declaration behind it, since %q came back empty", written)
+	}
+}

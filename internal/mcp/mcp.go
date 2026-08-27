@@ -14,6 +14,7 @@ import (
 	"io"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
@@ -171,18 +172,24 @@ func workingAgreement(root string, defaultLib *verb.Library) string {
 	b.WriteString("1. Claim a card before producing work on it.\n")
 	b.WriteString("2. Do not hold a claim on a card you have stopped working.\n")
 	b.WriteString("3. Treat the workbench as the authority for where a card stands and who holds it.\n")
-	b.WriteString("4. Do not move a card out of an operator-owned state unless you are the operator.\n\n")
+	b.WriteString("4. Do not move a card out of an operator-owned column unless you are the operator.\n\n")
 	b.WriteString("Every response carries an affordances member naming what you may do next. ")
 	b.WriteString("A successful claim or move carries the instructions of the position in three ")
 	b.WriteString("separate layers and the moves the flow allows. Tokens are canonical on this ")
 	b.WriteString("surface and are never translated.\n\n")
-	if defaultLib != nil {
+	switch {
+	case defaultLib != nil && root != "":
 		b.WriteString(catalog.T("mcp.reach", "root", root, "title", defaultLib.Bench.Title))
-		b.WriteString("\n\n")
-		b.WriteString("The operator of this workbench is " + defaultLib.Bench.Operator + ". ")
-	} else {
+	case defaultLib != nil && root == "":
+		b.WriteString(catalog.T("mcp.reach.unbounded", "title", defaultLib.Bench.Title))
+	case defaultLib == nil && root != "":
 		b.WriteString(catalog.T("mcp.reach.nodefault", "root", root))
-		b.WriteString("\n\n")
+	default:
+		b.WriteString(catalog.T("mcp.reach.nodefault.unbounded"))
+	}
+	b.WriteString("\n\n")
+	if defaultLib != nil {
+		b.WriteString("The operator of this workbench is " + defaultLib.Bench.Operator + ". ")
 	}
 	b.WriteString("Read the embedded guides through resources/list and resources/read.\n")
 	b.WriteString("Read the guide mcp through resources/read for the loop this surface expects.\n")
@@ -250,13 +257,29 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 		return nil, err
 	}
 	if args.Name == "workbenches" {
-		return answerWorkbenches(root)
+		return answerWorkbenches(root, args.Arguments)
 	}
 	tool, ok := toolsByName[args.Name]
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownVerb, args.Name)
 	}
 	request := request2Args(tool.command, args.Arguments)
+	// A root argument makes this a root-scoped read, which answers about every
+	// workbench beneath a directory rather than about one. It is checked ahead
+	// of resolveLibrary because no single workbench is being resolved: the walk
+	// opens each one it finds, and the containment check that would have run on
+	// a workbench argument runs on the root instead.
+	if builder, scoped := rootScoped[args.Name]; scoped {
+		if strings.TrimSpace(request.Root) != "" {
+			return answerForest(root, args.Name, defaultLib, request, builder)
+		}
+		// A depth bound with no root to bound would be read and dropped, which
+		// the terminal refuses. The two heads answer one question, so a caller
+		// who names one here is told the same thing.
+		if strings.TrimSpace(request.MaxDepth) != "" {
+			return answerRefusal(request, contract.Refuse(contract.DepthWithoutRoot, request.MaxDepth)), nil
+		}
+	}
 	candidate, _ := args.Arguments["workbench"].(string)
 	library, refusal := resolveLibrary(root, defaultLib, libraries, request, candidate)
 	if refusal != nil {
@@ -276,20 +299,205 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 	return result, nil
 }
 
-// answerWorkbenches serves the workbenches tool: bench.Enumerate walks the
-// root, the rows are sorted by path, and the answer carries the same shape
-// every tool's payload carries. Enumerate refuses with NoWorkbenchFound when
-// its cache lookup fails, which is what an MCP caller would otherwise see as
-// a transport error; translating here keeps the refusal on the response side.
-func answerWorkbenches(root string) (map[string]any, error) {
-	listed, err := bench.Enumerate(root)
+// rootScoped names every tool whose read grows a root argument, mapped to the
+// builder that answers it for every workbench beneath that root.
+//
+// It is a table rather than a switch because the question each entry answers is
+// the same question ("does this call carry a root") and the containment
+// discipline around it is identical; only the builder differs. A tool absent
+// from this table has no root-scoped form, and a root argument sent to one is
+// not advertised by its schema and never reaches here.
+var rootScoped = map[string]func(root, home string, req *verb.Request) (any, error){
+	"tree": func(root, home string, req *verb.Request) (any, error) {
+		level := req.Depth
+		if level == "" {
+			level = verb.LevelCards
+		}
+		return verb.TreeForest(root, home, req, verb.ParseChain(req.GroupBy), level, walkDepth(req))
+	},
+	"status": func(root, home string, req *verb.Request) (any, error) {
+		return verb.StatusForest(root, home, req, walkDepth(req))
+	},
+	"list_cards": func(root, home string, req *verb.Request) (any, error) {
+		return verb.ListForest(root, home, req, walkDepth(req))
+	},
+	"next_card": func(root, home string, req *verb.Request) (any, error) {
+		return verb.NextForest(root, home, req, walkDepth(req))
+	},
+	"changes": func(root, home string, req *verb.Request) (any, error) {
+		return verb.ChangesForest(root, home, req, walkDepth(req))
+	},
+}
+
+// forestMember is the payload key each root-scoped answer is published under.
+// One distinct key per verb, so a client dispatching on the response shape
+// never has to guess which root-scoped answer the envelope carried.
+var forestMember = map[string]string{
+	"tree":       "forest",
+	"status":     "root_status",
+	"list_cards": "root_listing",
+	"next_card":  "root_offers",
+	"changes":    "root_changes",
+}
+
+// walkDepth reads the depth bound off a request, falling back to the surface's
+// own default when the caller named none. A value that is not a count of rungs
+// is refused rather than silently defaulted, which is what keeps a caller who
+// mistyped it from being told they got what they asked for.
+func walkDepth(req *verb.Request) int {
+	depth, _ := parseWalkDepth(req.MaxDepth)
+	return depth
+}
+
+// parseWalkDepth returns the depth bound a request names and the refusal a
+// malformed one earns. The two are split from walkDepth so the dispatch can
+// refuse before any walk begins while the builders take a plain int.
+func parseWalkDepth(named string) (int, *contract.Refusal) {
+	trimmed := strings.TrimSpace(named)
+	if trimmed == "" {
+		return bench.DefaultEnumerateDepth, nil
+	}
+	rungs, err := strconv.Atoi(trimmed)
+	if err != nil || rungs < 0 {
+		return bench.DefaultEnumerateDepth, contract.Refuse(contract.MalformedDepth, named)
+	}
+	return rungs, nil
+}
+
+// answerForest serves one root-scoped read.
+//
+// The root argument walks the server's own address space downward, so it gets
+// the containment check resolveLibrary already applies to the workbench
+// argument: the same bench.PathUnderRoot call, the same contract.OutsideRoot
+// refusal naming the configured root, so an escape is refused by one name
+// wherever a path argument can reach for one.
+//
+// home comes off the default library when there is one and is empty otherwise,
+// which is resolveLibrary's own rule for a server started with no discovery.
+func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Request, build func(root, home string, req *verb.Request) (any, error)) (map[string]any, error) {
+	abs, err := filepath.Abs(strings.TrimSpace(request.Root))
 	if err != nil {
+		return answerRefusal(request, contract.Refuse(contract.UnknownRoot, request.Root)), nil
+	}
+	contained, err := bench.PathUnderRoot(root, abs)
+	if err != nil || !contained {
+		refusal := contract.RefuseWith(contract.OutsideRoot, abs, map[string]string{"root": root})
+		return answerRefusal(request, refusal), nil
+	}
+	if _, refusal := parseWalkDepth(request.MaxDepth); refusal != nil {
+		return answerRefusal(request, refusal), nil
+	}
+	var home string
+	if defaultLib != nil {
+		home = defaultLib.Home
+	}
+	answer, err := build(abs, home, request)
+	if err != nil {
+		if refusal, ok := err.(*contract.Refusal); ok {
+			return answerRefusal(request, refusal), nil
+		}
 		return nil, err
 	}
+	member, named := forestMember[tool]
+	if !named {
+		// A tool in the dispatch table and not in the member table would
+		// publish its answer under the empty key, which is a shape no client
+		// can dispatch on and which reads as a missing answer rather than as a
+		// misnamed one. The two tables are paired by a test; this is what the
+		// call does if that pairing is ever broken at run time.
+		return nil, contract.Refuse(contract.UnknownVerb, tool)
+	}
+	payload := wrap(map[string]any{member: answer}, readAffordances)
+	return textResult(payload)
+}
+
+// answerWorkbenches serves the workbenches tool.
+//
+// With no path argument it keeps its existing contract exactly, down to how
+// its refusals travel: bench.Enumerate walks the server's own configured root
+// and whatever comes back reaches the caller as it did before this argument
+// existed. An unbounded server has no directory to search, and the refusal
+// that says so is a transport error rather than a payload, which is dinah-307's
+// contract and is not this card's to change.
+//
+// With a non-empty path argument it switches to the same downward walk
+// dinah workbenches <path> runs at a terminal: the path is resolved and checked
+// against the root with bench.PathUnderRoot, refusing contract.OutsideRoot on
+// escape, and bench.EnumerateDeep replaces bench.Enumerate. Those refusals are
+// about an argument the caller sent, so they travel on the response the way
+// every other argument-level refusal on this surface does, which is what
+// resolveLibrary already does for a workbench argument that escapes the root.
+func answerWorkbenches(root string, arguments map[string]any) (map[string]any, error) {
+	named, _ := arguments["path"].(string)
+	named = strings.TrimSpace(named)
+	depth, _ := arguments["max-depth"].(string)
+	if named == "" {
+		// A depth bound with no path to bound would be read and dropped, and
+		// the terminal refuses that rather than accepting an argument that
+		// changes nothing. The two heads answer one question, so this one
+		// refuses it too, and it is an argument-level refusal like the rest.
+		if strings.TrimSpace(depth) != "" {
+			return workbenchesRefusal(contract.Refuse(contract.DepthWithoutRoot, depth)), nil
+		}
+		listed, err := bench.Enumerate(root)
+		if err != nil {
+			return nil, err
+		}
+		return workbenchesPayload(listed)
+	}
+	listed, refusal := walkFromPath(root, named, depth)
+	if refusal != nil {
+		return workbenchesRefusal(refusal), nil
+	}
+	return workbenchesPayload(listed)
+}
+
+// walkFromPath runs the downward walk a path argument asks for, after the two
+// checks that argument has to pass: it resolves to somewhere, and that
+// somewhere lies under the root the server was started with.
+func walkFromPath(root, named, depth string) ([]bench.Candidate, *contract.Refusal) {
+	abs, err := filepath.Abs(named)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownRoot, named)
+	}
+	contained, err := bench.PathUnderRoot(root, abs)
+	if err != nil || !contained {
+		return nil, contract.RefuseWith(contract.OutsideRoot, abs, map[string]string{"root": root})
+	}
+	rungs, refusal := parseWalkDepth(depth)
+	if refusal != nil {
+		return nil, refusal
+	}
+	walked, err := bench.EnumerateDeep(abs, rungs)
+	if err != nil {
+		if walkRefusal, ok := err.(*contract.Refusal); ok {
+			return nil, walkRefusal
+		}
+		return nil, contract.Refuse(contract.UnknownRoot, abs)
+	}
+	return walked, nil
+}
+
+// workbenchesRefusal puts one argument-level refusal on the response, which is
+// where this surface carries a refusal the caller can correct by sending
+// different arguments.
+func workbenchesRefusal(refusal *contract.Refusal) map[string]any {
+	return answerRefusal(&verb.Request{Verb: "workbenches"}, refusal)
+}
+
+// workbenchesPayload renders a listing, sorted by path so the two modes and
+// the two heads hand back one order.
+func workbenchesPayload(listed []bench.Candidate) (map[string]any, error) {
 	sort.SliceStable(listed, func(i, j int) bool {
 		return listed[i].Path < listed[j].Path
 	})
-	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "states", "list_cards", "next_card", "workbenches"})
+	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
+	return textResult(payload)
+}
+
+// textResult puts one payload into the shape every tool call answers with,
+// which is a single text content block carrying the payload as indented JSON.
+func textResult(payload map[string]any) (map[string]any, error) {
 	encoded, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, err
@@ -433,8 +641,8 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Card = value
 	case "ref":
 		req.Ref = value
-	case "state":
-		req.State = value
+	case "column":
+		req.Column = value
 	case "since":
 		req.Since = value
 	case "query":
@@ -443,6 +651,10 @@ func assignValue(req *verb.Request, name, value string) {
 		req.GroupBy = value
 	case "depth":
 		req.Depth = value
+	case "root":
+		req.Root = value
+	case "max-depth":
+		req.MaxDepth = value
 	case "action":
 		req.Action = value
 	case "field":
@@ -450,6 +662,8 @@ func assignValue(req *verb.Request, name, value string) {
 	case "workstream":
 		req.Workstream = value
 	case "value":
+		req.Value = value
+	case "name":
 		req.Value = value
 	case "severity":
 		req.Severity = value
@@ -489,8 +703,10 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateOrdinals = value
 	case "migrate-slugs":
 		req.MigrateSlugs = value
-	case "migrate-states":
-		req.MigrateStates = value
+	case "migrate-columns":
+		req.MigrateColumns = value
+	case "migrate-vocabulary":
+		req.MigrateVocabulary = value
 	case "migrate-workstreams":
 		req.MigrateWorkstreams = value
 	case "no-claim":

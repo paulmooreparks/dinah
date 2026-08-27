@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -22,6 +24,15 @@ import (
 // looks a command up, and a declaration that reached its own lookup would be
 // an initialisation cycle.
 var commands []*command
+
+// commandExemptions names every library command this head deliberately does
+// not dispatch, with the reason it is absent. It is empty because the terminal
+// serves the whole verb table today, and it exists anyway so that a future
+// omission has somewhere to be argued for: the roster check requires every
+// command to be either dispatched here or named here with a reason, and an
+// empty map is the strongest reading of that rule rather than the absence of
+// one.
+var commandExemptions = map[string]string{}
 
 func init() {
 	commands = []*command{
@@ -49,7 +60,7 @@ func init() {
 		{name: "card", group: groupWork, run: runCard, openTail: true},
 
 		{name: "status", group: groupRead, run: runStatus},
-		{name: "states", group: groupRead, run: runStates},
+		{name: "columns", group: groupRead, run: runColumns},
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
@@ -83,7 +94,10 @@ func init() {
 		// so it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkstream).
 		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true},
-		{name: "workbenches", group: groupBench, run: runWorkbenches},
+		// workbenches takes one positional, which is the directory to walk
+		// downward from. Without it the command keeps answering what is
+		// reachable from here, which is the upward search it has always run.
+		{name: "workbenches", group: groupBench, run: runWorkbenches, bounded: 1},
 		{name: "version", group: groupBench, run: runVersion},
 
 		{name: "mcp", group: groupServe, run: runMCP},
@@ -96,19 +110,20 @@ func init() {
 // resolved actor and whatever flags the command reads.
 func (s *session) request(name string, parsed *arguments) *verb.Request {
 	req := &verb.Request{
-		Verb:            name,
-		Actor:           s.actor,
-		State:           parsed.value("state"),
-		Kind:            parsed.value("kind"),
-		Description:     parsed.value("description"),
-		Override:        parsed.has("override"),
-		Replace:         parsed.has("replace"),
-		Confirm:         parsed.has("yes"),
-		ReadyOnly:       parsed.has("ready"),
-		Finish:          parsed.has("finish"),
-		MigrateOrdinals: parsed.has("migrate-ordinals"),
-		MigrateSlugs:    parsed.has("migrate-slugs"),
-		MigrateStates:   parsed.has("migrate-states"),
+		Verb:              name,
+		Actor:             s.actor,
+		Column:            parsed.value("column"),
+		Kind:              parsed.value("kind"),
+		Description:       parsed.value("description"),
+		Override:          parsed.has("override"),
+		Replace:           parsed.has("replace"),
+		Confirm:           parsed.has("yes"),
+		ReadyOnly:         parsed.has("ready"),
+		Finish:            parsed.has("finish"),
+		MigrateOrdinals:   parsed.has("migrate-ordinals"),
+		MigrateSlugs:      parsed.has("migrate-slugs"),
+		MigrateColumns:    parsed.has("migrate-columns"),
+		MigrateVocabulary: parsed.has("migrate-vocabulary"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		NoClaim:            parsed.has("no-claim"),
@@ -131,13 +146,13 @@ func runClaim(s *session, parsed *arguments) int {
 	})
 }
 
-// runMove carries a card to another state.
+// runMove carries a card to another column.
 func runMove(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Move, parsed)
 	req.Card = at(words, 0)
-	if req.State == "" {
-		req.State = at(words, 1)
+	if req.Column == "" {
+		req.Column = at(words, 1)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
@@ -293,7 +308,7 @@ func runComment(s *session, parsed *arguments) int {
 	})
 }
 
-// runAttach records a file against the bench, a state, a card or a comment.
+// runAttach records a file against the bench, a column, a card or a comment.
 func runAttach(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("attach", parsed)
@@ -340,67 +355,94 @@ func runRename(s *session, parsed *arguments) int {
 // runStatus reports where the bench stands and what the reader holds.
 func runStatus(s *session, parsed *arguments) int {
 	req := s.request("status", parsed)
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootStatus, error) { return verb.StatusForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootStatus)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		req.WorkbenchSource = s.workbenchSource
 		status, err := l.Status(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(status)
+		if s.format != formatHuman {
+			return s.emitMachine(status)
 		}
 		s.renderStatus(status)
 		return 0
 	})
 }
 
-// runStates reports the flow in order.
-func runStates(s *session, parsed *arguments) int {
+// runColumns reports the flow in order.
+func runColumns(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
-		states, err := l.States()
+		columns, err := l.Columns()
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(states)
+		if s.format != formatHuman {
+			return s.emitMachine(columns)
 		}
-		s.renderStates(states)
+		s.renderColumns(columns)
 		return 0
 	})
 }
 
-// runList presents a state's cards in queue order.
+// runList presents a column's cards in queue order.
 func runList(s *session, parsed *arguments) int {
 	req := s.request("ls", parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
+	}
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootListing, error) { return verb.ListForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootListing)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		listing, err := l.List(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(listing)
+		if s.format != formatHuman {
+			return s.emitMachine(listing)
 		}
 		s.renderListing(listing)
 		return 0
 	})
 }
 
-// runNext reports the card each state offers next, and changes nothing.
+// runNext reports the card each column offers next, and changes nothing.
 func runNext(s *session, parsed *arguments) int {
 	req := s.request("next", parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
+	}
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootOffers, error) { return verb.NextForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootOffers)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		offers, err := l.Next(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(offers)
+		if s.format != formatHuman {
+			return s.emitMachine(offers)
 		}
 		s.renderOffers(offers)
 		return 0
@@ -409,12 +451,12 @@ func runNext(s *session, parsed *arguments) int {
 
 // runPull picks the destination, claims a card from its upstream, and moves
 // it there in one transaction. The named form names the destination; the bare
-// form chooses the one state that qualifies and refuses when more than one
+// form chooses the one column that qualifies and refuses when more than one
 // does. --no-claim weakens what pull writes, not what pull allows.
 func runPull(s *session, parsed *arguments) int {
 	req := s.request(verb.Pull, parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	expires, err := verb.ParseDuration(parsed.value("expires"))
 	if err != nil {
@@ -443,8 +485,8 @@ func runQuery(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(matches)
+		if s.format != formatHuman {
+			return s.emitMachine(matches)
 		}
 		s.renderMatches(matches)
 		return 0
@@ -465,13 +507,24 @@ func runTree(s *session, parsed *arguments) int {
 	req.Query = text
 	chain := verb.ParseChain(parsed.value("group-by"))
 	level := depthOr(parsed, verb.LevelCards)
+	walk, scopeRefusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if scopeRefusal != nil {
+		return s.reportError(scopeRefusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.Forest, error) {
+				return verb.TreeForest(walk.Root, s.home, req, chain, level, walk.Depth)
+			},
+			s.renderForest)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		tree, err := l.Tree(req, chain, level)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(tree)
+		if s.format != formatHuman {
+			return s.emitMachine(tree)
 		}
 		s.renderTree(tree)
 		return 0
@@ -488,8 +541,8 @@ func runContents(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(tree)
+		if s.format != formatHuman {
+			return s.emitMachine(tree)
 		}
 		s.renderTree(tree)
 		return 0
@@ -505,6 +558,83 @@ func depthOr(parsed *arguments, fallback string) string {
 	return fallback
 }
 
+// rootWalk is the downward walk one root-scoped read runs: the directory to
+// walk from, resolved to an absolute path, and how many rungs below it to
+// descend, where zero is unbounded.
+type rootWalk struct {
+	Root  string
+	Depth int
+}
+
+// rootWalkFor reads the scope an invocation named and returns the walk it asks
+// for, or nil when the invocation named no root at all, which is the ordinary
+// single-workbench call every one of these commands still answers.
+//
+// named is where the root arrived, which is --root on the five read verbs and
+// the positional path on workbenches. Everything after that is the same rule
+// wherever it is applied, so it is written once here rather than six times at
+// the call sites: two scopes is a refusal, a depth with nothing to bound is a
+// refusal, a depth that is not a count of rungs is a refusal, and a root is
+// resolved to an absolute path before any walk begins.
+//
+// The conflict check reads s.benchFlag rather than looking at --workbench and
+// DINAH_WORKBENCH separately. That field is already bench.Resolve applied to
+// the flag and the environment variable together, before the session is built,
+// so a caller naming either one shows up here as a non-empty benchFlag and
+// checking both would test one fact twice under two names.
+func (s *session) rootWalkFor(parsed *arguments, named string) (*rootWalk, *contract.Refusal) {
+	depth := parsed.value("max-depth")
+	if named == "" {
+		if depth != "" {
+			return nil, contract.Refuse(contract.DepthWithoutRoot, depth)
+		}
+		return nil, nil
+	}
+	if s.benchFlag != "" {
+		return nil, contract.RefuseWith(contract.ConflictingScope, named, map[string]string{
+			"workbench": s.benchFlag,
+		})
+	}
+	rungs := bench.DefaultEnumerateDepth
+	if depth != "" {
+		parsedDepth, err := strconv.Atoi(strings.TrimSpace(depth))
+		if err != nil || parsedDepth < 0 {
+			return nil, contract.Refuse(contract.MalformedDepth, depth)
+		}
+		rungs = parsedDepth
+	}
+	abs, err := filepath.Abs(named)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownRoot, named)
+	}
+	return &rootWalk{Root: abs, Depth: rungs}, nil
+}
+
+// emitForest runs one root-scoped read and writes its answer in whichever form
+// the invocation asked for. The output forms and the refusal handling are one
+// rule over all five verbs, so they are written once; each command supplies
+// only the builder that asks its own question and the renderer that draws the
+// answer that comes back.
+//
+// The machine branch goes through emitMachine, which serves the compact
+// projection where compactEncode defines one for the value's own type and the
+// canonical JSON everywhere else. No root-scoped answer has a compact
+// rendering, so --format compact on a root-scoped read answers canonical JSON
+// today. That is the documented per-type fallback rather than a gap here, and
+// a card giving these five shapes a compact rendering adds a case there and
+// changes nothing in this function.
+func emitForest[T any](s *session, build func() (*T, error), render func(*T)) int {
+	answer, err := build()
+	if err != nil {
+		return s.reportError(err)
+	}
+	if s.format != formatHuman {
+		return s.emitMachine(answer)
+	}
+	render(answer)
+	return 0
+}
+
 // runShow reads a card, or anything below it.
 //
 // A bare invocation where several workbenches are reachable lists them instead
@@ -518,7 +648,7 @@ func runShow(s *session, parsed *arguments) int {
 	req.Card = at(parsed.rest(), 0)
 	if req.Card == "" {
 		if rows, ok := s.ambiguousWorkbenches(); ok {
-			return s.emitWorkbenches(rows)
+			return s.emitWorkbenches(rows, "")
 		}
 	}
 	return s.withBench(func(l *verb.Library) int {
@@ -530,8 +660,8 @@ func runShow(s *session, parsed *arguments) int {
 			s.write(text)
 			return 0
 		}
-		if s.json {
-			return s.emitJSON(detail)
+		if s.format != formatHuman {
+			return s.emitMachine(detail)
 		}
 		s.renderDetail(detail)
 		return 0
@@ -547,8 +677,8 @@ func runLog(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(events)
+		if s.format != formatHuman {
+			return s.emitMachine(events)
 		}
 		s.renderHistory(events)
 		return 0
@@ -563,13 +693,22 @@ func runChanges(s *session, parsed *arguments) int {
 	req := s.request("changes", parsed)
 	req.Since = parsed.value("since")
 	req.Card = parsed.value("card")
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootChangeSet, error) { return verb.ChangesForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootChanges)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		set, err := l.Changes(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(set)
+		if s.format != formatHuman {
+			return s.emitMachine(set)
 		}
 		s.renderChanges(set)
 		return 0
@@ -585,8 +724,8 @@ func runInstructions(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(served)
+		if s.format != formatHuman {
+			return s.emitMachine(served)
 		}
 		s.renderInstructions(&served.Instructions, served.LegalMoves)
 		return 0
@@ -664,13 +803,13 @@ func runInit(s *session, parsed *arguments) int {
 // names the card reference on only the one shape that reads as one.
 //
 // The distinction is what keeps the spliced clause honest. ValidSlug is
-// ValidStateSlug and a final segment carrying a letter, so a slug the state
+// ValidColumnSlug and a final segment carrying a letter, so a slug the column
 // grammar accepts and this one refuses is exactly a slug ending in a dash and
 // digits alone. A slug refused for any other reason gets the bare sentence,
 // since the clause would otherwise tell a reader that "My Project" is a card
 // reference.
 func malformedSlug(slug string) error {
-	if bench.ValidStateSlug(slug) {
+	if bench.ValidColumnSlug(slug) {
 		return contract.RefuseWith(contract.Malformed, "slug", map[string]string{"cardRef": slug})
 	}
 	return contract.Refuse(contract.Malformed, "slug")
@@ -773,7 +912,7 @@ func onPath(name string) bool {
 
 // runConfig lists the user's own settings, or reads or writes one of them.
 //
-// The bare invocation lists, the way `states` and `whoami` report everything
+// The bare invocation lists, the way `columns` and `whoami` report everything
 // with no argument. The listing resolves each setting through its own ladder,
 // so it answers a question `get` cannot: a key nobody ever set and a key set
 // to the value the default carries read alike through the stored value alone.
@@ -804,8 +943,8 @@ func runConfig(s *session, parsed *arguments) int {
 			Home:          s.home,
 			NativeHome:    s.nativeHome,
 		})
-		if s.json {
-			return s.emitJSON(settings)
+		if s.format != formatHuman {
+			return s.emitMachine(settings)
 		}
 		s.renderSettings(settings)
 		return 0
@@ -840,19 +979,30 @@ func runConfig(s *session, parsed *arguments) int {
 }
 
 // runCheck checks the bench for structural defects.
+//
+// The vocabulary migration is answered before the workbench is opened, which
+// no other migration marker needs. Every one of its siblings repairs an
+// additive gap in a workbench this build can already read; this one repairs
+// the key names the reader itself is looking for, so the ordinary open would
+// refuse the very workbench the migration exists to carry forward. It also
+// walks a tree rather than acting on one bench, since the boards it was asked
+// for sit spread across directories nobody wants to visit one at a time.
 func runCheck(s *session, parsed *arguments) int {
+	if parsed.has("migrate-vocabulary") {
+		return runMigrateVocabulary(s, parsed.has("yes"))
+	}
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
+		if s.format != formatHuman {
 			code := 0
 			if len(report.Findings) > 0 {
 				code = contract.ExitCode(contract.OutcomeRefused)
 			}
-			s.emitJSON(report)
+			s.emitMachine(report)
 			return code
 		}
 		return s.renderCheck(report)
@@ -867,8 +1017,8 @@ func runWhoami(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(identity)
+		if s.format != formatHuman {
+			return s.emitMachine(identity)
 		}
 		s.renderIdentity(identity)
 		return 0
@@ -944,25 +1094,45 @@ func (s *session) emitWorkbenchFields(l *verb.Library, req *verb.Request) int {
 	if err != nil {
 		return s.reportError(err)
 	}
-	if s.json {
-		return s.emitJSON(fields)
+	if s.format != formatHuman {
+		return s.emitMachine(fields)
 	}
 	s.renderWorkbenchFields(fields)
 	return 0
 }
 
-// runWorkbenches lists the workbenches reachable from here.
+// runWorkbenches answers where the workbenches are, in either of the two
+// directions that question has.
 //
-// It opens nothing and it never refuses over what the search found, because a
-// question about what is reachable is answered by zero rows as truthfully as
-// by several. A --workbench naming a directory that holds no workbench is
-// the one refusal left, and it belongs to the caller's argument.
+// With no positional it lists what is reachable from here, which is the upward
+// search it has always run: it opens nothing and never refuses over what the
+// search found, because a question about what is reachable is answered by zero
+// rows as truthfully as by several. A --workbench naming a directory that holds
+// no workbench is the one refusal that path has, and it belongs to the caller's
+// argument.
+//
+// With a positional it walks downward from that directory instead, listing
+// every workbench beneath it. The two are different questions rather than two
+// spellings of one, which is why the path is a positional and not a value for
+// --workbench: that flag names a workbench to act on, and naming both is a
+// refusal rather than a preference.
 func runWorkbenches(s *session, parsed *arguments) int {
+	walk, refusal := s.rootWalkFor(parsed, at(parsed.rest(), 0))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		rows, err := bench.EnumerateDeep(walk.Root, walk.Depth)
+		if err != nil {
+			return s.reportError(err)
+		}
+		return s.emitWorkbenches(rows, walk.Root)
+	}
 	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
 	if err != nil {
 		return s.reportError(err)
 	}
-	return s.emitWorkbenches(rows)
+	return s.emitWorkbenches(rows, "")
 }
 
 // ambiguousWorkbenches reports the reachable workbenches when there is a
@@ -978,42 +1148,63 @@ func (s *session) ambiguousWorkbenches() ([]bench.Candidate, bool) {
 }
 
 // emitWorkbenches writes a listing in whichever form the invocation asked for.
-func (s *session) emitWorkbenches(rows []bench.Candidate) int {
-	if s.json {
-		return s.emitJSON(rows)
+//
+// root is the directory a downward walk was asked about, empty on the upward
+// search, and it selects the sentence an empty listing gets: a walk that found
+// nothing names the directory it walked, where the search names here.
+func (s *session) emitWorkbenches(rows []bench.Candidate, root string) int {
+	if s.format != formatHuman {
+		return s.emitMachine(rows)
 	}
-	s.renderWorkbenches(rows)
+	s.renderWorkbenches(rows, root)
 	return 0
 }
 
 // runVersion reports what this binary is and what it conforms to.
 func runVersion(s *session, parsed *arguments) int {
 	release := verb.Version(parsed.has("catalogs"))
-	if s.json {
-		return s.emitJSON(release)
+	if s.format != formatHuman {
+		return s.emitMachine(release)
 	}
 	s.renderVersion(release)
 	return 0
 }
 
-// runMCP serves workbenches over MCP on stdio. The four startup cases the
-// spec numbers decide whether the process exits before serving or serves and
-// what default it carries:
+// runMCP serves workbenches over MCP on stdio. Four situations decide
+// whether the process exits before serving, and if it serves, what root and
+// what default library it serves with:
 //
-//  1. A root was named and no directory sits at the resolved path. The process
-//     writes dinah.unknown-root to stderr and exits 2 without serving.
-//  2. Discovery refuses with dinah.no-workbench and an explicit pointer
-//     (--workbench or DINAH_WORKBENCH) named the workbench. The process
-//     writes the refusal name to stderr and exits 2.
-//  3. Discovery resolved a workbench that lies outside the root and the
-//     pointer was explicit. The process writes dinah.outside-root to stderr
-//     and exits 2.
-//  4. Everything else, including the case where discovery resolved a
-//     workbench outside the root through the ancestor walk or the user
-//     config. The process serves with no default workbench, writes one line
-//     to stderr from mcp.no-default naming what was dropped when something
-//     was dropped, and answers every unqualified call with
-//     dinah.no-workbench-found.
+//  1. A root was named (--root or DINAH_MCP_ROOT) and no directory sits at
+//     the resolved path. The process writes dinah.unknown-root to stderr and
+//     exits 2 without serving.
+//  2. An explicit pointer (--workbench or DINAH_WORKBENCH) failed to open.
+//     The process writes dinah.no-workbench to stderr and exits 2.
+//  3. A root was named, an explicit pointer resolved, and the resolved
+//     workbench lies outside that root. The process writes dinah.outside-root
+//     to stderr and exits 2.
+//  4. Nothing above refused. The process serves. Its root is whatever
+//     --root or DINAH_MCP_ROOT gave, or "" (unbounded) when neither did;
+//     unlike before dinah-307, discovering a workbench with no root no
+//     longer narrows the root to that workbench's directory. A caller
+//     naming a workbench per call is checked against the root through
+//     bench.PathUnderRoot, and an unbounded root admits any candidate that
+//     resolves and opens.
+//
+// The default library the fourth situation serves with is settled three
+// ways. It is nil when discovery found nothing at all, meaning no explicit
+// pointer and neither the ancestor walk nor the user config resolved a
+// workbench; every unqualified call then refuses dinah.no-workbench-found,
+// and so does the workbenches tool itself, since bench.Enumerate("") never
+// has a filesystem to search. It is nil again when discovery found something
+// through the ancestor walk or the user config that lies outside an
+// explicitly given root, in which case the process writes one line to stderr
+// from mcp.no-default naming what was dropped and stays bounded by the given
+// root. Otherwise it is the discovered workbench, whether discovery was
+// explicit, the ancestor walk, or the user config, and whether or not a root
+// was given. When no root was given, that default answers every unqualified
+// call, but the server is not otherwise bounded to it: a call naming a
+// different, resolvable workbench is admitted rather than refused
+// outside-root (dinah-307).
 //
 // The root is resolved through the same ladder --workbench and DINAH_WORKBENCH
 // already climb, so the precedence is the board's own rather than one mcp
@@ -1039,14 +1230,19 @@ func runMCP(s *session, parsed *arguments) int {
 
 	explicit := s.benchFlag != ""
 	library, openErr := s.open()
+	noWorkbench := refusalNamed(openErr, contract.NoWorkbench)
 	switch {
-	case openErr != nil && isRefusalNamed(openErr, contract.NoWorkbench) && explicit:
-		s.errLine(openErr.Error())
+	case noWorkbench != nil && explicit:
+		// The refusal name and its detail are joined by a space, the way the
+		// unknown-root and outside-root lines below are joined and the way
+		// composeRefusal joins a name to its sentence. Refusal.Error puts a
+		// colon after the name instead, and a caller that splits this line on
+		// whitespace and takes the first field would read that colon as part
+		// of the name, so it would match two of the three refusals mcp can
+		// raise before it serves and miss the third.
+		s.errLine(contract.NoWorkbench + " " + noWorkbench.Detail)
 		return contract.ExitCode(contract.OutcomeRefused)
 	case openErr != nil:
-		if root == "" {
-			return s.reportError(openErr)
-		}
 		libraries := map[string]*verb.Library{}
 		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out); err != nil {
 			return s.reportError(err)
@@ -1063,10 +1259,6 @@ func runMCP(s *session, parsed *arguments) int {
 			s.errLine(s.r.T("mcp.no-default", "detail", abs))
 			library = nil
 		}
-	case library != nil && root == "":
-		abs, _ := filepath.Abs(library.Bench.Root)
-		root = abs
-		s.mcpRoot = root
 	}
 	libraries := map[string]*verb.Library{}
 	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out); err != nil {
@@ -1078,13 +1270,17 @@ func runMCP(s *session, parsed *arguments) int {
 // serveMCPLoop's body is inlined inside runMCP, since the guard against hand-
 // laid rows only exempts runMCP from naming the stream.
 
-// isRefusalNamed reports whether err is a contract.Refusal with the given
-// name. It is the one check the startup path runs without dereferencing the
-// typed value, because FromError and Report already wrap the error and the
-// call site has no library to hand to them.
-func isRefusalNamed(err error, name string) bool {
+// refusalNamed returns the refusal err carries when err is a contract.Refusal
+// with the given name, and nil in every other case. The startup path reads the
+// typed value directly because FromError and Report already wrap the error and
+// the call site has no library to hand to them, and because it renders the
+// refusal's name and its detail into separate fields of the stderr line.
+func refusalNamed(err error, name string) *contract.Refusal {
 	refusal, ok := err.(*contract.Refusal)
-	return ok && refusal.Name == name
+	if !ok || refusal.Name != name {
+		return nil
+	}
+	return refusal
 }
 
 // runHelp prints one command's arguments, refusals and exit codes. It is the
@@ -1169,8 +1365,8 @@ func runWorkstream(s *session, parsed *arguments) int {
 			if err != nil {
 				return s.reportError(err)
 			}
-			if s.json {
-				return s.emitJSON(listing)
+			if s.format != formatHuman {
+				return s.emitMachine(listing)
 			}
 			s.renderWorkstreams(listing)
 			return 0
@@ -1216,8 +1412,8 @@ func (s *session) runWorkstreamGet(parsed *arguments, words []string) int {
 			s.line(detail.Workstream.Field(field))
 			return 0
 		}
-		if s.json {
-			return s.emitJSON(detail)
+		if s.format != formatHuman {
+			return s.emitMachine(detail)
 		}
 		s.renderWorkstreamDetail(detail)
 		return 0
@@ -1251,14 +1447,60 @@ func (s *session) runWorkstreamSet(parsed *arguments, words []string) int {
 func (s *session) emitWorkstream(response *verb.Response) int {
 	if response.Outcome != contract.OutcomeOK {
 		s.reportOutcome(response)
-		if s.json {
-			s.emitJSON(response)
+		if s.format != formatHuman {
+			s.emitMachine(response)
 		}
 		return contract.ExitCode(response.Outcome)
 	}
-	if s.json {
-		return s.emitJSON(response)
+	if s.format != formatHuman {
+		return s.emitMachine(response)
 	}
 	s.renderWorkstreamLine(response.Workstream)
 	return 0
+}
+
+// runMigrateVocabulary carries every workbench at or beneath a root across the
+// vocabulary rename.
+//
+// The root is a directory rather than a workbench, and it is not resolved by
+// the ordinary discovery climb. Every other command asks which workbench it is
+// standing in and climbs until it finds one; this one asks which directory to
+// walk down from, and the two questions have different answers wherever a
+// person keeps several workbenches side by side. Climbing first would resolve
+// the root to one workbench and then walk beneath that, which finds none of
+// its siblings, and that is the case this command exists for: the boards it
+// was asked for sit spread across customer directories. So --workbench names
+// the root when it is given, and the current directory is the root when it is
+// not, and a root that is itself a workbench is found by the walk rather than
+// by the climb.
+//
+// That reach is also why the rewrite waits for --yes. The root is wherever the
+// operator happens to be standing, the walk descends the whole way, and the
+// rewrite it performs is irreversible, so a bare run reports what it would
+// carry forward and writes nothing. The flag is the one this command's
+// siblings already use for a deliberate act, so the preview costs no new
+// vocabulary.
+func runMigrateVocabulary(s *session, confirmed bool) int {
+	root := s.cwd
+	if s.benchFlag != "" {
+		root = s.benchFlag
+	}
+	resolved, err := filepath.Abs(root)
+	if err != nil {
+		return s.reportError(err)
+	}
+	report, err := verb.MigrateVocabularyTree(resolved, confirmed)
+	if err != nil {
+		return s.reportError(err)
+	}
+	code := 0
+	if !report.Clean() {
+		code = contract.ExitCode(contract.OutcomeRefused)
+	}
+	if s.format != formatHuman {
+		s.emitMachine(report)
+		return code
+	}
+	s.renderVocabulary(report)
+	return code
 }

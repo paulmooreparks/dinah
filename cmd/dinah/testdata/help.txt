@@ -3,12 +3,12 @@ Dinah keeps work moving.
 Usage: dinah <command> [arguments]
 
 WORK
-  add <title> [--state <state>]             File a new card in the first state
+  add <title> [--column <column>]           File a new card in the first column
     [--severity <level>]
     [--priority <level>]
   claim <card> [--expires <duration>]       Take up a ready card
-  move <card> <state> [--override]          Carry a card to another state
-  pull [state] [--no-claim]                 Claim the head of a state's queue
+  move <card> <column> [--override]         Carry a card to another column
+  pull [column] [--no-claim]                Claim the head of a column's queue
     [--expires <duration>] [--override]       and move it there in one act
   release <card>                            Give the card back to its queue
   block <card> <reason> [--kind <kind>]     Raise an obstacle and free the card
@@ -18,33 +18,37 @@ WORK
     [--description <text>] [--replace]
   join <card> <workstream>                  Add a card to a workstream
   leave <card> <workstream>                 Take a card out of a workstream
-  archive <ref>                             Move a card, a state, or anything
+  archive <ref>                             Move a card, a column, or anything
                                               below a card, out of the live set
-  delete <ref> --yes                        Destroy a card, a state, or anything
-                                              below a card, along with its
-                                              history
+  delete <ref> --yes                        Destroy a card, a column, or
+                                              anything below a card, along with
+                                              its history
   rename <ref> <name>                       Rename an attachment
   card <get|set> <card> <field> [value]     Read one of a card's own fields, or
                                               write one
 
 READ
-  status                                    Where this workbench stands, and
+  status [--root <path>] [--max-depth <n>]  Where this workbench stands, and
                                               what you hold
-  states                                    The flow, in order
-  ls [state] [--ready]                      The cards of a state, in queue order
-  next [state]                              The card a state offers next
+  columns                                   The flow, in order
+  ls [column] [--ready] [--root <path>]     The cards of a column, in queue
+    [--max-depth <n>]                         order
+  next [column] [--root <path>]             The card a column offers next
+    [--max-depth <n>]
   query [query]                             The cards of the workbench that
                                               match a query
   tree [query] [--group-by <axes>]          The workbench's cards nested along a
-    [--depth <level>]                         chain of axes
+    [--depth <level>] [--root <path>]         chain of axes
+    [--max-depth <n>]
   contents <ref> [--depth <level>]          What an entity of the workbench
                                               contains
   show <ref>                                A card, or anything below it
   log <card>                                The recorded actions of a card,
                                               oldest first
   changes [--since <cursor>]                What has happened on this workbench
-    [--card <ref>] [--state <state>]          since a cursor
-  instructions <card|state>                 The instructions served at a
+    [--card <ref>] [--column <column>]        since a cursor
+    [--root <path>] [--max-depth <n>]
+  instructions <card|column>                The instructions served at a
                                               position
   guide [topic]                             The embedded guides, or one of them
 
@@ -64,8 +68,9 @@ WORKBENCH
   config [get|set] [key] [value]            List your user settings, or read or
                                               write one
   check [--finish] [--migrate-ordinals]     Look for structural defects in this
-    [--migrate-slugs] [--migrate-states]      workbench
-    [--migrate-workstreams]
+    [--migrate-slugs] [--migrate-columns]     workbench
+    [--migrate-vocabulary]
+    [--migrate-workstreams] [--yes]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator
   workbench [get|set] [field] [value]       Read this workbench's own fields, or
@@ -73,7 +78,8 @@ WORKBENCH
   workstream [new|get|set]                  Read this workbench's workstreams,
     [workstream|title] [field] [value]        create one, or write one's fields
     [--yes]
-  workbenches                               The workbenches reachable from here
+  workbenches [path] [--max-depth <n>]      The workbenches beneath a directory,
+                                              or the ones reachable from here
   version [--catalogs]                      What Dinah is and what it conforms
                                               to
 
@@ -85,13 +91,14 @@ Global flags:
   -----------------  -----------------------------------------------------------
   --workbench <dir>  Use this workbench instead of the one discovered from here
   --json             Emit the canonical machine form
+  --format <name>    Select json or compact for the machine form
   --quiet            Suppress served instructions on claim and move
   --lang <tag>       Render in this language; run `dinah version --catalogs` for the tags
   --actor <name>     Act as this owner
   --help, -h, -?     Print this help, or one command's page when a command is named
   --version, -V      Print the version and stop
 
-Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
+Environment: DINAH_WORKBENCH, DINAH_HOME, DINAH_FORMAT=json|compact, DINAH_LANG, DINAH_ACTOR, DINAH_EDITOR, DINAH_MCP_ROOT, VISUAL, EDITOR
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 

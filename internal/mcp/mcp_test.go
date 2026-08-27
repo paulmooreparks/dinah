@@ -2,24 +2,27 @@ package mcp
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
+	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
 
 // definition is the bench this head's tests are served over.
 const definition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Fixture",
   "instructions": "Standing text.\n",
-  "states": [
+  "columns": [
     { "id": "a00000000001", "title": "Intake", "kind": "intake", "instructions": "Intake text.\n" },
     { "id": "a00000000002", "title": "Doing", "kind": "work", "instructions": "Doing text.\n" }
   ]
@@ -49,12 +52,12 @@ func newLibrary(t *testing.T) *verb.Library {
 		t.Fatalf("add: %s %s", response.Outcome, response.Refusal)
 	}
 	// The card is carried to the doing station, because no owner takes work up
-	// at an intake state and the claims below would be refused there.
-	moved := library.Do(&verb.Request{Verb: verb.Move, Actor: "alka", Card: "fx-1", State: "doing"})
+	// at an intake column and the claims below would be refused there.
+	moved := library.Do(&verb.Request{Verb: verb.Move, Actor: "alka", Card: "fx-1", Column: "doing"})
 	if moved.Outcome != contract.OutcomeOK {
 		t.Fatalf("move: %s %s", moved.Outcome, moved.Refusal)
 	}
-	// A second card stands ready in the intake state, which is what the pull
+	// A second card stands ready in the intake column, which is what the pull
 	// tests take and what leaves the first card claimable where it stands.
 	if response := library.Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A waiting card"}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("add the waiting card: %s %s", response.Outcome, response.Refusal)
@@ -73,8 +76,16 @@ func newLibrary(t *testing.T) *verb.Library {
 // each ask call reuses what an earlier ask opened.
 func ask(t *testing.T, library *verb.Library, line string) *response {
 	t.Helper()
+	return askUnderRoot(t, library.Bench.Root, library, line)
+}
+
+// askUnderRoot is ask for a test that names the root the head is bounded by,
+// rather than taking the workbench's own directory as the root. Both go
+// through one Serve call, so a test naming a root reads its answer the way
+// every other test reads one.
+func askUnderRoot(t *testing.T, root string, library *verb.Library, line string) *response {
+	t.Helper()
 	out := &strings.Builder{}
-	root := library.Bench.Root
 	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(line+"\n"), out); err != nil {
 		t.Fatalf("serve: %v", err)
 	}
@@ -113,10 +124,16 @@ func payload(t *testing.T, answer *response) map[string]any {
 	return decoded
 }
 
-// TestToolSurfaceIsTheProjection asserts that the head exposes the
-// twenty-six tools the spec names, that each input schema is generated from
-// the same parameter list the cli head composes its syntax from, and that the
+// TestToolSurfaceIsTheProjection asserts that the head exposes every tool the
+// surface declares and no other, that each input schema is generated from the
+// same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
+//
+// The count below is the suite's own record of how wide the surface is, and it
+// moves whenever a card adds a command or takes one away. Anything outside
+// this package that wants to know how many tools the head serves reads this
+// number rather than carrying its own copy, because a copy freezes a set that
+// grows and is stale the next time a command lands.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
 	library := newLibrary(t)
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
@@ -134,8 +151,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 32 {
-		t.Errorf("wanted thirty-two tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 33 {
+		t.Errorf("wanted thirty-three tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -157,14 +174,14 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
+	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list_cards", "next_card", "query", "workbench", "workbenches", "workstream", "join_workstream", "leave_workstream"} {
 		if !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
 	}
-	for _, absent := range []string{"path", "edit", "init", "extract", "config", "mcp", "guide"} {
+	for absent := range toolExemptions {
 		if names[absent] {
-			t.Errorf("%s should not be a tool on this head", absent)
+			t.Errorf("%s is exempted from this head and is served as a tool anyway", absent)
 		}
 	}
 }
@@ -205,7 +222,7 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 	library := newLibrary(t)
 	calls := []string{
 		`{"name":"status","arguments":{"actor":"alka"}}`,
-		`{"name":"states","arguments":{"actor":"alka"}}`,
+		`{"name":"columns","arguments":{"actor":"alka"}}`,
 		`{"name":"list_cards","arguments":{"actor":"alka"}}`,
 		`{"name":"next_card","arguments":{"actor":"alka"}}`,
 		`{"name":"show","arguments":{"actor":"alka","card":"fx-1"}}`,
@@ -234,7 +251,7 @@ func TestEveryToolResponseCarriesAffordances(t *testing.T) {
 // what it may do where the card is standing, so a written-out list here sends
 // the reader into the refusal it came to avoid. The list is read off the real
 // tool answer and held against the act, for a card at a station, for a card at
-// an intake state, and for the bare state itself.
+// an intake column, and for the bare column itself.
 func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -243,8 +260,8 @@ func TestTheInstructionsListAgreesWithWhereTheCardIsStanding(t *testing.T) {
 		wantPull  bool
 	}{
 		{name: "a card at a station", arguments: `{"actor":"alka","card":"fx-1"}`, wantClaim: true},
-		{name: "a card at an intake state", arguments: `{"actor":"alka","card":"fx-2"}`, wantPull: true},
-		{name: "the intake state itself", arguments: `{"actor":"alka","card":"intake"}`, wantPull: true},
+		{name: "a card at an intake column", arguments: `{"actor":"alka","card":"fx-2"}`, wantPull: true},
+		{name: "the intake column itself", arguments: `{"actor":"alka","card":"intake"}`, wantPull: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -301,8 +318,8 @@ func TestClaimCarriesStructuredInstructions(t *testing.T) {
 	if instructions["standing"] != "Standing text.\n" {
 		t.Errorf("standing layer: got %v", instructions["standing"])
 	}
-	if instructions["state"] != "Doing text.\n" {
-		t.Errorf("state layer: got %v", instructions["state"])
+	if instructions["column"] != "Doing text.\n" {
+		t.Errorf("column layer: got %v", instructions["column"])
 	}
 	if _, carried := decoded["legal_moves"]; !carried {
 		t.Error("wanted the legal moves as a member of their own")
@@ -446,7 +463,7 @@ func TestUnknownMethodIsATransportError(t *testing.T) {
 // somebody changed one of them.
 func TestTheQueryToolCarriesTheSameMatchesTheCliEmits(t *testing.T) {
 	library := newLibrary(t)
-	for _, text := range []string{"", " ", "substate:ready", "holder:nobody"} {
+	for _, text := range []string{"", " ", "state:ready", "holder:nobody"} {
 		encoded, err := json.Marshal(text)
 		if err != nil {
 			t.Fatalf("marshal %q: %v", text, err)
@@ -515,7 +532,7 @@ func TestTheWorkbenchToolReadsAndGuardsTheSameWayTheTerminalDoes(t *testing.T) {
 		for i, a := range affordances {
 			got[i], _ = a.(string)
 		}
-		want := []string{"status", "states", "list_cards", "next_card"}
+		want := []string{"status", "columns", "list_cards", "next_card"}
 		if strings.Join(got, ",") != strings.Join(want, ",") {
 			t.Errorf("a refusal's affordances: got [%s], want surface tool names [%s]", strings.Join(got, ","), strings.Join(want, ","))
 		}
@@ -554,7 +571,7 @@ func TestARefusalFromWorkbenchResolutionNamesRecoveryInToolNames(t *testing.T) {
 	for i, a := range affordances {
 		got[i], _ = a.(string)
 	}
-	want := []string{"status", "states", "list_cards", "next_card"}
+	want := []string{"status", "columns", "list_cards", "next_card"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("an outside-root refusal's affordances: got [%s], want [%s]", strings.Join(got, ","), strings.Join(want, ","))
 	}
@@ -705,34 +722,32 @@ func TestEverySchemaPropertyIsDescribedAndNoneCarriesAnEnum(t *testing.T) {
 	}
 }
 
-// TestEveryDeclaredParameterReachesTheRequest asserts that every parameter a
-// tool advertises in its schema is one this head can actually put on a
-// request.
+// TestEveryDeclaredParameterReachesItsDeclaredField asserts that every
+// parameter a tool advertises in its schema lands on the exact verb.Request
+// field the table declares for it, and that a parameter declaring no field
+// lands nowhere at all.
 //
-// The schema is generated from verb.Params, and request2Args reads the same
-// list, but the two switch statements it dispatches into are written by hand.
-// A parameter added to a command's table therefore appears in the schema, is
-// offered to every agent reading the surface, is looked up by name on the way
-// in, and then falls off the end of a switch that has no case for it. Nothing
+// The schema is generated from verb.Params, and the assignment behind it is a
+// pair of hand-written switches in this package. A parameter can therefore be
+// offered to every agent reading the surface, be looked up by name on the way
+// in, and then fall off the end of a switch that has no case for it. Nothing
 // fails: the call succeeds and the argument is discarded, so an agent asking
 // for one thing is silently given another. `no-claim` shipped that way and is
 // the reason this check exists.
 //
-// The check drives a value through request2Args and asserts the request came
-// back different from an empty one, which is what "reached the request"
-// means. A parameter that lands in the wrong field still passes, so the check
-// bounds one defect class and does not prove the assignment correct.
-func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
-	// A parameter the head deliberately reads and discards is named here with
-	// the reason, so that the deliberate case is visible rather than looking
-	// like the accident this check exists to find. An entry here does not skip
-	// the parameter either. The check requires the parameter to go on landing
-	// nowhere, so an entry states what the head does today rather than excusing
-	// it from being read, and wiring the parameter up reddens this test until
-	// somebody says the decision has changed.
-	carriedNowhereOnPurpose := map[string]string{
-		"version.catalogs": "the version tool always reports catalog coverage, so the marker selects nothing",
-	}
+// The check used to ask only whether the request came back different from an
+// empty one, which passed a parameter that landed in the wrong field. It now
+// reads param.Field, drives a sentinel of that field's own type through
+// request2Args, and requires that field to hold the sentinel and every other
+// field to be untouched. Two defects are caught rather than one: a parameter
+// dropped on the floor, and a parameter that collides with a field it was
+// never meant to fill.
+//
+// A parameter whose Field is empty is checked in the other direction. The
+// declaration says it reaches no field, so the check builds the request and
+// requires it to stay at its zero value, which is what makes "nothing, on
+// purpose" different from "something, lost on the way".
+func TestEveryDeclaredParameterReachesItsDeclaredField(t *testing.T) {
 	// A parameter this check found landing nowhere, which is a defect rather
 	// than a decision and is tracked on its own card. An entry here does not
 	// skip the parameter. The check still builds the request and requires the
@@ -741,53 +756,158 @@ func TestEveryDeclaredParameterReachesTheRequest(t *testing.T) {
 	knownDefect := map[string]string{
 		"attach.description": "dinah-222: assignValue has no case for it, so an attachment made over this head is created with no description",
 	}
+	// An entry naming a parameter the table no longer declares is looked up by
+	// nothing below, so it would sit here unread while reading as coverage.
+	// The keys are struck off as they are met and whatever is left over is
+	// reported, which is what stops a repaired or renamed parameter leaving a
+	// tracked defect behind it.
+	unmet := map[string]bool{}
+	for named := range knownDefect {
+		unmet[named] = true
+	}
 	checked := 0
 	for _, entry := range tools {
 		for _, param := range verb.Params(entry.command) {
 			named := entry.command + "." + param.Name
-			arguments := map[string]any{}
-			if param.Marker {
-				arguments[param.Name] = true
-			} else {
-				arguments[param.Name] = durationOrWord(param.Name)
-			}
-			built := request2Args(entry.command, arguments)
+			delete(unmet, named)
 			empty := request2Args(entry.command, map[string]any{})
-			reached := !reflect.DeepEqual(built, empty)
-			if reason, deliberate := carriedNowhereOnPurpose[named]; deliberate {
-				if reached {
-					t.Errorf("%s: %q reaches the request, and this entry says it never does (%s); the decision has changed, so change the entry or take it out",
-						entry.name, param.Name, reason)
+			argument, want := sentinelFor(t, entry.name, param, empty)
+			if argument == nil {
+				continue
+			}
+			built := request2Args(entry.command, map[string]any{param.Name: argument})
+			if param.Field == "" {
+				checked++
+				if !reflect.DeepEqual(built, empty) {
+					t.Errorf("%s: %q declares no request field and this head puts it on one anyway, so the declaration and the code disagree",
+						entry.name, param.Name)
 				}
 				continue
 			}
 			if tracked, defective := knownDefect[named]; defective {
-				if reached {
+				if !reflect.DeepEqual(built, empty) {
 					t.Errorf("%s: %q now reaches the request, so the exemption has outlived its defect and belongs deleted (%s)",
 						entry.name, param.Name, tracked)
 				}
 				continue
 			}
 			checked++
-			if !reached {
-				t.Errorf("%s: the schema offers %q and request2Args puts it nowhere on the request, so an agent sending it is silently ignored",
-					entry.name, param.Name)
-			}
+			assertOnlyFieldChanged(t, entry.name, param, built, empty, want)
 		}
+	}
+	stale := make([]string, 0, len(unmet))
+	for named := range unmet {
+		stale = append(stale, named)
+	}
+	for _, named := range sorted(stale) {
+		t.Errorf("%q is tracked as a known defect and no tool declares a parameter by that name, so the entry outlived the parameter it excused (%s)",
+			named, knownDefect[named])
 	}
 	if checked == 0 {
 		t.Fatal("no tool declared a parameter, so this check read nothing")
 	}
 }
 
-// durationOrWord returns a value the assignment will accept for one named
-// parameter. Most take any word; `expires` is parsed as a duration and a word
-// it cannot parse would be dropped for a reason this check is not about.
-func durationOrWord(name string) string {
-	if name == "expires" {
-		return "8h"
+// sentinelFor returns the argument to send for one parameter and the value its
+// declared field should hold afterwards, both derived from that field's own Go
+// type rather than from the parameter's spelling. A parameter declaring no
+// field gets an argument of the type its Marker mark implies and no expected
+// value, since there is nothing for it to land in.
+//
+// A field type this check cannot drive fails the test rather than being
+// skipped, because a silently skipped parameter is the outcome the whole check
+// exists to prevent. Such a parameter comes back with a nil argument, which is
+// the caller's signal to move on to the next one.
+func sentinelFor(t *testing.T, tool string, param verb.Param, empty *verb.Request) (any, any) {
+	t.Helper()
+	if param.Field == "" {
+		if param.Marker {
+			return true, nil
+		}
+		return "sentinel-value", nil
 	}
-	return "x"
+	field := reflect.ValueOf(empty).Elem().FieldByName(param.Field)
+	if !field.IsValid() {
+		t.Errorf("%s: %q declares the request field %s and verb.Request has no such field", tool, param.Name, param.Field)
+		return nil, nil
+	}
+	switch {
+	case field.Type() == reflect.TypeOf(time.Duration(0)):
+		return "8h", 8 * time.Hour
+	case field.Kind() == reflect.Bool:
+		return true, true
+	case field.Kind() == reflect.String:
+		return "sentinel-value", "sentinel-value"
+	}
+	t.Errorf("%s: %q declares the request field %s, whose type %s this check does not know how to drive",
+		tool, param.Name, param.Field, field.Type())
+	return nil, nil
+}
+
+// assertOnlyFieldChanged requires the built request to carry the sentinel in
+// the parameter's declared field and to match the empty request everywhere
+// else, which is what tells a landing apart from a collision.
+func assertOnlyFieldChanged(t *testing.T, tool string, param verb.Param, built, empty *verb.Request, want any) {
+	t.Helper()
+	builtValue := reflect.ValueOf(built).Elem()
+	emptyValue := reflect.ValueOf(empty).Elem()
+	for i := 0; i < builtValue.NumField(); i++ {
+		name := builtValue.Type().Field(i).Name
+		got := builtValue.Field(i).Interface()
+		if name == param.Field {
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("%s: the schema offers %q and request2Args left %s holding %v rather than the value sent, so an agent sending it is silently ignored",
+					tool, param.Name, name, got)
+			}
+			continue
+		}
+		if !reflect.DeepEqual(got, emptyValue.Field(i).Interface()) {
+			t.Errorf("%s: %q declares the request field %s and also changed %s, so it collides with a field it was never meant to fill",
+				tool, param.Name, param.Field, name)
+		}
+	}
+}
+
+// TestEveryWorkbenchesParameterChangesTheAnswer asserts that each parameter the
+// workbenches command declares actually reaches the one tool that is answered
+// ahead of the table lookup.
+//
+// workbenches is dispatched by call before request2Args ever runs, so the
+// check above cannot see it: the handler takes the root and nothing else. That
+// is how a schema could come to advertise a path and a depth bound the handler
+// never reads. The assertion is call-shaped rather than reflective, and it
+// iterates verb.Params rather than a count typed out here, so it reads nothing
+// today and arms itself the moment the command declares its first parameter.
+func TestEveryWorkbenchesParameterChangesTheAnswer(t *testing.T) {
+	declared := verb.Params("workbenches")
+	if len(declared) == 0 {
+		t.Skip("workbenches declares no parameters yet, so there is nothing for the handler to read")
+	}
+	library := newLibrary(t)
+	bare := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`))
+	plain, err := json.Marshal(bare)
+	if err != nil {
+		t.Fatalf("marshal the bare answer: %v", err)
+	}
+	for _, param := range declared {
+		var argument any = "sentinel-value"
+		if param.Marker {
+			argument = true
+		}
+		encoded, err := json.Marshal(map[string]any{param.Name: argument})
+		if err != nil {
+			t.Fatalf("marshal the arguments for %q: %v", param.Name, err)
+		}
+		call := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":` + string(encoded) + `}}`
+		named, err := json.Marshal(payload(t, ask(t, library, call)))
+		if err != nil {
+			t.Fatalf("marshal the answer to %q: %v", param.Name, err)
+		}
+		if string(named) == string(plain) {
+			t.Errorf("workbenches: the schema offers %q and the handler answers a call naming it exactly as it answers a call naming nothing, so the argument is discarded",
+				param.Name)
+		}
+	}
 }
 
 // TestPullIsDrivenThroughTheHead asserts that the pull tool works over the
@@ -805,7 +925,7 @@ func durationOrWord(name string) string {
 func TestPullIsDrivenThroughTheHead(t *testing.T) {
 	t.Run("the named form takes the card and claims it", func(t *testing.T) {
 		library := newLibrary(t)
-		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"doing"}}}`)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","column":"doing"}}}`)
 		decoded := payload(t, answer)
 		if decoded["outcome"] != contract.OutcomeOK {
 			t.Fatalf("pull: %v", decoded)
@@ -817,15 +937,15 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if card["holder"] != "alka" {
 			t.Errorf("a pull claims what it takes, got holder %v", card["holder"])
 		}
-		if card["substate"] != contract.SubstateActive {
-			t.Errorf("wanted the card active, got %v", card["substate"])
+		if card["state"] != contract.StateActive {
+			t.Errorf("wanted the card active, got %v", card["state"])
 		}
 		if _, carried := decoded["legal_moves"]; !carried {
 			t.Error("wanted the legal moves the canonical response carries")
 		}
 	})
 
-	t.Run("the bare form chooses the one state that qualifies", func(t *testing.T) {
+	t.Run("the bare form chooses the one column that qualifies", func(t *testing.T) {
 		library := newLibrary(t)
 		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka"}}}`)
 		decoded := payload(t, answer)
@@ -836,17 +956,17 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if !ok {
 			t.Fatalf("the bare form should have taken the one card standing ready, got %v", decoded["card"])
 		}
-		// Naming the state is what ties the subtest to its title: the fixture
+		// Naming the column is what ties the subtest to its title: the fixture
 		// declares Intake and Doing, and only Doing qualifies, so a head that
-		// pulled into whichever state it saw last would pass without it.
-		if card["state_title"] != "Doing" {
-			t.Errorf("the one state that qualifies is Doing, got %v", card["state_title"])
+		// pulled into whichever column it saw last would pass without it.
+		if card["column_title"] != "Doing" {
+			t.Errorf("the one column that qualifies is Doing, got %v", card["column_title"])
 		}
 	})
 
 	t.Run("the no-claim marker crosses the boundary", func(t *testing.T) {
 		library := newLibrary(t)
-		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"doing","no-claim":true}}}`)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","column":"doing","no-claim":true}}}`)
 		decoded := payload(t, answer)
 		if decoded["outcome"] != contract.OutcomeOK {
 			t.Fatalf("pull --no-claim: %v", decoded)
@@ -861,20 +981,310 @@ func TestPullIsDrivenThroughTheHead(t *testing.T) {
 		if card["holder"] != nil && card["holder"] != "" {
 			t.Errorf("--no-claim asked for no claim and the card came back held by %v", card["holder"])
 		}
-		if card["substate"] != contract.SubstateReady {
-			t.Errorf("wanted the card left ready, got %v", card["substate"])
+		if card["state"] != contract.StateReady {
+			t.Errorf("wanted the card left ready, got %v", card["state"])
 		}
 	})
 
 	t.Run("a refusal carries its name across", func(t *testing.T) {
 		library := newLibrary(t)
-		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","state":"intake"}}}`)
+		answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pull","arguments":{"actor":"alka","column":"intake"}}}`)
 		decoded := payload(t, answer)
 		if decoded["outcome"] != contract.OutcomeRefused {
-			t.Fatalf("a pull into the first state should refuse, got %v", decoded)
+			t.Fatalf("a pull into the first column should refuse, got %v", decoded)
 		}
 		if decoded["refusal"] != contract.NoUpstream {
 			t.Errorf("wanted %s, got %v", contract.NoUpstream, decoded["refusal"])
 		}
 	})
+}
+
+// TestARootRemovedSinceTheServerStartedRefusesOutsideRoot holds the end of
+// AC-17's containment clauses at the layer where the refusal exists.
+//
+// bench.PathUnderRoot answers a failed containment walk with the error the
+// filesystem gave it and composes no refusal, because internal/bench does not
+// know which caller is asking and a package that renders for one caller stops
+// being reusable by the next. resolveLibrary is the caller that turns that
+// error into dinah.outside-root, and until now nothing drove the two together:
+// the bench tests assert the error and the surface tests reach the refusal
+// through a path that is merely outside the root rather than one the walk
+// could not settle.
+//
+// Removing the root after the server started is the failure a long-running
+// head actually meets, and it reaches resolveLibrary's error branch rather
+// than its not-contained branch, so the two branches are held apart here the
+// way they are in internal/bench.
+func TestARootRemovedSinceTheServerStartedRefusesOutsideRoot(t *testing.T) {
+	library := newLibrary(t)
+	workbench := library.Bench.Root
+	root := filepath.Dir(workbench)
+	if err := os.RemoveAll(root); err != nil {
+		t.Skipf("the platform would not remove the root under the open workbench: %v", err)
+	}
+
+	refused := payload(t, askUnderRoot(t, root, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka","workbench":"`+filepath.ToSlash(workbench)+`"}}}`))
+	if refused["outcome"] != contract.OutcomeRefused {
+		t.Fatalf("a workbench under a removed root should be refused, got %v", refused)
+	}
+	if refused["refusal"] != contract.OutsideRoot {
+		t.Errorf("the refusal a failed containment walk composes: wanted %s, got %v", contract.OutsideRoot, refused["refusal"])
+	}
+	named, ok := refused["context"].(map[string]any)
+	if !ok {
+		t.Fatalf("an outside-root refusal carries no context member: %v", refused)
+	}
+	if named["root"] != root {
+		t.Errorf("the refusal should name the root it was bounded by: wanted %q, got %v", root, named["root"])
+	}
+}
+
+// askUnboundedStream is askUnderRoot for a test that has to see the server
+// answer more than once, which is what proves Serve's read loop survived a
+// refusal rather than stopping on it. One Serve call takes every line and the
+// answers come back in order, so a caller reads the second answer the same way
+// every other test reads its only one.
+func askUnboundedStream(t *testing.T, root string, library *verb.Library, lines ...string) []*response {
+	t.Helper()
+	out := &strings.Builder{}
+	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out); err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	var answers []*response
+	for _, encoded := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		if strings.TrimSpace(encoded) == "" {
+			continue
+		}
+		answer := &response{}
+		if err := json.Unmarshal([]byte(encoded), answer); err != nil {
+			t.Fatalf("decode %q: %v", encoded, err)
+		}
+		answers = append(answers, answer)
+	}
+	return answers
+}
+
+// instructionsOf reads the working agreement out of an initialize answer, so
+// the tests that hold that text apart read it from one place.
+func instructionsOf(t *testing.T, answer *response) string {
+	t.Helper()
+	encoded, err := json.Marshal(answer.Result)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var result struct {
+		Instructions string `json:"instructions"`
+	}
+	if err := json.Unmarshal(encoded, &result); err != nil {
+		t.Fatalf("initialize: %v", err)
+	}
+	return result.Instructions
+}
+
+// TestResolveLibraryAdmitsAnyPathWhenRootIsEmpty is dinah-307 AC-2. A server
+// given no root carries no boundary, so a call naming a real workbench by
+// absolute path resolves it rather than being refused outside-root.
+//
+// This is the call site the card exists for. Before dinah-307 the containment
+// predicate answered false for an empty root, so a server that started
+// unbounded would have refused every workbench named to it, naming an empty
+// root in the refusal's own detail.
+func TestResolveLibraryAdmitsAnyPathWhenRootIsEmpty(t *testing.T) {
+	elsewhere := newLibrary(t).Bench.Root
+
+	library, refusal := resolveLibrary("", nil, nil, &verb.Request{Verb: "status", Actor: "alka"}, elsewhere)
+	if refusal != nil {
+		t.Fatalf("an unbounded server refused a workbench named by absolute path: %s %s", refusal.Name, refusal.Detail)
+	}
+	if library == nil {
+		t.Fatal("the resolution carried neither a library nor a refusal")
+	}
+	if library.Bench.Root != elsewhere {
+		t.Errorf("the resolution opened %q, wanted the workbench the call named, %q", library.Bench.Root, elsewhere)
+	}
+}
+
+// TestResolveLibraryRefusesNoWorkbenchFoundWithNoRootAndNoDefault is dinah-307
+// AC-3. An empty root widens what a named candidate may be; it changes nothing
+// about a call that names nothing and has no default to fall back on.
+func TestResolveLibraryRefusesNoWorkbenchFoundWithNoRootAndNoDefault(t *testing.T) {
+	library, refusal := resolveLibrary("", nil, nil, &verb.Request{Verb: "status", Actor: "alka"}, "")
+	if library != nil {
+		t.Fatalf("a call naming no workbench against a server carrying no default resolved %q", library.Bench.Root)
+	}
+	if refusal == nil {
+		t.Fatal("the resolution carried neither a library nor a refusal")
+	}
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("the refusal: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
+	}
+}
+
+// TestWorkingAgreementNamesNoBoundaryWhenUnbounded is dinah-307 AC-6. The
+// working agreement an unbounded, default-less server serves has to say it
+// carries no boundary. The old key spliced the root into the sentence, so an
+// empty root rendered "under ;", which is not a sentence and names nothing.
+func TestWorkingAgreementNamesNoBoundaryWhenUnbounded(t *testing.T) {
+	instructions := instructionsOf(t, askUnderRoot(t, "", nil, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+
+	if !strings.Contains(instructions, msg.For(msg.Base).T("mcp.reach.nodefault.unbounded")) {
+		t.Errorf("the working agreement of an unbounded server carries no unbounded reach paragraph: %q", instructions)
+	}
+	if strings.Contains(instructions, "under ;") {
+		t.Errorf("the working agreement spliced an empty root into a sentence: %q", instructions)
+	}
+}
+
+// TestWorkingAgreementNamesNoBoundaryWhenUnboundedWithADefault is dinah-307
+// AC-9, the combination that did not exist before this card: a server with a
+// default workbench and no root at all. It must name the default and still
+// claim no boundary, and it must not go on promising that workbenches lists
+// what sits under the root, because with no root that tool answers nothing.
+func TestWorkingAgreementNamesNoBoundaryWhenUnboundedWithADefault(t *testing.T) {
+	library := newLibrary(t)
+	instructions := instructionsOf(t, askUnderRoot(t, "", library, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+
+	want := msg.For(msg.Base).T("mcp.reach.unbounded", "title", library.Bench.Title)
+	if !strings.Contains(instructions, want) {
+		t.Errorf("the working agreement of an unbounded server carrying a default: wanted %q in %q", want, instructions)
+	}
+	if !strings.Contains(instructions, library.Bench.Title) {
+		t.Errorf("the working agreement does not name the default workbench it serves: %q", instructions)
+	}
+	if strings.Contains(instructions, "under ;") {
+		t.Errorf("the working agreement spliced an empty root into a sentence: %q", instructions)
+	}
+	if strings.Contains(instructions, "The workbenches tool lists the workbenches under the root") {
+		t.Errorf("the working agreement still promises an enumeration an unbounded server cannot answer: %q", instructions)
+	}
+}
+
+// TestWorkbenchesToolRefusesCleanlyWhenUnbounded is dinah-307 AC-7. The one
+// tool that takes no workbench needs a root to search, so an unbounded server
+// refuses it by name rather than answering an empty list, which would assert
+// that no workbench exists anywhere. The second request holds the other half:
+// the refusal travels on the response and does not end the session.
+func TestWorkbenchesToolRefusesCleanlyWhenUnbounded(t *testing.T) {
+	answers := askUnboundedStream(t, "", nil,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
+
+	if len(answers) != 2 {
+		t.Fatalf("wanted an answer to each of the two requests, got %d", len(answers))
+	}
+	if answers[0].Error == nil {
+		t.Fatalf("workbenches against an unbounded server answered rather than refused: %+v", answers[0].Result)
+	}
+	if !strings.HasPrefix(answers[0].Error.Message, contract.NoWorkbenchFound) {
+		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
+	}
+	if answers[1].Error != nil {
+		t.Errorf("the server stopped answering after the refusal: %+v", answers[1].Error)
+	}
+}
+
+// TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded is dinah-307 AC-10.
+// A default library is what answers a call naming no workbench; it is not a
+// directory to search. So the enumeration refuses for the same reason whether
+// or not the server carries one, rather than quietly listing the default.
+func TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded(t *testing.T) {
+	library := newLibrary(t)
+	answers := askUnboundedStream(t, "", library,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+
+	if len(answers) != 1 {
+		t.Fatalf("wanted one answer, got %d", len(answers))
+	}
+	if answers[0].Error == nil {
+		t.Fatalf("workbenches against an unbounded server carrying a default answered rather than refused: %+v", answers[0].Result)
+	}
+	if !strings.HasPrefix(answers[0].Error.Message, contract.NoWorkbenchFound) {
+		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
+	}
+}
+
+// TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer is dinah-312 AC-5.
+// The workbenches tool answers off bench.Enumerate, and the enumeration used
+// to test a root's children and never the root itself, so a DINAH_MCP_ROOT
+// pointing at the directory whose own .dinah holds the boards listed nothing
+// at all. An empty list from that call says no workbench exists anywhere under
+// the root, which is the answer a caller acts on.
+//
+// The workbench here is written by verb.Init rather than by the bare
+// bench.Instantiate call newLibrary makes, because Init writes the .dinah
+// container and a bare anchor is the one shape this defect never hid in.
+func TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer(t *testing.T) {
+	root := t.TempDir()
+	written, err := verb.Init(root, "rt", "alka", "", "", "")
+	if err != nil {
+		t.Fatalf("init a workbench under %s: %v", root, err)
+	}
+
+	answer := askUnderRoot(t, root, newLibrary(t),
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+	decoded := payload(t, answer)
+	rows, ok := decoded["workbenches"].([]any)
+	if !ok {
+		t.Fatalf("the answer carries no workbenches array: %+v", decoded)
+	}
+	var listed []string
+	for _, row := range rows {
+		entry, ok := row.(map[string]any)
+		if !ok {
+			t.Fatalf("a workbenches row is not an object: %+v", row)
+		}
+		path, _ := entry["path"].(string)
+		listed = append(listed, path)
+	}
+	if len(listed) != 1 || listed[0] != written {
+		t.Errorf("workbenches under %s listed %v, wanted the one anchor directory %q", root, listed, written)
+	}
+}
+
+// TestWorkbenchesRefusesARootWithAnUnreadableAnchor is dinah-312 AC-8's other
+// half: the workbenches tool answers bench.Enumerate's contract.UnreadableBench
+// refusal, served by askUnderRoot exactly as the recognized-container case
+// above is, when DINAH_MCP_ROOT points at a directory whose own workbench.md
+// exists and cannot be read.
+//
+// The unreadable anchor is a directory sitting at the workbench.md path
+// rather than a regular file. bench.Exists uses os.Stat, which reports a
+// directory as present, and os.ReadFile (bench.ReadText's implementation)
+// refuses to read a directory as text on every platform this suite runs on,
+// confirmed on this machine: "read ...workbench.md: Incorrect function." on
+// Windows. That makes the anchor genuinely unreadable without depending on a
+// permission bit, which does not reliably block a file's own owner from
+// reading it on Windows. internal/mcp cannot reach internal/bench's unexported
+// readAnchorContent test seam across the package boundary, so this is the
+// mechanism available at this layer; internal/bench's own AC-8 test
+// (TestEnumerateRefusesARootWithAnUnreadableAnchor) uses the seam instead,
+// since it is in the same package.
+//
+// answerWorkbenches returns bench.Enumerate's error unwrapped, and mcp.call's
+// dispatch turns that into a JSON-RPC transport error (codeInvalidParams)
+// rather than a refusal payload, because the workbenches tool is served ahead
+// of the resolveLibrary step that composes answerRefusal's payload shape for
+// every other tool. So this assertion reads answer.Error directly instead of
+// going through payload(), which fatals on a non-nil answer.Error.
+func TestWorkbenchesRefusesARootWithAnUnreadableAnchor(t *testing.T) {
+	root := t.TempDir()
+	anchorPath := filepath.Join(root, bench.WorkbenchAnchor)
+	if err := os.MkdirAll(anchorPath, 0o755); err != nil {
+		t.Fatalf("make %s a directory: %v", anchorPath, err)
+	}
+
+	answer := askUnderRoot(t, root, newLibrary(t),
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+	if answer.Error == nil {
+		t.Fatalf("workbenches under %s: wanted a refusal, got a clean answer", root)
+	}
+	if answer.Error.Code != codeInvalidParams {
+		t.Errorf("refusal transport code: wanted %d, got %d (%s)", codeInvalidParams, answer.Error.Code, answer.Error.Message)
+	}
+	if !strings.Contains(answer.Error.Message, contract.UnreadableBench) {
+		t.Errorf("refusal message: wanted it to name %s, got %q", contract.UnreadableBench, answer.Error.Message)
+	}
+	if !strings.Contains(answer.Error.Message, anchorPath) {
+		t.Errorf("refusal message: wanted it to name the unreadable anchor %q, got %q", anchorPath, answer.Error.Message)
+	}
 }

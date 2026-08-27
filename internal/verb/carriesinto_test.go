@@ -8,15 +8,15 @@ import (
 	"dinah/internal/contract"
 )
 
-// flowOf builds a flow of states from a compact description, so a case below
+// flowOf builds a flow of columns from a compact description, so a case below
 // can state the shape it turns on in one line. Each entry is a kind, optionally
-// followed by `+outside` for a state waiting on somebody outside and `+operator`
+// followed by `+outside` for a column waiting on somebody outside and `+operator`
 // for an operator-owned one.
-func flowOf(descriptions ...string) []*bench.State {
-	states := make([]*bench.State, 0, len(descriptions))
+func flowOf(descriptions ...string) []*bench.Column {
+	columns := make([]*bench.Column, 0, len(descriptions))
 	for at, description := range descriptions {
 		fields := strings.Split(description, "+")
-		state := &bench.State{
+		column := &bench.Column{
 			ID:       string(rune('a' + at)),
 			Title:    fields[0],
 			Kind:     fields[0],
@@ -25,14 +25,14 @@ func flowOf(descriptions ...string) []*bench.State {
 		for _, marker := range fields[1:] {
 			switch marker {
 			case "outside":
-				state.AwaitingOutside = true
+				column.AwaitingOutside = true
 			case "operator":
-				state.OperatorOwned = true
+				column.OperatorOwned = true
 			}
 		}
-		states = append(states, state)
+		columns = append(columns, column)
 	}
-	return states
+	return columns
 }
 
 // TestCarriesIntoAnswersWhereAPullWouldPutACard is dinah-273 AC-32. The walk is
@@ -41,7 +41,7 @@ func flowOf(descriptions ...string) []*bench.State {
 func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 	cases := []struct {
 		name  string
-		flow  []*bench.State
+		flow  []*bench.Column
 		from  int
 		wants int
 	}{
@@ -58,19 +58,19 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 			wants: 1,
 		},
 		{
-			name:  "a run of queue states is looked through",
+			name:  "a run of queue columns is looked through",
 			flow:  flowOf(contract.KindIntake, contract.KindBuffer, contract.KindBuffer, contract.KindWork),
 			from:  0,
 			wants: 3,
 		},
 		{
-			name:  "a done state carries nothing",
+			name:  "a done column carries nothing",
 			flow:  flowOf(contract.KindDone, contract.KindWork),
 			from:  0,
 			wants: -1,
 		},
 		{
-			name:  "a state waiting on somebody outside carries nothing",
+			name:  "a column waiting on somebody outside carries nothing",
 			flow:  flowOf(contract.KindWork+"+outside", contract.KindWork),
 			from:  0,
 			wants: -1,
@@ -82,7 +82,7 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 			wants: -1,
 		},
 		{
-			name:  "the run meets a done state",
+			name:  "the run meets a done column",
 			flow:  flowOf(contract.KindBuffer, contract.KindDone),
 			from:  0,
 			wants: -1,
@@ -104,7 +104,7 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 				return
 			}
 			if got != c.flow[c.wants] {
-				t.Fatalf("wanted the state at %d, got %+v", c.wants, got)
+				t.Fatalf("wanted the column at %d, got %+v", c.wants, got)
 			}
 		})
 	}
@@ -112,7 +112,7 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 	t.Run("an operator-owned queue in the run stops the walk for the operator too", func(t *testing.T) {
 		// carriesInto reads no caller at all, so the operator meets the same
 		// answer as anybody else. The asymmetry the filter below relies on is
-		// that the walk never tests the state it starts from.
+		// that the walk never tests the column it starts from.
 		flow := flowOf(contract.KindBuffer, contract.KindBuffer+"+operator", contract.KindWork)
 		if got := carriesInto(flow[0], flow); got != nil {
 			t.Fatalf("the walk ran past an operator-owned queue and answered %s", got.Title)
@@ -124,13 +124,13 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 }
 
 // TestPullSourcesFiltersTheWalkRatherThanRepeatingIt is dinah-273 AC-38. Every
-// state carriesInto answers with the destination is a source, in nearest-first
+// column carriesInto answers with the destination is a source, in nearest-first
 // order, and the operator-owned queue standing immediately upstream is among
 // them, which is the asymmetry a hand-written backward walk would lose.
 func TestPullSourcesFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 	flow := flowOf(contract.KindIntake, contract.KindBuffer+"+operator", contract.KindBuffer, contract.KindWork)
 	for _, destination := range flow {
-		var wanted []*bench.State
+		var wanted []*bench.Column
 		for at := len(flow) - 1; at >= 0; at-- {
 			if carriesInto(flow[at], flow) == destination {
 				wanted = append(wanted, flow[at])
@@ -162,11 +162,11 @@ func TestPullSourcesFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 	}
 }
 
-// refsOf names a run of states for a failure message.
-func refsOf(states []*bench.State) []string {
+// refsOf names a run of columns for a failure message.
+func refsOf(columns []*bench.Column) []string {
 	var names []string
-	for _, state := range states {
-		names = append(names, state.ID)
+	for _, column := range columns {
+		names = append(names, column.ID)
 	}
 	return names
 }

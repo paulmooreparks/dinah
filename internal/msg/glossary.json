@@ -1,0 +1,61 @@
+[
+  {
+    "en": "state",
+    "forms": {
+      "de": [
+        "Zustand",
+        "Zustands",
+        "zustand"
+      ],
+      "hi": [
+        "स्थिति"
+      ]
+    }
+  },
+  {
+    "en": "the root",
+    "forms": {
+      "de": [
+        "Wurzelverzeichnis"
+      ],
+      "hi": [
+        "रूट"
+      ]
+    }
+  },
+  {
+    "en": "owner",
+    "forms": {
+      "de": [
+        "Akteur"
+      ],
+      "hi": [
+        "स्वामी"
+      ]
+    }
+  },
+  {
+    "en": "level",
+    "forms": {
+      "de": [
+        "Stufe",
+        "stufe"
+      ],
+      "hi": [
+        "स्तर"
+      ]
+    }
+  },
+  {
+    "en": "column",
+    "forms": {
+      "de": [
+        "Spalte",
+        "spalte"
+      ],
+      "hi": [
+        "कॉलम"
+      ]
+    }
+  }
+]

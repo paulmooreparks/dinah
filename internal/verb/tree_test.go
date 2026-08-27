@@ -157,14 +157,14 @@ func TestDepthReportsAtTheBoundaryAndNowhereElse(t *testing.T) {
 	}
 	built := treeOf(t, h, "", nil, LevelGroups)
 
-	state := groupAt(t, built.Root, "intake")
-	if state.Count != 4 {
-		t.Errorf("the state counts %d cards and holds 4", state.Count)
+	column := groupAt(t, built.Root, "intake")
+	if column.Count != 4 {
+		t.Errorf("the column counts %d cards and holds 4", column.Count)
 	}
-	if state.Hidden != nil {
-		t.Errorf("the state reports %v and every child it has is drawn", state.Hidden)
+	if column.Hidden != nil {
+		t.Errorf("the column reports %v and every child it has is drawn", column.Hidden)
 	}
-	ready := groupAt(t, state, contract.SubstateReady)
+	ready := groupAt(t, column, contract.StateReady)
 	if ready.Hidden == nil {
 		t.Fatalf("the ready group reports nothing and the depth cut its cards off")
 	}
@@ -242,7 +242,7 @@ func TestAnOpenValuedGroupSurvivesAFilterThatEmptiesIt(t *testing.T) {
 	h.add("a card nobody holds")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: held, Holder: "zoya"})
 
-	built := treeOf(t, h, "substate:ready", []string{FieldHolder}, LevelCards)
+	built := treeOf(t, h, "state:ready", []string{FieldHolder}, LevelCards)
 	group := groupAt(t, built.Root, "zoya")
 	if group.Count != 0 {
 		t.Errorf("the holder's group counts %d and the filter left it nothing", group.Count)
@@ -266,22 +266,22 @@ func TestBothReasonsAreReportedSeparately(t *testing.T) {
 	held := h.ready("the card the holder is working")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: held, Holder: "zoya"})
 
-	built := treeOf(t, h, "substate:ready", nil, LevelGroups)
-	state := groupAt(t, built.Root, aftercareSlug)
-	if state.Hidden == nil {
-		t.Fatalf("the state reports nothing and the filter removed a card below it")
+	built := treeOf(t, h, "state:ready", nil, LevelGroups)
+	column := groupAt(t, built.Root, aftercareSlug)
+	if column.Hidden == nil {
+		t.Fatalf("the column reports nothing and the filter removed a card below it")
 	}
-	if got := strings.Join(state.Hidden.Reason, ","); got != ReasonFilter {
-		t.Errorf("the state reports the reasons %q, and its own children are all drawn, want %q", got, ReasonFilter)
+	if got := strings.Join(column.Hidden.Reason, ","); got != ReasonFilter {
+		t.Errorf("the column reports the reasons %q, and its own children are all drawn, want %q", got, ReasonFilter)
 	}
-	ready := groupAt(t, state, contract.SubstateReady)
+	ready := groupAt(t, column, contract.StateReady)
 	if ready.Hidden == nil {
 		t.Fatalf("the ready group reports nothing and the depth cut its cards off")
 	}
 	if got := strings.Join(ready.Hidden.Reason, ","); got != ReasonDepth {
 		t.Errorf("the ready group reports the reasons %q, want %q", got, ReasonDepth)
 	}
-	active := groupAt(t, state, contract.SubstateActive)
+	active := groupAt(t, column, contract.StateActive)
 	if active.Hidden == nil {
 		t.Fatalf("the active group reports nothing and the filter removed its one card")
 	}
@@ -305,23 +305,23 @@ func TestReasonsAreNamedInTheFixedOrder(t *testing.T) {
 	held := h.ready("the card the holder is working")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: held, Holder: "zoya"})
 
-	built := treeOf(t, h, "substate:ready", []string{FieldState}, LevelGroups)
-	state := groupAt(t, built.Root, aftercareSlug)
-	if state.Hidden == nil {
-		t.Fatalf("the state reports nothing and it is holding two kinds of thing back")
+	built := treeOf(t, h, "state:ready", []string{FieldColumn}, LevelGroups)
+	column := groupAt(t, built.Root, aftercareSlug)
+	if column.Hidden == nil {
+		t.Fatalf("the column reports nothing and it is holding two kinds of thing back")
 	}
 	want := []string{ReasonDepth, ReasonFilter}
-	if got := strings.Join(state.Hidden.Reason, ","); got != strings.Join(want, ",") {
-		t.Errorf("the state names the reasons %q and the order is fixed at %q", got, strings.Join(want, ","))
+	if got := strings.Join(column.Hidden.Reason, ","); got != strings.Join(want, ",") {
+		t.Errorf("the column names the reasons %q and the order is fixed at %q", got, strings.Join(want, ","))
 	}
-	if state.Hidden.Children != 3 {
-		t.Errorf("the state reports %d children cut off and the depth cut off 3", state.Hidden.Children)
+	if column.Hidden.Children != 3 {
+		t.Errorf("the column reports %d children cut off and the depth cut off 3", column.Hidden.Children)
 	}
-	if state.Hidden.Subjects != 3 {
-		t.Errorf("the state reports %d surviving subjects below and 3 survived", state.Hidden.Subjects)
+	if column.Hidden.Subjects != 3 {
+		t.Errorf("the column reports %d surviving subjects below and 3 survived", column.Hidden.Subjects)
 	}
-	if state.Hidden.Filtered != 1 {
-		t.Errorf("the state reports %d filtered out and the filter removed 1", state.Hidden.Filtered)
+	if column.Hidden.Filtered != 1 {
+		t.Errorf("the column reports %d filtered out and the filter removed 1", column.Hidden.Filtered)
 	}
 }
 
@@ -338,8 +338,13 @@ func TestAFullyExpandedTreeHidesNothingAnywhere(t *testing.T) {
 
 	grouped := treeOf(t, h, "", nil, LevelCards)
 	assertNothingIsHidden(t, "the grouped tree", grouped.Root)
-	if empty := groupAt(t, groupAt(t, grouped.Root, "intake"), contract.SubstateBlocked); empty.Count != 0 {
-		t.Errorf("the blocked group counts %d and the fixture blocks nothing", empty.Count)
+	// The blocked group is drawn only where a card stands blocked, and this
+	// fixture blocks nothing, so the group is absent rather than empty. The
+	// walk above is what asserts the tree hides nothing; this reads the
+	// suppression, which the walk cannot see because a group that was never
+	// drawn reports no account of itself either.
+	if drawn := groupValues(groupAt(t, grouped.Root, "intake")); contains(drawn, contract.StateBlocked) {
+		t.Errorf("intake draws the groups %v and the fixture blocks nothing", drawn)
 	}
 	assertNothingIsHidden(t, "the whole containment walk", contentsOf(t, h, "workbench", LevelAll).Root)
 	// A bounded depth that reaches its boundary and finds nothing to cut is
@@ -373,15 +378,15 @@ func TestTheTreeAndTheQuerySelectTheSameCards(t *testing.T) {
 	h := newHarness(t)
 	split := h.ready("moved into doing by one owner and claimed later by another")
 	h.mustDo(&Request{Verb: Claim, Actor: "zoya", Card: split, Holder: "zoya"})
-	h.mustDo(&Request{Verb: Move, Actor: "zoya", Card: split, State: doing})
-	h.mustDo(&Request{Verb: Move, Actor: "zoya", Card: split, State: review})
+	h.mustDo(&Request{Verb: Move, Actor: "zoya", Card: split, Column: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "zoya", Card: split, Column: review})
 	h.mustDo(&Request{Verb: Release, Actor: "zoya", Card: split})
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: split, Holder: "alka"})
 	h.add("a card nobody has moved")
 
 	witnessed := h.ready("moved into doing by the same owner who claimed it")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: witnessed, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: witnessed, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: witnessed, Column: doing})
 
 	const query = "entered:doing actor:alka"
 	matches, err := h.library.Query(&Request{Verb: "query", Query: query})
@@ -441,7 +446,7 @@ func TestTheDispositionTablePairsWithTheQueryFields(t *testing.T) {
 		}
 	}
 	if closed != 2 {
-		t.Errorf("the table reads %s on %d rows, and %s and %s are the only two axes that enumerate", EnumerationClosed, closed, FieldState, FieldSubstate)
+		t.Errorf("the table reads %s on %d rows, and %s and %s are the only two axes that enumerate", EnumerationClosed, closed, FieldColumn, FieldState)
 	}
 	if len(GroupAxes()) != 9 {
 		t.Errorf("the table admits %d axes, and nine of the ten fields group", len(GroupAxes()))
@@ -458,21 +463,21 @@ func TestAFilteredTreeAccountsForEveryCardItRemoved(t *testing.T) {
 	h.add("a ready card of the intake")
 	for _, ref := range []string{first, second} {
 		h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref, Holder: "alka"})
-		h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: review})
+		h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, Column: review})
 	}
 
-	built := treeOf(t, h, "substate:ready", nil, LevelCards)
+	built := treeOf(t, h, "state:ready", nil, LevelCards)
 	if built.Root.Count != 1 || built.Root.Hidden == nil || built.Root.Hidden.Filtered != 2 {
 		t.Fatalf("the root counts %d and reports %v, and the workbench holds three cards of which one matches", built.Root.Count, built.Root.Hidden)
 	}
-	state := groupAt(t, built.Root, "review")
-	if state.Count != 0 {
-		t.Errorf("the Review group counts %d and the filter left it nothing", state.Count)
+	column := groupAt(t, built.Root, "review")
+	if column.Count != 0 {
+		t.Errorf("the Review group counts %d and the filter left it nothing", column.Count)
 	}
-	if state.Hidden == nil || state.Hidden.Filtered != 2 {
-		t.Fatalf("the Review group reports %v and the filter removed two cards from it", state.Hidden)
+	if column.Hidden == nil || column.Hidden.Filtered != 2 {
+		t.Fatalf("the Review group reports %v and the filter removed two cards from it", column.Hidden)
 	}
-	ready := groupAt(t, state, contract.SubstateReady)
+	ready := groupAt(t, column, contract.StateReady)
 	if ready.Count != 0 {
 		t.Errorf("the ready group inside Review counts %d and holds nothing", ready.Count)
 	}
@@ -481,10 +486,10 @@ func TestAFilteredTreeAccountsForEveryCardItRemoved(t *testing.T) {
 	}
 }
 
-// TestTheDefaultChainDrawsTheStatusTree asserts that a bare tree nests state
-// over substate over cards, enumerates both closed axes completely and in
+// TestTheDefaultChainDrawsTheStatusTree asserts that a bare tree nests column
+// over state over cards, enumerates both closed axes completely and in
 // their declared order, and orders the cards of a group the way a listing of
-// that state orders them.
+// that column orders them.
 func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	h := newHarness(t)
 	first := h.add("the first card filed")
@@ -494,24 +499,39 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	h.reopen()
 
 	built := treeOf(t, h, "", nil, LevelCards)
-	var states []string
+	var columns []string
 	for _, child := range built.Root.Children {
-		states = append(states, child.Value)
+		columns = append(columns, child.Value)
 	}
 	want := []string{"intake", "doing", "review", aftercareSlug, "finished", "closed"}
-	if strings.Join(states, ",") != strings.Join(want, ",") {
-		t.Errorf("the states draw as %v and the flow declares them %v", states, want)
+	if strings.Join(columns, ",") != strings.Join(want, ",") {
+		t.Errorf("the columns draw as %v and the flow declares them %v", columns, want)
 	}
+	// The two closed axes enumerate differently, and the state axis does
+	// not enumerate the same set under every column. Intake takes no work up,
+	// so it can hold no active card and draws no active group; nothing in this
+	// fixture is blocked, so no column draws a blocked group either. Doing
+	// takes work up and is asserted alongside intake, because a rule reading
+	// the column would otherwise be indistinguishable here from a rule that
+	// dropped active and blocked from every column on the board.
 	intakeGroup := groupAt(t, built.Root, "intake")
-	var substates []string
-	for _, child := range intakeGroup.Children {
-		substates = append(substates, child.Value)
+	for _, c := range []struct {
+		group TreeNode
+		want  []string
+	}{
+		{group: intakeGroup, want: []string{contract.StateReady}},
+		{
+			group: groupAt(t, built.Root, "doing"),
+			want:  []string{contract.StateReady, contract.StateActive},
+		},
+	} {
+		states := groupValues(c.group)
+		if strings.Join(states, ",") != strings.Join(c.want, ",") {
+			t.Errorf("the states of the %s group draw as %v and the order is fixed at %v",
+				c.group.Value, states, c.want)
+		}
 	}
-	wantSubstates := []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
-	if strings.Join(substates, ",") != strings.Join(wantSubstates, ",") {
-		t.Errorf("the substates draw as %v and the order is fixed at %v", substates, wantSubstates)
-	}
-	listing, err := h.library.List(&Request{Verb: "ls", State: "intake"})
+	listing, err := h.library.List(&Request{Verb: "ls", Column: "intake"})
 	if err != nil {
 		t.Fatalf("ls: %v", err)
 	}
@@ -558,18 +578,18 @@ func TestAnActPlaneAxisReadsTheWholeActRecord(t *testing.T) {
 	}
 }
 
-// TestOnlyTheTwoClosedAxesEnumerateTheirMembers asserts that a state nobody
-// has entered draws a group under state and none under entered, which is what
+// TestOnlyTheTwoClosedAxesEnumerateTheirMembers asserts that a column nobody
+// has entered draws a group under column and none under entered, which is what
 // separates a closed axis from a journal-shaped one.
 func TestOnlyTheTwoClosedAxesEnumerateTheirMembers(t *testing.T) {
 	h := newHarness(t)
-	ref := h.ready("a card that has only ever been in two states")
+	ref := h.ready("a card that has only ever been in two columns")
 	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref, Holder: "alka"})
-	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, State: doing})
+	h.mustDo(&Request{Verb: Move, Actor: "alka", Card: ref, Column: doing})
 
-	byState := treeOf(t, h, "", []string{FieldState}, LevelCards)
-	if len(byState.Root.Children) != 6 {
-		t.Errorf("the state axis draws %d groups and the workbench declares six states", len(byState.Root.Children))
+	byColumn := treeOf(t, h, "", []string{FieldColumn}, LevelCards)
+	if len(byColumn.Root.Children) != 6 {
+		t.Errorf("the column axis draws %d groups and the workbench declares six columns", len(byColumn.Root.Children))
 	}
 	byEntered := treeOf(t, h, "", []string{FieldEntered}, LevelCards)
 	var entered []string
@@ -578,7 +598,7 @@ func TestOnlyTheTwoClosedAxesEnumerateTheirMembers(t *testing.T) {
 	}
 	sort.Strings(entered)
 	if strings.Join(entered, ",") != "aftercare,doing,intake" {
-		t.Errorf("the entered axis draws groups for %v, and the card has entered only two states", entered)
+		t.Errorf("the entered axis draws groups for %v, and the card has entered only two columns", entered)
 	}
 	blocks := treeOf(t, h, "", []string{FieldBlockKind}, LevelCards)
 	for _, child := range blocks.Root.Children {
@@ -591,10 +611,10 @@ func TestOnlyTheTwoClosedAxesEnumerateTheirMembers(t *testing.T) {
 // standAt writes a card's position straight into its anchor, which is how a
 // test builds a card standing at a value the workbench does not declare. No
 // verb produces one, and the file the tool reads is a file a person edits.
-func standAt(t *testing.T, h *harness, ref, state, substate string) {
+func standAt(t *testing.T, h *harness, ref, column, state string) {
 	t.Helper()
 	card := h.card(ref)
-	card.State, card.Substate = state, substate
+	card.Column, card.State = column, state
 	if err := card.Save(); err != nil {
 		t.Fatalf("save %s: %v", ref, err)
 	}
@@ -608,32 +628,47 @@ func standAt(t *testing.T, h *harness, ref, state, substate string) {
 // A tree drawing only the declared members loses the cards carrying anything
 // else, and loses them silently: no group, no account, and a root above them
 // still counting them. Both closed axes can be reached without corrupt data,
-// so the fixture builds one card on each. A state deleted from the flow leaves
-// the cards standing in it naming a state nothing declares, and a substate
+// so the fixture builds one card on each. A column deleted from the flow leaves
+// the cards standing in it naming a column nothing declares, and a state
 // written by hand outside the three is a value the reader of the anchor passes
 // through. The assertion is that the leaves add up to the root rather than
 // that a group appeared, since a tree can grow a group and still drop a card.
 func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
 	h := newHarness(t)
 	const (
-		deletedState  = "a00000000009"
-		handSubstate  = "paused"
-		cardsFiled    = 3
-		declaredState = intake
+		deletedColumn  = "a00000000009"
+		handState      = "paused"
+		cardsFiled     = 3
+		declaredColumn = intake
 	)
 	declared := h.add("a card standing where the workbench says it may")
-	undeclaredState := h.add("a card standing in a state the flow no longer declares")
-	standAt(t, h, undeclaredState, deletedState, contract.SubstateReady)
-	undeclaredSubstate := h.add("a card carrying a substate the tool never writes")
-	standAt(t, h, undeclaredSubstate, declaredState, handSubstate)
+	undeclaredColumn := h.add("a card standing in a column the flow no longer declares")
+	standAt(t, h, undeclaredColumn, deletedColumn, contract.StateReady)
+	undeclaredState := h.add("a card carrying a state the tool never writes")
+	standAt(t, h, undeclaredState, declaredColumn, handState)
 
 	for _, c := range []struct {
-		axis     string
-		value    string
+		axis  string
+		value string
+		// declared is a lower bound on where the undeclared group may be
+		// drawn rather than the count of groups the axis draws, because the
+		// question here is that the undeclared value comes after the
+		// declared ones and not how many of those there are.
 		declared int
+		// absent is a value this axis must draw no group at, empty where the
+		// axis has none. It carries what the lower bound above cannot: a
+		// bound that only says "not before position two" is met by a tree
+		// drawing a blocked group as well, and the count moved from three to
+		// two precisely because that group is no longer drawn.
+		absent string
 	}{
-		{axis: FieldState, value: deletedState, declared: 5},
-		{axis: FieldSubstate, value: handSubstate, declared: 3},
+		{axis: FieldColumn, value: deletedColumn, declared: 5},
+		// Two rather than three: the state axis grouped standalone
+		// enumerates the union of what the fixture's columns can hold, which
+		// is all three, and no card here stands blocked, so the blocked
+		// group is not drawn and the undeclared value follows ready and
+		// active.
+		{axis: FieldState, value: handState, declared: 2, absent: contract.StateBlocked},
 	} {
 		built := treeOf(t, h, "", []string{c.axis}, LevelCards)
 		if built.Root.Count != cardsFiled {
@@ -650,10 +685,13 @@ func TestNoCardFallsOutOfAClosedAxisTree(t *testing.T) {
 		if total != cardsFiled {
 			t.Errorf("the %s groups count %d cards between them and the root counts %d, so the tree lost one", c.axis, total, cardsFiled)
 		}
-		for _, ref := range []string{declared, undeclaredState, undeclaredSubstate} {
+		for _, ref := range []string{declared, undeclaredColumn, undeclaredState} {
 			if !drawn[ref] {
 				t.Errorf("%s is drawn nowhere in the %s tree, and the root counts it", ref, c.axis)
 			}
+		}
+		if c.absent != "" && groupPosition(built.Root, c.absent) >= 0 {
+			t.Errorf("the %s tree draws a group at %q and no card of the fixture stands there", c.axis, c.absent)
 		}
 		at := groupPosition(built.Root, c.value)
 		if at < 0 {
@@ -692,9 +730,9 @@ func TestABadChainIsRefusedByItsOwnName(t *testing.T) {
 	}{
 		{chain: []string{"urgency"}, refusal: contract.UnknownAxis, detail: "urgency", lists: true},
 		{chain: []string{FieldAt}, refusal: contract.UnknownAxis, detail: FieldAt, lists: true},
-		{chain: []string{FieldState, FieldState}, refusal: contract.RepeatedAxis, detail: FieldState},
+		{chain: []string{FieldColumn, FieldColumn}, refusal: contract.RepeatedAxis, detail: FieldColumn},
 		{
-			chain:   []string{FieldState, FieldSubstate, FieldHolder, FieldActor, FieldEvent},
+			chain:   []string{FieldColumn, FieldState, FieldHolder, FieldActor, FieldEvent},
 			refusal: contract.ChainTooLong,
 			detail:  "5",
 		},
@@ -780,13 +818,13 @@ func TestEachCommandRefusesADepthAgainstItsOwnLadder(t *testing.T) {
 }
 
 // TestACardIsReachedByItsOwnAddressAndByNoOther asserts that a reference
-// descending from the workbench into its cards or its states is refused, and
+// descending from the workbench into its cards or its columns is refused, and
 // that the reference the walk actually draws for each of them still opens it.
 //
-// The containment grammar mounts cards and states under the workbench, so a
+// The containment grammar mounts cards and columns under the workbench, so a
 // resolver walking that grammar from the root accepts `<slug>/cards/1` unless
 // something stops it. Nothing prints that form: the walk draws a card by its
-// own reference and a state by its slug. What the form did produce was an
+// own reference and a column by its slug. What the form did produce was an
 // answer marked as a card with no card in it, which crashed `dinah contents`
 // on the nil and, through `dinah attach`, wrote a card's own history into the
 // workbench journal under the workbench's lock. One entity with two spellings
@@ -806,8 +844,8 @@ func TestACardIsReachedByItsOwnAddressAndByNoOther(t *testing.T) {
 		slug + "/cards/1",
 		"workbench/cards/1",
 		slug + "/cards/1/comments/1",
-		slug + "/states/1",
-		"workbench/states/1",
+		slug + "/columns/1",
+		"workbench/columns/1",
 	} {
 		built, err := h.library.Contents(&Request{Verb: "contents", Ref: spelling}, LevelEntities)
 		if err == nil {
@@ -865,7 +903,7 @@ func TestEveryReferenceAContentsTreeDrawsResolves(t *testing.T) {
 	h.attach(ref, "notes.txt", "some bytes")
 	h.attach(ref+"/comments/1", "evidence.txt", "the comment's own bytes")
 	h.attach("workbench", "policy.txt", "the workbench's own bytes")
-	h.attach(h.library.Bench.States[0].Ref(), "station.txt", "a state's own bytes")
+	h.attach(h.library.Bench.Columns[0].Ref(), "station.txt", "a column's own bytes")
 	writeItem(t, h.card(ref).Dir, "AC-1", 1)
 	h.reopen()
 
@@ -939,7 +977,7 @@ func TestAWalkRootedAtAReferenceDrawsThatReferenceBack(t *testing.T) {
 	h.attach(ref, "notes.txt", "some bytes")
 	h.attach(ref+"/comments/1", "evidence.txt", "the comment's own bytes")
 	h.attach("workbench", "policy.txt", "the workbench's own bytes")
-	h.attach(h.library.Bench.States[0].Ref(), "station.txt", "a state's own bytes")
+	h.attach(h.library.Bench.Columns[0].Ref(), "station.txt", "a column's own bytes")
 	writeItem(t, h.card(ref).Dir, "AC-1", 1)
 	h.reopen()
 
@@ -961,15 +999,15 @@ func TestAWalkRootedAtAReferenceDrawsThatReferenceBack(t *testing.T) {
 	// The kinds are named rather than counted, because the defect this guard
 	// exists for reached one kind under two heads and no other, so a corpus
 	// that happens to miss a head proves nothing about it.
-	for _, kind := range []string{bench.KindWorkbench, bench.KindState, bench.KindCard, bench.KindComment, bench.KindItem, bench.KindAttachment} {
+	for _, kind := range []string{bench.KindWorkbench, bench.KindColumn, bench.KindCard, bench.KindComment, bench.KindItem, bench.KindAttachment} {
 		if drawn[kind] == 0 {
 			t.Fatalf("the walk drew no %s, so this test proves nothing about that kind", kind)
 		}
 	}
 	// The two heads the fix is about: an attachment reached below the
-	// workbench and one reached below a state, neither of which belongs to a
+	// workbench and one reached below a column, neither of which belongs to a
 	// card and both of which the older composer left with no reference.
-	for _, below := range []string{"workbench/attachments/1", h.library.Bench.States[0].Ref() + "/attachments/1"} {
+	for _, below := range []string{"workbench/attachments/1", h.library.Bench.Columns[0].Ref() + "/attachments/1"} {
 		entity, err := h.library.Bench.ResolveEntity(below)
 		if err != nil {
 			t.Errorf("%s does not resolve: %v", below, err)
@@ -1057,12 +1095,12 @@ func TestTheWorkbenchWalkDrawsItsCollectionsInOrder(t *testing.T) {
 		kinds = append(kinds, child.Kind)
 	}
 	wanted := []string{
-		bench.KindState, bench.KindState, bench.KindState,
-		bench.KindState, bench.KindState, bench.KindState,
+		bench.KindColumn, bench.KindColumn, bench.KindColumn,
+		bench.KindColumn, bench.KindColumn, bench.KindColumn,
 		bench.KindCard, bench.KindCard,
 	}
 	if strings.Join(kinds, ",") != strings.Join(wanted, ",") {
-		t.Errorf("the workbench draws %v, and the states come in flow order before the cards", kinds)
+		t.Errorf("the workbench draws %v, and the columns come in flow order before the cards", kinds)
 	}
 	var drawn []string
 	for _, child := range cards.Root.Children {
@@ -1098,4 +1136,235 @@ func writeFile(t *testing.T, name string) string {
 		t.Fatalf("write %s: %v", path, err)
 	}
 	return path
+}
+
+// nobodyWorksHereDefinition is a flow whose every column takes work up nowhere:
+// one intake station and one done column, and nothing between them. A card can
+// stand ready or blocked anywhere on it and can never stand active, which is
+// what makes it the one fixture able to tell the union rule apart from a rule
+// that draws all three states whatever the workbench says.
+const nobodyWorksHereDefinition = `{
+  "profile": "dinah-core/0.7",
+  "title": "Nobody works here",
+  "instructions": "The standing text of this workbench.\n",
+  "columns": [
+    { "id": "c00000000001", "title": "Waiting", "kind": "intake",
+      "instructions": "Waiting instructions.\n" },
+    { "id": "c00000000002", "title": "Filed", "kind": "done",
+      "instructions": "Filed instructions.\n" }
+  ]
+}`
+
+// TestStateResolvesTheColumnAboveItWhateverAxisComesBetween asserts that the
+// column an ancestor group fixed still governs the state enumeration when
+// another axis stands between the two in the chain.
+//
+// Grouping partitions a card set and never merges two of them back together,
+// so every card below an intake group stands at the intake column however many
+// axes intervene, and the states drawn there are the intake column's own. The
+// fixture blocks one of its two cards so that the expected set, ready and
+// blocked, differs from the union across the whole workbench in both members: a
+// tree that lost the column would draw active, and a tree that suppressed
+// blocked wherever it appeared would drop blocked.
+//
+// The same tree taken with the column axis dropped out of the chain is the
+// control. Without it the state groups draw active as well, which is what
+// makes the absence of active above a statement about the intervening axis
+// rather than about a workbench that never draws active at all.
+func TestStateResolvesTheColumnAboveItWhateverAxisComesBetween(t *testing.T) {
+	h := newHarness(t)
+	h.add("a card standing ready where it was filed")
+	stopped := h.add("a card stopped where it was filed")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+
+	built := treeOf(t, h, "", []string{FieldColumn, FieldEntered, FieldState}, LevelCards)
+	entered := groupAt(t, groupAt(t, built.Root, "intake"), "intake")
+	want := []string{contract.StateReady, contract.StateBlocked}
+	if drawn := groupValues(entered); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Errorf("the states under the entered group draw as %v, and the intake column holds %v", drawn, want)
+	}
+
+	control := treeOf(t, h, "", []string{FieldEntered, FieldState}, LevelCards)
+	drawn := groupValues(groupAt(t, control.Root, "intake"))
+	if !contains(drawn, contract.StateActive) {
+		t.Fatalf("the same fixture draws %v with no column axis in the chain, so the absence of active above proves nothing", drawn)
+	}
+}
+
+// TestStandaloneStateUnionsAcrossColumns asserts that a state axis grouped
+// with no column above it anywhere in the chain enumerates the union of what the
+// workbench's columns can hold, rather than the three the contract names.
+//
+// The fixture is a flow where no column takes work up at all, so the union holds
+// ready and blocked and no card on the workbench can ever stand active. A tree
+// drawing an active group here is drawing a group nothing can occupy, which is
+// the defect this card fixes, and the standard fixture cannot show it: its
+// columns union to all three and pass under either rule.
+//
+// The second half is the control for the first. Blocking a card draws the
+// blocked group, so the assertion that only ready is drawn while nothing is
+// blocked reads as the occupancy rule rather than as a tree that lost the
+// blocked group entirely. Active is absent from both halves, which is the
+// union rule holding while the rest of the answer moves.
+func TestStandaloneStateUnionsAcrossColumns(t *testing.T) {
+	h := harnessFromDefinition(t, "nw", nobodyWorksHereDefinition)
+	h.add("a card standing ready")
+	stopped := h.add("a card that will be stopped")
+
+	built := treeOf(t, h, "", []string{FieldState}, LevelCards)
+	want := []string{contract.StateReady}
+	if drawn := groupValues(built.Root); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Errorf("the state axis draws %v, and no column on this workbench takes work up or holds a blocked card, so it holds %v", drawn, want)
+	}
+
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	blocked := treeOf(t, h, "", []string{FieldState}, LevelCards)
+	wantBlocked := []string{contract.StateReady, contract.StateBlocked}
+	if drawn := groupValues(blocked.Root); strings.Join(drawn, ",") != strings.Join(wantBlocked, ",") {
+		t.Errorf("the state axis draws %v once a card is blocked, and the union of this workbench's columns holds %v", drawn, wantBlocked)
+	}
+}
+
+// TestStateUnderAnUndeclaredColumnFallsBackToTheUnion asserts that a state
+// group standing under a column ref the workbench no longer declares draws the
+// union, rather than erroring or drawing nothing.
+//
+// A column deleted from the flow leaves the cards standing in it naming a column
+// nothing declares, and no column answers what those cards may carry. The tree
+// still has to draw them, so the enumeration falls back to the union across the
+// declared columns, and the occupancy rule applies to that union's blocked
+// member exactly as it applies to a single column's. Both halves are asserted
+// over one card, moved from ready to blocked by hand the same way it was stood
+// at the deleted column, so the group appearing is the occupancy rule and not a
+// second fixture behaving differently.
+func TestStateUnderAnUndeclaredColumnFallsBackToTheUnion(t *testing.T) {
+	const deletedColumn = "a00000000009"
+	h := newHarness(t)
+	stranded := h.add("a card standing in a column the flow no longer declares")
+	standAt(t, h, stranded, deletedColumn, contract.StateReady)
+
+	built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+	want := []string{contract.StateReady, contract.StateActive}
+	if drawn := groupValues(groupAt(t, built.Root, deletedColumn)); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Errorf("the deleted column draws the states %v, and the union less an unoccupied blocked group is %v", drawn, want)
+	}
+
+	standAt(t, h, stranded, deletedColumn, contract.StateBlocked)
+	blocked := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
+	wantBlocked := []string{contract.StateReady, contract.StateActive, contract.StateBlocked}
+	if drawn := groupValues(groupAt(t, blocked.Root, deletedColumn)); strings.Join(drawn, ",") != strings.Join(wantBlocked, ",") {
+		t.Errorf("the deleted column draws the states %v once its card is blocked, and the whole union is %v", drawn, wantBlocked)
+	}
+}
+
+// TestAnOccupiedBlockedGroupIsDrawnAlongsideAnEmptyActiveGroup asserts the two
+// halves of the empty-group rule against each other in one fixture: a blocked
+// group is drawn because a card stands in it, and an active group is drawn
+// beside it although no card stands in that.
+//
+// This is the only test in the suite where a card is actually blocked at a
+// column that takes work up, so it is the only one that can show the occupancy
+// rule drawing a group rather than suppressing one. Unblocking the same card
+// and reading the column again is what tells the rule apart from a fixture that
+// happens to draw three groups: the blocked group has to leave when its one
+// card leaves, and nothing else about the tree may move with it.
+func TestAnOccupiedBlockedGroupIsDrawnAlongsideAnEmptyActiveGroup(t *testing.T) {
+	h := newHarness(t)
+	h.ready("a card standing ready at the station")
+	stopped := h.ready("a card stopped at the station")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+
+	built := treeOf(t, h, "", nil, LevelCards)
+	column := groupAt(t, built.Root, aftercareSlug)
+	want := []string{contract.StateReady, contract.StateActive, contract.StateBlocked}
+	if drawn := groupValues(column); strings.Join(drawn, ",") != strings.Join(want, ",") {
+		t.Fatalf("the station draws the states %v, and it can hold %v with one card blocked", drawn, want)
+	}
+	if active := groupAt(t, column, contract.StateActive); active.Count != 0 {
+		t.Errorf("the active group counts %d and nobody has taken a card up", active.Count)
+	}
+	if blocked := groupAt(t, column, contract.StateBlocked); blocked.Count != 1 {
+		t.Errorf("the blocked group counts %d and one card is blocked", blocked.Count)
+	}
+
+	h.mustDo(&Request{Verb: Unblock, Card: stopped, Actor: "alka"})
+	after := treeOf(t, h, "", nil, LevelCards)
+	drawn := groupValues(groupAt(t, after.Root, aftercareSlug))
+	wantAfter := []string{contract.StateReady, contract.StateActive}
+	if strings.Join(drawn, ",") != strings.Join(wantAfter, ",") {
+		t.Errorf("the station draws the states %v once its card is unblocked, and it holds %v", drawn, wantAfter)
+	}
+}
+
+// TestAFilteredBlockedGroupIsDrawnOnTheCardsTheFilterRemoved asserts that a
+// blocked card the filter cut still draws its group, counting nothing and
+// reporting what was filtered.
+//
+// The occupancy rule reads the cards the filter removed as well as the
+// survivors, and the two readings are not the same statement. A column holding a
+// blocked card that the reader's own filter hid still has a blocked card, so
+// drawing no group there tells the reader the column has none. The honest
+// drawing is a group counting nothing with an account of what it is not
+// showing, which is what every other emptied group in this tree does.
+func TestAFilteredBlockedGroupIsDrawnOnTheCardsTheFilterRemoved(t *testing.T) {
+	h := newHarness(t)
+	h.ready("a card standing ready at the station")
+	stopped := h.ready("a card stopped at the station")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+
+	built := treeOf(t, h, "state:ready", nil, LevelCards)
+	column := groupAt(t, built.Root, aftercareSlug)
+	blocked := groupAt(t, column, contract.StateBlocked)
+	if blocked.Count != 0 {
+		t.Errorf("the blocked group counts %d and the filter kept none of its cards", blocked.Count)
+	}
+	if blocked.Hidden == nil || blocked.Hidden.Filtered != 1 {
+		t.Fatalf("the blocked group reports %v and the filter removed one card from it", blocked.Hidden)
+	}
+}
+
+// TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenState
+// asserts where a drawn blocked group sits among the others, which is among
+// the values the axis declares and ahead of any value only a card carries.
+//
+// A group at a value some card carries is drawn whether or not the axis
+// declares that value, so an occupied blocked group appears in the tree under
+// either rule and its presence alone settles nothing about where the occupancy
+// check runs. What the two differ on is order: a blocked group drawn because
+// the axis declared it stands with ready and active, while one drawn only
+// because a card carries it falls in among the hand-written values, sorted by
+// its bytes. The fixture writes a state sorting ahead of blocked so the two
+// orders differ, and asserts the whole order rather than a membership.
+//
+// The filtered half asks the same question of the cards a filter removed. The
+// occupancy check reads those as well as the survivors, and a check reading
+// only the survivors would drop this blocked group out of the declared values
+// and leave it sorted in among the hand-written ones, which the first half
+// cannot see because nothing there is filtered.
+func TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenState(t *testing.T) {
+	// The value is chosen to sort ahead of blocked. A hand-written state
+	// sorting after it would draw the same order under both rules and the
+	// test would pass without asking anything.
+	const handState = "adjourned"
+	h := newHarness(t)
+	h.ready("a card standing ready at the station")
+	stopped := h.ready("a card stopped at the station")
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	hand := h.ready("a card carrying a state the tool never writes")
+	standAt(t, h, hand, aftercare, handState)
+
+	want := []string{
+		contract.StateReady,
+		contract.StateActive,
+		contract.StateBlocked,
+		handState,
+	}
+	for _, query := range []string{"", "state:ready"} {
+		built := treeOf(t, h, query, nil, LevelCards)
+		drawn := groupValues(groupAt(t, built.Root, aftercareSlug))
+		if strings.Join(drawn, ",") != strings.Join(want, ",") {
+			t.Errorf("under the query %q the station draws the states %v, and the declared values come first at %v",
+				query, drawn, want)
+		}
+	}
 }

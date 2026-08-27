@@ -19,9 +19,11 @@ if (-not (Test-Path $BinDir)) { New-Item -ItemType Directory -Force $BinDir | Ou
 Push-Location $Repo
 try {
     if (-not $SkipPull) {
-        $dirty = git status --porcelain
+        # Only tracked-file changes matter here. A checkout leaves untracked files
+        # alone, and agent tooling leaves plenty of them lying around.
+        $dirty = git status --porcelain --untracked-files=no
         if ($dirty) {
-            Write-Warning "Working tree has local changes; building it as-is (pull skipped). Use -SkipPull to silence this."
+            Write-Warning "Working tree has uncommitted changes; building it as-is (pull skipped). Use -SkipPull to silence this."
         } else {
             git fetch origin
             if ($LASTEXITCODE -ne 0) { throw "git fetch failed" }

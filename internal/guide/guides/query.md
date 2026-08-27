@@ -1,12 +1,12 @@
 # Asking questions of a workbench
 
-`dinah ls` answers a positional question, which is what one state is holding
+`dinah ls` answers a positional question, which is what one column is holding
 right now. `dinah query` answers the rest. You write one string of conditions,
 Dinah returns every live card that meets all of them, and the same string works
 the same way from the command line and from an agent's tool call.
 
     dinah query "actor:alka"
-    dinah query "state:doing substate:ready"
+    dinah query "column:doing state:ready"
     dinah query "entered:done at>=2026-08-01"
 
 Quote the whole query. Dinah reads it as one argument, so an unquoted query of
@@ -21,10 +21,10 @@ Every term has to hold. There is no `or` between terms, no way to negate a
 whole term, and no bracketing. If you want a card that is either of two things,
 say so inside one term with a comma.
 
-    dinah query "substate:ready,active"
+    dinah query "state:ready,active"
 
 A comma inside one value reads as `or`, so that query returns a card in either
-substate. If you want a value that has a comma in it, put the value in
+state. If you want a value that has a comma in it, put the value in
 quotation marks and Dinah compares it whole. Quotation marks also let a value
 carry a space, so a term naming an owner whose name has one is written like
 this:
@@ -43,9 +43,9 @@ nothing between them. `holder:""` returns the cards nobody is holding.
 
 Twelve fields, and no others. Seven of them describe the card as it stands now:
 
-- `state` is the state the card is in. Give it a state's short name or its
+- `column` is the column the card is in. Give it a column's short name or its
   identifier.
-- `substate` is `ready`, `active`, or `blocked`.
+- `state` is `ready`, `active`, or `blocked`.
 - `severity` is a level a workbench may declare in its own `levels:` block.
   A card carrying none is not an error, and neither is a workbench that has
   declared no severity set.
@@ -63,8 +63,8 @@ from its journal:
 
 - `actor` is the owner who did something.
 - `event` is what was done, such as `claimed`, `moved`, or `commented`.
-- `entered` is the state a move carried the card into.
-- `left` is the state a move carried the card out of.
+- `entered` is the column a move carried the card into.
+- `left` is the column a move carried the card out of.
 - `at` is when it happened.
 
 `at` is the one field that compares with `>=`, `<=`, `>`, and `<` rather than
@@ -81,14 +81,14 @@ June and was commented on in August, because the five journal fields all have
 to be satisfied by one and the same recorded act.
 
 Use `!=` to ask for the opposite of any of the nine fields that take `:`. On a
-card field it means what you expect, so `state!=done` returns every card that
+card field it means what you expect, so `column!=done` returns every card that
 is not in Done. On a journal field the negation applies inside the one act, so
 `actor:alka event!=commented` asks for an act by Alka that was not a comment.
 
 ## What a mistake looks like
 
 Dinah checks every term of the query before it filters a single card, and it
-tells you which word was wrong rather than returning nothing. `substate:reday`
+tells you which word was wrong rather than returning nothing. `state:reday`
 is an error message naming `reday` and listing the three values that field
 takes. `Priority>=next` is an error message saying there is no such field and
 listing the twelve there are, because field names are case-sensitive and
@@ -115,7 +115,7 @@ query, because the language admits no ordered comparison on anything but `at`.
 
 A workbench that has not declared a set for an axis, or a card that carries no
 value on one, is not an error. `priority:""` returns the cards carrying none.
-If you want a card ranked ahead of another, sort that out with states, with
+If you want a card ranked ahead of another, sort that out with columns, with
 the queue order, or with a workstream, the way you always could. Severity and
 priority are now things a query can name; Dinah still gives no ranked answer
 to "what is ready and important."
@@ -127,7 +127,7 @@ search prose. When you want any of that, take the whole set and compute the
 rest downstream. Two lines do it.
 
     dinah query --json > cards.json
-    duckdb -c "select card.state_title, count(*) from (select unnest(cards) as card from read_json_auto('cards.json')) group by 1 order by 1"
+    duckdb -c "select card.column_title, count(*) from (select unnest(cards) as card from read_json_auto('cards.json')) group by 1 order by 1"
 
 `dinah query` with no query at all returns every live card, and `--json` prints
 one object with the cards nested under `cards`, so a reader unnests that member
