@@ -2,7 +2,7 @@
   "tag": "hi",
   "entries": {
     "answer.pull.empty.bare": {
-      "text": "Dinah को अभी ऐसा कोई स्तंभ नहीं मिला जिसमें आप pull कर सकें",
+      "text": "Dinah को अभी ऐसा कोई कॉलम नहीं मिला जिसमें आप pull कर सकें",
       "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders.",
       "source": "1ee5a087a80c8f6"
     },
@@ -60,12 +60,12 @@
       "source": "236c46532111031f"
     },
     "check.add.2": {
-      "text": "नामित स्तंभ वर्कबेंच घोषित करती है",
+      "text": "नामित कॉलम वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "c742bc9168cdb24"
     },
     "check.add.3": {
-      "text": "नामित स्तंभ अपनी सीमा से नीचे है",
+      "text": "नामित कॉलम अपनी सीमा से नीचे है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "144329bf4ee274df"
     },
@@ -80,17 +80,17 @@
       "source": "18355315571e9c45"
     },
     "check.archive.1": {
-      "text": "संदर्भ किसी कार्ड, किसी स्तंभ, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
+      "text": "संदर्भ किसी कार्ड, किसी कॉलम, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "292e0cba1554c144"
     },
     "check.archive.2": {
-      "text": "संग्रहीत होने वाले स्तंभ में कोई कार्ड नहीं",
+      "text": "संग्रहीत होने वाले कॉलम में कोई कार्ड नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "fee83802c3d694cf"
     },
     "check.archive.3": {
-      "text": "वर्कबेंच में कम से कम एक स्तंभ बना रहता है",
+      "text": "वर्कबेंच में कम से कम एक कॉलम बना रहता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
     },
@@ -240,7 +240,7 @@
       "source": "26290cfe311e2542"
     },
     "check.delete.1": {
-      "text": "संदर्भ किसी कार्ड, किसी स्तंभ, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
+      "text": "संदर्भ किसी कार्ड, किसी कॉलम, या कार्ड के नीचे की किसी वस्तु तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "292e0cba1554c144"
     },
@@ -250,12 +250,12 @@
       "source": "6032d7f45773bf8"
     },
     "check.delete.3": {
-      "text": "मिटाए जा रहे स्तंभ में कोई कार्ड नहीं",
+      "text": "मिटाए जा रहे कॉलम में कोई कार्ड नहीं",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "983ad3af89e9f30e"
     },
     "check.delete.4": {
-      "text": "वर्कबेंच में कम से कम एक स्तंभ बना रहता है",
+      "text": "वर्कबेंच में कम से कम एक कॉलम बना रहता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "5166e1a76d1e4f39"
     },
@@ -305,7 +305,7 @@
       "source": "f2ef2a76507fdfc9"
     },
     "check.instructions.1": {
-      "text": "संदर्भ किसी कार्ड या स्तंभ तक पहुँचता है",
+      "text": "संदर्भ किसी कार्ड या कॉलम तक पहुँचता है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "eb61df898032f256"
     },
@@ -350,7 +350,7 @@
       "source": "37dac5acd188c446"
     },
     "check.ls.1": {
-      "text": "नामित स्तंभ वर्कबेंच घोषित करती है",
+      "text": "नामित कॉलम वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "7037e94c3b8968f0"
     },
@@ -375,7 +375,7 @@
       "source": "37dac5acd188c446"
     },
     "check.move.2": {
-      "text": "गंतव्य वह स्तंभ है जिसे वर्कबेंच घोषित करती है",
+      "text": "गंतव्य वह कॉलम है जिसे वर्कबेंच घोषित करती है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "77302ed88afc1490"
     },
@@ -400,7 +400,7 @@
       "source": "ec01b01e10f981a7"
     },
     "check.move.7": {
-      "text": "यह `done` स्तंभ से बाहर आगे की चाल नहीं है",
+      "text": "यह `done` कॉलम से बाहर आगे की चाल नहीं है",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "7e0c1d83c59a8fd3"
     },
@@ -410,7 +410,7 @@
       "source": "9d61260048317b7e"
     },
     "check.next.1": {
-      "text": "नामित स्तंभ वर्कबेंच घोषित करती है",
+      "text": "नामित कॉलम वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "7037e94c3b8968f0"
     },
@@ -420,7 +420,7 @@
       "source": "bc538e33f1fcc933"
     },
     "check.pull.2": {
-      "text": "नामित गंतव्य वह स्तंभ है जिसे वर्कबेंच घोषित करती है",
+      "text": "नामित गंतव्य वह कॉलम है जिसे वर्कबेंच घोषित करती है",
       "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no column to be unknown.",
       "source": "1899da9c7148e43"
     },
@@ -430,12 +430,12 @@
       "source": "607a576951946330"
     },
     "check.pull.4": {
-      "text": "जब कोई गंतव्य नामित नहीं है, तब ठीक एक स्तंभ अर्ह होता है",
+      "text": "जब कोई गंतव्य नामित नहीं है, तब ठीक एक कॉलम अर्ह होता है",
       "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one column qualifies.",
       "source": "ff287fee6b6b1394"
     },
     "check.pull.5": {
-      "text": "प्रवाह में गंतव्य से पहले एक स्तंभ है",
+      "text": "प्रवाह में गंतव्य से पहले एक कॉलम है",
       "context": "One row of the ordered precondition list of pull: a column standing first in the flow has no upstream, and pull looks one step back only.",
       "source": "22401b9a66eb5b8f"
     },
@@ -455,7 +455,7 @@
       "source": "f440283aebd1741c"
     },
     "check.pull.9": {
-      "text": "यह `done` स्तंभ से बाहर आगे की चाल नहीं है",
+      "text": "यह `done` कॉलम से बाहर आगे की चाल नहीं है",
       "context": "One row of the ordered precondition list of pull: a forward move out of a done column refuses, and the race between the queue read and the lock can surface that here.",
       "source": "7e0c1d83c59a8fd3"
     },
@@ -515,7 +515,7 @@
       "source": "ba840a777dc1fa7"
     },
     "check.position-diverges": {
-      "text": "पंजिका इस कार्ड को स्तंभ {detail} में रखती है, पर उसका शीर्ष असहमत है",
+      "text": "पंजिका इस कार्ड को कॉलम {detail} में रखती है, पर उसका शीर्ष असहमत है",
       "context": "A check finding: frontmatter position against the journal's replay.",
       "source": "29321c66b1779557"
     },
@@ -540,7 +540,7 @@
       "source": "93dab49abf2692af"
     },
     "check.query.5": {
-      "text": "क्वेरी जिस भी स्तंभ का नाम लेती है वह वर्कबेंच घोषित करती है",
+      "text": "क्वेरी जिस भी कॉलम का नाम लेती है वह वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "7afe004f6fdd0a64"
     },
@@ -555,17 +555,17 @@
       "source": "b71a9fa16890f28b"
     },
     "check.reject-target-forward": {
-      "text": "स्तंभ {detail} reject_to में अपने आगे का ऐसा स्तंभ बताता है जो done स्तंभ नहीं है",
+      "text": "कॉलम {detail} reject_to में अपने आगे का ऐसा कॉलम बताता है जो done कॉलम नहीं है",
       "context": "A check finding: reject_to names a column further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring column, or that lands in a done column ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring column.",
       "source": "40d281395826420b"
     },
     "check.reject-target-is-self": {
-      "text": "स्तंभ {detail} reject_to में स्वयं को बताता है",
+      "text": "कॉलम {detail} reject_to में स्वयं को बताता है",
       "context": "A check finding: reject_to names the column that declares it, which is never a destination a caller should act on. {detail} carries the declaring column.",
       "source": "b61334d6de51bdf7"
     },
     "check.reject-target-unknown": {
-      "text": "स्तंभ {detail} reject_to में ऐसा स्तंभ बताता है जो यह वर्कबेंच नहीं रखती",
+      "text": "कॉलम {detail} reject_to में ऐसा कॉलम बताता है जो यह वर्कबेंच नहीं रखती",
       "context": "A check finding: reject_to names no column in the flow. {detail} carries the declaring column, and the repair is an edit to that column's own column.md.",
       "source": "620894b01ab6a607"
     },
@@ -610,52 +610,52 @@
       "source": "dd300660ba922972"
     },
     "check.slug-assigned.one": {
-      "text": "{count} स्तंभ-उपनाम निर्धारित किया।",
+      "text": "{count} कॉलम-उपनाम निर्धारित किया।",
       "context": "The line the slug migration prints for what it assigned, for exactly one column.",
       "source": "9af8e0cf6b22d44b"
     },
     "check.slug-assigned.other": {
-      "text": "{count} स्तंभ-उपनाम निर्धारित किए।",
+      "text": "{count} कॉलम-उपनाम निर्धारित किए।",
       "context": "The line the slug migration prints for what it assigned, for any other number.",
       "source": "78b903730d070116"
     },
     "check.slug-duplicate": {
-      "text": "स्तंभ {detail} पर ऐसा उपनाम है जो इस वर्कबेंच के किसी और स्तंभ पर भी है, इसलिए उसका संदर्भ दोनों को नामित करता है",
+      "text": "कॉलम {detail} पर ऐसा उपनाम है जो इस वर्कबेंच के किसी और कॉलम पर भी है, इसलिए उसका संदर्भ दोनों को नामित करता है",
       "context": "A check finding: two columns share a slug, which leaves a column reference with two answers; a person picks which one changes.",
       "source": "64940a7bae6229df"
     },
     "check.slug-malformed": {
-      "text": "स्तंभ {detail} पर ऐसा उपनाम है जिसमें अक्षर के बाद अक्षर, अंक, और एकल आंतरिक डैश का रूप नहीं है",
+      "text": "कॉलम {detail} पर ऐसा उपनाम है जिसमें अक्षर के बाद अक्षर, अंक, और एकल आंतरिक डैश का रूप नहीं है",
       "context": "A check finding: a column's stored slug does not match the column slug grammar, so nobody can rely on typing it.",
       "source": "1e0cd5b5193c9f21"
     },
     "check.slug-missing": {
-      "text": "स्तंभ {detail} पर कोई उपनाम नहीं, इसलिए वह केवल अपने पहचानक या उद्धृत शीर्षक से पहुँच में है",
+      "text": "कॉलम {detail} पर कोई उपनाम नहीं, इसलिए वह केवल अपने पहचानक या उद्धृत शीर्षक से पहुँच में है",
       "context": "A check finding: a column written before the slug field existed; `dinah check --migrate-slugs` derives one from the title.",
       "source": "5cb3ddd5ffb09a48"
     },
     "check.slug-underivable": {
-      "text": "स्तंभ {detail} का शीर्षक ऐसा है जिससे कोई उपनाम नहीं निकाला जा सकता, इसलिए प्रवासन ने उसे कोई नहीं दिया",
+      "text": "कॉलम {detail} का शीर्षक ऐसा है जिससे कोई उपनाम नहीं निकाला जा सकता, इसलिए प्रवासन ने उसे कोई नहीं दिया",
       "context": "A check finding the slug migration raises: no letter of the column's title survives the derivation, so a person retitles the column or writes a slug onto its anchor by hand.",
       "source": "6571c52e2228b67f"
     },
     "check.slug-unwritable": {
-      "text": "स्तंभ {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
+      "text": "कॉलम {detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उसे कोई उपनाम नहीं दिया और आगे बढ़ गया",
       "context": "A check finding the slug migration raises: the column's anchor could not be read or written, the walk stepped over it and carried on.",
       "source": "17123f8e8400c080"
     },
     "check.columns-removed.one": {
-      "text": "सूची से {count} छूटा हुआ स्तंभ हटाया।",
+      "text": "सूची से {count} छूटा हुआ कॉलम हटाया।",
       "context": "The line the stranded-column migration prints for what it removed, for exactly one column. Followed by one line per removed identifier.",
       "source": "c51f58188bdad16e"
     },
     "check.columns-removed.other": {
-      "text": "सूची से {count} छूटे हुए स्तंभ हटाए।",
+      "text": "सूची से {count} छूटे हुए कॉलम हटाए।",
       "context": "The line the stranded-column migration prints for what it removed, for any other number. Followed by one line per removed identifier.",
       "source": "26675d249f208b4f"
     },
     "check.stranded-column": {
-      "text": "वर्कबेंच एक ऐसे स्तंभ ({detail}) का नाम लेती है जिसकी निर्देशिका मौजूद नहीं है; dinah check --migrate-columns उसे सूची से हटा देता है",
+      "text": "वर्कबेंच एक ऐसे कॉलम ({detail}) का नाम लेती है जिसकी निर्देशिका मौजूद नहीं है; dinah check --migrate-columns उसे सूची से हटा देता है",
       "context": "A check finding: a column a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-column file, since there is no per-column file left to point at.",
       "source": "17edbd932252d155"
     },
@@ -685,7 +685,7 @@
       "source": "5c2a73478fe2656b"
     },
     "check.unknown-column": {
-      "text": "एक कार्ड स्तंभ {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
+      "text": "एक कार्ड कॉलम {detail} बताता है, जो यह वर्कबेंच घोषित नहीं करती",
       "context": "A check finding: every card's column identifier resolves.",
       "source": "a83abbcc77548d19"
     },
@@ -830,12 +830,12 @@
       "source": "41a023702a16aa73"
     },
     "cmd.add.summary": {
-      "text": "पहले स्तंभ में नया कार्ड दर्ज करें",
+      "text": "पहले कॉलम में नया कार्ड दर्ज करें",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block.",
       "source": "4bc64e311c859f14"
     },
     "cmd.archive.summary": {
-      "text": "कार्ड, स्तंभ, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
+      "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु जीवित समूह से बाहर करें",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
       "source": "dc0b4d1c53656321"
     },
@@ -880,7 +880,7 @@
       "source": "d4e39c0cabb42107"
     },
     "cmd.delete.summary": {
-      "text": "कार्ड, स्तंभ, या कार्ड के नीचे की कोई भी वस्तु, उसके इतिहास सहित नष्ट करें",
+      "text": "कार्ड, कॉलम, या कार्ड के नीचे की कोई भी वस्तु, उसके इतिहास सहित नष्ट करें",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
       "source": "99d356ed109c1795"
     },
@@ -935,7 +935,7 @@
       "source": "bed8f87abcb3e98a"
     },
     "cmd.ls.summary": {
-      "text": "किसी स्तंभ के कार्ड, कतार के क्रम में",
+      "text": "किसी कॉलम के कार्ड, कतार के क्रम में",
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block.",
       "source": "c155ca5b8a9da70f"
     },
@@ -945,17 +945,17 @@
       "source": "7d3198fa32547f63"
     },
     "cmd.move.summary": {
-      "text": "कार्ड को दूसरे स्तंभ में ले जाएँ",
+      "text": "कार्ड को दूसरे कॉलम में ले जाएँ",
       "context": "The one-line summary of the move command, shown beside its syntax in the help block.",
       "source": "8561191e47c8d473"
     },
     "cmd.next.summary": {
-      "text": "स्तंभ आगे जो कार्ड देता है",
+      "text": "कॉलम आगे जो कार्ड देता है",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block.",
       "source": "6a28bb8d94b4c659"
     },
     "cmd.pull.summary": {
-      "text": "एक ही कार्रवाई में किसी स्तंभ की कतार के शीर्ष कार्ड का दावा करें और उसे वहाँ ले जाएँ",
+      "text": "एक ही कार्रवाई में किसी कॉलम की कतार के शीर्ष कार्ड का दावा करें और उसे वहाँ ले जाएँ",
       "context": "The one-line summary of the pull command, shown beside its syntax in the help block. Pull is not a sixth verb: it combines a claim and a move into one transaction.",
       "source": "4a7141f183e1ec1d"
     },
@@ -1206,7 +1206,7 @@
       "source": "123da0f92f97dd86"
     },
     "column.moves.column": {
-      "text": "स्तंभ",
+      "text": "कॉलम",
       "context": "Heading over the destination a person types on a move, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9e40e59654c8ad67"
     },
@@ -1216,7 +1216,7 @@
       "source": "dfef4f9ce9ebb93f"
     },
     "column.next.column": {
-      "text": "स्तंभ",
+      "text": "कॉलम",
       "context": "Heading over the column making the offer, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9e40e59654c8ad67"
     },
@@ -1236,7 +1236,7 @@
       "source": "989261d5eefc4735"
     },
     "column.query.column": {
-      "text": "स्तंभ",
+      "text": "कॉलम",
       "context": "Heading over the title of the column the card occupies, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9e40e59654c8ad67"
     },
@@ -1316,7 +1316,7 @@
       "source": "42a1ebe17efda727"
     },
     "column.workstream.column": {
-      "text": "स्तंभ",
+      "text": "कॉलम",
       "context": "Heading over the column the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9e40e59654c8ad67"
     },
@@ -1491,7 +1491,7 @@
       "source": "86679bb144a2f6d5"
     },
     "instructions.column": {
-      "text": "निर्देश, यह स्तंभ:",
+      "text": "निर्देश, यह कॉलम:",
       "context": "The label above the column's own instructions.",
       "source": "1225923c7f625234"
     },
@@ -1566,12 +1566,12 @@
       "source": "a827de0e98fdc01c"
     },
     "refusal.at-capacity": {
-      "text": "स्तंभ {detail} अपनी सीमा पर पहुँच गया है",
+      "text": "कॉलम {detail} अपनी सीमा पर पहुँच गया है",
       "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "8b227c88fc1ddfd"
     },
     "refusal.at-capacity.next": {
-      "text": "; पहले {detail} से कोई कार्ड हटाएँ, या उस स्तंभ की wip_limit बढ़ाएँ",
+      "text": "; पहले {detail} से कोई कार्ड हटाएँ, या उस कॉलम की wip_limit बढ़ाएँ",
       "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit.",
       "source": "2267f61902fe1be2"
     },
@@ -1606,7 +1606,7 @@
       "source": "b6150cbdb4350f2f"
     },
     "refusal.dinah.ambiguous-column": {
-      "text": "आप अभी एक से अधिक स्तंभों में pull कर सकते हैं",
+      "text": "आप अभी एक से अधिक कॉलमों में pull कर सकते हैं",
       "context": "The opening sentence printed after the refusal name dinah.ambiguous-column. The candidate rows print beneath it, in the same shape the columns listing renders, and refusal.dinah.ambiguous-column.next follows as the closing line naming the ways forward.",
       "source": "4c408ba0a136fe27"
     },
@@ -1626,12 +1626,12 @@
       "source": "8d85819f35ec85f3"
     },
     "refusal.dinah.last-column": {
-      "text": "{detail} ही बचा हुआ एकमात्र स्तंभ है",
+      "text": "{detail} ही बचा हुआ एकमात्र कॉलम है",
       "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "6c3ced789714ca62"
     },
     "refusal.dinah.last-column.next": {
-      "text": "; इसे सेवानिवृत्त करने से पहले एक और स्तंभ जोड़ें",
+      "text": "; इसे सेवानिवृत्त करने से पहले एक और कॉलम जोड़ें",
       "context": "Spliced onto refusal.dinah.last-column as the next step, carrying the clause that base entry used to end with.",
       "source": "2093a7c07f9d6b1f"
     },
@@ -1716,7 +1716,7 @@
       "source": "d806316352688a1a"
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "; प्रवाह में बाद के किसी स्तंभ का नाम लें, या उसके बजाय `dinah move` से एक कार्ड {column} में भेजें",
+      "text": "; प्रवाह में बाद के किसी कॉलम का नाम लें, या उसके बजाय `dinah move` से एक कार्ड {column} में भेजें",
       "context": "The line printed after dinah.no-upstream, naming the ways forward.",
       "source": "be8c2b2d40061074"
     },
@@ -1731,7 +1731,7 @@
       "source": "8b1e574b3bdc690a"
     },
     "refusal.dinah.occupied": {
-      "text": "स्तंभ {detail} में अभी भी कार्ड हैं",
+      "text": "कॉलम {detail} में अभी भी कार्ड हैं",
       "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "e1ea9853c5e6011e"
     },
@@ -1956,7 +1956,7 @@
       "source": "ef1414e25cbe0d27"
     },
     "refusal.dinah.vocabulary-retired.next": {
-      "text": "; फ़ाइल को हाथ से बदलें ताकि कार्ड का स्तंभ रखने वाली कुंजी का नाम `column` हो और उसकी स्थिति रखने वाली कुंजी का नाम `state` हो, यही वह पुनर्नामकरण है जो `dinah check --migrate-vocabulary` उस वर्कबेंच पर करता है जो अब भी सेवानिवृत्त प्रारूप घोषित करती है",
+      "text": "; फ़ाइल को हाथ से बदलें ताकि कार्ड का कॉलम रखने वाली कुंजी का नाम `column` हो और उसकी स्थिति रखने वाली कुंजी का नाम `state` हो, यही वह पुनर्नामकरण है जो `dinah check --migrate-vocabulary` उस वर्कबेंच पर करता है जो अब भी सेवानिवृत्त प्रारूप घोषित करती है",
       "context": "Spliced onto refusal.dinah.vocabulary-retired as the next step. The two key names and the command spelling dinah check --migrate-vocabulary are machine vocabulary and are never translated. The instruction names the two keys by what they hold rather than by the retired spellings, because a card that carries only the retired column key and no condition key at all reaches this refusal too, and telling its reader to rename a key the file does not carry would name a line they cannot find. The reader is told to make the edit by hand because the migration reads the workbench anchor to decide what needs carrying, and the anchor here already declares the current format, so the command would report that there is nothing to do.",
       "source": "15496109b275afcc"
     },
@@ -1971,12 +1971,12 @@
       "source": "61c5cc85814def37"
     },
     "refusal.dinah.repair-would-empty-columns": {
-      "text": "{detail} वर्कबेंच में बचे हर स्तंभ के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई स्तंभ नहीं बचेगा, इसलिए dinah check --migrate-columns मना करता है।",
+      "text": "{detail} वर्कबेंच में बचे हर कॉलम के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई कॉलम नहीं बचेगा, इसलिए dinah check --migrate-columns मना करता है।",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-columns. {detail} is the comma-joined ids of every column the raw columns list still names, all of them stranded, which RemoveStrandedColumns would otherwise have dropped down to an empty list.",
       "source": "2b866eaadd3e160c"
     },
     "refusal.dinah.repair-would-empty-columns.next": {
-      "text": " कोई स्तंभ जोड़ने के लिए वर्कबेंच की columns सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-columns फिर से चलाएँ।",
+      "text": " कोई कॉलम जोड़ने के लिए वर्कबेंच की columns सूची हाथ से बदलें, या गायब डायरेक्टरी में से किसी एक को पुनर्स्थापित करें, फिर dinah check --migrate-columns फिर से चलाएँ।",
       "context": "Spliced onto refusal.dinah.repair-would-empty-columns as the next step, carrying the sentence that base entry used to end with.",
       "source": "4894a4b75a1fd0a"
     },
@@ -1991,12 +1991,12 @@
       "source": "2d044b02d1cbb5c1"
     },
     "refusal.dinah.add-needs-a-column": {
-      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई स्तंभ नहीं बचा है",
+      "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई कॉलम नहीं बचा है",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-column. {detail} is the workbench.md path Add read an empty live columns list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
       "source": "9d3d069e9b698d0d"
     },
     "refusal.dinah.add-needs-a-column.next": {
-      "text": "; {detail} को हाथ से बदलकर columns सूची में एक स्तंभ जोड़ें और उसकी columns/<id>/column.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "text": "; {detail} को हाथ से बदलकर columns सूची में एक कॉलम जोड़ें और उसकी columns/<id>/column.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
       "source": "fe71af28f4ee8805"
     },
@@ -2151,12 +2151,12 @@
       "source": "68181a05af13aaf2"
     },
     "refusal.terminal": {
-      "text": "स्तंभ {detail} एक done स्तंभ है, और उससे आगे कुछ नहीं जाता",
+      "text": "कॉलम {detail} एक done कॉलम है, और उससे आगे कुछ नहीं जाता",
       "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "9c06d9d12dc9d92f"
     },
     "refusal.terminal.next": {
-      "text": "; इसके बजाय कोई पहले का स्तंभ बताएँ",
+      "text": "; इसके बजाय कोई पहले का कॉलम बताएँ",
       "context": "Spliced onto refusal.terminal as the next step.",
       "source": "90e92eb2b101ff04"
     },
@@ -2176,7 +2176,7 @@
       "source": "cc7f9fefb530b2c4"
     },
     "refusal.unknown-column": {
-      "text": "यह वर्कबेंच कोई स्तंभ {detail} घोषित नहीं करती; यह ये घोषित करती है",
+      "text": "यह वर्कबेंच कोई कॉलम {detail} घोषित नहीं करती; यह ये घोषित करती है",
       "context": "The sentence printed after the refusal name unknown-column. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "3f57932fd193b5cb"
     },
@@ -2571,7 +2571,7 @@
       "source": "16824e77ab43d6e4"
     },
     "param.ref.summary": {
-      "text": "एक स्तंभ, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
+      "text": "एक कॉलम, एक कार्ड, या कार्ड के नीचे की कोई चीज़ जैसे wb-1/comments/1; यह वर्कबेंच नहीं",
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "source": "3f739e20c1af8b82"
     },
@@ -2586,12 +2586,12 @@
       "source": "a9fc1e128fcf0249"
     },
     "param.add.column.summary": {
-      "text": "कार्ड किस स्तंभ में दर्ज करना है; कुछ न लिखने पर पहला स्तंभ",
+      "text": "कार्ड किस कॉलम में दर्ज करना है; कुछ न लिखने पर पहला कॉलम",
       "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table.",
       "source": "ec724e9c659389c3"
     },
     "param.attach.ref.summary": {
-      "text": "फ़ाइल किससे जुड़ेगी: यह वर्कबेंच, एक स्तंभ, एक कार्ड, या कार्ड के नीचे कोई टिप्पणी या संलग्नक; --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
+      "text": "फ़ाइल किससे जुड़ेगी: यह वर्कबेंच, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई टिप्पणी या संलग्नक; --replace के साथ, वह संलग्नक जिसके बाइट आप बदल रहे हैं",
       "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
       "source": "dc3ef09df80df2e1"
     },
@@ -2636,12 +2636,12 @@
       "source": "afb87b206222d764"
     },
     "param.check.migrate-slugs.summary": {
-      "text": "इस वर्कबेंच के हर उस स्तंभ के लिए slug निकालें जिस पर कोई नहीं है",
+      "text": "इस वर्कबेंच के हर उस कॉलम के लिए slug निकालें जिस पर कोई नहीं है",
       "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table.",
       "source": "d20e1be96184e474"
     },
     "param.check.migrate-columns.summary": {
-      "text": "इस वर्कबेंच की अपनी स्तंभ-सूची से छूटे हुए पहचानकर्ता हटाएँ",
+      "text": "इस वर्कबेंच की अपनी कॉलम-सूची से छूटे हुए पहचानकर्ता हटाएँ",
       "context": "The meaning of the migrate-columns argument of `dinah check`, printed in that command's arguments table.",
       "source": "2a383b2471db9773"
     },
@@ -2721,12 +2721,12 @@
       "source": "1a8a5d6cfd7ce9c4"
     },
     "param.instructions.card.summary": {
-      "text": "एक कार्ड या एक स्तंभ; instructions न यह वर्कबेंच लेता है और न कार्ड के नीचे की कोई चीज़",
+      "text": "एक कार्ड या एक कॉलम; instructions न यह वर्कबेंच लेता है और न कार्ड के नीचे की कोई चीज़",
       "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
       "source": "1e52ce94a75a3b5d"
     },
     "param.ls.column.summary": {
-      "text": "कौन-सा स्तंभ दिखाना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर स्तंभ",
+      "text": "कौन-सा कॉलम दिखाना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",
       "context": "The meaning of the column argument of `dinah ls`, printed in that command's arguments table.",
       "source": "8f967e423be24761"
     },
@@ -2736,7 +2736,7 @@
       "source": "36fbc940df2d68dc"
     },
     "param.move.column.summary": {
-      "text": "कार्ड को किस स्तंभ में ले जाना है, इसे --column <column> भी लिखा जाता है",
+      "text": "कार्ड को किस कॉलम में ले जाना है, इसे --column <column> भी लिखा जाता है",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
       "source": "74a12fa4cdbfa7a6"
     },
@@ -2746,12 +2746,12 @@
       "source": "9092656657c61845"
     },
     "param.next.column.summary": {
-      "text": "किस स्तंभ से कार्ड देना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर स्तंभ",
+      "text": "किस कॉलम से कार्ड देना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",
       "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
       "source": "5d2227204b4f58f2"
     },
     "param.pull.column.summary": {
-      "text": "किस स्तंभ में कार्ड खींचना है; कुछ न लिखने पर एकमात्र योग्य स्तंभ, एक से अधिक योग्य होने पर मना",
+      "text": "किस कॉलम में कार्ड खींचना है; कुछ न लिखने पर एकमात्र योग्य कॉलम, एक से अधिक योग्य होने पर मना",
       "context": "The meaning of the column argument of `dinah pull`, printed in that command's arguments table.",
       "source": "70515ce655b60819"
     },
@@ -2766,7 +2766,7 @@
       "source": "e22a8531617af968"
     },
     "param.pull.override.summary": {
-      "text": "संचालक को अपनी क्षमता पर पहुँचे स्तंभ में खींचने दें; अन्य किसी के लिए मना",
+      "text": "संचालक को अपनी क्षमता पर पहुँचे कॉलम में खींचने दें; अन्य किसी के लिए मना",
       "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table.",
       "source": "efbd0444a56459fb"
     },
@@ -2966,7 +2966,7 @@
       "source": "8aa86f2d95ed91c9"
     },
     "param.contents.ref.summary": {
-      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक स्तंभ, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
+      "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कॉलम, एक कार्ड, या कार्ड के नीचे कोई चीज़ जैसे wb-1/comments/1",
       "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
       "source": "4e3252343e38263"
     },
@@ -3102,7 +3102,7 @@
       "source": "1e8e725fb68b664"
     },
     "param.changes.column.summary": {
-      "text": "किस स्तंभ के बारे में बताना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर स्तंभ",
+      "text": "किस कॉलम के बारे में बताना है, इसे --column <column> भी लिखा जाता है; कुछ न लिखने पर हर कॉलम",
       "context": "The meaning of the column argument of `dinah changes`, printed in that command's arguments table.",
       "source": "7a83cd34a8ec34ec"
     },
@@ -3117,7 +3117,7 @@
       "source": "32da53b070d06c6f"
     },
     "check.changes.3": {
-      "text": "नामित स्तंभ वही है जो वर्कबेंच घोषित करती है",
+      "text": "नामित कॉलम वही है जो वर्कबेंच घोषित करती है",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "7037e94c3b8968f0"
     },
@@ -3172,7 +3172,7 @@
       "source": "5a37f4a162da2de4"
     },
     "refusal.dinah.awaiting-outside": {
-      "text": "स्तंभ {detail} वर्कबेंच के बाहर के किसी व्यक्ति की प्रतीक्षा में है, और वहाँ कोई कार्ड रखा या लिया नहीं जाता",
+      "text": "कॉलम {detail} वर्कबेंच के बाहर के किसी व्यक्ति की प्रतीक्षा में है, और वहाँ कोई कार्ड रखा या लिया नहीं जाता",
       "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the column the refusal is about.",
       "source": "68c26768a659b236"
     },
@@ -3207,27 +3207,27 @@
       "source": "3d352fb090323d6"
     },
     "refusal.dinah.takes-no-work": {
-      "text": "स्तंभ {detail} में कोई स्वामी कार्य नहीं लेता, और कार्ड वहाँ तब तक प्रतीक्षा करता है जब तक कोई खींच उसे आगे के स्तंभ में नहीं ले जाता",
+      "text": "कॉलम {detail} में कोई स्वामी कार्य नहीं लेता, और कार्ड वहाँ तब तक प्रतीक्षा करता है जब तक कोई खींच उसे आगे के कॉलम में नहीं ले जाता",
       "context": "The sentence printed after the refusal name dinah.takes-no-work. {detail} carries the column the refusal is about. A column that waits on somebody outside answers refusal.dinah.awaiting-outside instead, because that sentence also says who is being waited on.",
       "source": "a828873782ad75a9"
     },
     "refusal.dinah.takes-no-work.next": {
-      "text": "; यदि आप कार्ड रखते हैं तो पहले उसे छोड़ें, और जब उस पर कार्य होना हो तो उसे आगे के स्तंभ में खींचें",
+      "text": "; यदि आप कार्ड रखते हैं तो पहले उसे छोड़ें, और जब उस पर कार्य होना हो तो उसे आगे के कॉलम में खींचें",
       "context": "Spliced onto refusal.dinah.takes-no-work as the next step. The two ways forward are the same whichever act was refused.",
       "source": "8792d94e3109495"
     },
     "check.claim-where-no-work-is-taken": {
-      "text": "एक कार्ड स्तंभ {detail} में रखा गया है, जहाँ कोई स्वामी कार्य नहीं लेता",
+      "text": "एक कार्ड कॉलम {detail} में रखा गया है, जहाँ कोई स्वामी कार्य नहीं लेता",
       "context": "A check finding: no card is held at a column where no owner takes work up. {detail} carries the column, and the finding's own path names the card. The acts that would create the condition afresh are refused, so a card reported here was written before this build.",
       "source": "f625c96b6e2fa008"
     },
     "check.kind-out-of-position": {
-      "text": "स्तंभ {detail} एक ऐसा प्रकार रखता है जिसकी अनुमति प्रवाह में उसका स्थान नहीं देता",
+      "text": "कॉलम {detail} एक ऐसा प्रकार रखता है जिसकी अनुमति प्रवाह में उसका स्थान नहीं देता",
       "context": "A check finding: an intake column stands first, a done column stands in the run of done columns at the end of the flow, and a dinah.buffer stands in neither place. {detail} carries the column, and the repair is an edit to workbench.md or to the column's own column.md.",
       "source": "ba8efb4a2c2765ae"
     },
     "check.unknown-kind": {
-      "text": "स्तंभ {detail} एक ऐसा प्रकार रखता है जिसे यह उपकरण लागू नहीं करता, और उसे work स्तंभ के रूप में पढ़ा जाता है",
+      "text": "कॉलम {detail} एक ऐसा प्रकार रखता है जिसे यह उपकरण लागू नहीं करता, और उसे work कॉलम के रूप में पढ़ा जाता है",
       "context": "A check finding: a column carries a kind under a layer's prefix that this build does not implement. {detail} carries the column. CORE-COLUMN-12 requires such a column to be read as though its kind were work, and the sentence says so because nothing else tells a reader what happened.",
       "source": "2eebd5b176b45492"
     },
@@ -3277,12 +3277,12 @@
       "source": "54cd46a4d94e18d7"
     },
     "check.vocabulary-migrated.one": {
-      "text": "{count} वर्कबेंच को स्तंभ और स्थिति के पुनर्नामकरण के पार ले जाया गया।",
+      "text": "{count} वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाया गया।",
       "context": "The line the vocabulary migration prints for what it carried forward, for exactly one workbench. Followed by one line per workbench.",
       "source": "6662d1b900a6cce3"
     },
     "check.vocabulary-migrated.other": {
-      "text": "{count} वर्कबेंच को स्तंभ और स्थिति के पुनर्नामकरण के पार ले जाया गया।",
+      "text": "{count} वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाया गया।",
       "context": "The line the vocabulary migration prints for what it carried forward, for any other number. Followed by one line per workbench.",
       "source": "15887343445a8b73"
     },
@@ -3297,17 +3297,17 @@
       "source": "eb0bba28402b719c"
     },
     "check.vocabulary-would-migrate.one": {
-      "text": "{count} वर्कबेंच को स्तंभ और स्थिति के पुनर्नामकरण के पार ले जाया जाएगा।",
+      "text": "{count} वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाया जाएगा।",
       "context": "The heading of a vocabulary-migration preview, for exactly one workbench. Followed by one line per workbench, each naming its directory and the revision it declares.",
       "source": "c4225b0c48d391cf"
     },
     "check.vocabulary-would-migrate.other": {
-      "text": "{count} वर्कबेंच को स्तंभ और स्थिति के पुनर्नामकरण के पार ले जाया जाएगा।",
+      "text": "{count} वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाया जाएगा।",
       "context": "The heading of a vocabulary-migration preview, for any other number. Followed by one line per workbench, each naming its directory and the revision it declares.",
       "source": "5c81f9e7e19e514b"
     },
     "param.check.migrate-vocabulary.summary": {
-      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को स्तंभ और स्थिति के पुनर्नामकरण के पार ले जाएँ",
+      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table.",
       "source": "7384eb6c936bda3b"
     },

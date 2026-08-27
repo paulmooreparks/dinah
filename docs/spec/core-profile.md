@@ -1564,7 +1564,7 @@ publishes 1.0 is governed by DOC-VER-9, DOC-VER-10, DOC-VER-12, and
 DOC-ORDER-3 and takes the major increment they demand. The entry after
 this one carries no such self-reference: whoever writes it classifies it
 under whichever of DOC-VER-7 through DOC-VER-12 the document's crossing
-column calls for, with no renaming step of its own to apply.
+state calls for, with no renaming step of its own to apply.
 
 Consequence for a caller. No statement about a tool changed in this entry, so
 a tool that conformed to the revision this changelog called 3.0 conforms to

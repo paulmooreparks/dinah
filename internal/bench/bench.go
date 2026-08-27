@@ -31,7 +31,7 @@ const (
 
 // ignoreLocks is what a new bench's .gitignore carries. A bench inside a
 // repository is versioned by that repository, and a lock is coordination-plane
-// column on one machine, so committing one would ship a stale holder to
+// state on one machine, so committing one would ship a stale holder to
 // everybody who clones. Nothing the tool reads is affected either way, since
 // every listing walks the identifiers of a collection and no lock is ever a
 // member of one; this is about what git picks up.
