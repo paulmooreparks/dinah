@@ -147,19 +147,26 @@ directory, and you may not be the one who launched it, so reach for a
 relative path only when you know where the process started.
 
 If you leave `workbench` out, Dinah resolves the call against the server's
-default workbench. A value outside the served directory is refused with
-`outside-root`, and a path holding no `workbench.md` is refused with
-`no-workbench`; the refusal names the path it tried, so it points you at
-what is reachable.
+default workbench, when it has one; a call that names none and finds no
+default refuses `no-workbench-found`. A named value that resolves and opens
+is refused `outside-root` only when the server was given a root and the
+value lies outside it; a path holding no `workbench.md` is refused
+`no-workbench` either way. The refusal names the path it tried, so it
+points you at what is reachable.
 
 The one tool that takes no `workbench` is `workbenches`. It searches the
 directory the server was given to serve and reports a workbench held by any
 directory below that one, at any depth. Dinah skips the top directory
-itself, so a workbench sitting there is missing from the list. A server
-started without a directory to serve is narrower still. It serves the one
-workbench Dinah discovered for it at startup and searches nowhere else, so
-`workbenches` answers with an empty list while that workbench goes on
-answering every other call.
+itself, so a workbench sitting there is missing from the list.
+
+A server started with no `--root` and no `DINAH_MCP_ROOT` carries no
+boundary at all: any workbench you can name by its absolute path is
+reachable, whether or not the server discovered one to serve as its default
+at startup. The one exception is `workbenches` itself. It needs a root to
+search, so called against a server with no root it refuses
+`no-workbench-found` rather than listing anything, even where the server
+does carry a default. Name the workbench you want directly rather than
+relying on `workbenches` to find it for you.
 
 ```json
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status","arguments":{"workbench":"/srv/dinah/incident"}}}

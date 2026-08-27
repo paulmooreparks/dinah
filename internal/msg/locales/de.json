@@ -1631,6 +1631,16 @@
       "context": "The third paragraph of the working agreement when the server has no default workbench. {root} is the directory --root or DINAH_MCP_ROOT named.",
       "source": "af8114f6f72467c6"
     },
+    "mcp.reach.nodefault.unbounded": {
+      "text": "Sie können jede Werkbank erreichen, die Sie nennen können; diesem Server wurde kein Wurzelverzeichnis übergeben, und er stellt standardmäßig keine bereit. Das Werkzeug workbenches benötigt ein Wurzelverzeichnis zum Suchen und verweigert hier mit dinah.no-workbench-found, also nennen Sie die gewünschte Werkbank direkt in der Eigenschaft workbench jedes anderen Werkzeugs.",
+      "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only bench.Open's own checks can refuse one.",
+      "source": "e0312a77ab34963a"
+    },
+    "mcp.reach.unbounded": {
+      "text": "Sie können jede Werkbank erreichen, die Sie nennen können; diesem Server wurde kein Wurzelverzeichnis übergeben, und er stellt standardmäßig {title} bereit. Das Werkzeug workbenches benötigt ein Wurzelverzeichnis zum Suchen und verweigert hier mit dinah.no-workbench-found, also nennen Sie die gewünschte Werkbank direkt in der Eigenschaft workbench jedes anderen Werkzeugs, oder lassen Sie sie unbenannt, um die Standardwerkbank zu verwenden.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title.",
+      "source": "c365458c87d58ad3"
+    },
     "next.none": {
       "text": "nichts bereit",
       "context": "Printed beside a state offering no card.",

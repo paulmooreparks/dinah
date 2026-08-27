@@ -709,9 +709,17 @@ var statPath = os.Stat
 // A path under a root the filesystem has already removed after the server
 // started refuses for the same reason: the walk met an ancestor it cannot
 // stat, so the comparison cannot settle.
+//
+// An empty root is unbounded rather than empty of everything: it admits any
+// non-empty candidate without asking the filesystem anything, because a
+// caller that named no root asked for no boundary (dinah-307). An empty
+// candidate still refuses, since there is no path to place.
 func PathUnderRoot(root, candidate string) (bool, error) {
-	if root == "" || candidate == "" {
+	if candidate == "" {
 		return false, nil
+	}
+	if root == "" {
+		return true, nil
 	}
 	rootInfo, err := statPath(root)
 	if err != nil {

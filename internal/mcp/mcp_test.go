@@ -13,6 +13,7 @@ import (
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/guide"
+	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
 
@@ -1035,5 +1036,169 @@ func TestARootRemovedSinceTheServerStartedRefusesOutsideRoot(t *testing.T) {
 	}
 	if named["root"] != root {
 		t.Errorf("the refusal should name the root it was bounded by: wanted %q, got %v", root, named["root"])
+	}
+}
+
+// askUnboundedStream is askUnderRoot for a test that has to see the server
+// answer more than once, which is what proves Serve's read loop survived a
+// refusal rather than stopping on it. One Serve call takes every line and the
+// answers come back in order, so a caller reads the second answer the same way
+// every other test reads its only one.
+func askUnboundedStream(t *testing.T, root string, library *verb.Library, lines ...string) []*response {
+	t.Helper()
+	out := &strings.Builder{}
+	if err := Serve(root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out); err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	var answers []*response
+	for _, encoded := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		if strings.TrimSpace(encoded) == "" {
+			continue
+		}
+		answer := &response{}
+		if err := json.Unmarshal([]byte(encoded), answer); err != nil {
+			t.Fatalf("decode %q: %v", encoded, err)
+		}
+		answers = append(answers, answer)
+	}
+	return answers
+}
+
+// instructionsOf reads the working agreement out of an initialize answer, so
+// the tests that hold that text apart read it from one place.
+func instructionsOf(t *testing.T, answer *response) string {
+	t.Helper()
+	encoded, err := json.Marshal(answer.Result)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var result struct {
+		Instructions string `json:"instructions"`
+	}
+	if err := json.Unmarshal(encoded, &result); err != nil {
+		t.Fatalf("initialize: %v", err)
+	}
+	return result.Instructions
+}
+
+// TestResolveLibraryAdmitsAnyPathWhenRootIsEmpty is dinah-307 AC-2. A server
+// given no root carries no boundary, so a call naming a real workbench by
+// absolute path resolves it rather than being refused outside-root.
+//
+// This is the call site the card exists for. Before dinah-307 the containment
+// predicate answered false for an empty root, so a server that started
+// unbounded would have refused every workbench named to it, naming an empty
+// root in the refusal's own detail.
+func TestResolveLibraryAdmitsAnyPathWhenRootIsEmpty(t *testing.T) {
+	elsewhere := newLibrary(t).Bench.Root
+
+	library, refusal := resolveLibrary("", nil, nil, &verb.Request{Verb: "status", Actor: "alka"}, elsewhere)
+	if refusal != nil {
+		t.Fatalf("an unbounded server refused a workbench named by absolute path: %s %s", refusal.Name, refusal.Detail)
+	}
+	if library == nil {
+		t.Fatal("the resolution carried neither a library nor a refusal")
+	}
+	if library.Bench.Root != elsewhere {
+		t.Errorf("the resolution opened %q, wanted the workbench the call named, %q", library.Bench.Root, elsewhere)
+	}
+}
+
+// TestResolveLibraryRefusesNoWorkbenchFoundWithNoRootAndNoDefault is dinah-307
+// AC-3. An empty root widens what a named candidate may be; it changes nothing
+// about a call that names nothing and has no default to fall back on.
+func TestResolveLibraryRefusesNoWorkbenchFoundWithNoRootAndNoDefault(t *testing.T) {
+	library, refusal := resolveLibrary("", nil, nil, &verb.Request{Verb: "status", Actor: "alka"}, "")
+	if library != nil {
+		t.Fatalf("a call naming no workbench against a server carrying no default resolved %q", library.Bench.Root)
+	}
+	if refusal == nil {
+		t.Fatal("the resolution carried neither a library nor a refusal")
+	}
+	if refusal.Name != contract.NoWorkbenchFound {
+		t.Errorf("the refusal: wanted %s, got %s", contract.NoWorkbenchFound, refusal.Name)
+	}
+}
+
+// TestWorkingAgreementNamesNoBoundaryWhenUnbounded is dinah-307 AC-6. The
+// working agreement an unbounded, default-less server serves has to say it
+// carries no boundary. The old key spliced the root into the sentence, so an
+// empty root rendered "under ;", which is not a sentence and names nothing.
+func TestWorkingAgreementNamesNoBoundaryWhenUnbounded(t *testing.T) {
+	instructions := instructionsOf(t, askUnderRoot(t, "", nil, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+
+	if !strings.Contains(instructions, msg.For(msg.Base).T("mcp.reach.nodefault.unbounded")) {
+		t.Errorf("the working agreement of an unbounded server carries no unbounded reach paragraph: %q", instructions)
+	}
+	if strings.Contains(instructions, "under ;") {
+		t.Errorf("the working agreement spliced an empty root into a sentence: %q", instructions)
+	}
+}
+
+// TestWorkingAgreementNamesNoBoundaryWhenUnboundedWithADefault is dinah-307
+// AC-9, the combination that did not exist before this card: a server with a
+// default workbench and no root at all. It must name the default and still
+// claim no boundary, and it must not go on promising that workbenches lists
+// what sits under the root, because with no root that tool answers nothing.
+func TestWorkingAgreementNamesNoBoundaryWhenUnboundedWithADefault(t *testing.T) {
+	library := newLibrary(t)
+	instructions := instructionsOf(t, askUnderRoot(t, "", library, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+
+	want := msg.For(msg.Base).T("mcp.reach.unbounded", "title", library.Bench.Title)
+	if !strings.Contains(instructions, want) {
+		t.Errorf("the working agreement of an unbounded server carrying a default: wanted %q in %q", want, instructions)
+	}
+	if !strings.Contains(instructions, library.Bench.Title) {
+		t.Errorf("the working agreement does not name the default workbench it serves: %q", instructions)
+	}
+	if strings.Contains(instructions, "under ;") {
+		t.Errorf("the working agreement spliced an empty root into a sentence: %q", instructions)
+	}
+	if strings.Contains(instructions, "The workbenches tool lists the workbenches under the root") {
+		t.Errorf("the working agreement still promises an enumeration an unbounded server cannot answer: %q", instructions)
+	}
+}
+
+// TestWorkbenchesToolRefusesCleanlyWhenUnbounded is dinah-307 AC-7. The one
+// tool that takes no workbench needs a root to search, so an unbounded server
+// refuses it by name rather than answering an empty list, which would assert
+// that no workbench exists anywhere. The second request holds the other half:
+// the refusal travels on the response and does not end the session.
+func TestWorkbenchesToolRefusesCleanlyWhenUnbounded(t *testing.T) {
+	answers := askUnboundedStream(t, "", nil,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
+
+	if len(answers) != 2 {
+		t.Fatalf("wanted an answer to each of the two requests, got %d", len(answers))
+	}
+	if answers[0].Error == nil {
+		t.Fatalf("workbenches against an unbounded server answered rather than refused: %+v", answers[0].Result)
+	}
+	if !strings.HasPrefix(answers[0].Error.Message, contract.NoWorkbenchFound) {
+		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
+	}
+	if answers[1].Error != nil {
+		t.Errorf("the server stopped answering after the refusal: %+v", answers[1].Error)
+	}
+}
+
+// TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded is dinah-307 AC-10.
+// A default library is what answers a call naming no workbench; it is not a
+// directory to search. So the enumeration refuses for the same reason whether
+// or not the server carries one, rather than quietly listing the default.
+func TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded(t *testing.T) {
+	library := newLibrary(t)
+	answers := askUnboundedStream(t, "", library,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+
+	if len(answers) != 1 {
+		t.Fatalf("wanted one answer, got %d", len(answers))
+	}
+	if answers[0].Error == nil {
+		t.Fatalf("workbenches against an unbounded server carrying a default answered rather than refused: %+v", answers[0].Result)
+	}
+	if !strings.HasPrefix(answers[0].Error.Message, contract.NoWorkbenchFound) {
+		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
 	}
 }

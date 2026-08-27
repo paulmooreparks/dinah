@@ -234,3 +234,40 @@ func TestARootRemovedSinceTheServerStartedIsRefused(t *testing.T) {
 		t.Errorf("the removal should travel as a not-exist error, got %v", err)
 	}
 }
+
+// TestPathUnderRootAdmitsEverythingWhenRootIsEmpty is dinah-307 AC-4. A caller
+// that named no root asked for no boundary, so the predicate admits any
+// candidate it is handed, and settles that before the filesystem is consulted:
+// there is no root to walk toward and nothing a stat could decide.
+//
+// The stat seam is wired to fail on every path it is asked about, so a walk
+// that touched the filesystem at all comes back refused and names what it
+// touched. An empty candidate is still refused, because a predicate that
+// carries no boundary still has no path to place.
+func TestPathUnderRootAdmitsEverythingWhenRootIsEmpty(t *testing.T) {
+	var touched []string
+	installStatSeam(t, func(path string) bool {
+		touched = append(touched, path)
+		return true
+	})
+
+	candidate := filepath.Join(t.TempDir(), "any", "workbench")
+	contained, err := PathUnderRoot("", candidate)
+	if err != nil {
+		t.Fatalf("PathUnderRoot(%q, %q): %v", "", candidate, err)
+	}
+	if !contained {
+		t.Errorf("PathUnderRoot(%q, %q) refused a candidate under a root that bounds nothing", "", candidate)
+	}
+	if len(touched) != 0 {
+		t.Errorf("an empty root asked the filesystem about %v, and there is nothing there for it to settle", touched)
+	}
+
+	contained, err = PathUnderRoot("", "")
+	if err != nil {
+		t.Fatalf("PathUnderRoot(%q, %q): %v", "", "", err)
+	}
+	if contained {
+		t.Errorf("PathUnderRoot(%q, %q) admitted a candidate that names no path", "", "")
+	}
+}
