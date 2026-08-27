@@ -295,7 +295,7 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 			// visit callback as every other flag now, which leaves the table
 			// as the only thing keeping them out of the capture list, and
 			// TestParseArgsRecordsNoDomainCaptureForASessionFlag names them
-			// beside the other five for that reason.
+			// beside the other six for that reason.
 			session := sessionFlagNames[name]
 			if !complete {
 				// A session flag missing its value still refuses

@@ -282,7 +282,7 @@ func TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse(t *testing.T) {
 // naming the flag.
 func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 	valued := testValued()
-	roster := []string{"workbench", "json", "quiet", "lang", "actor", "help", "version"}
+	roster := []string{"workbench", "json", "quiet", "lang", "actor", "help", "version", "format"}
 	for _, name := range roster {
 		t.Run(name, func(t *testing.T) {
 			if !sessionFlagNames[name] {
