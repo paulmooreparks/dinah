@@ -594,6 +594,29 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-root.next"},
 	},
 	{
+		// The workbench the second scope named rides as a value beside the
+		// root in the detail, because the reader has to see both to know
+		// which of the two to drop, and a sentence naming only the one they
+		// typed last would tell them nothing about the other.
+		Name:      ConflictingScope,
+		Values:    []string{"workbench"},
+		Fragments: []Fragment{{Key: "refusal.dinah.conflicting-scope.next"}},
+		NextStep:  []string{"refusal.dinah.conflicting-scope.next"},
+	},
+	{
+		// The detail is the depth the caller wrote, so the sentence quotes
+		// the flag back rather than describing it, and the next step names
+		// the option that would give it something to bound.
+		Name:      DepthWithoutRoot,
+		Fragments: []Fragment{{Key: "refusal.dinah.depth-without-root.next"}},
+		NextStep:  []string{"refusal.dinah.depth-without-root.next"},
+	},
+	{
+		Name:      MalformedDepth,
+		Fragments: []Fragment{{Key: "refusal.dinah.malformed-depth.next"}},
+		NextStep:  []string{"refusal.dinah.malformed-depth.next"},
+	},
+	{
 		// A name selector against a collection that declares a name field
 		// matched more than one entity. The sentence names the selector and
 		// the ordinal of every match, so the caller can retry with one of

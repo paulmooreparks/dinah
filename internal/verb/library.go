@@ -112,6 +112,17 @@ type Request struct {
 	// Since is the opaque cursor a checkpoint hands back, empty on a first
 	// call, which mints one rather than replaying the board's history.
 	Since string
+	// Root is the root a root-scoped read walks from, as the caller wrote it,
+	// empty for the ordinary single-workbench read. A read carrying one
+	// answers for every workbench beneath it rather than for the one the
+	// caller is standing in.
+	Root string
+	// MaxDepth is the root walk's depth bound, as the caller wrote it, empty
+	// for the surface's own default, which is bench.DefaultEnumerateDepth. It
+	// is a string for the same reason GroupBy and Depth are: the verb that
+	// reads a flag parses it, so the request builder never has to know what
+	// any one verb's arguments mean.
+	MaxDepth string
 	// Finish asks check to complete or roll back the interrupted structural
 	// acts it reports, rather than only reporting them.
 	Finish bool

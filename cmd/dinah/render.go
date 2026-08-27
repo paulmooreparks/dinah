@@ -180,11 +180,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.workbench",
-		"title", status.Bench,
-		"root", status.Root,
-		"source", s.token(status.WorkbenchSource),
-	))
+	s.line(s.workbenchLine(status))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
 	s.renderColumns(status.Columns)
@@ -206,6 +202,28 @@ func (s *session) renderStatus(status *verb.Status) {
 		}
 		s.table(blocked)
 	}
+}
+
+// workbenchLine is the first line of a status: the workbench, where it was
+// discovered, and the rung that resolved it.
+//
+// A root-scoped read resolves no single workbench by any rung, since the walk
+// found every one of them, so its answer carries no source and this line leaves
+// the bracket off rather than drawing an empty one. The two forms are separate
+// catalog entries rather than one entry with a blank in it, because a bracket
+// with nothing inside reads as a value that failed to render.
+func (s *session) workbenchLine(status *verb.Status) string {
+	if status.WorkbenchSource == "" {
+		return s.r.T("status.workbench.unsourced",
+			"title", status.Bench,
+			"root", status.Root,
+		)
+	}
+	return s.r.T("status.workbench",
+		"title", status.Bench,
+		"root", status.Root,
+		"source", s.token(status.WorkbenchSource),
+	)
 }
 
 // yesNo renders a boolean for a person.
@@ -390,8 +408,12 @@ func (s *session) renderSettings(settings []verb.SettingView) {
 // says so when none is reachable. The row carries what a reader needs to
 // recognise a workbench and to select it, so the path it ends on is the one
 // --workbench takes.
-func (s *session) renderWorkbenches(rows []bench.Candidate) {
+func (s *session) renderWorkbenches(rows []bench.Candidate, root string) {
 	if len(rows) == 0 {
+		if root != "" {
+			s.line(s.r.T("root.empty", "root", root))
+			return
+		}
 		s.line(s.r.T("workbenches.empty"))
 		return
 	}
@@ -405,13 +427,29 @@ func (s *session) renderWorkbenches(rows []bench.Candidate) {
 // two-space lead. dinah.ambiguous-workbench prints the same rows beneath its
 // opening sentence, so this is the one place the column widths live; the two
 // callers can never draw the same candidates in different columns.
+// A row the walk could not describe carries its refusal name in the workbench
+// cell, in place of the title it has none of, and leaves the slug cell empty
+// rather than printing the missing-slug repair: a workbench nothing could read
+// is not a workbench whose slug is worth deriving.
 func (s *session) formatCandidateRows(rows []bench.Candidate) []string {
 	t := table{indent: 2, columns: s.columns("workbenches", "workbench", "slug", "path")}
 	for _, candidate := range rows {
 		fields := []string{candidate.Title, s.slugCell(candidate.Slug), candidate.Path}
+		if candidate.Refused != "" {
+			fields = []string{s.refusedCell(candidate.Refused), "", candidate.Path}
+		}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	return s.tableLines(t)
+}
+
+// refusedCell renders the refusal name a row could not be described past. The
+// angle brackets are the convention that tells a reader the cell holds the
+// reason a value is missing rather than the value itself, and one function
+// composes it so the listing and the root-scoped headings cannot spell it two
+// ways.
+func (s *session) refusedCell(name string) string {
+	return s.r.T("workbenches.refused", "refusal", name)
 }
 
 // slugCell renders a slug column's value: the slug itself when the entity has
@@ -547,6 +585,16 @@ func (s *session) eventDetail(ev bench.Event) string {
 // find the previous run. The columns are log's, with the entity each line was
 // read from added, since a merged stream cannot say otherwise.
 func (s *session) renderChanges(set *verb.ChangeSet) {
+	s.renderChangesBody(set)
+	s.line(s.r.T("changes.cursor", "cursor", set.Cursor))
+}
+
+// renderChangesBody is the journal half of a checkpoint's answer, without the
+// cursor line beneath it. It is split out for the root-scoped form, where one
+// merged cursor is printed once at the end and a member's own token is not the
+// value the next call takes, so printing it under every workbench would offer
+// a reader twenty-five tokens none of which is the one they need.
+func (s *session) renderChangesBody(set *verb.ChangeSet) {
 	t := table{indent: 2, columns: s.columns("changes", "when", "card", "action", "actor", "detail")}
 	for _, ev := range set.Events {
 		// ChangeEvent embeds bench.Event, so ev.Event is the whole line and
@@ -557,7 +605,6 @@ func (s *session) renderChanges(set *verb.ChangeSet) {
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
-	s.line(s.r.T("changes.cursor", "cursor", set.Cursor))
 }
 
 // changeSubject is what the card column of a checkpoint reads: the reference

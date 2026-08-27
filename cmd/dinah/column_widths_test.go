@@ -241,7 +241,7 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 // typed in: the indent, half of the window the block draws at (assumedWindow,
 // since bare dinah draws with no width stated), and the gutter. A command
 // whose usage is wider than that half needs more than one line for it, and
-// this asserts the count of those against the seven the fixture is known to
+// this asserts the count of those against the eleven the fixture is known to
 // carry, so a change to the command list that stops exercising the wrap is
 // caught here rather than by a coincidence elsewhere. It separately counts
 // how many summaries wrap, against no fixed number, since which summaries
@@ -291,8 +291,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	if summaries != 40 {
 		t.Errorf("read %d command entries out of the block, want 40", summaries)
 	}
-	if wrapped != 9 {
-		t.Errorf("%d entries wrapped across more than one line, want the nine whose syntax is wider than half the window", wrapped)
+	if wrapped != 11 {
+		t.Errorf("%d entries wrapped across more than one line, want the eleven whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")
