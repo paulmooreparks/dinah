@@ -23,6 +23,15 @@ import (
 // an initialisation cycle.
 var commands []*command
 
+// commandExemptions names every library command this head deliberately does
+// not dispatch, with the reason it is absent. It is empty because the terminal
+// serves the whole verb table today, and it exists anyway so that a future
+// omission has somewhere to be argued for: the roster check requires every
+// command to be either dispatched here or named here with a reason, and an
+// empty map is the strongest reading of that rule rather than the absence of
+// one.
+var commandExemptions = map[string]string{}
+
 func init() {
 	commands = []*command{
 		{name: "add", group: groupWork, run: runAdd, openTail: true},
@@ -1039,9 +1048,17 @@ func runMCP(s *session, parsed *arguments) int {
 
 	explicit := s.benchFlag != ""
 	library, openErr := s.open()
+	noWorkbench := refusalNamed(openErr, contract.NoWorkbench)
 	switch {
-	case openErr != nil && isRefusalNamed(openErr, contract.NoWorkbench) && explicit:
-		s.errLine(openErr.Error())
+	case noWorkbench != nil && explicit:
+		// The refusal name and its detail are joined by a space, the way the
+		// unknown-root and outside-root lines below are joined and the way
+		// composeRefusal joins a name to its sentence. Refusal.Error puts a
+		// colon after the name instead, and a caller that splits this line on
+		// whitespace and takes the first field would read that colon as part
+		// of the name, so it would match two of the three refusals mcp can
+		// raise before it serves and miss the third.
+		s.errLine(contract.NoWorkbench + " " + noWorkbench.Detail)
 		return contract.ExitCode(contract.OutcomeRefused)
 	case openErr != nil:
 		if root == "" {
@@ -1078,13 +1095,17 @@ func runMCP(s *session, parsed *arguments) int {
 // serveMCPLoop's body is inlined inside runMCP, since the guard against hand-
 // laid rows only exempts runMCP from naming the stream.
 
-// isRefusalNamed reports whether err is a contract.Refusal with the given
-// name. It is the one check the startup path runs without dereferencing the
-// typed value, because FromError and Report already wrap the error and the
-// call site has no library to hand to them.
-func isRefusalNamed(err error, name string) bool {
+// refusalNamed returns the refusal err carries when err is a contract.Refusal
+// with the given name, and nil in every other case. The startup path reads the
+// typed value directly because FromError and Report already wrap the error and
+// the call site has no library to hand to them, and because it renders the
+// refusal's name and its detail into separate fields of the stderr line.
+func refusalNamed(err error, name string) *contract.Refusal {
 	refusal, ok := err.(*contract.Refusal)
-	return ok && refusal.Name == name
+	if !ok || refusal.Name != name {
+		return nil
+	}
+	return refusal
 }
 
 // runHelp prints one command's arguments, refusals and exit codes. It is the

@@ -2947,13 +2947,13 @@
       "skeleton": true
     },
     "check.mcp.1": {
-      "text": "the directory --root names is one the filesystem carries",
-      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist.",
+      "text": "--root names a directory that exists",
+      "context": "The first row of the precondition list of mcp, raised before the server starts when --root names a directory that does not exist. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "skeleton": true
     },
     "check.mcp.2": {
       "text": "the workbench you name lies under the root",
-      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root.",
+      "context": "The second row of the precondition list of mcp, raised when --workbench names a workbench outside --root or when an MCP call names a workbench outside the root. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
       "skeleton": true
     },
     "tool.workbenches.summary": {
