@@ -8,13 +8,13 @@ import (
 	"dinah/internal/contract"
 )
 
-// declare writes a key into one state's own anchor frontmatter and reopens the
-// bench, which is how a test reaches a state property no verb sets. An empty
+// declare writes a key into one column's own anchor frontmatter and reopens the
+// bench, which is how a test reaches a column property no verb sets. An empty
 // value clears the key, so a test can take a declaration away again and assert
 // that the same fixture behaves as a workbench that never carried it.
 func (h *harness) declare(id, key, value string) {
 	h.t.Helper()
-	path := filepath.Join(h.root, bench.StatesDir, id, bench.StateAnchor)
+	path := filepath.Join(h.root, bench.ColumnsDir, id, bench.ColumnAnchor)
 	text, err := bench.ReadText(path)
 	if err != nil {
 		h.t.Fatalf("read the anchor of %s: %v", id, err)
@@ -27,12 +27,12 @@ func (h *harness) declare(id, key, value string) {
 	h.reopen()
 }
 
-// retire plants the sibling lock a structural act leaves beside a state
+// retire plants the sibling lock a structural act leaves beside a column
 // directory while it retires it, which is what makes the retiring row of the
 // move's list reachable from a test.
 func (h *harness) retire(id string) {
 	h.t.Helper()
-	h.plant(bench.SiblingPath(filepath.Join(h.root, bench.StatesDir, id)), bench.LockRecord{
+	h.plant(bench.SiblingPath(filepath.Join(h.root, bench.ColumnsDir, id)), bench.LockRecord{
 		Actor: "alka",
 		PID:   4321,
 		TS:    bench.Stamp(h.clock),
@@ -40,22 +40,22 @@ func (h *harness) retire(id string) {
 	})
 }
 
-// at moves a card to a state as the operator, which is the setup half of every
+// at moves a card to a column as the operator, which is the setup half of every
 // test below and never the act under test.
-func (h *harness) at(ref, state string) {
+func (h *harness) at(ref, column string) {
 	h.t.Helper()
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: state})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: column})
 }
 
-// TestAWaitingStateRefusesTheClaim is dinah-201 AC-1. The refusal is what makes
+// TestAWaitingColumnRefusesTheClaim is dinah-201 AC-1. The refusal is what makes
 // the flag more than advisory: dinah claim <card> names the card directly, so a
-// state merely left out of what next offers would leak straight back through
+// column merely left out of what next offers would leak straight back through
 // the named form.
 //
 // The successful half is doing real work. An implementation that refused every
 // claim would pass the first half alone, and the second is what tells the two
 // apart.
-func TestAWaitingStateRefusesTheClaim(t *testing.T) {
+func TestAWaitingColumnRefusesTheClaim(t *testing.T) {
 	h := newHarness(t)
 	h.declare(aftercare, "awaiting_outside", "true")
 	waiting := h.add("waiting on the customer")
@@ -65,18 +65,18 @@ func TestAWaitingStateRefusesTheClaim(t *testing.T) {
 
 	refused := h.do(&Request{Verb: Claim, Card: waiting, Actor: "brin"})
 	if refused.Outcome != contract.OutcomeRefused || refused.Refusal != contract.AwaitingOutside {
-		t.Fatalf("the claim at a waiting state: wanted %s, got %s %s",
+		t.Fatalf("the claim at a waiting column: wanted %s, got %s %s",
 			contract.AwaitingOutside, refused.Outcome, refused.Refusal)
 	}
 	if refused.Detail != aftercareSlug {
-		t.Errorf("the refusal should name the state by its reference, got %q", refused.Detail)
+		t.Errorf("the refusal should name the column by its reference, got %q", refused.Detail)
 	}
-	if card := h.card(waiting); card.Substate != contract.SubstateReady || card.Holder != "" {
-		t.Errorf("the refused claim wrote to the card: substate %q holder %q", card.Substate, card.Holder)
+	if card := h.card(waiting); card.State != contract.StateReady || card.Holder != "" {
+		t.Errorf("the refused claim wrote to the card: state %q holder %q", card.State, card.Holder)
 	}
 
 	if ok := h.do(&Request{Verb: Claim, Card: ordinary, Actor: "brin"}); ok.Outcome != contract.OutcomeOK {
-		t.Fatalf("the claim at an ordinary state: wanted ok, got %s %s", ok.Outcome, ok.Refusal)
+		t.Fatalf("the claim at an ordinary column: wanted ok, got %s %s", ok.Outcome, ok.Refusal)
 	}
 
 	// The operator is refused on the same terms, because the flag is a fact
@@ -93,7 +93,7 @@ func TestAWaitingStateRefusesTheClaim(t *testing.T) {
 
 // TestTheClaimAnswersBlockedAheadOfWaiting is dinah-201 OQ-4, case one. The new
 // row is the last of the claim's list, so a card that is both blocked and
-// standing at a waiting state answers the profile's own blocked. Nothing else
+// standing at a waiting column answers the profile's own blocked. Nothing else
 // in the suite goes red if that order is reversed, which is the shape this
 // board has been bitten by twice.
 func TestTheClaimAnswersBlockedAheadOfWaiting(t *testing.T) {
@@ -122,10 +122,10 @@ func TestTheClaimAnswersBlockedAheadOfWaiting(t *testing.T) {
 	}
 }
 
-// TestNextCarriesNothingFromAWaitingState is dinah-201 AC-2. The state holds two
+// TestNextCarriesNothingFromAWaitingColumn is dinah-201 AC-2. The column holds two
 // ready cards throughout, so an empty offer here is the flag rather than an
 // empty queue, and the flag-removed half proves the fixture itself is sound.
-func TestNextCarriesNothingFromAWaitingState(t *testing.T) {
+func TestNextCarriesNothingFromAWaitingColumn(t *testing.T) {
 	h := newHarness(t)
 	h.declare(aftercare, "awaiting_outside", "true")
 	first := h.add("first in the queue")
@@ -133,7 +133,7 @@ func TestNextCarriesNothingFromAWaitingState(t *testing.T) {
 	second := h.add("second in the queue")
 	h.at(second, aftercare)
 
-	offers, err := h.library.Next(&Request{Verb: "next", Actor: "brin", State: aftercareSlug})
+	offers, err := h.library.Next(&Request{Verb: "next", Actor: "brin", Column: aftercareSlug})
 	if err != nil {
 		t.Fatalf("next: %v", err)
 	}
@@ -141,14 +141,14 @@ func TestNextCarriesNothingFromAWaitingState(t *testing.T) {
 		t.Fatalf("wanted one offer, got %d", len(offers))
 	}
 	if offers[0].Card != nil {
-		t.Errorf("a waiting state offered %s", offers[0].Card.Ref)
+		t.Errorf("a waiting column offered %s", offers[0].Card.Ref)
 	}
 	if !offers[0].AwaitingOutside {
-		t.Error("the offer should say the state waits on somebody outside, so a reader can tell it from nothing ready")
+		t.Error("the offer should say the column waits on somebody outside, so a reader can tell it from nothing ready")
 	}
 
 	h.declare(aftercare, "awaiting_outside", "")
-	offers, err = h.library.Next(&Request{Verb: "next", Actor: "brin", State: aftercareSlug})
+	offers, err = h.library.Next(&Request{Verb: "next", Actor: "brin", Column: aftercareSlug})
 	if err != nil {
 		t.Fatalf("next once the flag is gone: %v", err)
 	}
@@ -159,30 +159,30 @@ func TestNextCarriesNothingFromAWaitingState(t *testing.T) {
 		t.Errorf("wanted the queue head %s, got %s", first, offers[0].Card.Ref)
 	}
 	if offers[0].AwaitingOutside {
-		t.Error("an ordinary state should not say it waits on anybody")
+		t.Error("an ordinary column should not say it waits on anybody")
 	}
 }
 
-// TestPullWillNotTakeFromOrLandInAWaitingState is dinah-201 AC-3. A pull is a
+// TestPullWillNotTakeFromOrLandInAWaitingColumn is dinah-201 AC-3. A pull is a
 // claim bundled with a move and the claim is the thing the flag forbids, so the
 // rule is uniform across both directions and both forms.
 //
 // Each half runs for a plain owner and for the operator, because the flag is
 // not a permission and an operator-passes implementation would otherwise ship
 // green.
-func TestPullWillNotTakeFromOrLandInAWaitingState(t *testing.T) {
+func TestPullWillNotTakeFromOrLandInAWaitingColumn(t *testing.T) {
 	for _, actor := range []string{"brin", "alka"} {
 		t.Run("named, the upstream waits, as "+actor, func(t *testing.T) {
 			h := newHarness(t)
 			h.declare(doing, "awaiting_outside", "true")
-			ref := h.add("standing in the waiting state")
+			ref := h.add("standing in the waiting column")
 			h.at(ref, doing)
-			response := h.library.Pull(&Request{Verb: Pull, Actor: actor, State: review})
+			response := h.library.Pull(&Request{Verb: Pull, Actor: actor, Column: review})
 			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.AwaitingOutside {
 				t.Fatalf("wanted %s, got %s %s", contract.AwaitingOutside, response.Outcome, response.Refusal)
 			}
-			if card := h.card(ref); card.State != doing || card.Substate != contract.SubstateReady {
-				t.Errorf("the refused pull moved the card: state %q substate %q", card.State, card.Substate)
+			if card := h.card(ref); card.Column != doing || card.State != contract.StateReady {
+				t.Errorf("the refused pull moved the card: column %q state %q", card.Column, card.State)
 			}
 		})
 
@@ -190,25 +190,25 @@ func TestPullWillNotTakeFromOrLandInAWaitingState(t *testing.T) {
 			h := newHarness(t)
 			h.declare(doing, "awaiting_outside", "true")
 			ref := h.add("ready in intake")
-			response := h.library.Pull(&Request{Verb: Pull, Actor: actor, State: doing})
+			response := h.library.Pull(&Request{Verb: Pull, Actor: actor, Column: doing})
 			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.AwaitingOutside {
 				t.Fatalf("wanted %s, got %s %s", contract.AwaitingOutside, response.Outcome, response.Refusal)
 			}
-			if card := h.card(ref); card.State != intake || card.Substate != contract.SubstateReady {
-				t.Errorf("the refused pull moved the card: state %q substate %q", card.State, card.Substate)
+			if card := h.card(ref); card.Column != intake || card.State != contract.StateReady {
+				t.Errorf("the refused pull moved the card: column %q state %q", card.Column, card.State)
 			}
 		})
 
 		t.Run("bare, the upstream waits, as "+actor, func(t *testing.T) {
 			h := newHarness(t)
 			h.declare(doing, "awaiting_outside", "true")
-			ref := h.add("standing in the waiting state")
+			ref := h.add("standing in the waiting column")
 			h.at(ref, doing)
 			// The ready card is asserted to be standing there, so the empty
-			// answer below is the qualifying set skipping the state rather
+			// answer below is the qualifying set skipping the column rather
 			// than an empty queue answering for it.
-			if card := h.card(ref); card.State != doing || card.Substate != contract.SubstateReady {
-				t.Fatalf("the fixture should hold a ready card in the waiting state, got state %q substate %q", card.State, card.Substate)
+			if card := h.card(ref); card.Column != doing || card.State != contract.StateReady {
+				t.Fatalf("the fixture should hold a ready card in the waiting column, got column %q state %q", card.Column, card.State)
 			}
 			response := h.library.Pull(&Request{Verb: Pull, Actor: actor})
 			if response.Outcome != contract.OutcomeOK || response.Card != nil {
@@ -221,8 +221,8 @@ func TestPullWillNotTakeFromOrLandInAWaitingState(t *testing.T) {
 			h.declare(review, "awaiting_outside", "true")
 			ref := h.add("ready in the upstream")
 			h.at(ref, doing)
-			if card := h.card(ref); card.State != doing || card.Substate != contract.SubstateReady {
-				t.Fatalf("the fixture should hold a ready card in the upstream, got state %q substate %q", card.State, card.Substate)
+			if card := h.card(ref); card.Column != doing || card.State != contract.StateReady {
+				t.Fatalf("the fixture should hold a ready card in the upstream, got column %q state %q", card.Column, card.State)
 			}
 			response := h.library.Pull(&Request{Verb: Pull, Actor: actor})
 			if response.Outcome != contract.OutcomeOK || response.Card != nil {
@@ -232,58 +232,58 @@ func TestPullWillNotTakeFromOrLandInAWaitingState(t *testing.T) {
 	}
 }
 
-// TestAMoveIntoAWaitingStateNeedsAnUnheldCard is dinah-201 AC-4 and D-4. The
+// TestAMoveIntoAWaitingColumnNeedsAnUnheldCard is dinah-201 AC-4 and D-4. The
 // tool does not release the claim on the holder's behalf, because CORE-MOVE-8
-// says a move MUST NOT change a card's substate or its holder, so the assertion
+// says a move MUST NOT change a card's state or its holder, so the assertion
 // after the refusal is the one that matters: an implementation that helpfully
 // released would pass a refusal-name-only test.
-func TestAMoveIntoAWaitingStateNeedsAnUnheldCard(t *testing.T) {
+func TestAMoveIntoAWaitingColumnNeedsAnUnheldCard(t *testing.T) {
 	h := newHarness(t)
 	h.declare(aftercare, "awaiting_outside", "true")
 
 	unheld := h.add("handed on to the customer")
-	h.mustDo(&Request{Verb: Move, Card: unheld, Actor: "brin", State: aftercareSlug})
-	if card := h.card(unheld); card.State != aftercare {
-		t.Fatalf("the unheld move did not land, the card stands at %q", card.State)
+	h.mustDo(&Request{Verb: Move, Card: unheld, Actor: "brin", Column: aftercareSlug})
+	if card := h.card(unheld); card.Column != aftercare {
+		t.Fatalf("the unheld move did not land, the card stands at %q", card.Column)
 	}
 
 	held := h.readyAt("still being worked", doing)
 	h.mustDo(&Request{Verb: Claim, Card: held, Actor: "brin"})
-	response := h.do(&Request{Verb: Move, Card: held, Actor: "brin", State: aftercareSlug})
+	response := h.do(&Request{Verb: Move, Card: held, Actor: "brin", Column: aftercareSlug})
 	if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.AwaitingOutside {
 		t.Fatalf("the held move: wanted %s, got %s %s", contract.AwaitingOutside, response.Outcome, response.Refusal)
 	}
 	card := h.card(held)
-	if card.Substate != contract.SubstateActive {
-		t.Errorf("the refused move changed the substate to %q, which CORE-MOVE-8 forbids", card.Substate)
+	if card.State != contract.StateActive {
+		t.Errorf("the refused move changed the state to %q, which CORE-MOVE-8 forbids", card.State)
 	}
 	if card.Holder != "brin" {
 		t.Errorf("the refused move changed the holder to %q, which CORE-MOVE-8 forbids", card.Holder)
 	}
-	if card.State == aftercare {
+	if card.Column == aftercare {
 		t.Error("the refused move carried the card anyway")
 	}
 
 	// The way onward is the one D-4 names: release, then move.
 	h.mustDo(&Request{Verb: Release, Card: held, Actor: "brin"})
-	h.mustDo(&Request{Verb: Move, Card: held, Actor: "brin", State: aftercareSlug})
+	h.mustDo(&Request{Verb: Move, Card: held, Actor: "brin", Column: aftercareSlug})
 }
 
-// TestDepartureFromAWaitingStateStaysOpenToAnyOwner is dinah-201 AC-5 and D-7,
+// TestDepartureFromAWaitingColumnStaysOpenToAnyOwner is dinah-201 AC-5 and D-7,
 // which is the whole of what the card is complaining about. The second half is
 // the guard: an implementation that wired the flag into the departure check
 // would pass every other criterion on this card while reproducing exactly the
 // operator-only bottleneck the flag exists to remove.
-func TestDepartureFromAWaitingStateStaysOpenToAnyOwner(t *testing.T) {
+func TestDepartureFromAWaitingColumnStaysOpenToAnyOwner(t *testing.T) {
 	h := newHarness(t)
 	h.declare(aftercare, "awaiting_outside", "true")
 	ref := h.add("the customer answered")
 	h.at(ref, aftercare)
 
 	before := len(h.events(ref))
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "brin", State: doing})
-	if card := h.card(ref); card.State != doing {
-		t.Fatalf("a plain owner could not move the card out, it stands at %q", card.State)
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "brin", Column: doing})
+	if card := h.card(ref); card.Column != doing {
+		t.Fatalf("a plain owner could not move the card out, it stands at %q", card.Column)
 	}
 	events := h.events(ref)
 	if len(events) != before+1 {
@@ -300,15 +300,15 @@ func TestDepartureFromAWaitingStateStaysOpenToAnyOwner(t *testing.T) {
 		t.Errorf("the moved event should name the owner who moved it, got %q", last.Actor)
 	}
 
-	// A state carrying both declarations waits AND reserves the departure,
+	// A column carrying both declarations waits AND reserves the departure,
 	// which is how a board that wants both says so. The refusal is
 	// not-operator, from the departure row, and never the waiting name.
 	h.declare(aftercare, "operator_owned", "true")
 	back := h.add("waiting on the operator too")
 	h.at(back, aftercare)
-	response := h.do(&Request{Verb: Move, Card: back, Actor: "brin", State: doing})
+	response := h.do(&Request{Verb: Move, Card: back, Actor: "brin", Column: doing})
 	if response.Refusal != contract.NotOperator {
-		t.Fatalf("out of a state that waits and is operator-owned: wanted %s, got %s %s",
+		t.Fatalf("out of a column that waits and is operator-owned: wanted %s, got %s %s",
 			contract.NotOperator, response.Outcome, response.Refusal)
 	}
 }
@@ -318,7 +318,7 @@ func TestDepartureFromAWaitingStateStaysOpenToAnyOwner(t *testing.T) {
 // this slot in prose alone, so these are the assertions that would go red if an
 // implementer put the row anywhere else in canLand's list.
 func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
-	t.Run("a full waiting state answers at-capacity", func(t *testing.T) {
+	t.Run("a full waiting column answers at-capacity", func(t *testing.T) {
 		h := newHarness(t)
 		// Doing declares a limit of one, so the occupant below fills it.
 		h.declare(doing, "awaiting_outside", "true")
@@ -327,14 +327,14 @@ func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
 		arriving := h.readyAt("arriving held", aftercare)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
 
-		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: doing})
+		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", Column: doing})
 		if response.Refusal != contract.AtCapacity {
 			t.Fatalf("wanted %s ahead of %s, got %s %s",
 				contract.AtCapacity, contract.AwaitingOutside, response.Outcome, response.Refusal)
 		}
 	})
 
-	t.Run("a waiting state below its limit answers the waiting name", func(t *testing.T) {
+	t.Run("a waiting column below its limit answers the waiting name", func(t *testing.T) {
 		// The control for the case above: with the capacity row satisfied
 		// and nothing else changed, the same move reaches the new row, so
 		// the assertion above is about the order rather than about the row
@@ -343,51 +343,51 @@ func TestTheWaitingRowSitsAfterCapacityAndBeforeRetiring(t *testing.T) {
 		h.declare(doing, "awaiting_outside", "true")
 		arriving := h.readyAt("arriving held", aftercare)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
-		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: doing})
+		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", Column: doing})
 		if response.Refusal != contract.AwaitingOutside {
 			t.Fatalf("wanted %s, got %s %s", contract.AwaitingOutside, response.Outcome, response.Refusal)
 		}
 	})
 
-	t.Run("a retiring waiting state answers the waiting name", func(t *testing.T) {
+	t.Run("a retiring waiting column answers the waiting name", func(t *testing.T) {
 		h := newHarness(t)
 		h.declare(aftercare, "awaiting_outside", "true")
 		h.retire(aftercare)
 		arriving := h.readyAt("arriving held", doing)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
 
-		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: aftercareSlug})
+		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", Column: aftercareSlug})
 		if response.Refusal != contract.AwaitingOutside {
 			t.Fatalf("wanted %s ahead of %s, got %s %s",
 				contract.AwaitingOutside, contract.Locked, response.Outcome, response.Refusal)
 		}
 	})
 
-	t.Run("a retiring ordinary state still answers locked", func(t *testing.T) {
+	t.Run("a retiring ordinary column still answers locked", func(t *testing.T) {
 		// The control for the case above, which is what keeps it from
 		// passing because the retiring row stopped working.
 		h := newHarness(t)
 		h.retire(aftercare)
 		arriving := h.readyAt("arriving held", doing)
 		h.mustDo(&Request{Verb: Claim, Card: arriving, Actor: "brin"})
-		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", State: aftercareSlug})
+		response := h.do(&Request{Verb: Move, Card: arriving, Actor: "brin", Column: aftercareSlug})
 		if response.Refusal != contract.Locked {
 			t.Fatalf("wanted %s, got %s %s", contract.Locked, response.Outcome, response.Refusal)
 		}
 	})
 }
 
-// TestTheStateViewCarriesTheFlag is the library half of dinah-201 AC-8: the
-// property reaches the MCP states tool through StateView, and it is a separate
+// TestTheColumnViewCarriesTheFlag is the library half of dinah-201 AC-8: the
+// property reaches the MCP columns tool through ColumnView, and it is a separate
 // field from OperatorOwned, which goes on answering who may move a card out.
-func TestTheStateViewCarriesTheFlag(t *testing.T) {
+func TestTheColumnViewCarriesTheFlag(t *testing.T) {
 	h := newHarness(t)
 	h.declare(aftercare, "awaiting_outside", "true")
-	views, err := h.library.States()
+	views, err := h.library.Columns()
 	if err != nil {
-		t.Fatalf("states: %v", err)
+		t.Fatalf("columns: %v", err)
 	}
-	var waiting, ordinary, owned *StateView
+	var waiting, ordinary, owned *ColumnView
 	for i := range views {
 		switch views[i].ID {
 		case aftercare:
@@ -399,18 +399,18 @@ func TestTheStateViewCarriesTheFlag(t *testing.T) {
 		}
 	}
 	if waiting == nil || ordinary == nil || owned == nil {
-		t.Fatalf("the fixture's states did not all come back: %+v", views)
+		t.Fatalf("the fixture's columns did not all come back: %+v", views)
 	}
 	if !waiting.AwaitingOutside {
-		t.Error("the waiting state's view does not carry the flag")
+		t.Error("the waiting column's view does not carry the flag")
 	}
 	if waiting.OperatorOwned {
-		t.Error("a waiting state is not thereby operator-owned, and collapsing the two would tell every reader it is")
+		t.Error("a waiting column is not thereby operator-owned, and collapsing the two would tell every reader it is")
 	}
 	if ordinary.AwaitingOutside {
-		t.Error("an ordinary state's view carries the flag")
+		t.Error("an ordinary column's view carries the flag")
 	}
 	if !owned.OperatorOwned || owned.AwaitingOutside {
-		t.Error("an operator-owned state is not thereby a waiting one")
+		t.Error("an operator-owned column is not thereby a waiting one")
 	}
 }

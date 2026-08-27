@@ -18,20 +18,20 @@ import (
 	"dinah/internal/msg"
 )
 
-// TestAddFilesACard asserts the creation rules: the first state, substate
+// TestAddFilesACard asserts the creation rules: the first column, state
 // ready, a journal opened with the created event, a title-less request
-// refused malformed (CORE-CARD-3), a state the bench does not declare refused
-// unknown-state (CORE-CARD-4), and the asymmetric capacity treatment of the
-// first state against a named one.
+// refused malformed (CORE-CARD-3), a column the bench does not declare refused
+// unknown-column (CORE-CARD-4), and the asymmetric capacity treatment of the
+// first column against a named one.
 func TestAddFilesACard(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("first card")
 	card := h.card(ref)
-	if card.State != intake {
-		t.Errorf("wanted the first state %s, got %s", intake, card.State)
+	if card.Column != intake {
+		t.Errorf("wanted the first column %s, got %s", intake, card.Column)
 	}
-	if card.Substate != contract.SubstateReady {
-		t.Errorf("wanted substate ready, got %s", card.Substate)
+	if card.State != contract.StateReady {
+		t.Errorf("wanted state ready, got %s", card.State)
 	}
 	events := h.events(ref)
 	if len(events) != 1 || events[0].Event != contract.EventCreated {
@@ -44,19 +44,19 @@ func TestAddFilesACard(t *testing.T) {
 	if response := h.library.Add(&Request{Verb: "add", Actor: "alka"}); response.Refusal != contract.Malformed {
 		t.Errorf("a title-less request: wanted malformed, got %s %s", response.Outcome, response.Refusal)
 	}
-	if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "x", State: "nowhere"}); response.Refusal != contract.UnknownState {
-		t.Errorf("an unknown state: wanted unknown-state, got %s %s", response.Outcome, response.Refusal)
+	if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "x", Column: "nowhere"}); response.Refusal != contract.UnknownColumn {
+		t.Errorf("an unknown column: wanted unknown-column, got %s %s", response.Outcome, response.Refusal)
 	}
 
 	// Doing is limited to one card. A filing into it is refused once it is
-	// full, while a filing into the first state is admitted whatever.
-	full := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "occupant", State: doing})
+	// full, while a filing into the first column is admitted whatever.
+	full := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "occupant", Column: doing})
 	if full.Outcome != contract.OutcomeOK {
 		t.Fatalf("first filing into Doing: %s %s", full.Outcome, full.Refusal)
 	}
 	h.reopen()
-	if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "second", State: doing}); response.Refusal != contract.AtCapacity {
-		t.Errorf("a filing into a full state: wanted at-capacity, got %s %s", response.Outcome, response.Refusal)
+	if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "second", Column: doing}); response.Refusal != contract.AtCapacity {
+		t.Errorf("a filing into a full column: wanted at-capacity, got %s %s", response.Outcome, response.Refusal)
 	} else if response.Detail != "doing" {
 		// Named by the slug a caller could type back ("doing"), not by the
 		// raw identifier behind it: dinah-29 cycle 2 fixed this for the
@@ -66,25 +66,25 @@ func TestAddFilesACard(t *testing.T) {
 	h.reopen()
 	for i := 0; i < 3; i++ {
 		if response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "intake filing"}); response.Outcome != contract.OutcomeOK {
-			t.Fatalf("a filing into the first state should never be refused, got %s", response.Refusal)
+			t.Fatalf("a filing into the first column should never be refused, got %s", response.Refusal)
 		}
 		h.reopen()
 	}
 }
 
-// TestAddRefusesRatherThanPanicsWithNoLiveStates asserts AC-7 and AC-8: Add
-// against a workbench whose live states list is empty raises
-// contract.AddNeedsAState rather than indexing Bench.States[0], which is the
+// TestAddRefusesRatherThanPanicsWithNoLiveColumns asserts AC-7 and AC-8: Add
+// against a workbench whose live columns list is empty raises
+// contract.AddNeedsAColumn rather than indexing Bench.Columns[0], which is the
 // crash the guard exists to stop, and creates no card directory.
 // Bench.Open tolerates this shape so check can diagnose it, so the harness
 // reaches it by clearing the in-memory slice after opening rather than by
-// writing a new fixture: no dinah check --migrate-states run is involved.
-func TestAddRefusesRatherThanPanicsWithNoLiveStates(t *testing.T) {
+// writing a new fixture: no dinah check --migrate-columns run is involved.
+func TestAddRefusesRatherThanPanicsWithNoLiveColumns(t *testing.T) {
 	h := newHarness(t)
-	h.library.Bench.States = nil
+	h.library.Bench.Columns = nil
 	response := h.library.Add(&Request{Verb: "add", Actor: "alka", Title: "stranded filing"})
-	if response.Refusal != contract.AddNeedsAState {
-		t.Fatalf("wanted contract.AddNeedsAState, got %s %s", response.Outcome, response.Refusal)
+	if response.Refusal != contract.AddNeedsAColumn {
+		t.Fatalf("wanted contract.AddNeedsAColumn, got %s %s", response.Outcome, response.Refusal)
 	}
 	want := filepath.Join(h.library.Bench.Root, bench.WorkbenchAnchor)
 	if response.Detail != want {
@@ -229,7 +229,7 @@ func TestCommentAndAttach(t *testing.T) {
 
 // TestArchiveAndDelete asserts that archiving takes a card out of the live
 // set while its identifier still resolves, that a delete needs its
-// confirmation, that a state cards occupy is refused, and that deleting a
+// confirmation, that a column cards occupy is refused, and that deleting a
 // card another card's link names succeeds and leaves check the dangler.
 func TestArchiveAndDelete(t *testing.T) {
 	h := newHarness(t)
@@ -248,20 +248,20 @@ func TestArchiveAndDelete(t *testing.T) {
 		t.Fatalf("an unconfirmed delete: wanted %s, got %s %s", contract.Unconfirmed, response.Outcome, response.Refusal)
 	}
 	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: intake}); response.Refusal != contract.Occupied {
-		t.Fatalf("archiving an occupied state: wanted %s, got %s %s", contract.Occupied, response.Outcome, response.Refusal)
+		t.Fatalf("archiving an occupied column: wanted %s, got %s %s", contract.Occupied, response.Outcome, response.Refusal)
 	}
 	if response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: intake, Confirm: true}); response.Refusal != contract.Occupied {
-		t.Fatalf("deleting an occupied state: wanted %s, got %s %s", contract.Occupied, response.Outcome, response.Refusal)
+		t.Fatalf("deleting an occupied column: wanted %s, got %s %s", contract.Occupied, response.Outcome, response.Refusal)
 	}
 
 	// The archived card leaves the listings, the offers and the count.
 	archivable := h.add("archivable")
-	h.mustDo(&Request{Verb: Move, Card: archivable, Actor: "alka", State: doing})
+	h.mustDo(&Request{Verb: Move, Card: archivable, Actor: "alka", Column: doing})
 	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: archivable}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("archive: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	listing, err := h.library.List(&Request{Verb: "ls", State: doing})
+	listing, err := h.library.List(&Request{Verb: "ls", Column: doing})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestArchiveAndDelete(t *testing.T) {
 	}
 	// Doing is limited to one card, so an admitted move proves the archived
 	// card left the count of CORE-MOVE-5 as well.
-	if response := h.do(&Request{Verb: Move, Card: occupant, Actor: "alka", State: doing}); response.Outcome != contract.OutcomeOK {
+	if response := h.do(&Request{Verb: Move, Card: occupant, Actor: "alka", Column: doing}); response.Outcome != contract.OutcomeOK {
 		t.Errorf("an archived card should leave the capacity count, got %s", response.Refusal)
 	}
 
@@ -297,61 +297,61 @@ func TestArchiveAndDelete(t *testing.T) {
 	}
 }
 
-// TestArchiveRemovesTheStateFromTheDefinition asserts AC-1: archiving an
-// unoccupied state that is not the sole remaining one drops the identifier
-// from workbench.md's states list in the same run, and every command that
+// TestArchiveRemovesTheColumnFromTheDefinition asserts AC-1: archiving an
+// unoccupied column that is not the sole remaining one drops the identifier
+// from workbench.md's columns list in the same run, and every command that
 // opens the bench afterwards succeeds and no longer lists it.
-func TestArchiveRemovesTheStateFromTheDefinition(t *testing.T) {
+func TestArchiveRemovesTheColumnFromTheDefinition(t *testing.T) {
 	h := newHarness(t)
-	before := len(h.library.Bench.States)
+	before := len(h.library.Bench.Columns)
 	response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: aftercare})
 	if response.Outcome != contract.OutcomeOK {
 		t.Fatalf("archive: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	if got := len(h.library.Bench.States); got != before-1 {
-		t.Fatalf("wanted %d states after the archive, got %d", before-1, got)
+	if got := len(h.library.Bench.Columns); got != before-1 {
+		t.Fatalf("wanted %d columns after the archive, got %d", before-1, got)
 	}
-	if h.library.Bench.State(aftercare) != nil {
-		t.Error("the archived state is still declared")
+	if h.library.Bench.Column(aftercare) != nil {
+		t.Error("the archived column is still declared")
 	}
 	if findings := h.check(); len(findings) != 0 {
 		t.Errorf("a workbench with no dangling entry should check clean, got %+v", findings)
 	}
 }
 
-// TestDeleteRemovesTheStateFromTheDefinition asserts AC-2: deleting an
-// unoccupied state behaves identically to archiving it for the purposes of
+// TestDeleteRemovesTheColumnFromTheDefinition asserts AC-2: deleting an
+// unoccupied column behaves identically to archiving it for the purposes of
 // AC-1.
-func TestDeleteRemovesTheStateFromTheDefinition(t *testing.T) {
+func TestDeleteRemovesTheColumnFromTheDefinition(t *testing.T) {
 	h := newHarness(t)
-	before := len(h.library.Bench.States)
+	before := len(h.library.Bench.Columns)
 	response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: review, Confirm: true})
 	if response.Outcome != contract.OutcomeOK {
 		t.Fatalf("delete: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	if got := len(h.library.Bench.States); got != before-1 {
-		t.Fatalf("wanted %d states after the delete, got %d", before-1, got)
+	if got := len(h.library.Bench.Columns); got != before-1 {
+		t.Fatalf("wanted %d columns after the delete, got %d", before-1, got)
 	}
-	if h.library.Bench.State(review) != nil {
-		t.Error("the deleted state is still declared")
+	if h.library.Bench.Column(review) != nil {
+		t.Error("the deleted column is still declared")
 	}
 	if findings := h.check(); len(findings) != 0 {
 		t.Errorf("a workbench with no dangling entry should check clean, got %+v", findings)
 	}
 }
 
-// TestRetiringTheLastStateIsRefused asserts AC-3: archiving or deleting the
-// sole remaining state is refused with dinah.last-state, both as the third
+// TestRetiringTheLastColumnIsRefused asserts AC-3: archiving or deleting the
+// sole remaining column is refused with dinah.last-column, both as the third
 // precondition row of archive and the fourth of delete, and the workbench
 // keeps opening and working normally afterwards.
-func TestRetiringTheLastStateIsRefused(t *testing.T) {
-	if got := Checks("archive"); len(got) != 3 || got[2].Refusal != contract.LastState {
-		t.Fatalf("archive's preconditions: wanted dinah.last-state third, got %+v", got)
+func TestRetiringTheLastColumnIsRefused(t *testing.T) {
+	if got := Checks("archive"); len(got) != 3 || got[2].Refusal != contract.LastColumn {
+		t.Fatalf("archive's preconditions: wanted dinah.last-column third, got %+v", got)
 	}
-	if got := Checks("delete"); len(got) != 4 || got[3].Refusal != contract.LastState {
-		t.Fatalf("delete's preconditions: wanted dinah.last-state fourth, got %+v", got)
+	if got := Checks("delete"); len(got) != 4 || got[3].Refusal != contract.LastColumn {
+		t.Fatalf("delete's preconditions: wanted dinah.last-column fourth, got %+v", got)
 	}
 
 	h := newHarness(t)
@@ -362,27 +362,27 @@ func TestRetiringTheLastStateIsRefused(t *testing.T) {
 		}
 		h.reopen()
 	}
-	if len(h.library.Bench.States) != 1 {
-		t.Fatalf("wanted one state left, got %d", len(h.library.Bench.States))
+	if len(h.library.Bench.Columns) != 1 {
+		t.Fatalf("wanted one column left, got %d", len(h.library.Bench.Columns))
 	}
-	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: intake}); response.Refusal != contract.LastState {
-		t.Fatalf("archiving the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: intake}); response.Refusal != contract.LastColumn {
+		t.Fatalf("archiving the last column: wanted %s, got %s %s", contract.LastColumn, response.Outcome, response.Refusal)
 	} else if response.Detail != "intake" {
 		// Named by its slug, not by its raw identifier: a caller who typed
 		// "intake" is told about "intake", never about a12300000001.
-		t.Fatalf("last-state refusal: wanted the slug %q, got %q", "intake", response.Detail)
+		t.Fatalf("last-column refusal: wanted the slug %q, got %q", "intake", response.Detail)
 	}
 	h.reopen()
-	if h.library.Bench.State(intake) == nil {
-		t.Fatal("the refused archive removed the last state anyway")
+	if h.library.Bench.Column(intake) == nil {
+		t.Fatal("the refused archive removed the last column anyway")
 	}
 	if findings := h.check(); len(findings) != 0 {
-		t.Errorf("a workbench holding its last state should check clean, got %+v", findings)
+		t.Errorf("a workbench holding its last column should check clean, got %+v", findings)
 	}
-	if response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: intake, Confirm: true}); response.Refusal != contract.LastState {
-		t.Fatalf("deleting the last state: wanted %s, got %s %s", contract.LastState, response.Outcome, response.Refusal)
+	if response := h.library.Delete(&Request{Verb: "delete", Actor: "alka", Ref: intake, Confirm: true}); response.Refusal != contract.LastColumn {
+		t.Fatalf("deleting the last column: wanted %s, got %s %s", contract.LastColumn, response.Outcome, response.Refusal)
 	} else if response.Detail != "intake" {
-		t.Fatalf("last-state refusal: wanted the slug %q, got %q", "intake", response.Detail)
+		t.Fatalf("last-column refusal: wanted the slug %q, got %q", "intake", response.Detail)
 	}
 }
 
@@ -407,7 +407,7 @@ func TestInterchangeRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(first, &object); err != nil {
 		t.Fatalf("the interchange form should parse as one object: %v", err)
 	}
-	for _, member := range []string{"profile", "title", "states"} {
+	for _, member := range []string{"profile", "title", "columns"} {
 		if _, ok := object[member]; !ok {
 			t.Errorf("CORE-JSON-3: the written object carries no %s", member)
 		}
@@ -423,16 +423,16 @@ func TestInterchangeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	if len(definition.States) != len(h.library.Bench.States) {
-		t.Fatalf("wanted %d states, got %d", len(h.library.Bench.States), len(definition.States))
+	if len(definition.Columns) != len(h.library.Bench.Columns) {
+		t.Fatalf("wanted %d columns, got %d", len(h.library.Bench.Columns), len(definition.Columns))
 	}
-	for i, element := range definition.States {
+	for i, element := range definition.Columns {
 		var id string
 		if err := json.Unmarshal(element["id"], &id); err != nil {
-			t.Fatalf("state id: %v", err)
+			t.Fatalf("column id: %v", err)
 		}
-		if id != h.library.Bench.States[i].ID {
-			t.Errorf("CORE-JSON-4: position %d wanted %s, got %s", i, h.library.Bench.States[i].ID, id)
+		if id != h.library.Bench.Columns[i].ID {
+			t.Errorf("CORE-JSON-4: position %d wanted %s, got %s", i, h.library.Bench.Columns[i].ID, id)
 		}
 	}
 
@@ -493,17 +493,17 @@ func TestExtractReproducesTheDefinition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open the extracted definition: %v", err)
 	}
-	if len(extracted.States) != len(h.library.Bench.States) {
-		t.Fatalf("wanted %d states, got %d", len(h.library.Bench.States), len(extracted.States))
+	if len(extracted.Columns) != len(h.library.Bench.Columns) {
+		t.Fatalf("wanted %d columns, got %d", len(h.library.Bench.Columns), len(extracted.Columns))
 	}
-	for i, state := range extracted.States {
-		original := h.library.Bench.States[i]
-		if state.ID != original.ID || state.Title != original.Title || state.Kind != original.Kind {
-			t.Errorf("state %d: wanted %s/%s/%s, got %s/%s/%s", i,
-				original.ID, original.Title, original.Kind, state.ID, state.Title, state.Kind)
+	for i, column := range extracted.Columns {
+		original := h.library.Bench.Columns[i]
+		if column.ID != original.ID || column.Title != original.Title || column.Kind != original.Kind {
+			t.Errorf("column %d: wanted %s/%s/%s, got %s/%s/%s", i,
+				original.ID, original.Title, original.Kind, column.ID, column.Title, column.Kind)
 		}
-		if state.Capacity != original.Capacity || state.OperatorOwned != original.OperatorOwned {
-			t.Errorf("state %d: capacity or operator flag differs", i)
+		if column.Capacity != original.Capacity || column.OperatorOwned != original.OperatorOwned {
+			t.Errorf("column %d: capacity or operator flag differs", i)
 		}
 	}
 }
@@ -622,6 +622,16 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	for _, tag := range msg.Complete {
 		isComplete[tag] = true
 	}
+	// The two rosters are read separately rather than as one another's
+	// negation. A catalog can be on neither: dinah-287 took Hindi and German
+	// off Complete while both go on carrying hundreds of real translations,
+	// so "not complete" stopped meaning "generated skeleton". Each roster's
+	// claim is asserted against the tags that roster actually names, which is
+	// the shape TestEveryDeclaredLanguageShips already reads them in.
+	isSkeleton := map[string]bool{}
+	for _, tag := range msg.Skeleton {
+		isSkeleton[tag] = true
+	}
 	wanted := map[string]bool{}
 	for _, tag := range append(append([]string{}, msg.Complete...), msg.Skeleton...) {
 		wanted[tag] = true
@@ -635,7 +645,7 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 		if complete && coverage.Translated != coverage.Total {
 			t.Errorf("%s ships complete, got %d of %d translated", coverage.Tag, coverage.Translated, coverage.Total)
 		}
-		if !complete && coverage.Translated != 0 {
+		if isSkeleton[coverage.Tag] && coverage.Translated != 0 {
 			t.Errorf("%s ships as a skeleton, got %d translated", coverage.Tag, coverage.Translated)
 		}
 	}
@@ -751,7 +761,7 @@ func TestGuidesAreServedAndNeverSeeded(t *testing.T) {
 	h := newHarness(t)
 	ref := h.ready("ordinary work")
 	h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "alka"})
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", State: doing})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing})
 	needle := strings.SplitN(strings.TrimPrefix(first, "# "), "\n", 2)[0]
 	err = filepath.WalkDir(h.root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
@@ -920,10 +930,10 @@ func TestAttachTakesTheEnclosingEntitysLock(t *testing.T) {
 	}{
 		{kind: "workbench", ref: "", lockDir: h.root, owner: h.root, journal: benchJournal},
 		{
-			kind:    "state",
+			kind:    "column",
 			ref:     intake,
 			lockDir: h.root,
-			owner:   filepath.Join(h.root, bench.StatesDir, intake),
+			owner:   filepath.Join(h.root, bench.ColumnsDir, intake),
 			journal: benchJournal,
 		},
 		{kind: "card", ref: ref, lockDir: card.Dir, owner: card.Dir, journal: card.JournalPath()},
@@ -1097,7 +1107,7 @@ func TestASiblingLockIsInvisibleToEveryReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ls: %v", err)
 		}
-		offers, err := h.library.Next(&Request{Verb: "next", State: intake})
+		offers, err := h.library.Next(&Request{Verb: "next", Column: intake})
 		if err != nil {
 			t.Fatalf("next: %v", err)
 		}
@@ -1120,7 +1130,7 @@ func TestASiblingLockIsInvisibleToEveryReadPath(t *testing.T) {
 			h.library.Bench.HasIdentifier(card.ID),
 			h.library.Bench.HasIdentifier("ffffffffffff"),
 		}
-		reading := []any{listing, offers, status.States, string(exported), clean, identifiers}
+		reading := []any{listing, offers, status.Columns, string(exported), clean, identifiers}
 		encoded, err := json.Marshal(reading)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
@@ -1552,7 +1562,7 @@ func TestAnInterruptedArchiveIsFinishedForwardAfterItsRecord(t *testing.T) {
 		t.Errorf("the archived journal carries %d lines, wanted %d", got, lines+1)
 	}
 
-	state := hashDirectory(t, h.root)
+	column := hashDirectory(t, h.root)
 	second, err := h.finish()
 	if err != nil {
 		t.Fatalf("a second finish: %v", err)
@@ -1560,7 +1570,7 @@ func TestAnInterruptedArchiveIsFinishedForwardAfterItsRecord(t *testing.T) {
 	if len(second) != 0 {
 		t.Errorf("a second finish reported %+v", second)
 	}
-	if after := hashDirectory(t, h.root); after != state {
+	if after := hashDirectory(t, h.root); after != column {
 		t.Error("a second finish changed the workbench")
 	}
 }
@@ -1621,11 +1631,11 @@ func TestAnInterruptedDeletionIsFinishedFromTheBenchJournal(t *testing.T) {
 	})
 }
 
-// TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired asserts the row
+// TestTheTwoUnresolvableCrashColumnsAreReportedAndNotRepaired asserts the row
 // that keeps directory-rename atomicity out of the correctness argument: a
 // directory found at both paths and one found at neither are each reported,
 // and the finish leaves the bench exactly as it found it.
-func TestTheTwoUnresolvableCrashStatesAreReportedAndNotRepaired(t *testing.T) {
+func TestTheTwoUnresolvableCrashColumnsAreReportedAndNotRepaired(t *testing.T) {
 	cases := []struct {
 		name  string
 		plant func(*harness, string)
@@ -1894,7 +1904,7 @@ func TestTheQueryGuideTeachesTheFieldsTheLanguageHas(t *testing.T) {
 // that matters: a reader who writes the query as though the cards were the
 // document's top level binds against a column that is not there.
 const specSection6EscapeHatch = "dinah query --json > cards.json\n" +
-	`duckdb -c "select card.state_title, count(*) from (select unnest(cards) as card from read_json_auto('cards.json')) group by 1 order by 1"`
+	`duckdb -c "select card.column_title, count(*) from (select unnest(cards) as card from read_json_auto('cards.json')) group by 1 order by 1"`
 
 // TestTheQueryGuideCarriesTheEscapeHatchTheSpecFixed asserts that the guide
 // hands a reader the escape hatch the spec settled on, character for
@@ -2058,9 +2068,9 @@ func TestSetWorkbenchWritesUnderOneLockAndJournalsWhatChanged(t *testing.T) {
 		}
 	}
 	// The structural keys and the standing text the command never names.
-	if h.library.Bench.Profile == "" || h.library.Bench.Format == 0 || len(h.library.Bench.States) != 6 {
-		t.Errorf("a write disturbed the structural keys: profile %q, format %d, %d states",
-			h.library.Bench.Profile, h.library.Bench.Format, len(h.library.Bench.States))
+	if h.library.Bench.Profile == "" || h.library.Bench.Format == 0 || len(h.library.Bench.Columns) != 6 {
+		t.Errorf("a write disturbed the structural keys: profile %q, format %d, %d columns",
+			h.library.Bench.Profile, h.library.Bench.Format, len(h.library.Bench.Columns))
 	}
 	if !strings.Contains(h.library.Bench.Standing, "The standing text of this workbench.") {
 		t.Errorf("a write disturbed the standing text: %q", h.library.Bench.Standing)
@@ -2194,7 +2204,7 @@ func TestAWorkstreamIsBornWithASlugAStatusAnOrdinalAndAJournal(t *testing.T) {
 }
 
 // TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix asserts the
-// collision resolution the state slugs already use, and that the suffix the
+// collision resolution the column slugs already use, and that the suffix the
 // resolver writes is a slug the workstream grammar admits.
 func TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix(t *testing.T) {
 	h := newHarness(t)
@@ -2207,13 +2217,13 @@ func TestASecondWorkstreamOfTheSameTitleTakesTheCountingSuffix(t *testing.T) {
 		t.Errorf("the second slug is %q, wanted the counting suffix sprint-2-2", second.Slug)
 	}
 	for _, slug := range []string{first.Slug, second.Slug} {
-		if !bench.ValidStateSlug(slug) {
+		if !bench.ValidColumnSlug(slug) {
 			t.Errorf("%q is not a slug the grammar admits, so the resolver wrote something nobody can type", slug)
 		}
 	}
 }
 
-// TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported pins the state a
+// TestRenamingAWorkstreamOntoATakenSlugIsAcceptedAndReported pins the column a
 // write can reach and creation cannot. The write is accepted, the shared slug
 // still resolves to the earlier workstream, and check raises exactly one
 // duplicate finding, naming the workstream whose slug is now shadowed.

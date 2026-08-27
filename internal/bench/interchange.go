@@ -19,14 +19,14 @@ import (
 // profile and title with its axes in the one published order, rather than
 // letting the loop below skip it for being known.
 var knownBenchKeys = map[string]bool{
-	"profile": true, "title": true, "states": true,
+	"profile": true, "title": true, "columns": true,
 	"format": true, "slug": true, "operator": true,
 	LevelsKey: true,
 }
 
-// knownStateKeys are the state frontmatter keys the interchange form carries
+// knownColumnKeys are the column frontmatter keys the interchange form carries
 // under a name of its own.
-var knownStateKeys = map[string]bool{
+var knownColumnKeys = map[string]bool{
 	"title": true, "kind": true, "operator_owned": true, "wip_limit": true,
 	"slug": true, "awaiting_outside": true,
 }
@@ -52,47 +52,47 @@ func (b *Bench) Export() ([]byte, error) {
 	if b.Standing != "" {
 		object["instructions"] = mustMarshal(b.Standing)
 	}
-	states := make([]map[string]json.RawMessage, 0, len(b.States))
-	for _, state := range b.States {
-		states = append(states, exportState(state))
+	columns := make([]map[string]json.RawMessage, 0, len(b.Columns))
+	for _, column := range b.Columns {
+		columns = append(columns, exportColumn(column))
 	}
-	encoded, err := json.Marshal(states)
+	encoded, err := json.Marshal(columns)
 	if err != nil {
 		return nil, err
 	}
-	object["states"] = encoded
+	object["columns"] = encoded
 	return json.MarshalIndent(object, "", "  ")
 }
 
-// exportState renders one state as an element of the states array.
-func exportState(state *State) map[string]json.RawMessage {
+// exportColumn renders one column as an element of the columns array.
+func exportColumn(column *Column) map[string]json.RawMessage {
 	element := map[string]json.RawMessage{}
-	for _, key := range state.FM.Keys() {
-		if knownStateKeys[key] {
+	for _, key := range column.FM.Keys() {
+		if knownColumnKeys[key] {
 			continue
 		}
-		element[key] = blockValue(state.FM, key)
+		element[key] = blockValue(column.FM, key)
 	}
-	element["id"] = mustMarshal(state.ID)
-	element["title"] = mustMarshal(state.Title)
-	element["kind"] = mustMarshal(state.Kind)
-	if state.Slug != "" {
-		element["slug"] = mustMarshal(state.Slug)
+	element["id"] = mustMarshal(column.ID)
+	element["title"] = mustMarshal(column.Title)
+	element["kind"] = mustMarshal(column.Kind)
+	if column.Slug != "" {
+		element["slug"] = mustMarshal(column.Slug)
 	}
-	if state.Instructions != "" {
-		element["instructions"] = mustMarshal(state.Instructions)
+	if column.Instructions != "" {
+		element["instructions"] = mustMarshal(column.Instructions)
 	}
-	if state.OperatorOwned {
+	if column.OperatorOwned {
 		element["operator_owned"] = mustMarshal(true)
 	}
-	// The member is written only where the flag is set, so a state that does
-	// not declare it exports as a state that never heard of it, which is the
+	// The member is written only where the flag is set, so a column that does
+	// not declare it exports as a column that never heard of it, which is the
 	// same shape operator_owned carries above.
-	if state.AwaitingOutside {
+	if column.AwaitingOutside {
 		element["awaiting_outside"] = mustMarshal(true)
 	}
-	if state.Capacity > 0 {
-		element["capacity"] = mustMarshal(state.Capacity)
+	if column.Capacity > 0 {
+		element["capacity"] = mustMarshal(column.Capacity)
 	}
 	return element
 }
@@ -117,13 +117,13 @@ type Definition struct {
 	Title string
 	// Profile is the declared conformance target.
 	Profile string
-	// States are the flow, in the order the array carried.
-	States []map[string]json.RawMessage
+	// Columns are the flow, in the order the array carried.
+	Columns []map[string]json.RawMessage
 }
 
 // ReadDefinition parses an interchange object and applies the checks the
-// profile puts on one: an object missing profile, title or states is
-// malformed, and so is a state element missing id, title or kind. A definition
+// profile puts on one: an object missing profile, title or columns is
+// malformed, and so is a column element missing id, title or kind. A definition
 // declaring a revision outside the window admitProfile applies is refused
 // unsupported-version, on the same window Open applies, so the function that
 // clones a workbench admits exactly what the function that opens one admits.
@@ -133,7 +133,7 @@ func ReadDefinition(data []byte) (*Definition, error) {
 		return nil, contract.Refuse(contract.Malformed, "interchange")
 	}
 	definition := &Definition{Object: object}
-	for _, member := range []string{"profile", "title", "states"} {
+	for _, member := range []string{"profile", "title", "columns"} {
 		if _, ok := object[member]; !ok {
 			return nil, contract.Refuse(contract.Malformed, member)
 		}
@@ -153,13 +153,13 @@ func ReadDefinition(data []byte) (*Definition, error) {
 		}
 		return nil, err
 	}
-	if err := json.Unmarshal(object["states"], &definition.States); err != nil {
-		return nil, contract.Refuse(contract.Malformed, "states")
+	if err := json.Unmarshal(object["columns"], &definition.Columns); err != nil {
+		return nil, contract.Refuse(contract.Malformed, "columns")
 	}
-	if len(definition.States) == 0 {
-		return nil, contract.Refuse(contract.Malformed, "states")
+	if len(definition.Columns) == 0 {
+		return nil, contract.Refuse(contract.Malformed, "columns")
 	}
-	for _, element := range definition.States {
+	for _, element := range definition.Columns {
 		for _, member := range []string{"id", "title", "kind"} {
 			if _, ok := element[member]; !ok {
 				return nil, contract.Refuse(contract.Malformed, member)
@@ -209,12 +209,12 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 	if operator != "" {
 		fm.Set("operator", operator)
 	}
-	slugs, err := assignStateSlugs(definition.States)
+	slugs, err := assignColumnSlugs(definition.Columns)
 	if err != nil {
 		return err
 	}
 	var ids []string
-	for position, element := range definition.States {
+	for position, element := range definition.Columns {
 		id := memberString(element, "id")
 		if !IsID(id) {
 			generated, err := NewID()
@@ -223,12 +223,12 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 			}
 			id = generated
 		}
-		if err := writeStateFromMember(root, id, slugs[position], element); err != nil {
+		if err := writeColumnFromMember(root, id, slugs[position], element); err != nil {
 			return err
 		}
 		ids = append(ids, id)
 	}
-	fm.SetSeq("states", ids)
+	fm.SetSeq("columns", ids)
 	if raw, ok := definition.Object[LevelsKey]; ok {
 		if lines, readable := renderLevelsMember(raw); readable {
 			fm.SetRaw(LevelsKey, lines)
@@ -256,36 +256,36 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 	return WriteText(filepath.Join(root, WorkbenchAnchor), fm.Render(standing))
 }
 
-// assignStateSlugs settles the slug every state of a definition is written
-// with, in the order the states array carries them.
+// assignColumnSlugs settles the slug every column of a definition is written
+// with, in the order the columns array carries them.
 //
 // A slug the author supplied is taken as given and checked, and two authors'
 // slugs that collide are malformed rather than resolved by suffixing, because
 // each one asked for a value that is not available. The explicit slugs are
 // collected first so a derived slug never takes a value an author asked for
 // later in the array. A slug the tool derives collides only with another
-// derived one, and the second takes the first free suffix, so two states both
+// derived one, and the second takes the first free suffix, so two columns both
 // titled Review become review and review-2.
 //
 // A title that derives to nothing usable is refused rather than left empty or
 // filled in from the identifier, since neither is a name anybody would type.
 // That refusal names the title, which is the value the author has to change,
 // rather than the slug that was never arrived at.
-func assignStateSlugs(states []map[string]json.RawMessage) ([]string, error) {
-	slugs := make([]string, len(states))
+func assignColumnSlugs(columns []map[string]json.RawMessage) ([]string, error) {
+	slugs := make([]string, len(columns))
 	taken := map[string]bool{}
-	for position, element := range states {
+	for position, element := range columns {
 		slug := memberString(element, "slug")
 		if slug == "" {
 			continue
 		}
-		if !ValidStateSlug(slug) || taken[slug] {
+		if !ValidColumnSlug(slug) || taken[slug] {
 			return nil, contract.Refuse(contract.Malformed, "slug "+slug)
 		}
 		taken[slug] = true
 		slugs[position] = slug
 	}
-	for position, element := range states {
+	for position, element := range columns {
 		if slugs[position] != "" {
 			continue
 		}
@@ -304,9 +304,9 @@ func assignStateSlugs(states []map[string]json.RawMessage) ([]string, error) {
 	return slugs, nil
 }
 
-// writeStateFromMember writes one state anchor from an interchange element,
+// writeColumnFromMember writes one column anchor from an interchange element,
 // carrying the slug the assignment settled for it.
-func writeStateFromMember(root, id, slug string, element map[string]json.RawMessage) error {
+func writeColumnFromMember(root, id, slug string, element map[string]json.RawMessage) error {
 	fm := NewFrontmatter()
 	fm.Set("title", memberString(element, "title"))
 	fm.Set("slug", slug)
@@ -330,12 +330,12 @@ func writeStateFromMember(root, id, slug string, element map[string]json.RawMess
 		}
 	}
 	for _, member := range sortedMembers(element) {
-		if knownStateKeys[member] || member == "id" || member == "capacity" || member == "instructions" {
+		if knownColumnKeys[member] || member == "id" || member == "capacity" || member == "instructions" {
 			continue
 		}
 		writeMember(fm, member, element[member])
 	}
-	return WriteText(filepath.Join(root, StatesDir, id, StateAnchor), fm.Render(memberString(element, "instructions")))
+	return WriteText(filepath.Join(root, ColumnsDir, id, ColumnAnchor), fm.Render(memberString(element, "instructions")))
 }
 
 // sortedMembers names an interchange object's members in sorted order. Both
@@ -386,13 +386,13 @@ func (b *Bench) Extract(target string) error {
 	if err := WriteText(filepath.Join(target, WorkbenchAnchor), anchor); err != nil {
 		return err
 	}
-	for _, state := range b.States {
-		source := filepath.Join(b.Root, StatesDir, state.ID, StateAnchor)
+	for _, column := range b.Columns {
+		source := filepath.Join(b.Root, ColumnsDir, column.ID, ColumnAnchor)
 		text, err := ReadText(source)
 		if err != nil {
 			return err
 		}
-		if err := WriteText(filepath.Join(target, StatesDir, state.ID, StateAnchor), text); err != nil {
+		if err := WriteText(filepath.Join(target, ColumnsDir, column.ID, ColumnAnchor), text); err != nil {
 			return err
 		}
 	}

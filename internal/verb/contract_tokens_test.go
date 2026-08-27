@@ -12,18 +12,18 @@ import (
 )
 
 // contractTokens is the closed set of machine vocabulary this project's own
-// commands, substates, level axes and flags are spelled with, composed from
+// commands, states, level axes and flags are spelled with, composed from
 // each vocabulary's own declaration so a name added there is protected
 // without a second list to keep in step. "stdout" is written by hand: it
 // names a Unix stream, not anything this project declares a constant for,
 // and en.json's cmd.export.summary is the one place it appears.
 func contractTokens() []string {
 	set := map[string]bool{
-		contract.SubstateReady:   true,
-		contract.SubstateActive:  true,
-		contract.SubstateBlocked: true,
-		bench.WorkbenchAnchor:    true,
-		"stdout":                 true,
+		contract.StateReady:   true,
+		contract.StateActive:  true,
+		contract.StateBlocked: true,
+		bench.WorkbenchAnchor: true,
+		"stdout":              true,
 	}
 	for _, axis := range bench.LevelAxes {
 		set[axis] = true

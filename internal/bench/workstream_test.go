@@ -129,7 +129,7 @@ func TestAnAnchorWithNoParseableHeaderLoadsWithEmptyFields(t *testing.T) {
 // still resolves.
 func TestTheAdoptionRepairKeepsTheIdentifierAndWritesNoCard(t *testing.T) {
 	root := newFixture(t)
-	edit(t, root, "substate: ready", "substate: ready\nworkstreams:\n  - f00000000009")
+	edit(t, root, "state: ready", "state: ready\nworkstreams:\n  - f00000000009")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -221,7 +221,7 @@ func TestTheSlugMigrationRepairsAWorkstreamOnceItHasATitle(t *testing.T) {
 func TestAWorkstreamDeletionCountsTheLiveCardsAlone(t *testing.T) {
 	root := newFixture(t)
 	writeWorkstream(t, root, "f00000000001", "title: Portfolio work\nslug: portfolio\nstatus: active\nordinal: 1\n")
-	edit(t, root, "substate: ready", "substate: ready\nworkstreams:\n  - f00000000001")
+	edit(t, root, "state: ready", "state: ready\nworkstreams:\n  - f00000000001")
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)

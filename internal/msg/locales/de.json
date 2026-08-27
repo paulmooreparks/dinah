@@ -2,13 +2,13 @@
   "tag": "de",
   "entries": {
     "answer.pull.empty.bare": {
-      "text": "Dinah hat keinen Zustand gefunden, in den Sie gerade ziehen können",
+      "text": "Dinah hat keine Spalte gefunden, in die Sie gerade ziehen können",
       "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders.",
-      "source": "a8ed0bc83e83e839"
+      "source": "1ee5a087a80c8f6"
     },
     "answer.pull.empty.named": {
       "text": "Dinah hat in {upstream} nichts Bereites gefunden, das nach {destination} verschoben werden könnte",
-      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream state holds no ready card. {upstream} names the upstream state by its title, {destination} names the state the caller asked pull to land the card in.",
+      "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in.",
       "source": "3a88bcf8a5a3f1f5"
     },
     "card.blocked": {
@@ -22,19 +22,22 @@
       "source": "754198e7d1d64fab"
     },
     "card.line": {
-      "text": "{ref}  {title}  [{state} / {substate}]",
+      "text": "{ref}  {title}  [{column} / {state}]",
       "context": "The one line printed about a card after an act.",
-      "source": "f6c265d257d02e5d"
+      "verbatim": true,
+      "source": "d1f02b6ddd122f78"
     },
     "card.line.workstreams": {
-      "text": "{ref}  {title}  [{state} / {substate}]  {workstreams}",
+      "text": "{ref}  {title}  [{column} / {state}]  {workstreams}",
       "context": "The one line printed about a card that belongs to at least one workstream, after an act. It is card.line with the memberships on the end, and the caller chooses between the two by whether the card lists any. {workstreams} holds the workstreams already joined by card.line.workstreams.separator.",
-      "source": "8134dace08111fbb"
+      "verbatim": true,
+      "source": "322e2d9704aa0f30"
     },
     "card.line.workstreams.separator": {
       "text": ", ",
       "context": "What separates two workstreams inside the {workstreams} field of card.line.workstreams. A punctuation mark and whatever spacing the language wants around it.",
-      "source": "7d38007b49acdd1"
+      "source": "7d38007b49acdd1",
+      "verbatim": true
     },
     "card.priority": {
       "text": "  Priorität: {priority}",
@@ -57,14 +60,14 @@
       "source": "236c46532111031f"
     },
     "check.add.2": {
-      "text": "die Werkbank deklariert den Zustand",
+      "text": "die Werkbank deklariert die Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e62d40d1c2938929"
+      "source": "c742bc9168cdb24"
     },
     "check.add.3": {
-      "text": "der Zustand liegt unter seiner Kapazität",
+      "text": "die Spalte liegt unter ihrer Kapazität",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "ff0520f15399db6e"
+      "source": "144329bf4ee274df"
     },
     "check.add.4": {
       "text": "die Werkbank deklariert Stufen je Feld",
@@ -77,19 +80,19 @@
       "source": "18355315571e9c45"
     },
     "check.archive.1": {
-      "text": "die Referenz nennt Karte, Zustand oder Teil davon",
+      "text": "die Referenz nennt Karte, Spalte oder Teil davon",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1d9f561452f1685b"
+      "source": "292e0cba1554c144"
     },
     "check.archive.2": {
-      "text": "keine Karte belegt den archivierten Zustand",
+      "text": "keine Karte belegt die archivierte Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "f4ed4a2c5305542a"
+      "source": "fee83802c3d694cf"
     },
     "check.archive.3": {
-      "text": "der Werkbank bleibt mindestens ein Zustand",
+      "text": "der Werkbank bleibt mindestens eine Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "bd88fbdb5fda1324"
+      "source": "5166e1a76d1e4f39"
     },
     "check.attach.1": {
       "text": "die Referenz und die Datei lösen sich beide auf",
@@ -157,9 +160,9 @@
       "source": "bc538e33f1fcc933"
     },
     "check.claim-without-active": {
-      "text": "Karte {detail} trägt Anspruchsfelder ohne Unterzustand aktiv",
-      "context": "A check finding: the claim fields and substate active imply each other.",
-      "source": "44c06d9e9a0294d"
+      "text": "Karte {detail} trägt Anspruchsfelder ohne Zustand aktiv",
+      "context": "A check finding: the claim fields and state active imply each other.",
+      "source": "cc270cfdc878487b"
     },
     "check.claim.1": {
       "text": "die Karte existiert",
@@ -177,14 +180,14 @@
       "source": "c0d9ab28131a636b"
     },
     "check.claim.4": {
-      "text": "der Unterzustand der Karte ist nicht `blocked`",
+      "text": "der Zustand der Karte ist nicht `blocked`",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
-      "source": "c30411c9cb118c3c"
+      "source": "76a4fe23995d6a02"
     },
     "check.claim.5": {
-      "text": "der Unterzustand der Karte ist nicht `active`",
+      "text": "der Zustand der Karte ist nicht `active`",
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
-      "source": "d799288abaf5762"
+      "source": "f440283aebd1741c"
     },
     "check.claim.6": {
       "text": "das Aufnehmen der Karte ist für die anfragende Person zulässig",
@@ -247,9 +250,9 @@
       "source": "26290cfe311e2542"
     },
     "check.delete.1": {
-      "text": "die Referenz nennt Karte, Zustand oder Teil davon",
+      "text": "die Referenz nennt Karte, Spalte oder Teil davon",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "1d9f561452f1685b"
+      "source": "292e0cba1554c144"
     },
     "check.delete.2": {
       "text": "die Anfrage trägt die Bestätigungsoption",
@@ -257,14 +260,14 @@
       "source": "6032d7f45773bf8"
     },
     "check.delete.3": {
-      "text": "keine Karte belegt den Zustand, der gelöscht wird",
+      "text": "keine Karte belegt die Spalte, die gelöscht wird",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "6aabd270c2bcde01"
+      "source": "983ad3af89e9f30e"
     },
     "check.delete.4": {
-      "text": "der Werkbank bleibt mindestens ein Zustand",
+      "text": "der Werkbank bleibt mindestens eine Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "bd88fbdb5fda1324"
+      "source": "5166e1a76d1e4f39"
     },
     "check.edit.1": {
       "text": "die Referenz löst sich zu einem Pfad auf",
@@ -297,9 +300,9 @@
       "source": "efcaa904ed8f0662"
     },
     "check.ignored-anchor": {
-      "text": "eine workbench.md hier trägt weder profile noch format noch states, wurde daher nicht als Dinah-Werkbank erkannt, und die Suche ging darüber hinweg",
+      "text": "eine workbench.md hier trägt weder profile noch format noch columns, wurde daher nicht als Dinah-Werkbank erkannt, und die Suche ging darüber hinweg",
       "context": "A check finding: a workbench.md the discovery walk found on its way to this workbench and did not claim, reported so the file is not silently ignored.",
-      "source": "8f6fec85a7b1123c"
+      "source": "d1750f03c2f9f7b1"
     },
     "check.init.1": {
       "text": "an genau diesem Pfad liegt keine workbench.md",
@@ -312,9 +315,9 @@
       "source": "f2ef2a76507fdfc9"
     },
     "check.instructions.1": {
-      "text": "die Referenz nennt eine Karte oder einen Zustand",
+      "text": "die Referenz nennt eine Karte oder eine Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "39dfbf9f67f8aa19"
+      "source": "eb61df898032f256"
     },
     "check.interrupted-act": {
       "text": "eine strukturelle Aktion wurde hier unterbrochen: {detail}",
@@ -357,9 +360,9 @@
       "source": "37dac5acd188c446"
     },
     "check.ls.1": {
-      "text": "die Werkbank deklariert den genannten Zustand",
+      "text": "die Werkbank deklariert die genannte Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e62d40d1c2938929"
+      "source": "7037e94c3b8968f0"
     },
     "check.mcp.1": {
       "text": "--root nennt ein vorhandenes Verzeichnis",
@@ -376,15 +379,25 @@
       "context": "A check finding: a hex directory without its anchor.",
       "source": "76367748cbe85dd4"
     },
+    "check.card-vocabulary-mixed": {
+      "text": "Karte {detail} trägt je einen Schlüssel aus den beiden Vokabularen, die dieses Format hatte, daher lässt sich nicht lesen, wo sie steht",
+      "context": "A check finding: a card whose header holds half of each vocabulary. The checker reports what the reader refuses under dinah.vocabulary-mixed, so a card whose anchor file is plainly there is not reported as having none.",
+      "source": "2864a2f89dda59d2"
+    },
+    "check.card-vocabulary-retired": {
+      "text": "Karte {detail} ist in dem Vokabular geschrieben, das dieses Format ausgemustert hat, und diese Werkbank deklariert das aktuelle, daher lässt sich nicht lesen, wo sie steht",
+      "context": "A check finding: a card the rename never carried across, inside a workbench whose own anchor says it was. The checker reports what the reader refuses under dinah.vocabulary-retired, so a card whose anchor file is plainly there is not reported as having none.",
+      "source": "bfeaf41b09598f2"
+    },
     "check.move.1": {
       "text": "die Karte existiert",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "37dac5acd188c446"
     },
     "check.move.2": {
-      "text": "die Werkbank deklariert den Zielzustand",
+      "text": "die Werkbank deklariert die Zielspalte",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
-      "source": "816e8810094e825b"
+      "source": "77302ed88afc1490"
     },
     "check.move.3": {
       "text": "eine Übersteuerung stammt vom Betreiber",
@@ -397,9 +410,9 @@
       "source": "317fa855de03a64c"
     },
     "check.move.5": {
-      "text": "der Unterzustand der Karte ist nicht `blocked`",
+      "text": "der Zustand der Karte ist nicht `blocked`",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
-      "source": "c30411c9cb118c3c"
+      "source": "76a4fe23995d6a02"
     },
     "check.move.6": {
       "text": "die Karte ist frei oder vom Anfragenden gehalten",
@@ -407,9 +420,9 @@
       "source": "ec01b01e10f981a7"
     },
     "check.move.7": {
-      "text": "kein Vorwärtszug aus einem `done`-Zustand heraus",
+      "text": "kein Vorwärtszug aus einer `done`-Spalte heraus",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
-      "source": "9f9dda2c481e866a"
+      "source": "7e0c1d83c59a8fd3"
     },
     "check.move.8": {
       "text": "das Ziel liegt unter seiner Kapazitätsgrenze",
@@ -417,9 +430,9 @@
       "source": "9d61260048317b7e"
     },
     "check.next.1": {
-      "text": "die Werkbank deklariert den genannten Zustand",
+      "text": "die Werkbank deklariert die genannte Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e62d40d1c2938929"
+      "source": "7037e94c3b8968f0"
     },
     "check.pull.1": {
       "text": "die Anfrage nennt einen Akteur",
@@ -427,24 +440,24 @@
       "source": "bc538e33f1fcc933"
     },
     "check.pull.2": {
-      "text": "die Werkbank deklariert den benannten Zielzustand",
-      "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no state to be unknown.",
-      "source": "9ff0bf7d16eb07e6"
+      "text": "die Werkbank deklariert die benannte Zielspalte",
+      "context": "One row of the ordered precondition list of pull: the named form alone can raise it, since the bare form names no column to be unknown.",
+      "source": "1899da9c7148e43"
     },
     "check.pull.3": {
       "text": "eine Übersteuerung stammt vom Betreiber",
-      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any state is considered.",
+      "context": "One row of the ordered precondition list of pull: --override is the operator's marker, and a non-operator carrying it is refused before any column is considered.",
       "source": "607a576951946330"
     },
     "check.pull.4": {
-      "text": "genau ein Zustand kommt in Frage, wenn kein Ziel benannt ist",
-      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one state qualifies.",
-      "source": "16395089f7f2e19d"
+      "text": "genau eine Spalte kommt in Frage, wenn kein Ziel benannt ist",
+      "context": "One row of the ordered precondition list of pull: the bare form's own refusal, raised when more than one column qualifies.",
+      "source": "ff287fee6b6b1394"
     },
     "check.pull.5": {
-      "text": "dem Ziel geht im Fluss ein Zustand voraus",
-      "context": "One row of the ordered precondition list of pull: a state standing first in the flow has no upstream, and pull looks one step back only.",
-      "source": "6f75d2ca790c7416"
+      "text": "dem Ziel geht im Fluss eine Spalte voraus",
+      "context": "One row of the ordered precondition list of pull: a column standing first in the flow has no upstream, and pull looks one step back only.",
+      "source": "22401b9a66eb5b8f"
     },
     "check.pull.6": {
       "text": "der Abgang ist für die anfragende Person zulässig",
@@ -452,19 +465,19 @@
       "source": "317fa855de03a64c"
     },
     "check.pull.7": {
-      "text": "der Unterzustand der Karte ist nicht `blocked`",
+      "text": "der Zustand der Karte ist nicht `blocked`",
       "context": "One row of the ordered precondition list of pull: a blocked card is not ready, and pull never moves it.",
-      "source": "c30411c9cb118c3c"
+      "source": "76a4fe23995d6a02"
     },
     "check.pull.8": {
-      "text": "der Unterzustand der Karte ist nicht `active`",
+      "text": "der Zustand der Karte ist nicht `active`",
       "context": "One row of the ordered precondition list of pull: pull takes claim's stricter test, refusing a card already active whoever holds it.",
-      "source": "d799288abaf5762"
+      "source": "f440283aebd1741c"
     },
     "check.pull.9": {
-      "text": "kein Vorwärtszug aus einem `done`-Zustand heraus",
-      "context": "One row of the ordered precondition list of pull: a forward move out of a done state refuses, and the race between the queue read and the lock can surface that here.",
-      "source": "9f9dda2c481e866a"
+      "text": "kein Vorwärtszug aus einer `done`-Spalte heraus",
+      "context": "One row of the ordered precondition list of pull: a forward move out of a done column refuses, and the race between the queue read and the lock can surface that here.",
+      "source": "7e0c1d83c59a8fd3"
     },
     "check.pull.10": {
       "text": "das Ziel liegt unter seiner Kapazitätsgrenze",
@@ -473,7 +486,7 @@
     },
     "check.pull.11": {
       "text": "das Aufnehmen der Karte am Ziel ist für die anfragende Person zulässig",
-      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the state the card would land in and be claimed at.",
+      "context": "One row of the ordered precondition list of pull: the operator-owned reservation applied to the column the card would land in and be claimed at.",
       "source": "93e6ab0cb424ce6d"
     },
     "check.pull.12": {
@@ -522,9 +535,9 @@
       "source": "ba840a777dc1fa7"
     },
     "check.position-diverges": {
-      "text": "das Protokoll stellt diese Karte in Zustand {detail}, und ihr Frontmatter widerspricht dem",
+      "text": "das Protokoll stellt diese Karte in Spalte {detail}, und ihr Frontmatter widerspricht dem",
       "context": "A check finding: frontmatter position against the journal's replay.",
-      "source": "f981c2ac9248d0f8"
+      "source": "29321c66b1779557"
     },
     "check.query.1": {
       "text": "jeder Term der Abfrage lässt sich lesen",
@@ -542,14 +555,14 @@
       "source": "70d05b91269de647"
     },
     "check.query.4": {
-      "text": "Unterzustand und Ereignisname sind gültige Werte",
+      "text": "Zustand und Ereignisname sind gültige Werte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "2d07fe6fe173838d"
+      "source": "93dab49abf2692af"
     },
     "check.query.5": {
-      "text": "die Werkbank deklariert jeden genannten Zustand",
+      "text": "die Werkbank deklariert jede genannte Spalte",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "9db1916809b49943"
+      "source": "7afe004f6fdd0a64"
     },
     "check.query.6": {
       "text": "jeder genannte Arbeitsstrang ist auffindbar",
@@ -562,19 +575,19 @@
       "source": "b71a9fa16890f28b"
     },
     "check.reject-target-forward": {
-      "text": "Zustand {detail} deklariert reject_to mit einem Zustand vor ihm, der kein done-Zustand ist",
-      "context": "A check finding: reject_to names a state further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring state, or that lands in a done state ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring state.",
-      "source": "bf52ebec0ced27c"
+      "text": "Spalte {detail} deklariert reject_to mit einer Spalte vor ihr, die keine done-Spalte ist",
+      "context": "A check finding: reject_to names a column further along the flow whose kind is not done. A rejection that lands somewhere behind the declaring column, or that lands in a done column ahead of it, is not reported; only a forward name landing in an ordinary station is. {detail} carries the declaring column.",
+      "source": "40d281395826420b"
     },
     "check.reject-target-is-self": {
-      "text": "Zustand {detail} deklariert reject_to mit sich selbst",
-      "context": "A check finding: reject_to names the state that declares it, which is never a destination a caller should act on. {detail} carries the declaring state.",
-      "source": "2042d6409b671d22"
+      "text": "Spalte {detail} deklariert reject_to mit sich selbst",
+      "context": "A check finding: reject_to names the column that declares it, which is never a destination a caller should act on. {detail} carries the declaring column.",
+      "source": "b61334d6de51bdf7"
     },
     "check.reject-target-unknown": {
-      "text": "Zustand {detail} deklariert reject_to mit einem Zustand, den diese Werkbank nicht führt",
-      "context": "A check finding: reject_to names no state in the flow. {detail} carries the declaring state, and the repair is an edit to that state's own state.md.",
-      "source": "c68976408cf168e9"
+      "text": "Spalte {detail} deklariert reject_to mit einer Spalte, die diese Werkbank nicht führt",
+      "context": "A check finding: reject_to names no column in the flow. {detail} carries the declaring column, and the repair is an edit to that column's own column.md.",
+      "source": "620894b01ab6a607"
     },
     "check.release.1": {
       "text": "die Karte existiert",
@@ -617,54 +630,54 @@
       "source": "dd300660ba922972"
     },
     "check.slug-assigned.one": {
-      "text": "{count} Zustands-Slug vergeben.",
-      "context": "The line the slug migration prints for what it assigned, for exactly one state.",
-      "source": "dde38b4210adb894"
+      "text": "{count} Spalten-Slug vergeben.",
+      "context": "The line the slug migration prints for what it assigned, for exactly one column.",
+      "source": "9af8e0cf6b22d44b"
     },
     "check.slug-assigned.other": {
-      "text": "{count} Zustands-Slugs vergeben.",
+      "text": "{count} Spalten-Slugs vergeben.",
       "context": "The line the slug migration prints for what it assigned, for any other number.",
-      "source": "b7dbdd42579b5307"
+      "source": "78b903730d070116"
     },
     "check.slug-duplicate": {
-      "text": "Zustand {detail} trägt einen Slug, den ein anderer Zustand dieser Werkbank ebenfalls trägt, sodass eine Referenz darauf beide benennt",
-      "context": "A check finding: two states share a slug, which leaves a state reference with two answers; a person picks which one changes.",
-      "source": "a1bb53e6335f6131"
+      "text": "Spalte {detail} trägt einen Slug, den eine andere Spalte dieser Werkbank ebenfalls trägt, sodass eine Referenz darauf beide benennt",
+      "context": "A check finding: two columns share a slug, which leaves a column reference with two answers; a person picks which one changes.",
+      "source": "64940a7bae6229df"
     },
     "check.slug-malformed": {
-      "text": "Zustand {detail} trägt einen Slug, der nicht ein Buchstabe gefolgt von Buchstaben, Ziffern und einzelnen inneren Bindestrichen ist",
-      "context": "A check finding: a state's stored slug does not match the state slug grammar, so nobody can rely on typing it.",
-      "source": "878814b5a9f4df8a"
+      "text": "Spalte {detail} trägt einen Slug, der nicht ein Buchstabe gefolgt von Buchstaben, Ziffern und einzelnen inneren Bindestrichen ist",
+      "context": "A check finding: a column's stored slug does not match the column slug grammar, so nobody can rely on typing it.",
+      "source": "1e0cd5b5193c9f21"
     },
     "check.slug-missing": {
-      "text": "Zustand {detail} trägt keinen Slug und ist daher nur über seinen Bezeichner oder seinen zitierten Titel erreichbar",
-      "context": "A check finding: a state written before the slug field existed; `dinah check --migrate-slugs` derives one from the title.",
-      "source": "632e5d2385918a79"
+      "text": "Spalte {detail} trägt keinen Slug und ist daher nur über ihren Bezeichner oder ihren zitierten Titel erreichbar",
+      "context": "A check finding: a column written before the slug field existed; `dinah check --migrate-slugs` derives one from the title.",
+      "source": "5cb3ddd5ffb09a48"
     },
     "check.slug-underivable": {
-      "text": "Zustand {detail} trägt einen Titel, aus dem sich kein Slug ableiten lässt, daher hat die Migration ihm keinen gegeben",
-      "context": "A check finding the slug migration raises: no letter of the state's title survives the derivation, so a person retitles the state or writes a slug onto its anchor by hand.",
-      "source": "3713bc24e7cf348e"
+      "text": "Spalte {detail} trägt einen Titel, aus dem sich kein Slug ableiten lässt, daher hat die Migration ihr keinen gegeben",
+      "context": "A check finding the slug migration raises: no letter of the column's title survives the derivation, so a person retitles the column or writes a slug onto its anchor by hand.",
+      "source": "6571c52e2228b67f"
     },
     "check.slug-unwritable": {
-      "text": "Zustand {detail} war nicht beschreibbar, daher hat die Migration ihm keinen Slug gegeben und ist fortgefahren",
-      "context": "A check finding the slug migration raises: the state's anchor could not be read or written, the walk stepped over it and carried on.",
-      "source": "68acf0a832108f31"
+      "text": "Spalte {detail} war nicht beschreibbar, daher hat die Migration ihr keinen Slug gegeben und ist fortgefahren",
+      "context": "A check finding the slug migration raises: the column's anchor could not be read or written, the walk stepped over it and carried on.",
+      "source": "17123f8e8400c080"
     },
-    "check.states-removed.one": {
-      "text": "{count} verwaisten Zustand aus der Liste entfernt.",
-      "context": "The line the stranded-state migration prints for what it removed, for exactly one state. Followed by one line per removed identifier.",
-      "source": "8c61521c6d24892d"
+    "check.columns-removed.one": {
+      "text": "{count} verwaiste Spalte aus der Liste entfernt.",
+      "context": "The line the stranded-column migration prints for what it removed, for exactly one column. Followed by one line per removed identifier.",
+      "source": "c51f58188bdad16e"
     },
-    "check.states-removed.other": {
-      "text": "{count} verwaiste Zustände aus der Liste entfernt.",
-      "context": "The line the stranded-state migration prints for what it removed, for any other number. Followed by one line per removed identifier.",
-      "source": "66f34dd10c8544a2"
+    "check.columns-removed.other": {
+      "text": "{count} verwaiste Spalten aus der Liste entfernt.",
+      "context": "The line the stranded-column migration prints for what it removed, for any other number. Followed by one line per removed identifier.",
+      "source": "26675d249f208b4f"
     },
-    "check.stranded-state": {
-      "text": "die Werkbank nennt einen Zustand, dessen Verzeichnis nicht vorhanden ist ({detail}); dinah check --migrate-states entfernt ihn aus der Liste",
-      "context": "A check finding: a state a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-state file, since there is no per-state file left to point at.",
-      "source": "78723532b661be7d"
+    "check.stranded-column": {
+      "text": "die Werkbank nennt eine Spalte, deren Verzeichnis nicht vorhanden ist ({detail}); dinah check --migrate-columns entfernt sie aus der Liste",
+      "context": "A check finding: a column a retiring act moved or removed without also editing the definition, or one removed by hand; the path carried is the workbench anchor rather than a per-column file, since there is no per-column file left to point at.",
+      "source": "17edbd932252d155"
     },
     "check.torn-journal": {
       "text": "das Protokoll der Karte {detail} endet in einer unvollständigen Zeile",
@@ -702,24 +715,24 @@
       "source": "c36a8473c73d26a2"
     },
     "check.unblock.3": {
-      "text": "der Unterzustand der Karte ist `blocked`",
+      "text": "der Zustand der Karte ist `blocked`",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
-      "source": "35f69013a747365d"
+      "source": "7bc8856e42e38f2b"
     },
     "check.unknown-level": {
       "text": "eine Karte nennt {detail}, was diese Werkbank nicht deklariert",
       "context": "A check finding: every level a card stores is one the workbench declares for that axis. {detail} carries the axis and the stored value, in that order, and the finding's own path names the card.",
       "source": "5c2a73478fe2656b"
     },
-    "check.unknown-state": {
-      "text": "eine Karte nennt Zustand {detail}, den diese Werkbank nicht deklariert",
-      "context": "A check finding: every card's state identifier resolves.",
-      "source": "ffaee64059e80832"
+    "check.unknown-column": {
+      "text": "eine Karte nennt Spalte {detail}, die diese Werkbank nicht deklariert",
+      "context": "A check finding: every card's column identifier resolves.",
+      "source": "a83abbcc77548d19"
     },
-    "check.unknown-substate": {
-      "text": "Unterzustand {detail} liegt außerhalb der drei, die das Format deklariert",
-      "context": "A check finding: a substate outside ready, active and blocked.",
-      "source": "f0d75313d766b7d2"
+    "check.unknown-state": {
+      "text": "Zustand {detail} liegt außerhalb der drei, die das Format deklariert",
+      "context": "A check finding: a state outside ready, active and blocked.",
+      "source": "d32d162cafeb00e2"
     },
     "check.whoami.1": {
       "text": "ein Akteur ist auflösbar",
@@ -857,14 +870,14 @@
       "source": "41a023702a16aa73"
     },
     "cmd.add.summary": {
-      "text": "Eine neue Karte im ersten Zustand anlegen",
+      "text": "Eine neue Karte in der ersten Spalte anlegen",
       "context": "The one-line summary of the add command, shown beside its syntax in the help block.",
-      "source": "d0e320a483343f03"
+      "source": "4bc64e311c859f14"
     },
     "cmd.archive.summary": {
-      "text": "Eine Karte, einen Zustand oder etwas unterhalb einer Karte aus dem Live-Bestand nehmen",
+      "text": "Eine Karte, eine Spalte oder etwas unterhalb einer Karte aus dem Live-Bestand nehmen",
       "context": "The one-line summary of the archive command, shown beside its syntax in the help block.",
-      "source": "86086f9f5d978af0"
+      "source": "dc0b4d1c53656321"
     },
     "cmd.card.summary": {
       "text": "Eines der eigenen Felder einer Karte lesen oder schreiben",
@@ -917,9 +930,9 @@
       "source": "f6a076421f668675"
     },
     "cmd.delete.summary": {
-      "text": "Eine Karte, einen Zustand oder etwas unterhalb einer Karte samt ihrer Geschichte vernichten",
+      "text": "Eine Karte, eine Spalte oder etwas unterhalb einer Karte samt ihrer Geschichte vernichten",
       "context": "The one-line summary of the delete command, shown beside its syntax in the help block.",
-      "source": "462b27a520b7691c"
+      "source": "99d356ed109c1795"
     },
     "cmd.edit.summary": {
       "text": "Diese Werkbank, eine Karte oder etwas unterhalb einer Karte im Editor öffnen",
@@ -972,9 +985,9 @@
       "source": "bed8f87abcb3e98a"
     },
     "cmd.ls.summary": {
-      "text": "Die Karten eines Zustands, in Warteschlangenreihenfolge",
+      "text": "Die Karten einer Spalte, in Warteschlangenreihenfolge",
       "context": "The one-line summary of the ls command, shown beside its syntax in the help block.",
-      "source": "519d21f85bdbe47a"
+      "source": "c155ca5b8a9da70f"
     },
     "cmd.mcp.summary": {
       "text": "Werkbänke über MCP auf stdio bereitstellen",
@@ -982,19 +995,19 @@
       "source": "7d3198fa32547f63"
     },
     "cmd.move.summary": {
-      "text": "Eine Karte in einen anderen Zustand tragen",
+      "text": "Eine Karte in eine andere Spalte tragen",
       "context": "The one-line summary of the move command, shown beside its syntax in the help block.",
-      "source": "a4f1bf4349c7308a"
+      "source": "8561191e47c8d473"
     },
     "cmd.next.summary": {
-      "text": "Die Karte, die ein Zustand als nächste anbietet",
+      "text": "Die Karte, die eine Spalte als nächste anbietet",
       "context": "The one-line summary of the next command, shown beside its syntax in the help block.",
-      "source": "f6e32ebcd4d51318"
+      "source": "6a28bb8d94b4c659"
     },
     "cmd.pull.summary": {
-      "text": "Eine bereite Karte beanspruchen und in einen Zustand ziehen, in einem Schritt",
+      "text": "Eine bereite Karte beanspruchen und in eine Spalte ziehen, in einem Schritt",
       "context": "The one-line summary of the pull command, shown beside its syntax in the help block.",
-      "source": "19d46fd552b5cb00"
+      "source": "4a7141f183e1ec1d"
     },
     "cmd.path.summary": {
       "text": "Den Dateipfad dieser Werkbank, einer Karte oder von etwas unterhalb einer Karte ausgeben",
@@ -1016,9 +1029,9 @@
       "context": "The one-line summary of the show command, shown beside its syntax in the help block.",
       "source": "7fbe0c4aa4a95ee7"
     },
-    "cmd.states.summary": {
+    "cmd.columns.summary": {
       "text": "Der Ablauf, der Reihe nach",
-      "context": "The one-line summary of the states command, shown beside its syntax in the help block.",
+      "context": "The one-line summary of the columns command, shown beside its syntax in the help block.",
       "source": "e2922fed8868b3df"
     },
     "cmd.status.summary": {
@@ -1074,7 +1087,8 @@
     "column.attachments.position": {
       "text": "#",
       "context": "Heading over the attachment's one-based position in its collection, in the attachments block of `dinah show`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "af639e4c86018332"
+      "source": "af639e4c86018332",
+      "verbatim": true
     },
     "column.attachments.filename": {
       "text": "Datei",
@@ -1144,7 +1158,8 @@
     "column.flags.option": {
       "text": "Option",
       "context": "Heading over the flag with the value it takes, in the global flag list bare `dinah` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "4802e47fe2e95134"
+      "source": "4802e47fe2e95134",
+      "verbatim": true
     },
     "column.flags.what": {
       "text": "Was sie tut",
@@ -1208,8 +1223,9 @@
     },
     "column.log.detail": {
       "text": "Detail",
-      "context": "Heading over what the act carried, such as the states a move ran between, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "8daa1db5187d4ad4"
+      "context": "Heading over what the act carried, such as the columns a move ran between, in the history `dinah log` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "8daa1db5187d4ad4",
+      "verbatim": true
     },
     "column.log.when": {
       "text": "Wann",
@@ -1249,27 +1265,28 @@
     "column.moves.name": {
       "text": "Name",
       "context": "Heading over the destination's display name, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ef49aec68fd1dc66"
+      "source": "ef49aec68fd1dc66",
+      "verbatim": true
     },
     "column.moves.reject": {
       "text": "Ablehnung",
-      "context": "Heading over whether this row is the destination the departure state's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over whether this row is the destination the departure column's own reject_to declares, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "123da0f92f97dd86"
     },
-    "column.moves.state": {
-      "text": "Zustand",
+    "column.moves.column": {
+      "text": "Spalte",
       "context": "Heading over the destination a person types on a move, in the legal moves printed under a served instruction. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ae239213b7c70376"
+      "source": "9e40e59654c8ad67"
     },
     "column.next.card": {
       "text": "Karte",
       "context": "Heading over the reference a person types to name the card offered, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "dfef4f9ce9ebb93f"
     },
-    "column.next.state": {
-      "text": "Zustand",
-      "context": "Heading over the state making the offer, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ae239213b7c70376"
+    "column.next.column": {
+      "text": "Spalte",
+      "context": "Heading over the column making the offer, in the offers `dinah next` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9e40e59654c8ad67"
     },
     "column.next.title": {
       "text": "Titel",
@@ -1286,10 +1303,10 @@
       "context": "Heading over whether the card is ready, active, or blocked, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "989261d5eefc4735"
     },
-    "column.query.state": {
-      "text": "Zustand",
-      "context": "Heading over the title of the state the card occupies, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ae239213b7c70376"
+    "column.query.column": {
+      "text": "Spalte",
+      "context": "Heading over the title of the column the card occupies, in the card table `dinah query` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9e40e59654c8ad67"
     },
     "column.query.title": {
       "text": "Titel",
@@ -1299,37 +1316,40 @@
     "column.slugs.slug": {
       "text": "Slug",
       "context": "Heading over the handle the repair assigned, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.slugs.title": {
       "text": "Titel",
-      "context": "Heading over the state the handle was assigned to, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the column the handle was assigned to, in the handles `dinah check --migrate-slugs` assigned. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "99f110d27e30b289"
     },
-    "column.states.cards": {
+    "column.columns.cards": {
       "text": "Karten",
-      "context": "Heading over how many live cards the state holds, with its limit where it declares one, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over how many live cards the column holds, with its limit where it declares one, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "6f5d93a17b8bdc24"
     },
-    "column.states.kind": {
+    "column.columns.kind": {
       "text": "Art",
-      "context": "Heading over the state's kind: intake, work or done, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over the column's kind: intake, work or done, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "70af97de3ad8fb23"
     },
-    "column.states.name": {
+    "column.columns.name": {
       "text": "Name",
-      "context": "Heading over the state's display name, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ef49aec68fd1dc66"
+      "context": "Heading over the column's display name, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "ef49aec68fd1dc66",
+      "verbatim": true
     },
-    "column.states.owner": {
+    "column.columns.owner": {
       "text": "Akteur",
-      "context": "Heading over who may move a card out of the state, reading agent or operator, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over who may move a card out of the column, reading agent or operator, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "b971debc37bf0b54"
     },
-    "column.states.slug": {
+    "column.columns.slug": {
       "text": "Slug",
-      "context": "Heading over the state's short handle, which is what a person types to name it, in the states listing, which `dinah states` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "context": "Heading over the column's short handle, which is what a person types to name it, in the columns listing, which `dinah columns` prints and `dinah status` repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.tree.count": {
       "text": "Anzahl",
@@ -1374,7 +1394,8 @@
     "column.workbenches.slug": {
       "text": "Slug",
       "context": "Heading over the workbench's short handle, in the workbench listing, which `dinah workbenches` prints and the ambiguous-workbench refusal repeats. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.workbenches.workbench": {
       "text": "Werkbank",
@@ -1391,10 +1412,10 @@
       "context": "Heading over the field's name, in the fields `dinah workstream get` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "42a1ebe17efda727"
     },
-    "column.workstream.state": {
-      "text": "Zustand",
-      "context": "Heading over the state the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ae239213b7c70376"
+    "column.workstream.column": {
+      "text": "Spalte",
+      "context": "Heading over the column the card stands in, in the member cards `dinah workstream get` prints under the fields. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9e40e59654c8ad67"
     },
     "column.workstream.title": {
       "text": "Titel",
@@ -1414,17 +1435,20 @@
     "column.workstreams.name": {
       "text": "Name",
       "context": "Heading over the workstream's title, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ef49aec68fd1dc66"
+      "source": "ef49aec68fd1dc66",
+      "verbatim": true
     },
     "column.workstreams.slug": {
       "text": "Slug",
       "context": "Heading over the workstream's short handle, which is what a person types to name it, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "91f70424f5d5d23e"
+      "source": "91f70424f5d5d23e",
+      "verbatim": true
     },
     "column.workstreams.status": {
       "text": "Status",
       "context": "Heading over the value stored under status, which people read and Dinah never acts on, in the listing `dinah workstream` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "ad3e3c8146fc920f"
+      "source": "ad3e3c8146fc920f",
+      "verbatim": true
     },
     "contents.empty": {
       "text": "{title} ({ref}) enthält nichts.",
@@ -1586,10 +1610,10 @@
       "context": "The label above the workbench's standing instructions.",
       "source": "86679bb144a2f6d5"
     },
-    "instructions.state": {
-      "text": "Anweisungen, dieser Zustand:",
-      "context": "The label above the state's own instructions.",
-      "source": "e8008c6cc2aedfc9"
+    "instructions.column": {
+      "text": "Anweisungen, diese Spalte:",
+      "context": "The label above the column's own instructions.",
+      "source": "1225923c7f625234"
     },
     "log.attachment-renamed": {
       "text": "{from} nach {to}",
@@ -1608,7 +1632,7 @@
     },
     "log.reject": {
       "text": "(abgelehnt)",
-      "context": "The mark on a move whose destination is the departure state's own reject_to target.",
+      "context": "The mark on a move whose destination is the departure column's own reject_to target.",
       "source": "7a665993a2b70017"
     },
     "ls.empty": {
@@ -1643,7 +1667,7 @@
     },
     "next.none": {
       "text": "nichts bereit",
-      "context": "Printed beside a state offering no card.",
+      "context": "Printed beside a column offering no card.",
       "source": "8f5f2c97c3a268dd"
     },
     "outcome.stale": {
@@ -1666,10 +1690,10 @@
       "context": "The meaning of the severity argument of `dinah add`, printed in that command's arguments table.",
       "source": "b582dea3676f4a97"
     },
-    "param.add.state.summary": {
-      "text": "in welchem Zustand die Karte angelegt wird; der erste Zustand, wenn Sie keinen nennen",
-      "context": "The meaning of the state argument of `dinah add`, printed in that command's arguments table.",
-      "source": "cf105f130d14848b"
+    "param.add.column.summary": {
+      "text": "in welcher Spalte die Karte angelegt wird; die erste Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table.",
+      "source": "ec724e9c659389c3"
     },
     "param.add.title.summary": {
       "text": "der Titel der Karte, in einem Shell-Wort oder in Anführungszeichen",
@@ -1687,9 +1711,9 @@
       "source": "c785f7b1c25ff803"
     },
     "param.attach.ref.summary": {
-      "text": "woran die Datei hängt: diese Werkbank, ein Zustand, eine Karte oder ein Kommentar oder Anhang unterhalb einer Karte; mit --replace der Anhang, dessen Bytes Sie ersetzen",
+      "text": "woran die Datei hängt: diese Werkbank, eine Spalte, eine Karte oder ein Kommentar oder Anhang unterhalb einer Karte; mit --replace der Anhang, dessen Bytes Sie ersetzen",
       "context": "The meaning of the ref argument of `dinah attach`, printed in that command's arguments table.",
-      "source": "924dbc6e482299f6"
+      "source": "dc3ef09df80df2e1"
     },
     "param.attach.replace.summary": {
       "text": "die Bytes eines bestehenden Anhangs ersetzen, statt einen hinzuzufügen",
@@ -1742,14 +1766,14 @@
       "source": "afb87b206222d764"
     },
     "param.check.migrate-slugs.summary": {
-      "text": "für jeden Zustand dieser Werkbank ohne Slug einen ableiten",
+      "text": "für jede Spalte dieser Werkbank ohne Slug einen ableiten",
       "context": "The meaning of the migrate-slugs argument of `dinah check`, printed in that command's arguments table.",
-      "source": "916d5a971a9532e3"
+      "source": "d20e1be96184e474"
     },
-    "param.check.migrate-states.summary": {
-      "text": "verwaiste Bezeichner aus der Zustandsliste dieser Werkbank entfernen",
-      "context": "The meaning of the migrate-states argument of `dinah check`, printed in that command's arguments table.",
-      "source": "d43b8518d375ab1a"
+    "param.check.migrate-columns.summary": {
+      "text": "verwaiste Bezeichner aus der Spaltenliste dieser Werkbank entfernen",
+      "context": "The meaning of the migrate-columns argument of `dinah check`, printed in that command's arguments table.",
+      "source": "2a383b2471db9773"
     },
     "param.check.migrate-workstreams.summary": {
       "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",
@@ -1792,9 +1816,9 @@
       "source": "a52db472a25cc33a"
     },
     "param.contents.ref.summary": {
-      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
+      "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
       "context": "The meaning of the ref argument of `dinah contents`, printed in that command's arguments table. contents writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is the reference contents is most often given.",
-      "source": "ef4aeb3bc6935e82"
+      "source": "4e3252343e38263"
     },
     "param.edit.card.summary": {
       "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
@@ -1837,19 +1861,19 @@
       "source": "fd8f41676a091f46"
     },
     "param.instructions.card.summary": {
-      "text": "eine Karte oder ein Zustand; instructions nimmt weder diese Werkbank noch etwas unterhalb einer Karte",
+      "text": "eine Karte oder eine Spalte; instructions nimmt weder diese Werkbank noch etwas unterhalb einer Karte",
       "context": "The meaning of the card argument of `dinah instructions`, printed in that command's arguments table.",
-      "source": "248e53fb14c42e1c"
+      "source": "1e52ce94a75a3b5d"
     },
     "param.ls.ready.summary": {
       "text": "nur die Karten auflisten, die zur Übernahme bereit sind",
       "context": "The meaning of the ready argument of `dinah ls`, printed in that command's arguments table.",
       "source": "36fbc940df2d68dc"
     },
-    "param.ls.state.summary": {
-      "text": "welcher Zustand aufgelistet wird, auch geschrieben --state <Zustand>; jeder Zustand, wenn Sie keinen nennen",
-      "context": "The meaning of the state argument of `dinah ls`, printed in that command's arguments table.",
-      "source": "5580ddc6f5222933"
+    "param.ls.column.summary": {
+      "text": "welche Spalte aufgelistet wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah ls`, printed in that command's arguments table.",
+      "source": "8f967e423be24761"
     },
     "param.mcp.root.summary": {
       "text": "Verzeichnis, unterhalb dessen jede Werkbank liegt, die dieser Server bereitstellt; die beim Start entdeckte Werkbank, wenn Sie kein Verzeichnis nennen",
@@ -1861,20 +1885,20 @@
       "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table.",
       "source": "9092656657c61845"
     },
-    "param.move.state.summary": {
-      "text": "in welchen Zustand die Karte getragen wird, auch geschrieben --state <Zustand>",
-      "context": "The meaning of the state argument of `dinah move`, printed in that command's arguments table.",
-      "source": "fb6110332e8961f1"
+    "param.move.column.summary": {
+      "text": "in welche Spalte die Karte getragen wird, auch geschrieben --column <Spalte>",
+      "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
+      "source": "74a12fa4cdbfa7a6"
     },
-    "param.next.state.summary": {
-      "text": "aus welchem Zustand eine Karte angeboten wird, auch geschrieben --state <Zustand>; jeder Zustand, wenn Sie keinen nennen",
-      "context": "The meaning of the state argument of `dinah next`, printed in that command's arguments table.",
-      "source": "b77d0cde8907c668"
+    "param.next.column.summary": {
+      "text": "aus welcher Spalte eine Karte angeboten wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah next`, printed in that command's arguments table.",
+      "source": "5d2227204b4f58f2"
     },
-    "param.pull.state.summary": {
-      "text": "in welchen Zustand die gezogene Karte landet, auch geschrieben --state <Zustand>; die nackte Form lehnt ab, wenn mehr als ein Zustand in Frage kommt",
-      "context": "The meaning of the state argument of `dinah pull`, printed in that command's arguments table.",
-      "source": "27ecc9f906d6bed9"
+    "param.pull.column.summary": {
+      "text": "in welche Spalte eine Karte gezogen wird; die eine in Frage kommende Spalte, wenn Sie keine nennen, abgelehnt, wenn mehr als eine in Frage kommt",
+      "context": "The meaning of the column argument of `dinah pull`, printed in that command's arguments table.",
+      "source": "70515ce655b60819"
     },
     "param.pull.no-claim.summary": {
       "text": "die Karte verschieben, ohne sie zu beanspruchen; sie bleibt dort bereit für den Nächsten, der sie nimmt",
@@ -1887,9 +1911,9 @@
       "source": "e22a8531617af968"
     },
     "param.pull.override.summary": {
-      "text": "den Betreiber in einen Zustand an seiner Grenze ziehen lassen; für alle anderen verweigert",
+      "text": "den Betreiber in eine Spalte an ihrer Grenze ziehen lassen; für alle anderen verweigert",
       "context": "The meaning of the --override flag of `dinah pull`, printed in that command's arguments table.",
-      "source": "b96795e8afda6ab4"
+      "source": "efbd0444a56459fb"
     },
     "param.path.card.summary": {
       "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1",
@@ -1902,9 +1926,9 @@
       "source": "7a5c1bae3ca79f81"
     },
     "param.ref.summary": {
-      "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",
+      "text": "eine Spalte, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; nicht diese Werkbank",
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
-      "source": "ad9a52db484ba1f7"
+      "source": "3f739e20c1af8b82"
     },
     "param.show.card.summary": {
       "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
@@ -1917,9 +1941,9 @@
       "source": "c49a3ef1d0a76760"
     },
     "param.tree.group-by.summary": {
-      "text": "die Achsen zum Verschachteln, äußerste zuerst, bis zu vier, durch Kommas getrennt; state,substate, wenn Sie keine nennen",
+      "text": "die Achsen zum Verschachteln, äußerste zuerst, bis zu vier, durch Kommas getrennt; column,state, wenn Sie keine nennen",
       "context": "The meaning of the group-by argument of `dinah tree`, printed in that command's arguments table. The axis names themselves are machine vocabulary and are never translated.",
-      "source": "b205700db0a43e4b"
+      "source": "604cde91c2a17d5e"
     },
     "param.tree.query.summary": {
       "text": "welche Karten verschachtelt werden, geschrieben als Abfrage in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
@@ -1982,18 +2006,18 @@
       "source": "a827de0e98fdc01c"
     },
     "refusal.at-capacity": {
-      "text": "Zustand {detail} hat seine Grenze erreicht",
-      "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or state the refusal is about.",
-      "source": "cd14769031263c36"
+      "text": "Spalte {detail} hat ihre Grenze erreicht",
+      "context": "The sentence printed after the refusal name at-capacity. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "8b227c88fc1ddfd"
     },
     "refusal.at-capacity.next": {
-      "text": "; nehmen Sie zuerst eine Karte aus {detail} heraus, oder erhöhen Sie das wip_limit dieses Zustands",
-      "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the state that has reached its limit.",
-      "source": "cba1bd40a978e915"
+      "text": "; nehmen Sie zuerst eine Karte aus {detail} heraus, oder erhöhen Sie das wip_limit dieser Spalte",
+      "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit.",
+      "source": "2267f61902fe1be2"
     },
     "refusal.blocked": {
       "text": "diese Karte ist blockiert: {detail}",
-      "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name blocked. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "50ee51abdf6da73a"
     },
     "refusal.blocked.next": {
@@ -2011,15 +2035,15 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
       "source": "2d044b02d1cbb5c1"
     },
-    "refusal.dinah.add-needs-a-state": {
-      "text": "dieser Werkbank ist kein Zustand geblieben, in dem eine neue Karte angelegt werden könnte",
-      "context": "The sentence printed after the refusal name dinah.add-needs-a-state. {detail} is the workbench.md path Add read an empty live states list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
-      "source": "589693f0eba5ee10"
+    "refusal.dinah.add-needs-a-column": {
+      "text": "dieser Werkbank ist keine Spalte geblieben, in der eine neue Karte angelegt werden könnte",
+      "context": "The sentence printed after the refusal name dinah.add-needs-a-column. {detail} is the workbench.md path Add read an empty live columns list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
+      "source": "9d3d069e9b698d0d"
     },
-    "refusal.dinah.add-needs-a-state.next": {
-      "text": "; bearbeiten Sie {detail} von Hand, um der Zustandsliste einen Zustand hinzuzufügen und dessen states/<id>/state.md anzulegen, und führen Sie dann `dinah check` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
-      "context": "Spliced onto refusal.dinah.add-needs-a-state as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
-      "source": "5d03fcb395d81a63"
+    "refusal.dinah.add-needs-a-column.next": {
+      "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
+      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
+      "source": "fe71af28f4ee8805"
     },
     "refusal.dinah.ambiguous-workbench": {
       "text": "von {base} aus ist mehr als eine Werkbank erreichbar",
@@ -2031,15 +2055,15 @@
       "context": "The line printed after dinah.ambiguous-workbench's candidate rows, naming the ways forward.",
       "source": "5b1a1e1738459d0d"
     },
-    "refusal.dinah.ambiguous-state": {
-      "text": "Sie können gerade in mehr als einen Zustand ziehen",
-      "context": "The opening sentence printed after the refusal name dinah.ambiguous-state, raised when the bare form of pull has more than one state in its qualifying set. The candidate rows print beneath it, one per qualifying state, and refusal.dinah.ambiguous-state.next follows as the closing line naming the way forward.",
-      "source": "a543508474436cca"
+    "refusal.dinah.ambiguous-column": {
+      "text": "Sie können gerade in mehr als eine Spalte ziehen",
+      "context": "The opening sentence printed after the refusal name dinah.ambiguous-column, raised when the bare form of pull has more than one column in its qualifying set. The candidate rows print beneath it, one per qualifying column, and refusal.dinah.ambiguous-column.next follows as the closing line naming the way forward.",
+      "source": "4c408ba0a136fe27"
     },
-    "refusal.dinah.ambiguous-state.next": {
-      "text": "nennen Sie einen als `dinah pull <Zustand>`, oder übergeben Sie --state <Zustand>",
-      "context": "The line printed after dinah.ambiguous-state's candidate rows, naming the ways forward.",
-      "source": "4b4bda23d3b46b32"
+    "refusal.dinah.ambiguous-column.next": {
+      "text": "nennen Sie eine als `dinah pull <Spalte>`, oder übergeben Sie --column <Spalte>",
+      "context": "The line printed after dinah.ambiguous-column's candidate rows, naming the ways forward.",
+      "source": "87483830a230f513"
     },
     "refusal.dinah.ambiguous-name": {
       "text": "{ordinals} auf dieser Karte antworten alle auf {selector}",
@@ -2063,7 +2087,7 @@
     },
     "refusal.dinah.exists": {
       "text": "{detail} trägt bereits eine workbench.md",
-      "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.exists. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "3fc73dbf6d1fb716"
     },
     "refusal.dinah.exists.next": {
@@ -2073,7 +2097,7 @@
     },
     "refusal.dinah.interrupted": {
       "text": "die Aktion auf {detail} wurde unterbrochen, nachdem sie festgehalten worden war",
-      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "ebc9595d16ea0617"
     },
     "refusal.dinah.interrupted.next": {
@@ -2081,19 +2105,19 @@
       "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with.",
       "source": "73daeb41e90ffc3c"
     },
-    "refusal.dinah.last-state": {
-      "text": "{detail} ist der einzige verbliebene Zustand",
-      "context": "The sentence printed after the refusal name dinah.last-state. {detail} carries the identifier, owner or state the refusal is about.",
-      "source": "d59dbcf0f4b0d79d"
+    "refusal.dinah.last-column": {
+      "text": "{detail} ist die einzige verbliebene Spalte",
+      "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "6c3ced789714ca62"
     },
-    "refusal.dinah.last-state.next": {
-      "text": "; fügen Sie einen weiteren Zustand hinzu, bevor Sie diesen ausmustern",
-      "context": "Spliced onto refusal.dinah.last-state as the next step, carrying the clause that base entry used to end with.",
-      "source": "102d3404e43cd0ca"
+    "refusal.dinah.last-column.next": {
+      "text": "; fügen Sie eine weitere Spalte hinzu, bevor Sie diese ausmustern",
+      "context": "Spliced onto refusal.dinah.last-column as the next step, carrying the clause that base entry used to end with.",
+      "source": "2093a7c07f9d6b1f"
     },
     "refusal.dinah.locked": {
       "text": "dies ist bereits gesperrt; {detail}",
-      "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "a7e64c664e2c498f"
     },
     "refusal.dinah.locked.next": {
@@ -2133,7 +2157,7 @@
     },
     "refusal.dinah.no-editor": {
       "text": "kein Editor war auflösbar",
-      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "bcc65bd2d92f8c0b"
     },
     "refusal.dinah.no-editor.next": {
@@ -2172,14 +2196,14 @@
       "source": "5304a56a1c20ac25"
     },
     "refusal.dinah.no-upstream": {
-      "text": "Sie können nicht nach {state} ziehen, denn dieser Zustand steht im Fluss an erster Stelle und ihm geht nichts voran",
-      "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named state of pull sits at position 0 and has no upstream state to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward.",
-      "source": "8f039bfb96884e1b"
+      "text": "Sie können nicht nach {column} ziehen, denn diese Spalte steht im Fluss an erster Stelle und ihr geht nichts voran",
+      "context": "The opening sentence printed after the refusal name dinah.no-upstream, raised when the named column of pull sits at position 0 and has no upstream column to take a card from. refusal.dinah.no-upstream.next follows as the closing line naming the way forward.",
+      "source": "d806316352688a1a"
     },
     "refusal.dinah.no-upstream.next": {
-      "text": "; nennen Sie einen weiter hinten im Fluss liegenden Zustand, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {state}",
+      "text": "; nennen Sie eine weiter hinten im Fluss liegende Spalte, oder verschieben Sie stattdessen eine Karte mit `dinah move` in {column}",
       "context": "The line printed after dinah.no-upstream, naming the ways forward.",
-      "source": "967217617e2bc560"
+      "source": "be8c2b2d40061074"
     },
     "refusal.dinah.not-renamable": {
       "text": "{kind} ist kein Anhang, und rename ändert seinen Namen nicht",
@@ -2192,9 +2216,9 @@
       "source": "8b1e574b3bdc690a"
     },
     "refusal.dinah.occupied": {
-      "text": "Karten belegen Zustand {detail} weiterhin",
-      "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or state the refusal is about.",
-      "source": "5f54eeabd84e1d39"
+      "text": "Karten belegen Spalte {detail} weiterhin",
+      "context": "The sentence printed after the refusal name dinah.occupied. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "e1ea9853c5e6011e"
     },
     "refusal.dinah.occupied.next": {
       "text": "; nehmen Sie sie zuerst mit `dinah move` heraus, und versuchen Sie es dann erneut",
@@ -2221,15 +2245,15 @@
       "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal.",
       "source": "ade7e0e869d8e3c5"
     },
-    "refusal.dinah.repair-would-empty-states": {
-      "text": "{detail} nennt jeden Zustand, der der Werkbank geblieben ist, und jedes zugehörige Verzeichnis fehlt. Sie zu entfernen ließe die Werkbank ganz ohne Zustand zurück, daher lehnt dinah check --migrate-states ab.",
-      "context": "The sentence printed after the refusal name dinah.repair-would-empty-states. {detail} is the comma-joined ids of every state the raw states list still names, all of them stranded, which RemoveStrandedStates would otherwise have dropped down to an empty list.",
-      "source": "e1db405864bf7e65"
+    "refusal.dinah.repair-would-empty-columns": {
+      "text": "{detail} nennt jede Spalte, die der Werkbank geblieben ist, und jedes zugehörige Verzeichnis fehlt. Sie zu entfernen ließe die Werkbank ganz ohne Spalte zurück, daher lehnt dinah check --migrate-columns ab.",
+      "context": "The sentence printed after the refusal name dinah.repair-would-empty-columns. {detail} is the comma-joined ids of every column the raw columns list still names, all of them stranded, which RemoveStrandedColumns would otherwise have dropped down to an empty list.",
+      "source": "2b866eaadd3e160c"
     },
-    "refusal.dinah.repair-would-empty-states.next": {
-      "text": " Bearbeiten Sie die Zustandsliste der Werkbank von Hand, um einen Zustand hinzuzufügen, oder stellen Sie eines der fehlenden Verzeichnisse wieder her, und führen Sie dann dinah check --migrate-states erneut aus.",
-      "context": "Spliced onto refusal.dinah.repair-would-empty-states as the next step, carrying the sentence that base entry used to end with.",
-      "source": "dc08df19eb15ca4d"
+    "refusal.dinah.repair-would-empty-columns.next": {
+      "text": " Bearbeiten Sie die Spaltenliste der Werkbank von Hand, um eine Spalte hinzuzufügen, oder stellen Sie eines der fehlenden Verzeichnisse wieder her, und führen Sie dann dinah check --migrate-columns erneut aus.",
+      "context": "Spliced onto refusal.dinah.repair-would-empty-columns as the next step, carrying the sentence that base entry used to end with.",
+      "source": "4894a4b75a1fd0a"
     },
     "refusal.dinah.repeated-axis": {
       "text": "Eine Gruppierungskette nennt jede Achse einmal, und diese nennt {detail} zweimal.",
@@ -2243,7 +2267,7 @@
     },
     "refusal.dinah.unconfirmed": {
       "text": "delete vernichtet Geschichte",
-      "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "e9eed56f85c4ff5"
     },
     "refusal.dinah.unconfirmed.next": {
@@ -2283,7 +2307,7 @@
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah bietet keinen Befehl namens {detail}",
-      "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "8b00c9755211e752"
     },
     "refusal.dinah.unknown-command.next": {
@@ -2328,7 +2352,7 @@
     },
     "refusal.dinah.unknown-guide": {
       "text": "unter dem Thema {detail} ist kein Leitfaden eingebettet; Dinah bringt Leitfäden zu diesen mit",
-      "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.unknown-guide. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "3abb24317617ab0e"
     },
     "refusal.dinah.unknown-guide.next": {
@@ -2338,7 +2362,7 @@
     },
     "refusal.dinah.unknown-key": {
       "text": "Dinah kennt keine Einstellung und kein Feld namens {detail}; es kennt diese",
-      "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.unknown-key. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "debd1f7473332628"
     },
     "refusal.dinah.unknown-key.next": {
@@ -2358,7 +2382,7 @@
     },
     "refusal.dinah.unknown-path": {
       "text": "nichts in dieser Werkbank hört auf {detail}",
-      "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.unknown-path. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "715e031bd2d76865"
     },
     "refusal.dinah.unknown-path.next": {
@@ -2368,7 +2392,7 @@
     },
     "refusal.dinah.unknown-path.next-addressed": {
       "text": "; ein {addressed} wird über seine eigene Referenz benannt, nicht über das, was es hält",
-      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a state through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or state, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
+      "context": "The next step after the refusal name dinah.unknown-path, when the reader reached a card or a column through the collection that holds it, such as wb/cards/1. {addressed} is the kind reached that way, card or column, which is machine vocabulary and is never translated. The collection named is one the workbench really has, so the advice is about how the thing is addressed rather than about the word. Spliced on after refusal.dinah.unknown-path.",
       "source": "129884b7bbc55760"
     },
     "refusal.dinah.unknown-path.next-file": {
@@ -2433,7 +2457,7 @@
     },
     "refusal.dinah.usage": {
       "text": "{detail} wurde nicht verstanden",
-      "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name dinah.usage. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "a41d318811d1e923"
     },
     "refusal.dinah.usage.dash-hint": {
@@ -2445,6 +2469,38 @@
       "text": "; führen Sie dinah help aus für die Liste der Befehle",
       "context": "Spliced onto refusal.dinah.usage as the next step, carrying the clause that base entry used to end with. It is spliced ahead of refusal.dinah.usage.dash-hint, which is the position it held inside the sentence.",
       "source": "d9e4ce94a1505a25"
+    },
+    "refusal.dinah.vocabulary-mixed": {
+      "text": "{detail} trägt je einen Schlüssel aus den beiden Vokabularen, die dieses Format hatte, daher kann Dinah nicht erkennen, in welchem von beiden die Datei geschrieben ist",
+      "context": "The sentence printed after the refusal name dinah.vocabulary-mixed. {detail} names the file inside the workbench, either workbench.md or a card's identifier and card.md, so a tree-wide run says which of several hundred cards it refused.",
+      "source": "b0469651350c5055"
+    },
+    "refusal.dinah.vocabulary-mixed.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed: the file on disk the mixed header belongs to. It reads as refusal.malformed.at does, and every raise site of this refusal carries a path.",
+      "verbatim": true,
+      "source": "ef1414e25cbe0d27"
+    },
+    "refusal.dinah.vocabulary-mixed.next": {
+      "text": "; bearbeiten Sie die Datei von Hand, sodass sie ein Vokabular trägt und nicht beide, und führen Sie dann `dinah check --migrate-vocabulary` aus, um die Werkbank weiterzuführen",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated.",
+      "source": "9b4d2512a901f950"
+    },
+    "refusal.dinah.vocabulary-retired": {
+      "text": "{detail} ist in dem Vokabular geschrieben, das dieses Format ausgemustert hat, und die Werkbank darum herum deklariert das aktuelle, daher sind sich die Karte und ihre Werkbank uneinig darüber, was die Schlüssel der Karte bedeuten",
+      "context": "The sentence printed after the refusal name dinah.vocabulary-retired. {detail} names the card inside the workbench, its identifier and card.md, so a tree-wide run says which of several hundred cards it refused. The file itself carries one vocabulary and not both, which is what separates this refusal from dinah.vocabulary-mixed, and the defect is that it disagrees with the anchor above it.",
+      "source": "e55b33fac0cab0f"
+    },
+    "refusal.dinah.vocabulary-retired.at": {
+      "text": ", in {path}",
+      "context": "Spliced onto refusal.dinah.vocabulary-retired: the file on disk the retired header belongs to. It reads as refusal.malformed.at does, and every raise site of this refusal carries a path.",
+      "verbatim": true,
+      "source": "ef1414e25cbe0d27"
+    },
+    "refusal.dinah.vocabulary-retired.next": {
+      "text": "; bearbeiten Sie die Datei von Hand, sodass der Schlüssel mit der Spalte der Karte `column` heißt und der Schlüssel mit ihrem Zustand `state`, was die Umbenennung ist, die `dinah check --migrate-vocabulary` an einer Werkbank vornimmt, die noch das ausgemusterte Format deklariert",
+      "context": "Spliced onto refusal.dinah.vocabulary-retired as the next step. The two key names and the command spelling dinah check --migrate-vocabulary are machine vocabulary and are never translated. The instruction names the two keys by what they hold rather than by the retired spellings, because a card that carries only the retired column key and no condition key at all reaches this refusal too, and telling its reader to rename a key the file does not carry would name a line they cannot find. The reader is told to make the edit by hand because the migration reads the workbench anchor to decide what needs carrying, and the anchor here already declares the current format, so the command would report that there is nothing to do.",
+      "source": "15496109b275afcc"
     },
     "refusal.dinah.workbench-not-applicable": {
       "text": "Dinah verwendet {source} hier nicht: init legt eine neue Werkbank an, statt die zu öffnen, die {source} nennt ({detail}).",
@@ -2458,7 +2514,7 @@
     },
     "refusal.held": {
       "text": "{detail} hält diese Karte",
-      "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name held. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "2c0d8365c83fc77e"
     },
     "refusal.held.next": {
@@ -2468,7 +2524,7 @@
     },
     "refusal.layer-collision": {
       "text": "Schicht {detail} ist unter einem Namen deklariert, den dieses Profil definiert",
-      "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name layer-collision. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "c747f097000ef172"
     },
     "refusal.layer-collision.next": {
@@ -2484,7 +2540,8 @@
     "refusal.malformed.at": {
       "text": ", in {path}",
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
-      "source": "ef1414e25cbe0d27"
+      "source": "ef1414e25cbe0d27",
+      "verbatim": true
     },
     "refusal.malformed.fix": {
       "text": "; bearbeiten Sie die Datei von Hand und fügen Sie es hinzu, und führen Sie dann `dinah check` aus, um es zu bestätigen",
@@ -2494,7 +2551,8 @@
     "refusal.malformed.in-file": {
       "text": ", in {file}",
       "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
-      "source": "746638cc448d3d7c"
+      "source": "746638cc448d3d7c",
+      "verbatim": true
     },
     "refusal.malformed.next": {
       "text": "; schreiben Sie den Befehl als `dinah {usage}` und versuchen Sie es erneut",
@@ -2513,7 +2571,7 @@
     },
     "refusal.no-operator": {
       "text": "diese Werkbank benennt keinen Betreiber, daher sind ihre vorbehaltenen Aktionen tot",
-      "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name no-operator. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "7bd7b08e5a5b99eb"
     },
     "refusal.no-operator.next": {
@@ -2523,7 +2581,7 @@
     },
     "refusal.no-owner": {
       "text": "Dinah weiß nicht, wer Sie sind",
-      "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name no-owner. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "cadf6e15d27b4efb"
     },
     "refusal.no-owner.next": {
@@ -2533,7 +2591,7 @@
     },
     "refusal.no-reason": {
       "text": "eine Blockade trägt einen Grund, so gestellt, dass der Betreiber ihn beantworten kann",
-      "context": "The sentence printed after the refusal name no-reason. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name no-reason. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "27ab86c865257974"
     },
     "refusal.no-reason.next": {
@@ -2543,7 +2601,7 @@
     },
     "refusal.not-blocked": {
       "text": "diese Karte ist nicht blockiert, es gibt also nichts aufzuheben",
-      "context": "The sentence printed after the refusal name not-blocked. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name not-blocked. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "16aeb42bcaf95e45"
     },
     "refusal.not-blocked.next": {
@@ -2553,7 +2611,7 @@
     },
     "refusal.not-holder": {
       "text": "Sie halten diese Karte nicht; {detail} hält sie",
-      "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name not-holder. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "e633dc835b572c4"
     },
     "refusal.not-holder.next": {
@@ -2573,7 +2631,7 @@
     },
     "refusal.not-operator": {
       "text": "diese Aktion ist dem Betreiber vorbehalten, und Sie sind {detail}",
-      "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name not-operator. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "88f0c532b4384dc9"
     },
     "refusal.not-operator.next": {
@@ -2583,7 +2641,7 @@
     },
     "refusal.not-requester": {
       "text": "ein Anspruch nennt seinen eigenen Anfragenden als Inhaber, und dieser nennt {detail}",
-      "context": "The sentence printed after the refusal name not-requester. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name not-requester. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "a7d6d19771a85ae4"
     },
     "refusal.not-requester.next": {
@@ -2592,14 +2650,14 @@
       "source": "68181a05af13aaf2"
     },
     "refusal.terminal": {
-      "text": "Zustand {detail} ist ein done-Zustand, und daraus bewegt sich nichts vorwärts",
-      "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or state the refusal is about.",
-      "source": "fefdcc45121f2981"
+      "text": "Spalte {detail} ist eine done-Spalte, und daraus bewegt sich nichts vorwärts",
+      "context": "The sentence printed after the refusal name terminal. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "9c06d9d12dc9d92f"
     },
     "refusal.terminal.next": {
-      "text": "; nennen Sie stattdessen einen früheren Zustand",
+      "text": "; nennen Sie stattdessen eine frühere Spalte",
       "context": "Spliced onto refusal.terminal as the next step.",
-      "source": "a51d12c3e3fc757"
+      "source": "90e92eb2b101ff04"
     },
     "refusal.unknown": {
       "text": "{name} wurde gemeldet, und Dinah trägt dafür keine Meldung: {detail}",
@@ -2608,7 +2666,7 @@
     },
     "refusal.unknown-card": {
       "text": "diese Werkbank trägt keine Karte {detail}",
-      "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name unknown-card. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "f947d3d5e8795007"
     },
     "refusal.unknown-card.next": {
@@ -2616,19 +2674,19 @@
       "context": "Spliced onto refusal.unknown-card as the next step.",
       "source": "cc7f9fefb530b2c4"
     },
-    "refusal.unknown-state": {
-      "text": "diese Werkbank deklariert keinen Zustand {detail}; sie deklariert diese",
-      "context": "The sentence printed after the refusal name unknown-state. {detail} carries the identifier, owner or state the refusal is about.",
-      "source": "5c13a7b864e893ec"
+    "refusal.unknown-column": {
+      "text": "diese Werkbank deklariert keine Spalte {detail}; sie deklariert diese",
+      "context": "The sentence printed after the refusal name unknown-column. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "3f57932fd193b5cb"
     },
-    "refusal.unknown-state.next": {
+    "refusal.unknown-column.next": {
       "text": "führen Sie `dinah {command}` mit einem davon aus",
-      "context": "Printed under the states refusal.unknown-state lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next.",
+      "context": "Printed under the columns refusal.unknown-column lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next.",
       "source": "464b1380b274754"
     },
     "refusal.unsupported-version": {
       "text": "Dinah implementiert {detail} nicht",
-      "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or state the refusal is about.",
+      "context": "The sentence printed after the refusal name unsupported-version. {detail} carries the identifier, owner or column the refusal is about.",
       "source": "a6dea03a94518d5d"
     },
     "refusal.unsupported-version.next": {
@@ -2698,17 +2756,17 @@
     },
     "slug.missing": {
       "text": "kein Slug (führen Sie check --migrate-slugs aus)",
-      "context": "The placeholder a human-rendered listing shows in a slug column for a state or workbench carrying none, naming the repair rather than padding an empty string.",
+      "context": "The placeholder a human-rendered listing shows in a slug column for a column or workbench carrying none, naming the repair rather than padding an empty string.",
       "source": "1b5adbf3e777514f"
     },
-    "states.moved-by.agent": {
+    "columns.moved-by.agent": {
       "text": "Agent",
-      "context": "The value under the states listing's Owner column on a state an agent may move a card out of.",
+      "context": "The value under the columns listing's Owner column on a column an agent may move a card out of.",
       "source": "d02d8a15c0f8e1e6"
     },
-    "states.moved-by.operator": {
+    "columns.moved-by.operator": {
       "text": "Betreiber",
-      "context": "The value under the states listing's Owner column on a state only the operator may move a card out of.",
+      "context": "The value under the columns listing's Owner column on a column only the operator may move a card out of.",
       "source": "554667f2165fec5d"
     },
     "status.actor": {
@@ -2729,7 +2787,8 @@
     "status.workbench": {
       "text": "{title}  ({root})  [{source}]",
       "context": "The first line of status: the workbench, where it was discovered, and the rung (flag, environment, search, or config) that resolved it.",
-      "source": "b9613776bc0a4419"
+      "source": "b9613776bc0a4419",
+      "verbatim": true
     },
     "token.active": {
       "text": "aktiv",
@@ -2804,7 +2863,8 @@
     "token.dinah-editor": {
       "text": "DINAH_EDITOR",
       "context": "How the canonical token dinah-editor is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the DINAH_EDITOR environment variable, which the editor ladder reads above everything else. The rendering is the variable's own name, the same convention token.visual uses for VISUAL, so the row names the variable that won rather than a flag the tool has none of. The same in every language.",
-      "source": "36616795c3e19d6b"
+      "source": "36616795c3e19d6b",
+      "verbatim": true
     },
     "token.done": {
       "text": "erledigt",
@@ -2894,7 +2954,8 @@
     "token.visual": {
       "text": "VISUAL",
       "context": "How the canonical token visual is rendered where a person reads it, naming the rung a setting resolved from in the settings listing: the VISUAL environment variable, which the editor ladder reads above EDITOR. The rendering is the variable's own name, which is the same in every language.",
-      "source": "2097faeb5e231899"
+      "source": "2097faeb5e231899",
+      "verbatim": true
     },
     "token.work": {
       "text": "Arbeit",
@@ -2954,7 +3015,8 @@
     "tree.hidden.join": {
       "text": "{first}, {second}",
       "context": "Joins the two halves of a Not shown cell on a node that is holding something back for both reasons at once. {first} is the depth's account and {second} the query's.",
-      "source": "86da02c677b5c51b"
+      "source": "86da02c677b5c51b",
+      "verbatim": true
     },
     "tree.unset": {
       "text": "(kein Wert)",
@@ -2979,7 +3041,8 @@
     "version.tool": {
       "text": "dinah {release}",
       "context": "The tool's own release number.",
-      "source": "9d2528e6a4d8ae98"
+      "source": "9d2528e6a4d8ae98",
+      "verbatim": true
     },
     "warn.stale-prefix": {
       "text": "das Präfix {detail} nennt keinen aktuellen Slug; die Nummer hat die Karte aufgelöst",
@@ -3009,7 +3072,8 @@
     "workstream.line": {
       "text": "{ref}  {title}  [{status}]",
       "context": "The one line printed about a workstream after it is created or one of its fields is written. {ref} is what a person types to reach it, {status} is the value stored under status.",
-      "source": "2d59ee18c01df9b8"
+      "source": "2d59ee18c01df9b8",
+      "verbatim": true
     },
     "workstreams.empty": {
       "text": "diese Werkbank trägt keinen Arbeitsstrang",
@@ -3036,10 +3100,10 @@
       "context": "The meaning of the since argument of `dinah changes`, printed in that command's arguments table.",
       "source": "1e8e725fb68b664"
     },
-    "param.changes.state.summary": {
-      "text": "über welchen Zustand berichtet wird; jeder Zustand, wenn Sie keinen nennen",
-      "context": "The meaning of the state argument of `dinah changes`, printed in that command's arguments table.",
-      "source": "ca2e0fa8a92625d4"
+    "param.changes.column.summary": {
+      "text": "über welche Spalte berichtet wird, auch geschrieben --column <Spalte>; jede Spalte, wenn Sie keine nennen",
+      "context": "The meaning of the column argument of `dinah changes`, printed in that command's arguments table.",
+      "source": "7a83cd34a8ec34ec"
     },
     "check.changes.1": {
       "text": "der Cursor ist einer, den diese Werkbank ausgegeben hat",
@@ -3052,9 +3116,9 @@
       "source": "32da53b070d06c6f"
     },
     "check.changes.3": {
-      "text": "der genannte Zustand ist einer, den die Werkbank erklärt",
+      "text": "die genannte Spalte ist eine, die die Werkbank erklärt",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
-      "source": "e62d40d1c2938929"
+      "source": "7037e94c3b8968f0"
     },
     "column.changes.when": {
       "text": "Wann",
@@ -3078,52 +3142,53 @@
     },
     "column.changes.detail": {
       "text": "Detail",
-      "context": "Heading over what the act carried, such as the states a move ran between, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
-      "source": "8daa1db5187d4ad4"
+      "context": "Heading over what the act carried, such as the columns a move ran between, in the checkpoint `dinah changes` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "8daa1db5187d4ad4",
+      "verbatim": true
     },
     "changes.cursor": {
       "text": "Cursor: {cursor}",
       "context": "The line printed under the events of `dinah changes`, carrying the token to hand back at the next call. {cursor} is that token, which a caller treats as opaque.",
       "source": "f51134f80d4afc37"
     },
-    "column.states.work": {
+    "column.columns.work": {
       "text": "Arbeit",
-      "context": "Heading over whether work is taken up at the state, reading taken or waiting, in the states listing, which `dinah states` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "context": "Heading over whether work is taken up at the column, reading taken or waiting, in the columns listing, which `dinah columns` prints and `dinah status` repeats. It answers a different question from the Owner heading beside it, which is about who may move a card out. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "9ae6ef0237d899a0"
     },
-    "states.work.taken": {
+    "columns.work.taken": {
       "text": "wird bearbeitet",
-      "context": "The value under the states listing's Work column on an ordinary state, where an owner takes work up.",
+      "context": "The value under the columns listing's Work column on an ordinary column, where an owner takes work up.",
       "source": "c379d129de405f48"
     },
-    "states.work.waiting": {
+    "columns.work.waiting": {
       "text": "wartet",
-      "context": "The value under the states listing's Work column on a state that waits on somebody outside the workbench, where no owner takes work up.",
+      "context": "The value under the columns listing's Work column on a column that waits on somebody outside the workbench, where no owner takes work up.",
       "source": "eac9afef1a00b5e8"
     },
     "next.awaiting-outside": {
       "text": "wartet auf jemanden außerhalb",
-      "context": "Printed beside a state that offers no card because it waits on somebody outside the workbench, in place of next.none, which says only that nothing is ready.",
+      "context": "Printed beside a column that offers no card because it waits on somebody outside the workbench, in place of next.none, which says only that nothing is ready.",
       "source": "5a37f4a162da2de4"
     },
     "refusal.dinah.awaiting-outside": {
-      "text": "Zustand {detail} wartet auf jemanden außerhalb der Werkbank, und dort wird keine Karte gehalten oder aufgenommen",
-      "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the state the refusal is about.",
-      "source": "49d916524af3c94b"
+      "text": "Spalte {detail} wartet auf jemanden außerhalb der Werkbank, und dort wird keine Karte gehalten oder aufgenommen",
+      "context": "The sentence printed after the refusal name dinah.awaiting-outside. {detail} carries the column the refusal is about.",
+      "source": "68c26768a659b236"
     },
     "refusal.dinah.awaiting-outside.next": {
       "text": "; gib die Karte zuerst frei, falls du sie hältst, oder schiebe sie weiter, sobald die Antwort da ist",
       "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused.",
       "source": "8444f43151e1ec08"
     },
-    "states.work.none": {
+    "columns.work.none": {
       "text": "wird nicht bearbeitet",
-      "context": "The value under the states listing's Work column on a state where no owner takes work up, which is an intake state, a done state and a dinah.buffer. A state that waits on somebody outside reads states.work.waiting instead, because that value also says who is being waited on.",
+      "context": "The value under the columns listing's Work column on a column where no owner takes work up, which is an intake column, a done column and a dinah.buffer. A column that waits on somebody outside reads columns.work.waiting instead, because that value also says who is being waited on.",
       "source": "a0f5c4fcb3df5004"
     },
     "next.no-taker": {
       "text": "von hier wird nichts aufgenommen",
-      "context": "Printed beside a state that offers no card because no act could take one up from there, in place of next.none, which says only that nothing is ready. A done state holding four ready cards prints this one.",
+      "context": "Printed beside a column that offers no card because no act could take one up from there, in place of next.none, which says only that nothing is ready. A done column holding four ready cards prints this one.",
       "source": "8e3760dc431a5c6b"
     },
     "next.take.claim": {
@@ -3133,7 +3198,7 @@
     },
     "next.take.pull": {
       "text": "ziehen",
-      "context": "The value under the offers listing's Take column on a card that leaves by a pull into the state beyond, because nobody takes work up where it stands. It names the command a reader types.",
+      "context": "The value under the offers listing's Take column on a card that leaves by a pull into the column beyond, because nobody takes work up where it stands. It names the command a reader types.",
       "source": "6c23fd0e2713dcbe"
     },
     "column.next.take": {
@@ -3142,29 +3207,109 @@
       "source": "3d352fb090323d6"
     },
     "refusal.dinah.takes-no-work": {
-      "text": "in Zustand {detail} nimmt kein Akteur Arbeit auf, und eine Karte wartet dort, bis ein Zug sie in den nächsten Zustand trägt",
-      "context": "The sentence printed after the refusal name dinah.takes-no-work. {detail} carries the state the refusal is about. A state that waits on somebody outside answers refusal.dinah.awaiting-outside instead, because that sentence also says who is being waited on.",
-      "source": "23b785dc7ccbc01d"
+      "text": "in Spalte {detail} nimmt kein Akteur Arbeit auf, und eine Karte wartet dort, bis ein Zug sie in die nächste Spalte trägt",
+      "context": "The sentence printed after the refusal name dinah.takes-no-work. {detail} carries the column the refusal is about. A column that waits on somebody outside answers refusal.dinah.awaiting-outside instead, because that sentence also says who is being waited on.",
+      "source": "a828873782ad75a9"
     },
     "refusal.dinah.takes-no-work.next": {
-      "text": "; gib die Karte zuerst frei, falls du sie hältst, und ziehe sie in den nächsten Zustand, wenn sie bearbeitet werden soll",
+      "text": "; geben Sie die Karte zuerst frei, falls Sie sie halten, und ziehen Sie sie in die nächste Spalte, wenn sie bearbeitet werden soll",
       "context": "Spliced onto refusal.dinah.takes-no-work as the next step. The two ways forward are the same whichever act was refused.",
-      "source": "6761fca1e15d9dc4"
+      "source": "8792d94e3109495"
     },
     "check.claim-where-no-work-is-taken": {
-      "text": "eine Karte wird in Zustand {detail} gehalten, wo kein Akteur Arbeit aufnimmt",
-      "context": "A check finding: no card is held at a state where no owner takes work up. {detail} carries the state, and the finding's own path names the card. The acts that would create the condition afresh are refused, so a card reported here was written before this build.",
-      "source": "a2fc39e387edb7a5"
+      "text": "eine Karte wird in Spalte {detail} gehalten, wo kein Akteur Arbeit aufnimmt",
+      "context": "A check finding: no card is held at a column where no owner takes work up. {detail} carries the column, and the finding's own path names the card. The acts that would create the condition afresh are refused, so a card reported here was written before this build.",
+      "source": "f625c96b6e2fa008"
     },
     "check.kind-out-of-position": {
-      "text": "Zustand {detail} trägt eine Art, die seine Stelle im Fluss nicht zulässt",
-      "context": "A check finding: an intake state stands first, a done state stands in the run of done states at the end of the flow, and a dinah.buffer stands in neither place. {detail} carries the state, and the repair is an edit to workbench.md or to the state's own state.md.",
-      "source": "d0c70621953849c7"
+      "text": "Spalte {detail} trägt eine Art, die ihre Stelle im Fluss nicht zulässt",
+      "context": "A check finding: an intake column stands first, a done column stands in the run of done columns at the end of the flow, and a dinah.buffer stands in neither place. {detail} carries the column, and the repair is an edit to workbench.md or to the column's own column.md.",
+      "source": "ba8efb4a2c2765ae"
     },
     "check.unknown-kind": {
-      "text": "Zustand {detail} trägt eine Art, die dieses Werkzeug nicht umsetzt, und wird als work-Zustand gelesen",
-      "context": "A check finding: a state carries a kind under a layer's prefix that this build does not implement. {detail} carries the state. CORE-STATE-12 requires such a state to be read as though its kind were work, and the sentence says so because nothing else tells a reader what happened.",
-      "source": "5c026a7747f1f4b0"
+      "text": "Spalte {detail} trägt eine Art, die dieses Werkzeug nicht umsetzt, und wird als work-Spalte gelesen",
+      "context": "A check finding: a column carries a kind under a layer's prefix that this build does not implement. {detail} carries the column. CORE-COLUMN-12 requires such a column to be read as though its kind were work, and the sentence says so because nothing else tells a reader what happened.",
+      "source": "2eebd5b176b45492"
+    },
+    "check.vocabulary-already-current.one": {
+      "text": "{count} Werkbank deklariert bereits das aktuelle Format.",
+      "context": "The heading over the workbenches the vocabulary migration left alone because they need nothing, for exactly one.",
+      "source": "f1dd444348856211"
+    },
+    "check.vocabulary-already-current.other": {
+      "text": "{count} Werkbänke deklarieren bereits das aktuelle Format.",
+      "context": "The heading over the workbenches the vocabulary migration left alone because they need nothing, for any other number.",
+      "source": "9ce9c82fdfdb18d2"
+    },
+    "check.vocabulary-cards.one": {
+      "text": "{path} ({count} Karte)",
+      "context": "One migrated workbench, naming its directory and how many cards were rewritten there, for exactly one card.",
+      "source": "ff0169327aa970a6"
+    },
+    "check.vocabulary-cards.other": {
+      "text": "{path} ({count} Karten)",
+      "context": "One migrated workbench, naming its directory and how many cards were rewritten there, for any other number.",
+      "source": "f847c3c66d714fd3"
+    },
+    "check.vocabulary-confirm": {
+      "text": "Es wurde nichts geschrieben. Die Vorschau liest das Format, das jede Werkbank deklariert, und öffnet sie nicht, daher kann eine oben aufgeführte Werkbank von dem Lauf, der sie überträgt, noch abgelehnt werden. Führen Sie denselben Befehl erneut mit --yes aus, um diese Werkbänke über die Umbenennung zu tragen.",
+      "context": "The closing line of a vocabulary-migration preview, printed whether or not the walk found anything. The middle sentence says the list names candidates the confirmed run may still refuse, because the preview classifies each anchor without opening the workbench. --yes is a flag spelling and is never translated.",
+      "source": "6156df854633abca"
+    },
+    "check.vocabulary-failed.one": {
+      "text": "{count} Werkbank konnte nicht weitergeführt werden.",
+      "context": "The heading over the workbenches the vocabulary migration met an error on, for exactly one. The walk carries on past a failure, so this heading stands beside the migrated list rather than instead of it, and each row names the directory and the reason.",
+      "source": "712f90d608e5bab9"
+    },
+    "check.vocabulary-failed.other": {
+      "text": "{count} Werkbänke konnten nicht weitergeführt werden.",
+      "context": "The heading over the workbenches the vocabulary migration met an error on, for any other number.",
+      "source": "e213f96197b48665"
+    },
+    "check.vocabulary-malformed.one": {
+      "text": "{count} Werkbank deklariert kein Profil, das dieser Build lesen kann, und wurde in Ruhe gelassen.",
+      "context": "The heading over the candidates the vocabulary migration could not classify, for exactly one. A workbench recognized by its own anchor but declaring no readable profile is reported rather than opened.",
+      "source": "cc5209b422bdc1b4"
+    },
+    "check.vocabulary-malformed.other": {
+      "text": "{count} Werkbänke deklarieren kein Profil, das dieser Build lesen kann, und wurden in Ruhe gelassen.",
+      "context": "The heading over the candidates the vocabulary migration could not classify, for any other number.",
+      "source": "54cd46a4d94e18d7"
+    },
+    "check.vocabulary-migrated.one": {
+      "text": "{count} Werkbank über die Umbenennung von Spalte und Zustand getragen.",
+      "context": "The line the vocabulary migration prints for what it carried forward, for exactly one workbench. Followed by one line per workbench.",
+      "source": "6662d1b900a6cce3"
+    },
+    "check.vocabulary-migrated.other": {
+      "text": "{count} Werkbänke über die Umbenennung von Spalte und Zustand getragen.",
+      "context": "The line the vocabulary migration prints for what it carried forward, for any other number. Followed by one line per workbench.",
+      "source": "15887343445a8b73"
+    },
+    "check.vocabulary-unsupported.one": {
+      "text": "{count} Werkbank deklariert eine Revision, die diese Migration nicht abdeckt.",
+      "context": "The heading over the workbenches whose declared revision sits outside the window the vocabulary migration carries, for exactly one. Each row names the directory and the revision it declares.",
+      "source": "6d2da6e341e7ca4b"
+    },
+    "check.vocabulary-unsupported.other": {
+      "text": "{count} Werkbänke deklarieren eine Revision, die diese Migration nicht abdeckt.",
+      "context": "The heading over the workbenches whose declared revision sits outside the window the vocabulary migration carries, for any other number.",
+      "source": "eb0bba28402b719c"
+    },
+    "check.vocabulary-would-migrate.one": {
+      "text": "{count} Werkbank würde über die Umbenennung von Spalte und Zustand getragen.",
+      "context": "The heading of a vocabulary-migration preview, for exactly one workbench. Followed by one line per workbench, each naming its directory and the revision it declares.",
+      "source": "c4225b0c48d391cf"
+    },
+    "check.vocabulary-would-migrate.other": {
+      "text": "{count} Werkbänke würden über die Umbenennung von Spalte und Zustand getragen.",
+      "context": "The heading of a vocabulary-migration preview, for any other number. Followed by one line per workbench, each naming its directory and the revision it declares.",
+      "source": "5c81f9e7e19e514b"
+    },
+    "param.check.migrate-vocabulary.summary": {
+      "text": "jede Werkbank in diesem Wurzelverzeichnis oder darunter über die Umbenennung von Spalte und Zustand tragen",
+      "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table.",
+      "source": "7384eb6c936bda3b"
     }
   }
 }

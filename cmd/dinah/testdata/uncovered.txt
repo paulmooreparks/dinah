@@ -23,9 +23,9 @@ render.go:59.3,59.102  the same, writing the stale sentence.
 render.go:60.10,61.108  the unreachable outcome, which is by construction the outcome no invocation produces.
 render.go:70.16,73.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
 render.go:143.19,145.3  a token the catalog carries no rendering for, and every token the head prints has one.
-render.go:255.29,258.3  the sentence a listing prints when the state holds no card. Reachable and unreached: worth a test.
+render.go:255.29,258.3  the sentence a listing prints when the column holds no card. Reachable and unreached: worth a test.
 render.go:465.23,468.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
-render.go:687.23,689.4  the states listing asked for before a workbench is open, which unknown-state cannot be raised before.
+render.go:687.23,689.4  the columns listing asked for before a workbench is open, which unknown-column cannot be raised before.
 render.go:730.18,732.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
 render.go:783.23,785.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
 render.go:811.2,811.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.

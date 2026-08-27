@@ -58,7 +58,7 @@ func init() {
 		{name: "card", group: groupWork, run: runCard, openTail: true},
 
 		{name: "status", group: groupRead, run: runStatus},
-		{name: "states", group: groupRead, run: runStates},
+		{name: "columns", group: groupRead, run: runColumns},
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
@@ -105,19 +105,20 @@ func init() {
 // resolved actor and whatever flags the command reads.
 func (s *session) request(name string, parsed *arguments) *verb.Request {
 	req := &verb.Request{
-		Verb:            name,
-		Actor:           s.actor,
-		State:           parsed.value("state"),
-		Kind:            parsed.value("kind"),
-		Description:     parsed.value("description"),
-		Override:        parsed.has("override"),
-		Replace:         parsed.has("replace"),
-		Confirm:         parsed.has("yes"),
-		ReadyOnly:       parsed.has("ready"),
-		Finish:          parsed.has("finish"),
-		MigrateOrdinals: parsed.has("migrate-ordinals"),
-		MigrateSlugs:    parsed.has("migrate-slugs"),
-		MigrateStates:   parsed.has("migrate-states"),
+		Verb:              name,
+		Actor:             s.actor,
+		Column:            parsed.value("column"),
+		Kind:              parsed.value("kind"),
+		Description:       parsed.value("description"),
+		Override:          parsed.has("override"),
+		Replace:           parsed.has("replace"),
+		Confirm:           parsed.has("yes"),
+		ReadyOnly:         parsed.has("ready"),
+		Finish:            parsed.has("finish"),
+		MigrateOrdinals:   parsed.has("migrate-ordinals"),
+		MigrateSlugs:      parsed.has("migrate-slugs"),
+		MigrateColumns:    parsed.has("migrate-columns"),
+		MigrateVocabulary: parsed.has("migrate-vocabulary"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		NoClaim:            parsed.has("no-claim"),
@@ -140,13 +141,13 @@ func runClaim(s *session, parsed *arguments) int {
 	})
 }
 
-// runMove carries a card to another state.
+// runMove carries a card to another column.
 func runMove(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request(verb.Move, parsed)
 	req.Card = at(words, 0)
-	if req.State == "" {
-		req.State = at(words, 1)
+	if req.Column == "" {
+		req.Column = at(words, 1)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Do(req))
@@ -302,7 +303,7 @@ func runComment(s *session, parsed *arguments) int {
 	})
 }
 
-// runAttach records a file against the bench, a state, a card or a comment.
+// runAttach records a file against the bench, a column, a card or a comment.
 func runAttach(s *session, parsed *arguments) int {
 	words := parsed.rest()
 	req := s.request("attach", parsed)
@@ -363,26 +364,26 @@ func runStatus(s *session, parsed *arguments) int {
 	})
 }
 
-// runStates reports the flow in order.
-func runStates(s *session, parsed *arguments) int {
+// runColumns reports the flow in order.
+func runColumns(s *session, parsed *arguments) int {
 	return s.withBench(func(l *verb.Library) int {
-		states, err := l.States()
+		columns, err := l.Columns()
 		if err != nil {
 			return s.reportError(err)
 		}
 		if s.json {
-			return s.emitJSON(states)
+			return s.emitJSON(columns)
 		}
-		s.renderStates(states)
+		s.renderColumns(columns)
 		return 0
 	})
 }
 
-// runList presents a state's cards in queue order.
+// runList presents a column's cards in queue order.
 func runList(s *session, parsed *arguments) int {
 	req := s.request("ls", parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		listing, err := l.List(req)
@@ -397,11 +398,11 @@ func runList(s *session, parsed *arguments) int {
 	})
 }
 
-// runNext reports the card each state offers next, and changes nothing.
+// runNext reports the card each column offers next, and changes nothing.
 func runNext(s *session, parsed *arguments) int {
 	req := s.request("next", parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		offers, err := l.Next(req)
@@ -418,12 +419,12 @@ func runNext(s *session, parsed *arguments) int {
 
 // runPull picks the destination, claims a card from its upstream, and moves
 // it there in one transaction. The named form names the destination; the bare
-// form chooses the one state that qualifies and refuses when more than one
+// form chooses the one column that qualifies and refuses when more than one
 // does. --no-claim weakens what pull writes, not what pull allows.
 func runPull(s *session, parsed *arguments) int {
 	req := s.request(verb.Pull, parsed)
-	if req.State == "" {
-		req.State = at(parsed.rest(), 0)
+	if req.Column == "" {
+		req.Column = at(parsed.rest(), 0)
 	}
 	expires, err := verb.ParseDuration(parsed.value("expires"))
 	if err != nil {
@@ -673,13 +674,13 @@ func runInit(s *session, parsed *arguments) int {
 // names the card reference on only the one shape that reads as one.
 //
 // The distinction is what keeps the spliced clause honest. ValidSlug is
-// ValidStateSlug and a final segment carrying a letter, so a slug the state
+// ValidColumnSlug and a final segment carrying a letter, so a slug the column
 // grammar accepts and this one refuses is exactly a slug ending in a dash and
 // digits alone. A slug refused for any other reason gets the bare sentence,
 // since the clause would otherwise tell a reader that "My Project" is a card
 // reference.
 func malformedSlug(slug string) error {
-	if bench.ValidStateSlug(slug) {
+	if bench.ValidColumnSlug(slug) {
 		return contract.RefuseWith(contract.Malformed, "slug", map[string]string{"cardRef": slug})
 	}
 	return contract.Refuse(contract.Malformed, "slug")
@@ -782,7 +783,7 @@ func onPath(name string) bool {
 
 // runConfig lists the user's own settings, or reads or writes one of them.
 //
-// The bare invocation lists, the way `states` and `whoami` report everything
+// The bare invocation lists, the way `columns` and `whoami` report everything
 // with no argument. The listing resolves each setting through its own ladder,
 // so it answers a question `get` cannot: a key nobody ever set and a key set
 // to the value the default carries read alike through the stored value alone.
@@ -849,7 +850,18 @@ func runConfig(s *session, parsed *arguments) int {
 }
 
 // runCheck checks the bench for structural defects.
+//
+// The vocabulary migration is answered before the workbench is opened, which
+// no other migration marker needs. Every one of its siblings repairs an
+// additive gap in a workbench this build can already read; this one repairs
+// the key names the reader itself is looking for, so the ordinary open would
+// refuse the very workbench the migration exists to carry forward. It also
+// walks a tree rather than acting on one bench, since the boards it was asked
+// for sit spread across directories nobody wants to visit one at a time.
 func runCheck(s *session, parsed *arguments) int {
+	if parsed.has("migrate-vocabulary") {
+		return runMigrateVocabulary(s, parsed.has("yes"))
+	}
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
@@ -1292,4 +1304,50 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 	}
 	s.renderWorkstreamLine(response.Workstream)
 	return 0
+}
+
+// runMigrateVocabulary carries every workbench at or beneath a root across the
+// vocabulary rename.
+//
+// The root is a directory rather than a workbench, and it is not resolved by
+// the ordinary discovery climb. Every other command asks which workbench it is
+// standing in and climbs until it finds one; this one asks which directory to
+// walk down from, and the two questions have different answers wherever a
+// person keeps several workbenches side by side. Climbing first would resolve
+// the root to one workbench and then walk beneath that, which finds none of
+// its siblings, and that is the case this command exists for: the boards it
+// was asked for sit spread across customer directories. So --workbench names
+// the root when it is given, and the current directory is the root when it is
+// not, and a root that is itself a workbench is found by the walk rather than
+// by the climb.
+//
+// That reach is also why the rewrite waits for --yes. The root is wherever the
+// operator happens to be standing, the walk descends the whole way, and the
+// rewrite it performs is irreversible, so a bare run reports what it would
+// carry forward and writes nothing. The flag is the one this command's
+// siblings already use for a deliberate act, so the preview costs no new
+// vocabulary.
+func runMigrateVocabulary(s *session, confirmed bool) int {
+	root := s.cwd
+	if s.benchFlag != "" {
+		root = s.benchFlag
+	}
+	resolved, err := filepath.Abs(root)
+	if err != nil {
+		return s.reportError(err)
+	}
+	report, err := verb.MigrateVocabularyTree(resolved, confirmed)
+	if err != nil {
+		return s.reportError(err)
+	}
+	code := 0
+	if !report.Clean() {
+		code = contract.ExitCode(contract.OutcomeRefused)
+	}
+	if s.json {
+		s.emitJSON(report)
+		return code
+	}
+	s.renderVocabulary(report)
+	return code
 }

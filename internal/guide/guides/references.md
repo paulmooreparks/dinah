@@ -1,7 +1,7 @@
 # References
 
 You name a thing to Dinah by writing a reference. A reference names this
-workbench, a state, a card, or something that hangs off a card, and you write
+workbench, a column, a card, or something that hangs off a card, and you write
 it as a path with slashes between its parts.
 
 ## This workbench
@@ -18,9 +18,9 @@ card's number:
 
     dinah show wb-1
 
-## A state
+## A column
 
-You write a state as its slug, its name, or its identifier:
+You write a column as its slug, its name, or its identifier:
 
     dinah attach doing notes.md
 
@@ -60,7 +60,7 @@ If the collection you name holds nothing, Dinah tells you that nothing answers t
 Nine commands take a reference, and between them they accept four different
 sets of things. This table says what each one accepts:
 
-| Command      | This workbench | A state | A card | Below a card |
+| Command      | This workbench | A column | A card | Below a card |
 |--------------|----------------|---------|--------|--------------|
 | path         | yes            | yes     | yes    | yes          |
 | edit         | yes            | yes     | yes    | yes          |
@@ -75,7 +75,7 @@ sets of things. This table says what each one accepts:
 Four of those rows carry a detail the table is too coarse to hold. `attach`
 takes a comment or an attachment below a card and takes nothing else below one,
 so `dinah attach wb-1/journal notes.md` is refused. `instructions` takes a card
-or a state and nothing else at all. `contents` takes a card by the card's own
+or a column and nothing else at all. `contents` takes a card by the card's own
 reference and never through what holds it, so `dinah contents wb/cards/1` is
 refused and `dinah contents wb-1` is what you write. `rename` takes an
 attachment below a card and nothing else below one, so `dinah rename

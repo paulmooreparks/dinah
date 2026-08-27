@@ -385,11 +385,11 @@ func Slugify(name string) string {
 }
 
 // ValidSlug reports whether a slug already conforms to the workbench slug
-// grammar: the state slug grammar, and a final segment carrying at least one
+// grammar: the column slug grammar, and a final segment carrying at least one
 // letter. The exclusion sits beside the round trip rather than inside the
-// pattern because ValidStateSlug is itself a round trip rather than a match.
+// pattern because ValidColumnSlug is itself a round trip rather than a match.
 func ValidSlug(slug string) bool {
-	return ValidStateSlug(slug) && !allDigits(finalSegment(slug))
+	return ValidColumnSlug(slug) && !allDigits(finalSegment(slug))
 }
 
 // finalSegment is what a card reference would read as a card number: whatever
@@ -416,24 +416,24 @@ func allDigits(text string) bool {
 	return true
 }
 
-// StateSlugPattern is the shape a state slug has to take: an ASCII letter
+// ColumnSlugPattern is the shape a column slug has to take: an ASCII letter
 // opens it, each dash separates two runs of ASCII letters and digits, and no
 // dash leads, trails or doubles.
 //
 // It is the workbench slug's pattern without that grammar's one exclusion. A
 // card reference splits at its last dash and takes what follows as the card's
 // number, so a workbench slug ending in a dash and digits alone would read as
-// a card reference. Nothing rides after a state slug, so a state may end in
+// a card reference. Nothing rides after a column slug, so a column may end in
 // `-2` and the two grammars stay two names rather than becoming one.
-const StateSlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+const ColumnSlugPattern = "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
 
-// SlugifyDashed derives a conforming state slug from a name that need not
+// SlugifyDashed derives a conforming column slug from a name that need not
 // conform. The name lowercases by ASCII rules, digits survive, each run of
 // characters outside [a-z0-9] becomes one dash, and no dash is left leading or
 // trailing. A leading run of digits goes with any dash behind it, since the
 // grammar wants a letter first.
 //
-// Slugify is this function plus one repair, so a workbench slug and a state
+// Slugify is this function plus one repair, so a workbench slug and a column
 // slug derive alike until the exclusion the workbench grammar carries applies.
 //
 // A name yielding nothing usable returns the empty string, and the caller
@@ -463,7 +463,7 @@ func SlugifyDashed(name string) string {
 	return string(kept)
 }
 
-// ValidStateSlug reports whether a slug already conforms to StateSlugPattern.
-func ValidStateSlug(slug string) bool {
+// ValidColumnSlug reports whether a slug already conforms to ColumnSlugPattern.
+func ValidColumnSlug(slug string) bool {
 	return slug != "" && SlugifyDashed(slug) == slug
 }

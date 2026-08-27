@@ -104,15 +104,15 @@ func TestChecksColumnNeverGluesInAnyLanguage(t *testing.T) {
 	}
 }
 
-// TestKindAndSubstateTokensNeverGlueInAnyLanguage sweeps the three state-kind
-// tokens and the three card-substate tokens against every shipped locale,
-// asserting none glues at the 10-rune width renderStates and renderListing
+// TestKindAndStateTokensNeverGlueInAnyLanguage sweeps the three column-kind
+// tokens and the three card-state tokens against every shipped locale,
+// asserting none glues at the 10-rune width renderColumns and renderListing
 // pad them to.
-func TestKindAndSubstateTokensNeverGlueInAnyLanguage(t *testing.T) {
+func TestKindAndStateTokensNeverGlueInAnyLanguage(t *testing.T) {
 	const width = 10
 	names := []string{
 		contract.KindIntake, contract.KindWork, contract.KindDone,
-		contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked,
+		contract.StateReady, contract.StateActive, contract.StateBlocked,
 	}
 	for _, name := range names {
 		key := "token." + name
@@ -207,7 +207,7 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	}
 	want := 2 + order + 2 + check + 2
 	names := []string{
-		contract.Malformed, contract.UnknownState, contract.AtCapacity,
+		contract.Malformed, contract.UnknownColumn, contract.AtCapacity,
 		contract.NoLevels, contract.UnknownLevel,
 	}
 	found := 0
@@ -433,7 +433,7 @@ func TestANarrowWindowClampsEveryContinuationLine(t *testing.T) {
 		indent:  2,
 		columns: headed("Command", "What it does"),
 		rows: rowsOf(
-			[]string{"add <title> [--state]", "file a card"},
+			[]string{"add <title> [--column]", "file a card"},
 			[]string{strings.Repeat("x", 60), "does a thing"},
 		),
 	})

@@ -141,7 +141,7 @@ func TestFormatRowKeepsEveryContinuationWithinTheWindow(t *testing.T) {
 // that fails if somebody later adds truncation for tidiness.
 func TestFormatRowTruncatesNothing(t *testing.T) {
 	values := []string{
-		`C:\dinah-scratch\a-long-path\.dinah\ac2ee28fb26d\states\doing\state.md`,
+		`C:\dinah-scratch\a-long-path\.dinah\ac2ee28fb26d\columns\doing\column.md`,
 		"aconsiderablylongworkbenchnamefortestingcolumnoverrunbehavior",
 		"作業台管理という長い題名",
 	}

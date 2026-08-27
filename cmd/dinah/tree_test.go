@@ -66,7 +66,7 @@ func TestAFilteredHeaderNamesBothNumbers(t *testing.T) {
 	carryToDoing(t, root, "fx-1")
 	runCLI(t, root, "claim", "fx-1")
 
-	got := runCLI(t, root, "tree", "substate:ready")
+	got := runCLI(t, root, "tree", "state:ready")
 	if got.code != 0 {
 		t.Fatalf("tree: exit %d\n%s", got.code, got.errw)
 	}
@@ -193,8 +193,8 @@ func TestThreeNamesCoverTheFourBadChains(t *testing.T) {
 	}{
 		{chain: "priority", refusal: "dinah.unknown-axis", lists: true},
 		{chain: "at", refusal: "dinah.unknown-axis", lists: true},
-		{chain: "state,state", refusal: "dinah.repeated-axis"},
-		{chain: "state,substate,holder,actor,event", refusal: "dinah.chain-too-long"},
+		{chain: "column,column", refusal: "dinah.repeated-axis"},
+		{chain: "column,state,holder,actor,event", refusal: "dinah.chain-too-long"},
 	}
 	for _, c := range cases {
 		got := runCLI(t, root, "tree", "--group-by", c.chain)
@@ -349,7 +349,7 @@ func TestANodeHoldingBackBothKindsJoinsTheTwoSentences(t *testing.T) {
 	}
 	runCLI(t, root, "claim", "fx-1")
 
-	got := runCLI(t, root, "tree", "substate:ready", "--group-by", "state", "--depth", "groups")
+	got := runCLI(t, root, "tree", "state:ready", "--group-by", "column", "--depth", "groups")
 	if got.code != 0 {
 		t.Fatalf("tree: exit %d\n%s", got.code, got.errw)
 	}
