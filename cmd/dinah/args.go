@@ -189,10 +189,9 @@ type arguments struct {
 // onUnknown is called once for each "--name" word the walk cannot place. It
 // receives the whole argv word, any inline "=value" included, which is the
 // word contract.RefuseWith names today. Its return says whether the walk
-// stops there. parseArgs
-// stops, since an unrecognized flag is refused before anything past it is
-// read. scanLangFlag does not, since reading past the word that fails to
-// parse is the reason it exists. A word onUnknown lets pass is left as one
+// stops there. parseArgs stops, since an unrecognized flag is refused before
+// anything past it is read. scanLangFlag does not, since reading past the
+// word that fails to parse is the reason it exists. A word onUnknown lets pass is left as one
 // consumed word: the walk was never told this name takes a value, so it has
 // no ground to claim the next word as that value either, and the next word
 // is read on its own terms by the following iteration.
@@ -261,7 +260,7 @@ func walkFlags(
 // A refusal comes back with whatever the scan had taken apart so far rather
 // than with a nil pointer, so the caller still has the session flags the
 // reader wrote ahead of the offending word instead of working from nothing.
-// The display language is no longer one of them. run resolves it through
+// The display language is no longer read from them. run resolves it through
 // scanLangFlag, which walks the whole argument list, so a --lang written
 // after the offending word is honoured too (dinah-97). scanLangFlag shares
 // walkFlags with this function rather than reading argv on its own terms, so

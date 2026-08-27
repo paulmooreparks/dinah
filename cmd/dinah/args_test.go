@@ -234,10 +234,14 @@ func TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse(t *testing.T) {
 // visit callback every other flag reaches. They used to arrive at a branch of
 // their own that carried no capture code, so their exclusion was structural
 // and no edit to a table could have undone it. sessionFlagNames is what
-// excludes them now, and a table is a thing an edit can change.
+// excludes them now, and a table is a thing an edit can change. So the roster
+// below and that table are held to the same membership in both directions
+// (dinah-97 AC-10), and a flag added to either one alone reddens this test
+// naming the flag.
 func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 	valued := testValued()
-	for _, name := range []string{"workbench", "json", "quiet", "lang", "actor", "help", "version"} {
+	roster := []string{"workbench", "json", "quiet", "lang", "actor", "help", "version"}
+	for _, name := range roster {
 		t.Run(name, func(t *testing.T) {
 			if !sessionFlagNames[name] {
 				t.Fatalf("%s is no longer a session flag, so this case is asserting nothing", name)
@@ -257,6 +261,25 @@ func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 				t.Errorf("--%s was recorded as a domain capture (%d of them), which puts it within reach of resolveOpenTailFlags", name, len(parsed.domainCaptures))
 			}
 		})
+	}
+	// The loop above reads the roster and asks sessionFlagNames about each
+	// name, so it fires when a name leaves the map. Nothing in it fires when a
+	// name joins, and a session flag with no case above is one this guard says
+	// nothing about, which is how the guard would go quiet on the day another
+	// card adds a flag to the map and leaves the roster alone. So the roster is
+	// asked about every key of the map as well, and the two directions between
+	// them hold the roster and the map to the same membership.
+	for name := range sessionFlagNames {
+		covered := false
+		for _, cased := range roster {
+			if cased == name {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			t.Errorf("%s is a session flag with no case in this guard's roster, so nothing above holds it out of domainCaptures", name)
+		}
 	}
 	// A domain flag does still produce a capture, so the cases above are
 	// reading a list that fills rather than one nothing ever reaches. Were
