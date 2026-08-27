@@ -256,6 +256,16 @@ const (
 	// has nobody to name. A card stands at such a column until a pull carries
 	// it into the station beyond, and the sentence says so.
 	TakesNoWork = LayerPrefix + "takes-no-work"
+	// UnknownFormat is a --format or DINAH_FORMAT value naming no output
+	// form this tool writes. The closed set the value fell outside of is the
+	// two machine forms, json and compact, and the absence that selects the
+	// rendering a person reads. It is a name of its own rather than
+	// UnknownValue, whose own comment scopes that name to a query, where an
+	// empty result and a mistyped field value have to be told apart. No
+	// result set stands behind a format name, so a caller who mistyped one
+	// is told so instead of being handed prose where they asked for
+	// structure.
+	UnknownFormat = LayerPrefix + "unknown-format"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -269,7 +279,7 @@ var Introduced = []string{
 	UnknownDepth, UnknownWorkstream, Referenced,
 	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
-	NoLevels, UnknownLevel,
+	NoLevels, UnknownLevel, UnknownFormat,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

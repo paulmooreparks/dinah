@@ -356,8 +356,8 @@ func runStatus(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(status)
+		if s.format != formatHuman {
+			return s.emitMachine(status)
 		}
 		s.renderStatus(status)
 		return 0
@@ -371,8 +371,8 @@ func runColumns(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(columns)
+		if s.format != formatHuman {
+			return s.emitMachine(columns)
 		}
 		s.renderColumns(columns)
 		return 0
@@ -390,8 +390,8 @@ func runList(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(listing)
+		if s.format != formatHuman {
+			return s.emitMachine(listing)
 		}
 		s.renderListing(listing)
 		return 0
@@ -409,8 +409,8 @@ func runNext(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(offers)
+		if s.format != formatHuman {
+			return s.emitMachine(offers)
 		}
 		s.renderOffers(offers)
 		return 0
@@ -453,8 +453,8 @@ func runQuery(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(matches)
+		if s.format != formatHuman {
+			return s.emitMachine(matches)
 		}
 		s.renderMatches(matches)
 		return 0
@@ -480,8 +480,8 @@ func runTree(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(tree)
+		if s.format != formatHuman {
+			return s.emitMachine(tree)
 		}
 		s.renderTree(tree)
 		return 0
@@ -498,8 +498,8 @@ func runContents(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(tree)
+		if s.format != formatHuman {
+			return s.emitMachine(tree)
 		}
 		s.renderTree(tree)
 		return 0
@@ -540,8 +540,8 @@ func runShow(s *session, parsed *arguments) int {
 			s.write(text)
 			return 0
 		}
-		if s.json {
-			return s.emitJSON(detail)
+		if s.format != formatHuman {
+			return s.emitMachine(detail)
 		}
 		s.renderDetail(detail)
 		return 0
@@ -557,8 +557,8 @@ func runLog(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(events)
+		if s.format != formatHuman {
+			return s.emitMachine(events)
 		}
 		s.renderHistory(events)
 		return 0
@@ -578,8 +578,8 @@ func runChanges(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(set)
+		if s.format != formatHuman {
+			return s.emitMachine(set)
 		}
 		s.renderChanges(set)
 		return 0
@@ -595,8 +595,8 @@ func runInstructions(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(served)
+		if s.format != formatHuman {
+			return s.emitMachine(served)
 		}
 		s.renderInstructions(&served.Instructions, served.LegalMoves)
 		return 0
@@ -814,8 +814,8 @@ func runConfig(s *session, parsed *arguments) int {
 			Home:          s.home,
 			NativeHome:    s.nativeHome,
 		})
-		if s.json {
-			return s.emitJSON(settings)
+		if s.format != formatHuman {
+			return s.emitMachine(settings)
 		}
 		s.renderSettings(settings)
 		return 0
@@ -868,12 +868,12 @@ func runCheck(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
+		if s.format != formatHuman {
 			code := 0
 			if len(report.Findings) > 0 {
 				code = contract.ExitCode(contract.OutcomeRefused)
 			}
-			s.emitJSON(report)
+			s.emitMachine(report)
 			return code
 		}
 		return s.renderCheck(report)
@@ -888,8 +888,8 @@ func runWhoami(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		if s.json {
-			return s.emitJSON(identity)
+		if s.format != formatHuman {
+			return s.emitMachine(identity)
 		}
 		s.renderIdentity(identity)
 		return 0
@@ -965,8 +965,8 @@ func (s *session) emitWorkbenchFields(l *verb.Library, req *verb.Request) int {
 	if err != nil {
 		return s.reportError(err)
 	}
-	if s.json {
-		return s.emitJSON(fields)
+	if s.format != formatHuman {
+		return s.emitMachine(fields)
 	}
 	s.renderWorkbenchFields(fields)
 	return 0
@@ -1000,8 +1000,8 @@ func (s *session) ambiguousWorkbenches() ([]bench.Candidate, bool) {
 
 // emitWorkbenches writes a listing in whichever form the invocation asked for.
 func (s *session) emitWorkbenches(rows []bench.Candidate) int {
-	if s.json {
-		return s.emitJSON(rows)
+	if s.format != formatHuman {
+		return s.emitMachine(rows)
 	}
 	s.renderWorkbenches(rows)
 	return 0
@@ -1010,8 +1010,8 @@ func (s *session) emitWorkbenches(rows []bench.Candidate) int {
 // runVersion reports what this binary is and what it conforms to.
 func runVersion(s *session, parsed *arguments) int {
 	release := verb.Version(parsed.has("catalogs"))
-	if s.json {
-		return s.emitJSON(release)
+	if s.format != formatHuman {
+		return s.emitMachine(release)
 	}
 	s.renderVersion(release)
 	return 0
@@ -1212,8 +1212,8 @@ func runWorkstream(s *session, parsed *arguments) int {
 			if err != nil {
 				return s.reportError(err)
 			}
-			if s.json {
-				return s.emitJSON(listing)
+			if s.format != formatHuman {
+				return s.emitMachine(listing)
 			}
 			s.renderWorkstreams(listing)
 			return 0
@@ -1259,8 +1259,8 @@ func (s *session) runWorkstreamGet(parsed *arguments, words []string) int {
 			s.line(detail.Workstream.Field(field))
 			return 0
 		}
-		if s.json {
-			return s.emitJSON(detail)
+		if s.format != formatHuman {
+			return s.emitMachine(detail)
 		}
 		s.renderWorkstreamDetail(detail)
 		return 0
@@ -1294,13 +1294,13 @@ func (s *session) runWorkstreamSet(parsed *arguments, words []string) int {
 func (s *session) emitWorkstream(response *verb.Response) int {
 	if response.Outcome != contract.OutcomeOK {
 		s.reportOutcome(response)
-		if s.json {
-			s.emitJSON(response)
+		if s.format != formatHuman {
+			s.emitMachine(response)
 		}
 		return contract.ExitCode(response.Outcome)
 	}
-	if s.json {
-		return s.emitJSON(response)
+	if s.format != formatHuman {
+		return s.emitMachine(response)
 	}
 	s.renderWorkstreamLine(response.Workstream)
 	return 0
@@ -1344,8 +1344,8 @@ func runMigrateVocabulary(s *session, confirmed bool) int {
 	if !report.Clean() {
 		code = contract.ExitCode(contract.OutcomeRefused)
 	}
-	if s.json {
-		s.emitJSON(report)
+	if s.format != formatHuman {
+		s.emitMachine(report)
 		return code
 	}
 	s.renderVocabulary(report)

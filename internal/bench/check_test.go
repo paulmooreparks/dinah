@@ -33,8 +33,16 @@ func TestMain(m *testing.M) {
 // from the environment and that no test here asked to see. dinah-229.
 //
 // It is a twin of cmd/dinah's list rather than a reference to it, since that
-// package is package main and nothing can import it. The two are kept in step
-// by each package asserting its own copy against the same written-out seven.
+// package is package main and nothing can import it. Each package asserts its
+// own copy against its own written-out names, and the two lists agree on the
+// seven below rather than being one list in two places.
+//
+// They stopped being identical at dinah-31, which added DINAH_FORMAT to the
+// cmd/dinah list alone. Nothing this package resolves reads that variable, and
+// carrying a name here that no resolver here reads would say this package
+// needs an isolation it does not. The rule the two lists share is that a list
+// names what its own package reads, so divergence is what the rule produces
+// once one package reads something the other does not.
 //
 // ResolveEditorSource reads DINAH_EDITOR, VISUAL and EDITOR; osLocale reads
 // LC_ALL, LC_MESSAGES and LANG. COLUMNS is carried so both lists read the
@@ -55,9 +63,9 @@ var isolatedEnv = []string{
 // the same name in cmd/dinah, over this package's own list. dinah-229.
 //
 // Two copies rather than one shared list, because cmd/dinah is package main
-// and no package can import it. What keeps them in step is that each asserts
-// its own copy against the same seven names written out by hand, so a name
-// added to one list and not the other shows up here.
+// and no package can import it. Each asserts its own copy against names
+// written out by hand here, so a name dropped from this package's list shows
+// up here whatever the other package carries.
 //
 // The first half fails anywhere. The second half only fails on a machine that
 // exports the name, which is the developer's and no CI leg; see the cmd/dinah
