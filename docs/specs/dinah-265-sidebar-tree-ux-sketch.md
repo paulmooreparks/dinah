@@ -80,20 +80,31 @@ A second fixture, a column called "Customer approval" carrying
 
 ```
 > [ ] Customer approval — 2, waiting
-  > [ ] Ready — 2
-        [$(circle-outline)] Confirm the pricing page
-            cp-7 · Customer approval · ready
-        [$(circle-outline)] Confirm the launch date
-            cp-8 · Customer approval · ready
+      [$(circle-outline)] Confirm the pricing page
+          cp-7 · Customer approval · ready
+      [$(circle-outline)] Confirm the launch date
+          cp-8 · Customer approval · ready
 ```
 
+No `Ready` group heading sits above the two cards. Revised per the
+operator's own correction (OQ-4, 2026-08-27): "There isn't a Ready state in
+such a column, because work is not claimed in that column. It's a variation
+on a pull-queue column." `awaiting_outside: true` makes the column's own
+`TakesWorkUp` false, the same as an intake, done, or buffer column, and per
+OQ-2's three-tier rule a column that takes no work up draws no
+ready-versus-active breakdown at all, so the cards render directly beneath
+the column row instead, exactly as an occupied intake or buffer column does
+once dinah-322 lands (this card's own gate). The earlier drawing of this
+section, a `Ready — 2` group between the column row and the two cards, is
+withdrawn.
+
 The description reads `waiting` in place of `taken`, sourced from the same
-`columns.work.waiting` word the CLI prints. Right-clicking `cp-7` opens Move
-and Block. There is no Claim item at all, not a greyed-out one, an absent
-one, which is what section 5's context-menu table means by "the column
-row is where the explanation lives, not a disabled item on the card." A
-reader who right-clicks a card under a `waiting` column and finds Move and
-Block alone has already been told why on the row one level up.
+`columns.work.waiting` word the CLI prints. Right-clicking `cp-7` still opens
+Move and Block only; there is no Claim item at all, not a greyed-out one, an
+absent one, which is what section 5's context-menu table means by "the
+column row is where the explanation lives, not a disabled item on the
+card." A reader who right-clicks a card under a `waiting` column and finds
+Move and Block alone has already been told why on the row one level up.
 
 ## 5. The context menu, by contextValue
 
