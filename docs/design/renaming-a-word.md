@@ -76,20 +76,27 @@ caught afterwards costs a card.
 ## Reading the report
 
 The report opens with its own size, so the reading it is asking for is
-known before it begins. Each line after that is one group: how many
-replacements it holds, the word standing in front of them, and one site
-with an excerpt.
+known before it begins. Every line after that is one group, and the group
+opens with the phrase it stands for:
+
+```
+pending column   4 sites   docs/design/format.md:702  leaving the pending state carries at least one
+```
+
+The phrase comes first so that the eye runs down the left edge of the
+report and reads phrases. What follows it is the number of sites in the
+group and one of them, with an excerpt of its line.
 
 Groups come rarest first. A legitimate replacement follows the same
 handful of determiners hundreds of times, while a wrong sense follows a
 word that appears once or twice, so the top of the report is where the
 attention is worth spending.
 
-Read every group's word and ask one question of it: does the phrase
-"<that word> <the adopted word>" mean the thing the rename was about? A
-group reading "the", "each" or "another" answers itself. A group reading
-"pending", "crash", "recordless" or "loops" does not, and those are the
-ones to open.
+Read every phrase and ask one question of it: does this mean the thing
+the rename was about? A group reading "the column", "each column" or
+"another column" answers itself. A group reading "pending column",
+"recordless column" or "loops column" does not, and those are the ones to
+open.
 
 A group whose phrase is genuinely ambiguous in English cannot be settled
 from its label, and "live column" is the example that matters, since it
@@ -100,13 +107,14 @@ Settle one of those by reading its sites rather than its example:
 go run ./internal/rename/renamesweep --old state --new column --range main..HEAD --all
 ```
 
-Two more things the report can say deserve attention. A group labelled
-"(identifier)" holds replacements that are parts of a longer name rather
-than words of their own, which is why `CrashStates` is judged against
-"Crash" and not against the comment marker that opens its line. A line
-beginning "unaligned" names a run of changed text the sweep declined to
-read, and each of those is opened by hand, because a run the instrument
-skipped is exactly where a defect would survive it.
+Two more things the report can say deserve attention. A group whose
+phrase is closed up and marked "(identifier)", as `crashColumns` is,
+holds replacements that are parts of a longer name rather than words of
+their own, which is why `CrashStates` is judged against "Crash" and not
+against the comment marker that opens its line. A line beginning
+"unaligned run" names a run of changed text the sweep declined to read,
+and each of those is opened by hand, because a run the instrument skipped
+is exactly where a defect would survive it.
 
 ## What the pass does not do
 

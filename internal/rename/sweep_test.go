@@ -311,19 +311,19 @@ func TestAWholesaleRenameTakesTheFastPath(t *testing.T) {
 // distribution is where a reader's attention belongs.
 func TestBucketsPutTheRarestFirst(t *testing.T) {
 	reps := []Replacement{
-		{Preceding: "the"},
-		{Preceding: "the"},
-		{Preceding: "the"},
-		{Preceding: "pending"},
-		{Preceding: "a"},
-		{Preceding: "a"},
+		{Preceding: "the", New: "column"},
+		{Preceding: "the", New: "column"},
+		{Preceding: "the", New: "column"},
+		{Preceding: "pending", New: "column"},
+		{Preceding: "a", New: "column"},
+		{Preceding: "a", New: "column"},
 	}
 	buckets := Buckets(reps)
 	var order []string
 	for _, bucket := range buckets {
 		order = append(order, bucket.Label())
 	}
-	want := "pending|a|the"
+	want := "pending column|a column|the column"
 	if strings.Join(order, "|") != want {
 		t.Errorf("wanted %q, got %q", want, strings.Join(order, "|"))
 	}
@@ -335,18 +335,18 @@ func TestBucketsPutTheRarestFirst(t *testing.T) {
 // both shows the reader whichever happens to sort first.
 func TestABucketSeparatesAnIdentifierFromAWord(t *testing.T) {
 	reps := []Replacement{
-		{Preceding: "live", Glued: true},
-		{Preceding: "live", Glued: true},
-		{Preceding: "live"},
+		{Preceding: "live", New: "Columns", Glued: true},
+		{Preceding: "live", New: "Columns", Glued: true},
+		{Preceding: "live", New: "column"},
 	}
 	buckets := Buckets(reps)
 	if len(buckets) != 2 {
 		t.Fatalf("wanted two buckets, got %d: %+v", len(buckets), buckets)
 	}
-	if buckets[0].Label() != "live" || len(buckets[0].Sites) != 1 {
+	if buckets[0].Label() != "live column" || len(buckets[0].Sites) != 1 {
 		t.Errorf("wanted the lone word first, got %q with %d sites", buckets[0].Label(), len(buckets[0].Sites))
 	}
-	if buckets[1].Label() != "live (identifier)" {
+	if buckets[1].Label() != "liveColumns (identifier)" {
 		t.Errorf("wanted the identifier bucket marked, got %q", buckets[1].Label())
 	}
 }
@@ -357,9 +357,9 @@ func TestABucketSeparatesAnIdentifierFromAWord(t *testing.T) {
 func TestReportNamesItsOwnSize(t *testing.T) {
 	result := Result{
 		Replacements: []Replacement{
-			{File: "a.go", Line: 3, Preceding: "pending", Excerpt: "the pending column"},
-			{File: "b.go", Line: 4, Preceding: "the", Excerpt: "the column"},
-			{File: "c.go", Line: 5, Preceding: "the", Excerpt: "the column again"},
+			{File: "a.go", Line: 3, Preceding: "pending", New: "column", Excerpt: "the pending column"},
+			{File: "b.go", Line: 4, Preceding: "the", New: "column", Excerpt: "the column"},
+			{File: "c.go", Line: 5, Preceding: "the", New: "column", Excerpt: "the column again"},
 		},
 		Unaligned: []Unaligned{{File: "d.json", Line: 9, Reason: "past the alignment cap"}},
 	}
@@ -368,13 +368,21 @@ func TestReportNamesItsOwnSize(t *testing.T) {
 		t.Fatalf("Report: %v", err)
 	}
 	got := out.String()
-	if !strings.HasPrefix(got, "3 replacements of \"state\" by \"column\", in 2 buckets") {
+	if !strings.HasPrefix(got, "3 replacements of \"state\" by \"column\", in 2 groups") {
 		t.Errorf("wanted the header to carry both counts, got %q", firstLine(got))
 	}
-	if !strings.Contains(got, "a.go:3") {
-		t.Errorf("wanted the rare bucket's site, got:\n%s", got)
+	// The phrase opens the line and no field is padded to a width. Both
+	// halves matter: the phrase is what a reader scans down the left edge,
+	// and a padded field counts characters where a terminal counts columns,
+	// which drifts on the Devanagari excerpts this sweep's own catalogs
+	// produce.
+	if !strings.Contains(got, "\npending column   1 site   a.go:3  the pending column\n") {
+		t.Errorf("wanted the rarest group's line phrase-first and unpadded, got:\n%s", got)
 	}
-	if !strings.Contains(got, "unaligned  d.json:9  past the alignment cap") {
+	if !strings.Contains(got, "\nthe column   2 sites   b.go:4  the column\n") {
+		t.Errorf("wanted the common group counted in the plural, got:\n%s", got)
+	}
+	if !strings.Contains(got, "unaligned run   d.json:9   past the alignment cap") {
 		t.Errorf("wanted the unaligned run reported, got:\n%s", got)
 	}
 	if strings.Contains(got, "c.go:5") {
@@ -388,8 +396,8 @@ func TestReportNamesItsOwnSize(t *testing.T) {
 func TestReportListsEverySiteWhenAsked(t *testing.T) {
 	result := Result{
 		Replacements: []Replacement{
-			{File: "b.go", Line: 4, Preceding: "live", Excerpt: "no live columns"},
-			{File: "c.go", Line: 5, Preceding: "live", Excerpt: "live column a caller would act on"},
+			{File: "b.go", Line: 4, Preceding: "live", New: "column", Excerpt: "no live columns"},
+			{File: "c.go", Line: 5, Preceding: "live", New: "column", Excerpt: "live column a caller would act on"},
 		},
 	}
 	var out strings.Builder

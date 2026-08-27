@@ -19,9 +19,9 @@
 // behind a determiner, so nearly every legitimate replacement follows "the",
 // "a", "each" or a possessive. The other sense keeps different company:
 // "pending state" became "pending column", and "the two unresolvable crash
-// states" became "CrashColumns". Grouping by that preceding word turns three
-// thousand replacements into fewer than a hundred lines a person reads in a
-// minute, and the wrong senses stand out because their company is wrong.
+// states" became "CrashColumns". Grouping by that preceding word turned the
+// 6397 replacements of Dinah's own rename into 492 phrases, and every one of
+// the twenty defects was in them.
 //
 // The identifier case is why [tokenize] splits a word at its internal case
 // boundaries. When the replaced word sits inside CamelCase, the token in front
@@ -178,18 +178,30 @@ func Buckets(reps []Replacement) []Bucket {
 	return buckets
 }
 
-// Label renders a bucket's key the way a reader judges it: the preceding word,
-// marked when the replacements under it are parts of an identifier rather than
-// words of their own.
+// Label renders a bucket as the phrase a reader judges, which is the preceding
+// word followed by the adopted word as this bucket's own sites spell it. A
+// bucket whose replacements are parts of an identifier spells the phrase
+// closed up and says so, since "crashColumns" and "crash column" ask different
+// questions and only one of them is about English.
+//
+// The phrase opens the report line rather than sitting in a padded field,
+// because scanning a report means running an eye down its left edge, and a
+// field padded to a width counts characters where a terminal counts columns.
+// This report carries excerpts in every script the catalogs are written in, so
+// a width here would drift on the first Devanagari site it met.
 func (b Bucket) Label() string {
 	preceding := b.Preceding
 	if preceding == "" {
 		preceding = "(nothing before it)"
 	}
-	if b.Glued {
-		return preceding + " (identifier)"
+	if len(b.Sites) == 0 || b.Sites[0].New == "" {
+		return preceding
 	}
-	return preceding
+	adopted := b.Sites[0].New
+	if b.Glued {
+		return preceding + adopted + " (identifier)"
+	}
+	return preceding + " " + adopted
 }
 
 // Report writes the sweep's findings to w: a header carrying the size of what
@@ -199,7 +211,7 @@ func (b Bucket) Label() string {
 func Report(w io.Writer, result Result, retired, adopted string, all bool) error {
 	buckets := Buckets(result.Replacements)
 	header := fmt.Sprintf(
-		"%d replacements of %q by %q, in %d buckets by preceding word, rarest first\n",
+		"%d replacements of %q by %q, in %d groups by preceding word, rarest first\n",
 		len(result.Replacements),
 		retired,
 		adopted,
@@ -210,9 +222,9 @@ func Report(w io.Writer, result Result, retired, adopted string, all bool) error
 	}
 	for _, bucket := range buckets {
 		line := fmt.Sprintf(
-			"%6d  %-24s %s\n",
-			len(bucket.Sites),
+			"%s   %s   %s\n",
 			bucket.Label(),
+			sites(len(bucket.Sites)),
 			siteLine(bucket.Sites[0]),
 		)
 		if _, err := io.WriteString(w, line); err != nil {
@@ -222,18 +234,27 @@ func Report(w io.Writer, result Result, retired, adopted string, all bool) error
 			continue
 		}
 		for _, site := range bucket.Sites[1:] {
-			if _, err := fmt.Fprintf(w, "%6s  %-24s %s\n", "", "", siteLine(site)); err != nil {
+			if _, err := fmt.Fprintf(w, "    %s\n", siteLine(site)); err != nil {
 				return err
 			}
 		}
 	}
 	for _, run := range result.Unaligned {
-		refused := fmt.Sprintf("unaligned  %s:%d  %s\n", run.File, run.Line, run.Reason)
+		refused := fmt.Sprintf("unaligned run   %s:%d   %s\n", run.File, run.Line, run.Reason)
 		if _, err := io.WriteString(w, refused); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// sites counts a group's sites in words, so that a group holding one of them
+// does not report itself in the plural.
+func sites(n int) string {
+	if n == 1 {
+		return "1 site"
+	}
+	return fmt.Sprintf("%d sites", n)
 }
 
 // siteLine renders one replacement as a location and an excerpt.
