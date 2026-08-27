@@ -7,8 +7,8 @@ import (
 
 // The root-scoped renderers draw what a read answered for every workbench
 // beneath one directory. Each is the same two moves: a heading naming the
-// workbench, then that workbench's own single-workbench rendering, indented,
-// or nothing further when the row carries a refusal in place of an answer.
+// workbench, then that workbench's own single-workbench rendering, or nothing
+// further when the row carries a refusal in place of an answer.
 //
 // The inner rendering is the existing single-workbench renderer, called
 // unchanged. That is the point of the wrapping design rather than an economy:
