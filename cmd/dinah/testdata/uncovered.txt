@@ -23,13 +23,13 @@ render.go:59.3,59.102  the same, writing the stale sentence.
 render.go:60.10,61.108  the unreachable outcome, which is by construction the outcome no invocation produces.
 render.go:70.16,73.3  the branch where the machine form will not marshal, which needs a value the library cannot build.
 render.go:143.19,145.3  a token the catalog carries no rendering for, and every token the head prints has one.
-render.go:255.29,258.3  the sentence a listing prints when the column holds no card. Reachable and unreached: worth a test.
-render.go:485.23,488.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
-render.go:716.23,718.4  the columns listing asked for before a workbench is open, which unknown-column cannot be raised before.
-render.go:759.18,761.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
-render.go:812.23,814.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
-render.go:840.2,840.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
-render.go:966.23,968.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
-render.go:998.22,1000.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
+render.go:273.29,276.3  the sentence a listing prints when the column holds no card. Reachable and unreached: worth a test.
+render.go:503.23,506.3  a card carrying a body, printed under its own line by show. Reachable and unreached: worth a test.
+render.go:734.23,736.4  the columns listing asked for before a workbench is open, which unknown-column cannot be raised before.
+render.go:777.18,779.3  the composer's fallback for a refusal name no shape declares, which the source-side guard fails a build over, so no invocation reaches it.
+render.go:830.23,832.3  a composition splicing no fragment at all, which needs a shape offering no next step, and every shape offers one.
+render.go:858.2,858.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
+render.go:984.23,986.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
+render.go:1016.22,1018.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
 help.go:261.9,263.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
 table.go:249.30,251.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.

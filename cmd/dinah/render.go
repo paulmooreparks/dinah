@@ -180,11 +180,7 @@ func (s *session) renderInstructions(instructions *verb.Instructions, moves []ve
 
 // renderStatus prints where the bench stands.
 func (s *session) renderStatus(status *verb.Status) {
-	s.line(s.r.T("status.workbench",
-		"title", status.Bench,
-		"root", status.Root,
-		"source", s.token(status.WorkbenchSource),
-	))
+	s.line(s.workbenchLine(status))
 	s.line(s.r.T("status.actor", "actor", status.Actor, "operator", s.yesNo(status.IsOperator)))
 	s.line("")
 	s.renderColumns(status.Columns)
@@ -206,6 +202,28 @@ func (s *session) renderStatus(status *verb.Status) {
 		}
 		s.table(blocked)
 	}
+}
+
+// workbenchLine is the first line of a status: the workbench, where it was
+// discovered, and the rung that resolved it.
+//
+// A root-scoped read resolves no single workbench by any rung, since the walk
+// found every one of them, so its answer carries no source and this line leaves
+// the bracket off rather than drawing an empty one. The two forms are separate
+// catalog entries rather than one entry with a blank in it, because a bracket
+// with nothing inside reads as a value that failed to render.
+func (s *session) workbenchLine(status *verb.Status) string {
+	if status.WorkbenchSource == "" {
+		return s.r.T("status.workbench.unsourced",
+			"title", status.Bench,
+			"root", status.Root,
+		)
+	}
+	return s.r.T("status.workbench",
+		"title", status.Bench,
+		"root", status.Root,
+		"source", s.token(status.WorkbenchSource),
+	)
 }
 
 // yesNo renders a boolean for a person.

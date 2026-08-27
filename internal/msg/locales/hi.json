@@ -3317,9 +3317,9 @@
       "source": "75dd1376b00ccc4d"
     },
     "root.workbench": {
-      "text": "{title}  ({slug})  {path}",
-      "context": "The heading printed above one workbench's own answer under a root-scoped read, which is dinah tree, status, ls, next or changes given --root. It names the workbench the lines below it belong to. {title} is the workbench's title, {slug} is its slug or the missing-slug repair, and {path} is its directory. Its columns are the ones dinah workbenches already prints, in that order, so the two listings read alike.",
-      "source": "fbe0a5367374dd9a",
+      "text": "{title} ({slug}) {path}",
+      "context": "The heading printed above one workbench's own answer under a root-scoped read, which is dinah tree, status, ls, next or changes given --root. It names the workbench the lines below it belong to. {title} is the workbench's title, {slug} is its slug or the missing-slug repair, and {path} is its directory. The three are separated by single spaces because this is a label line rather than a table row: two of these printed one after another would otherwise read as a two-row table whose columns do not line up, which is a rendering defect the head's own output check catches.",
+      "source": "db97f624ade0722e",
       "verbatim": true
     },
     "root.workbench.refused": {
@@ -3352,6 +3352,12 @@
       "text": "इस डायरेक्टरी के नीचे की हर वर्कबेंच सूचीबद्ध करें; कोई न नामें तो इसके बजाय यहाँ से पहुँच योग्य वर्कबेंच सूचीबद्ध होती हैं",
       "context": "The meaning of the path argument of `dinah workbenches`, printed in that command's arguments table. It names the two directions the command answers in: downward from a directory you name, and the upward search it runs when you name none.",
       "source": "9317b074ba10abb2"
+    },
+    "status.workbench.unsourced": {
+      "text": "{title}  ({root})",
+      "context": "The first line of status under a root-scoped read: the workbench and where it was discovered, with no rung named. It stands in for status.workbench, which also names the rung that resolved the workbench, because a root-scoped read resolves no single workbench by any rung and an empty bracket reads as a value that failed to render.",
+      "source": "b0ce7a703cdbb8ec",
+      "verbatim": true
     }
   }
 }

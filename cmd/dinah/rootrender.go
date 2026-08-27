@@ -159,7 +159,10 @@ func (s *session) renderRootChanges(answer *verb.RootChangeSet) {
 		s.line(s.r.T("changes.cursor", "cursor", answer.Cursor))
 		return
 	}
-	for _, member := range answer.Workbenches {
+	for i, member := range answer.Workbenches {
+		if i > 0 {
+			s.line("")
+		}
 		if s.rootHeading(member.Candidate) {
 			continue
 		}
@@ -168,5 +171,6 @@ func (s *session) renderRootChanges(answer *verb.RootChangeSet) {
 		}
 		s.indented(func(nested *session) { nested.renderChangesBody(member.Changes) })
 	}
+	s.line("")
 	s.line(s.r.T("changes.cursor", "cursor", answer.Cursor))
 }
