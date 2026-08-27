@@ -17,6 +17,46 @@ func testValued() map[string]bool {
 	return valued
 }
 
+// exampleValuedFlags picks the two flags the value-slot tests below use as
+// their example of "some flag that takes a value", reading them out of
+// valuedFlags rather than spelling either one. What those tests assert is
+// that walkFlags places a --lang standing in another flag's value slot as
+// that flag's value, and any valued flag other than --lang itself shows it,
+// so naming one buys nothing and costs the test its meaning the day the
+// flag is renamed. A renamed flag leaves a test that still compiles and
+// still passes, because an unrecognized word never reaches the value-slot
+// branch at all, so the scenario stops happening and nothing says so.
+//
+// domain is the first valued flag sessionFlagNames does not hold, so
+// parseArgs records a domainCapture for it and the control below has a
+// domain flag to read. session is the first valued session flag other than
+// lang, and the two together show the rule is general rather than special
+// to one name. Both exclude lang, since a --lang sitting in its own value
+// slot asks a different question from the one these tests ask. Every
+// failure message names the pick, so a reader who was not here can tell
+// which flag the run chose.
+func exampleValuedFlags(t *testing.T) (domain, session string) {
+	t.Helper()
+	for _, name := range valuedFlags {
+		if name == "lang" {
+			continue
+		}
+		if sessionFlagNames[name] {
+			if session == "" {
+				session = name
+			}
+			continue
+		}
+		if domain == "" {
+			domain = name
+		}
+	}
+	if domain == "" || session == "" {
+		t.Fatalf("no example valued flag to read a value slot with: valuedFlags is %v, from which the domain pick is %q and the session pick is %q", valuedFlags, domain, session)
+	}
+	return domain, session
+}
+
 // TestParseArgsHonorsTheEndOfOptionsMarker asserts dinah-92's AC-4: a bare
 // "--" is consumed as the end-of-options marker rather than checked against
 // known flags, and everything after the first one seen is positional
@@ -131,29 +171,30 @@ func TestParseArgsUnknownFlagStillRefusesWithTheDashHint(t *testing.T) {
 // CLI because a CLI comparison would turn on which refusal happens to fire
 // first rather than on what the scan read.
 func TestScanLangFlagReadsOnlyALangThatIsAFlag(t *testing.T) {
+	domain, session := exampleValuedFlags(t)
 	cases := []struct {
 		name string
 		argv []string
 		want string
 	}{
 		{
-			name: "lang in state's value slot is state's value",
-			argv: []string{"move", "card1", "--state", "--lang", "de"},
+			name: "lang in " + domain + "'s value slot is " + domain + "'s value",
+			argv: []string{"move", "card1", "--" + domain, "--lang", "de"},
 			want: "",
 		},
 		{
 			name: "an ordinary lang after a filled value slot still reads",
-			argv: []string{"move", "card1", "--state", "de", "--lang", "hi"},
+			argv: []string{"move", "card1", "--" + domain, "de", "--lang", "hi"},
 			want: "hi",
 		},
 		{
-			name: "lang in actor's value slot is actor's value",
-			argv: []string{"comment", "fx-1", "--actor", "--lang", "de"},
+			name: "lang in " + session + "'s value slot is " + session + "'s value",
+			argv: []string{"comment", "fx-1", "--" + session, "--lang", "de"},
 			want: "",
 		},
 		{
 			name: "lang in a value slot past the word that fails to parse",
-			argv: []string{"--nosuchflag", "--state", "--lang", "de"},
+			argv: []string{"--nosuchflag", "--" + domain, "--lang", "de"},
 			want: "",
 		},
 		{
@@ -202,10 +243,11 @@ func TestScanLangFlagReadsOnlyALangThatIsAFlag(t *testing.T) {
 // answer scanLangFlag has to reach as well, since a disagreement there would
 // render an invocation's refusal in a language its own parse never asked for.
 func TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse(t *testing.T) {
+	domain, session := exampleValuedFlags(t)
 	lines := [][]string{
-		{"move", "card1", "--state", "--lang", "de"},
-		{"move", "card1", "--state", "de", "--lang", "hi"},
-		{"comment", "fx-1", "--actor", "--lang", "de"},
+		{"move", "card1", "--" + domain, "--lang", "de"},
+		{"move", "card1", "--" + domain, "de", "--lang", "hi"},
+		{"comment", "fx-1", "--" + session, "--lang", "de"},
 		{"add", "--", "--lang", "de"},
 		{"ls", "--lang", "de", "--json"},
 		{"ls", "--lang=de"},
@@ -286,10 +328,11 @@ func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 	// parseArgs to stop recording captures at all, every case above would
 	// pass while the invariant they assert had gone empty.
 	t.Run("a domain flag is still captured", func(t *testing.T) {
-		if !valued["state"] {
-			t.Fatalf("--state is no longer a valued flag, so this control is asserting nothing")
+		domain, _ := exampleValuedFlags(t)
+		if !valued[domain] || sessionFlagNames[domain] {
+			t.Fatalf("--%s is not a valued domain flag in the map handed to parseArgs, so this control is asserting nothing", domain)
 		}
-		argv := []string{"--state", "de"}
+		argv := []string{"--" + domain, "de"}
 		parsed, err := parseArgs(argv, valued)
 		if err != nil {
 			t.Fatalf("parseArgs(%v): wanted no error, got %v", argv, err)
@@ -297,8 +340,8 @@ func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 		if len(parsed.domainCaptures) != 1 {
 			t.Fatalf("parseArgs(%v) recorded %d domain captures, wanted 1, so the cases above prove nothing", argv, len(parsed.domainCaptures))
 		}
-		if got := parsed.domainCaptures[0].tokens; len(got) != 2 || got[0] != "--state" || got[1] != "de" {
-			t.Errorf("the capture for --state carries %q, wanted the two words the caller wrote", got)
+		if got := parsed.domainCaptures[0].tokens; len(got) != 2 || got[0] != "--"+domain || got[1] != "de" {
+			t.Errorf("the capture for --%s carries %q, wanted the two words the caller wrote", domain, got)
 		}
 	})
 }
@@ -318,7 +361,8 @@ func TestWalkFlagsGivesEveryOccurrenceTheWordsItConsumed(t *testing.T) {
 	for _, name := range append(append([]string{}, valuedFlags...), markerFlags...) {
 		known[name] = true
 	}
-	argv := []string{"-h", "--json", "--version", "--lang", "de", "--lang=hi", "move", "--state"}
+	domain, _ := exampleValuedFlags(t)
+	argv := []string{"-h", "--json", "--version", "--lang", "de", "--lang=hi", "move", "--" + domain}
 	seen := 0
 	walkFlags(argv, valued, known,
 		func(string) {},

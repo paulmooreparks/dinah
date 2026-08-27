@@ -7512,6 +7512,13 @@ func TestLangFlagIsHonouredWhateverItsPosition(t *testing.T) {
 		t.Fatalf("no refusal names --lang at all, so the absence checks below prove nothing: %q", named.errw)
 	}
 
+	// The example of "some other flag that takes a value" is read out of the
+	// declared flag tables rather than spelled here, so that renaming a flag
+	// cannot leave this case naming a word the parser no longer recognizes.
+	// Such a case goes on passing while the value-slot scenario it exists to
+	// exercise has stopped happening, since an unrecognized word claims no
+	// value slot for the --lang behind it to sit in.
+	valueSlotFlag, _ := exampleValuedFlags(t)
 	cases := []struct {
 		name string
 		argv []string
@@ -7538,8 +7545,8 @@ func TestLangFlagIsHonouredWhateverItsPosition(t *testing.T) {
 			want: usageRefusalIn(hindi, "--nosuchflag"),
 		},
 		{
-			name: "a flag in a value slot behind it is not a language choice",
-			argv: []string{"--nosuchflag", "--state", "--lang", "de"},
+			name: "a flag in " + valueSlotFlag + "'s value slot behind it is not a language choice",
+			argv: []string{"--nosuchflag", "--" + valueSlotFlag, "--lang", "de"},
 			want: usageRefusalIn(english, "--nosuchflag"),
 		},
 	}
