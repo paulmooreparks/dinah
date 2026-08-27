@@ -15,18 +15,22 @@ import (
 )
 
 // compactFixtureDefinition is the workbench the tests below read. Its four
-// states cover what the compact projection has to survive: an intake holding a
-// ready card to offer, a work state to claim in, a state that waits on
-// somebody outside the workbench, and a done state that offers nothing and
+// columns cover what the compact projection has to survive: an intake holding
+// a ready card to offer, a work column to claim in, a column that waits on
+// somebody outside the workbench, and a done column that offers nothing and
 // holds nothing. It declares both level axes, so a card can carry a severity
-// and a priority and a write can be refused over a level name.
+// and a priority and a write can be refused over a level name. The workbench
+// carries standing text and Doing carries column text, so the instr record's
+// three fields hold three different strings and a claim answered from Doing
+// cannot pass this file's comparisons with any two of them transposed.
 const compactFixtureDefinition = `{
-  "profile": "dinah-core/1.0",
+  "profile": "dinah-core/0.7",
   "title": "Compact fixture",
   "levels": { "severity": ["trivial", "minor", "major"], "priority": ["later", "soon", "now"] },
-  "states": [
+  "instructions": "Standing text the workbench serves under every column.",
+  "columns": [
     { "id": "c00000000001", "title": "Intake", "kind": "intake" },
-    { "id": "c00000000002", "title": "Doing", "kind": "work" },
+    { "id": "c00000000002", "title": "Doing", "kind": "work", "instructions": "Column text Doing serves on its own." },
     { "id": "c00000000003", "title": "Approval", "kind": "work", "awaiting_outside": true },
     { "id": "c00000000004", "title": "Done", "kind": "done" }
   ]
@@ -171,9 +175,9 @@ func decodeCompactCard(record compactRecord) verb.CardView {
 		ID:          record.field(0),
 		Ref:         record.field(1),
 		Title:       record.field(2),
-		State:       record.field(3),
-		StateTitle:  record.field(4),
-		Substate:    record.field(5),
+		Column:      record.field(3),
+		ColumnTitle: record.field(4),
+		State:       record.field(5),
 		Severity:    record.field(6),
 		Priority:    record.field(7),
 		Holder:      record.field(8),
@@ -236,11 +240,11 @@ func decodeCompactResponse(payload string) (*verb.Response, error) {
 			response.Instructions = &verb.Instructions{
 				Global:   record.field(0),
 				Standing: record.field(1),
-				State:    record.field(2),
+				Column:   record.field(2),
 			}
 		case "move":
 			response.LegalMoves = append(response.LegalMoves, verb.LegalMove{
-				State:     record.field(0),
+				Column:    record.field(0),
 				Ref:       record.field(1),
 				Title:     record.field(2),
 				Direction: record.field(3),
@@ -315,7 +319,7 @@ func decodeCompactListing(payload string) (*verb.Listing, error) {
 	if len(records) == 0 || records[0].kind != "lst" {
 		return nil, errors.New("the payload carries no lst record")
 	}
-	listing := &verb.Listing{State: records[0].field(0)}
+	listing := &verb.Listing{Column: records[0].field(0)}
 	for _, record := range records[1:] {
 		if record.kind != "card" {
 			return nil, fmt.Errorf("a listing carries no %s record", record.kind)
@@ -338,7 +342,7 @@ func decodeCompactOffers(payload string) ([]verb.Offer, error) {
 		switch record.kind {
 		case "off":
 			offers = append(offers, verb.Offer{
-				State:           record.field(0),
+				Column:          record.field(0),
 				Title:           record.field(1),
 				AwaitingOutside: decodeCompactFlag(record.field(2)),
 				NoTaker:         decodeCompactFlag(record.field(3)),
@@ -855,12 +859,12 @@ func TestAPreVerbRefusalDecodesTheSameUnderBothMachineForms(t *testing.T) {
 func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{
-		{"states"},
+		{"columns"},
 		{"show", "fx-2"},
 		{"status"},
 		{"config"},
 		{"check"},
-		{"query", "state:doing"},
+		{"query", "column:doing"},
 		{"log", "fx-2"},
 		{"workbenches"},
 		{"version"},

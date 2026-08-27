@@ -13,7 +13,7 @@ import (
 // TreeNode is one node of a projected tree. Both producers emit this shape and
 // every head renders it, so a consumer learns one node and reads both trees.
 type TreeNode struct {
-	// Kind is what this node is: workbench, state, card, comment, item,
+	// Kind is what this node is: workbench, column, card, comment, item,
 	// attachment, a dotted extension kind, or group. Every value but group
 	// names an entity kind of the format.
 	Kind string `json:"kind"`
@@ -167,8 +167,8 @@ type AxisDisposition struct {
 // chosen, and severity/priority stay out of tree grouping as their own scope
 // decision (dinah-195), independent of the query's own vocabulary.
 var AxisDispositions = []AxisDisposition{
+	{Field: FieldColumn, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
 	{Field: FieldState, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
-	{Field: FieldSubstate, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
 	{Field: FieldSeverity, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
 	{Field: FieldPriority, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
 	{Field: FieldHolder, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
@@ -196,7 +196,7 @@ func GroupAxes() []string {
 // DefaultChain is the chain a bare dinah tree nests along, which makes the
 // no-argument call the status tree.
 func DefaultChain() []string {
-	return []string{FieldState, FieldSubstate}
+	return []string{FieldColumn, FieldState}
 }
 
 // dispositionOf returns the table row governing a field, and whether the table
@@ -291,7 +291,7 @@ func groupedLimit(level string, chain int) int {
 // contentsLimit is the rank the containment walk stops at. The ranks are
 // absolute rather than counted from the root the caller named, which is what
 // makes a level name mean one thing wherever it is typed: the workbench is
-// rank zero, a state and a card rank one, and what a card contains rank two.
+// rank zero, a column and a card rank one, and what a card contains rank two.
 func contentsLimit(level string) int {
 	switch level {
 	case LevelRoot:
@@ -310,7 +310,7 @@ func rankOfKind(kind string) int {
 	switch kind {
 	case bench.KindWorkbench:
 		return 0
-	case bench.KindState, bench.KindCard:
+	case bench.KindColumn, bench.KindCard:
 		return 1
 	}
 	return 2
@@ -388,10 +388,10 @@ func (l *Library) fillGrouped(
 	kept, cut []*bench.Card,
 	chain []string,
 	axisAt, rank, limit int,
-	stateCtx string,
+	columnCtx string,
 ) {
 	hidden := &Hidden{Filtered: len(cut)}
-	children := l.groupedChildren(kept, cut, chain, axisAt, rank, limit, stateCtx)
+	children := l.groupedChildren(kept, cut, chain, axisAt, rank, limit, columnCtx)
 	if rank < limit {
 		node.Children = children
 	} else if len(children) > 0 {
@@ -411,17 +411,17 @@ func (l *Library) fillGrouped(
 // It builds them whatever the depth allows, because a node at the boundary has
 // to count what it is holding back before it drops it.
 //
-// stateCtx is the state every card below this node stands at, or empty where
-// no axis above the node has grouped by state. Grouping partitions a card set
+// columnCtx is the column every card below this node stands at, or empty where
+// no axis above the node has grouped by column. Grouping partitions a card set
 // and never merges two of them back together, so once an axis has grouped by
-// state, every group below it however deep holds cards of that one state, and
-// the substate axis can ask that state what it holds. Any other axis between
+// column, every group below it however deep holds cards of that one column, and
+// the state axis can ask that column what it holds. Any other axis between
 // the two carries the value forward untouched.
 func (l *Library) groupedChildren(
 	kept, cut []*bench.Card,
 	chain []string,
 	axisAt, rank, limit int,
-	stateCtx string,
+	columnCtx string,
 ) []TreeNode {
 	if axisAt == len(chain) {
 		nodes := make([]TreeNode, 0, len(kept))
@@ -432,15 +432,15 @@ func (l *Library) groupedChildren(
 	}
 	axis := chain[axisAt]
 	var nodes []TreeNode
-	for _, group := range l.groupsOn(axis, kept, cut, stateCtx) {
+	for _, group := range l.groupsOn(axis, kept, cut, columnCtx) {
 		node := TreeNode{
 			Kind:  NodeGroup,
 			Axis:  axis,
 			Value: group.value,
 			Count: len(group.kept),
 		}
-		childCtx := stateCtx
-		if axis == FieldState {
+		childCtx := columnCtx
+		if axis == FieldColumn {
 			childCtx = group.value
 		}
 		l.fillGrouped(&node, group.kept, group.cut, chain, axisAt+1, rank+1, limit, childCtx)
@@ -473,18 +473,18 @@ type group struct {
 // groupsOn nests a node's cards along one axis, in the order the axis fixes.
 //
 // A closed-enum axis draws a group for every member the workbench declares
-// that the group's own state can hold, including the members holding nothing,
+// that the group's own column can hold, including the members holding nothing,
 // because enumerating the flow completely is what the status tree is for. The
-// blocked substate is the one member exempt from that, and axisValueOrder says
+// blocked state is the one member exempt from that, and axisValueOrder says
 // why. An open-valued axis draws a group for every value some card the producer
 // considered carries, survivor or removed, sorted by the value's bytes
 // ascending. The group holding the cards that carry no value on the axis comes
 // last, whatever the axis.
-func (l *Library) groupsOn(axis string, kept, cut []*bench.Card, stateCtx string) []group {
+func (l *Library) groupsOn(axis string, kept, cut []*bench.Card, columnCtx string) []group {
 	keptBy := l.gather(axis, kept)
 	cutBy := l.gather(axis, cut)
 	var groups []group
-	for _, value := range l.axisValueOrder(axis, keptBy, cutBy, stateCtx) {
+	for _, value := range l.axisValueOrder(axis, keptBy, cutBy, columnCtx) {
 		groups = append(groups, group{value: value, kept: keptBy[value], cut: cutBy[value]})
 	}
 	return groups
@@ -510,39 +510,39 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 // group last.
 //
 // A closed axis draws its declared members and is not limited to them. A card
-// stands where it stands whatever the workbench file says today, so a state
-// somebody deleted from the flow, and a substate written into a card by hand
+// stands where it stands whatever the workbench file says today, so a column
+// somebody deleted from the flow, and a state written into a card by hand
 // outside the three the contract names, both keep a group of their own. A card
-// carrying no substate at all is not among the cases, because LoadCard supplies
+// carrying no state at all is not among the cases, because LoadCard supplies
 // ready when the field is absent. Drawing only the declared members would drop
 // those cards out of the tree with no node and no account while the root above
 // them went on counting them, and a card missing from a view whose total says
 // it is there is the one failure this projection must not have.
 //
-// Which declared members a substate group draws is settled in three tiers, and
-// two of them meet here. A substate the state cannot hold is never drawn, and
-// declaredValues answers that by asking the state. Of the substates it can
+// Which declared members a state group draws is settled in three tiers, and
+// two of them meet here. A state the column cannot hold is never drawn, and
+// declaredValues answers that by asking the column. Of the states it can
 // hold, ready and active are drawn whether or not a card stands in them, which
 // is the promise the paragraph above makes: an empty ready group tells a reader
 // work is waiting and nobody has taken it up. Blocked is drawn only where a
 // card actually stands in it. A block is the exception rather than the ordinary
-// case, so a blocked group reading zero under every state on the board reports
+// case, so a blocked group reading zero under every column on the board reports
 // the common thing on every row and leaves the reader to find the row that
 // means something.
 //
 // Occupancy counts the cards the filter removed as well as the survivors. A
-// blocked card a filter hid still means the state has a blocked card, and the
+// blocked card a filter hid still means the column has a blocked card, and the
 // honest drawing of that is a group counting nothing with an account of what
 // was filtered, rather than no group at all.
-func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card, stateCtx string) []string {
+func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card, columnCtx string) []string {
 	seen := map[string]bool{}
 	var order []string
 	if closedAxis(axis) {
-		for _, value := range l.declaredValues(axis, stateCtx) {
+		for _, value := range l.declaredValues(axis, columnCtx) {
 			if value == "" || seen[value] {
 				continue
 			}
-			if axis == FieldSubstate && value == contract.SubstateBlocked &&
+			if axis == FieldState && value == contract.StateBlocked &&
 				len(keptBy[value]) == 0 && len(cutBy[value]) == 0 {
 				continue
 			}
@@ -569,62 +569,62 @@ func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.
 }
 
 // declaredValues enumerates a closed axis completely, in the order the
-// workbench declares it: state follows the flow order of workbench.md, and
-// substate follows ready, active, blocked.
+// workbench declares it: column follows the flow order of workbench.md, and
+// state follows ready, active, blocked.
 //
-// The substate axis answers for one state rather than for the whole workbench,
-// because which substates a card may carry is a property of where it stands. A
-// state that takes no work up holds no active card, so drawing an active group
+// The state axis answers for one column rather than for the whole workbench,
+// because which states a card may carry is a property of where it stands. A
+// column that takes no work up holds no active card, so drawing an active group
 // beneath one invites a reader to ask what would put a card there when the
-// answer is that nothing can. stateCtx is the value of the nearest state group
-// above this one and governs the enumeration through Substates. Where it is
-// empty, and where it names a state the workbench no longer declares, the
-// answer is substateUnion.
+// answer is that nothing can. columnCtx is the value of the nearest column group
+// above this one and governs the enumeration through States. Where it is
+// empty, and where it names a column the workbench no longer declares, the
+// answer is stateUnion.
 //
 // It is what the workbench says, rather than the whole of what the tree draws.
 // A value no longer declared, and the absent value a card carrying nothing on
 // the axis holds, are both drawn after these by axisValueOrder, which is where
 // the order of the groups is settled, and which also drops an unoccupied
 // blocked group from whatever this returns.
-func (l *Library) declaredValues(axis, stateCtx string) []string {
-	if axis == FieldSubstate {
-		if stateCtx != "" {
-			if state := l.Bench.StateByRef(stateCtx); state != nil {
-				return state.Substates()
+func (l *Library) declaredValues(axis, columnCtx string) []string {
+	if axis == FieldState {
+		if columnCtx != "" {
+			if column := l.Bench.ColumnByRef(columnCtx); column != nil {
+				return column.States()
 			}
 		}
-		return l.substateUnion()
+		return l.stateUnion()
 	}
-	values := make([]string, 0, len(l.Bench.States))
-	for _, state := range l.Bench.States {
-		values = append(values, stateRef(state))
+	values := make([]string, 0, len(l.Bench.Columns))
+	for _, column := range l.Bench.Columns {
+		values = append(values, columnRef(column))
 	}
 	return values
 }
 
-// substateUnion is the substates of every state the workbench declares, each
-// one drawn once, in the order the substate axis declares its vocabulary. The
-// order comes from closedValues rather than from whichever state happened to
+// stateUnion is the states of every column the workbench declares, each
+// one drawn once, in the order the state axis declares its vocabulary. The
+// order comes from closedValues rather than from whichever column happened to
 // report a value first, because the axis has one order and a reader meeting
-// these groups under a state elsewhere in the same tree meets them in it.
+// these groups under a column elsewhere in the same tree meets them in it.
 //
-// It is what declaredValues answers with when no state governs the group,
-// which is the standalone substate axis, a chain that reaches substate without
-// passing through state, and a group standing at a state ref the workbench no
+// It is what declaredValues answers with when no column governs the group,
+// which is the standalone state axis, a chain that reaches state without
+// passing through column, and a group standing at a column ref the workbench no
 // longer declares. Such a group still has to say what its closed axis holds,
-// and the union is the widest answer that never offers a value no state on this
-// workbench can reach. On a workbench where no state takes work up, no active
+// and the union is the widest answer that never offers a value no column on this
+// workbench can reach. On a workbench where no column takes work up, no active
 // group is drawn anywhere, which is the question this whole enumeration exists
 // to answer correctly.
-func (l *Library) substateUnion() []string {
+func (l *Library) stateUnion() []string {
 	held := map[string]bool{}
-	for _, state := range l.Bench.States {
-		for _, value := range state.Substates() {
+	for _, column := range l.Bench.Columns {
+		for _, value := range column.States() {
 			held[value] = true
 		}
 	}
 	var order []string
-	for _, value := range closedValues(FieldSubstate) {
+	for _, value := range closedValues(FieldState) {
 		if held[value] {
 			order = append(order, value)
 		}
@@ -669,18 +669,18 @@ func (l *Library) axisValues(axis string, card *bench.Card) []string {
 }
 
 // readableValues turns the values a card stores into the tokens a person
-// types. A state-valued axis stores identifiers and a person types a slug, so
-// the group is labelled with what somebody could type to reach the state. A
-// value naming no state of this workbench is left as it stands, since nothing
+// types. A column-valued axis stores identifiers and a person types a slug, so
+// the group is labelled with what somebody could type to reach the column. A
+// value naming no column of this workbench is left as it stands, since nothing
 // better is known about it.
 func (l *Library) readableValues(axis string, stored []string) []string {
-	if !stateValued(axis) {
+	if !columnValued(axis) {
 		return stored
 	}
 	readable := make([]string, 0, len(stored))
 	for _, value := range stored {
-		if state := l.Bench.State(value); state != nil {
-			readable = append(readable, stateRef(state))
+		if column := l.Bench.Column(value); column != nil {
+			readable = append(readable, columnRef(column))
 			continue
 		}
 		readable = append(readable, value)
@@ -736,10 +736,10 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 		// accepts it alone, so drawing it here would put an address in the
 		// tree a reader could not type back.
 		return TreeNode{Kind: entity.Kind, Ref: "workbench", Title: l.Bench.Title}
-	case bench.KindState:
+	case bench.KindColumn:
 		node := TreeNode{Kind: entity.Kind, ID: entity.ID, Ref: entity.Ref}
-		if state := l.Bench.State(entity.ID); state != nil {
-			node.Title = state.Title
+		if column := l.Bench.Column(entity.ID); column != nil {
+			node.Title = column.Title
 		}
 		return node
 	case bench.KindCard:
@@ -753,7 +753,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) TreeNode {
 	// Every kind reaching this branch sits below a head, and the resolver
 	// composes the reference of anything below a head, so the address a
 	// person typed is read back rather than rebuilt here. Rebuilding it was
-	// what left a workbench attachment and a state attachment printing their
+	// what left a workbench attachment and a column attachment printing their
 	// header with nothing between the parentheses.
 	return TreeNode{
 		Kind:  entity.Kind,
@@ -787,7 +787,7 @@ func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, lim
 // is a leaf, which is what lets a declared extension kind appear here with no
 // line written for it.
 //
-// The workbench's own two collections are ordered by their own rules: states
+// The workbench's own two collections are ordered by their own rules: columns
 // come in the flow's declared order and cards in arrival order. Every other
 // collection comes in the creation order a positional reference counts in.
 func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []TreeNode {
@@ -809,10 +809,10 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) []Tr
 // question, and the two would otherwise collide under one name.
 func (l *Library) containmentMembersOf(collection string, mount bench.Mount) []string {
 	switch mount.Kind {
-	case bench.KindState:
-		ids := make([]string, 0, len(l.Bench.States))
-		for _, state := range l.Bench.States {
-			ids = append(ids, state.ID)
+	case bench.KindColumn:
+		ids := make([]string, 0, len(l.Bench.Columns))
+		for _, column := range l.Bench.Columns {
+			ids = append(ids, column.ID)
 		}
 		return ids
 	case bench.KindCard:
@@ -846,9 +846,9 @@ func (l *Library) containedNode(
 		Count: containedCount(dir, mount.Kind),
 	}
 	switch mount.Kind {
-	case bench.KindState:
-		if state := l.Bench.State(id); state != nil {
-			node.Ref, node.Title = stateRef(state), state.Title
+	case bench.KindColumn:
+		if column := l.Bench.Column(id); column != nil {
+			node.Ref, node.Title = columnRef(column), column.Title
 		}
 	case bench.KindCard:
 		card, err := bench.LoadCard(collection, id)

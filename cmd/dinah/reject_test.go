@@ -10,18 +10,18 @@ import (
 	"dinah/internal/msg"
 )
 
-// declareRejectTo writes reject_to into one state's own anchor, found by the
+// declareRejectTo writes reject_to into one column's own anchor, found by the
 // title the init flow gives it. Nothing in the tool sets the field, so a test
 // reaching the rendered surface has to write the declaration the way a person
-// editing a state.md would.
+// editing a column.md would.
 func declareRejectTo(t *testing.T, root, title, ref string) {
 	t.Helper()
-	states := filepath.Join(soleBenchDir(t, root), bench.StatesDir)
-	for _, id := range bench.ListIDs(states) {
-		path := filepath.Join(states, id, bench.StateAnchor)
+	columns := filepath.Join(soleBenchDir(t, root), bench.ColumnsDir)
+	for _, id := range bench.ListIDs(columns) {
+		path := filepath.Join(columns, id, bench.ColumnAnchor)
 		text, err := bench.ReadText(path)
 		if err != nil {
-			t.Fatalf("read a state: %v", err)
+			t.Fatalf("read a column: %v", err)
 		}
 		fm, body := bench.ParseAnchor(text)
 		if fm.Value("title") != title {
@@ -29,11 +29,11 @@ func declareRejectTo(t *testing.T, root, title, ref string) {
 		}
 		fm.Set("reject_to", ref)
 		if err := os.WriteFile(path, []byte(fm.Render(body)), 0o644); err != nil {
-			t.Fatalf("write a state: %v", err)
+			t.Fatalf("write a column: %v", err)
 		}
 		return
 	}
-	t.Fatalf("the fixture flow carries no state titled %s", title)
+	t.Fatalf("the fixture flow carries no column titled %s", title)
 }
 
 // movesRows returns the rows of the legal-moves table an invocation printed,
@@ -63,7 +63,7 @@ func movesRows(t *testing.T, out string) []string {
 
 // TestBareMoveListsTheRejectColumn is dinah-207 AC-8, against the surface that
 // actually draws the table. The criterion names `dinah move <card>` with no
-// destination, and that form answers unknown-state with a bare list of state
+// destination, and that form answers unknown-column with a bare list of column
 // references rather than the legal-moves table; `dinah instructions <card>` is
 // where renderInstructions draws it, and it is also what a successful move
 // prints. See the card's own comment on the correction.
@@ -137,7 +137,7 @@ func TestLogMarksARejectMove(t *testing.T) {
 		t.Fatalf("wanted the mark %s on exactly one line, got %d:\n%s", marker, marked, logged.out)
 	}
 
-	// The move into the doing station is a move out of a state declaring
+	// The move into the doing station is a move out of a column declaring
 	// nothing, so an implementation marking every move would put the mark on
 	// two lines and the count above is what tells the two apart.
 	if got := runCLI(t, root, "move", "fx-1", "done"); got.code != 0 {

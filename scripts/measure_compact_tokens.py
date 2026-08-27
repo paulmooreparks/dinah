@@ -64,14 +64,14 @@ def run(dinah, root, env, argv):
 
 
 def build(dinah, root, env, instructions):
-    """Populate the probe workbench: three states, and six cards standing in
+    """Populate the probe workbench: three columns, and six cards standing in
     the second of them, which is where one of them is then claimed."""
     definition = pathlib.Path(root, "definition.json")
     definition.write_text(
         json.dumps({
-            "profile": "dinah-core/1.0",
+            "profile": "dinah-core/0.7",
             "title": "Measurement",
-            "states": [
+            "columns": [
                 {"id": "d00000000001", "title": "Intake", "kind": "intake"},
                 {"id": "d00000000002", "title": "Doing", "kind": "work", "instructions": instructions},
                 {"id": "d00000000003", "title": "Done", "kind": "done"},

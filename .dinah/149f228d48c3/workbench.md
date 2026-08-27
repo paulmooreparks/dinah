@@ -1,6 +1,6 @@
 ---
 format: 1
-profile: dinah-core/1.0
+profile: dinah-core/0.7
 title: Dinah development
 operator: paul
 levels:
@@ -10,7 +10,7 @@ groups:
   DESIGN: [2f6c18c9f5d0, ca3badf49985, 0d86ad99cdbc, 5729d4578008]
   BUILD: [0789fd2dbefd, 4fda9c9ca779, 4b38abe7ebd5, ee29487fad76]
   VERIFY: [c9428b3bc921, 6c5b9d6f4414, b69abf918c42]
-states:
+columns:
   - 5ea2db0272fc   # Intake
   - a2eb2436b77d   # Triage
   - 2f6c18c9f5d0   # Design Queue

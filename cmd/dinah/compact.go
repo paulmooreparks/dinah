@@ -28,18 +28,18 @@ const compactVersion = "1"
 //
 //	fmt      compact, version
 //	rsp      outcome, verb, refusal, detail, basis, warning, warning_detail, message
-//	card     id, ref, title, state, state_title, substate, severity, priority,
+//	card     id, ref, title, column, column_title, state, severity, priority,
 //	         holder, claim_since, expires, block_reason, block_kind, revision,
 //	         then one trailing field per workstream identifier
 //	wstream  id, ref, slug, title, status, cards
-//	instr    global, standing, state
-//	move     state, ref, title, direction, reject
+//	instr    global, standing, column
+//	move     column, ref, title, direction, reject
 //	ctx      key, value
 //	msgval   key, value
 //	wb       title, slug, path
 //	aff      one trailing field per affordance token
-//	lst      state
-//	off      state, title, awaiting_outside, no_taker, taken_by_pull
+//	lst      column
+//	off      column, title, awaiting_outside, no_taker, taken_by_pull
 //
 // A verb's response and a pre-verb refusal both order their records fmt, rsp,
 // card, wstream, instr, move, ctx, msgval, wb, aff, and the aff record closes
@@ -117,9 +117,9 @@ func (p *compactPayload) card(card *verb.CardView) {
 		card.ID,
 		card.Ref,
 		card.Title,
+		card.Column,
+		card.ColumnTitle,
 		card.State,
-		card.StateTitle,
-		card.Substate,
 		card.Severity,
 		card.Priority,
 		card.Holder,
@@ -188,10 +188,10 @@ func compactResponse(response *verb.Response) string {
 		)
 	}
 	if instructions := response.Instructions; instructions != nil {
-		payload.record("instr", instructions.Global, instructions.Standing, instructions.State)
+		payload.record("instr", instructions.Global, instructions.Standing, instructions.Column)
 	}
 	for _, move := range response.LegalMoves {
-		payload.record("move", move.State, move.Ref, move.Title, move.Direction, compactFlag(move.Reject))
+		payload.record("move", move.Column, move.Ref, move.Title, move.Direction, compactFlag(move.Reject))
 	}
 	payload.pairs("ctx", response.Context)
 	payload.pairs("msgval", response.MessageValues)
@@ -214,25 +214,25 @@ func compactRefusal(report refusalReport) string {
 	return payload.text()
 }
 
-// compactListing renders the answer ls gives: the state listed, then the cards
+// compactListing renders the answer ls gives: the column listed, then the cards
 // in the order CORE-QUEUE-3 fixes.
 func compactListing(listing *verb.Listing) string {
 	payload := openCompact()
-	payload.record("lst", listing.State)
+	payload.record("lst", listing.Column)
 	for i := range listing.Cards {
 		payload.card(&listing.Cards[i])
 	}
 	return payload.text()
 }
 
-// compactOffers renders the answer next gives: one offer per state in slice
+// compactOffers renders the answer next gives: one offer per column in slice
 // order, each followed by its card where it offers one and by nothing where it
 // does not.
 func compactOffers(offers []verb.Offer) string {
 	payload := openCompact()
 	for _, offer := range offers {
 		payload.record("off",
-			offer.State,
+			offer.Column,
 			offer.Title,
 			compactFlag(offer.AwaitingOutside),
 			compactFlag(offer.NoTaker),

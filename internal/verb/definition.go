@@ -134,7 +134,7 @@ type Vocabulary struct {
 	// Values are the members when the set is fixed in the source.
 	Values []string
 	// Source names a set a head resolves when it runs, because the set lives
-	// outside this package: "states" reads the workbench's own states, and
+	// outside this package: "columns" reads the workbench's own columns, and
 	// "guides" reads the topics embedded in the binary.
 	Source string
 }
@@ -143,10 +143,10 @@ type Vocabulary struct {
 // the sets the commands themselves check against, so neither can drift from
 // what a command accepts, and two name a set only a head can resolve.
 var vocabularies = map[string]Vocabulary{
-	"key":   {Values: bench.ConfigKeys},
-	"field": {Values: bench.WorkbenchFields},
-	"topic": {Source: "guides"},
-	"state": {Source: "states"},
+	"key":    {Values: bench.ConfigKeys},
+	"field":  {Values: bench.WorkbenchFields},
+	"topic":  {Source: "guides"},
+	"column": {Source: "columns"},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -230,7 +230,7 @@ var params = map[string][]Param{
 	// workbench, so the refusal is what tells a reader the set.
 	"add": {
 		{Name: "title", Required: true, Rest: true, Field: "Title"},
-		{Name: "state", Flag: true, Value: "state", Vocabulary: "state", Field: "State"},
+		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 		{Name: "severity", Flag: true, Value: "level", Field: "Severity"},
 		{Name: "priority", Flag: true, Value: "level", Field: "Priority"},
 	},
@@ -240,7 +240,7 @@ var params = map[string][]Param{
 	},
 	Move: {
 		{Name: "card", Required: true, Shared: "card", Field: "Card"},
-		{Name: "state", Required: true, Vocabulary: "state", AlsoFlag: true, Field: "State"},
+		{Name: "column", Required: true, Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
 	},
 	Release: {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
@@ -274,27 +274,27 @@ var params = map[string][]Param{
 		{Name: "yes", Flag: true, Marker: true, Required: true, Shared: "yes", Field: "Confirm"},
 	},
 	// rename writes its own sentence for ref rather than taking the shared
-	// one, because the shared sentence names a state, a card or anything
+	// one, because the shared sentence names a column, a card or anything
 	// below one, and rename renames an attachment alone.
 	"rename": {
 		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
 		{Name: "name", Required: true, Rest: true, Field: "Value"},
 	},
-	"status": {},
-	"states": {},
+	"status":  {},
+	"columns": {},
 	"ls": {
-		{Name: "state", Vocabulary: "state", AlsoFlag: true, Field: "State"},
+		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
 	},
-	"next": {{Name: "state", Vocabulary: "state", AlsoFlag: true, Field: "State"}},
-	// Pull combines a claim and a move into one atomic act. The state is
+	"next": {{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"}},
+	// Pull combines a claim and a move into one atomic act. The column is
 	// the destination; the named form names it, the bare form chooses the
-	// one state that qualifies and refuses when more than one does. The
+	// one column that qualifies and refuses when more than one does. The
 	// three flags sit on the move's own shape: --no-claim drops the
-	// claim half, --override lets the operator pick a state at its limit,
+	// claim half, --override lets the operator pick a column at its limit,
 	// and --expires sets the claim's lease exactly as it does on claim.
 	Pull: {
-		{Name: "state", Vocabulary: "state", AlsoFlag: true, Field: "State"},
+		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "no-claim", Flag: true, Marker: true, Field: "NoClaim"},
 		{Name: "expires", Flag: true, Value: "duration", Field: "Expires"},
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
@@ -322,11 +322,11 @@ var params = map[string][]Param{
 	"changes": {
 		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
 		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
-		{Name: "state", Flag: true, Value: "state", Vocabulary: "state", Field: "State"},
+		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 	},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
-	"instructions": {{Name: "card", Display: "card|state", Required: true, Guide: "references", Field: "Card"}},
+	"instructions": {{Name: "card", Display: "card|column", Required: true, Guide: "references", Field: "Card"}},
 	"guide":        {{Name: "topic", Vocabulary: "topic"}},
 	// init has always read a positional directory and never declared one, so
 	// the syntax line omitted an argument the command honours.
@@ -389,8 +389,15 @@ var params = map[string][]Param{
 		{Name: "finish", Flag: true, Marker: true, Field: "Finish"},
 		{Name: "migrate-ordinals", Flag: true, Marker: true, Field: "MigrateOrdinals"},
 		{Name: "migrate-slugs", Flag: true, Marker: true, Field: "MigrateSlugs"},
-		{Name: "migrate-states", Flag: true, Marker: true, Field: "MigrateStates"},
+		{Name: "migrate-columns", Flag: true, Marker: true, Field: "MigrateColumns"},
+		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
+		// Read by migrate-vocabulary alone, which is the one repair here
+		// that walks a whole tree of workbenches rather than acting on the
+		// one the caller is standing in, and whose rewrite has no undo.
+		// Without it that repair reports what it would carry forward and
+		// writes nothing.
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	"whoami":      {},
 	"workbenches": {},

@@ -25,7 +25,7 @@ type command struct {
 	run func(*session, *arguments) int
 	// bounded is how many of the command's own leading positional words are
 	// checked against the vocabulary the command knows (a card reference, a
-	// state name, a guide topic, or a path handed to the operating system).
+	// column name, a guide topic, or a path handed to the operating system).
 	// A word occupying one of these positions that looks like a mistyped
 	// flag is refused before the command's own run function ever sees it.
 	// config is not declared here; it dispatches on its own first word and
@@ -208,7 +208,7 @@ func (s *session) verbHelp(name string) string {
 // as the syntax line above spells it and explained on the right.
 //
 // A command declaring no argument gets no section at all, so the pages of
-// status, states, whoami, workbenches, export and mcp are unchanged.
+// status, columns, whoami, workbenches, export and mcp are unchanged.
 //
 // The table is the one table in the tool that breaks its last column at the
 // window, because an argument's meaning together with the values it accepts
@@ -264,7 +264,7 @@ func (s *session) vocabularyValues(command string, param verb.Param) []string {
 	if !ok {
 		return nil
 	}
-	if set.Source == statesVocabulary && s.library == nil {
+	if set.Source == columnsVocabulary && s.library == nil {
 		if _, err := s.open(); err != nil {
 			return nil
 		}
@@ -272,7 +272,7 @@ func (s *session) vocabularyValues(command string, param verb.Param) []string {
 	return resolve(s)
 }
 
-// statesVocabulary is the one vocabulary source that lives in the reader's own
+// columnsVocabulary is the one vocabulary source that lives in the reader's own
 // workbench rather than in the binary, so it is the one that needs a workbench
 // opened before it can answer.
-const statesVocabulary = "states"
+const columnsVocabulary = "columns"

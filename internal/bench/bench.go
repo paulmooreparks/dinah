@@ -14,7 +14,7 @@ import (
 // The names the format fixes for anchors, collections and the user base.
 const (
 	WorkbenchAnchor  = "workbench.md"
-	StateAnchor      = "state.md"
+	ColumnAnchor     = "column.md"
 	CardAnchor       = "card.md"
 	WorkstreamAnchor = "workstream.md"
 	CommentAnchor    = "comment.md"
@@ -30,7 +30,7 @@ const (
 
 // ignoreLocks is what a new bench's .gitignore carries. A bench inside a
 // repository is versioned by that repository, and a lock is coordination-plane
-// state on one machine, so committing one would ship a stale holder to
+// column on one machine, so committing one would ship a stale holder to
 // everybody who clones. Nothing the tool reads is affected either way, since
 // every listing walks the identifiers of a collection and no lock is ever a
 // member of one; this is about what git picks up.
@@ -38,7 +38,7 @@ const ignoreLocks = "lock\n*.lock\n"
 
 // The collection directory names.
 const (
-	StatesDir      = "states"
+	ColumnsDir     = "columns"
 	CardsDir       = "cards"
 	CommentsDir    = "comments"
 	AttachmentsDir = "attachments"
@@ -58,16 +58,21 @@ const StorageFormat = 1
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 6
+	ProfileMinor = 7
 )
 
-// The oldest profile revision this build opens. Every workbench any build of
-// this tool has written declares dinah-core/1.0, which the profile's own 0.4
-// changelog entry renames dinah-core 0.1, so the floor is that revision.
-// Below it lies nothing anyone published.
+// The oldest profile revision this build opens. dinah-core 0.7 renamed the
+// flow vocabulary on disk, retiring the state and substate keys for column
+// and state, so a workbench below that revision is written in a vocabulary
+// this build's readers no longer speak. The floor sits at the rename rather
+// than at the oldest revision anyone published, because a lenient reader here
+// would take an old card's state field, which held a flow position, for the
+// condition the same key now names. The window below the floor is not lost:
+// PreVocabularyFloor and PreVocabularyCeiling name it, and
+// `dinah check --migrate-vocabulary` carries a workbench across it.
 const (
 	ProfileFloorMajor = 0
-	ProfileFloorMinor = 1
+	ProfileFloorMinor = 7
 )
 
 // The moment the never-refuse promise started binding, and the floor as it
@@ -91,25 +96,25 @@ var ProfileVersion = ProfileName + "/" + strconv.Itoa(ProfileMajor) + "." + strc
 var ProfileFloorVersion = ProfileName + "/" + strconv.Itoa(ProfileFloorMajor) + "." + strconv.Itoa(ProfileFloorMinor)
 
 // SlugMandatoryMajor is the major number CORE-STATE-10, which requires every
-// state to carry a slug, is published under. A workbench declaring an earlier
+// column to carry a slug, is published under. A workbench declaring an earlier
 // major is not held to that statement, because a conformance claim names one
 // major and is evaluated over the statements that revision publishes, so a
-// state carrying no slug opens there. A workbench declaring this major or a
+// column carrying no slug opens there. A workbench declaring this major or a
 // later one is held to it and is refused.
 //
 // The gate is written against the major a workbench declares rather than
 // against ProfileMajor, so the day a release raises this binary's own claim,
-// no reader of a state has to be edited to make the requirement bite.
+// no reader of a column has to be edited to make the requirement bite.
 const SlugMandatoryMajor = 3
 
-// State is one station of the flow.
-type State struct {
-	// ID is the state's 12-hex identifier and the name of its directory.
+// Column is one station of the flow.
+type Column struct {
+	// ID is the column's 12-hex identifier and the name of its directory.
 	ID string
-	// Title is what a person calls the state.
+	// Title is what a person calls the column.
 	Title string
 	// Slug is the short handle a person types instead of quoting the title.
-	// It is empty on a state written before the field existed, which is what
+	// It is empty on a column written before the field existed, which is what
 	// the slug migration fills in.
 	Slug string
 	// Kind is one the profile declares, which is intake, work or done, or
@@ -117,45 +122,45 @@ type State struct {
 	// question a reader of this field usually means, and a reader that wants
 	// that answer reads it there rather than comparing this value.
 	Kind string
-	// OperatorOwned marks a state an owner other than the operator may not
+	// OperatorOwned marks a column an owner other than the operator may not
 	// move a card out of.
 	OperatorOwned bool
-	// AwaitingOutside marks a state where the workbench waits on somebody
+	// AwaitingOutside marks a column where the workbench waits on somebody
 	// who is not an owner of it, so no owner takes work up there. It is
 	// orthogonal to OperatorOwned, which answers who may move a card out
 	// and which this field never touches.
 	AwaitingOutside bool
-	// RejectTo is the ref the state's own reject_to declaration names,
-	// exactly as the frontmatter carries it, or empty when the state
+	// RejectTo is the ref the column's own reject_to declaration names,
+	// exactly as the frontmatter carries it, or empty when the column
 	// declares none. It is resolved through Bench.RejectTarget rather than
 	// read directly, because resolving a name against the flow needs the
-	// whole state list and this field alone does not carry one.
+	// whole column list and this field alone does not carry one.
 	RejectTo string
-	// Capacity is the state's declared limit, or zero for unlimited.
+	// Capacity is the column's declared limit, or zero for unlimited.
 	Capacity int
-	// Instructions is the state's own body, the last layer of the chain.
+	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
-	// Position is the state's zero-based index in the flow.
+	// Position is the column's zero-based index in the flow.
 	Position int
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
 }
 
-// Ref is what a person types to reach this state: its own slug when it
+// Ref is what a person types to reach this column: its own slug when it
 // carries one, its identifier otherwise. Mirrors Card.Ref's own fallback,
-// with no argument to pass because a state's slug lives on the state
+// with no argument to pass because a column's slug lives on the column
 // itself rather than on the workbench that holds it.
-func (s *State) Ref() string {
+func (s *Column) Ref() string {
 	if s.Slug != "" {
 		return s.Slug
 	}
 	return s.ID
 }
 
-// TakesWorkUp reports whether an owner takes work up at this state. A card
+// TakesWorkUp reports whether an owner takes work up at this column. A card
 // standing where no work is taken up waits there and is carried on by a
 // pull, so no claim is taken and no card is held.
-func (s *State) TakesWorkUp() bool {
+func (s *Column) TakesWorkUp() bool {
 	if s.AwaitingOutside {
 		return false
 	}
@@ -166,44 +171,44 @@ func (s *State) TakesWorkUp() bool {
 	return true
 }
 
-// Terminal reports whether a card's journey ends at this state, which is
+// Terminal reports whether a card's journey ends at this column, which is
 // the question CORE-STATE-9 and CORE-MOVE-7 turn on when they refuse a
 // forward move out of one.
-func (s *State) Terminal() bool {
+func (s *Column) Terminal() bool {
 	return s.Kind == contract.KindDone
 }
 
-// PullCanTakeFrom reports whether a pull may carry a card out of this state
-// into the state beyond it. It is false at a terminal state, because a pull
+// PullCanTakeFrom reports whether a pull may carry a card out of this column
+// into the column beyond it. It is false at a terminal column, because a pull
 // makes a forward move and CORE-STATE-9 refuses one there, and false where
 // the workbench waits on somebody outside, because the card leaves when
 // that person answers rather than when somebody pulls. It is true at a
 // buffer, which is what a buffer is for.
-func (s *State) PullCanTakeFrom() bool {
+func (s *Column) PullCanTakeFrom() bool {
 	return !s.Terminal() && !s.AwaitingOutside
 }
 
-// Substates returns the substates a card standing at this state may carry,
-// in the order ready, active, blocked. A state that takes work up holds all
-// three; a state that does not holds ready and blocked, because a block is
+// States returns the states a card standing at this column may carry,
+// in the order ready, active, blocked. A column that takes work up holds all
+// three; a column that does not holds ready and blocked, because a block is
 // a statement about the card rather than about a worker and stays
 // meaningful wherever the card stands.
 //
 // The slice is fresh on each call, so a caller may sort or trim it without
 // reaching the next caller.
-func (s *State) Substates() []string {
+func (s *Column) States() []string {
 	if s.TakesWorkUp() {
-		return []string{contract.SubstateReady, contract.SubstateActive, contract.SubstateBlocked}
+		return []string{contract.StateReady, contract.StateActive, contract.StateBlocked}
 	}
-	return []string{contract.SubstateReady, contract.SubstateBlocked}
+	return []string{contract.StateReady, contract.StateBlocked}
 }
 
-// HoldsSubstate reports whether a card standing at this state may carry the
-// named substate. It is Substates read for one member, which is the question
+// HoldsState reports whether a card standing at this column may carry the
+// named state. It is States read for one member, which is the question
 // a caller with a card in hand asks.
-func (s *State) HoldsSubstate(substate string) bool {
-	for _, held := range s.Substates() {
-		if held == substate {
+func (s *Column) HoldsState(state string) bool {
+	for _, held := range s.States() {
+		if held == state {
 			return true
 		}
 	}
@@ -212,7 +217,7 @@ func (s *State) HoldsSubstate(substate string) bool {
 
 // ErrAborted is what a test's step hook returns to stand for a process that
 // died at that step. The act stops where it is, releasing nothing and
-// unwinding nothing, so the tree is left in the state a crash leaves and the
+// unwinding nothing, so the tree is left in the column a crash leaves and the
 // recovery path can be driven over it.
 var ErrAborted = errors.New("the structural act was aborted")
 
@@ -224,7 +229,7 @@ type Hooks struct {
 	// completes. Returning ErrAborted stands for a crash at that step, and
 	// returning any other error stands for a live failure there.
 	AfterStep func(step int) error
-	// BeforeAnchorRead runs inside the state scan between the stat of one
+	// BeforeAnchorRead runs inside the column scan between the stat of one
 	// card's lock and the read of that card's anchor, which is the gap a
 	// wrongly ordered scan would let a whole critical section through.
 	BeforeAnchorRead func(id string)
@@ -242,7 +247,7 @@ type Hooks struct {
 	BeforeOrdinalStamp func(id string) error
 }
 
-// Bench is an opened workbench: its definition, its states in flow order and
+// Bench is an opened workbench: its definition, its columns in flow order and
 // the root directory everything below it hangs from.
 type Bench struct {
 	// Root is the bench directory, the one holding workbench.md.
@@ -256,22 +261,27 @@ type Bench struct {
 	Operator string
 	// Standing is the workbench body, the middle layer of the chain.
 	Standing string
-	// States are the flow in the order workbench.md declares.
-	States []*State
+	// Columns are the flow in the order workbench.md declares.
+	Columns []*Column
 	// Format is the declared storage format version.
 	Format int
 	// Profile is the declared conformance target.
 	Profile string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+	// retiredVocabulary marks a bench the lenient opener admitted, whose
+	// cards are written in the vocabulary this build retired. It is
+	// unexported because only this package reads it and only the vocabulary
+	// migration produces a bench carrying it.
+	retiredVocabulary bool
 	// Hooks are the test-only levers on the structural protocol's timing.
 	Hooks *Hooks
-	// StrandedStates is every identifier this workbench's own definition names
-	// whose directory is not there at all: a state a retiring act moved or
+	// StrandedColumns is every identifier this workbench's own definition names
+	// whose directory is not there at all: a column a retiring act moved or
 	// removed without also editing the definition, or one a person removed by
 	// hand. It plays no part in the flow; dinah check reports it and dinah
-	// check --migrate-states removes it from the definition.
-	StrandedStates []string
+	// check --migrate-columns removes it from the definition.
+	StrandedColumns []string
 	// levels are the declared level sets, keyed by axis, read out of the
 	// levels block at Open. It is unexported because every reader wants one
 	// axis rather than the map, and Levels and Level are how they ask.
@@ -522,14 +532,14 @@ func (s *search) fallbackTo(home string) (bool, error) {
 // repository checked out at the home directory is found exactly as before.
 func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []string, err error) {
 	anchorPath := filepath.Join(dir, WorkbenchAnchor)
-	state, err := readAnchor(anchorPath)
+	recognition, err := readAnchor(anchorPath)
 	if err != nil {
 		return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 	}
-	if state == anchorOurs {
+	if recognition == anchorOurs {
 		return dir, nil, nil, nil
 	}
-	if state == anchorForeign {
+	if recognition == anchorForeign {
 		passed = append(passed, anchorPath)
 	}
 	if skipBase {
@@ -752,15 +762,15 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 	for _, id := range ListIDs(base) {
 		candidate := filepath.Join(base, id)
 		anchorPath := filepath.Join(candidate, WorkbenchAnchor)
-		state, rerr := readAnchor(anchorPath)
+		recognition, rerr := readAnchor(anchorPath)
 		if rerr != nil {
 			return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 		}
-		if state == anchorForeign {
+		if recognition == anchorForeign {
 			passed = append(passed, anchorPath)
 			continue
 		}
-		if state != anchorOurs {
+		if recognition != anchorOurs {
 			continue
 		}
 		candidates = append(candidates, candidate)
@@ -774,13 +784,13 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 	return "", nil, passed, nil
 }
 
-// anchorState is what a workbench.md holds at one rung of the search, without
+// anchorRecognition is what a workbench.md holds at one rung of the search, without
 // validating what it holds.
-type anchorState int
+type anchorRecognition int
 
 const (
 	// anchorAbsent means no file sits there at all.
-	anchorAbsent anchorState = iota
+	anchorAbsent anchorRecognition = iota
 	// anchorForeign means a file sits there and carries none of the keys
 	// that claim it as a Dinah workbench.
 	anchorForeign
@@ -801,7 +811,7 @@ var readAnchorContent = ReadText
 // rare. A non-nil error means the file exists and could not be read, a
 // different question from whether it is recognized, and the caller checks
 // the error first.
-func readAnchor(path string) (anchorState, error) {
+func readAnchor(path string) (anchorRecognition, error) {
 	if !Exists(path) {
 		return anchorAbsent, nil
 	}
@@ -823,11 +833,11 @@ func readAnchor(path string) (anchorState, error) {
 // somebody else's document; a non-nil error means a file exists and could
 // not be read, and the caller decides how to refuse over that.
 func AnchorRecognized(path string) (bool, error) {
-	state, err := readAnchor(path)
+	recognition, err := readAnchor(path)
 	if err != nil {
 		return false, err
 	}
-	return state == anchorOurs, nil
+	return recognition == anchorOurs, nil
 }
 
 // Candidate is one workbench a listing reports: enough of its identity to
@@ -840,7 +850,7 @@ type Candidate struct {
 	// Slug is the short name a card reference carries ahead of its number,
 	// empty on a workbench written before the field or one whose anchor will
 	// not read. The key is absent rather than an empty string standing in
-	// for the workbench having none, matching the convention StateView.Slug
+	// for the workbench having none, matching the convention ColumnView.Slug
 	// already carries.
 	Slug string `json:"slug,omitempty"`
 	// Path is the workbench directory, which is what --workbench takes.
@@ -873,15 +883,61 @@ func describeAll(candidates []string) []Candidate {
 	return described
 }
 
-// Open reads a bench definition and the states it declares.
+// columnVocabulary names the on-disk spellings one opener reads. It carries
+// no behavior of its own; it exists so Open and OpenPreVocabulary run the
+// same validation over two different key names instead of each keeping its
+// own copy of what "the same way, except" means.
+type columnVocabulary struct {
+	// SequenceKey is the workbench anchor's own key naming the flow.
+	SequenceKey string
+	// Dir is the collection directory the flow's members live in.
+	Dir string
+	// Anchor is the filename one member's own anchor takes.
+	Anchor string
+}
+
+// The two vocabularies a bench on disk can be written in. currentVocabulary is
+// what every workbench this build writes carries; preVocabulary is what a
+// workbench written before dinah-287 carries, and only the migration reads it.
+var (
+	currentVocabulary = columnVocabulary{SequenceKey: "columns", Dir: ColumnsDir, Anchor: ColumnAnchor}
+	preVocabulary     = columnVocabulary{SequenceKey: preVocabularySequenceKey, Dir: PreVocabularyDir, Anchor: PreVocabularyAnchor}
+)
+
+// Open reads a bench definition and the columns it declares.
 //
 // The refusals here are the profile's own: a definition missing a title, a
-// state list or a profile declaration is malformed, a definition declaring a
+// column list or a profile declaration is malformed, a definition declaring a
 // revision outside the window admitProfile applies is unsupported-version, and
 // a bench whose storage format is newer than this binary knows is refused with
 // the version it wanted named. Each malformed refusal carries the file it was
 // raised over, so a reader knows which workbench to repair.
+//
+// A workbench declaring a revision inside the pre-vocabulary window is refused
+// with needs-vocabulary-migration before any column is read, which is what
+// stops a reader taking an old card's state field, holding a flow-position
+// identifier under the old vocabulary, for one of ready, active or blocked.
 func Open(root string) (*Bench, error) {
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary)
+}
+
+// OpenPreVocabulary reads a workbench still written in the vocabulary this
+// build retired, so the migration that carries it forward has something to
+// read. It runs the same five checks Open runs, over the old key names, and it
+// is reachable from the vocabulary migration alone: every other caller goes
+// through Open and is refused a workbench of this age by name.
+func OpenPreVocabulary(root string) (*Bench, error) {
+	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile)
+}
+
+// openWithVocabulary is the body both openers share. It reads and parses the
+// workbench anchor, requires a title, requires and admits a profile, requires
+// the sequence key to name at least one column, and reads each named column's
+// own anchor. None of those five steps is specific to a vocabulary, so a later
+// change to any of them is a change here and reaches both callers; a second
+// copy of any of them appearing elsewhere in this file is the drift this
+// arrangement exists to make visible.
+func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error)) (*Bench, error) {
 	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor)}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
@@ -889,14 +945,15 @@ func Open(root string) (*Bench, error) {
 	}
 	fm, body := ParseAnchor(text)
 	b := &Bench{
-		Root:     root,
-		Title:    fm.Value("title"),
-		Slug:     fm.Value("slug"),
-		Operator: fm.Value("operator"),
-		Standing: body,
-		Profile:  fm.Value("profile"),
-		FM:       fm,
-		levels:   readLevels(fm),
+		Root:              root,
+		Title:             fm.Value("title"),
+		Slug:              fm.Value("slug"),
+		Operator:          fm.Value("operator"),
+		Standing:          body,
+		Profile:           fm.Value("profile"),
+		retiredVocabulary: vocab.SequenceKey == preVocabulary.SequenceKey,
+		FM:                fm,
+		levels:            readLevels(fm),
 	}
 	if b.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "title", anchor)
@@ -904,7 +961,7 @@ func Open(root string) (*Bench, error) {
 	if b.Profile == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
-	major, _, err := admitProfile(b.Profile)
+	major, _, err := admit(b.Profile)
 	if errors.Is(err, errProfileMalformed) {
 		return nil, contract.RefuseWith(contract.Malformed, "profile", anchor)
 	}
@@ -922,37 +979,38 @@ func Open(root string) (*Bench, error) {
 		}
 		b.Format = n
 	}
-	ids := fm.Seq("states")
+	ids := fm.Seq(vocab.SequenceKey)
 	if len(ids) == 0 {
-		return nil, contract.RefuseWith(contract.Malformed, "states", anchor)
+		return nil, contract.RefuseWith(contract.Malformed, vocab.SequenceKey, anchor)
 	}
 	seen := map[string]bool{}
 	seenSlug := map[string]bool{}
 	for _, id := range ids {
 		if seen[id] {
-			return nil, contract.RefuseWith(contract.Malformed, "states", anchor)
+			return nil, contract.RefuseWith(contract.Malformed, vocab.SequenceKey, anchor)
 		}
 		seen[id] = true
-		stateDir := filepath.Join(root, StatesDir, id)
-		if !Exists(stateDir) {
-			b.StrandedStates = append(b.StrandedStates, id)
+		columnDir := filepath.Join(root, vocab.Dir, id)
+		if !Exists(columnDir) {
+			b.StrandedColumns = append(b.StrandedColumns, id)
 			continue
 		}
-		state, err := readState(root, id, len(b.States))
+		column, err := readColumnIn(root, vocab, id, len(b.Columns))
 		if err != nil {
 			return nil, err
 		}
-		if err := admitSlug(state, major, seenSlug, map[string]string{"path": b.StateAnchorPath(id)}); err != nil {
+		path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
+		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path}); err != nil {
 			return nil, err
 		}
-		b.States = append(b.States, state)
+		b.Columns = append(b.Columns, column)
 	}
 	return b, nil
 }
 
-// admitSlug applies the slug rules to one state as the bench is opened, given
-// the major the workbench declares, the slugs its earlier states took, and the
-// anchor the state was read from.
+// admitSlug applies the slug rules to one column as the bench is opened, given
+// the major the workbench declares, the slugs its earlier columns took, and the
+// anchor the column was read from.
 //
 // Every rule here turns on the declared major, an absent slug and a stored one
 // alike, because CORE-STATE-10 arrives with SlugMandatoryMajor and a workbench
@@ -960,23 +1018,23 @@ func Open(root string) (*Bench, error) {
 // the reader carries a malformed or duplicated slug through, and `dinah check`
 // names it for a person to repair. Refusing it here would take the workbench
 // away from the command that reports the defect and from the migration that
-// repairs the states around it, since both have to open the workbench before
+// repairs the columns around it, since both have to open the workbench before
 // they can do anything at all, and one hand-typed slug would then close the
 // workbench with no way back in.
 //
-// Each refusal names the state and the file it was raised over, so a reader
+// Each refusal names the column and the file it was raised over, so a reader
 // past that major knows which anchor to open.
-func admitSlug(state *State, major int, seen map[string]bool, anchor map[string]string) error {
+func admitSlug(column *Column, major int, seen map[string]bool, anchor map[string]string) error {
 	if major < SlugMandatoryMajor {
 		return nil
 	}
-	if state.Slug == "" {
-		return contract.RefuseWith(contract.Malformed, "slug of state "+state.ID, anchor)
+	if column.Slug == "" {
+		return contract.RefuseWith(contract.Malformed, "slug of column "+column.ID, anchor)
 	}
-	if !ValidStateSlug(state.Slug) || seen[state.Slug] {
-		return contract.RefuseWith(contract.Malformed, "slug "+state.Slug+" of state "+state.ID, anchor)
+	if !ValidColumnSlug(column.Slug) || seen[column.Slug] {
+		return contract.RefuseWith(contract.Malformed, "slug "+column.Slug+" of column "+column.ID, anchor)
 	}
-	seen[state.Slug] = true
+	seen[column.Slug] = true
 	return nil
 }
 
@@ -1104,18 +1162,25 @@ func revisionText(pair [2]int) string {
 	return ProfileName + " " + strconv.Itoa(pair[0]) + "." + strconv.Itoa(pair[1])
 }
 
-// readState reads one state anchor and applies the profile's own checks on a
-// state: a duplicate identifier, an absent title and a kind outside the three
+// readColumn reads one column anchor and applies the profile's own checks on a
+// column: a duplicate identifier, an absent title and a kind outside the three
 // are each malformed.
-func readState(root, id string, position int) (*State, error) {
-	path := filepath.Join(root, StatesDir, id, StateAnchor)
+func readColumn(root, id string, position int) (*Column, error) {
+	return readColumnIn(root, currentVocabulary, id, position)
+}
+
+// readColumnIn is readColumn with the on-disk spellings supplied, so the
+// pre-vocabulary opener reads a column anchor by the same rules under the
+// names that vocabulary used.
+func readColumnIn(root string, vocab columnVocabulary, id string, position int) (*Column, error) {
+	path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
 	anchor := map[string]string{"path": path}
 	text, err := ReadText(path)
 	if err != nil {
-		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
+		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
 	fm, body := ParseAnchor(text)
-	state := &State{
+	column := &Column{
 		ID:            id,
 		Title:         fm.Value("title"),
 		Slug:          fm.Value("slug"),
@@ -1126,26 +1191,26 @@ func readState(root, id string, position int) (*State, error) {
 		Position:      position,
 		FM:            fm,
 	}
-	if state.Title == "" {
-		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
+	if column.Title == "" {
+		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
 	// CORE-STATE-11 admits a kind the profile declares and a kind carrying a
 	// layer's prefix, and nothing else, so a bare fourth word is malformed
 	// where a dotted one is read. A kind this build does not implement reads
-	// as a work state under CORE-STATE-12, which is what TakesWorkUp answers
+	// as a work column under CORE-STATE-12, which is what TakesWorkUp answers
 	// for it.
 	switch {
-	case state.Kind == contract.KindIntake, state.Kind == contract.KindWork, state.Kind == contract.KindDone:
-	case strings.Contains(state.Kind, "."):
+	case column.Kind == contract.KindIntake, column.Kind == contract.KindWork, column.Kind == contract.KindDone:
+	case strings.Contains(column.Kind, "."):
 	default:
-		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
+		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
 	if limit := fm.Value("wip_limit"); limit != "" {
 		n, err := strconv.Atoi(limit)
 		if err != nil {
-			return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
+			return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 		}
-		state.Capacity = n
+		column.Capacity = n
 	}
 	// The value is exactly true or false, which is wip_limit's discipline
 	// above and deliberately not operator_owned's == "true" leniency, under
@@ -1153,67 +1218,67 @@ func readState(root, id string, position int) (*State, error) {
 	switch fm.Value("awaiting_outside") {
 	case "":
 	case "true":
-		state.AwaitingOutside = true
+		column.AwaitingOutside = true
 	case "false":
 	default:
-		return nil, contract.RefuseWith(contract.Malformed, "state "+id, anchor)
+		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
-	return state, nil
+	return column, nil
 }
 
-// State returns the state carrying an identifier, or nil when the bench
+// Column returns the column carrying an identifier, or nil when the bench
 // declares none.
-func (b *Bench) State(id string) *State {
-	for _, state := range b.States {
-		if state.ID == id {
-			return state
+func (b *Bench) Column(id string) *Column {
+	for _, column := range b.Columns {
+		if column.ID == id {
+			return column
 		}
 	}
 	return nil
 }
 
-// RejectTarget resolves the state a state's own reject_to declaration names.
-// It answers nil when the state is nil, when the state declares no reject_to,
-// when the declared ref names no state this workbench carries, and when it
-// names the declaring state itself, because none of those is a destination any
+// RejectTarget resolves the column a column's own reject_to declaration names.
+// It answers nil when the column is nil, when the column declares no reject_to,
+// when the declared ref names no column this workbench carries, and when it
+// names the declaring column itself, because none of those is a destination any
 // caller should act on. Every reader of the declaration, which is legalMoves
 // and move's own journal event, calls this rather than reading RejectTo and
 // resolving the name for itself, so a workbench this build cannot cleanly
 // resolve reads as a workbench declaring nothing wherever the declaration is
 // acted on, and dinah check is the one surface that still says why.
-func (b *Bench) RejectTarget(state *State) *State {
-	if state == nil || state.RejectTo == "" {
+func (b *Bench) RejectTarget(column *Column) *Column {
+	if column == nil || column.RejectTo == "" {
 		return nil
 	}
-	target := b.StateByRef(state.RejectTo)
-	if target == nil || target.ID == state.ID {
+	target := b.ColumnByRef(column.RejectTo)
+	if target == nil || target.ID == column.ID {
 		return nil
 	}
 	return target
 }
 
-// StateByRef returns the state a reference names, accepting the identifier,
+// ColumnByRef returns the column a reference names, accepting the identifier,
 // then the slug, then the title, the last two compared without regard to ASCII
-// case, which is what makes a state nameable on a command line at all.
+// case, which is what makes a column nameable on a command line at all.
 //
-// The slug is tried ahead of the title so a reference matching one state's
-// slug and another state's title resolves to the state whose slug it is. No
-// two states of an open bench carry the same slug, so the slug pass itself is
+// The slug is tried ahead of the title so a reference matching one column's
+// slug and another column's title resolves to the column whose slug it is. No
+// two columns of an open bench carry the same slug, so the slug pass itself is
 // never ambiguous; the title pass keeps the first-match-in-order behaviour it
 // has always had.
-func (b *Bench) StateByRef(ref string) *State {
-	if state := b.State(ref); state != nil {
-		return state
+func (b *Bench) ColumnByRef(ref string) *Column {
+	if column := b.Column(ref); column != nil {
+		return column
 	}
 	want := asciiLower(strings.TrimSpace(ref))
-	for _, state := range b.States {
-		if state.Slug != "" && asciiLower(state.Slug) == want {
-			return state
+	for _, column := range b.Columns {
+		if column.Slug != "" && asciiLower(column.Slug) == want {
+			return column
 		}
 	}
-	for _, state := range b.States {
-		if asciiLower(state.Title) == want {
-			return state
+	for _, column := range b.Columns {
+		if asciiLower(column.Title) == want {
+			return column
 		}
 	}
 	return nil
@@ -1253,7 +1318,7 @@ func (b *Bench) JournalPath() string {
 
 // WorkbenchFields are the fields a workbench records about itself that a
 // person wrote and may rewrite. The structural keys beside them (profile,
-// format and the states list) are not a person's to type, and dinah states and
+// format and the columns list) are not a person's to type, and dinah columns and
 // dinah version already report what a reader needs of them.
 var WorkbenchFields = []string{"title", "slug", "operator"}
 
@@ -1311,16 +1376,45 @@ func IsWorkbenchRef(ref string) bool {
 }
 
 // Cards reads every live card of the bench, in ascending identifier order.
+//
+// A bench the lenient opener admitted reads its cards through the lenient
+// reader, because its own anchor declares a pre-vocabulary revision and its
+// cards are written to match it. Everywhere else a card that never came across
+// the rename disagrees with the anchor above it, and LoadCard refuses it rather
+// than reading a column identifier as the card's condition.
+//
+// This is the live half of the collection and the routing stops here on
+// purpose. Every archive reader goes through LoadCard directly, which is
+// strict, and nothing reaches one during a migration run because the migration
+// reads anchors through ParseAnchor rather than through either reader. So the
+// archive half is deliberately not routed rather than routed by oversight, and
+// whoever gives a Bench an archive-reading method next owes it the same choice
+// this method makes.
 func (b *Bench) Cards() ([]*Card, error) {
+	if b.retiredVocabulary {
+		return retiredCardsIn(b.CardsRoot())
+	}
 	return cardsIn(b.CardsRoot())
 }
 
 // cardsIn reads every card of one half of the collection, in ascending
 // identifier order.
 func cardsIn(root string) ([]*Card, error) {
+	return cardsWith(root, LoadCard)
+}
+
+// retiredCardsIn is cardsIn for a bench written in the retired vocabulary,
+// which the lenient opener is the only source of.
+func retiredCardsIn(root string) ([]*Card, error) {
+	return cardsWith(root, loadRetiredCard)
+}
+
+// cardsWith is the body both readers share, given the one-card reader that
+// separates them.
+func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, error) {
 	var cards []*Card
 	for _, id := range ListIDs(root) {
-		card, err := LoadCard(root, id)
+		card, err := load(root, id)
 		if err != nil {
 			return nil, err
 		}
