@@ -3,6 +3,7 @@
 /bin/
 __pycache__/
 .claude/isolation-audit.jsonl
+.claude/worktrees/
 /.dinah-gh-token
 
 # The VS Code extension. The /bin/ entry above is root-anchored and does not
