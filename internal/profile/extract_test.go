@@ -455,6 +455,44 @@ func TestHouseStyle(t *testing.T) {
 	}
 }
 
+// pointerPath reads a repository-relative Markdown path out of section 5.3's
+// pointer to a document outside the profile. The pattern matches any such
+// path rather than the one the document names today, so a sentence rewritten
+// to name a different document is stat'd as written.
+var pointerPath = regexp.MustCompile("`(docs/[A-Za-z0-9._/-]+\\.md)`")
+
+// TestTheCardSectionPointsAtADocumentTheRepositoryCarries asserts both halves
+// of the pointer section 5.3 carries: that the section still names a document
+// outside the profile by its path, and that the working tree carries a file
+// at the path the section names.
+//
+// The pointer exists because 5.3 opens by requiring four things of a card and
+// no more, and a reader who stops there leaves believing that is the whole
+// model. Deleting the sentence restores the belief, and moving the document
+// without the sentence leaves a reader following a path to nothing, so both
+// halves fail here rather than in front of a reader.
+//
+// The second half stats what the first half read instead of a constant of its
+// own. A guard holding one path twice, once against the section and once
+// against the filesystem, passes whenever the sentence is rewritten to name
+// some other document, which is most of the rot it exists to catch.
+//
+// cmd/dinah/guide_guard_test.go carries the sibling check over the guides and
+// the quick start. That one matches published URLs rather than a bare
+// repository-relative path, so it does not reach the profile.
+func TestTheCardSectionPointsAtADocumentTheRepositoryCarries(t *testing.T) {
+	cards := section(readProfile(t), "### 5.3 Cards")
+	m := pointerPath.FindStringSubmatch(cards)
+	if m == nil {
+		t.Fatal("section 5.3 names no document outside the profile. It is the section that says a card carries four things and no more, so a reader who leaves it without a pointer leaves believing that is the whole card model. Move the sentence rather than deleting it.")
+	}
+
+	named := m[1]
+	if _, err := os.Stat(filepath.Join("..", "..", filepath.FromSlash(named))); err != nil {
+		t.Fatalf("section 5.3 names %s and the repository carries no file there: %v. Point the sentence at wherever that document moved to.", named, err)
+	}
+}
+
 // section returns the text of the document from the given heading up to the
 // next heading at the same level or shallower, exclusive.
 func section(text, heading string) string {
