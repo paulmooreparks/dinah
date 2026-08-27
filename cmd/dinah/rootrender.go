@@ -28,16 +28,24 @@ import (
 // because it belongs to the answer rather than to the workbench.
 //
 // Three headings come out of this, one per condition, because one sentence
-// covering all three is false of two of them. A directory nothing could be
-// read off has no identity but its path, so the path leads and the sentence
-// says the directory would not read. A workbench whose anchor gave a title and
-// which then would not open keeps its identity line and is told, underneath
-// it, that the workbench would not open, since throwing away a title the row
-// is holding leaves a reader unable to say which workbench failed. A workbench
-// that opened and refused this particular read keeps its identity line too,
-// and the sentence under it says the workbench read, because it did: what
-// refused was the question, and a --column naming a column this workbench does
-// not have is the ordinary way to produce one.
+// covering all three is false of two of them.
+//
+// The first branch keys on a refused row that carries no identity at all,
+// rather than on which walk produced it. A directory nothing could be read off
+// is the usual way to arrive there, and one more way exists: a workbench whose
+// anchor parsed and declared neither a title nor a slug, and which then would
+// not open, leaves describe with both fields empty too. The sentence stays
+// true in both, because such a row has nothing but its path to be named by and
+// the workbench genuinely would not read, so the path leads.
+//
+// A workbench whose anchor gave an identity and which then would not open
+// keeps its identity line and is told, underneath it, that the workbench would
+// not open, since throwing away a title the row is holding leaves a reader
+// unable to say which workbench failed. A workbench that opened and refused
+// this particular read keeps its identity line too, and the sentence under it
+// says the workbench read, because it did: what refused was the question, and
+// a --column naming a column this workbench does not have is the ordinary way
+// to produce one.
 func (s *session) rootHeading(candidate bench.Candidate, unanswered string) bool {
 	if candidate.Refused != "" && candidate.Title == "" && candidate.Slug == "" {
 		s.line(s.r.T("root.workbench.refused",
@@ -52,7 +60,7 @@ func (s *session) rootHeading(candidate bench.Candidate, unanswered string) bool
 		"path", candidate.Path,
 	))
 	if candidate.Refused != "" {
-		s.line(s.r.T("root.workbench.unreadable", "refusal", s.refusedCell(candidate.Refused)))
+		s.line(s.r.T("root.workbench.unopened", "refusal", s.refusedCell(candidate.Refused)))
 		return true
 	}
 	if unanswered != "" {

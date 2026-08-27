@@ -59,6 +59,19 @@ func TestMain(m *testing.M) {
 // because it always passes --lang, which is a fixture accident rather than
 // isolation.
 //
+// resolveFormat (format.go) reads DINAH_FORMAT and is the reason this list is
+// eight rather than seven. Before dinah-31 the variable was harmless in a
+// shell, because main.go compared it against "json" and every other value fell
+// through to the human rendering unremarked. It now selects the compact form
+// and refuses a value it does not recognise, so a developer who exports it
+// changes what three tests that have nothing to do with it see: a plausible
+// DINAH_FORMAT=compact reddens the rendering-head coverage sweep, the
+// attachment-history alignment test and the missing-slug listing test, and a
+// mistyped one reddens a fixture at its own init with dinah.unknown-format.
+// The audience for the compact form is a driver loop, which is exactly the
+// caller that exports this variable, so the reader who meets those failures
+// reads a working trunk as broken.
+//
 // The list deliberately stops short of DINAH_ACTOR and DINAH_LANG. Fixtures
 // set both on purpose, and clearing them at the binary boundary would change
 // what currently-passing tests start from.
@@ -66,6 +79,7 @@ func TestMain(m *testing.M) {
 // It is a named variable rather than a literal at the call site so
 // TestIsolatedEnvNamesEveryVariableTheBinaryClears can read it back.
 var isolatedEnv = []string{
+	"DINAH_FORMAT",
 	"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
 	"LC_ALL", "LC_MESSAGES", "LANG",
 }
@@ -78,7 +92,7 @@ var isolatedEnv = []string{
 // a golden list on purpose: reading the names off the list under test would
 // assert only that a slice equals itself. It catches a name dropped from
 // isolatedEnv later, and it fails on any machine, including a CI runner
-// exporting none of the seven.
+// exporting none of the eight.
 //
 // The second half asserts that TestMain actually made the call, by reading
 // each name back while tests run. That one can only fail where the name is
@@ -87,6 +101,7 @@ var isolatedEnv = []string{
 // without the second, a list nothing acts on passes.
 func TestIsolatedEnvNamesEveryVariableTheBinaryClears(t *testing.T) {
 	want := []string{
+		"DINAH_FORMAT",
 		"COLUMNS", "DINAH_EDITOR", "VISUAL", "EDITOR",
 		"LC_ALL", "LC_MESSAGES", "LANG",
 	}
@@ -6513,8 +6528,9 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "card", "column", "depth", "description", "expires", "from",
-		"group-by", "kind", "lang", "max-depth", "operator", "priority", "root",
+		"actor", "card", "column", "depth", "description", "expires",
+		"format", "from", "group-by", "kind", "lang", "max-depth",
+		"operator", "priority", "root",
 		"severity", "since", "slug", "workbench",
 	}
 	wantMarkers := []string{
@@ -6827,6 +6843,7 @@ const ratifiedGlobalFlagTable = `  Option             What it does
   -----------------  -----------------------------------------------------------
   --workbench <dir>  Use this workbench instead of the one discovered from here
   --json             Emit the canonical machine form
+  --format <name>    Select json or compact for the machine form
   --quiet            Suppress served instructions on claim and move
   --lang <tag>       Render in this language; run ` + "`dinah version --catalogs`" + ` for the tags
   --actor <name>     Act as this owner`

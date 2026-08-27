@@ -515,9 +515,135 @@ func unreadableAnchor(t *testing.T, dir string) {
 	}
 }
 
+// retiredVocabularyCard writes a card into the workbench beneath dir and then
+// strips the column key out of that card's header, which leaves a card written
+// wholly in the vocabulary the column rename retired.
+//
+// It is the break that leaves bench.Open succeeding and makes the workbench's
+// own card read refuse, so the row comes back carrying its title and its slug
+// beside a refusal its own read raised. The breaks tried before it either stop
+// the walk, which produces the wrong condition, or are accepted: an unknown
+// column identifier and a state outside the vocabulary both parse, so neither
+// provokes anything.
+func retiredVocabularyCard(t *testing.T, dir string) {
+	t.Helper()
+	if got := runCLI(t, dir, "add", "a card written before the rename"); got.code != 0 {
+		t.Fatalf("add a card at %s: %d %s", dir, got.code, got.errw)
+	}
+	anchors, err := filepath.Glob(filepath.Join(soleBenchDir(t, dir), "cards", "*", bench.CardAnchor))
+	if err != nil || len(anchors) != 1 {
+		t.Fatalf("the workbench at %s holds %d card anchors, wanted the one just written: %v", dir, len(anchors), err)
+	}
+	raw, err := os.ReadFile(anchors[0])
+	if err != nil {
+		t.Fatalf("read the card at %s: %v", anchors[0], err)
+	}
+	var kept []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "column:") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	stripped := strings.Join(kept, "\n")
+	if stripped == string(raw) {
+		t.Fatalf("the card at %s declares no column key to strip, so this case cannot be built", anchors[0])
+	}
+	if err := os.WriteFile(anchors[0], []byte(stripped), 0o644); err != nil {
+		t.Fatalf("write the card at %s: %v", anchors[0], err)
+	}
+}
+
+// unansweredCases pairs every root-scoped verb with an invocation that leaves
+// each workbench in the forest reading perfectly well and then declining the
+// question, which is the one condition that reaches that verb's own per-member
+// Unanswered assignment.
+//
+// The five assignments are five separate lines in five separate builders, and
+// a repair spelled at all five is guarded at all five or it is guarded at one.
+// Four of the verbs decline over a column reference the caller supplied, which
+// is resolved inside each workbench because the columns of one workbench are
+// not the columns of another. tree carries that reference in its query rather
+// than in a flag, so its case spells the same reference as a query term.
+// status takes no reference to get wrong, so its case breaks the workbench's
+// own card set instead.
+var unansweredCases = []struct {
+	verb    string
+	argv    []string
+	refusal string
+	provoke func(t *testing.T, root string)
+}{
+	{verb: "tree", argv: []string{"tree", "column:nosuchcolumn"}, refusal: contract.UnknownColumn},
+	{verb: "status", argv: []string{"status"}, refusal: contract.VocabularyRetired, provoke: func(t *testing.T, root string) {
+		t.Helper()
+		retiredVocabularyCard(t, filepath.Join(root, "alpha"))
+		retiredVocabularyCard(t, filepath.Join(root, "beta"))
+	}},
+	{verb: "ls", argv: []string{"ls", "--column", "nosuchcolumn"}, refusal: contract.UnknownColumn},
+	{verb: "next", argv: []string{"next", "--column", "nosuchcolumn"}, refusal: contract.UnknownColumn},
+	{verb: "changes", argv: []string{"changes", "--column", "nosuchcolumn"}, refusal: contract.UnknownColumn},
+}
+
+// TestARootScopedReadInCompactFormAnswersCanonicalJSON pins the one place the
+// compact projection and the root-scoped reads meet.
+//
+// dinah-31 gave every verb a compact form and routed the machine branch
+// through emitMachine, which serves compactEncode's rendering where that
+// function defines one for the value's own type and the canonical JSON
+// everywhere else. No root-scoped answer has a compact rendering, so the five
+// root-scoped reads answer canonical JSON under --format compact while the
+// same verb aimed at one workbench answers the compact lines.
+//
+// That is the documented per-type fallback rather than a refusal, so a caller
+// naming the format gets an answer they can parse instead of an error. It is
+// asserted rather than described because the alternative reading, that a
+// root-scoped read silently ignores a format it was asked for, is the one a
+// reader would otherwise have to guess at. A later card giving these shapes a
+// compact rendering adds a case to compactEncode and reddens this test, which
+// is the right moment to revisit the sentence above.
+func TestARootScopedReadInCompactFormAnswersCanonicalJSON(t *testing.T) {
+	root := newForest(t, "alpha", "beta")
+	scoped := runCLI(t, root, "ls", "--root", root, "--format", "compact")
+	if scoped.code != 0 {
+		t.Fatalf("ls --root --format compact: %d %s", scoped.code, scoped.errw)
+	}
+	if _, ok := decode(t, scoped.out).(map[string]any); !ok {
+		t.Errorf("a root-scoped read in compact form answered something that is not canonical JSON:\n%s", scoped.out)
+	}
+	single := runCLI(t, filepath.Join(root, "alpha"), "ls", "--format", "compact")
+	if single.code != 0 {
+		t.Fatalf("ls --format compact: %d %s", single.code, single.errw)
+	}
+	if strings.HasPrefix(strings.TrimSpace(single.out), "{") {
+		t.Errorf("the single-workbench control answered JSON, so this case cannot tell the two apart:\n%s", single.out)
+	}
+}
+
+// TestEveryRootScopedVerbHasAnUnansweredCase pairs the case table above to the
+// verb roster, so a sixth root-scoped verb added to the surface and not to the
+// table fails here rather than shipping with its own assignment unguarded.
+func TestEveryRootScopedVerbHasAnUnansweredCase(t *testing.T) {
+	covered := make(map[string]bool, len(unansweredCases))
+	for _, one := range unansweredCases {
+		covered[one.verb] = true
+	}
+	if len(covered) != len(unansweredCases) {
+		t.Fatalf("the case table names %d verbs across %d cases, so a verb is written twice", len(covered), len(unansweredCases))
+	}
+	for _, scoped := range rootScopedVerbs {
+		if !covered[scoped.verb] {
+			t.Errorf("%s is a root-scoped verb with its own Unanswered assignment and no case reaches it", scoped.verb)
+		}
+		delete(covered, scoped.verb)
+	}
+	for name := range covered {
+		t.Errorf("the case table names %s, which is not a root-scoped verb", name)
+	}
+}
+
 // TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer asserts
 // that the two conditions a root-scoped row can carry are two facts rather
-// than one, on both surfaces.
+// than one, on both surfaces, at every producer that sets either of them.
 //
 // They were one field before this test existed. A workbench that read
 // perfectly well and then declined the question wrote its refusal onto
@@ -528,43 +654,55 @@ func unreadableAnchor(t *testing.T, dir string) {
 // differently from one that answered a refusal, is exactly the reader that
 // cannot do that.
 //
-// So each leg asserts the field that must be set and the field that must not.
+// Each leg asserts the field that must be set and the field that must not.
 // Asserting only the first would pass on a row that set both, which is the
 // defect in its purest form.
+//
+// The first leg runs once per root-scoped verb rather than once, because the
+// assignment it guards is written once per verb. Its first form drove ls
+// alone, which is the command the push-back's own reproduction happened to
+// use, and putting the refusal back on Refused in the other four builders left
+// the whole suite green.
 func TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer(t *testing.T) {
-	t.Run("read and did not answer", func(t *testing.T) {
-		root := newForest(t, "alpha", "beta")
-		rows := members(t, forestJSON(t, root, "ls", "--root", root, "--column", "nosuchcolumn"))
-		if len(rows) != 2 {
-			t.Fatalf("the answer carries %d workbenches, wanted the two the fixture holds", len(rows))
-		}
-		for _, row := range rows {
-			if row["unanswered"] != contract.UnknownColumn {
-				t.Errorf("a workbench that read and declined the column reports unanswered %v, wanted %s", row["unanswered"], contract.UnknownColumn)
+	for _, one := range unansweredCases {
+		t.Run("read and did not answer: "+one.verb, func(t *testing.T) {
+			root := newForest(t, "alpha", "beta")
+			if one.provoke != nil {
+				one.provoke(t, root)
 			}
-			if _, refused := row["refused"]; refused {
-				t.Errorf("a workbench that read perfectly well carries refused %v, which says it would not read", row["refused"])
+			argv := append(append([]string{}, one.argv...), "--root", root)
+			rows := members(t, forestJSON(t, root, argv...))
+			if len(rows) != 2 {
+				t.Fatalf("the answer carries %d workbenches, wanted the two the fixture holds", len(rows))
 			}
-			if row["title"] == "" || row["slug"] == "" {
-				t.Errorf("the row threw away the identity it read: %v", row)
+			for _, row := range rows {
+				if row["unanswered"] != one.refusal {
+					t.Errorf("a workbench that read and declined the question reports unanswered %v, wanted %s", row["unanswered"], one.refusal)
+				}
+				if _, refused := row["refused"]; refused {
+					t.Errorf("a workbench that read perfectly well carries refused %v, which says it would not read", row["refused"])
+				}
+				if row["title"] == "" || row["slug"] == "" {
+					t.Errorf("the row threw away the identity it read: %v", row)
+				}
 			}
-		}
-		got := runCLI(t, root, "ls", "--root", root, "--column", "nosuchcolumn")
-		unanswered := msg.For(msg.Base).T("root.workbench.unanswered",
-			"refusal", "<"+contract.UnknownColumn+">")
-		if !strings.Contains(got.out, unanswered) {
-			t.Errorf("the human form does not say the workbench read and did not answer:\n%s", got.out)
-		}
-		if strings.Contains(got.out, msg.For(msg.Base).T("root.workbench.unreadable", "refusal", "<"+contract.UnknownColumn+">")) {
-			t.Errorf("the human form says a workbench that read would not open:\n%s", got.out)
-		}
-		for _, row := range rows {
-			heading := identityLine(row)
-			if !strings.Contains(got.out, heading) {
-				t.Errorf("the human form lost the identity line %q:\n%s", heading, got.out)
+			got := runCLI(t, root, argv...)
+			unanswered := msg.For(msg.Base).T("root.workbench.unanswered",
+				"refusal", "<"+one.refusal+">")
+			if !strings.Contains(got.out, unanswered) {
+				t.Errorf("the human form does not say the workbench read and did not answer:\n%s", got.out)
 			}
-		}
-	})
+			if strings.Contains(got.out, msg.For(msg.Base).T("root.workbench.unopened", "refusal", "<"+one.refusal+">")) {
+				t.Errorf("the human form says a workbench that read would not open:\n%s", got.out)
+			}
+			for _, row := range rows {
+				heading := identityLine(row)
+				if !strings.Contains(got.out, heading) {
+					t.Errorf("the human form lost the identity line %q:\n%s", heading, got.out)
+				}
+			}
+		})
+	}
 
 	t.Run("described and would not open", func(t *testing.T) {
 		root := newForest(t, "alpha", "beta")
@@ -594,7 +732,7 @@ func TestAWorkbenchThatWouldNotReadIsToldApartFromOneThatDidNotAnswer(t *testing
 		if !strings.Contains(got.out, heading) {
 			t.Errorf("the human form lost the identity line %q:\n%s", heading, got.out)
 		}
-		unreadable := msg.For(msg.Base).T("root.workbench.unreadable",
+		unreadable := msg.For(msg.Base).T("root.workbench.unopened",
 			"refusal", "<"+contract.UnsupportedVer+">")
 		if !strings.Contains(got.out, unreadable) {
 			t.Errorf("the human form does not say the workbench would not open:\n%s", got.out)
