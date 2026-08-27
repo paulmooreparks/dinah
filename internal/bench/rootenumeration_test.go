@@ -1,9 +1,12 @@
 package bench
 
 import (
+	"errors"
 	"path/filepath"
 	"sort"
 	"testing"
+
+	"dinah/internal/contract"
 )
 
 // rootDefinition is the smallest workbench these tests need: one column, no
@@ -111,5 +114,53 @@ func TestEnumerateFindsBothWorkbenchesInAnAmbiguousRoot(t *testing.T) {
 			t.Errorf("the enumeration answered %v, wanted %v", got, wanted)
 			break
 		}
+	}
+}
+
+// TestEnumerateRefusesARootWithAnUnreadableAnchor is dinah-312 AC-8. It was
+// filed on the Agent Code Review push-back rather than in the original
+// contract: the reviewer judged the root probe's refusal behaviour correct
+// (benchIn's existing contract.UnreadableBench refusal, unchanged by this
+// card) but asked for a directed verification target, since dinah-312 is what
+// makes the root ask the unreadable-anchor question at all. Before this card
+// a root whose own workbench.md could not be read was never tested for
+// recognition and simply fell through to the descent; now it is probed the
+// same way every other directory is, so a root in that state refuses instead
+// of silently listing whatever its descendants offer.
+//
+// The unreadable file is forced through the readAnchorContent test seam
+// (bench.go), the same seam TestAnUnreadableAnchorStopsTheWalkWithARefusal in
+// anchor_recognition_test.go uses, rather than through an OS permission bit:
+// a permission bit is not a reliable way to make a file unreadable to its own
+// owner on Windows, where this suite also runs, so the seam is the only
+// platform-independent way to force this path.
+func TestEnumerateRefusesARootWithAnUnreadableAnchor(t *testing.T) {
+	root := t.TempDir()
+	anchorPath := filepath.Join(root, WorkbenchAnchor)
+	write(t, anchorPath, foreignAnchor)
+
+	unreadable := errors.New("simulated unreadable file")
+	previous := readAnchorContent
+	readAnchorContent = func(path string) (string, error) {
+		if path == anchorPath {
+			return "", unreadable
+		}
+		return previous(path)
+	}
+	t.Cleanup(func() { readAnchorContent = previous })
+
+	_, err := enumerate(root)
+	if err == nil {
+		t.Fatalf("enumerate %s: wanted a refusal, got a nil error", root)
+	}
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("enumerate %s: wanted a *contract.Refusal, got %T: %v", root, err, err)
+	}
+	if refusal.Name != contract.UnreadableBench {
+		t.Errorf("refusal name: wanted %s, got %s", contract.UnreadableBench, refusal.Name)
+	}
+	if refusal.Detail != anchorPath {
+		t.Errorf("refusal detail: wanted the unreadable anchor %q, got %q", anchorPath, refusal.Detail)
 	}
 }
