@@ -17,7 +17,7 @@ type Finding struct {
 	// Key is the catalog key naming the defect, so the report is rendered
 	// in the reader's own language rather than in the checker's.
 	Key string
-	// Detail is the identifier, column or field the defect is about.
+	// Detail is the identifier, column, state or field the defect is about.
 	Detail string
 }
 
