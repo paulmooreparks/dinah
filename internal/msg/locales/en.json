@@ -2620,6 +2620,46 @@
     "param.check.migrate-vocabulary.summary": {
       "text": "carry every workbench at or beneath this root across the column and state rename",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table."
+    },
+    "refusal.dinah.conflicting-scope": {
+      "text": "{detail} names a root to walk downward from and {workbench} names one workbench, and one command answers about one scope or the other",
+      "context": "The sentence printed after the refusal name dinah.conflicting-scope. {detail} is the root the caller named with --root or as the path workbenches takes, and {workbench} is the single workbench --workbench or DINAH_WORKBENCH resolved to. refusal.dinah.conflicting-scope.next is spliced on after this one."
+    },
+    "refusal.dinah.conflicting-scope.next": {
+      "text": "; drop one of them, since --root answers for every workbench beneath a directory and --workbench answers for the one you name",
+      "context": "Spliced onto refusal.dinah.conflicting-scope as the next step, saying what each of the two scopes answers so the reader can tell which one they wanted."
+    },
+    "refusal.dinah.depth-without-root": {
+      "text": "--max-depth {detail} bounds a walk downward and this command was given no root to walk from",
+      "context": "The sentence printed after the refusal name dinah.depth-without-root. {detail} is the depth the caller wrote. refusal.dinah.depth-without-root.next is spliced on after this one."
+    },
+    "refusal.dinah.depth-without-root.next": {
+      "text": "; add --root <path> to name the directory to walk, or drop --max-depth",
+      "context": "Spliced onto refusal.dinah.depth-without-root as the next step, naming the two ways past the refusal. The option name and its placeholder are machine vocabulary and are never translated."
+    },
+    "refusal.dinah.malformed-depth": {
+      "text": "--max-depth takes a whole number of rungs and {detail} is not one",
+      "context": "The sentence printed after the refusal name dinah.malformed-depth. {detail} is the value the caller wrote. refusal.dinah.malformed-depth.next is spliced on after this one."
+    },
+    "refusal.dinah.malformed-depth.next": {
+      "text": "; write a number of rungs to descend, or 0 to descend without a bound",
+      "context": "Spliced onto refusal.dinah.malformed-depth as the next step, naming what a legal value looks like and what zero means."
+    },
+    "root.workbench": {
+      "text": "{title}  ({slug})  {path}",
+      "context": "The heading printed above one workbench's own answer under a root-scoped read, which is dinah tree, status, ls, next or changes given --root. It names the workbench the lines below it belong to. {title} is the workbench's title, {slug} is its slug or the missing-slug repair, and {path} is its directory. Its columns are the ones dinah workbenches already prints, in that order, so the two listings read alike."
+    },
+    "root.workbench.refused": {
+      "text": "{refusal}  {path}",
+      "context": "The heading printed in place of root.workbench for a workbench the walk could not read, which is followed by no answer at all. {refusal} is the bracketed refusal name workbenches.refused composes, and {path} is the directory. The title and slug are absent because nothing read them."
+    },
+    "root.empty": {
+      "text": "no workbench is beneath {root}",
+      "context": "The whole answer to a root-scoped read, and to dinah workbenches given a path, that walked a real directory and found nothing. {root} is the directory walked. Finding nothing is an ordinary answer rather than a refusal, so the command exits 0 having printed this."
+    },
+    "workbenches.refused": {
+      "text": "<{refusal}>",
+      "context": "The workbench cell of a listing row the walk could not describe, standing where the title would be. {refusal} is the refusal name, such as dinah.unreadable-workbench, which is machine vocabulary and is never translated. The angle brackets say the cell holds the reason a value is missing rather than the value."
     }
   }
 }

@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -92,7 +94,10 @@ func init() {
 		// so it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkstream).
 		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true},
-		{name: "workbenches", group: groupBench, run: runWorkbenches},
+		// workbenches takes one positional, which is the directory to walk
+		// downward from. Without it the command keeps answering what is
+		// reachable from here, which is the upward search it has always run.
+		{name: "workbenches", group: groupBench, run: runWorkbenches, bounded: 1},
 		{name: "version", group: groupBench, run: runVersion},
 
 		{name: "mcp", group: groupServe, run: runMCP},
@@ -350,6 +355,15 @@ func runRename(s *session, parsed *arguments) int {
 // runStatus reports where the bench stands and what the reader holds.
 func runStatus(s *session, parsed *arguments) int {
 	req := s.request("status", parsed)
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootStatus, error) { return verb.StatusForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootStatus)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		req.WorkbenchSource = s.workbenchSource
 		status, err := l.Status(req)
@@ -385,6 +399,15 @@ func runList(s *session, parsed *arguments) int {
 	if req.Column == "" {
 		req.Column = at(parsed.rest(), 0)
 	}
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootListing, error) { return verb.ListForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootListing)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		listing, err := l.List(req)
 		if err != nil {
@@ -403,6 +426,15 @@ func runNext(s *session, parsed *arguments) int {
 	req := s.request("next", parsed)
 	if req.Column == "" {
 		req.Column = at(parsed.rest(), 0)
+	}
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootOffers, error) { return verb.NextForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootOffers)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		offers, err := l.Next(req)
@@ -475,6 +507,17 @@ func runTree(s *session, parsed *arguments) int {
 	req.Query = text
 	chain := verb.ParseChain(parsed.value("group-by"))
 	level := depthOr(parsed, verb.LevelCards)
+	walk, scopeRefusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if scopeRefusal != nil {
+		return s.reportError(scopeRefusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.Forest, error) {
+				return verb.TreeForest(walk.Root, s.home, req, chain, level, walk.Depth)
+			},
+			s.renderForest)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		tree, err := l.Tree(req, chain, level)
 		if err != nil {
@@ -515,6 +558,80 @@ func depthOr(parsed *arguments, fallback string) string {
 	return fallback
 }
 
+// rootWalk is the downward walk one root-scoped read runs: the directory to
+// walk from, resolved to an absolute path, and how many rungs below it to
+// descend, where zero is unbounded.
+type rootWalk struct {
+	Root  string
+	Depth int
+}
+
+// rootIndent is how far a workbench's own rendering sits in from the margin
+// under a root-scoped read, so a reader can see where one workbench's answer
+// ends and the next begins.
+const rootIndent = 2
+
+// rootWalkFor reads the scope an invocation named and returns the walk it asks
+// for, or nil when the invocation named no root at all, which is the ordinary
+// single-workbench call every one of these commands still answers.
+//
+// named is where the root arrived, which is --root on the five read verbs and
+// the positional path on workbenches. Everything after that is the same rule
+// wherever it is applied, so it is written once here rather than six times at
+// the call sites: two scopes is a refusal, a depth with nothing to bound is a
+// refusal, a depth that is not a count of rungs is a refusal, and a root is
+// resolved to an absolute path before any walk begins.
+//
+// The conflict check reads s.benchFlag rather than looking at --workbench and
+// DINAH_WORKBENCH separately. That field is already bench.Resolve applied to
+// the flag and the environment variable together, before the session is built,
+// so a caller naming either one shows up here as a non-empty benchFlag and
+// checking both would test one fact twice under two names.
+func (s *session) rootWalkFor(parsed *arguments, named string) (*rootWalk, *contract.Refusal) {
+	depth := parsed.value("max-depth")
+	if named == "" {
+		if depth != "" {
+			return nil, contract.Refuse(contract.DepthWithoutRoot, depth)
+		}
+		return nil, nil
+	}
+	if s.benchFlag != "" {
+		return nil, contract.RefuseWith(contract.ConflictingScope, named, map[string]string{
+			"workbench": s.benchFlag,
+		})
+	}
+	rungs := bench.DefaultEnumerateDepth
+	if depth != "" {
+		parsedDepth, err := strconv.Atoi(strings.TrimSpace(depth))
+		if err != nil || parsedDepth < 0 {
+			return nil, contract.Refuse(contract.MalformedDepth, depth)
+		}
+		rungs = parsedDepth
+	}
+	abs, err := filepath.Abs(named)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownRoot, named)
+	}
+	return &rootWalk{Root: abs, Depth: rungs}, nil
+}
+
+// emitForest runs one root-scoped read and writes its answer in whichever form
+// the invocation asked for. The two output forms and the refusal handling are
+// one rule over all five verbs, so they are written once; each command supplies
+// only the builder that asks its own question and the renderer that draws the
+// answer that comes back.
+func emitForest[T any](s *session, build func() (*T, error), render func(*T)) int {
+	answer, err := build()
+	if err != nil {
+		return s.reportError(err)
+	}
+	if s.json {
+		return s.emitJSON(answer)
+	}
+	render(answer)
+	return 0
+}
+
 // runShow reads a card, or anything below it.
 //
 // A bare invocation where several workbenches are reachable lists them instead
@@ -528,7 +645,7 @@ func runShow(s *session, parsed *arguments) int {
 	req.Card = at(parsed.rest(), 0)
 	if req.Card == "" {
 		if rows, ok := s.ambiguousWorkbenches(); ok {
-			return s.emitWorkbenches(rows)
+			return s.emitWorkbenches(rows, "")
 		}
 	}
 	return s.withBench(func(l *verb.Library) int {
@@ -573,6 +690,15 @@ func runChanges(s *session, parsed *arguments) int {
 	req := s.request("changes", parsed)
 	req.Since = parsed.value("since")
 	req.Card = parsed.value("card")
+	walk, refusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootChangeSet, error) { return verb.ChangesForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootChanges)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		set, err := l.Changes(req)
 		if err != nil {
@@ -972,18 +1098,38 @@ func (s *session) emitWorkbenchFields(l *verb.Library, req *verb.Request) int {
 	return 0
 }
 
-// runWorkbenches lists the workbenches reachable from here.
+// runWorkbenches answers where the workbenches are, in either of the two
+// directions that question has.
 //
-// It opens nothing and it never refuses over what the search found, because a
-// question about what is reachable is answered by zero rows as truthfully as
-// by several. A --workbench naming a directory that holds no workbench is
-// the one refusal left, and it belongs to the caller's argument.
+// With no positional it lists what is reachable from here, which is the upward
+// search it has always run: it opens nothing and never refuses over what the
+// search found, because a question about what is reachable is answered by zero
+// rows as truthfully as by several. A --workbench naming a directory that holds
+// no workbench is the one refusal that path has, and it belongs to the caller's
+// argument.
+//
+// With a positional it walks downward from that directory instead, listing
+// every workbench beneath it. The two are different questions rather than two
+// spellings of one, which is why the path is a positional and not a value for
+// --workbench: that flag names a workbench to act on, and naming both is a
+// refusal rather than a preference.
 func runWorkbenches(s *session, parsed *arguments) int {
+	walk, refusal := s.rootWalkFor(parsed, at(parsed.rest(), 0))
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	if walk != nil {
+		rows, err := bench.EnumerateDeep(walk.Root, walk.Depth)
+		if err != nil {
+			return s.reportError(err)
+		}
+		return s.emitWorkbenches(rows, walk.Root)
+	}
 	rows, err := bench.Reachable(s.cwd, s.benchFlag, s.home, s.nativeHome)
 	if err != nil {
 		return s.reportError(err)
 	}
-	return s.emitWorkbenches(rows)
+	return s.emitWorkbenches(rows, "")
 }
 
 // ambiguousWorkbenches reports the reachable workbenches when there is a
@@ -999,11 +1145,15 @@ func (s *session) ambiguousWorkbenches() ([]bench.Candidate, bool) {
 }
 
 // emitWorkbenches writes a listing in whichever form the invocation asked for.
-func (s *session) emitWorkbenches(rows []bench.Candidate) int {
+//
+// root is the directory a downward walk was asked about, empty on the upward
+// search, and it selects the sentence an empty listing gets: a walk that found
+// nothing names the directory it walked, where the search names here.
+func (s *session) emitWorkbenches(rows []bench.Candidate, root string) int {
 	if s.json {
 		return s.emitJSON(rows)
 	}
-	s.renderWorkbenches(rows)
+	s.renderWorkbenches(rows, root)
 	return 0
 }
 

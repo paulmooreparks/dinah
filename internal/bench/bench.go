@@ -657,6 +657,148 @@ func walkFor(dir string, collected *[]Candidate, seen map[string]bool) error {
 	return nil
 }
 
+// DefaultEnumerateDepth is the bound the CLI and MCP surfaces apply to a
+// downward walk when the caller names none. It is not 0 (unbounded): the
+// accident it guards against, a workspace holding a package-manager
+// dependency tree beneath a workbench, is not dot-prefixed, so it is not
+// caught by the dotfile skip walkFor already applies, and it sits on exactly
+// the path a refresh-cycle poll takes. 8 is deep enough for the shape this
+// bound is sized against, a workspace holding customer directories holding
+// one-pagers, concepts and issues, with headroom to spare.
+const DefaultEnumerateDepth = 8
+
+// EnumerateDeep walks downward from root exactly as Enumerate does, running
+// the same benchIn recognition, the same dotfile and symlink skip, and the
+// same recursion into a found workbench looking for one nested inside it. Two
+// things differ.
+//
+// It does not cache. Enumerate's cache exists for the one caller that issues
+// the same downward walk more than once in a process life, which is an MCP
+// session. A CLI process walks once and exits, matching Enumerate's own
+// no-benefit case exactly. The callers of this function are the opposite of
+// that case: a caller polling on a timer, for whom a workbench created after
+// the first call must appear on the next one. Caching here would hide the
+// exact thing the poll exists to notice.
+//
+// A directory it cannot confirm (an unreadable workbench.md, a directory it
+// cannot list) does not fail the walk the way Enumerate's failure mode does.
+// It is reported as a row with Refused set to the refusal name and no Title
+// or Slug, the walk does not descend into it, and every sibling is still
+// visited. Enumerate keeps its existing whole-call-fails contract unchanged;
+// this is a separate function precisely so that contract is not touched.
+//
+// maxDepth bounds how many rungs below root the walk examines; 0 means
+// unbounded, matching Enumerate's own contract exactly. A positive maxDepth
+// stops before the rungs past it without reporting those directories at all,
+// neither as a workbench nor as a refusal, since they were never examined.
+//
+// An empty root, a missing directory, or a non-directory root refuses as a
+// whole call rather than as a row, which is Enumerate's own contract for the
+// path the caller named and the one case that stays a refusal.
+func EnumerateDeep(root string, maxDepth int) ([]Candidate, error) {
+	if root == "" {
+		return nil, contract.Refuse(contract.NoWorkbenchFound, "")
+	}
+	info, err := statPath(root)
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownRoot, root)
+	}
+	if !info.IsDir() {
+		return nil, contract.Refuse(contract.UnknownRoot, root)
+	}
+	var collected []Candidate
+	seen := map[string]bool{}
+	if err := walkDeep(root, &collected, seen, 0, maxDepth); err != nil {
+		return nil, err
+	}
+	if collected == nil {
+		collected = []Candidate{}
+	}
+	return collected, nil
+}
+
+// walkDeep is EnumerateDeep's own recursion. depth is the rung dir itself sits
+// at, so dir's children sit at depth+1, and the bound is checked on entry
+// rather than before each recursive call: a call the bound turns away reads
+// nothing and reports nothing, which is what makes an out-of-bounds directory
+// absent from the listing rather than present as a refusal.
+//
+// The error return carries dir's own unreadability and nothing else. Every
+// failure below dir has already been turned into a row by the time this
+// returns, so the only caller that ever sees a non-nil error is EnumerateDeep
+// itself, for the root the caller named.
+func walkDeep(dir string, collected *[]Candidate, seen map[string]bool, depth, maxDepth int) error {
+	if maxDepth > 0 && depth >= maxDepth {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return contract.Refuse(contract.UnknownRoot, dir)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") && name != "." && name != ".." {
+			continue
+		}
+		full := filepath.Join(dir, name)
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+		found, ambiguous, _, err := benchIn(full, false)
+		if err != nil {
+			addRefused(collected, seen, full, refusalNameOf(err))
+			continue
+		}
+		if found != "" && !seen[found] {
+			seen[found] = true
+			*collected = append(*collected, describe(found))
+		}
+		for _, candidate := range ambiguous {
+			if seen[candidate] {
+				continue
+			}
+			seen[candidate] = true
+			*collected = append(*collected, describe(candidate))
+		}
+		if err := walkDeep(full, collected, seen, depth+1, maxDepth); err != nil {
+			addRefused(collected, seen, full, refusalNameOf(err))
+		}
+	}
+	return nil
+}
+
+// addRefused records a directory the walk could not read past, unless that
+// directory is already in the listing on its own account. A workbench this
+// walk described and then could not descend into keeps its described row: the
+// workbench itself read, and what failed was the search for one nested inside
+// it, which is not a fact about the workbench the row names.
+func addRefused(collected *[]Candidate, seen map[string]bool, path, name string) {
+	if seen[path] {
+		return
+	}
+	seen[path] = true
+	*collected = append(*collected, Candidate{Path: path, Refused: name})
+}
+
+// refusalNameOf is the contract name an error carries, and UnreadableBench for
+// an error that is not a refusal at all. The fallback names the condition every
+// non-refusal reaching this walk actually is, which is a workbench directory
+// the tool could not read past, so a row never carries an empty Refused while
+// also carrying no title.
+func refusalNameOf(err error) string {
+	if refusal, ok := err.(*contract.Refusal); ok {
+		return refusal.Name
+	}
+	return contract.UnreadableBench
+}
+
 // samePath reports whether two directory paths name the same directory. It
 // asks the filesystem, the way sameDirs in cmd/dinah's tests does, because one
 // directory answers to several spellings: Windows hands out the short 8.3 form
@@ -855,6 +997,11 @@ type Candidate struct {
 	Slug string `json:"slug,omitempty"`
 	// Path is the workbench directory, which is what --workbench takes.
 	Path string `json:"path"`
+	// Refused is the refusal name a row could not be described past, a
+	// contract name such as dinah.unreadable-workbench. It is set only by
+	// EnumerateDeep, on a row whose Title and Slug are then both empty.
+	// Empty on every row Enumerate, Reachable or describe ever produced.
+	Refused string `json:"refused,omitempty"`
 }
 
 // describe reads one workbench's identity off its anchor without opening it.

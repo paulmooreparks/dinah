@@ -208,6 +208,26 @@ const (
 	// carry at startup. The mcp command raises it before serving, and the
 	// beyond check that names it carries the same wording.
 	UnknownRoot = LayerPrefix + "unknown-root"
+	// ConflictingScope is one invocation naming two scopes: a root to walk
+	// downward from, through --root or through the positional path
+	// workbenches takes, together with a single workbench through --workbench
+	// or DINAH_WORKBENCH. The two answer different questions and neither
+	// outranks the other, so the tool refuses rather than honouring one and
+	// discarding the other silently. One name serves every command that can
+	// be given both, because the mistake is the same mistake wherever it is
+	// made.
+	ConflictingScope = LayerPrefix + "conflicting-scope"
+	// DepthWithoutRoot is --max-depth given with nothing for it to bound,
+	// meaning neither --root nor the path workbenches takes. The flag bounds
+	// a downward walk, and no downward walk runs, so the value would be read
+	// and dropped. Saying so is better than accepting a flag that changes
+	// nothing about the answer.
+	DepthWithoutRoot = LayerPrefix + "depth-without-root"
+	// MalformedDepth is --max-depth given a value that is not a whole number
+	// of rungs, or a negative one. It is distinct from DepthWithoutRoot,
+	// which is about the flag having nothing to bound, and from UnknownDepth,
+	// which names a tree projection's level rather than a walk's reach.
+	MalformedDepth = LayerPrefix + "malformed-depth"
 	// OutsideRoot is a workbench named by an MCP caller whose path lies
 	// outside the root the server was started with. The mcp command raises
 	// it at startup when --workbench named the contradiction, and the call
@@ -267,7 +287,8 @@ var Introduced = []string{
 	AddNeedsAColumn, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
-	UnknownRoot, OutsideRoot, AmbiguousName, NotRenamable,
+	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
+	AmbiguousName, NotRenamable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel,
 }

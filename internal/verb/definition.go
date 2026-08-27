@@ -280,13 +280,22 @@ var params = map[string][]Param{
 		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
 		{Name: "name", Required: true, Rest: true, Field: "Value"},
 	},
-	"status":  {},
+	"status": {
+		{Name: "root", Flag: true, Value: "path", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+	},
 	"columns": {},
 	"ls": {
 		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
 		{Name: "ready", Flag: true, Marker: true, Field: "ReadyOnly"},
+		{Name: "root", Flag: true, Value: "path", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
 	},
-	"next": {{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"}},
+	"next": {
+		{Name: "column", Vocabulary: "column", AlsoFlag: true, Field: "Column"},
+		{Name: "root", Flag: true, Value: "path", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+	},
 	// Pull combines a claim and a move into one atomic act. The column is
 	// the destination; the named form names it, the bare form chooses the
 	// one column that qualifies and refuses when more than one does. The
@@ -304,6 +313,8 @@ var params = map[string][]Param{
 		{Name: "query", Rest: true, Field: "Query"},
 		{Name: "group-by", Flag: true, Value: "axes", Field: "GroupBy"},
 		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
+		{Name: "root", Flag: true, Value: "path", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
 	},
 	// contents writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence ends "not this workbench" and the
@@ -323,6 +334,8 @@ var params = map[string][]Param{
 		{Name: "since", Flag: true, Value: "cursor", Field: "Since"},
 		{Name: "card", Flag: true, Value: "ref", Shared: "card", Field: "Card"},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
+		{Name: "root", Flag: true, Value: "path", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
 	},
 	// instructions keeps its own display, since the two kinds it takes are
 	// the whole of what it takes and the spelling says so.
@@ -399,8 +412,17 @@ var params = map[string][]Param{
 		// writes nothing.
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
-	"whoami":      {},
-	"workbenches": {},
+	"whoami": {},
+	// workbenches takes its scope as a positional rather than as --workbench,
+	// because the two name different things: --workbench names one workbench to
+	// act on, and this path names a directory to walk downward from. The
+	// positional declares no request field, since neither head puts it on a
+	// verb.Request; each reads it where it arrives, the terminal off the parsed
+	// words and the machine surface off the tool call's own arguments.
+	"workbenches": {
+		{Name: "path"},
+		{Name: "max-depth", Flag: true, Value: "n", Field: "MaxDepth"},
+	},
 	"version": {
 		{Name: "catalogs", Flag: true, Marker: true},
 	},
