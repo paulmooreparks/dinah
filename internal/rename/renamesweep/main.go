@@ -23,7 +23,9 @@
 //
 // A word this tool cannot read as a single token is refused rather than swept,
 // because a term the tokenizer splits matches nothing and the run would report
-// a zero indistinguishable from a clean tree.
+// a zero indistinguishable from a clean tree. A zero the diff contradicts is
+// refused for the same reason after the sweep, which is what a script written
+// without spaces between its words produces.
 //
 // See docs/design/renaming-a-word.md for when this is run and what the reader
 // is looking for.

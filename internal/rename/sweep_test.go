@@ -252,6 +252,94 @@ func TestSweepAcceptsATermItCanRead(t *testing.T) {
 	}
 }
 
+// TestSweepRefusesAZeroTheDiffContradicts asserts the mirror of the refusal
+// above. A tokenizer splits a term or merges one, and refusing only the split
+// leaves the merge answering zero. Chinese is the case that produced the
+// finding: 工作台 renamed to 板块 clears checkTerm as a single token, matches
+// nothing because the tokenizer swallowed the whole clause around it, and
+// reports a zero spelled exactly like a clean tree.
+func TestSweepRefusesAZeroTheDiffContradicts(t *testing.T) {
+	diff := diffOf("docs/zh.md", 1, 1,
+		"-一张卡片停在工作台上面等待。",
+		"+一张卡片停在板块上面等待。",
+	)
+	result, err := Sweep(diff, "工作台", "板块")
+	if err == nil {
+		t.Fatalf("wanted a refusal, got a report of %d replacements", len(result.Replacements))
+	}
+	for _, want := range []string{"工作台", "板块", "aligned nothing at all", "cannot tell"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("wanted the refusal to carry %q, got %q", want, err.Error())
+		}
+	}
+}
+
+// TestSweepReportsAnHonestZero asserts the other side of that backstop. A zero
+// is the right answer far more often than it is a failure to read, so a
+// backstop that fires on every zero would be a backstop nobody could run.
+func TestSweepReportsAnHonestZero(t *testing.T) {
+	cases := []struct {
+		name string
+		diff string
+	}{
+		{
+			name: "neither word is in the diff",
+			diff: diffOf("a.md", 1, 1,
+				"-a card waits for a reader",
+				"+a card waits for its reader",
+			),
+		},
+		{
+			name: "the retired word goes and the adopted one never arrives",
+			diff: diffOf("a.md", 1, 1,
+				"-the state a caller would act on",
+				"+what a caller would act on",
+			),
+		},
+		{
+			name: "the adopted word arrives and the retired one never went",
+			diff: diffOf("a.md", 1, 1,
+				"-a card waits here",
+				"+a card waits in a column",
+			),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result, err := Sweep(c.diff, "state", "column")
+			if err != nil {
+				t.Fatalf("Sweep: %v", err)
+			}
+			if len(result.Replacements) != 0 {
+				t.Errorf("wanted no replacement, got %+v", result.Replacements)
+			}
+		})
+	}
+}
+
+// TestARunTheSweepDeclinedIsNotAnUnreadRename asserts that the backstop stays
+// quiet when the sweep already said out loud that it could not read something.
+// An unaligned run is reported on the report's own face, so the reader has
+// been told, and refusing on top of that would withhold the lines that say
+// where to look.
+func TestARunTheSweepDeclinedIsNotAnUnreadRename(t *testing.T) {
+	wide := strings.Repeat("alpha beta gamma delta ", 400)
+	diff := diffOf("a.md", 1, 1,
+		"-"+wide+"state and a rewritten tail",
+		"+"+wide+"column and a different tail entirely",
+	)
+	result, err := Sweep(diff, "state", "column")
+	if err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+	if len(result.Replacements) != 0 {
+		t.Fatalf("wanted no replacement, got %+v", result.Replacements)
+	}
+	if len(result.Unaligned) != 1 {
+		t.Errorf("wanted the run reported as unaligned, got %+v", result.Unaligned)
+	}
+}
+
 // TestATokenCarriesItsLineAndOffset asserts that a token knows where it came
 // from, since a report a reader cannot open is a report they will not use.
 func TestATokenCarriesItsLineAndOffset(t *testing.T) {

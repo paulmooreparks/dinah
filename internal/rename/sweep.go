@@ -141,14 +141,17 @@ const excerptWidth = 90
 // The diff is read as text rather than applied, so the revisions it came from
 // need not be checked out.
 //
-// Sweep returns an error when either word is not one the tokenizer reads as a
-// single word, and the error is the reason this function reports one at all. A
-// match is one token tested against the whole term, so a term the tokenizer
-// splits can never match anything and the run would report zero replacements
-// in zero groups. That answer is indistinguishable from a clean tree, and a
-// reader holding a document that tells them to run this pass and report the
-// count would file the zero as a pass. Refusing costs a message and a
-// non-zero exit; answering zero costs the next rename its only instrument.
+// Sweep returns an error rather than a zero in the two cases where a zero
+// would be a lie, and the error is the reason this function reports one at
+// all. A match is one token tested against the whole term, so a term the
+// tokenizer splits can never match anything and the run is guaranteed to
+// report zero replacements in zero groups. That answer is indistinguishable
+// from a clean tree, and a reader holding a document that tells them to run
+// this pass and report the count would file the zero as a pass. checkTerm
+// refuses that case before the run. checkUnreadRename catches the mirror of
+// it after the run, where the tokenizer merged the term into a longer token
+// instead of splitting it. Refusing costs a message and a non-zero exit;
+// answering zero costs the next rename its only instrument.
 func Sweep(diff, retired, adopted string) (Result, error) {
 	if err := checkTerm("old", retired); err != nil {
 		return Result{}, err
@@ -156,11 +159,16 @@ func Sweep(diff, retired, adopted string) (Result, error) {
 	if err := checkTerm("new", adopted); err != nil {
 		return Result{}, err
 	}
-	retired = strings.ToLower(retired)
-	adopted = strings.ToLower(adopted)
+	lowRetired := strings.ToLower(retired)
+	lowAdopted := strings.ToLower(adopted)
 	var result Result
 	for _, run := range parseDiff(diff) {
-		result.merge(alignRun(run, retired, adopted))
+		result.merge(alignRun(run, lowRetired, lowAdopted))
+	}
+	if len(result.Replacements) == 0 && len(result.Unaligned) == 0 {
+		if err := checkUnreadRename(diff, retired, adopted); err != nil {
+			return Result{}, err
+		}
 	}
 	return result, nil
 }
@@ -190,6 +198,60 @@ func checkTerm(flag, word string) error {
 		flag,
 		word,
 		strings.Join(parts, " + "),
+	)
+}
+
+// checkUnreadRename refuses a zero result that the diff itself contradicts.
+// It runs only when the sweep aligned no replacement and declined no run, so
+// the report about to be printed would say that nothing happened.
+//
+// checkTerm covers the tokenizer splitting a term. This covers the other thing
+// a word tokenizer does wrong, which is merging two words into one token. A
+// script written without spaces between its words, of which Chinese is the
+// case that provoked this, hands the tokenizer a whole clause as a single
+// token, and no token then equals the term a caller is looking for. Nothing
+// splits, so checkTerm accepts the term, and the run answers zero. Refusing a
+// term the tokenizer splits and reporting zero for one it merges would leave
+// half the failure open, spelled exactly as a clean tree.
+//
+// The test deliberately shares no machinery with the sweep it is checking. It
+// reads the raw diff for the retired term on a removed line and the adopted
+// term on an added line, as substrings and case-folded, which asks nothing
+// about word boundaries and therefore holds in a script this package cannot
+// segment. Two terms on opposite sides of a diff the sweep read as unchanged
+// is not proof of a rename, and it does not need to be: the honest answer to
+// what the diff shows here is that the instrument cannot tell.
+//
+// A run over a range carrying no rename can still trip this, when a removed
+// line happens to mention the retired word and an added line the adopted one.
+// That refusal costs a reader one look at a diff. The zero it replaces costs a
+// rename card the only instrument it has, and the reader never finds out, so
+// the trade runs in this direction on purpose.
+func checkUnreadRename(diff, retired, adopted string) error {
+	lowRetired := strings.ToLower(retired)
+	lowAdopted := strings.ToLower(adopted)
+	removesRetired := false
+	addsAdopted := false
+	for _, line := range strings.Split(diff, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ ") {
+			continue
+		}
+		lowered := strings.ToLower(line)
+		if strings.HasPrefix(line, "-") && strings.Contains(lowered, lowRetired) {
+			removesRetired = true
+		}
+		if strings.HasPrefix(line, "+") && strings.Contains(lowered, lowAdopted) {
+			addsAdopted = true
+		}
+	}
+	if !removesRetired || !addsAdopted {
+		return nil
+	}
+	return fmt.Errorf(
+		"the sweep aligned nothing at all, and the diff contradicts that: it removes a line carrying %q and adds a line carrying %q. A tokenizer that merges the words of a script written without spaces reads such a rename as one long token and matches none of it, so this run cannot tell a rename it failed to read from a range that carries none. Read the diff by hand, or narrow the range until the sweep aligns what it changed",
+		retired,
+		adopted,
 	)
 }
 
@@ -602,6 +664,18 @@ const (
 // looking for. Dinah's own Hindi rename swept to zero replacements in zero
 // groups until this existed, over the range that carried all ninety-nine of
 // them.
+//
+// The repository already reasons this way once, in adjacentToDevanagari in
+// internal/profile/guards_test.go, which treats a combining mark as
+// non-boundary for the same stated reason. That one is bounded to the
+// Devanagari block and unexported in another package's test file, so it could
+// not be called from here, and the two agree on the rule.
+//
+// internal/textwidth reaches for a different set, unicode.Mn, Me, Cf and Cc,
+// and the difference is deliberate rather than an oversight in either place. A
+// format character such as a directional mark occupies no display width, which
+// is textwidth's question, and does not join two letters into one word, which
+// is the question here.
 func isCombining(r rune) bool {
 	if r == zeroWidthNonJoiner || r == zeroWidthJoiner {
 		return true

@@ -99,8 +99,10 @@ group and one of them, with an excerpt of its line.
 Groups come rarest first. A legitimate replacement sits in the same
 phrase hundreds of times, while a wrong sense sits in a phrase that
 appears once or twice, so the top of the report is where the attention is
-worth spending. Dinah's own rename produced 2257 groups out of 6397
-replacements, and 1455 of those groups hold a single site.
+worth spending. Dinah's own rename, swept over `e9c0abd^..e9c0abd`,
+produced 2257 groups out of 6397 replacements, and 1455 of those groups
+hold a single site. That range is pinned history, so anybody can
+reproduce the three counts.
 
 Read every phrase and ask one question of it: does this mean the thing
 the rename was about?
@@ -141,10 +143,15 @@ is exactly where a defect would survive it.
 ## What the pass does not do
 
 The sweep reports and does not rule. Every verdict is a person's, and the
-instrument's whole claim is that it reduces a few thousand judgements to
-a few hundred and puts the suspicious ones first.
+instrument's whole claim is that it turns a few thousand judgements into
+a couple of thousand phrases and puts the suspicious ones first. On
+Dinah's own rename that is the 2257 groups counted above, most of them
+one site long and read at a glance. An earlier version of this paragraph
+said a few hundred, which described the narrower key this pass used
+before the following word went into it, and it understated the reading
+cost by about five times.
 
-Five limits are worth stating plainly, because each one is a place a
+Six limits are worth stating plainly, because each one is a place a
 reader could assume more than the tool delivers.
 
 - The sweep matches one word in the singular and in the plural formed by
@@ -169,6 +176,14 @@ reader could assume more than the tool delivers.
   groups rather than by reading them. Widening the key further trades
   this away for a report nobody finishes, so the trade stops here and the
   `--all` run is the answer.
+- The sweep has no word segmenter, so it cannot count a rename in a
+  script that writes no spaces between its words. Chinese is the case
+  this was found on: the tokenizer swallows a whole clause as one token,
+  nothing inside it equals the term, and the alignment finds nothing to
+  align. What the sweep does instead of counting is refuse, under the
+  backstop described in "A zero the diff contradicts" below, so the run
+  still cannot answer zero for a rename it could not read. A card
+  renaming a word in such a script reads its diff by hand.
 - The sweep reports and does not know which sense a group means. Nothing
   in it understands English or Hindi, and the counts and the ordering are
   the whole of its contribution.
@@ -203,11 +218,57 @@ nor the invocation was at fault.
 Both halves of that were fixed, and they are separate fixes doing
 separate jobs. A combining mark now stays inside its word, so Devanagari,
 Arabic, Hebrew and a decomposed Latin accent all tokenize as a reader
-reads them. The refusal is the half that outlives the tokenizer: no list
-of scripts can be complete, and the next thing the tokenizer cannot
-represent will meet a refusal rather than a zero. An instrument that
-answers zero for input it cannot read is the same defect this whole
-document was written against, one layer up.
+reads them. The refusal is the half that outlives the tokenizer, since no
+list of scripts can be complete and a term this tokenizer splits is
+refused whatever alphabet it is written in. The defect this whole
+document was written against is an instrument that answers zero for input
+it cannot read, and a tokenizer meeting a script it was never built for
+is that same defect one layer up.
+
+## A zero the diff contradicts
+
+The refusal above covers a term the tokenizer splits. A tokenizer can
+also merge, and the two failures are mirrors of each other. A script that
+writes no spaces between its words hands the tokenizer a whole clause,
+the clause comes back as one token, and no token inside it equals the
+term the caller asked for. Nothing splits, so the term is accepted, and
+the run reports zero replacements in zero groups.
+
+Chinese found this. Two occurrences of 工作台 renamed to 板块, swept over
+the range that carried them, answered `0 replacements of "工作台" by
+"板块", in 0 groups` and exited zero.
+
+The sweep now checks its own zero before it prints one. When the
+alignment produced no replacement and declined no run, the raw diff is
+read for the retired term on a removed line and the adopted term on an
+added line. Finding both, the sweep refuses:
+
+```
+$ go run ./internal/rename/renamesweep --old 工作台 --new 板块 --range 9da3fcb..940dfba
+renamesweep: the sweep aligned nothing at all, and the diff contradicts that:
+it removes a line carrying "工作台" and adds a line carrying "板块". A tokenizer
+that merges the words of a script written without spaces reads such a rename as
+one long token and matches none of it, so this run cannot tell a rename it
+failed to read from a range that carries none. Read the diff by hand, or narrow
+the range until the sweep aligns what it changed
+```
+
+Two properties of that test are what make it worth having. It compares
+substrings and case-folds them, asking nothing about word boundaries, so
+it holds in a script this package cannot segment. And it shares no
+machinery with the sweep it is checking, which is the point of a
+backstop.
+
+A range that carries no rename at all can still trip it, when a removed
+line happens to mention the retired word and an added line the adopted
+one. The cost of that is one reader opening one diff. The cost of the
+zero it replaces is a rename card losing its only instrument without
+anybody finding out, which is why the trade runs in this direction.
+
+What this does not do is count anything. Nobody can read a report of a
+Chinese rename out of this pass, and adding a word segmenter to get one
+would be a larger tool than the pass is worth. The limit stands, and the
+run that meets it says so.
 
 ## The rule for the next rename
 
@@ -217,8 +278,9 @@ the report held and which groups it opened. A rename card that does not
 say so has not run it, since the counts are the only part of the pass
 that cannot be produced from memory.
 
-Report both counts rather than the group count alone. A run that refuses
-its term prints no counts at all, and a run whose term the sweep accepts
+Report both counts rather than the group count alone. A run that refuses,
+whether it refused the term before the sweep or refused its own zero
+afterwards, prints no counts at all, and a run whose term the sweep accepts
 but whose range is wrong reports zero of both, so a handoff carrying one
 number leaves a reader unable to tell a swept range from an unswept one.
 A rename in more than one language runs the pass once per language, and a
