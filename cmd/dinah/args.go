@@ -119,7 +119,7 @@ var askedFor = map[string]string{
 }
 
 // domainCapture is one occurrence of a domain flag (a flag belonging to some
-// command's own vocabulary, not one of the five session flags) that
+// command's own vocabulary, not one of the session flags) that
 // parseArgs recognized while scanning. It is recorded rather than applied
 // outright, because parseArgs runs before any command is known and cannot
 // yet tell whether this occurrence sits inside an open-tail command's own
@@ -182,11 +182,14 @@ type arguments struct {
 // askedFor spelling), and complete is false only for a valued flag whose
 // name was the last word in argv, with no word left to serve as its value.
 // tokens is the literal argv word or words this occurrence consumed, in the
-// order the caller wrote them.
+// order the caller wrote them. Every recognized occurrence carries at least
+// one token, the askedFor spellings among them, so a caller that splices
+// tokens back into the line can do so for any occurrence it is handed.
 //
-// onUnknown is called once for each "--name" word the walk cannot place
-// (any inline "=value" already split off, the same word contract.RefuseWith
-// names today). Its return says whether the walk stops there. parseArgs
+// onUnknown is called once for each "--name" word the walk cannot place. It
+// receives the whole argv word, any inline "=value" included, which is the
+// word contract.RefuseWith names today. Its return says whether the walk
+// stops there. parseArgs
 // stops, since an unrecognized flag is refused before anything past it is
 // read. scanLangFlag does not, since reading past the word that fails to
 // parse is the reason it exists. A word onUnknown lets pass is left as one
@@ -212,7 +215,12 @@ func walkFlags(
 			continue
 		}
 		if asked, ok := askedFor[word]; ok {
-			visit(asked, "", true, nil)
+			// The spelling the caller wrote is the one word this occurrence
+			// consumed, and it is reported like any other. Reporting no
+			// tokens here would hand a caller an occurrence it could not
+			// splice back into the line, which is a shape nothing
+			// downstream has ever been asked to handle.
+			visit(asked, "", true, []string{word})
 			continue
 		}
 		if word == "-" || !strings.HasPrefix(word, "--") {
@@ -251,10 +259,13 @@ func walkFlags(
 // its argument from a pipe.
 //
 // A refusal comes back with whatever the scan had taken apart so far rather
-// than with a nil pointer, so the caller resolves the language from the flags
-// the reader actually wrote ahead of the offending word. No second reading of
-// argv exists anywhere to disagree with this one about whether a given word is
-// a flag at all.
+// than with a nil pointer, so the caller still has the session flags the
+// reader wrote ahead of the offending word instead of working from nothing.
+// The display language is no longer one of them. run resolves it through
+// scanLangFlag, which walks the whole argument list, so a --lang written
+// after the offending word is honoured too (dinah-97). scanLangFlag shares
+// walkFlags with this function rather than reading argv on its own terms, so
+// the two cannot disagree about whether a given word is a flag at all.
 //
 // A bare "--" is the POSIX end-of-options marker. The first one seen is
 // consumed rather than added to positional, and every word after it,
@@ -274,9 +285,18 @@ func parseArgs(argv []string, valued map[string]bool) (*arguments, error) {
 		},
 		func(name, value string, complete bool, tokens []string) {
 			// A session flag, help and version among them, is recorded as a
-			// flag and never as a domainCapture: it belongs to the
-			// invocation the way --json does, so no command's free-text zone
-			// reclaims one.
+			// flag and never as a domainCapture, because it belongs to the
+			// invocation the way --json does and no command's free-text zone
+			// may reclaim one.
+			//
+			// For help and version, sessionFlagNames is the whole of that
+			// guarantee. Their askedFor spellings used to reach a branch of
+			// their own that carried no capture code, so no table could have
+			// changed what became of them. They arrive here through the same
+			// visit callback as every other flag now, which leaves the table
+			// as the only thing keeping them out of the capture list, and
+			// TestParseArgsRecordsNoDomainCaptureForASessionFlag names them
+			// beside the other five for that reason.
 			session := sessionFlagNames[name]
 			if !complete {
 				// A session flag missing its value still refuses

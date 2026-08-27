@@ -229,12 +229,15 @@ func TestScanLangFlagAgreesWithParseArgsOnASuccessfulParse(t *testing.T) {
 // free-text zone can move after walkFlags has read it. A change folding
 // session flags into domainCaptures fails here, on the day it is written,
 // instead of quietly handing an open-tail command a --lang it may rewrite.
+//
+// help and version are in the roster because walkFlags gave them the same
+// visit callback every other flag reaches. They used to arrive at a branch of
+// their own that carried no capture code, so their exclusion was structural
+// and no edit to a table could have undone it. sessionFlagNames is what
+// excludes them now, and a table is a thing an edit can change.
 func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 	valued := testValued()
-	// help and version reach parseArgs through askedFor rather than through
-	// the valued or marker branch, so they cannot produce a capture by any
-	// route and the five below are the whole of what this can guard.
-	for _, name := range []string{"workbench", "json", "quiet", "lang", "actor"} {
+	for _, name := range []string{"workbench", "json", "quiet", "lang", "actor", "help", "version"} {
 		t.Run(name, func(t *testing.T) {
 			if !sessionFlagNames[name] {
 				t.Fatalf("%s is no longer a session flag, so this case is asserting nothing", name)
@@ -254,5 +257,57 @@ func TestParseArgsRecordsNoDomainCaptureForASessionFlag(t *testing.T) {
 				t.Errorf("--%s was recorded as a domain capture (%d of them), which puts it within reach of resolveOpenTailFlags", name, len(parsed.domainCaptures))
 			}
 		})
+	}
+	// A domain flag does still produce a capture, so the cases above are
+	// reading a list that fills rather than one nothing ever reaches. Were
+	// parseArgs to stop recording captures at all, every case above would
+	// pass while the invariant they assert had gone empty.
+	t.Run("a domain flag is still captured", func(t *testing.T) {
+		if !valued["state"] {
+			t.Fatalf("--state is no longer a valued flag, so this control is asserting nothing")
+		}
+		argv := []string{"--state", "de"}
+		parsed, err := parseArgs(argv, valued)
+		if err != nil {
+			t.Fatalf("parseArgs(%v): wanted no error, got %v", argv, err)
+		}
+		if len(parsed.domainCaptures) != 1 {
+			t.Fatalf("parseArgs(%v) recorded %d domain captures, wanted 1, so the cases above prove nothing", argv, len(parsed.domainCaptures))
+		}
+		if got := parsed.domainCaptures[0].tokens; len(got) != 2 || got[0] != "--state" || got[1] != "de" {
+			t.Errorf("the capture for --state carries %q, wanted the two words the caller wrote", got)
+		}
+	})
+}
+
+// TestWalkFlagsGivesEveryOccurrenceTheWordsItConsumed asserts that walkFlags
+// hands visit the argv word or words behind every flag it recognizes, the
+// askedFor spellings included. parseArgs stores those words on a
+// domainCapture, and resolveOpenTailFlags splices them back into positional
+// text when it rejects that capture, so an occurrence reported with no
+// tokens is one the splice would drop off the line without saying so.
+// sessionFlagNames is all that keeps the askedFor spellings out of the
+// capture list today, and this asserts the walk itself is safe whichever way
+// that table is edited.
+func TestWalkFlagsGivesEveryOccurrenceTheWordsItConsumed(t *testing.T) {
+	valued := testValued()
+	known := map[string]bool{}
+	for _, name := range append(append([]string{}, valuedFlags...), markerFlags...) {
+		known[name] = true
+	}
+	argv := []string{"-h", "--json", "--version", "--lang", "de", "--lang=hi", "move", "--state"}
+	seen := 0
+	walkFlags(argv, valued, known,
+		func(string) {},
+		func(name, value string, complete bool, tokens []string) {
+			seen++
+			if len(tokens) == 0 {
+				t.Errorf("walkFlags reported --%s with no tokens, so a caller splicing tokens back into the line would lose the word the caller wrote", name)
+			}
+		},
+		func(string) bool { return false },
+	)
+	if seen != 6 {
+		t.Fatalf("walkFlags(%v) reported %d flag occurrences, wanted 6, so this is not reading the walk it was written for", argv, seen)
 	}
 }
