@@ -1017,24 +1017,41 @@ func runVersion(s *session, parsed *arguments) int {
 	return 0
 }
 
-// runMCP serves workbenches over MCP on stdio. The four startup cases the
-// spec numbers decide whether the process exits before serving or serves and
-// what default it carries:
+// runMCP serves workbenches over MCP on stdio. Four situations decide
+// whether the process exits before serving, and if it serves, what root and
+// what default library it serves with:
 //
-//  1. A root was named and no directory sits at the resolved path. The process
-//     writes dinah.unknown-root to stderr and exits 2 without serving.
-//  2. Discovery refuses with dinah.no-workbench and an explicit pointer
-//     (--workbench or DINAH_WORKBENCH) named the workbench. The process
-//     writes the refusal name to stderr and exits 2.
-//  3. Discovery resolved a workbench that lies outside the root and the
-//     pointer was explicit. The process writes dinah.outside-root to stderr
-//     and exits 2.
-//  4. Everything else, including the case where discovery resolved a
-//     workbench outside the root through the ancestor walk or the user
-//     config. The process serves with no default workbench, writes one line
-//     to stderr from mcp.no-default naming what was dropped when something
-//     was dropped, and answers every unqualified call with
-//     dinah.no-workbench-found.
+//  1. A root was named (--root or DINAH_MCP_ROOT) and no directory sits at
+//     the resolved path. The process writes dinah.unknown-root to stderr and
+//     exits 2 without serving.
+//  2. An explicit pointer (--workbench or DINAH_WORKBENCH) failed to open.
+//     The process writes dinah.no-workbench to stderr and exits 2.
+//  3. A root was named, an explicit pointer resolved, and the resolved
+//     workbench lies outside that root. The process writes dinah.outside-root
+//     to stderr and exits 2.
+//  4. Nothing above refused. The process serves. Its root is whatever
+//     --root or DINAH_MCP_ROOT gave, or "" (unbounded) when neither did;
+//     unlike before dinah-307, discovering a workbench with no root no
+//     longer narrows the root to that workbench's directory. A caller
+//     naming a workbench per call is checked against the root through
+//     bench.PathUnderRoot, and an unbounded root admits any candidate that
+//     resolves and opens.
+//
+// The default library the fourth situation serves with is settled three
+// ways. It is nil when discovery found nothing at all, meaning no explicit
+// pointer and neither the ancestor walk nor the user config resolved a
+// workbench; every unqualified call then refuses dinah.no-workbench-found,
+// and so does the workbenches tool itself, since bench.Enumerate("") never
+// has a filesystem to search. It is nil again when discovery found something
+// through the ancestor walk or the user config that lies outside an
+// explicitly given root, in which case the process writes one line to stderr
+// from mcp.no-default naming what was dropped and stays bounded by the given
+// root. Otherwise it is the discovered workbench, whether discovery was
+// explicit, the ancestor walk, or the user config, and whether or not a root
+// was given. When no root was given, that default answers every unqualified
+// call, but the server is not otherwise bounded to it: a call naming a
+// different, resolvable workbench is admitted rather than refused
+// outside-root (dinah-307).
 //
 // The root is resolved through the same ladder --workbench and DINAH_WORKBENCH
 // already climb, so the precedence is the board's own rather than one mcp
@@ -1073,9 +1090,6 @@ func runMCP(s *session, parsed *arguments) int {
 		s.errLine(contract.NoWorkbench + " " + noWorkbench.Detail)
 		return contract.ExitCode(contract.OutcomeRefused)
 	case openErr != nil:
-		if root == "" {
-			return s.reportError(openErr)
-		}
 		libraries := map[string]*verb.Library{}
 		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out); err != nil {
 			return s.reportError(err)
@@ -1092,10 +1106,6 @@ func runMCP(s *session, parsed *arguments) int {
 			s.errLine(s.r.T("mcp.no-default", "detail", abs))
 			library = nil
 		}
-	case library != nil && root == "":
-		abs, _ := filepath.Abs(library.Bench.Root)
-		root = abs
-		s.mcpRoot = root
 	}
 	libraries := map[string]*verb.Library{}
 	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out); err != nil {

@@ -66,3 +66,28 @@ func TestTopicsAreOfferedInTheDeclaredReadingOrder(t *testing.T) {
 		t.Errorf("Topics offered %q at position %d and the reading order places %q there", got[at], at, topic)
 	}
 }
+
+// TestMCPGuideNoLongerPromisesTheNarrowingThatWasRemoved is dinah-307 AC-11.
+// The guide told agents that a server started without a directory to serve
+// narrows to the one workbench it discovered and searches nowhere else. That
+// was true when it was written and is false as of dinah-307, and a guide the
+// tool disagrees with is worse than no guide, because an agent acts on it.
+//
+// The text is compared with its line breaks folded away, since a sentence in
+// the source is wrapped across lines and a reader reads the sentence.
+func TestMCPGuideNoLongerPromisesTheNarrowingThatWasRemoved(t *testing.T) {
+	text, err := Text("mcp")
+	if err != nil {
+		t.Fatalf("read the mcp guide: %v", err)
+	}
+	folded := strings.Join(strings.Fields(text), " ")
+
+	gone := "so `workbenches` answers with an empty list while that workbench goes on answering every other call"
+	if strings.Contains(folded, gone) {
+		t.Errorf("the mcp guide still promises the narrowing dinah-307 removed: %q", gone)
+	}
+	want := "any workbench you can name by its absolute path is reachable"
+	if !strings.Contains(folded, want) {
+		t.Errorf("the mcp guide does not tell an agent what an unbounded server reaches: wanted %q", want)
+	}
+}
