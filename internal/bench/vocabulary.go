@@ -129,16 +129,6 @@ func ClassifyVocabulary(root string) (major, minor int, ok bool, err error) {
 	return major, minor, true, nil
 }
 
-// RecognizedAt reports whether the directory itself offers a workbench, which
-// is the question benchIn answers at every rung of the ordinary discovery
-// climb. Enumerate tests the children of a root and never the root itself, so
-// a caller walking a tree asks this about the root separately or loses a root
-// that is directly a workbench.
-func RecognizedAt(root string) (string, error) {
-	found, _, _, err := benchIn(root, true)
-	return found, err
-}
-
 // MigrateVocabulary rewrites one workbench from the retired vocabulary to the
 // current one, given a bench opened through OpenPreVocabulary. It renames each
 // card's two frontmatter keys, renames the flow collection and every member

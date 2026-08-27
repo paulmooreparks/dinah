@@ -96,14 +96,21 @@ func rewriteFile(t *testing.T, path string, edit func(string) string) {
 	}
 }
 
-// buildTreeFixture writes four workbenches under one root: one at the root
-// itself, one nested two levels below it, one inside a sibling directory, and
-// one already carrying the current vocabulary. It answers the root and the
-// anchor directory of each.
+// buildTreeFixture writes four workbenches under one root: one in the root's
+// own container, one two levels below it in the same shape, one standing bare
+// inside a sibling directory, and one already carrying the current vocabulary.
+// It answers the root and the anchor directory of each.
 //
-// The root itself carries a workbench because bench.Enumerate tests a root's
-// children and never the root, so a walk relying on it alone loses exactly this
-// one, and a fixture that never built it could not tell.
+// The fixture plants two shapes on purpose, because the tool reaches
+// workbenches in both and a fixture holding only one of them cannot tell when
+// the other stops working. atRoot and nested carry the shape dinah init
+// writes, a workbench inside the .dinah container of a directory, and atRoot
+// puts it at the walk's own root, which is the position the walk used to
+// probe with a different question and lose (dinah-312). sibling carries a bare
+// anchor with no .dinah anywhere on its path, a layout no command produces,
+// kept because the --workbench override and the native-home rung of the
+// ordinary discovery climb both rest on benchIn's unconditional anchor check
+// and nothing else in this fixture exercises it.
 func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, current string) {
 	t.Helper()
 	base := t.TempDir()
@@ -114,11 +121,12 @@ func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, curre
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
 	planted := 0
-	// plant creates a workbench and moves its anchor directory to where the
-	// fixture wants it. dinah init always writes into a .dinah base, and what
-	// this fixture needs is anchor directories standing at paths of its own
-	// choosing, including one standing at the walk's root.
-	plant := func(where string, cards ...string) string {
+	// plantBare creates a workbench and moves its anchor directory out of the
+	// container dinah init wrote it into, so the anchor stands at a path of
+	// the fixture's own choosing with no .dinah above it. Only sibling is
+	// planted this way now, and the comment on this function says why that one
+	// still is.
+	plantBare := func(where string, cards ...string) string {
 		planted++
 		scratch := filepath.Join(base, "planting", strconv.Itoa(planted))
 		if err := os.MkdirAll(scratch, 0o755); err != nil {
@@ -141,10 +149,29 @@ func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, curre
 		}
 		return where
 	}
-	atRoot = plant(root, "a card at the root")
-	nested = plant(filepath.Join(root, "customer", "project"), "a nested card", "a second nested card")
-	sibling = plant(filepath.Join(root, "elsewhere"), "a card in a sibling")
-	current = plant(filepath.Join(root, "already"), "a card that needs nothing")
+	// plantInContainer creates a workbench exactly where dinah init puts one,
+	// inside the .dinah container of the directory it is given, and answers the
+	// anchor directory it wrote. Nothing is renamed, so what the fixture holds
+	// is what a person running dinah init in that directory would hold.
+	plantInContainer := func(where string, cards ...string) string {
+		if err := os.MkdirAll(where, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if got := runCLI(t, where, "init", where, "--slug", "fx", "--operator", "alka"); got.code != 0 {
+			t.Fatalf("init at %s: %d %s", where, got.code, got.errw)
+		}
+		anchor := benchDir(t, where)
+		for _, title := range cards {
+			if got := runCLI(t, where, "--workbench", anchor, "add", title); got.code != 0 {
+				t.Fatalf("add at %s: %d %s", anchor, got.code, got.errw)
+			}
+		}
+		return anchor
+	}
+	atRoot = plantInContainer(root, "a card at the root")
+	nested = plantInContainer(filepath.Join(root, "customer", "project"), "a nested card", "a second nested card")
+	sibling = plantBare(filepath.Join(root, "elsewhere"), "a card in a sibling")
+	current = plantBare(filepath.Join(root, "already"), "a card that needs nothing")
 	// The nested workbench's two cards are stood in the two conditions that
 	// are not the default, because an absent state key reads as ready. A
 	// fixture whose every card is ready cannot tell a condition carried
@@ -764,10 +791,9 @@ func TestACardWrittenInTheRetiredVocabularyIsRefusedRatherThanMisread(t *testing
 // identically on every later run. It now comes first, so the workbench is left
 // exactly as it was found and one hand edit frees it.
 func TestAnAnchorCarryingBothSequenceKeysIsRefusedBeforeAnythingIsWritten(t *testing.T) {
-	// The sibling rather than the workbench at the root, because the root's
-	// own anchor directory is the walk's root and holds the other three
-	// workbenches beneath it, so a byte-for-byte comparison over it would be
-	// comparing their files too.
+	// The sibling rather than the workbench at the root, because this test
+	// compares one workbench byte for byte and the sibling is the one the rest
+	// of the fixture leaves alone.
 	root, _, _, sibling, _ := buildTreeFixture(t)
 	rewriteFile(t, filepath.Join(sibling, bench.WorkbenchAnchor), func(text string) string {
 		return strings.Replace(text, "\nstates:\n", "\ncolumns:\n- b00000000001\nstates:\n", 1)
@@ -823,4 +849,69 @@ func TestACardCarryingBothVocabulariesIsRefusedByName(t *testing.T) {
 	if !strings.Contains(got.out, ids[0]) {
 		t.Errorf("the report does not name the card %s it refused:\n%s", ids[0], got.out)
 	}
+}
+
+// TestTheVocabularyMigrationSeesTheWorkbenchYouAreStandingIn is dinah-312
+// AC-3, and it is the card's own reproduction turned into a test: dinah init
+// in a directory, that workbench carried back to the revision before the
+// rename, and dinah check --migrate-vocabulary run from inside the directory
+// with no flag naming anything.
+//
+// The command used to report zero workbenches and write nothing there, and the
+// next command the operator typed then refused the same workbench for needing
+// the migration he had just been told there was nothing to do. Running it one
+// directory higher found the workbench, so the two runs disagreed about a
+// board neither of them had to look far for.
+func TestTheVocabularyMigrationSeesTheWorkbenchYouAreStandingIn(t *testing.T) {
+	base := t.TempDir()
+	board := filepath.Join(base, "board")
+	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
+	t.Setenv("DINAH_ACTOR", "alka")
+	t.Setenv("DINAH_LANG", "")
+	t.Setenv("DINAH_FORMAT", "")
+	t.Setenv("DINAH_WORKBENCH", "")
+	if err := os.MkdirAll(board, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", board, err)
+	}
+	if got := runCLI(t, board, "init", ".", "--slug", "repro", "--operator", "paul"); got.code != 0 {
+		t.Fatalf("init at %s: %d %s", board, got.code, got.errw)
+	}
+	anchor := benchDir(t, board)
+	if err := os.MkdirAll(filepath.Join(board, bench.CardsDir), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, board, "--workbench", anchor, "add", "a card the migration carries"); got.code != 0 {
+		t.Fatalf("add at %s: %d %s", anchor, got.code, got.errw)
+	}
+	unwind(t, anchor)
+	stood := preVocabularyStanding(t, anchor)
+
+	// The preview first, because that is what the operator's own run was, and
+	// what it answered was that there was nothing there.
+	preview := runCLI(t, board, "check", "--migrate-vocabulary")
+	if !strings.Contains(preview.out, anchor) {
+		t.Errorf("a preview run from %s does not name the workbench standing in it:\n%s", board, preview.out)
+	}
+	if preview.code == 0 {
+		t.Errorf("a preview holding a workbench still to carry forward exited 0:\n%s", preview.out)
+	}
+	if !bench.Exists(filepath.Join(anchor, bench.PreVocabularyDir)) {
+		t.Errorf("%s no longer carries a %s directory, so the preview wrote", anchor, bench.PreVocabularyDir)
+	}
+
+	got := runCLI(t, board, "check", "--migrate-vocabulary", "--yes")
+	if got.code != 0 {
+		t.Fatalf("migrate from %s: %d %s\n%s", board, got.code, got.errw, got.out)
+	}
+	if !strings.Contains(got.out, anchor) {
+		t.Fatalf("the report does not name the workbench standing in %s:\n%s", board, got.out)
+	}
+	opened, err := bench.Open(anchor)
+	if err != nil {
+		t.Fatalf("the migrated %s does not open: %v", anchor, err)
+	}
+	if opened.Profile != bench.ProfileVersion {
+		t.Errorf("the migrated %s declares %s", anchor, opened.Profile)
+	}
+	assertStood(t, anchor, stood)
 }

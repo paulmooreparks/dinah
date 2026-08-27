@@ -1202,3 +1202,41 @@ func TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded(t *testing.T) {
 		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
 	}
 }
+
+// TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer is dinah-312 AC-5.
+// The workbenches tool answers off bench.Enumerate, and the enumeration used
+// to test a root's children and never the root itself, so a DINAH_MCP_ROOT
+// pointing at the directory whose own .dinah holds the boards listed nothing
+// at all. An empty list from that call says no workbench exists anywhere under
+// the root, which is the answer a caller acts on.
+//
+// The workbench here is written by verb.Init rather than by the bare
+// bench.Instantiate call newLibrary makes, because Init writes the .dinah
+// container and a bare anchor is the one shape this defect never hid in.
+func TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer(t *testing.T) {
+	root := t.TempDir()
+	written, err := verb.Init(root, "rt", "alka", "", "", "")
+	if err != nil {
+		t.Fatalf("init a workbench under %s: %v", root, err)
+	}
+
+	answer := askUnderRoot(t, root, newLibrary(t),
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
+	decoded := payload(t, answer)
+	rows, ok := decoded["workbenches"].([]any)
+	if !ok {
+		t.Fatalf("the answer carries no workbenches array: %+v", decoded)
+	}
+	var listed []string
+	for _, row := range rows {
+		entry, ok := row.(map[string]any)
+		if !ok {
+			t.Fatalf("a workbenches row is not an object: %+v", row)
+		}
+		path, _ := entry["path"].(string)
+		listed = append(listed, path)
+	}
+	if len(listed) != 1 || listed[0] != written {
+		t.Errorf("workbenches under %s listed %v, wanted the one anchor directory %q", root, listed, written)
+	}
+}
