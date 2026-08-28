@@ -761,6 +761,48 @@ def worktree_kind(target):
     return "linked" if resolve(git_dir, target) != resolve(common_dir, target) else "main"
 
 
+# The MSYS/Git-Bash single-letter mount spelling of a Windows drive path,
+# documented by Git for Windows and by MSYS2 as the mapping /c -> C:\.
+# Matched only at the very start of the string, and only a single letter
+# immediately followed by a separator or the end of the string, so a
+# directory that merely starts with a slash and a letter but is not this
+# shape (/cool/path, /home/x) is left untouched.
+MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?=/|$)")
+
+
+def windows_drive_spelling(path, on_windows=None):
+    """`path`, with a leading MSYS-style drive segment rewritten to `<L>:/...`.
+
+    Runs only where the guard's own filesystem is Windows's, since
+    elsewhere `/c/...` is an ordinary absolute path naming a real
+    directory and must not be reinterpreted. `on_windows` defaults to
+    `os.name == "nt"` and takes an explicit value so a test can exercise
+    both branches on a single host.
+
+    The drive letter is upper-cased regardless of the case the caller
+    wrote. This repository spells the drive letter `C:/...` everywhere
+    else, in the refusal text, in the workbench instructions and in every
+    worked example in this file, and this function's output reaches a
+    person through that refusal text rather than only another comparison
+    inside the guard. Producing `c:/...` there would be correct for every
+    purpose the guard itself has, because Windows path comparison is
+    case-insensitive, and wrong for the one purpose that matters to the
+    reader on the other end.
+
+    This repairs the one spelling `os.path.isabs` and the `git`
+    subprocess in `worktree_kind` misread. It does not decide whether the
+    result names a worktree, which stays `worktree_kind`'s job.
+    """
+    if on_windows is None:
+        on_windows = os.name == "nt"
+    if not on_windows:
+        return path
+    match = MSYS_DRIVE.match(path)
+    if not match:
+        return path
+    return match.group(1).upper() + ":" + path[match.end(1):]
+
+
 def named_directory(raw, position):
     """The directory a `-C` names, read from the original text at `position`.
 
@@ -802,6 +844,10 @@ def fault(raw, scan):
         directory = named_directory(raw, match.end())
         if directory is None:
             return "-C names no directory"
+        # The None check stands ahead of this line rather than after it.
+        # `named_directory` answers None for a `-C` that names nothing,
+        # and `MSYS_DRIVE.match(None)` raises rather than answering.
+        directory = windows_drive_spelling(directory)
         if not os.path.isabs(directory):
             return "-C %s is relative, so it names no directory on its own" % directory
         kind = worktree_kind(directory)
@@ -881,6 +927,40 @@ def decide(command):
     return offender(command)
 
 
+# What a refusal tells the reader to do about it. Every verb but one
+# needs a worktree it does not have, so the default paragraph says how to
+# make one. A refused removal already has the worktree and is trying to
+# be rid of it, and telling that reader to create another one sends them
+# looking for a spelling that does not exist.
+WORKTREE_REMOVE_REMEDY = (
+    "You earn permission to remove a worktree the same way you earn it for "
+    "every other mutating command. Name the worktree being removed with "
+    "-C <path> on the invocation itself, and that path has to classify as a "
+    "linked worktree rather than as the main checkout. This guard treats "
+    "C:/dinah-scratch/<card>-<stage>/wt and /c/dinah-scratch/<card>-<stage>/wt "
+    "as the same directory, so either spelling clears it once the path names "
+    "a worktree git still has registered. Run git -C <repo> worktree list to "
+    "read the exact path git knows, and pass that path to -C rather than "
+    "retyping it."
+)
+
+DEFAULT_REMEDY = (
+    "A command running this class of git verb has to name its worktree on "
+    "the invocation itself, as git -C <worktree> ... , and nothing else "
+    "grants it permission. The shell's working directory does not persist "
+    "between calls. It resets to the session's primary directory, which is "
+    "the operator's checkout, so a command that does not say where it runs "
+    "runs there. On this repository worktrees belong under "
+    "C:\\dinah-scratch\\, never inside the checkout, because Dinah's "
+    "workbench discovery climbs to the drive root and a nested worktree "
+    "reaches the operator's live data. Create one with "
+    "git -C <repo> worktree add --detach "
+    "C:/dinah-scratch/<card>-<stage>/wt <ref>."
+)
+
+REMEDIES = {"git worktree remove": WORKTREE_REMOVE_REMEDY}
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
@@ -898,21 +978,12 @@ def main():
     reason = (
         "Blocked repository-mutating git. The text \"{2}\" stands outside quotation "
         "marks in this command, and this guard reads it as {0}; the invocation was "
-        "refused because {1}. A command running this class of git verb has to name "
-        "its worktree on the invocation itself, as "
-        "git -C <worktree> ... , and nothing else grants it permission. The shell's "
-        "working directory does not persist between calls: it resets to the session's "
-        "primary directory, which is the operator's checkout, so a command that does "
-        "not say where it runs runs there. On this repository worktrees belong under "
-        "C:\\dinah-scratch\\, never inside the checkout, because Dinah's workbench "
-        "discovery climbs to the drive root and a nested worktree reaches the "
-        "operator's live data. Create one with git -C <repo> worktree add --detach "
-        "C:/dinah-scratch/<card>-<stage>/wt <ref>. If the quoted text above is an "
+        "refused because {1}. {3} If the quoted text above is an "
         "argument rather than the subcommand git will run, quoting that argument "
         "keeps it out of this scan. If this command really does belong "
         "in the main checkout, it is the operator's to run, or the operator can "
         "disable this guard via /hooks (.claude/settings.json)."
-    ).format(matched, why, evidence(text))
+    ).format(matched, why, evidence(text), REMEDIES.get(matched, DEFAULT_REMEDY))
 
     print(json.dumps({
         "hookSpecificOutput": {

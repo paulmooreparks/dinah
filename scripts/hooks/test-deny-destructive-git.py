@@ -20,6 +20,7 @@ run from both the main checkout and a worktree and expected to give the
 same answer in each.
 """
 
+import importlib.util
 import json
 import os
 import shutil
@@ -105,6 +106,76 @@ def slashed(path):
     would pass while the reported defect stood.
     """
     return path.replace("\\", "/")
+
+
+def msys(path):
+    """`path` written the way Git Bash hands a Windows drive path back.
+
+    `C:/x/y` becomes `/c/x/y`. Every agent on this board runs its shell
+    through Git Bash, so this is the spelling a person writes without
+    thinking about it, and the spelling `os.path.isabs` accepts on
+    Windows while the `git` subprocess underneath `worktree_kind` cannot
+    find the directory it names. Off Windows there is no drive letter to
+    rewrite, so the path comes back as it stands and the cases built on
+    this helper are guarded the way the backslashed fixture is.
+    """
+    forward = slashed(path)
+    if os.name != "nt" or len(forward) < 2 or forward[1] != ":":
+        return forward
+    return "/" + forward[0].lower() + forward[2:]
+
+
+def windows_spelled(path):
+    """`path` with forward slashes and an upper-case drive letter.
+
+    This is what the guard's refusal has to name once it has normalised
+    an msys-spelled `-C`, and it is composed here rather than read back
+    out of the guard, so that a case asserting it fails when the guard
+    stops producing it.
+    """
+    forward = slashed(path)
+    if len(forward) < 2 or forward[1] != ":":
+        return forward
+    return forward[0].upper() + forward[1:]
+
+
+def load_guard():
+    """The guard module itself, imported rather than re-implemented.
+
+    `test-guard-against-a-real-shell.py` holds the same three importlib
+    calls under the same module name, and the duplication is deliberate.
+    Both files are hyphen-named entry points, so neither can import the
+    other without a loader of its own, and a third module existing only
+    to hold three lines would cost each of them the loader it is trying
+    to avoid. Change one and change the other.
+
+    Importing is what lets a case reach a pure function whose two
+    branches cannot both be exercised end to end on one host.
+    """
+    spec = importlib.util.spec_from_file_location("deny_destructive_git", HOOK)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def hook_reason(command, cwd):
+    """The refusal text the guard printed, or None when it allowed the command.
+
+    `verdict` reads the decision alone, and the decision cannot tell an
+    msys-spelled path the guard understood from one it handed to git
+    unchanged: both are refused, for different reasons and about
+    different directories. The sentence the guard writes names the
+    directory it actually judged, so these cases read that.
+    """
+    payload = json.dumps({"tool_input": {"command": command}, "cwd": cwd})
+    result = subprocess.run(
+        [sys.executable, HOOK], input=payload, capture_output=True, text=True, timeout=60
+    )
+    if result.returncode != 0:
+        raise AssertionError("hook exited %d: %s" % (result.returncode, result.stderr.strip()))
+    if not result.stdout.strip():
+        return None
+    return json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
 
 
 # The deny-set verbs a path segment can carry on its own. Each of these
@@ -308,6 +379,14 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
     backslashed = linked.replace("/", "\\") if os.name == "nt" else linked
     table = []
 
+    # `msys` rewrites a drive letter, and `linked` does not change across
+    # the loop below, so the rewrite is asserted once here rather than
+    # twenty-eight times inside it. The nested-worktree site further down
+    # asserts the same thing about its own fixture.
+    if os.name == "nt":
+        assert msys(linked) != slashed(linked), (
+            "msys() left %r in its plain spelling" % linked)
+
     for name, command in MUTATING:
         table.append(("%s, bare, session in the main checkout" % name, command, main, DENY))
         table.append(("%s, bare, session in a worktree" % name, command, linked, DENY))
@@ -317,6 +396,12 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
         table.append(("%s, -C a worktree, session in a worktree" % name,
                       qualified(command, linked), linked, ALLOW))
         table.append(("%s, -C the main checkout" % name, qualified(command, main), linked, DENY))
+        # The same permission, asked for in the spelling Git Bash hands
+        # back. A guard that clears `C:/...` and refuses `/c/...` refuses
+        # the form every agent on this board writes first.
+        if os.name == "nt":
+            table.append(("%s, -C a worktree spelled the Git Bash way" % name,
+                          qualified(command, msys(linked)), main, ALLOW))
 
     # Every deny-set verb again, once per glued spelling. A verb that is
     # refused when its words stand apart and allowed when a semicolon
@@ -367,12 +452,45 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
     for name, command in leaks(linked):
         table.append((name, command, main, DENY))
 
+    # The nested worktree again, in the spelling Git Bash hands back.
+    # Guarded like every other case built through `msys`, because that
+    # helper rewrites a drive letter and off Windows there is none to
+    # rewrite: the case would build the same command as its plain twin
+    # below and then demand the opposite verdict, so one of the two
+    # would fail on every host that is not Windows. A conditional
+    # expectation cannot rescue a case whose distinguishing input the
+    # constructor has already erased. The assertion says the rewrite
+    # fired, so a later change to `msys` fails here rather than leaving
+    # a duplicate wearing a name that claims otherwise.
+    if os.name == "nt":
+        assert msys(nested) != slashed(nested), (
+            "msys() left %r in its plain spelling" % nested)
+        table.append(("-C a nested worktree spelled the Git Bash way",
+                      'git -C "%s" clean -fdx' % msys(nested), main, ALLOW))
+
     table.extend([
         # What a -C has to name before it grants anything.
         ("-C a nested worktree is still a linked worktree",
          'git -C "%s" clean -fdx' % nested, main, ALLOW),
         ("-C a directory that is not a git work tree",
          'git -C "%s" clean -fdx' % tempfile.gettempdir(), main, DENY),
+        # A path shaped like a Git Bash drive mount whose first segment
+        # is more than one letter is not one, so it reaches the
+        # classifier as written and fails closed there.
+        ("-C a POSIX path that is not a drive mount",
+         "git -C /cool/path clean -fdx", main, DENY),
+        # A directory reaches the guard as text, and a shell variable is
+        # not a directory until a shell has expanded it. Normalising a
+        # drive mount must not start reading one as absolute.
+        ("-C held in a shell variable is still refused",
+         "git -C $WT stash pop", main, DENY),
+        # A `-C` with nothing after it names no directory. The guard has
+        # to answer that before it normalises anything, because the
+        # normaliser is handed a string and `None` is not one.
+        ("a trailing -C names no directory",
+         'git -C "%s" commit -m wip -C' % linked, main, DENY),
+        ("a trailing -C on a bare invocation is still refused",
+         "git re" + "set --hard -C", main, DENY),
         ("-C a directory that no longer exists",
          'git -C "%s" clean -fdx' % gone, main, DENY),
         ("-C a path written with backslashes",
@@ -781,6 +899,77 @@ def cases(root, main, linked, spaced, nested, componented, verbnamed):
     return table
 
 
+def reason_cases(main, linked):
+    """Cases that read the refusal text rather than only the verdict.
+
+    Three of these cannot be written as verdict cases at all. An
+    msys-spelled path that names the main checkout, and one that names
+    an ordinary directory, are both refused whether or not the guard
+    understands the spelling; only the sentence the guard writes says
+    which directory it judged, and only the Windows spelling in that
+    sentence proves the normalisation ran. The last two read which
+    remedy the refusal offered.
+    """
+    elsewhere = tempfile.gettempdir()
+    entries = []
+    if os.name == "nt":
+        entries.extend([
+            ("-C the main checkout, Git Bash spelling, is the main checkout",
+             qualified("git stash pop", msys(main)), linked,
+             ["-C %s is the main checkout" % windows_spelled(main)], []),
+            ("worktree removal -C the main checkout, Git Bash spelling",
+             qualified("git worktree remove old", msys(main)), linked,
+             ["-C %s is the main checkout" % windows_spelled(main)], []),
+            ("-C a real directory that is no worktree, Git Bash spelling",
+             qualified("git clean -fdx", msys(elsewhere)), main,
+             ["-C %s is not a git worktree" % windows_spelled(elsewhere)], []),
+        ])
+    entries.extend([
+        ("-C . is refused for being relative",
+         "git -C . stash pop", linked,
+         ["-C . is relative, so it names no directory on its own"], []),
+        ("-C a relative subdirectory is refused for being relative",
+         "git -C scratch/card-impl/wt stash pop", main,
+         ["is relative, so it names no directory on its own"], []),
+        ("-C /cool/path is refused for naming no worktree",
+         "git -C /cool/path clean -fdx", main,
+         ["-C /cool/path is not a git worktree"], []),
+        ("a trailing -C is refused for naming nothing",
+         'git -C "%s" commit -m wip -C' % linked, main,
+         ["-C names no directory"], []),
+        ("a refused removal is told to read the path git knows",
+         qualified("git worktree remove old", main), linked,
+         ["worktree list"], ["Create one with"]),
+        ("every other refused verb keeps the remedy that makes a worktree",
+         RESET, main,
+         ["Create one with"], []),
+    ])
+    return entries
+
+
+def spelling_checks():
+    """`windows_drive_spelling`, both branches, on whichever host runs this.
+
+    This is weaker than the cases above in one respect and the weakness
+    is worth naming: it proves the function's branches, not that
+    `fault` passes the right `on_windows` value on a host this
+    repository cannot run.
+    """
+    spell = load_guard().windows_drive_spelling
+    return [
+        ("a drive mount becomes a Windows path with an upper-case letter",
+         spell("/c/dinah-scratch/x", on_windows=True), "C:/dinah-scratch/x"),
+        ("an already upper-case drive mount is spelled the same way",
+         spell("/C/dinah-scratch/x", on_windows=True), "C:/dinah-scratch/x"),
+        ("off Windows a drive mount is an ordinary path and stays one",
+         spell("/c/dinah-scratch/x", on_windows=False), "/c/dinah-scratch/x"),
+        ("a POSIX path that is not a drive mount is untouched",
+         spell("/cool/path", on_windows=True), "/cool/path"),
+        ("a relative path is untouched",
+         spell("scratch/card-impl/wt", on_windows=True), "scratch/card-impl/wt"),
+    ]
+
+
 def main():
     root = tempfile.mkdtemp(prefix="deny-destructive-hook-")
     failures = 0
@@ -798,6 +987,31 @@ def main():
             if got != want:
                 failures += 1
             print("%s %-58s want=%-5s got=%s" % (mark, name, want, got))
+
+        for name, command, cwd, needs, forbids in reason_cases(checkout, linked):
+            total += 1
+            try:
+                text = hook_reason(command, cwd)
+                if text is None:
+                    detail = "allowed, so it printed no reason"
+                else:
+                    missing = [want for want in needs if want not in text]
+                    present = [away for away in forbids if away in text]
+                    detail = "ok" if not missing and not present else (
+                        "missing=%r unwanted=%r" % (missing, present))
+            except AssertionError as err:
+                detail = "error: %s" % err
+            mark = "ok  " if detail == "ok" else "FAIL"
+            if detail != "ok":
+                failures += 1
+            print("%s %-58s reason: %s" % (mark, name, detail))
+
+        for name, got, want in spelling_checks():
+            total += 1
+            mark = "ok  " if got == want else "FAIL"
+            if got != want:
+                failures += 1
+            print("%s %-58s want=%s got=%s" % (mark, name, want, got))
     finally:
         # The worktrees hold no reflog worth keeping and the repository is
         # this function's own, so the whole tree goes. ignore_errors covers
