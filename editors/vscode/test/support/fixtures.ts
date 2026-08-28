@@ -81,3 +81,46 @@ export function pinBinary(root: FixtureRoot, folder: string): void {
 		"utf8",
 	);
 }
+
+/**
+ * Files one card on the workbench in `dir`, returning its reference.
+ *
+ * The tree suite needs a bench that actually holds cards, and building one
+ * through the binary rather than by writing card files keeps that fixture on
+ * the same footing as every other one here: the extension reads what this
+ * commit's binary emits, not what a fixture author believed it emits.
+ */
+export function addCard(root: FixtureRoot, dir: string, title: string): string {
+	const out = execFileSync(root.binary, ["--json", "add", title], {
+		cwd: dir,
+		env: fixtureEnv(root),
+		stdio: "pipe",
+	}).toString();
+	const answer = JSON.parse(out) as { card?: { ref?: string } };
+	const ref = answer.card?.ref;
+	if (ref === undefined || ref === "") {
+		throw new Error(`dinah add answered with no reference: ${out}`);
+	}
+	return ref;
+}
+
+/**
+ * Moves one card to a named column.
+ *
+ * The tree suite needs a card standing where work is taken up, and `dinah
+ * add` files every card into intake, which is a queue column that takes none.
+ * A fixture whose cards all sit in intake can only ever assert the one
+ * spelling, and would go on passing after the take-up half broke.
+ */
+export function moveCard(
+	root: FixtureRoot,
+	dir: string,
+	ref: string,
+	column: string,
+): void {
+	execFileSync(root.binary, ["--json", "move", ref, column], {
+		cwd: dir,
+		env: fixtureEnv(root),
+		stdio: "pipe",
+	});
+}

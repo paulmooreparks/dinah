@@ -12,11 +12,18 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+	CONTEXT_CARD_ACTIVE,
+	CONTEXT_CARD_BLOCKED,
+	CONTEXT_CARD_READY_CLAIM,
+	CONTEXT_CARD_READY_NONE,
 	EXTENSION_ID,
 	EXTENSION_NAME,
 	PUBLISHER,
 	SETTING_PATH,
+	SETTING_POLL_INTERVAL,
+	SETTING_WATCH_FILES,
 	SETTING_WORKBENCH,
+	TREE_COMMANDS,
 	VIEW_CONTAINER_ID,
 	VIEW_ID,
 } from "../../src/identity";
@@ -74,6 +81,26 @@ function evaluate(when: string | undefined, state: KeyState): boolean {
 }
 
 /**
+ * The one state no welcome block covers, and the reason it does not.
+ *
+ * DinahTreeProvider.getChildren always returns at least one row once a
+ * workbench resolves, so VS Code renders the tree's own content for this state
+ * and never consults a welcome view at all. A block written for it would be
+ * text no reader can reach. Every other state still has to match exactly one
+ * block, so this is a single named exclusion rather than a relaxation of the
+ * loop below.
+ */
+const TREE_RENDERS_INSTEAD: KeyState = { binary: "ok", workbench: "ok" };
+
+/** Whether a state is the one the tree renders for. */
+function rendersTree(state: KeyState): boolean {
+	return (
+		state.binary === TREE_RENDERS_INSTEAD.binary &&
+		state.workbench === TREE_RENDERS_INSTEAD.workbench
+	);
+}
+
+/**
  * Every state a window can be in, unset keys first.
  *
  * The half-set states are the point of this function rather than an edge of
@@ -82,6 +109,10 @@ function evaluate(when: string | undefined, state: KeyState): boolean {
  * on every healthy startup, and that interval is where a state with no block
  * of its own hides. The product alone cannot express it, which is how the
  * first repair passed a proof it did not satisfy.
+ *
+ * The one state named in TREE_RENDERS_INSTEAD is excluded, and nothing else
+ * is. A second exclusion added here without its own reason written beside it
+ * would hide exactly the defect this function exists to find.
  */
 function everyState(): KeyState[] {
 	const states: KeyState[] = [{}];
@@ -96,7 +127,7 @@ function everyState(): KeyState[] {
 			states.push({ binary, workbench });
 		}
 	}
-	return states;
+	return states.filter((state) => !rendersTree(state));
 }
 
 function describeState(state: KeyState): string {
@@ -156,6 +187,37 @@ test("exactly one welcome block matches in every state a window can be in", () =
 	}
 });
 
+test("no welcome block is reachable in the state the tree renders for", () => {
+	// The companion to the exclusion above, and the half that does the work.
+	// everyState() skips this state, so the exactly-one loop cannot see a
+	// block written for it, and a block put back here would be text no reader
+	// reaches sitting in the manifest with nothing to notice it. Asserting
+	// zero matches is what notices.
+	//
+	// This also pins the delta the removal was specified as. Every other state
+	// must still match exactly one block, so a block added for another state,
+	// or one removed from another state, is caught by the loop above; a block
+	// added back for this one is caught here. Between them the array cannot
+	// change by anything but the one entry this card took out, and neither
+	// assertion goes stale when an unrelated card edits the manifest.
+	const blocks = welcomeBlocks();
+	// A view whose blocks all moved or were renamed matches nothing here for a
+	// reason that has nothing to do with the removal this pins, so the roster
+	// is checked before the match count is read.
+	assert.ok(
+		blocks.length > 0,
+		"the view contributes no welcome blocks at all, so this check proved nothing",
+	);
+	const matched = blocks.filter((block) =>
+		evaluate(block.when, TREE_RENDERS_INSTEAD),
+	);
+	assert.deepEqual(
+		matched.map((block) => block.when),
+		[],
+		"a welcome block matches the state DinahTreeProvider always draws rows in",
+	);
+});
+
 test("each resolved state renders its own text, and none renders the still-looking text", () => {
 	// The four states the spec names, plus the interval before activate() has
 	// set either key. Each of the five reaches different contents, so no
@@ -172,11 +234,14 @@ test("each resolved state renders its own text, and none renders the still-looki
 	};
 
 	const stillLooking = contentsFor({});
+	// The workbench-resolved state is absent from this list because it now
+	// reaches no welcome view at all: the tree draws its own rows there. The
+	// test below asserts that absence directly rather than leaving it to be
+	// inferred from a list somebody shortened.
 	const named: [string, KeyState][] = [
 		["no usable binary", { binary: "missing", workbench: "unknown" }],
 		["no workbench found", { binary: "ok", workbench: "none" }],
 		["several workbenches", { binary: "ok", workbench: "ambiguous" }],
-		["workbench-resolved", { binary: "ok", workbench: "ok" }],
 		["binary resolved, workbench not written yet", { binary: "ok" }],
 	];
 
@@ -208,19 +273,115 @@ test("every welcome clause reads only the two keys the extension sets", () => {
 	assert.ok(blocks.length > 0);
 });
 
-test("the two settings are contributed with the scopes their subjects need", () => {
+test("the settings are contributed with the scopes their subjects need", () => {
 	const configuration = contributes.configuration as {
-		properties: Record<string, { scope?: string; default?: unknown }>;
+		properties: Record<
+			string,
+			{ scope?: string; default?: unknown; type?: string; minimum?: number }
+		>;
 	};
 	assert.deepEqual(Object.keys(configuration.properties), [
 		SETTING_PATH,
 		SETTING_WORKBENCH,
+		SETTING_POLL_INTERVAL,
+		SETTING_WATCH_FILES,
 	]);
 	// A binary path is a property of the machine and must not travel through
 	// settings sync to a different one.
 	assert.equal(configuration.properties[SETTING_PATH].scope, "machine-overridable");
 	// Which workbench a folder uses is a property of the folder.
 	assert.equal(configuration.properties[SETTING_WORKBENCH].scope, "resource");
+	// So is how often that folder is checked, and whether it is watched.
+	const poll = configuration.properties[SETTING_POLL_INTERVAL];
+	assert.equal(poll.scope, "resource");
+	assert.equal(poll.type, "integer");
+	assert.equal(poll.default, 10);
+	// The floor keeps a mistyped 0 or 1 from turning the poll into a spin.
+	assert.equal(poll.minimum, 2);
+	const watch = configuration.properties[SETTING_WATCH_FILES];
+	assert.equal(watch.scope, "resource");
+	assert.equal(watch.default, true);
+});
+
+test("the manifest declares exactly the commands identity.ts names", () => {
+	const commands = contributes.commands as { command: string; title: string }[];
+	assert.deepEqual(
+		commands.map((entry) => entry.command),
+		[...TREE_COMMANDS],
+	);
+});
+
+test("every menu entry names a command the manifest declares", () => {
+	// A menu whose command is undeclared shows an item that does nothing when
+	// it is clicked, which VS Code reports nowhere.
+	const declared = new Set(
+		(contributes.commands as { command: string }[]).map((entry) => entry.command),
+	);
+	const menus = contributes.menus as Record<string, { command: string }[]>;
+	let checked = 0;
+	for (const [where, entries] of Object.entries(menus)) {
+		for (const entry of entries) {
+			checked += 1;
+			assert.ok(
+				declared.has(entry.command),
+				`${where} names the undeclared command ${entry.command}`,
+			);
+		}
+	}
+	// A manifest contributing no menu entries satisfies the loop above without
+	// the loop having read anything, so the count is what separates a clean
+	// set of menus from an absent one.
+	assert.ok(checked > 0, "no menu entry was scanned at all, so this check proved nothing");
+});
+
+test("nothing in the manifest offers a Pull", () => {
+	// dinah's pull verb takes a destination column and picks its own card from
+	// that column's upstream, so no card-scoped Pull can be aimed at the row
+	// that was clicked, and no read-only call publishes the destination-side
+	// fact a column-scoped one would need. The item is specified on dinah-265
+	// and built by whichever card lands dinah-280. This is the guard that
+	// keeps it from arriving early and mistargeting somebody's board.
+	const serialized = JSON.stringify(contributes);
+	// The two absence assertions below read one string, and a contributions
+	// block that had lost its commands or its menus would satisfy both while
+	// declaring nothing at all. A pull would arrive as a command, a menu entry
+	// or both, so both arrays being populated is what makes their silence mean
+	// something.
+	const commands = contributes.commands as unknown[];
+	const menuEntries = Object.values(
+		contributes.menus as Record<string, unknown[]>,
+	).flat();
+	assert.ok(
+		commands.length > 0 && menuEntries.length > 0,
+		`the contributions declare ${commands.length} commands and ${menuEntries.length} menu entries, so a missing pull proves nothing`,
+	);
+	assert.ok(
+		!serialized.includes("pullInto"),
+		"the manifest declares a pull command dinah cannot aim safely",
+	);
+	assert.ok(
+		!serialized.includes("dinah.column.pull"),
+		"a menu is registered against a column contextValue nothing composes",
+	);
+});
+
+test("the card menus are registered against the four contextValues actionsFor composes", () => {
+	// The manifest's `when` clauses and actionsFor's return values are two
+	// spellings of one set. A contextValue composed in code but named in no
+	// clause is a menu that never opens, and the reverse is a clause that
+	// never matches; neither shows up at run time as anything but silence.
+	const menus = contributes.menus as Record<string, { when: string }[]>;
+	const clauses = menus["view/item/context"].map((entry) => entry.when).join(" ");
+	assert.ok(clauses.includes(CONTEXT_CARD_READY_CLAIM));
+	assert.ok(clauses.includes(CONTEXT_CARD_ACTIVE));
+	assert.ok(clauses.includes(CONTEXT_CARD_BLOCKED));
+	// The one contextValue with no Claim item of its own is still reached by
+	// the Move and Block clauses, which match the ready prefix.
+	assert.ok(
+		clauses.includes("^dinah\\.card\\.(ready|active)"),
+		`the ready/active prefix clause is not in the menus: ${clauses}`,
+	);
+	assert.ok(!clauses.includes(CONTEXT_CARD_READY_NONE));
 });
 
 test("the extension version is major.minor.patch, which is all the marketplace accepts", () => {

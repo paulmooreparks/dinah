@@ -59,11 +59,6 @@
       },
       {
         "view": "dinah.workbenchView",
-        "when": "dinah.binary == 'ok' && dinah.workbench == 'ok'",
-        "contents": "Dinah found a workbench for this folder. The status bar names it, and its tooltip says where the workbench is and which `dinah` binary this window is driving.\n\nDinah does not draw the board in this view yet. Run `dinah` in a terminal to work the board until it does."
-      },
-      {
-        "view": "dinah.workbenchView",
         "when": "dinah.binary == 'ok' && dinah.workbench == 'unknown'",
         "contents": "Dinah has a binary for this window but no workbench to go with it. Open a folder to work from, or open the Dinah output channel to read what `dinah` reported.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
       },
@@ -78,6 +73,73 @@
         "contents": "Looking for a dinah binary and a workbench.\n\nThis text is replaced as soon as the extension has an answer. If it stays, open the Dinah output channel to see what happened."
       }
     ],
+    "commands": [
+      {
+        "command": "dinah.tree.refresh",
+        "title": "Dinah: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dinah.tree.openCard",
+        "title": "Dinah: Open Card"
+      },
+      {
+        "command": "dinah.tree.claim",
+        "title": "Claim"
+      },
+      {
+        "command": "dinah.tree.move",
+        "title": "Move..."
+      },
+      {
+        "command": "dinah.tree.release",
+        "title": "Release"
+      },
+      {
+        "command": "dinah.tree.block",
+        "title": "Block..."
+      },
+      {
+        "command": "dinah.tree.unblock",
+        "title": "Unblock"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "dinah.tree.refresh",
+          "when": "view == dinah.workbenchView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dinah.tree.claim",
+          "when": "view == dinah.workbenchView && viewItem == dinah.card.ready.claim",
+          "group": "1_flow@1"
+        },
+        {
+          "command": "dinah.tree.move",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\.(ready|active)/",
+          "group": "1_flow@2"
+        },
+        {
+          "command": "dinah.tree.block",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\.(ready|active)/",
+          "group": "1_flow@3"
+        },
+        {
+          "command": "dinah.tree.release",
+          "when": "view == dinah.workbenchView && viewItem == dinah.card.active",
+          "group": "1_flow@1"
+        },
+        {
+          "command": "dinah.tree.unblock",
+          "when": "view == dinah.workbenchView && viewItem == dinah.card.blocked",
+          "group": "1_flow@1"
+        }
+      ]
+    },
     "configuration": {
       "title": "Dinah",
       "properties": {
@@ -92,6 +154,19 @@
           "default": "",
           "scope": "resource",
           "markdownDescription": "Directory of the workbench to use for this folder, passed to `dinah` as `--workbench`. Leave empty to let `dinah` discover one by walking up from the folder. Set it when several workbenches are reachable, or when the walk reaches one you did not mean."
+        },
+        "dinah.pollIntervalSeconds": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 2,
+          "scope": "resource",
+          "markdownDescription": "How often the sidebar tree checks `dinah changes` for updates while visible."
+        },
+        "dinah.watchFiles": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Watch the workbench's Markdown files for changes and check sooner than the poll interval when one is saved."
         }
       }
     }

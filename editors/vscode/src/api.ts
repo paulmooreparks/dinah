@@ -26,6 +26,17 @@ export interface Candidate {
 	readonly slug?: string;
 	/** The workbench directory, which is what `--workbench` takes. */
 	readonly path: string;
+	/**
+	 * The refusal a reader could not get past on its way to this workbench,
+	 * which says the workbench itself would not read.
+	 *
+	 * Absent on every candidate an ambiguous-workbench refusal produces, since
+	 * a tie is between workbenches that all read. It arrives on a candidate a
+	 * downward walk describes and cannot open. It never carries a refusal
+	 * raised by a question asked of a workbench that opened; that is a
+	 * different fact and rides its own field on the root-scoped answers.
+	 */
+	readonly refused?: string;
 }
 
 /**
@@ -86,11 +97,25 @@ export type WorkbenchResolution =
 			readonly candidates?: readonly Candidate[];
 	  };
 
+/**
+ * The sidebar's data source, as much of it as a test needs to reach.
+ *
+ * A TreeView's contents cannot be read back through the VS Code API any more
+ * than a status bar item's can, so the provider itself rides the returned
+ * object and an integration test walks it directly.
+ */
+export interface TreeProviderHandle {
+	readonly getChildren: (element?: unknown) => Promise<unknown[]>;
+	readonly getTreeItem: (element: unknown) => unknown;
+}
+
 /** What `activate()` returns. */
 export interface DinahApi {
 	readonly binary: BinaryState;
 	/** One entry per workspace folder, keyed by the folder's fsPath. */
 	readonly workbenches: ReadonlyMap<string, WorkbenchResolution>;
+	/** The sidebar's provider, exposed for the same reason as the two above. */
+	readonly tree: TreeProviderHandle;
 	/** The status bar item's tooltip, exposed because the item cannot be read back. */
 	readonly statusTooltip: string;
 	/** The status bar item's text, exposed for the same reason. */

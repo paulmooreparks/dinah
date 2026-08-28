@@ -14,7 +14,9 @@ import { runTests } from "@vscode/test-electron";
 import { assertUnderTempRoot } from "../support/env";
 import {
 	BINARY_NAME,
+	addCard,
 	buildBinary,
+	moveCard,
 	initBench,
 	pinBinary,
 } from "../support/fixtures";
@@ -84,6 +86,20 @@ async function main(): Promise<void> {
 	mkdirSync(bare, { recursive: true });
 	writeFileSync(join(bare, "readme.txt"), "nothing to do with dinah\n", "utf8");
 
+	// dinah-265: a workbench holding cards, so the tree suite draws rows from
+	// what this commit's binary emits rather than from a JSON literal.
+	const tree = join(fixtures, "tree");
+	initBench(root, tree);
+	pinBinary(root, tree);
+	const treeCards = ["Draw the guides", "Translate the headings", "Retire the second map"].map(
+		(title) => addCard(root, tree, title),
+	);
+	// One card is carried into the work column, so the suite sees both
+	// take-up spellings. Every card dinah add files lands in intake, which is
+	// a queue column that takes no work up, and a fixture whose cards all sit
+	// there can only assert the no-Claim half.
+	moveCard(root, tree, treeCards[0], "doing");
+
 	// AC-15: the carried binary, arriving without its executable bit.
 	const carried = join(fixtures, "carried");
 	initBench(root, carried);
@@ -93,6 +109,7 @@ async function main(): Promise<void> {
 		{ suite: "nested", folder: nestedWork },
 		{ suite: "ambiguous", folder: ambiguous },
 		{ suite: "inactive", folder: bare },
+		{ suite: "tree", folder: tree },
 		{
 			suite: "carried",
 			folder: carried,

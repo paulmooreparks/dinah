@@ -28,3 +28,60 @@ export const SETTING_PATH = "dinah.path";
 
 /** The settings key pinning which workbench a folder uses. */
 export const SETTING_WORKBENCH = "dinah.workbench";
+
+/** The settings key holding how often the tree checks for changes. */
+export const SETTING_POLL_INTERVAL = "dinah.pollIntervalSeconds";
+
+/** The settings key turning the filesystem watcher off. */
+export const SETTING_WATCH_FILES = "dinah.watchFiles";
+
+/** The view title bar's refresh command. */
+export const COMMAND_REFRESH = "dinah.tree.refresh";
+
+/** The command every card row runs on a plain click. */
+export const COMMAND_OPEN_CARD = "dinah.tree.openCard";
+
+/** The five flow verbs the card context menu offers. */
+export const COMMAND_CLAIM = "dinah.tree.claim";
+export const COMMAND_MOVE = "dinah.tree.move";
+export const COMMAND_RELEASE = "dinah.tree.release";
+export const COMMAND_BLOCK = "dinah.tree.block";
+export const COMMAND_UNBLOCK = "dinah.tree.unblock";
+
+/**
+ * Every command this extension contributes, in the order package.json
+ * declares them. A manifest test reads this array back, which is what keeps
+ * a command registered in code but undeclared (or the reverse) from shipping.
+ */
+export const TREE_COMMANDS: readonly string[] = [
+	COMMAND_REFRESH,
+	COMMAND_OPEN_CARD,
+	COMMAND_CLAIM,
+	COMMAND_MOVE,
+	COMMAND_RELEASE,
+	COMMAND_BLOCK,
+	COMMAND_UNBLOCK,
+];
+
+/**
+ * The four answers actionsFor composes for a card row, and the row kinds
+ * above them.
+ *
+ * A ready card's differentiator is its own column's published TakesWorkUp,
+ * and there is deliberately no pull spelling here: dinah's pull verb takes a
+ * destination rather than a card, so no read-only call publishes the fact a
+ * card-scoped Pull item would need (dinah-265 D-2, dinah-280).
+ */
+export const CONTEXT_CARD_READY_CLAIM = "dinah.card.ready.claim";
+export const CONTEXT_CARD_READY_NONE = "dinah.card.ready.none";
+export const CONTEXT_CARD_ACTIVE = "dinah.card.active";
+export const CONTEXT_CARD_BLOCKED = "dinah.card.blocked";
+
+/** The contextValue a root row carries, by how the folder resolved. */
+export const CONTEXT_WORKBENCH_ROOT = "dinah.workbenchRoot";
+export const CONTEXT_WORKBENCH_CANDIDATE = "dinah.workbenchCandidate";
+export const CONTEXT_WORKBENCH_FOREST = "dinah.workbenchForest";
+
+/** The contextValue a column row and a state group row carry. */
+export const CONTEXT_COLUMN = "dinah.column";
+export const CONTEXT_STATE_GROUP = "dinah.stateGroup";
