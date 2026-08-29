@@ -12,9 +12,16 @@ import (
 // the field goes through it rather than repeating the literal.
 const SlugField = "slug"
 
+// ColumnDir is the directory one column of a bench lives in, which is also the
+// directory its own attachments hang from. Every caller that needs it goes
+// through here rather than composing the join again.
+func (b *Bench) ColumnDir(id string) string {
+	return filepath.Join(b.Root, ColumnsDir, id)
+}
+
 // ColumnAnchorPath is the anchor of one column of a bench.
 func (b *Bench) ColumnAnchorPath(id string) string {
-	return filepath.Join(b.Root, ColumnsDir, id, ColumnAnchor)
+	return filepath.Join(b.ColumnDir(id), ColumnAnchor)
 }
 
 // checkColumnSlugs applies the slug invariants to the flow: every column carries

@@ -66,6 +66,7 @@ func init() {
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
 		{name: "tree", group: groupRead, run: runTree, openTail: true},
 		{name: "contents", group: groupRead, run: runContents, bounded: 1},
+		{name: "attachments", group: groupRead, run: runAttachments, bounded: 1},
 		{name: "show", group: groupRead, run: runShow, bounded: 1},
 		{name: "log", group: groupRead, run: runLog, bounded: 1},
 		// changes declares no bounded positional at all, so a stray word
@@ -545,6 +546,27 @@ func runContents(s *session, parsed *arguments) int {
 			return s.emitMachine(tree)
 		}
 		s.renderTree(tree)
+		return 0
+	})
+}
+
+// runAttachments reports the attachments of any entity that can carry one.
+//
+// An omitted reference asks about the workbench itself, which is what the
+// empty reference already means to the entity resolver, so the reader who
+// types the command bare is answered rather than refused.
+func runAttachments(s *session, parsed *arguments) int {
+	req := s.request("attachments", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	return s.withBench(func(l *verb.Library) int {
+		listing, err := l.Attachments(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(listing)
+		}
+		s.renderAttachmentListing(listing)
 		return 0
 	})
 }

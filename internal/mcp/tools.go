@@ -85,6 +85,7 @@ var tools = []tool{
 	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
 	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
 	{name: "contents", command: "contents", run: readContents},
+	{name: "attachments", command: "attachments", run: readAttachments},
 	{name: "show", command: "show", run: readShow},
 	{name: "log", command: "log", run: readLog},
 	{name: "changes", command: "changes", run: readChanges},
@@ -320,6 +321,17 @@ func readContents(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"tree": tree}, readAffordances)
+}
+
+// readAttachments answers the attachments tool. It publishes the same listing
+// the terminal head prints, so the two heads report one entity's attachments
+// identically and neither carries a shape of its own.
+func readAttachments(l *verb.Library, r *verb.Request) any {
+	listing, err := l.Attachments(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"attachments": listing}, readAffordances)
 }
 
 // cardAffordances asks the library what a caller may do with the card a

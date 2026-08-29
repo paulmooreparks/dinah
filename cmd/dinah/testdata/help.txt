@@ -42,6 +42,8 @@ READ
     [--max-depth <n>]
   contents <ref> [--depth <level>]          What an entity of the workbench
                                               contains
+  attachments [ref]                         What is attached to an entity of the
+                                              workbench
   show <ref>                                A card, or anything below it
   log <card>                                The recorded actions of a card,
                                               oldest first

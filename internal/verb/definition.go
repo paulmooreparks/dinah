@@ -198,6 +198,7 @@ var guides = map[string][]string{
 	"delete":       {"references"},
 	"rename":       {"references"},
 	"contents":     {"references"},
+	"attachments":  {"references"},
 	"query":        {"query"},
 }
 
@@ -323,8 +324,12 @@ var params = map[string][]Param{
 		{Name: "ref", Required: true, Guide: "references", Field: "Ref"},
 		{Name: "depth", Flag: true, Value: "level", Field: "Depth"},
 	},
-	"show": {{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"}},
-	"log":  {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
+	// attachments writes its own sentence for ref, the way contents does and
+	// for the same reason: the shared sentence ends "not this workbench" and
+	// the workbench is one of the four kinds this read is asked about.
+	"attachments": {{Name: "ref", Guide: "references", Field: "Ref"}},
+	"show":        {{Name: "card", Display: "ref", Required: true, Guide: "references", Field: "Card"}},
+	"log":         {{Name: "card", Required: true, Shared: "card", Field: "Card"}},
 	// Every argument of changes is a flag, including the two a read usually
 	// takes positionally, because the cursor is the argument a caller reaches
 	// for and a positional slot ahead of it would be the one they type by

@@ -46,6 +46,10 @@ type ColumnView struct {
 	RejectTo string `json:"reject_to,omitempty"`
 	// Count is the number of live cards the column holds.
 	Count int `json:"count"`
+	// AttachmentCount is how many attachments hang from the column itself,
+	// which is a rubric or a reference document somebody attached to the
+	// station rather than to any card standing at it.
+	AttachmentCount int `json:"attachment_count,omitempty"`
 }
 
 // Status is where the bench stands and what the reader holds.
@@ -72,6 +76,9 @@ type Status struct {
 	// WorkbenchSource names which rung resolved the active workbench for
 	// this invocation: flag, environment, search, or config.
 	WorkbenchSource string `json:"workbench_source,omitempty"`
+	// AttachmentCount is how many attachments hang from the workbench
+	// itself, sibling to the counts each column and each card now carries.
+	AttachmentCount int `json:"attachment_count,omitempty"`
 }
 
 // Status reports where the bench stands.
@@ -90,6 +97,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		Holding:         []CardView{},
 		Blocked:         []CardView{},
 		WorkbenchSource: req.WorkbenchSource,
+		AttachmentCount: bench.CountAttachments(l.Bench.Root),
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
@@ -137,6 +145,7 @@ func (l *Library) columnViews(counts map[string]int) []ColumnView {
 			Capacity:        column.Capacity,
 			RejectTo:        column.RejectTo,
 			Count:           counts[column.ID],
+			AttachmentCount: bench.CountAttachments(l.Bench.ColumnDir(column.ID)),
 		}
 		views = append(views, view)
 	}
@@ -318,6 +327,13 @@ type AttachmentView struct {
 	Description string `json:"description,omitempty"`
 	// Provenance says where the bytes came from.
 	Provenance string `json:"provenance"`
+	// Path is the absolute path to the file the attachment wraps, which is
+	// what lets a client open it without a second call. It is absent when
+	// the payload will not read, and it is an optional field of the wire
+	// format rather than a core one, so a client reads it as optional and
+	// shows an attachment carrying none as present and unopenable rather
+	// than dropping the row.
+	Path string `json:"path,omitempty"`
 }
 
 // LinkView is one link as a read reports it.
@@ -344,6 +360,12 @@ type CommentView struct {
 	Author string `json:"author"`
 	// Body is the comment itself.
 	Body string `json:"body"`
+	// Attachments are the comment's own attachments, on the terms a card's
+	// are: the full list, each carrying its path. A comment is one of the
+	// four kinds the containment grammar gives an attachments collection,
+	// and a card's comments are bounded by that card, so the list costs
+	// what the one card costs rather than what a listing costs.
+	Attachments []AttachmentView `json:"attachments,omitempty"`
 }
 
 // Show reads a card, or the file any other reference names.
@@ -393,32 +415,111 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 	for _, link := range card.Links {
 		detail.Links = append(detail.Links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
 	}
-	attachments, err := bench.Attachments(card.Dir)
+	cardRef := card.Ref(l.Bench.Slug)
+	views, err := attachmentViews(card.Dir, cardRef)
 	if err != nil {
 		return nil, "", err
 	}
-	cardRef := card.Ref(l.Bench.Slug)
-	for _, attachment := range attachments {
-		ordinal := displayOrdinal(attachment)
-		view := AttachmentView{
-			ID:          attachment.ID,
-			Ordinal:     ordinal,
-			Ref:         attachmentRef(cardRef, ordinal),
-			Filename:    attachment.Filename,
-			Description: attachment.Description,
-			Provenance:  attachment.Provenance,
-		}
-		detail.Attachments = append(detail.Attachments, view)
-	}
+	detail.Attachments = views
 	comments, err := bench.Comments(card.Dir)
 	if err != nil {
 		return nil, "", err
 	}
 	for _, comment := range comments {
 		view := CommentView{ID: comment.ID, TS: comment.TS, Author: comment.Author, Body: comment.Body}
+		// A comment's attachments compose their references against the
+		// comment's own address rather than the card's, so a reference the
+		// view prints reaches the attachment the view describes.
+		below, err := attachmentViews(comment.Dir, commentRef(cardRef, memberPosition(comment.Dir, bench.CommentAnchor)))
+		if err != nil {
+			return nil, "", err
+		}
+		view.Attachments = below
 		detail.Comments = append(detail.Comments, view)
 	}
 	return detail, "", nil
+}
+
+// AttachmentListing is one entity's attachments: a workbench's, a column's, a
+// card's or a comment's, which are the four kinds the containment grammar
+// gives an attachments collection.
+type AttachmentListing struct {
+	// Kind is the entity's kind, as the containment grammar spells it.
+	Kind string `json:"kind"`
+	// Ref is what a person types to reach the entity the attachments hang
+	// from. The workbench is written `workbench`, which is the spelling the
+	// containment tree's own root row already prints for it, and everything
+	// else carries the reference the resolver composed.
+	Ref string `json:"ref"`
+	// Attachments are the entity's own attachments in creation order, never
+	// those of anything it contains. An entity carrying none reports an
+	// empty list rather than nothing at all.
+	Attachments []AttachmentView `json:"attachments"`
+}
+
+// Attachments reports one entity's own attachments, named by any reference the
+// entity resolver reaches.
+//
+// An entity of a kind the grammar gives no attachments collection, which is a
+// checklist item, an attachment itself or a workstream, is not refused. It
+// reports an empty list, which is the answer an entity of a mounted kind gives
+// when it happens to carry nothing, and a caller walking a tree therefore asks
+// the same question everywhere instead of deciding first whether the question
+// is legal.
+func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return nil, err
+	}
+	// EntityRef leaves the workbench's own reference empty, calling its
+	// spelling a question the resolver does not settle, so composing an
+	// attachment's reference from it would print /attachments/1, which
+	// nothing accepts. rootOf already answered that question for the
+	// containment tree, and this mirrors its answer rather than minting a
+	// second one.
+	ref := entity.Ref
+	if entity.Kind == bench.KindWorkbench {
+		ref = "workbench"
+	}
+	views, err := attachmentViews(entity.Dir, ref)
+	if err != nil {
+		return nil, err
+	}
+	if views == nil {
+		views = []AttachmentView{}
+	}
+	return &AttachmentListing{Kind: entity.Kind, Ref: ref, Attachments: views}, nil
+}
+
+// attachmentViews reads an entity's attachments collection and renders each
+// member as a read reports it, composing every reference against the entity's
+// own address. Every read that publishes attachments goes through here, so a
+// field one read carries cannot go missing from another.
+func attachmentViews(dir, ref string) ([]AttachmentView, error) {
+	attachments, err := bench.Attachments(dir)
+	if err != nil {
+		return nil, err
+	}
+	var views []AttachmentView
+	for _, attachment := range attachments {
+		ordinal := displayOrdinal(attachment)
+		views = append(views, AttachmentView{
+			ID:          attachment.ID,
+			Ordinal:     ordinal,
+			Ref:         attachmentRef(ref, ordinal),
+			Filename:    attachment.Filename,
+			Description: attachment.Description,
+			Provenance:  attachment.Provenance,
+			Path:        attachment.Path,
+		})
+	}
+	return views, nil
+}
+
+// commentRef composes the reference a person types to reach one comment from
+// its card: the card's own reference, then comments and the comment's ordinal.
+func commentRef(cardRef string, ordinal int) string {
+	return cardRef + "/" + bench.CommentsDir + "/" + strconv.Itoa(ordinal)
 }
 
 // displayOrdinal is the one-based position a read reports for an attachment,
@@ -440,10 +541,23 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 // out of that same listing. It is reported rather than smoothed over, so that
 // an unaddressable row shows up as one instead of pointing at the first file.
 func displayOrdinal(attachment *bench.Attachment) int {
-	collection := filepath.Dir(attachment.Dir)
-	ids := bench.SortByOrdinal(collection, bench.AttachmentAnchor, bench.ListIDs(collection))
-	for n, id := range ids {
-		if id == attachment.ID {
+	return memberPosition(attachment.Dir, bench.AttachmentAnchor)
+}
+
+// memberPosition is the one-based place a member holds in the collection its
+// directory sits in, counted the way the reference resolver counts it, and
+// zero when the directory is not a member of that collection at all.
+//
+// The resolver answers a positional segment by indexing the collection sorted
+// through SortByOrdinal, so the position is an index into that sequence rather
+// than the stored ordinal, and the two stop coinciding after one delete. The
+// count is taken here so that every read composing a reference and the
+// resolver reading one back agree by construction.
+func memberPosition(dir, anchor string) int {
+	collection := filepath.Dir(dir)
+	id := filepath.Base(dir)
+	for n, member := range bench.SortByOrdinal(collection, anchor, bench.ListIDs(collection)) {
+		if member == id {
 			return n + 1
 		}
 	}
@@ -451,10 +565,10 @@ func displayOrdinal(attachment *bench.Attachment) int {
 }
 
 // attachmentRef composes the reference a person types to reach one attachment
-// from its card: the card's own reference, then attachments and the position
-// the caller resolved through displayOrdinal.
-func attachmentRef(cardRef string, ordinal int) string {
-	return cardRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
+// from the entity it hangs from: that entity's own reference, then attachments
+// and the position the caller resolved through displayOrdinal.
+func attachmentRef(ownerRef string, ordinal int) string {
+	return ownerRef + "/" + bench.AttachmentsDir + "/" + strconv.Itoa(ordinal)
 }
 
 // linkRef resolves a link's stored card identifier to what a person types to

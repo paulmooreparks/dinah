@@ -187,6 +187,12 @@ type CardView struct {
 	Workstreams []string `json:"workstreams,omitempty"`
 	// Revision is the card's opaque current revision.
 	Revision string `json:"revision"`
+	// AttachmentCount is how many attachments the card carries. A listing
+	// reports the number rather than the list, which is what a reader needs
+	// in order to decide whether the card has anything to open, and the
+	// attachments themselves are one read away for the one card somebody
+	// asked about.
+	AttachmentCount int `json:"attachment_count,omitempty"`
 }
 
 // Instructions are the three layers of the served chain, carried separately
@@ -290,6 +296,8 @@ func (l *Library) view(card *bench.Card) *CardView {
 		BlockKind:   card.BlockKind,
 		Workstreams: card.Workstreams,
 		Revision:    card.Revision,
+
+		AttachmentCount: bench.CountAttachments(card.Dir),
 	}
 	if column := l.Bench.Column(card.Column); column != nil {
 		v.ColumnTitle = column.Title

@@ -1,6 +1,26 @@
 {
   "tag": "id",
   "entries": {
+    "param.attachments.ref.summary": {
+      "text": "this workbench written as `workbench` or `.`, a column, a card, or a comment such as wb-1/comments/1; this workbench when you name none",
+      "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
+      "skeleton": true
+    },
+    "cmd.attachments.summary": {
+      "text": "What is attached to an entity of the workbench",
+      "context": "The one-line summary of the attachments command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "attachments.header": {
+      "text": "{ref} carries {count} attachments.",
+      "context": "The sentence above the table `dinah attachments` prints, naming the entity the attachments hang from. {count} is how many that entity carries.",
+      "skeleton": true
+    },
+    "attachments.empty": {
+      "text": "{ref} carries no attachments.",
+      "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake.",
+      "skeleton": true
+    },
     "answer.pull.empty.bare": {
       "text": "Dinah found no column you can pull into right now",
       "context": "The one-line sentence the empty answer of pull prints when the bare form was asked and nothing qualifies. It is the answer the refusal table explicitly carves out as an answer rather than a refusal, and the cardless OK response carries the catalog key the head renders.",

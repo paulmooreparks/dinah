@@ -9,6 +9,14 @@
       "text": "Dinah found nothing ready in {upstream} to move into {destination}",
       "context": "The one-line sentence the empty answer of pull prints when the named form was asked and the upstream column holds no ready card. {upstream} names the upstream column by its title, {destination} names the column the caller asked pull to land the card in."
     },
+    "attachments.empty": {
+      "text": "{ref} carries no attachments.",
+      "context": "Printed when `dinah attachments` is asked about an entity that carries none. No table follows, and the call succeeds: an entity with nothing attached is an answer rather than a mistake."
+    },
+    "attachments.header": {
+      "text": "{ref} carries {count} attachments.",
+      "context": "The sentence above the table `dinah attachments` prints, naming the entity the attachments hang from. {count} is how many that entity carries."
+    },
     "card.blocked": {
       "text": "  blocked: {reason}",
       "context": "Printed under the card line when the card is blocked."
@@ -2337,6 +2345,10 @@
       "text": "the depth level is one this command declares",
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
+    "cmd.attachments.summary": {
+      "text": "What is attached to an entity of the workbench",
+      "context": "The one-line summary of the attachments command, shown beside its syntax in the help block."
+    },
     "cmd.contents.summary": {
       "text": "What an entity of the workbench contains",
       "context": "The one-line summary of the contents command, shown beside its syntax in the help block."
@@ -2372,6 +2384,10 @@
     "contents.header": {
       "text": "{title} ({ref}) contains {count} entities.",
       "context": "The sentence above the tree `dinah contents` prints, naming the entity the walk started from. {count} is how many entities sit below it, at every depth and not only the ones drawn."
+    },
+    "param.attachments.ref.summary": {
+      "text": "this workbench written as `workbench` or `.`, a column, a card, or a comment such as wb-1/comments/1; this workbench when you name none",
+      "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about."
     },
     "param.contents.depth.summary": {
       "text": "how far down to draw, written as root, cards, entities, or all; entities when you name none",
