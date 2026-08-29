@@ -1,4 +1,4 @@
-// The seven commands the tree contributes, as pure argv composition and pure
+// The eight commands the tree contributes, as pure argv composition and pure
 // outcome handling.
 //
 // Nothing here imports vscode. Each handler is a function over an injected
@@ -14,6 +14,8 @@
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
+import { COMMAND_OPEN_ATTACHMENT } from "./identity";
+import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
 import { BACKWARD, FORWARD } from "./wire";
 
@@ -34,6 +36,8 @@ export interface CommandHost {
 	) => Promise<PickItem | undefined>;
 	readonly input: (prompt: string) => Promise<string | undefined>;
 	readonly openDocument: (path: string) => Promise<void>;
+	/** Opens a file for the editor to render, which decides how itself. */
+	readonly openFile: (path: string) => Promise<void>;
 	/** Runs one off-cycle checkpoint for the folder the card stands in. */
 	readonly checkpoint: (folder: string) => Promise<void>;
 	readonly log: (line: string) => void;
@@ -232,4 +236,36 @@ export async function openCard(context: CommandContext): Promise<void> {
 		return;
 	}
 	await context.host.openDocument(path);
+}
+
+/**
+ * Opens an attachment's own file, handing the editor a path and nothing else.
+ *
+ * An attachment element carries no CommandContext, because that shape names a
+ * card and the workbench the card stands in, while an attachment's path is
+ * the whole of what opening one needs and it already rides the element the
+ * row was drawn from. `openFile` rather than `openDocument`, because an
+ * attachment is arbitrary bytes and the editor is the one to decide how to
+ * render them (dinah-335's Decision 3); the row carries no context menu
+ * either (Decision 4), and its plain click is the whole of what it offers.
+ *
+ * The channel line goes through a callback of its own rather than through
+ * the host, so a row that names no openable file reports itself without
+ * asking the host for anything at all.
+ */
+export async function openAttachment(
+	element: TreeElement,
+	host: CommandHost,
+	log: (line: string) => void,
+): Promise<void> {
+	if (element.kind !== "attachment") {
+		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on a row that names no attachment`);
+		return;
+	}
+	const path = element.view.path;
+	if (path === undefined || path === "") {
+		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on an attachment with no path`);
+		return;
+	}
+	await host.openFile(path);
 }

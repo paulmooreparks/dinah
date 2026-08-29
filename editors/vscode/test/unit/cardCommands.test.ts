@@ -15,12 +15,14 @@ import {
 	claimCard,
 	moveCard,
 	movePick,
+	openAttachment,
 	openCard,
 	orderLegalMoves,
 	refusalMessage,
 	releaseCard,
 	unblockCard,
 } from "../../src/cardCommands";
+import type { RootRow, TreeElement } from "../../src/tree";
 import type { LegalMove } from "../../src/wire";
 
 interface Recorder {
@@ -29,7 +31,11 @@ interface Recorder {
 	readonly errors: string[];
 	readonly checkpoints: string[];
 	readonly opened: string[];
+	/** The files handed to the host's file opener, in call order. */
+	readonly files: string[];
 	readonly logged: string[];
+	/** The host the recorder watches, which the attachment handler reaches directly. */
+	readonly host: CommandHost;
 	/** What the next spawn answers, by which verb the argv names. */
 	answers: Record<string, SpawnOutcome>;
 	/** What the quick-pick returns, if it is opened. */
@@ -53,6 +59,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const errors: string[] = [];
 	const checkpoints: string[] = [];
 	const opened: string[] = [];
+	const files: string[] = [];
 	const logged: string[] = [];
 	const offered: PickItem[] = [];
 	const state = {
@@ -60,6 +67,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		errors,
 		checkpoints,
 		opened,
+		files,
 		logged,
 		offered,
 		answers,
@@ -85,6 +93,9 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		openDocument: async (path) => {
 			opened.push(path);
 		},
+		openFile: async (path) => {
+			files.push(path);
+		},
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
 		},
@@ -99,6 +110,10 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		root: "C:\\work\\bench",
 		ref: "tr-4",
 	};
+	// The host is built after the state it closes over, so it is attached here
+	// rather than in the literal: the attachment handler takes the host alone,
+	// with no CommandContext around it.
+	(state as { host: CommandHost }).host = host;
 	return state;
 }
 
@@ -288,4 +303,99 @@ test("an empty reason blocks nothing", async () => {
 		assert.deepEqual(r.calls, []);
 		assert.deepEqual(r.checkpoints, []);
 	}
+});
+
+// ---------------------------------------------------------------------------
+// dinah-335 AC-8: an attachment opens its own file, through openFile and
+// nothing else on the host
+// ---------------------------------------------------------------------------
+
+/** The smallest row an element can carry: resolved, and carrying no data. */
+function rowFixture(): RootRow {
+	return {
+		rowKind: "workbenchRoot",
+		folder: "C:\\work\\bench",
+		folderName: "bench",
+		description: "",
+		sole: false,
+	};
+}
+
+/**
+ * An attachment element over that row, with the payload path given
+ * explicitly so both spellings of a missing one reach the handler.
+ */
+function attachmentRow(path: string | undefined): TreeElement {
+	return {
+		kind: "attachment",
+		row: rowFixture(),
+		view: {
+			id: "9a1b2c3d4e5f",
+			ordinal: 1,
+			ref: "tr-4/attachments/1",
+			filename: "screenshot.png",
+			provenance: "copy",
+			path,
+		},
+	};
+}
+
+test("an attachment with a file opens it through openFile and touches nothing else on the host", async () => {
+	const r = recorder();
+	const lines: string[] = [];
+	await openAttachment(
+		attachmentRow("C:\\bench\\cards\\tr-4\\attachments\\screenshot.png"),
+		r.host,
+		(line) => lines.push(line),
+	);
+	assert.deepEqual(r.files, ["C:\\bench\\cards\\tr-4\\attachments\\screenshot.png"]);
+	// No other call the host offers was made: no document forced open, no
+	// checkpoint spent, no error surface, no picker, and no channel line
+	// through the host, which is why the handler's own sayings go through a
+	// callback the host does not hold.
+	assert.deepEqual(r.opened, []);
+	assert.deepEqual(r.checkpoints, []);
+	assert.deepEqual(r.errors, []);
+	assert.deepEqual(r.offered, []);
+	assert.deepEqual(r.logged, []);
+	assert.deepEqual(lines, []);
+});
+
+test("an attachment with no path opens nothing, calls nothing on the host, and says so once", async () => {
+	for (const path of [undefined, ""]) {
+		const r = recorder();
+		const lines: string[] = [];
+		await openAttachment(attachmentRow(path), r.host, (line) => lines.push(line));
+		assert.deepEqual(r.files, []);
+		assert.deepEqual(r.opened, []);
+		assert.deepEqual(r.checkpoints, []);
+		assert.deepEqual(r.errors, []);
+		assert.deepEqual(r.offered, []);
+		assert.deepEqual(r.logged, []);
+		assert.equal(lines.length, 1, `the handler said: ${lines.join(" | ")}`);
+		assert.ok(
+			lines[0].includes("no path"),
+			`the row did not say why it opened nothing: ${lines.join(" | ")}`,
+		);
+	}
+});
+
+test("a row that names no attachment at all opens nothing and says which command was misaimed", async () => {
+	const r = recorder();
+	const lines: string[] = [];
+	// A note row is a row of the wrong kind, and the same guard has to fire
+	// for every kind the tree composes.
+	const wrong: TreeElement = {
+		kind: "note",
+		owner: rowFixture(),
+		text: "nothing to open here",
+		tooltip: "nothing to open here",
+	};
+	await openAttachment(wrong, r.host, (line) => lines.push(line));
+	assert.deepEqual(r.files, []);
+	assert.equal(lines.length, 1);
+	assert.ok(
+		lines[0].includes("dinah.tree.openAttachment"),
+		`the row did not name the command that was misaimed: ${lines.join(" | ")}`,
+	);
 });

@@ -24,6 +24,7 @@ export interface ColumnView {
 	readonly capacity?: number;
 	readonly reject_to?: string;
 	readonly count: number;
+	readonly attachment_count?: number;
 }
 
 /** verb.CardView, one card as a read reports it. */
@@ -41,6 +42,7 @@ export interface CardView {
 	readonly block_kind?: string;
 	readonly workstreams?: readonly string[];
 	readonly revision?: string;
+	readonly attachment_count?: number;
 }
 
 /** verb.Status, what `dinah --json status` emits. */
@@ -49,6 +51,7 @@ export interface StatusAnswer {
 	readonly root?: string;
 	readonly profile?: string;
 	readonly columns?: readonly ColumnView[];
+	readonly attachment_count?: number;
 }
 
 /** verb.Listing, what `dinah --json ls` emits. */
@@ -91,6 +94,37 @@ export interface DetailAnswer {
 	readonly card?: CardView;
 	readonly body?: string;
 	readonly path?: string;
+}
+
+/**
+ * verb.AttachmentView, one attachment as a read reports it.
+ *
+ * `path` is what lets this extension open the file without a second call, and
+ * the Go side omits it when the payload will not read, so a reader shows such
+ * an attachment as present and unopenable rather than dropping the row
+ * (dinah-334's own ruling on the field).
+ */
+export interface AttachmentView {
+	readonly id: string;
+	readonly ordinal: number;
+	readonly ref: string;
+	readonly filename: string;
+	readonly description?: string;
+	readonly provenance: string;
+	readonly path?: string;
+}
+
+/**
+ * verb.AttachmentListing, what `dinah --json attachments [ref]` emits.
+ *
+ * The list is the entity's own attachments alone, never those of anything it
+ * contains, and an entity carrying none reports an empty list rather than
+ * nothing at all, which is why `attachments` is required here.
+ */
+export interface AttachmentListing {
+	readonly kind: string;
+	readonly ref: string;
+	readonly attachments: readonly AttachmentView[];
 }
 
 /** verb.LegalMove, one departure the workbench allows right now. */

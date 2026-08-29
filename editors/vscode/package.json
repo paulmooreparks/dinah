@@ -102,6 +102,10 @@
       {
         "command": "dinah.tree.unblock",
         "title": "Unblock"
+      },
+      {
+        "command": "dinah.tree.openAttachment",
+        "title": "Dinah: Open Attachment"
       }
     ],
     "menus": {

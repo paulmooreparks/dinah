@@ -37,9 +37,12 @@ import {
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
 	CONTEXT_WORKBENCH_ROOT,
+	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
 } from "./identity";
 import type {
+	AttachmentListing,
+	AttachmentView,
 	CardView,
 	ColumnView,
 	ForestAnswer,
@@ -118,6 +121,14 @@ export interface WorkbenchData {
 	readonly cards: ReadonlyMap<string, CardView>;
 	/** The tree's own workbench root node, absent when no tree answered. */
 	readonly root?: TreeNode;
+	/**
+	 * How many attachments hang from the workbench itself, one count beside
+	 * the counts each column and each card carry. Held from the last good
+	 * checkpoint when this one's status did not answer, exactly as `root`
+	 * is, and read by rootChildren to decide whether the root draws an
+	 * Attachments row at all.
+	 */
+	readonly attachmentCount?: number;
 }
 
 /** How one workspace folder resolved, and therefore what rows it contributes. */
@@ -188,6 +199,25 @@ export type TreeElement =
 			readonly column?: ColumnView;
 			/** The state group this card stands under, absent where none was drawn. */
 			readonly groupValue?: string;
+	  }
+	| {
+			readonly kind: "attachmentsGroup";
+			readonly row: RootRow;
+			/** The workbench root this group's own fetch is pinned to. */
+			readonly root: string;
+			/**
+			 * What `attachments` is called with: "" for the workbench itself,
+			 * because an omitted argument is how the binary is asked about the
+			 * workbench, and the entity's own ref for a column or a card.
+			 */
+			readonly ref: string;
+			/** The eager count status or ls already reported, shown beside the label. */
+			readonly count: number;
+	  }
+	| {
+			readonly kind: "attachment";
+			readonly row: RootRow;
+			readonly view: AttachmentView;
 	  };
 
 // ---------------------------------------------------------------------------
@@ -505,13 +535,59 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 				description: cardDescription(element.view),
 				tooltip: cardTooltip(element.node, element.view, element.column, state),
 				contextValue: actionsFor({ state, column: element.column }),
-				collapsibleState: "none",
+				// An arrow only when the count says something is there to expand.
+				// A card the ls join missed reads no count, and a card carrying
+				// none renders exactly as it did before attachments existed.
+				collapsibleState:
+					element.view?.attachment_count !== undefined &&
+					element.view.attachment_count > 0
+						? "collapsed"
+						: "none",
 				icon: cardIcon(state),
 				command: {
 					command: COMMAND_OPEN_CARD,
 					title: "Open Card",
 					args: [element],
 				},
+			};
+		}
+		case "attachmentsGroup":
+			return {
+				label: "Attachments",
+				description: String(element.count),
+				collapsibleState: "collapsed",
+			};
+		case "attachment": {
+			const view = element.view;
+			const openable = view.path !== undefined && view.path !== "";
+			const tooltip = [
+				view.filename,
+				...(
+					view.description !== undefined && view.description !== ""
+						? [view.description]
+						: []
+				),
+				openable ? (view.path as string) : "no local file",
+			];
+			return {
+				label: view.filename,
+				description: view.description,
+				tooltip: tooltip.join("\n"),
+				icon: openable ? { id: "file" } : WARNING_ICON,
+				collapsibleState: "none",
+				// A command only when the file can be opened. The key is
+				// absent rather than set to undefined so a row carrying no
+				// payload is a row VS Code will not offer as clickable, which
+				// is the same treatment toTreeItem gives an absent contextValue.
+				...(openable
+					? {
+							command: {
+								command: COMMAND_OPEN_ATTACHMENT,
+								title: "Open Attachment",
+								args: [element],
+							},
+						}
+					: {}),
 			};
 		}
 	}
@@ -628,6 +704,7 @@ export async function readWorkbench(
 			columns: held?.columns ?? new Map(),
 			cards: held?.cards ?? new Map(),
 			root: held?.root,
+			attachmentCount: held?.attachmentCount,
 		};
 	}
 
@@ -637,6 +714,7 @@ export async function readWorkbench(
 		columns: joinColumns(statusJson),
 		cards: joinCards(listingJson),
 		root: treeJson.root,
+		attachmentCount: statusJson?.attachment_count,
 	};
 }
 
@@ -740,6 +818,7 @@ export async function readForest(
 				columns: held?.columns ?? new Map(),
 				cards: held?.cards ?? new Map(),
 				root: held?.root,
+				attachmentCount: held?.attachmentCount,
 			};
 		}
 		return {
@@ -749,6 +828,7 @@ export async function readForest(
 			columns: joinColumns(statusMember?.status),
 			cards: joinCards(listingMember?.listing),
 			root: member.tree?.root,
+			attachmentCount: statusMember?.status?.attachment_count,
 		};
 	});
 }
@@ -761,6 +841,38 @@ function firstSet(...values: (string | undefined)[]): string | undefined {
 		}
 	}
 	return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// The one read an expanded Attachments row makes
+// ---------------------------------------------------------------------------
+
+/**
+ * One entity's attachments, fetched when a reader asks for them.
+ *
+ * An empty `ref` asks about the workbench itself, because an omitted argument
+ * is how the binary expects that question and composing "workbench" here would
+ * be a second spelling of a reference the resolver already owns. The answer is
+ * never cached (dinah-335's Decision 2): the call runs on every expansion of
+ * the row and the count on the row itself still comes from the checkpoint, so
+ * an attachment added or renamed since the last expansion is shown as it now
+ * stands, and the only cost of that freshness is one call a row somebody
+ * opened once more.
+ */
+export async function readAttachments(
+	spawner: Spawner,
+	exe: string,
+	root: string,
+	ref: string,
+	log: (line: string) => void,
+): Promise<AttachmentListing | undefined> {
+	const args = ref === "" ? ["attachments"] : ["attachments", ref];
+	const outcome = await runDinah(spawner, exe, pinned(root, args), { cwd: root });
+	if (outcome.kind !== "ok") {
+		log(`dinah attachments ${ref} at ${root}: ${outcome.kind}`);
+		return undefined;
+	}
+	return outcome.json as AttachmentListing;
 }
 
 // ---------------------------------------------------------------------------
@@ -798,9 +910,11 @@ export interface FolderInput {
 /**
  * The sidebar's data source.
  *
- * getChildren is synchronous over already-loaded state for every level but a
- * candidate row's first expansion, which is the one place a click spawns
- * anything. Everything else was fetched by load() or by the checkpoint loop.
+ * getChildren is synchronous over already-loaded state for every level but
+ * two. A candidate row's first expansion resolves it once, and an
+ * Attachments row's expansion fetches that entity's own list, which is
+ * never cached and so runs on every expansion. Everything else was fetched
+ * by load() or by the checkpoint loop.
  */
 export class DinahTreeProvider {
 	private readonly folders = new Map<string, FolderState>();
@@ -922,7 +1036,48 @@ export class DinahTreeProvider {
 					element,
 					this.deps.log,
 				);
-			case "card":
+			case "card": {
+				// The eager count decides here. The list itself is one call
+				// this row's own expansion makes, never one the checkpoint
+				// makes, so a tree of two hundred cards still costs no
+				// attachments call to draw.
+				const count = element.view?.attachment_count ?? 0;
+				if (count === 0) {
+					return [];
+				}
+				const root = element.row.data?.path;
+				const ref = element.view?.ref ?? element.node.ref;
+				if (root === undefined || ref === undefined || ref === "") {
+					return [];
+				}
+				return [{ kind: "attachmentsGroup", row: element.row, root, ref, count }];
+			}
+			case "attachmentsGroup": {
+				const listing = await readAttachments(
+					this.deps.spawner,
+					this.deps.exe,
+					element.root,
+					element.ref,
+					this.deps.log,
+				);
+				if (listing === undefined) {
+					return [
+						{
+							kind: "note",
+							owner: element.row,
+							text: "This checkpoint could not read the attachments here.",
+							tooltip:
+								"dinah attachments did not answer; see the Dinah output channel.",
+						},
+					];
+				}
+				return listing.attachments.map((view) => ({
+					kind: "attachment" as const,
+					row: element.row,
+					view,
+				}));
+			}
+			case "attachment":
 				return [];
 		}
 	}
@@ -973,7 +1128,23 @@ export class DinahTreeProvider {
 				tooltip: data.unanswered,
 			});
 		}
-		return [...notes, ...this.columnsOf(row, data)];
+		// The workbench's own attachments stand after the columns, as one row,
+		// carrying the count status already reported. The ref is empty because
+		// an omitted argument is how the binary is asked about the workbench
+		// itself, and the list is this row's own expansion to fetch.
+		const attachmentEntries: TreeElement[] =
+			data.attachmentCount !== undefined && data.attachmentCount > 0
+				? [
+						{
+							kind: "attachmentsGroup",
+							row,
+							root: data.path,
+							ref: "",
+							count: data.attachmentCount,
+						},
+					]
+				: [];
+		return [...notes, ...this.columnsOf(row, data), ...attachmentEntries];
 	}
 
 	/** The column rows of one workbench, in the flow's own declared order. */
@@ -1130,6 +1301,12 @@ export class DinahTreeProvider {
  * here on the column's kind or on its AwaitingOutside flag. The two shapes
  * travel the same code path, which is why one fixture of the second shape
  * stands for every column that produces it.
+ *
+ * A column row's children carry one row the tree did not return: the
+ * column's own attachments, appended last. The count came with the status
+ * answer rather than the tree, and the row sits under the column itself
+ * rather than under a state group, because a state group is a heading over
+ * cards and the attachments belong to the station.
  */
 export function childElements(
 	row: RootRow,
@@ -1165,6 +1342,18 @@ export function childElements(
 				column,
 				groupValue,
 			});
+		}
+	}
+	// The column's own attachments, after every card, when the status answer
+	// says there are any. Under the column row alone, never repeated beneath
+	// each state group, and carrying the count status reported so the row can
+	// be drawn before the list it stands for is fetched.
+	if (parent.kind === "column") {
+		const count = column?.attachment_count ?? 0;
+		const root = row.data?.path;
+		const ref = column !== undefined ? columnRef(column) : undefined;
+		if (count > 0 && root !== undefined && ref !== undefined) {
+			children.push({ kind: "attachmentsGroup", row, root, ref, count });
 		}
 	}
 	return children;

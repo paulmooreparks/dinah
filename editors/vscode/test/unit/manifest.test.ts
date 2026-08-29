@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+	COMMAND_OPEN_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
@@ -309,6 +310,17 @@ test("the manifest declares exactly the commands identity.ts names", () => {
 		commands.map((entry) => entry.command),
 		[...TREE_COMMANDS],
 	);
+});
+
+test("the openAttachment entry is declared last, under the title a click names", () => {
+	// The drift test above holds the two rosters together by position, which
+	// already pins this command's place. This one pins the entry's other
+	// half: a command whose title read like a menu item would show up in the
+	// Command Palette as an action with no target, which is the one surface
+	// the tree itself never renders.
+	const commands = contributes.commands as { command: string; title: string }[];
+	assert.equal(commands[commands.length - 1].command, COMMAND_OPEN_ATTACHMENT);
+	assert.equal(commands[commands.length - 1].title, "Dinah: Open Attachment");
 });
 
 test("every menu entry names a command the manifest declares", () => {

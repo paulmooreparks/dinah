@@ -14,6 +14,7 @@ import {
 	blockCard,
 	claimCard,
 	moveCard,
+	openAttachment,
 	openCard,
 	releaseCard,
 	unblockCard,
@@ -26,6 +27,7 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CLAIM,
 	COMMAND_MOVE,
+	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
 	COMMAND_REFRESH,
 	COMMAND_RELEASE,
@@ -133,6 +135,12 @@ function commandHost(
 				vscode.Uri.file(path),
 			);
 			await vscode.window.showTextDocument(document);
+		},
+		// vscode.open rather than openTextDocument, because an attachment is
+		// arbitrary bytes and the editor decides how to render it (dinah-335
+		// Decision 3).
+		openFile: async (path) => {
+			await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(path));
 		},
 		checkpoint,
 		log: (line) => channel.appendLine(line),
@@ -339,6 +347,14 @@ export async function activate(
 			}),
 		);
 	}
+	// An attachment row is registered on its own rather than through the loop
+	// above, because it is not a card and carries no CommandContext: the path
+	// it was drawn from is the whole of what opening it needs.
+	context.subscriptions.push(
+		vscode.commands.registerCommand(COMMAND_OPEN_ATTACHMENT, async (element: TreeElement) => {
+			await openAttachment(element, host, (line) => channel.appendLine(line));
+		}),
+	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_REFRESH, async () => {
 			await checkpointing.refreshNow();
