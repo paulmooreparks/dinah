@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all forty commands, in the four groups Dinah sorts
+`dinah help` lists all forty-one commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -1199,14 +1199,14 @@ storage format 1
 Catalogs:
   Language  Translated
   --------  ----------
-  en        676/676
-  af        0/676
-  cs        0/676
-  de        676/676
-  es        0/676
-  fil       0/676
-  hi        676/676
-  id        0/676
+  en        680/680
+  af        0/680
+  cs        0/680
+  de        680/680
+  es        0/680
+  fil       0/680
+  hi        680/680
+  id        0/680
 [exit 0]
 ```
 

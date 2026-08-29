@@ -163,8 +163,7 @@ func (b *Bench) resolveBelow(ref string) (string, *Card, error) {
 		if rest == "" {
 			return b.ColumnAnchorPath(column.ID), nil, nil
 		}
-		dir := filepath.Join(b.Root, ColumnsDir, column.ID)
-		path, err := descend(dir, KindColumn, strings.Split(rest, "/"), nil)
+		path, err := descend(b.ColumnDir(column.ID), KindColumn, strings.Split(rest, "/"), nil)
 		return path, nil, err
 	}
 	found, err := b.ResolveCard(head)

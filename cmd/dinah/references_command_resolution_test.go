@@ -84,7 +84,7 @@ func TestEveryAddressTheContentsTreeDrawsResolvesThroughTheCommandsThatDeclareIt
 		if node.Ref != "" {
 			col := column(node.Kind)
 			seen[col] = true
-			for _, cmd := range []string{"show", "path", "edit"} {
+			for _, cmd := range []string{"show", "path", "edit", "attachments"} {
 				accepts, ok := declared[cmd][col]
 				if !ok {
 					t.Fatalf("the references guide's table declares nothing for %s against %q", cmd, col)

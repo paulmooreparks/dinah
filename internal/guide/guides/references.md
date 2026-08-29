@@ -57,7 +57,7 @@ If the collection you name holds nothing, Dinah tells you that nothing answers t
 
 ## Which command takes what
 
-Nine commands take a reference, and between them they accept four different
+Ten commands take a reference, and between them they accept four different
 sets of things. This table says what each one accepts:
 
 | Command      | This workbench | A column | A card | Below a card |
@@ -70,6 +70,7 @@ sets of things. This table says what each one accepts:
 | archive      | no             | yes     | yes    | yes          |
 | delete       | no             | yes     | yes    | yes          |
 | contents     | yes            | yes     | yes    | yes          |
+| attachments  | yes            | yes     | yes    | yes          |
 | rename       | no             | no      | no     | yes          |
 
 Four of those rows carry a detail the table is too coarse to hold. `attach`

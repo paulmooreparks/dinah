@@ -516,15 +516,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	if len(detail.Attachments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.attachments"))
-		attachments := table{indent: 2, columns: s.columns("attachments", "position", "filename", "description")}
-		for _, attachment := range detail.Attachments {
-			attachments.rows = append(attachments.rows, tableRow{fields: []string{
-				strconv.Itoa(attachment.Ordinal),
-				attachment.Filename,
-				attachment.Description,
-			}})
-		}
-		s.table(attachments)
+		s.renderAttachments(detail.Attachments)
 	}
 	if len(detail.Comments) > 0 {
 		s.line("")
@@ -536,6 +528,35 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		}
 		s.table(comments)
 	}
+}
+
+// renderAttachmentListing prints the attachments of whatever entity was asked
+// about, under a sentence naming that entity, and says so plainly when the
+// entity carries none. An entity with nothing attached is an answer rather
+// than a mistake, on the same terms `dinah contents` already draws an entity
+// that contains nothing.
+func (s *session) renderAttachmentListing(listing *verb.AttachmentListing) {
+	if len(listing.Attachments) == 0 {
+		s.line(s.r.T("attachments.empty", "ref", listing.Ref))
+		return
+	}
+	s.line(s.r.T("attachments.header", "ref", listing.Ref, "count", strconv.Itoa(len(listing.Attachments))))
+	s.renderAttachments(listing.Attachments)
+}
+
+// renderAttachments draws the attachments table every read that reports
+// attachments prints, so a card's own list and the list of any other entity
+// cannot come out under different headings or in a different order.
+func (s *session) renderAttachments(views []verb.AttachmentView) {
+	attachments := table{indent: 2, columns: s.columns("attachments", "position", "filename", "description")}
+	for _, attachment := range views {
+		attachments.rows = append(attachments.rows, tableRow{fields: []string{
+			strconv.Itoa(attachment.Ordinal),
+			attachment.Filename,
+			attachment.Description,
+		}})
+	}
+	s.table(attachments)
 }
 
 // renderHistory prints a card's acts in the order they were recorded. An

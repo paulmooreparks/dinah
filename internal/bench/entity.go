@@ -101,6 +101,10 @@ func Attachments(cardDir string) ([]*Attachment, error) {
 			continue
 		}
 		fm, _ := ParseAnchor(text)
+		payload, err := payloadOf(dir)
+		if err != nil {
+			payload = ""
+		}
 		attachments = append(attachments, &Attachment{
 			ID:          id,
 			Dir:         dir,
@@ -108,9 +112,22 @@ func Attachments(cardDir string) ([]*Attachment, error) {
 			Description: fm.Value("description"),
 			Provenance:  fm.Value("provenance"),
 			Ordinal:     OrdinalOf(fm),
+			Path:        payload,
 		})
 	}
 	return attachments, nil
+}
+
+// CountAttachments reports how many attachments a directory's own collection
+// holds, and it opens no attachment's anchor to do it. It is the cheap half of
+// Attachments, for a caller that wants the number rather than the list: one
+// directory read instead of one file read per attachment.
+//
+// A listing that carried every attachment of every card it holds would cost
+// what the listing is long, so the many-entity reads carry this count and the
+// single-entity reads carry the list.
+func CountAttachments(dir string) int {
+	return len(ListIDs(filepath.Join(dir, AttachmentsDir)))
 }
 
 // Attachment is one attachment: the entity wrapping bytes the format never
@@ -129,6 +146,18 @@ type Attachment struct {
 	// Ordinal is the attachment's one-based position among the attachments of
 	// the entity it hangs from, assigned when it was written.
 	Ordinal int
+	// Path is the absolute path to the one payload file the attachment
+	// wraps, and it is empty when the payload directory is missing or holds
+	// nothing. That emptiness is an integrity defect `dinah check` already
+	// reports under its own finding, so a read degrades here rather than
+	// refusing the whole listing.
+	//
+	// The field is a Dinah-local convenience rather than a core member of
+	// the shared contract. Dinah holds its workbenches on local disk and
+	// always publishes it, an implementation that does not hold them there
+	// omits it and stays conformant, and every client has to work when it
+	// is absent.
+	Path string
 }
 
 // AddAttachment copies a file into a new attachment entity of the collection
@@ -254,6 +283,10 @@ func LoadAttachment(dir string) (*Attachment, error) {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
 	fm, _ := ParseAnchor(text)
+	payload, err := payloadOf(dir)
+	if err != nil {
+		payload = ""
+	}
 	attachment := &Attachment{
 		ID:          filepath.Base(dir),
 		Dir:         dir,
@@ -261,6 +294,7 @@ func LoadAttachment(dir string) (*Attachment, error) {
 		Description: fm.Value("description"),
 		Provenance:  fm.Value("provenance"),
 		Ordinal:     OrdinalOf(fm),
+		Path:        payload,
 	}
 	return attachment, nil
 }
@@ -698,7 +732,7 @@ func (b *Bench) ResolveEntity(ref string) (*EntityRef, error) {
 		if column := b.ColumnByRef(ref); column != nil {
 			return &EntityRef{
 				Kind: KindColumn,
-				Dir:  filepath.Join(b.Root, ColumnsDir, column.ID),
+				Dir:  b.ColumnDir(column.ID),
 				ID:   column.ID,
 				Ref:  column.Ref(),
 			}, nil
