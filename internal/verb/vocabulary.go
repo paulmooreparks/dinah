@@ -2,6 +2,7 @@ package verb
 
 import (
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 )
 
 // TreeVocabularyReport is what a tree-wide dinah check --migrate-vocabulary
@@ -9,6 +10,12 @@ import (
 // these five outcomes, so a caller who reads only the counts still knows
 // nothing was silently skipped.
 type TreeVocabularyReport struct {
+	// Outcome is contract.ReadFindings when Clean reports false and
+	// contract.ReadOK when it reports true, on the terms CheckReport carries
+	// the same member: always present, so a caller reads one string rather
+	// than reconstructing Clean's own rule from the five collections below
+	// (dinah-346).
+	Outcome string `json:"outcome"`
 	// Preview says the run wrote nothing and that Migrated names what a run
 	// carrying the confirmation would rewrite. A reader that acts on the
 	// counts alone would otherwise take a preview for a migration, which is
@@ -69,6 +76,10 @@ func MigrateVocabularyTree(root string, apply bool) (*TreeVocabularyReport, erro
 	}
 	for _, path := range candidates {
 		migrateOneVocabulary(report, path, apply)
+	}
+	report.Outcome = contract.ReadOK
+	if !report.Clean() {
+		report.Outcome = contract.ReadFindings
 	}
 	return report, nil
 }

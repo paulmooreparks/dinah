@@ -681,6 +681,12 @@ func (l *Library) Whoami(req *Request) (*Identity, error) {
 // fact, so it says so here rather than leaving a workbench that reads clean
 // afterwards either way.
 type CheckReport struct {
+	// Outcome is contract.ReadFindings when Findings carries anything and
+	// contract.ReadOK when it does not. It carries no omitempty and is
+	// always present, so a client answers the coarse question with one
+	// string comparison rather than by testing whether findings came back
+	// empty, null or absent (dinah-346).
+	Outcome string `json:"outcome"`
 	// Findings are the defects the checker names, together with whatever a
 	// repair in the same request could not do.
 	Findings []bench.Finding `json:"findings"`
@@ -807,6 +813,7 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return nil, err
 		}
 		report.Findings = append(report.Findings, findings...)
+		report.stampOutcome()
 		return report, nil
 	}
 	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
@@ -831,7 +838,20 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		}
 		report.Findings = append(report.Findings, finding)
 	}
+	report.stampOutcome()
 	return report, nil
+}
+
+// stampOutcome records the report's own outcome from the findings it has
+// gathered. Call it at each point the report leaves Check with no error, and
+// call it after every branch that can still append to Findings has run, since
+// a value computed before a migration branch appends would be stale by the
+// time the caller reads it.
+func (r *CheckReport) stampOutcome() {
+	r.Outcome = contract.ReadOK
+	if len(r.Findings) > 0 {
+		r.Outcome = contract.ReadFindings
+	}
 }
 
 // adoptWorkstreams creates a workstream at every identifier the live cards
