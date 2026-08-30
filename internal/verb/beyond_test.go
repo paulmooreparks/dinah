@@ -2533,7 +2533,7 @@ func TestACheckReportSaysWhetherItFoundAnything(t *testing.T) {
 		t.Fatalf("check: %v", err)
 	}
 	if clean.Outcome != contract.ReadOK {
-		t.Errorf("a clean bench reports outcome %q, wanted %q, over findings %+v", clean.Outcome, contract.ReadOK, clean.Findings)
+		t.Errorf("a clean workbench reports outcome %q, wanted %q, over findings %+v", clean.Outcome, contract.ReadOK, clean.Findings)
 	}
 
 	// A directory under the cards root carrying no anchor file, which the
@@ -2548,7 +2548,7 @@ func TestACheckReportSaysWhetherItFoundAnything(t *testing.T) {
 		t.Fatalf("check: %v", err)
 	}
 	if dirty.Outcome != contract.ReadFindings {
-		t.Errorf("a bench carrying %d findings reports outcome %q, wanted %q", len(dirty.Findings), dirty.Outcome, contract.ReadFindings)
+		t.Errorf("a workbench carrying %d findings reports outcome %q, wanted %q", len(dirty.Findings), dirty.Outcome, contract.ReadFindings)
 	}
 	if err := os.Remove(stray); err != nil {
 		t.Fatalf("remove the stray directory: %v", err)
