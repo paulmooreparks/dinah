@@ -704,6 +704,21 @@
       "context": "A check finding: a torn journal tail left by a crash.",
       "source": "5dd9617e2137ce0"
     },
+    "check.witness-locked": {
+      "text": "Karte {detail} ist von einem anderen Prozess gesperrt, daher hat die Bezeugung sie übergangen",
+      "context": "A check finding the witness repair raises: a lock stood on the card, the walk stepped over it and carried on.",
+      "source": "359ee3d8828bfe0"
+    },
+    "check.witnessed.one": {
+      "text": "{count} Karte bezeugt, deren Position von Hand bearbeitet wurde.",
+      "context": "The line the witness repair prints for what it recorded, for exactly one card. Followed by one line per witnessed identifier.",
+      "source": "6b704fcc9878482f"
+    },
+    "check.witnessed.other": {
+      "text": "{count} Karten bezeugt, deren Position von Hand bearbeitet wurde.",
+      "context": "The line the witness repair prints for what it recorded, for any other number. Followed by one line per witnessed identifier.",
+      "source": "824d36cabfb0ccf6"
+    },
     "check.tree.1": {
       "text": "jede genannte Achse ist eine gruppierbare",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1645,6 +1660,11 @@
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "source": "dff97f4b63c30b11"
     },
+    "log.manual-correction": {
+      "text": "{from} nach {to}, aus einer Handbearbeitung übernommen",
+      "context": "The detail of a witnessed correction, carrying the column the journal believed and the column the anchor records. It reads differently from a move because nobody chose this transition; the tool found it.",
+      "source": "721d8e0a665422bf"
+    },
     "log.moved": {
       "text": "{from} nach {to}",
       "context": "The detail of a recorded move, carrying the titles as they stood at the time.",
@@ -1804,6 +1824,11 @@
       "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
       "source": "a1f0e6c7ae6251db"
+    },
+    "param.check.witness.summary": {
+      "text": "auf jeder Karte, deren Position von Hand bearbeitet wurde, eine manuelle Korrektur festhalten",
+      "context": "The meaning of the witness argument of `dinah check`, printed in that command's arguments table.",
+      "source": "2e69c6123b25a380"
     },
     "param.claim.card.summary": {
       "text": "die Karte, die Sie übernehmen",

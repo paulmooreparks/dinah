@@ -69,6 +69,9 @@ def main() -> int:
             if stripped.startswith("wait "):
                 time.sleep(0.4)
                 continue
+            if stripped.startswith("hand-edit "):
+                hand_edit(stripped[len("hand-edit "):], root, env)
+                continue
             result = subprocess.run(
                 [str(BINARY), *shlex.split(stripped)],
                 cwd=str(root),
@@ -98,6 +101,43 @@ def main() -> int:
         update_manifest(COMPAT_DIR, fixture, digest)
         print(f"digest: {digest}")
         return 0
+
+
+
+def hand_edit(step: str, root: Path, env: dict) -> None:
+    """Rewrite a card's column in its anchor and leave its journal alone.
+
+    This is the one step of the population sequence no command performs, and
+    the sequence needs it because manual_correction is the tool's answer to
+    exactly this edit. The step reads `hand-edit <card> column <slug>`, and
+    both references are resolved by asking the binary rather than by parsing
+    the tree here, so this script and cmd/dinah's own replay stay one
+    implementation apart rather than two.
+    """
+    fields = step.split()
+    if len(fields) != 3 or fields[1] != "column":
+        raise SystemExit(f"a hand-edit step reads `hand-edit <card> column <slug>`, got {step!r}")
+    anchor = run_capture([str(BINARY), "path", fields[0]], root, env)
+    listed = run_capture([str(BINARY), "--json", "columns"], root, env)
+    wanted = next((c["id"] for c in json.loads(listed) if c["slug"] == fields[2]), None)
+    if wanted is None:
+        raise SystemExit(f"the workbench declares no column with the slug {fields[2]!r}")
+    path = Path(anchor.strip())
+    lines = path.read_text(encoding="utf-8").split("\n")
+    for i, line in enumerate(lines):
+        if line.startswith("column: "):
+            lines[i] = "column: " + wanted
+            path.write_text("\n".join(lines), encoding="utf-8", newline="")
+            return
+    raise SystemExit(f"the anchor at {path} carries no column key to edit")
+
+
+def run_capture(argv: list, root: Path, env: dict) -> str:
+    """Run one command of the tool and answer with its stdout."""
+    result = subprocess.run(argv, cwd=str(root), env=env, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"{argv[1:]}: exit {result.returncode}\n{result.stdout}\n{result.stderr}")
+    return result.stdout
 
 
 def digest_tree(root: Path, fixture: str) -> str:
@@ -132,7 +172,9 @@ def update_manifest(compat_dir: Path, directory: str, digest: str) -> None:
     for other in data["fixtures"]:
         other.pop("sample", None)
     row["sample"] = True
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    # The newline is fixed rather than the platform's, so a capture run on
+    # Windows does not rewrite the whole manifest with carriage returns.
+    path.write_text(json.dumps(data, indent=2) + "\n", newline="")
 
 
 if __name__ == "__main__":

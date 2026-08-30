@@ -334,7 +334,7 @@ func (l *Library) Tree(req *Request, chain []string, level string) (*Tree, error
 	if err := checkLevel(level, TreeLevels); err != nil {
 		return nil, err
 	}
-	kept, live, err := l.selection(req.Query)
+	kept, live, err := l.selection(req.Query, req.Actor)
 	if err != nil {
 		return nil, err
 	}

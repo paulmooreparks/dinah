@@ -338,11 +338,13 @@ deliberate act.
 ### Manual edits are witnessed, not prevented
 
 Hand-editing frontmatter is legal the way editing a git ref with an editor is
-legal. The CLI notices divergence between current column and the journal on
-next touch and records a manual-correction event rather than pretending the
-edit did not happen. No command in this build writes a
-`manual_correction` event yet, so the detection this paragraph describes
-is intended rather than implemented.
+legal. The CLI notices divergence between current column and the journal the
+next time a touch reads or writes the card's position or claim state, and it
+records a manual-correction event rather than pretending the edit did not
+happen. A touch that writes an event about something else never reads the
+card's position, so a hand edit sitting behind one of those touches goes
+undetected until `dinah check --witness` is run by hand, or until a position-
+or claim-reading touch reaches the card.
 
 ## Flow definition
 
@@ -645,19 +647,21 @@ and stores nothing.
 ### Journal event schema
 
 Every journal line names an event, and the core event names are a closed set
-of twenty-one, which `internal/contract` declares as constants. Nineteen of
-them are written by some command in this build. The two that are not,
-`restored` and `manual_correction`, are declared and reserved, and
-`cmd/dinah/compat_test.go`'s `unwrittenEvents` table records the reason each
-stays unwritten. No verb is wired to `restored` yet, though the structural
-machinery a restore would use already exists, and a person editing a journal
-by hand writes `manual_correction` rather than a command writing it.
+of twenty-one, which `internal/contract` declares as constants.
+Twenty of them are written by some command in this build. The one that is
+not, `restored`, is declared and reserved, and `cmd/dinah/compat_test.go`'s
+`unwrittenEvents` table records the reason it stays unwritten. No verb is
+wired to `restored` yet, though the structural machinery a restore would use
+already exists.
 
 A second count of nineteen sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
 out `workbench_updated` and `workstream_updated`, since each of those lands on
-the workbench's journal or on a workstream's and never on a card's. Both
-counts are nineteen by coincidence.
+the workbench's journal or on a workstream's and never on a card's.
+The two counts no longer agree: twenty core events are written, nineteen of
+them queryable over a card, because `restored` sits in the first count and
+out of the second for the same reason `manual_correction` did until a command
+began writing it, and `workbench_updated`/`workstream_updated` sit in neither.
 
 The set stays closed mechanically rather than by inspection. A twenty-second
 constant fails the build unless it reaches the sample fixture's journal or is

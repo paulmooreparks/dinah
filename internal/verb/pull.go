@@ -242,6 +242,9 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 			Affordances: l.affordances(card),
 		}
 	}
+	if _, err := l.Bench.WitnessDivergence(req.Actor, bench.Stamp(l.Now()), card); err != nil {
+		return l.FromError(req, err)
+	}
 	return l.pull(req, card)
 }
 
