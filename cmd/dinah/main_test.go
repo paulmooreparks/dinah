@@ -387,6 +387,9 @@ func TestExitCodesAndTheLeadingToken(t *testing.T) {
 		{name: "a setting the tool does not know", argv: []string{"config", "get", "colour"}, code: 2, token: contract.UnknownKey},
 		{name: "a reference nothing below the card answers to", argv: []string{"path", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
 		{name: "an archive of a column cards occupy", argv: []string{"archive", "Intake"}, code: 2, token: contract.Occupied},
+		{name: "an archive of a card the workbench does not carry", argv: []string{"archive", "fx-99"}, code: 2, token: contract.UnknownCard, sentence: "this workbench carries no card fx-99"},
+		{name: "an archive of a workstream the workbench does not carry", argv: []string{"archive", "workstream/nothing"}, code: 2, token: contract.UnknownWorkstream},
+		{name: "an archive of a reference nothing below the card answers to", argv: []string{"archive", "fx-1/nowhere"}, code: 2, token: contract.UnknownPath, sentence: "nothing in this workbench answers to"},
 		{name: "an extract into a directory that already holds one", argv: []string{"extract", benchDir(t, root)}, code: 2, token: contract.Exists},
 		{name: "a card offered with no title", argv: []string{"add"}, code: 2, token: contract.Malformed},
 		// The explicit basis arrives with the remote arbiter, so this head
