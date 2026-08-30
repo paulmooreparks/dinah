@@ -13,6 +13,7 @@ import type { CommandContext, CommandHost, PickItem } from "../../src/cardComman
 import {
 	blockCard,
 	claimCard,
+	contextFor,
 	moveCard,
 	movePick,
 	openCard,
@@ -21,6 +22,7 @@ import {
 	releaseCard,
 	unblockCard,
 } from "../../src/cardCommands";
+import type { RootRow, TreeElement } from "../../src/tree";
 import type { LegalMove } from "../../src/wire";
 
 interface Recorder {
@@ -288,4 +290,107 @@ test("an empty reason blocks nothing", async () => {
 		assert.deepEqual(r.calls, []);
 		assert.deepEqual(r.checkpoints, []);
 	}
+});
+
+// ---------------------------------------------------------------------------
+// contextFor, and the argument the Command Palette does not pass
+// ---------------------------------------------------------------------------
+
+/** A host whose calls are recorded nowhere, since contextFor makes none. */
+const silentHost: CommandHost = {
+	showError: () => undefined,
+	pick: async () => undefined,
+	input: async () => undefined,
+	openDocument: async () => undefined,
+	checkpoint: async () => undefined,
+	log: () => undefined,
+};
+
+function rowFor(path: string | undefined): RootRow {
+	return {
+		rowKind: "workbenchRoot",
+		folder: "C:/work",
+		folderName: "work",
+		description: "",
+		sole: true,
+		data:
+			path === undefined
+				? undefined
+				: {
+						path,
+						title: "Work",
+						columns: new Map(),
+						cards: new Map(),
+					},
+	};
+}
+
+/** A card row of the shape the tree hands a context-menu invocation. */
+function cardElement(): TreeElement {
+	return {
+		kind: "card",
+		row: rowFor("C:/work/board"),
+		node: { kind: "card", ref: "dinah-1", title: "A card", count: 1 },
+	};
+}
+
+test("contextFor answers undefined for the argument the Command Palette passes", () => {
+	// The palette invokes a command with no argument at all, and every flow
+	// command shares one handler that called this function first. Reading a
+	// field off the absent element threw a TypeError before the handler's own
+	// missing-row branch could run, so the six commands each reported "Running
+	// the contributed command failed" and said nothing a reader could act on.
+	assert.equal(contextFor(undefined, "dinah", silentHost), undefined);
+});
+
+test("contextFor answers undefined for a row that is not a card", () => {
+	// A workbench root, a column and a state group are all rows a keybinding or
+	// another extension can aim a card command at, and none of them names a
+	// card. The handler logs that and returns, which needs this answer rather
+	// than a throw.
+	const rows: TreeElement[] = [
+		{ kind: "root", row: rowFor("C:/work/board") },
+		{
+			kind: "column",
+			row: rowFor("C:/work/board"),
+			node: { kind: "column", id: "spec", title: "Spec", count: 2 },
+		},
+		{
+			kind: "group",
+			row: rowFor("C:/work/board"),
+			node: { kind: "group", axis: "state", value: "ready", count: 2 },
+		},
+	];
+	for (const row of rows) {
+		assert.equal(
+			contextFor(row, "dinah", silentHost),
+			undefined,
+			`a ${row.kind} row composed a context`,
+		);
+	}
+});
+
+test("contextFor still composes the context a card row names", () => {
+	// The two refusals above are satisfied by a function that refuses
+	// everything, so this is what keeps them honest: the ordinary invocation
+	// from a card's context menu goes on producing the same pinned call.
+	const target = contextFor(cardElement(), "dinah", silentHost);
+	assert.ok(target, "a card row composed no context");
+	assert.equal(target.ref, "dinah-1");
+	assert.equal(target.root, "C:/work/board");
+	assert.equal(target.folder, "C:/work");
+	assert.equal(target.exe, "dinah");
+	assert.equal(target.host, silentHost);
+});
+
+test("contextFor answers undefined for a card row whose workbench never resolved", () => {
+	// A candidate row that has not been expanded carries no data, so there is
+	// no path to pin the call to. This is the branch that predates dinah-342
+	// and it is asserted here so the reordering above did not remove it.
+	const element: TreeElement = {
+		kind: "card",
+		row: rowFor(undefined),
+		node: { kind: "card", ref: "dinah-1", count: 1 },
+	};
+	assert.equal(contextFor(element, "dinah", silentHost), undefined);
 });
