@@ -19,7 +19,9 @@ import {
 	CONTEXT_CARD_READY_NONE,
 	EXTENSION_ID,
 	EXTENSION_NAME,
+	GLOBAL_COMMANDS,
 	PUBLISHER,
+	ROW_COMMANDS,
 	SETTING_PATH,
 	SETTING_POLL_INTERVAL,
 	SETTING_WATCH_FILES,
@@ -321,6 +323,89 @@ test("the openAttachment entry is declared last, under the title a click names",
 	const commands = contributes.commands as { command: string; title: string }[];
 	assert.equal(commands[commands.length - 1].command, COMMAND_OPEN_ATTACHMENT);
 	assert.equal(commands[commands.length - 1].title, "Dinah: Open Attachment");
+});
+
+/** The commandPalette entries, which are absent from a manifest declaring none. */
+function paletteEntries(): { command: string; when?: string }[] {
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when?: string }[]
+	>;
+	return menus.commandPalette ?? [];
+}
+
+test("every tree command is classified as either a row command or a global one", () => {
+	// This is the check that fails on a command nobody classified, which is
+	// the whole point of the two arrays. Six commands shipped reading their
+	// element argument before anyone noticed that the Command Palette passes
+	// none, and dinah-330 and dinah-335 each add more; a command added to
+	// TREE_COMMANDS and to neither array goes red here rather than reaching a
+	// reader as a palette entry that throws.
+	const row = new Set(ROW_COMMANDS);
+	const global = new Set(GLOBAL_COMMANDS);
+	const classified = [...ROW_COMMANDS, ...GLOBAL_COMMANDS];
+	assert.deepEqual(
+		[...new Set(classified)].sort(),
+		[...TREE_COMMANDS].sort(),
+		"ROW_COMMANDS and GLOBAL_COMMANDS together are not the declared commands",
+	);
+	const both = [...row].filter((command) => global.has(command));
+	assert.deepEqual(both, [], "a command is classified as both row-scoped and global");
+	assert.equal(
+		classified.length,
+		TREE_COMMANDS.length,
+		"a command is named twice across the two classification arrays",
+	);
+});
+
+test("every row command is hidden from the Command Palette", () => {
+	// VS Code hands a palette invocation no argument, so a command that needs
+	// a row cannot act on one there. Hiding it is the documented mechanism and
+	// it is what the repository already does with the context menus: an
+	// illegal action is absent rather than offered and then refused.
+	const entries = paletteEntries();
+	for (const command of ROW_COMMANDS) {
+		const matched = entries.filter((entry) => entry.command === command);
+		assert.equal(
+			matched.length,
+			1,
+			`${command} has ${matched.length} commandPalette entries, wanted 1`,
+		);
+		assert.equal(
+			matched[0].when,
+			"false",
+			`${command} is not hidden from the palette: when is ${String(matched[0].when)}`,
+		);
+	}
+});
+
+test("no global command is named in the commandPalette block at all", () => {
+	// Undeclared is VS Code's own default, and it means visible. An explicit
+	// entry for Refresh would add manifest text with no effect, and a hiding
+	// one would take away the only tree command a palette can actually run.
+	const named = paletteEntries().map((entry) => entry.command);
+	for (const command of GLOBAL_COMMANDS) {
+		assert.ok(
+			!named.includes(command),
+			`${command} needs no palette entry and has one`,
+		);
+	}
+});
+
+test("every commandPalette entry names a command identity.ts knows", () => {
+	// A stray or misspelled entry hides nothing and reports nothing, the same
+	// way an undeclared menu command shows an item that does nothing.
+	const entries = paletteEntries();
+	assert.ok(
+		entries.length > 0,
+		"the manifest contributes no commandPalette entries, so this check proved nothing",
+	);
+	for (const entry of entries) {
+		assert.ok(
+			TREE_COMMANDS.includes(entry.command),
+			`commandPalette names ${entry.command}, which is not a tree command`,
+		);
+	}
 });
 
 test("every menu entry names a command the manifest declares", () => {

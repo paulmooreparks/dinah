@@ -6,6 +6,8 @@
 // and dinah-287 renamed exactly the field the move verb reads.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import type { SpawnOutcome, Spawner } from "../../src/cli";
@@ -13,6 +15,7 @@ import type { CommandContext, CommandHost, PickItem } from "../../src/cardComman
 import {
 	blockCard,
 	claimCard,
+	contextFor,
 	moveCard,
 	movePick,
 	openAttachment,
@@ -380,6 +383,85 @@ test("an attachment with no path opens nothing, calls nothing on the host, and s
 	}
 });
 
+// ---------------------------------------------------------------------------
+// contextFor, and the argument the Command Palette does not pass
+// ---------------------------------------------------------------------------
+
+/** A host whose calls are recorded nowhere, since contextFor makes none. */
+const silentHost: CommandHost = {
+	showError: () => undefined,
+	pick: async () => undefined,
+	input: async () => undefined,
+	openDocument: async () => undefined,
+	openFile: async () => undefined,
+	checkpoint: async () => undefined,
+	log: () => undefined,
+};
+
+function rowFor(path: string | undefined): RootRow {
+	return {
+		rowKind: "workbenchRoot",
+		folder: "C:/work",
+		folderName: "work",
+		description: "",
+		sole: true,
+		data:
+			path === undefined
+				? undefined
+				: {
+						path,
+						title: "Work",
+						columns: new Map(),
+						cards: new Map(),
+					},
+	};
+}
+
+/** A card row of the shape the tree hands a context-menu invocation. */
+function cardElement(): TreeElement {
+	return {
+		kind: "card",
+		row: rowFor("C:/work/board"),
+		node: { kind: "card", ref: "dinah-1", title: "A card", count: 1 },
+	};
+}
+
+test("contextFor answers undefined for the argument the Command Palette passes", () => {
+	// The palette invokes a command with no argument at all, and every flow
+	// command shares one handler that called this function first. Reading a
+	// field off the absent element threw a TypeError before the handler's own
+	// missing-row branch could run, so the six commands each reported "Running
+	// the contributed command failed" and said nothing a reader could act on.
+	assert.equal(contextFor(undefined, "dinah", silentHost), undefined);
+});
+
+test("contextFor answers undefined for a row that is not a card", () => {
+	// A workbench root, a column and a state group are all rows a keybinding or
+	// another extension can aim a card command at, and none of them names a
+	// card. The handler logs that and returns, which needs this answer rather
+	// than a throw.
+	const rows: TreeElement[] = [
+		{ kind: "root", row: rowFor("C:/work/board") },
+		{
+			kind: "column",
+			row: rowFor("C:/work/board"),
+			node: { kind: "column", id: "spec", title: "Spec", count: 2 },
+		},
+		{
+			kind: "group",
+			row: rowFor("C:/work/board"),
+			node: { kind: "group", axis: "state", value: "ready", count: 2 },
+		},
+	];
+	for (const row of rows) {
+		assert.equal(
+			contextFor(row, "dinah", silentHost),
+			undefined,
+			`a ${row.kind} row composed a context`,
+		);
+	}
+});
+
 test("a row that names no attachment at all opens nothing and says which command was misaimed", async () => {
 	const r = recorder();
 	const lines: string[] = [];
@@ -397,5 +479,94 @@ test("a row that names no attachment at all opens nothing and says which command
 	assert.ok(
 		lines[0].includes("dinah.tree.openAttachment"),
 		`the row did not name the command that was misaimed: ${lines.join(" | ")}`,
+	);
+});
+
+test("openAttachment survives the argument the Command Palette does not pass", async () => {
+	// The palette invokes a command with no argument at all, and this handler
+	// read element.kind before it had established that an element arrived, so
+	// the invocation threw a TypeError and the reader saw "Running the
+	// contributed command failed" instead of a sentence naming the cause. Two
+	// reviewers flagged the shape on this card while dinah-342 was in flight,
+	// and the repair belongs here because that card's branch never touched
+	// this file. The row command is also hidden from the palette now, which
+	// closes the route rather than the hole; both are wanted, because a
+	// keybinding and another extension reach the handler past the manifest.
+	const r = recorder();
+	const lines: string[] = [];
+	await openAttachment(undefined, r.host, (line) => lines.push(line));
+	assert.deepEqual(r.files, []);
+	assert.deepEqual(r.opened, []);
+	assert.deepEqual(r.checkpoints, []);
+	assert.deepEqual(r.errors, []);
+	assert.deepEqual(r.offered, []);
+	assert.deepEqual(r.logged, []);
+	assert.equal(lines.length, 1, `the handler said: ${lines.join(" | ")}`);
+	assert.ok(
+		lines[0].includes("dinah.tree.openAttachment"),
+		`the absent row did not name the command that was misaimed: ${lines.join(" | ")}`,
+	);
+});
+
+test("contextFor still composes the context a card row names", () => {
+	// The two refusals above are satisfied by a function that refuses
+	// everything, so this is what keeps them honest: the ordinary invocation
+	// from a card's context menu goes on producing the same pinned call.
+	const target = contextFor(cardElement(), "dinah", silentHost);
+	assert.ok(target, "a card row composed no context");
+	assert.equal(target.ref, "dinah-1");
+	assert.equal(target.root, "C:/work/board");
+	assert.equal(target.folder, "C:/work");
+	assert.equal(target.exe, "dinah");
+	assert.equal(target.host, silentHost);
+});
+
+test("contextFor answers undefined for a card row whose workbench never resolved", () => {
+	// A candidate row that has not been expanded carries no data, so there is
+	// no path to pin the call to. This is the branch that predates dinah-342
+	// and it is asserted here so the reordering above did not remove it.
+	const element: TreeElement = {
+		kind: "card",
+		row: rowFor(undefined),
+		node: { kind: "card", ref: "dinah-1", count: 1 },
+	};
+	assert.equal(contextFor(element, "dinah", silentHost), undefined);
+});
+
+// This file is compiled to out/test/unit/, so the extension root is three up.
+const extensionSource = readFileSync(
+	join(__dirname, "..", "..", "..", "src", "extension.ts"),
+	"utf8",
+);
+
+test("the command handler hands its argument straight to contextFor", () => {
+	// Testing the decision and not the wiring is how the defect survived. The
+	// handler reads nothing off the element itself: it passes the binding to
+	// contextFor, which is the function the three tests above hold to the
+	// missing-element contract. A regression that read a field first, which is
+	// exactly what shipped, would leave those three green, so this reads the
+	// one module the unit layer cannot import the way layers.ts and
+	// spawn-sites.ts already read src for a single-site invariant.
+	assert.ok(
+		extensionSource.includes("contextFor("),
+		"extension.ts no longer calls contextFor, so this check proved nothing",
+	);
+	const dereferences = extensionSource
+		.split(/\r?\n/)
+		.filter((line) => /\belement[.?]/.test(line));
+	assert.deepEqual(
+		dereferences,
+		[],
+		"extension.ts reads a field off an element binding, which throws when the Command Palette passes none",
+	);
+});
+
+test("the handler's parameter admits the argument the palette does not pass", () => {
+	// The type is half the guard. A handler declared to take a TreeElement
+	// tells every later reader that an element always arrives, and the compiler
+	// then agrees that reading a field off it is safe.
+	assert.ok(
+		extensionSource.includes("async (element: TreeElement | undefined) =>"),
+		"the flow-command handler no longer declares its element as possibly absent",
 	);
 });

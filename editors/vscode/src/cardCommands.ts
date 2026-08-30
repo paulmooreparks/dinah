@@ -15,6 +15,7 @@ import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
 import { COMMAND_OPEN_ATTACHMENT } from "./identity";
+import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
 import { BACKWARD, FORWARD } from "./wire";
@@ -75,6 +76,65 @@ export function refusalMessage(outcome: CliOutcome): string {
 	return detail === undefined || detail === ""
 		? outcome.kind
 		: `${outcome.kind}: ${detail}`;
+}
+
+/**
+ * The workbench a card's row stands in, and the folder its checkpoint is
+ * keyed under.
+ *
+ * A card standing in a forest row belongs to that member workbench rather than
+ * to the workspace folder the walk started from, so the verb is pinned to the
+ * member's own path while the checkpoint still runs against the folder, whose
+ * one merged cursor covers every member beneath it.
+ *
+ * The absent element is checked before anything is read off it, by isRow
+ * above, which is the one place that check lives (dinah-342). This function
+ * lives here rather than in extension.ts so the unit layer can reach it: it
+ * touches no vscode value, and the guard went six commands deep unexercised
+ * while it sat in the one module no test can import.
+ */
+/**
+ * The row a command was aimed at, when it is a row of the kind the command
+ * can act on, and undefined otherwise.
+ *
+ * This is the single place the absent element is checked, and it is checked
+ * before any field is read. A command invoked from the Command Palette, from
+ * a keybinding, or by another extension arrives with no argument at all, and
+ * reading a field off that argument throws a TypeError before a handler's own
+ * wrong-row branch can run. dinah-342 found that ordering under six card
+ * commands at once and moved the check here, into the module the unit layer
+ * can import; dinah-335 found the same ordering in the attachment handler,
+ * which that card's branch deliberately did not touch. One guard rather than
+ * one per handler is what stops the next command repeating it.
+ */
+export function isRow<K extends TreeElement["kind"]>(
+	element: TreeElement | undefined,
+	kind: K,
+): element is Extract<TreeElement, { kind: K }> {
+	return element !== undefined && element.kind === kind;
+}
+
+export function contextFor(
+	element: TreeElement | undefined,
+	exe: string,
+	host: CommandHost,
+): CommandContext | undefined {
+	if (!isRow(element, "card")) {
+		return undefined;
+	}
+	const ref = element.view?.ref ?? element.node.ref;
+	const root = element.row.data?.path;
+	if (ref === undefined || ref === "" || root === undefined) {
+		return undefined;
+	}
+	return {
+		spawner: nodeSpawner,
+		exe,
+		host,
+		folder: element.row.folder,
+		root,
+		ref,
+	};
 }
 
 /** Composes a call pinned to one workbench, which is how every verb runs. */
@@ -254,11 +314,11 @@ export async function openCard(context: CommandContext): Promise<void> {
  * asking the host for anything at all.
  */
 export async function openAttachment(
-	element: TreeElement,
+	element: TreeElement | undefined,
 	host: CommandHost,
 	log: (line: string) => void,
 ): Promise<void> {
-	if (element.kind !== "attachment") {
+	if (!isRow(element, "attachment")) {
 		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on a row that names no attachment`);
 		return;
 	}

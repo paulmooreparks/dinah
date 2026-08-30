@@ -68,6 +68,35 @@ export const TREE_COMMANDS: readonly string[] = [
 ];
 
 /**
+ * Commands that read their element argument and can do nothing without one.
+ *
+ * Each one is hidden from the Command Palette by a `when: "false"` entry in
+ * package.json's `commandPalette` menu, because a palette invocation hands a
+ * command no argument at all and a command that cannot act on a row is an
+ * illegal action there. dinah-330 and dinah-335 extend this array with the
+ * row-scoped commands they add, and they do not repeat the reasoning.
+ */
+export const ROW_COMMANDS: readonly string[] = [
+	COMMAND_OPEN_CARD,
+	COMMAND_CLAIM,
+	COMMAND_MOVE,
+	COMMAND_RELEASE,
+	COMMAND_BLOCK,
+	COMMAND_UNBLOCK,
+	COMMAND_OPEN_ATTACHMENT,
+];
+
+/**
+ * Commands that need no row and stay visible in the Command Palette.
+ *
+ * Every entry of TREE_COMMANDS belongs to exactly one of this array and
+ * ROW_COMMANDS. A manifest test holds the two to being a complete and
+ * non-overlapping partition of TREE_COMMANDS, so a command added there
+ * without a classification fails a test rather than shipping unclassified.
+ */
+export const GLOBAL_COMMANDS: readonly string[] = [COMMAND_REFRESH];
+
+/**
  * The four answers actionsFor composes for a card row, and the row kinds
  * above them.
  *

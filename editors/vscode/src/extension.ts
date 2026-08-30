@@ -13,6 +13,7 @@ import type { CommandContext, CommandHost, PickItem } from "./cardCommands";
 import {
 	blockCard,
 	claimCard,
+	contextFor,
 	moveCard,
 	openAttachment,
 	openCard,
@@ -144,38 +145,6 @@ function commandHost(
 		},
 		checkpoint,
 		log: (line) => channel.appendLine(line),
-	};
-}
-
-/**
- * The workbench a card's row stands in, and the folder its checkpoint is
- * keyed under.
- *
- * A card standing in a forest row belongs to that member workbench rather than
- * to the workspace folder the walk started from, so the verb is pinned to the
- * member's own path while the checkpoint still runs against the folder, whose
- * one merged cursor covers every member beneath it.
- */
-function contextFor(
-	element: TreeElement,
-	exe: string,
-	host: CommandHost,
-): CommandContext | undefined {
-	if (element.kind !== "card") {
-		return undefined;
-	}
-	const ref = element.view?.ref ?? element.node.ref;
-	const root = element.row.data?.path;
-	if (ref === undefined || ref === "" || root === undefined) {
-		return undefined;
-	}
-	return {
-		spawner: nodeSpawner,
-		exe,
-		host,
-		folder: element.row.folder,
-		root,
-		ref,
 	};
 }
 
@@ -333,27 +302,33 @@ export async function activate(
 	];
 	for (const [id, run] of flowCommands) {
 		context.subscriptions.push(
-			vscode.commands.registerCommand(id, async (element: TreeElement) => {
-				const target = contextFor(
-					element,
-					binary.state === "ok" ? binary.path : "",
-					host,
-				);
-				if (target === undefined) {
-					channel.appendLine(`${id} was invoked on a row that names no card`);
-					return;
-				}
-				await run(target);
-			}),
+			vscode.commands.registerCommand(
+				id,
+				async (element: TreeElement | undefined) => {
+					const target = contextFor(
+						element,
+						binary.state === "ok" ? binary.path : "",
+						host,
+					);
+					if (target === undefined) {
+						channel.appendLine(`${id} was invoked on a row that names no card`);
+						return;
+					}
+					await run(target);
+				},
+			),
 		);
 	}
 	// An attachment row is registered on its own rather than through the loop
 	// above, because it is not a card and carries no CommandContext: the path
 	// it was drawn from is the whole of what opening it needs.
 	context.subscriptions.push(
-		vscode.commands.registerCommand(COMMAND_OPEN_ATTACHMENT, async (element: TreeElement) => {
-			await openAttachment(element, host, (line) => channel.appendLine(line));
-		}),
+		vscode.commands.registerCommand(
+			COMMAND_OPEN_ATTACHMENT,
+			async (element: TreeElement | undefined) => {
+				await openAttachment(element, host, (line) => channel.appendLine(line));
+			},
+		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand(COMMAND_REFRESH, async () => {
