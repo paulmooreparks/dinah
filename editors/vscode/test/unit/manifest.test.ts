@@ -12,11 +12,18 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
+	COMMAND_CHECK_WORKBENCH,
+	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
 	CONTEXT_CARD_READY_NONE,
+	CONTEXT_COLUMN,
+	CONTEXT_STATE_GROUP,
+	CONTEXT_WORKBENCH_CANDIDATE,
+	CONTEXT_WORKBENCH_FOREST,
+	CONTEXT_WORKBENCH_ROOT,
 	EXTENSION_ID,
 	EXTENSION_NAME,
 	GLOBAL_COMMANDS,
@@ -479,6 +486,93 @@ test("the card menus are registered against the four contextValues actionsFor co
 		`the ready/active prefix clause is not in the menus: ${clauses}`,
 	);
 	assert.ok(!clauses.includes(CONTEXT_CARD_READY_NONE));
+});
+
+/**
+ * The contextValues a workbench-row menu item is offered on, as one regex.
+ *
+ * The manifest spells this same pattern inside a `when` clause, and the test
+ * below composes that clause from this constant rather than from a second
+ * copy of the pattern. Two hand-written spellings would drift, and the drift
+ * would show up as a menu that silently stopped opening.
+ */
+const WORKBENCH_ROW_PATTERN = /^dinah\.workbench(Root|Candidate|Forest)$/;
+
+/** The one `when` clause both workbench-row items are registered under. */
+const WORKBENCH_ROW_CLAUSE = `view == dinah.workbenchView && viewItem =~ /${WORKBENCH_ROW_PATTERN.source}/`;
+
+test("the two workbench-row commands are declared with bare titles", () => {
+	// AC-1. Bare rather than prefixed, matching Claim, Release and the rest:
+	// both are row commands the palette never shows, so a "Dinah: " prefix
+	// would be read by nobody and would make the context menu say the product
+	// name twice. The prefix question for palette-visible commands is
+	// dinah-348's, and this assertion is what keeps these two out of it.
+	const commands = contributes.commands as { command: string; title: string }[];
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	assert.equal(titles.get(COMMAND_CHECK_WORKBENCH), "Check");
+	assert.equal(titles.get(COMMAND_COPY_WORKBENCH_PATH), "Copy Path");
+});
+
+test("both workbench-row commands are classified as row-scoped and never as global", () => {
+	// AC-1's other half. The partition test above catches a command in neither
+	// array; this catches one put in the wrong one, which would leave a palette
+	// entry that throws on an argument VS Code never passes.
+	for (const command of [COMMAND_CHECK_WORKBENCH, COMMAND_COPY_WORKBENCH_PATH]) {
+		assert.ok(ROW_COMMANDS.includes(command), `${command} is not a row command`);
+		assert.ok(
+			!GLOBAL_COMMANDS.includes(command),
+			`${command} is classified as global, and it cannot act without a row`,
+		);
+	}
+});
+
+test("the workbench menu items match every resolved workbench row and nothing else", () => {
+	// AC-2. The clause is asserted whole rather than by substring, because the
+	// anchors are what keep it off a contextValue a later card composes with
+	// the same prefix.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string }[]
+	>;
+	const items = menus["view/item/context"];
+	for (const command of [COMMAND_CHECK_WORKBENCH, COMMAND_COPY_WORKBENCH_PATH]) {
+		const matched = items.filter((entry) => entry.command === command);
+		assert.equal(matched.length, 1, `${command} has ${matched.length} menu entries`);
+		assert.equal(matched[0].when, WORKBENCH_ROW_CLAUSE);
+	}
+	// The clause and the three contextValues rootItem composes are two
+	// spellings of one set, exactly as the card clauses and actionsFor are. A
+	// row kind renamed on one side and not the other is a menu that never
+	// opens, and nothing at run time reports it.
+	for (const value of [
+		CONTEXT_WORKBENCH_ROOT,
+		CONTEXT_WORKBENCH_CANDIDATE,
+		CONTEXT_WORKBENCH_FOREST,
+	]) {
+		assert.match(value, WORKBENCH_ROW_PATTERN);
+	}
+	// A card contextValue must not reach these items, which is the half the
+	// anchors do the work for.
+	for (const value of [CONTEXT_CARD_ACTIVE, CONTEXT_COLUMN, CONTEXT_STATE_GROUP]) {
+		assert.doesNotMatch(value, WORKBENCH_ROW_PATTERN);
+	}
+});
+
+test("no workbench menu item is offered on a column row or a state group", () => {
+	// AC-2's exclusion, and the recorded cut it protects. A column row's one
+	// plausible act is the queue pull dinah-280 has not published, so the row
+	// carries no menu at all; an item that matched CONTEXT_COLUMN would offer
+	// a workbench act on a row that names no workbench of its own.
+	const menus = contributes.menus as Record<string, { when: string }[]>;
+	const clauses = menus["view/item/context"].map((entry) => entry.when).join(" ");
+	assert.ok(
+		!clauses.includes(CONTEXT_COLUMN),
+		`a context menu is registered against a column row: ${clauses}`,
+	);
+	assert.ok(
+		!clauses.includes(CONTEXT_STATE_GROUP),
+		`a context menu is registered against a state group row: ${clauses}`,
+	);
 });
 
 test("the extension version is major.minor.patch, which is all the marketplace accepts", () => {

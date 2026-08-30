@@ -235,3 +235,47 @@ export const NODE_CARD = "card";
 
 /** The axis a column-axis group node groups on, as TreeNode.Axis spells it. */
 export const AXIS_COLUMN = "column";
+
+/**
+ * One structural finding `dinah check` reports.
+ *
+ * The field names are capitalised because `internal/bench.Finding` carries no
+ * JSON struct tags, unlike every other shape in this file. dinah-347 owns
+ * correcting the Go side, and until it lands this interface spells what the
+ * binary actually emits rather than what the convention would predict
+ * (dinah-330 D-7).
+ */
+export interface CheckFinding {
+	readonly Path: string;
+	readonly Key: string;
+	readonly Detail: string;
+}
+
+/**
+ * verb.CheckReport, the fields this extension reads.
+ *
+ * `outcome` is the coarse answer and is always present, carrying READ_OK when
+ * the workbench read cleanly and READ_FINDINGS when it did not. A client
+ * settles the question with one string comparison, which is what dinah-346
+ * landed the member for; testing whether `findings` came back empty, null or
+ * absent would be a second spelling of a distinction the CLI already
+ * publishes. `findings` itself is read for the list and its length, and it is
+ * null rather than empty on a clean run because Go marshals a nil slice with
+ * no omitempty.
+ */
+export interface CheckAnswer {
+	readonly outcome: string;
+	readonly findings: readonly CheckFinding[] | null;
+}
+
+/**
+ * The two tokens a structural read reports, as contract.ReadOK and
+ * contract.ReadFindings spell them.
+ *
+ * These are a vocabulary of their own rather than two more verb outcomes: a
+ * read is never refused, stale or unreachable, because an invocation that
+ * could not attempt the read at all is reported through the ordinary refusal
+ * path before the read runs (dinah-346).
+ */
+export const READ_OK = "ok";
+export const READ_FINDINGS = "findings";
