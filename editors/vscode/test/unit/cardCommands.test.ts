@@ -6,6 +6,8 @@
 // and dinah-287 renamed exactly the field the move verb reads.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import type { SpawnOutcome, Spawner } from "../../src/cli";
@@ -393,4 +395,42 @@ test("contextFor answers undefined for a card row whose workbench never resolved
 		node: { kind: "card", ref: "dinah-1", count: 1 },
 	};
 	assert.equal(contextFor(element, "dinah", silentHost), undefined);
+});
+
+// This file is compiled to out/test/unit/, so the extension root is three up.
+const extensionSource = readFileSync(
+	join(__dirname, "..", "..", "..", "src", "extension.ts"),
+	"utf8",
+);
+
+test("the command handler hands its argument straight to contextFor", () => {
+	// Testing the decision and not the wiring is how the defect survived. The
+	// handler reads nothing off the element itself: it passes the binding to
+	// contextFor, which is the function the three tests above hold to the
+	// missing-element contract. A regression that read a field first, which is
+	// exactly what shipped, would leave those three green, so this reads the
+	// one module the unit layer cannot import the way layers.ts and
+	// spawn-sites.ts already read src for a single-site invariant.
+	assert.ok(
+		extensionSource.includes("contextFor("),
+		"extension.ts no longer calls contextFor, so this check proved nothing",
+	);
+	const dereferences = extensionSource
+		.split(/\r?\n/)
+		.filter((line) => /\belement[.?]/.test(line));
+	assert.deepEqual(
+		dereferences,
+		[],
+		"extension.ts reads a field off an element binding, which throws when the Command Palette passes none",
+	);
+});
+
+test("the handler's parameter admits the argument the palette does not pass", () => {
+	// The type is half the guard. A handler declared to take a TreeElement
+	// tells every later reader that an element always arrives, and the compiler
+	// then agrees that reading a field off it is safe.
+	assert.ok(
+		extensionSource.includes("async (element: TreeElement | undefined) =>"),
+		"the flow-command handler no longer declares its element as possibly absent",
+	);
 });
