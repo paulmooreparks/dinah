@@ -116,7 +116,7 @@ type query struct {
 // list is half of what a workstream term may name, and a query naming a
 // severity or priority also needs every card's actual value to tolerate drift.
 func (l *Library) Query(req *Request) (*Matches, error) {
-	matched, _, err := l.selection(req.Query)
+	matched, _, err := l.selection(req.Query, req.Actor)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,11 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 // fixes. Both the query command and the grouped tree go through it, so one
 // string handed to either selects one set of cards, and the tree's account of
 // what the filter removed is read off the same pair rather than recomputed.
-func (l *Library) selection(text string) (matched, live []*bench.Card, err error) {
+//
+// The actor travels with the text because the walk lapses an expired claim as
+// it goes, and a lapse that notices a hand-edited position records who was
+// reading when it noticed.
+func (l *Library) selection(text, actor string) (matched, live []*bench.Card, err error) {
 	parsed, err := parseQuery(text)
 	if err != nil {
 		return nil, nil, err
@@ -150,7 +154,7 @@ func (l *Library) selection(text string) (matched, live []*bench.Card, err error
 		return nil, nil, err
 	}
 	for _, card := range cards {
-		if err := l.lapseRead(card); err != nil {
+		if err := l.lapseRead(card, actor); err != nil {
 			return nil, nil, err
 		}
 	}

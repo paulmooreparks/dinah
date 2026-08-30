@@ -684,6 +684,21 @@
       "context": "A check finding: a torn journal tail left by a crash.",
       "source": "5dd9617e2137ce0"
     },
+    "check.witness-locked": {
+      "text": "कार्ड {detail} किसी अन्य प्रक्रिया द्वारा अवरुद्ध है, इसलिए गवाही-मरम्मत उसे छोड़कर आगे बढ़ी",
+      "context": "A check finding the witness repair raises: a lock stood on the card, the walk stepped over it and carried on.",
+      "source": "359ee3d8828bfe0"
+    },
+    "check.witnessed.one": {
+      "text": "{count} कार्ड की गवाही दर्ज की, जिसकी स्थिति हाथ से बदली गई थी।",
+      "context": "The line the witness repair prints for what it recorded, for exactly one card. Followed by one line per witnessed identifier.",
+      "source": "6b704fcc9878482f"
+    },
+    "check.witnessed.other": {
+      "text": "{count} कार्डों की गवाही दर्ज की, जिनकी स्थिति हाथ से बदली गई थी।",
+      "context": "The line the witness repair prints for what it recorded, for any other number. Followed by one line per witnessed identifier.",
+      "source": "824d36cabfb0ccf6"
+    },
     "check.unblock.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -1519,6 +1534,11 @@
       "text": "{from} से {to}",
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "source": "dff97f4b63c30b11"
+    },
+    "log.manual-correction": {
+      "text": "{from} से {to}, हाथ से किए गए संपादन से दर्ज",
+      "context": "The detail of a witnessed correction, carrying the column the journal believed and the column the anchor records. It reads differently from a move because nobody chose this transition; the tool found it.",
+      "source": "721d8e0a665422bf"
     },
     "log.moved": {
       "text": "{from} से {to}",
@@ -2669,6 +2689,11 @@
       "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
       "source": "a1f0e6c7ae6251db"
+    },
+    "param.check.witness.summary": {
+      "text": "हर उस कार्ड पर हाथ से सुधार दर्ज करें जिसकी स्थिति हाथ से बदली गई थी",
+      "context": "The meaning of the witness argument of `dinah check`, printed in that command's arguments table.",
+      "source": "2e69c6123b25a380"
     },
     "param.claim.card.summary": {
       "text": "जिस कार्ड को आप ले रहे हैं",

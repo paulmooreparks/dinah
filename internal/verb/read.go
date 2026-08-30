@@ -101,7 +101,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 	}
 	counts := map[string]int{}
 	for _, card := range cards {
-		if err := l.lapseRead(card); err != nil {
+		if err := l.lapseRead(card, req.Actor); err != nil {
 			return nil, err
 		}
 		counts[card.Column]++
@@ -182,7 +182,7 @@ func (l *Library) List(req *Request) (*Listing, error) {
 		if wanted != nil && card.Column != wanted.ID {
 			continue
 		}
-		if err := l.lapseRead(card); err != nil {
+		if err := l.lapseRead(card, req.Actor); err != nil {
 			return nil, err
 		}
 		if req.ReadyOnly && card.State != contract.StateReady {
@@ -237,7 +237,7 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 		columns = []*bench.Column{wanted}
 	}
 	for _, card := range cards {
-		if err := l.lapseRead(card); err != nil {
+		if err := l.lapseRead(card, req.Actor); err != nil {
 			return nil, err
 		}
 	}
@@ -408,7 +408,7 @@ func (l *Library) Show(req *Request) (*Detail, string, error) {
 		return nil, "", err
 	}
 	card := found.Card
-	if err := l.lapseRead(card); err != nil {
+	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, "", err
 	}
 	detail := &Detail{Card: *l.view(card), Body: card.Body, Path: card.AnchorPath()}
@@ -712,6 +712,14 @@ type CheckReport struct {
 	// MigratedColumns says the stranded-column migration ran, so a caller can
 	// tell an empty list of removals from a migration nobody asked for.
 	MigratedColumns bool `json:"migrated_columns,omitempty"`
+	// WitnessedCards are the identifiers of the cards the witness repair
+	// appended a manual_correction event to. It is absent from a request that
+	// asked for no witnessing and from a request that asked and found nothing
+	// to witness, which MigratedWitness below is what separates.
+	WitnessedCards []string `json:"witnessed_cards,omitempty"`
+	// MigratedWitness says the witness repair ran, so a caller can tell an
+	// empty list of witnesses from a repair nobody asked for.
+	MigratedWitness bool `json:"migrated_witness,omitempty"`
 	// AssignedWorkstreamSlugs are the workstreams the slug migration
 	// repaired with the slug each one was given, on the terms AssignedSlugs
 	// carries the columns.
@@ -740,7 +748,9 @@ type CheckReport struct {
 // predate the slug field, names the slug it gave each one, and derives the
 // workbench's own slug when the workbench itself predates that field. A
 // request carrying the migrate-columns marker removes every stranded
-// identifier from the workbench's own columns list.
+// identifier from the workbench's own columns list. A request carrying the
+// witness marker records a manual-correction event on every live card whose
+// anchor and journal disagree about where it stands.
 //
 // A non-nil error return still carries a non-nil report when the migration
 // ran: the report is what the run had already stamped and already guessed
@@ -775,6 +785,15 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		removed, err := l.Bench.RemoveStrandedColumns()
 		report.MigratedColumns = true
 		report.RemovedStrandedColumns = removed
+		if err != nil {
+			return report, err
+		}
+	}
+	if req != nil && req.MigrateWitness {
+		witnessed, reported, err := l.Bench.WriteWitnesses(req.Actor, bench.Stamp(l.Now()))
+		report.MigratedWitness = true
+		report.WitnessedCards = witnessed
+		report.Findings = append(report.Findings, reported...)
 		if err != nil {
 			return report, err
 		}

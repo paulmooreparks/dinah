@@ -80,7 +80,7 @@ WORKBENCH
   check [--finish] [--migrate-ordinals]                  Look for structural defects in this workbench
     [--migrate-slugs] [--migrate-columns]
     [--migrate-vocabulary] [--migrate-workstreams]
-    [--yes]
+    [--witness] [--yes]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench [get|set] [field] [value] [--yes]            Read this workbench's own fields, or write one
@@ -157,7 +157,7 @@ WORKBENCH
   edit <ref>                                                                                            Open this workbench, a card, or anything below a card in your editor
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
-    [--migrate-workstreams] [--yes]
+    [--migrate-workstreams] [--witness] [--yes]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench [get|set] [field] [value] [--yes]                                                           Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field] [value] [--yes]                                   Read this workbench's workstreams, create one, or write one's fields

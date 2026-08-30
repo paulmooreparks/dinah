@@ -127,6 +127,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateVocabulary: parsed.has("migrate-vocabulary"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
+		MigrateWitness:     parsed.has("witness"),
 		NoClaim:            parsed.has("no-claim"),
 	}
 	return req

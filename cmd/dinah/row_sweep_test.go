@@ -1536,7 +1536,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:628", label: "dinah changes",
+			site: "render.go:630", label: "dinah changes",
 			keys: []string{"column.changes.when", "column.changes.card", "column.changes.action",
 				"column.changes.actor", "column.changes.detail"},
 			varies: lastCell, expect: expectChanges,
@@ -1545,7 +1545,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:658", label: "the slugs check --migrate-slugs assigned",
+			site: "render.go:660", label: "the slugs check --migrate-slugs assigned",
 			keys: []string{"column.slugs.slug", "column.slugs.title"}, varies: lastCell,
 			expect: expectAssignedSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1553,28 +1553,35 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:687", label: "one removed stranded column", varies: noCell,
+			site: "render.go:689", label: "one removed stranded column", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRun(t, sweptStrandedTree(t, w, "stranded-"+tag+"-"+sweptPass), tag, "check", "--migrate-columns")
 			},
 		},
 		{
-			site: "render.go:826", label: "the columns a refusal lists", varies: noCell,
+			site: "render.go:697", label: "one witnessed card", varies: noCell,
+			constantReason: "this block declares one column and no heading, so it has no column to misplace",
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, sweptDivergedTree(t, w, "diverged-"+tag+"-"+sweptPass), tag, "check", "--witness")
+			},
+		},
+		{
+			site: "render.go:836", label: "the columns a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "ls", "nowhere")
 			},
 		},
 		{
-			site: "render.go:707", label: "one finding", varies: noCell,
+			site: "render.go:717", label: "one finding", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, sweptStrippedTree(t, w, "findings-"+tag+"-"+sweptPass), tag, "check")
 			},
 		},
 		{
-			site: "render.go:732", label: "catalog coverage",
+			site: "render.go:742", label: "catalog coverage",
 			keys: []string{"column.catalogs.language", "column.catalogs.translated"}, varies: lastCell,
 			opensAt: "version.catalogs", expect: expectCatalogs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1615,7 +1622,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:767", label: "the guide topics",
+			site: "commands.go:768", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1623,7 +1630,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:945", label: "the workbench's own fields",
+			site: "render.go:955", label: "the workbench's own fields",
 			keys: []string{"column.workbench.field", "column.workbench.value"}, varies: lastCell,
 			expect: expectWorkbenchFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1631,7 +1638,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:670", label: "the workstream slugs check --migrate-slugs assigned",
+			site: "render.go:672", label: "the workstream slugs check --migrate-slugs assigned",
 			keys:   []string{"column.slugs.slug", "column.slugs.title"},
 			varies: lastCell, expect: expectAssignedWorkstreamSlugs,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1648,7 +1655,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:967", label: "dinah workstream",
+			site: "render.go:977", label: "dinah workstream",
 			keys:   []string{"column.workstreams.slug", "column.workstreams.name", "column.workstreams.status", "column.workstreams.cards"},
 			varies: lastCell, expect: expectWorkstreams,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1656,7 +1663,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:988", label: "one workstream's own fields",
+			site: "render.go:998", label: "one workstream's own fields",
 			keys:   []string{"column.workstream.field", "column.workstream.value"},
 			varies: lastCell, expect: expectWorkstreamFields,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1665,7 +1672,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:1001", label: "the cards belonging to one workstream",
+			site: "render.go:1011", label: "the cards belonging to one workstream",
 			keys:   []string{"column.workstream.card", "column.workstream.title", "column.workstream.column"},
 			varies: lastCell, expect: expectWorkstreamMembers,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1674,7 +1681,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:836", label: "a refusal that carries a list", varies: noCell,
+			site: "render.go:846", label: "a refusal that carries a list", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
 				return sweptRefused(t, w.healthy, tag, "pull")
@@ -2311,6 +2318,55 @@ func sweptStrandColumn(t *testing.T, dir string) {
 	t.Helper()
 	sweptRewrite(t, filepath.Join(sweptRoot(t, dir), bench.WorkbenchAnchor), func(source string) string {
 		return strings.Replace(source, "\ncolumns:\n", "\ncolumns:\n  - ffffffffffff\n", 1)
+	})
+}
+
+// sweptDivergedTree creates a workbench holding one card whose anchor was
+// hand-edited into a column its journal never records it entering, which is
+// the disagreement check --witness records a manual correction for.
+func sweptDivergedTree(t *testing.T, w *sweptWorkbenches, name string) string {
+	t.Helper()
+	dir := filepath.Join(w.base, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sweptInit(t, dir)
+	sweptDo(t, dir, "add", "A card somebody moved by hand")
+	sweptDivergeCard(t, dir)
+	return dir
+}
+
+// sweptDivergeCard rewrites the one card's column to another column of the
+// workbench, leaving the journal saying what it already said. No command does
+// this, which is the point: it is the editor's own edit, and the anchor is
+// authoritative for position, so the journal is what falls behind.
+func sweptDivergeCard(t *testing.T, dir string) {
+	t.Helper()
+	root := sweptRoot(t, dir)
+	cards := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	if len(cards) != 1 {
+		t.Fatalf("wanted one card under %s, got %v", root, cards)
+	}
+	columns := bench.ListIDs(filepath.Join(root, bench.ColumnsDir))
+	if len(columns) < 2 {
+		t.Fatalf("wanted at least two columns under %s, got %v", root, columns)
+	}
+	anchor := filepath.Join(root, bench.CardsDir, cards[0], bench.CardAnchor)
+	sweptRewrite(t, anchor, func(source string) string {
+		for _, line := range strings.Split(source, "\n") {
+			id, ok := strings.CutPrefix(line, "column: ")
+			if !ok {
+				continue
+			}
+			for _, column := range columns {
+				if column == strings.TrimSpace(id) {
+					continue
+				}
+				return strings.Replace(source, line, "column: "+column, 1)
+			}
+		}
+		t.Fatalf("the anchor at %s names no column this edit could move away from", anchor)
+		return source
 	})
 }
 

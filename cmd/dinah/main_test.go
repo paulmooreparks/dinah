@@ -1424,7 +1424,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-workstreams] [--yes]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-workstreams] [--witness] [--yes]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -1437,7 +1437,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-workstreams"} {
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-workstreams", "--witness"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -6580,7 +6580,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"catalogs", "finish", "help", "json", "migrate-columns",
 		"migrate-ordinals", "migrate-slugs", "migrate-vocabulary",
 		"migrate-workstreams", "no-claim", "override", "quiet", "ready",
-		"replace", "version", "yes",
+		"replace", "version", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

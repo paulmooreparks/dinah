@@ -57,6 +57,9 @@ func (l *Library) Do(req *Request) *Response {
 		}
 		return response
 	}
+	if _, err := l.Bench.WitnessDivergence(req.Actor, bench.Stamp(l.Now()), card); err != nil {
+		return l.FromError(req, err)
+	}
 	response := l.evaluate(req, card)
 	if found.StalePrefix != "" && response.Outcome == contract.OutcomeOK {
 		response.Warning = "warn.stale-prefix"
@@ -603,7 +606,13 @@ func (l *Library) leave(req *Request, card *bench.Card) *Response {
 // card, and that transaction lapses the claim itself, so the read leaves the
 // card alone rather than failing: a read has no business refusing because a
 // write is in flight.
-func (l *Library) lapseRead(card *bench.Card) error {
+//
+// The witness runs on the fresh copy before the lapse is reconsidered, so a
+// hand-edited position is recorded whether or not the reread still finds the
+// claim lapsed. The actor is whoever ran the read, which is the same
+// whoever-noticed-it basis the write verbs use; the lock keeps its own empty
+// actor, since that is an advisory lock rather than a claim.
+func (l *Library) lapseRead(card *bench.Card, actor string) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
 	}
@@ -615,6 +624,9 @@ func (l *Library) lapseRead(card *bench.Card) error {
 	fresh, err := bench.LoadCard(l.Bench.CardsRoot(), card.ID)
 	if err != nil {
 		return nil
+	}
+	if _, err := l.Bench.WitnessDivergence(actor, bench.Stamp(l.Now()), fresh); err != nil {
+		return err
 	}
 	if !fresh.Lapsed(l.Now()) {
 		*card = *fresh

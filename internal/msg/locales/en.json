@@ -545,6 +545,18 @@
       "text": "the journal of card {detail} ends in a partial line",
       "context": "A check finding: a torn journal tail left by a crash."
     },
+    "check.witness-locked": {
+      "text": "card {detail} is locked by another process, so the witness repair passed it by",
+      "context": "A check finding the witness repair raises: a lock stood on the card, the walk stepped over it and carried on."
+    },
+    "check.witnessed.one": {
+      "text": "Witnessed {count} card whose position had been edited by hand.",
+      "context": "The line the witness repair prints for what it recorded, for exactly one card. Followed by one line per witnessed identifier."
+    },
+    "check.witnessed.other": {
+      "text": "Witnessed {count} cards whose position had been edited by hand.",
+      "context": "The line the witness repair prints for what it recorded, for any other number. Followed by one line per witnessed identifier."
+    },
     "check.unblock.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile."
@@ -1256,6 +1268,10 @@
     "instructions.column": {
       "text": "Instructions, this column:",
       "context": "The label above the column's own instructions."
+    },
+    "log.manual-correction": {
+      "text": "{from} to {to}, recorded from a hand edit",
+      "context": "The detail of a witnessed correction, carrying the column the journal believed and the column the anchor records. It reads differently from a move because nobody chose this transition; the tool found it."
     },
     "log.moved": {
       "text": "{from} to {to}",
@@ -2172,6 +2188,10 @@
     "param.check.migrate-workstreams.summary": {
       "text": "adopt every workstream a card names that this workbench does not carry",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table."
+    },
+    "param.check.witness.summary": {
+      "text": "record a manual correction on every card whose position was edited by hand",
+      "context": "The meaning of the witness argument of `dinah check`, printed in that command's arguments table."
     },
     "param.claim.card.summary": {
       "text": "the card you are taking up",

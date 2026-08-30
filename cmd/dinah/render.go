@@ -593,6 +593,8 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return ev.Filename
 	case contract.EventAttachmentRenamed:
 		return s.r.T("log.attachment-renamed", "from", ev.From, "to", ev.Filename)
+	case contract.EventManualCorrection:
+		return s.r.T("log.manual-correction", "from", ev.FromTitle, "to", ev.ToTitle)
 	}
 	return ""
 }
@@ -685,6 +687,14 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 			removed.rows = append(removed.rows, tableRow{fields: []string{id}})
 		}
 		s.table(removed)
+	}
+	if report.MigratedWitness {
+		s.line(s.r.TN("check.witnessed", len(report.WitnessedCards)))
+		witnessed := table{indent: 2, columns: listColumn()}
+		for _, id := range report.WitnessedCards {
+			witnessed.rows = append(witnessed.rows, tableRow{fields: []string{id}})
+		}
+		s.table(witnessed)
 	}
 	return s.renderFindings(report.Findings)
 }
