@@ -972,7 +972,7 @@ $ dinah check
   a card names column 000000000000, which this workbench does not declare (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
   the journal puts this card in column 003b09ee6e31, and its frontmatter disagrees (/home/ana/damaged/.dinah/d0e41d414bb5/cards/9a556a230e09/card.md)
 4 defects.
-[exit 2]
+[exit 5]
 ```
 
 Dinah names the file to open on every line. Open each one in your editor, fix
@@ -1000,7 +1000,7 @@ $ dinah check
   column fcd0d92e167a carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/fcd0d92e167a/column.md)
   the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 6 defects.
-[exit 2]
+[exit 5]
 $ dinah check --migrate-slugs
 Assigned 3 column slugs.
   Slug    Title
@@ -1012,12 +1012,12 @@ Assigned 3 column slugs.
   fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
   the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 3 defects.
-[exit 2]
+[exit 5]
 $ dinah check --migrate-ordinals
 Stamped 2 creation ordinals.
   the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 1 defect.
-[exit 2]
+[exit 5]
 $ dinah check --migrate-columns
 Removed 1 stranded column from the list.
   000000000000
@@ -1029,7 +1029,11 @@ No structural defects found.
 ```
 
 Dinah prints what each migration wrote and then reports whatever it did not fix.
-You keep getting exit code 2 until the workbench is clean. Dinah takes the slugs
+You keep getting exit code 5 until the workbench is clean, and 5 is `check`'s
+own code for a run that finished and found something to report. Exit code 2 out
+of `check` means something else entirely, which is that Dinah refused the run
+before it looked at anything, so a script wanting to know whether the workbench
+is clean tests for 5 and not for 2. Dinah takes the slugs
 from the titles and reads the ordinals back out of each card's journal, so keep
 your journals intact. If the workbench matters to you, run any of the migrations
 against a copy first.
@@ -1044,7 +1048,7 @@ version control.
 
 ## Driving Dinah from a script
 
-Dinah exits with one of four codes, and your script should tell them apart,
+Dinah exits with one of five codes, and your script should tell them apart,
 because each one asks something different of you.
 
 | Code | Outcome | What to do |
@@ -1053,6 +1057,17 @@ because each one asks something different of you.
 | 2 | refused | A rule said no. Dinah names the rule at the front of the message. |
 | 3 | stale | The card moved between your reading it and your acting. Read it again and retry. |
 | 4 | unreachable | The question could not be asked at all. |
+| 5 | findings | The read finished and reported something. Only `check` and `check --migrate-vocabulary` produce it. |
+
+The first four codes mean the same thing for every command, so exit 2 is always
+a refusal and never anything else. Exit 5 belongs to `check` and to `check
+--migrate-vocabulary` alone, because those two are the only commands that can
+finish a run and still have something to tell you about the workbench. A script
+driving `check` therefore reads 0 as clean, 5 as a workbench carrying defects,
+and 2 as Dinah declining to look, which is a different problem with a different
+fix. Under `--json` both commands also write an `outcome` field of `"ok"` or
+`"findings"`, so a caller that parses the answer never has to consult `$?` at
+all.
 
 Pass `--json` and Dinah gives you the machine-readable form. When Dinah says no
 under `--json`, it writes the name of the rule to standard output in the

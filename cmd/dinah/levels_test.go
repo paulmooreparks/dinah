@@ -453,8 +453,8 @@ func TestAStoredLevelNobodyDeclaresIsToleratedAndReported(t *testing.T) {
 		t.Errorf("the stored level read back as %q", got.out)
 	}
 	checked := runCLI(t, root, "check")
-	if checked.code != 2 {
-		t.Fatalf("check exited %d over a defect, wanted 2: %s", checked.code, checked.out)
+	if checked.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Fatalf("check exited %d over a defect, wanted %d: %s", checked.code, contract.ExitCodeForRead(contract.ReadFindings), checked.out)
 	}
 	sentence := msg.For(msg.Base).T(bench.FindingUnknownLevel, "detail", "severity urgent")
 	if strings.Count(checked.out, sentence) != 1 {

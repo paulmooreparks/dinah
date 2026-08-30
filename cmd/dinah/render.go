@@ -699,8 +699,11 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	return s.renderFindings(report.Findings)
 }
 
-// renderFindings prints what check found and returns the exit code: zero on a
-// clean bench, the refused code when anything was found.
+// renderFindings prints what check found and returns the read's own exit
+// code, which is contract.ExitCodeForRead's table and never ExitCode's: zero
+// on a clean bench, and the findings code when anything was found. A refusal
+// does not come through here at all, because a read that could not run is
+// reported before this function is reached.
 func (s *session) renderFindings(findings []bench.Finding) int {
 	if len(findings) == 0 {
 		s.line(s.r.T("check.clean"))
@@ -713,7 +716,7 @@ func (s *session) renderFindings(findings []bench.Finding) int {
 	}
 	s.table(t)
 	s.line(s.r.TN("check.count", len(findings)))
-	return contract.ExitCode(contract.OutcomeRefused)
+	return contract.ExitCodeForRead(contract.ReadFindings)
 }
 
 // renderIdentity prints the actor and whether it is the operator.
