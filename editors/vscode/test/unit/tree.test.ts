@@ -14,6 +14,7 @@ import { test } from "node:test";
 import type { WorkbenchResolution } from "../../src/api";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import {
+	COMMAND_OPEN_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
@@ -24,7 +25,7 @@ import {
 	CONTEXT_WORKBENCH_FOREST,
 	CONTEXT_WORKBENCH_ROOT,
 } from "../../src/identity";
-import type { FolderInput, TreeElement } from "../../src/tree";
+import type { FolderInput, TreeElement, TreeItemSpec, WorkbenchData } from "../../src/tree";
 import {
 	DinahTreeProvider,
 	actionsFor,
@@ -36,7 +37,7 @@ import {
 	treeItemFor,
 	workWord,
 } from "../../src/tree";
-import type { CardView, ColumnView } from "../../src/wire";
+import type { AttachmentListing, CardView, ColumnView } from "../../src/wire";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -901,4 +902,439 @@ test("no row this provider composes ever names a pull", async () => {
 			`a row composed the contextValue ${value}, which names an act dinah cannot aim`,
 		);
 	}
+});
+
+// ---------------------------------------------------------------------------
+// dinah-335: attachments at every level, drawn from the counts the reads
+// already carry
+// ---------------------------------------------------------------------------
+
+/**
+ * A `dinah --json attachments` answer, field-for-field with
+ * verb.AttachmentListing and its views, so a field the Go side publishes that
+ * this file has not mirrored is a compile error here rather than a silent
+ * miss. The second view carries no `path`, which is how the wire spells a
+ * payload that will not read: the attachment stays present and unopenable
+ * rather than dropping off the row.
+ */
+const TWO_ATTACHMENTS: AttachmentListing = {
+	kind: "card",
+	ref: "tr-4",
+	attachments: [
+		{
+			id: "9a1b2c3d4e5f",
+			ordinal: 1,
+			ref: "tr-4/attachments/1",
+			filename: "screenshot.png",
+			description: "the sidebar as the operator left it",
+			provenance: "copy",
+			path: "C:\\bench\\cards\\tr-4\\attachments\\screenshot.png",
+		},
+		{
+			id: "0b2c3d4e5f61",
+			ordinal: 2,
+			ref: "tr-4/attachments/2",
+			filename: "spec.pdf",
+			provenance: "import",
+		},
+	],
+};
+
+/**
+ * The three-column bench with attachments reported at the workbench, at
+ * Intake (the grouped column) and at Customer approval (the queue shape), so
+ * one fixture serves the column test and the root test at once.
+ */
+const ATTACHING_STATUS = {
+	...THREE_STATUS,
+	attachment_count: 5,
+	columns: THREE_STATUS.columns.map((view) => {
+		if (view.id === "intake") {
+			return { ...view, attachment_count: 2 };
+		}
+		if (view.id === "review") {
+			return { ...view, attachment_count: 4 };
+		}
+		return view;
+	}),
+};
+
+/** A bench whose status reports attachments at the workbench and two columns. */
+async function attachingBench(): Promise<{
+	view: DinahTreeProvider;
+	calls: string[][];
+}> {
+	const { spawner, calls } = stubSpawner({
+		status: ATTACHING_STATUS,
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+		attachments: TWO_ATTACHMENTS,
+	});
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	return { view, calls };
+}
+
+/** The same card element with the attachment count replaced. */
+function carryingAttachments(
+	element: TreeElement,
+	count: number | undefined,
+): TreeElement {
+	if (element.kind !== "card" || element.view === undefined) {
+		throw new Error("the fixture element is not a card the ls join found");
+	}
+	return { ...element, view: { ...element.view, attachment_count: count } };
+}
+
+/** The same attachment element with the payload path replaced. */
+function withPath(element: TreeElement, path: string | undefined): TreeElement {
+	if (element.kind !== "attachment") {
+		throw new Error("the fixture element is not an attachment");
+	}
+	return { ...element, view: { ...element.view, path } };
+}
+
+/** The WorkbenchData one resolved root element carries. */
+function dataOf(element: TreeElement): WorkbenchData {
+	if (element.kind !== "root" || element.row.data === undefined) {
+		throw new Error("the fixture element is not a resolved root row");
+	}
+	return element.row.data;
+}
+
+/**
+ * The row spec with the clicked element replaced by its kind, so two specs
+ * built from two different elements compare as wholes. A spec's command
+ * carries the element it was built from, and comparing whole specs without
+ * this would fail on that recursion rather than on anything the row shows.
+ */
+function specOf(element: TreeElement): TreeItemSpec {
+	const item = treeItemFor(element);
+	return item.command === undefined
+		? item
+		: {
+				...item,
+				command: {
+					...item.command,
+					args: item.command.args.map((arg) => (arg as TreeElement).kind),
+				},
+			};
+}
+
+test("a card carrying attachments grows an expand arrow and changes nothing else about its row", async () => {
+	// The plain card is the control: a view carrying no count at all, which
+	// is what every card rendered as before attachments existed.
+	const view = await loadedBench();
+	const [intake] = await view.getChildren((await view.getChildren())[0]);
+	const [ready] = await view.getChildren(intake);
+	const [aaa] = await view.getChildren(ready);
+	const plain = treeItemFor(aaa);
+	assert.equal(plain.collapsibleState, "none");
+
+	// A positive count grows the arrow. Every other field of the row is held
+	// against the plain one, so a count that moved a label, a tooltip or a
+	// menu answer fails here rather than shipping.
+	const carrying = carryingAttachments(aaa, 2);
+	const arrow = treeItemFor(carrying);
+	assert.equal(arrow.collapsibleState, "collapsed");
+	assert.deepEqual(specOf(carrying), {
+		...specOf(aaa),
+		collapsibleState: "collapsed",
+	});
+	// The click still opens the card the row stands for, element and all.
+	assert.deepEqual(arrow.command?.args, [carrying]);
+
+	// A zero and an explicit undefined read as absence: no arrow, and the
+	// row a reader already knew.
+	assert.deepEqual(specOf(carryingAttachments(aaa, 0)), specOf(aaa));
+	assert.deepEqual(specOf(carryingAttachments(aaa, undefined)), specOf(aaa));
+});
+
+test("a card with attachments holds one Attachments row beneath it, drawn at no spawn", async () => {
+	const { view, calls } = await attachingBench();
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	// The fixture's card view carries no count, so the card draws nothing
+	// beneath it and costs nothing.
+	const before = calls.length;
+	assert.deepEqual(await view.getChildren(ddd), []);
+
+	const carrying = carryingAttachments(ddd, 2);
+	const children = await view.getChildren(carrying);
+	assert.equal(children.length, 1);
+	const group = children[0];
+	if (group.kind !== "attachmentsGroup") {
+		assert.fail(`the card drew a ${group.kind} row, wanted an attachmentsGroup`);
+	}
+	// The group carries the card's own ref, which is what its expansion asks
+	// about, and the eager count status already reported.
+	assert.equal(group.ref, "tr-4");
+	assert.equal(group.count, 2);
+	assert.equal(group.root, "C:\\work\\bench");
+	assert.equal(calls.length, before, "drawing the Attachments row spawned a call");
+});
+
+test("expanding a card's Attachments row asks once, named by the card's own ref", async () => {
+	const { view, calls } = await attachingBench();
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const before = calls.length;
+	await view.getChildren(group);
+	assert.equal(calls.length - before, 1, "expanding the row did not cost exactly one call");
+	assert.deepEqual(calls[calls.length - 1], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"attachments",
+		"tr-4",
+	]);
+});
+
+test("expanding the workbench's own Attachments row asks with no ref at all", async () => {
+	const { view, calls } = await attachingBench();
+	const [root] = await view.getChildren();
+	const children = await view.getChildren(root);
+	const last = children[children.length - 1];
+	if (last.kind !== "attachmentsGroup") {
+		assert.fail(`the root drew a ${last.kind} row last, wanted an attachmentsGroup`);
+	}
+	// The workbench is asked about by omitting the argument, which is the
+	// spelling the resolver owns; composing "workbench" here would be a second
+	// spelling of a reference the binary already holds.
+	assert.equal(last.ref, "");
+	const before = calls.length;
+	await view.getChildren(last);
+	assert.equal(calls.length - before, 1, "expanding the row did not cost exactly one call");
+	assert.deepEqual(calls[calls.length - 1], [
+		"--json",
+		"--workbench",
+		"C:\\work\\bench",
+		"attachments",
+	]);
+});
+
+test("an expanded Attachments row draws the listing's own order, one row per attachment", async () => {
+	const { view } = await attachingBench();
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const attachments = await view.getChildren(group);
+	assert.deepEqual(
+		attachments.map((element) => element.kind),
+		["attachment", "attachment"],
+	);
+	assert.deepEqual(
+		attachments.map((element) => treeItemFor(element).label),
+		["screenshot.png", "spec.pdf"],
+	);
+});
+
+test("an Attachments row that could not read draws one note row and names the failure", async () => {
+	// No `attachments` entry in the answers, so the stub answers the call
+	// with a refusal, which is what a checkpoint whose call failed looks
+	// like here.
+	const { spawner } = stubSpawner({
+		status: ATTACHING_STATUS,
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const logged: string[] = [];
+	const view = provider(spawner, logged);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const children = await view.getChildren(group);
+	assert.equal(children.length, 1);
+	assert.equal(children[0].kind, "note");
+	const item = treeItemFor(children[0]);
+	assert.ok(
+		item.label.includes("could not read the attachments"),
+		`the note said: ${item.label}`,
+	);
+	// The channel line names both the ref and the root, which is what lets a
+	// reader tell which entity and which workbench failed.
+	assert.ok(
+		logged.some((line) => line.includes("tr-4") && line.includes("C:\\work\\bench")),
+		`the failure was not named with its ref and root: ${logged.join(" | ")}`,
+	);
+});
+
+test("an attachment with a file opens on a plain click, and one without a file offers no click at all", async () => {
+	const { view } = await attachingBench();
+	const [, review] = await view.getChildren((await view.getChildren())[0]);
+	const [ddd] = await view.getChildren(review);
+	const [group] = await view.getChildren(carryingAttachments(ddd, 2));
+	const [shot, spec] = await view.getChildren(group);
+
+	// The openable half, which is also the control that proves the key can
+	// be there at all: without it, the absence below could pass for a
+	// command set to undefined.
+	const openable = treeItemFor(shot);
+	assert.deepEqual(openable.icon, { id: "file" });
+	assert.equal(openable.command?.command, COMMAND_OPEN_ATTACHMENT);
+	assert.deepEqual(openable.command?.args, [shot]);
+
+	// The fixture's second attachment carries no path, which is how the
+	// wire spells a payload that will not read. It stays on the row, and the
+	// row offers no click.
+	const missing = treeItemFor(spec);
+	assert.deepEqual(missing.icon, { id: "warning" });
+	assert.equal("command" in missing, false);
+	assert.ok(missing.tooltip?.includes("no local file"));
+	// The empty-string spelling reads the same as absence.
+	const blanked = treeItemFor(withPath(spec, ""));
+	assert.deepEqual(blanked.icon, { id: "warning" });
+	assert.equal("command" in blanked, false);
+});
+
+test("a column with attachments carries its own Attachments row after every card", async () => {
+	const { view } = await attachingBench();
+	const columns = await view.getChildren((await view.getChildren())[0]);
+
+	// The queue shape: two card leaves directly beneath the column, then the
+	// column's own Attachments row last, in the tree's own order.
+	const review = columns[1];
+	const children = await view.getChildren(review);
+	assert.deepEqual(
+		children.map((element) => element.kind),
+		["card", "card", "attachmentsGroup"],
+	);
+	const group = children[children.length - 1];
+	if (group.kind !== "attachmentsGroup") {
+		assert.fail("the column's own Attachments row was not drawn last");
+	}
+	assert.equal(group.count, 4);
+	assert.equal(group.ref, "review");
+	assert.equal(group.root, "C:\\work\\bench");
+
+	// The grouped shape draws its state groups, then the same row last.
+	const intake = columns[0];
+	const groups = await view.getChildren(intake);
+	assert.deepEqual(
+		groups.map((element) => element.kind),
+		["group", "group", "attachmentsGroup"],
+	);
+
+	// Under a state group the row is absent, because a state group is a
+	// heading over cards and the attachments belong to the station.
+	const [ready] = groups;
+	const underReady = await view.getChildren(ready);
+	assert.deepEqual(
+		underReady.map((element) => element.kind),
+		["card", "card"],
+	);
+});
+
+test("a workbench with attachments draws its own Attachments row after every column", async () => {
+	const { view } = await attachingBench();
+	const [root] = await view.getChildren();
+	const children = await view.getChildren(root);
+	assert.deepEqual(
+		children.map((element) => treeItemFor(element).label),
+		["Intake", "Customer approval", "Done", "Attachments"],
+	);
+	const last = children[children.length - 1];
+	if (last.kind !== "attachmentsGroup") {
+		assert.fail("the workbench's own Attachments row was not drawn last");
+	}
+	assert.equal(last.count, 5);
+	assert.equal(last.ref, "");
+	assert.equal(treeItemFor(last).description, "5");
+});
+
+test("a workbench whose status reports no attachments draws no Attachments row", async () => {
+	// The plain bench is the control: its status carries no count at all,
+	// and no row of the new kind appears.
+	const view = await loadedBench();
+	const [root] = await view.getChildren();
+	const children = await view.getChildren(root);
+	assert.ok(children.length > 0, "the bench drew no rows to check");
+	assert.equal(
+		children.some((element) => element.kind === "attachmentsGroup"),
+		false,
+		"a row with no count to stand on was drawn",
+	);
+	// An explicit zero reads the same, which is also what the wire always
+	// says: attachment_count is omitempty, so a zero count arrives as
+	// absence and the two spellings must not draw different trees.
+	const { spawner } = stubSpawner({
+		status: { ...THREE_STATUS, attachment_count: 0 },
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const zero = provider(spawner);
+	await zero.load([folder({ folder: "C:\\work\\bench" })]);
+	const [zeroRoot] = await zero.getChildren();
+	const zeroChildren = await zero.getChildren(zeroRoot);
+	assert.equal(zeroChildren.some((element) => element.kind === "attachmentsGroup"), false);
+});
+
+test("a checkpoint whose reads fail keeps the attachment count the last good one carried", async () => {
+	// Single-workbench mode. The first checkpoint answers with a count of
+	// five, the second fails, and the count survives the failure on the same
+	// terms the columns do: a passing failure must not blank the row's
+	// attachments either.
+	let declining = false;
+	const spawner: Spawner = async (_exe, argv) => {
+		if (declining) {
+			return {
+				code: 2,
+				stdout: JSON.stringify({ refusal: "dinah.unreadable-workbench" }),
+				stderr: "",
+			};
+		}
+		for (const [verb, payload] of Object.entries({
+			status: ATTACHING_STATUS,
+			tree: THREE_COLUMNS,
+			ls: THREE_LISTING,
+		})) {
+			if (argv.includes(verb)) {
+				return ok(payload);
+			}
+		}
+		return { code: 2, stdout: JSON.stringify({ refusal: "dinah.no-such-verb" }), stderr: "" };
+	};
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\work\\bench" })]);
+	const [root] = await view.getChildren();
+	assert.equal(dataOf(root).attachmentCount, 5);
+
+	declining = true;
+	await view.refresh("C:\\work\\bench");
+	const [again] = await view.getChildren();
+	assert.equal(dataOf(again).attachmentCount, 5);
+	assert.equal(dataOf(again).columns.size, 3);
+});
+
+test("a forest member that declined a read keeps the attachment count it carried", async () => {
+	// The forest twin of the test above, on the fixture the existing
+	// declining-member test uses, so the held branch is exercised on both
+	// reads that carry a workbench.
+	let declining = false;
+	const spawner: Spawner = async (_exe, argv) => {
+		const member = {
+			title: "Carter LLP",
+			slug: "carter",
+			path: "C:\\customers\\carter\\board",
+			...(declining
+				? { unanswered: "dinah.unknown-column" }
+				: argv.includes("tree")
+					? { tree: THREE_COLUMNS }
+					: argv.includes("status")
+						? { status: ATTACHING_STATUS }
+						: { listing: THREE_LISTING }),
+		};
+		return ok({ root: "C:\\customers", workbenches: [member] });
+	};
+	const view = provider(spawner);
+	await view.load([folder({ folder: "C:\\customers", resolution: NOTHING })]);
+	const [first] = await view.getChildren();
+	assert.equal(dataOf(first).attachmentCount, 5);
+
+	declining = true;
+	await view.refresh("C:\\customers");
+	const [second] = await view.getChildren();
+	assert.equal(dataOf(second).attachmentCount, 5);
 });

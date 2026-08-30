@@ -48,6 +48,9 @@ export const COMMAND_RELEASE = "dinah.tree.release";
 export const COMMAND_BLOCK = "dinah.tree.block";
 export const COMMAND_UNBLOCK = "dinah.tree.unblock";
 
+/** The command an attachment row runs on a plain click, when its file can open. */
+export const COMMAND_OPEN_ATTACHMENT = "dinah.tree.openAttachment";
+
 /**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
@@ -61,6 +64,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_RELEASE,
 	COMMAND_BLOCK,
 	COMMAND_UNBLOCK,
+	COMMAND_OPEN_ATTACHMENT,
 ];
 
 /**
@@ -79,6 +83,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_RELEASE,
 	COMMAND_BLOCK,
 	COMMAND_UNBLOCK,
+	COMMAND_OPEN_ATTACHMENT,
 ];
 
 /**

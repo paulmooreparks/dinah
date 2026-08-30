@@ -1,4 +1,4 @@
-// The seven commands the tree contributes, as pure argv composition and pure
+// The eight commands the tree contributes, as pure argv composition and pure
 // outcome handling.
 //
 // Nothing here imports vscode. Each handler is a function over an injected
@@ -14,6 +14,7 @@
 import type { Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { CliOutcome } from "./cli";
+import { COMMAND_OPEN_ATTACHMENT } from "./identity";
 import { nodeSpawner } from "./spawn";
 import type { TreeElement } from "./tree";
 import type { DetailAnswer, LegalMove, ServedAnswer } from "./wire";
@@ -36,6 +37,8 @@ export interface CommandHost {
 	) => Promise<PickItem | undefined>;
 	readonly input: (prompt: string) => Promise<string | undefined>;
 	readonly openDocument: (path: string) => Promise<void>;
+	/** Opens a file for the editor to render, which decides how itself. */
+	readonly openFile: (path: string) => Promise<void>;
 	/** Runs one off-cycle checkpoint for the folder the card stands in. */
 	readonly checkpoint: (folder: string) => Promise<void>;
 	readonly log: (line: string) => void;
@@ -84,21 +87,39 @@ export function refusalMessage(outcome: CliOutcome): string {
  * member's own path while the checkpoint still runs against the folder, whose
  * one merged cursor covers every member beneath it.
  *
- * The absent element is checked before anything is read off it. A command
- * invoked from the Command Palette, from a keybinding, or by another
- * extension arrives with no argument at all, and reading a field off that
- * argument threw a TypeError one line before the row-names-no-card branch
- * below could run (dinah-342). This function lives here rather than in
- * extension.ts so the unit layer can reach it: it touches no vscode value,
- * and the guard went six commands deep unexercised while it sat in the one
- * module no test can import.
+ * The absent element is checked before anything is read off it, by isRow
+ * above, which is the one place that check lives (dinah-342). This function
+ * lives here rather than in extension.ts so the unit layer can reach it: it
+ * touches no vscode value, and the guard went six commands deep unexercised
+ * while it sat in the one module no test can import.
  */
+/**
+ * The row a command was aimed at, when it is a row of the kind the command
+ * can act on, and undefined otherwise.
+ *
+ * This is the single place the absent element is checked, and it is checked
+ * before any field is read. A command invoked from the Command Palette, from
+ * a keybinding, or by another extension arrives with no argument at all, and
+ * reading a field off that argument throws a TypeError before a handler's own
+ * wrong-row branch can run. dinah-342 found that ordering under six card
+ * commands at once and moved the check here, into the module the unit layer
+ * can import; dinah-335 found the same ordering in the attachment handler,
+ * which that card's branch deliberately did not touch. One guard rather than
+ * one per handler is what stops the next command repeating it.
+ */
+export function isRow<K extends TreeElement["kind"]>(
+	element: TreeElement | undefined,
+	kind: K,
+): element is Extract<TreeElement, { kind: K }> {
+	return element !== undefined && element.kind === kind;
+}
+
 export function contextFor(
 	element: TreeElement | undefined,
 	exe: string,
 	host: CommandHost,
 ): CommandContext | undefined {
-	if (element === undefined || element.kind !== "card") {
+	if (!isRow(element, "card")) {
 		return undefined;
 	}
 	const ref = element.view?.ref ?? element.node.ref;
@@ -275,4 +296,36 @@ export async function openCard(context: CommandContext): Promise<void> {
 		return;
 	}
 	await context.host.openDocument(path);
+}
+
+/**
+ * Opens an attachment's own file, handing the editor a path and nothing else.
+ *
+ * An attachment element carries no CommandContext, because that shape names a
+ * card and the workbench the card stands in, while an attachment's path is
+ * the whole of what opening one needs and it already rides the element the
+ * row was drawn from. `openFile` rather than `openDocument`, because an
+ * attachment is arbitrary bytes and the editor is the one to decide how to
+ * render them (dinah-335's Decision 3); the row carries no context menu
+ * either (Decision 4), and its plain click is the whole of what it offers.
+ *
+ * The channel line goes through a callback of its own rather than through
+ * the host, so a row that names no openable file reports itself without
+ * asking the host for anything at all.
+ */
+export async function openAttachment(
+	element: TreeElement | undefined,
+	host: CommandHost,
+	log: (line: string) => void,
+): Promise<void> {
+	if (!isRow(element, "attachment")) {
+		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on a row that names no attachment`);
+		return;
+	}
+	const path = element.view.path;
+	if (path === undefined || path === "") {
+		log(`${COMMAND_OPEN_ATTACHMENT} was invoked on an attachment with no path`);
+		return;
+	}
+	await host.openFile(path);
 }

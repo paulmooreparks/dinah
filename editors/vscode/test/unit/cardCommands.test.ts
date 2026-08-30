@@ -18,6 +18,7 @@ import {
 	contextFor,
 	moveCard,
 	movePick,
+	openAttachment,
 	openCard,
 	orderLegalMoves,
 	refusalMessage,
@@ -33,7 +34,11 @@ interface Recorder {
 	readonly errors: string[];
 	readonly checkpoints: string[];
 	readonly opened: string[];
+	/** The files handed to the host's file opener, in call order. */
+	readonly files: string[];
 	readonly logged: string[];
+	/** The host the recorder watches, which the attachment handler reaches directly. */
+	readonly host: CommandHost;
 	/** What the next spawn answers, by which verb the argv names. */
 	answers: Record<string, SpawnOutcome>;
 	/** What the quick-pick returns, if it is opened. */
@@ -57,6 +62,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const errors: string[] = [];
 	const checkpoints: string[] = [];
 	const opened: string[] = [];
+	const files: string[] = [];
 	const logged: string[] = [];
 	const offered: PickItem[] = [];
 	const state = {
@@ -64,6 +70,7 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		errors,
 		checkpoints,
 		opened,
+		files,
 		logged,
 		offered,
 		answers,
@@ -89,6 +96,9 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		openDocument: async (path) => {
 			opened.push(path);
 		},
+		openFile: async (path) => {
+			files.push(path);
+		},
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
 		},
@@ -103,6 +113,10 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		root: "C:\\work\\bench",
 		ref: "tr-4",
 	};
+	// The host is built after the state it closes over, so it is attached here
+	// rather than in the literal: the attachment handler takes the host alone,
+	// with no CommandContext around it.
+	(state as { host: CommandHost }).host = host;
 	return state;
 }
 
@@ -295,6 +309,81 @@ test("an empty reason blocks nothing", async () => {
 });
 
 // ---------------------------------------------------------------------------
+// dinah-335 AC-8: an attachment opens its own file, through openFile and
+// nothing else on the host
+// ---------------------------------------------------------------------------
+
+/** The smallest row an element can carry: resolved, and carrying no data. */
+function rowFixture(): RootRow {
+	return {
+		rowKind: "workbenchRoot",
+		folder: "C:\\work\\bench",
+		folderName: "bench",
+		description: "",
+		sole: false,
+	};
+}
+
+/**
+ * An attachment element over that row, with the payload path given
+ * explicitly so both spellings of a missing one reach the handler.
+ */
+function attachmentRow(path: string | undefined): TreeElement {
+	return {
+		kind: "attachment",
+		row: rowFixture(),
+		view: {
+			id: "9a1b2c3d4e5f",
+			ordinal: 1,
+			ref: "tr-4/attachments/1",
+			filename: "screenshot.png",
+			provenance: "copy",
+			path,
+		},
+	};
+}
+
+test("an attachment with a file opens it through openFile and touches nothing else on the host", async () => {
+	const r = recorder();
+	const lines: string[] = [];
+	await openAttachment(
+		attachmentRow("C:\\bench\\cards\\tr-4\\attachments\\screenshot.png"),
+		r.host,
+		(line) => lines.push(line),
+	);
+	assert.deepEqual(r.files, ["C:\\bench\\cards\\tr-4\\attachments\\screenshot.png"]);
+	// No other call the host offers was made: no document forced open, no
+	// checkpoint spent, no error surface, no picker, and no channel line
+	// through the host, which is why the handler's own sayings go through a
+	// callback the host does not hold.
+	assert.deepEqual(r.opened, []);
+	assert.deepEqual(r.checkpoints, []);
+	assert.deepEqual(r.errors, []);
+	assert.deepEqual(r.offered, []);
+	assert.deepEqual(r.logged, []);
+	assert.deepEqual(lines, []);
+});
+
+test("an attachment with no path opens nothing, calls nothing on the host, and says so once", async () => {
+	for (const path of [undefined, ""]) {
+		const r = recorder();
+		const lines: string[] = [];
+		await openAttachment(attachmentRow(path), r.host, (line) => lines.push(line));
+		assert.deepEqual(r.files, []);
+		assert.deepEqual(r.opened, []);
+		assert.deepEqual(r.checkpoints, []);
+		assert.deepEqual(r.errors, []);
+		assert.deepEqual(r.offered, []);
+		assert.deepEqual(r.logged, []);
+		assert.equal(lines.length, 1, `the handler said: ${lines.join(" | ")}`);
+		assert.ok(
+			lines[0].includes("no path"),
+			`the row did not say why it opened nothing: ${lines.join(" | ")}`,
+		);
+	}
+});
+
+// ---------------------------------------------------------------------------
 // contextFor, and the argument the Command Palette does not pass
 // ---------------------------------------------------------------------------
 
@@ -304,6 +393,7 @@ const silentHost: CommandHost = {
 	pick: async () => undefined,
 	input: async () => undefined,
 	openDocument: async () => undefined,
+	openFile: async () => undefined,
 	checkpoint: async () => undefined,
 	log: () => undefined,
 };
@@ -370,6 +460,52 @@ test("contextFor answers undefined for a row that is not a card", () => {
 			`a ${row.kind} row composed a context`,
 		);
 	}
+});
+
+test("a row that names no attachment at all opens nothing and says which command was misaimed", async () => {
+	const r = recorder();
+	const lines: string[] = [];
+	// A note row is a row of the wrong kind, and the same guard has to fire
+	// for every kind the tree composes.
+	const wrong: TreeElement = {
+		kind: "note",
+		owner: rowFixture(),
+		text: "nothing to open here",
+		tooltip: "nothing to open here",
+	};
+	await openAttachment(wrong, r.host, (line) => lines.push(line));
+	assert.deepEqual(r.files, []);
+	assert.equal(lines.length, 1);
+	assert.ok(
+		lines[0].includes("dinah.tree.openAttachment"),
+		`the row did not name the command that was misaimed: ${lines.join(" | ")}`,
+	);
+});
+
+test("openAttachment survives the argument the Command Palette does not pass", async () => {
+	// The palette invokes a command with no argument at all, and this handler
+	// read element.kind before it had established that an element arrived, so
+	// the invocation threw a TypeError and the reader saw "Running the
+	// contributed command failed" instead of a sentence naming the cause. Two
+	// reviewers flagged the shape on this card while dinah-342 was in flight,
+	// and the repair belongs here because that card's branch never touched
+	// this file. The row command is also hidden from the palette now, which
+	// closes the route rather than the hole; both are wanted, because a
+	// keybinding and another extension reach the handler past the manifest.
+	const r = recorder();
+	const lines: string[] = [];
+	await openAttachment(undefined, r.host, (line) => lines.push(line));
+	assert.deepEqual(r.files, []);
+	assert.deepEqual(r.opened, []);
+	assert.deepEqual(r.checkpoints, []);
+	assert.deepEqual(r.errors, []);
+	assert.deepEqual(r.offered, []);
+	assert.deepEqual(r.logged, []);
+	assert.equal(lines.length, 1, `the handler said: ${lines.join(" | ")}`);
+	assert.ok(
+		lines[0].includes("dinah.tree.openAttachment"),
+		`the absent row did not name the command that was misaimed: ${lines.join(" | ")}`,
+	);
 });
 
 test("contextFor still composes the context a card row names", () => {
