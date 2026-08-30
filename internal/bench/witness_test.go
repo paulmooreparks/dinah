@@ -219,7 +219,7 @@ func TestWriteWitnessesTouchesOnlyTheCardsThatDiverge(t *testing.T) {
 		t.Fatalf("write witnesses: %v", err)
 	}
 	if len(findings) != 0 {
-		t.Errorf("the repair raised %v on a bench holding nothing in its way", findings)
+		t.Errorf("the repair raised %v on a workbench holding nothing in its way", findings)
 	}
 	if len(witnessed) != 1 || witnessed[0] != "c00000000001" {
 		t.Fatalf("witnessed %v, wanted the diverging card alone", witnessed)
