@@ -340,7 +340,9 @@ deliberate act.
 Hand-editing frontmatter is legal the way editing a git ref with an editor is
 legal. The CLI notices divergence between current column and the journal on
 next touch and records a manual-correction event rather than pretending the
-edit did not happen.
+edit did not happen. No command in this build writes a
+`manual_correction` event yet, so the detection this paragraph describes
+is intended rather than implemented.
 
 ## Flow definition
 
@@ -639,6 +641,130 @@ workbench is versioned, and integrity of decisions is the journal's, earned by
 being append-only and witnessed; machine-field divergence is caught by
 replay, and verb-time races by the basis guard, which hashes transiently
 and stores nothing.
+
+### Journal event schema
+
+Every journal line names an event, and the core event names are a closed set
+of twenty-one, which `internal/contract` declares as constants. Nineteen of
+them are written by some command in this build. The two that are not,
+`restored` and `manual_correction`, are declared and reserved, and
+`cmd/dinah/compat_test.go`'s `unwrittenEvents` table records the reason each
+stays unwritten. No verb is wired to `restored` yet, though the structural
+machinery a restore would use already exists, and a person editing a journal
+by hand writes `manual_correction` rather than a command writing it.
+
+A second count of nineteen sits nearby and names a different set.
+`contract.Events` is the vocabulary a query over cards accepts, and it holds
+out `workbench_updated` and `workstream_updated`, since each of those lands on
+the workbench's journal or on a workstream's and never on a card's. Both
+counts are nineteen by coincidence.
+
+The set stays closed mechanically rather than by inspection. A twenty-second
+constant fails the build unless it reaches the sample fixture's journal or is
+named in `unwrittenEvents`, which is the coverage alarm the Versioning section
+describes.
+
+A reader that meets an event name it does not know reads the line, keeps it,
+and hands it on exactly as written. A name carrying a dot,
+`<namespace>.<name>`, belongs to an extension kind that declared
+`journal: true`, and it is legitimate whatever it says. A name carrying no dot
+is one of the twenty-one, or one a different build wrote, whether an older
+build or a core revision this build's profile ceiling has not reached. Dinah
+refuses no read on account of the event name a line carries. Rendering,
+ordinal replay, and position replay each switch on the event name and none of
+them declares a default case, so a line naming an event they do not recognise
+renders no detail and takes no part in replay, while surviving the read
+unchanged.
+
+Three fields are present on every line whatever the event: `ts`, the RFC 3339
+timestamp; `event`, the name; and `actor`, who acted. Dinah refuses to write
+an event with no actor rather than inventing one, per the Actors and
+attribution section. Beyond those three, each event carries fields of its own.
+A field listed below as always present is written every time that event is
+written. A field listed as conditional is written only when its stated
+condition holds, and its absence is that line's own story rather than damage,
+so a `claimed` line with no `expires` records an unbounded claim.
+
+| event | always present | conditional |
+|---|---|---|
+| `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
+| `claimed` | | `expires`, when the claim carried a duration |
+| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only under a CORE-MOVE-9 override; `reject`, true only when the destination is the departure column's own `reject_to` target |
+| `released` | | |
+| `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
+| `unblocked` | | |
+| `expired` | `expires` | |
+| `commented` | `comment` | |
+| `attached` | `attachment`, `filename` | |
+| `attachment_replaced` | `attachment`, `filename` | |
+| `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal |
+| `attachment_renamed` | `attachment`, `filename`, `from` (the previous filename) | |
+| `archived` | `note` (the entity's own id) | |
+| `deleted` | `note` (the entity's own id) | `title`, present only when the deleted entity's kind carries one Dinah can resolve at that moment, which covers a card, a workstream, and a column, and leaves out a comment |
+| `workbench_updated` | `field` | `from` and `to`, each omitted on the side of the write where the value is empty |
+| `workstream_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
+| `workstream_joined` | `workstream` | |
+| `workstream_left` | `workstream` | |
+| `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
+| `restored` | `note` (the entity's own id) | |
+| `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
+
+An `expired` line carries `expires` unconditionally because the event fires
+only when a claim's own expiry lapsed, so the field it reports is never empty.
+The `created` row lists no field as always present, because three commands
+write that event and they write three shapes. A card's line carries the title
+and the column the card was created in, a new workstream's carries the title
+alone, and the line `check` writes when it adopts a dangling workstream
+carries the skeleton and nothing else.
+
+Every row above `restored` describes lines this build writes, and each was
+read off the writing verb and checked against the sample fixture's journal.
+The last two rows come from somewhere else, and each says where.
+
+`restored` is not written by any command, so its row is not read off writing
+code. The requirement comes from `internal/bench/finish.go`'s `eventRecords`,
+the crash-recovery function that decides whether a structural act already has
+its point of record on the journal. To recognise a restore, that function
+requires the line to name `restored` and to carry `note` equal to the entity's
+own identifier, which is the same requirement it puts on an `archived` line
+one branch above. A `restored` line failing it leaves the restore outstanding.
+Nothing else in the tree asks anything of the event's other fields, so the row
+states the one field shipped code enforces and does not borrow the four-field
+shape `moved` carries.
+
+`manual_correction` is not written by any command either, and its row is
+specified ahead of the implementation rather than read off one. Two sources
+give the shape. dinah-314, which owns the verb-level behaviour of writing the
+line, states in its own description that `from` is the position replay
+reached, `to` is what the anchor says, and `from_title` and `to_title` stand
+as of the moment. CORE-HIST-4 requires a recorded move to carry the identifier
+and the title, as they stood at the time of the move, of the column left and
+the column entered. A witness line corrects what replay believes a card's
+column to be, which is a move whose actor is whoever noticed the divergence,
+so it reuses the four fields `moved` already carries rather than inventing a
+second shape for the same fact. The `Event` struct declares `From`, `To`,
+`FromTitle`, and `ToTitle` as shared fields, so nothing new is added to it.
+When the line is written, which verb or check writes it, and whether writing
+it can be refused are dinah-314's questions and are not settled here.
+
+A line missing a field this schema calls always present is still a line. The
+torn trailing line the Corruption and recovery section covers is a crash
+artifact, and a complete JSON object that omits a field is a different case.
+Dinah reads such a line without complaint, and the absent field reads back
+empty, since the decode carries no presence check of its own. A consumer that
+depends on the field says plainly what it lacks rather than inventing a
+plausible value.
+
+Nothing rewrites a published line to add what the schema later asks for. A
+journal written before a field was required lacks that field forever, and
+every reader tolerates the absence as a fact about the format's history.
+Rewriting a historical line is the act an append-only journal exists to make
+impossible, so no migration reaches one, however cheap the repair would look.
+
+Adding a field to an event later is safe, for the same reason an unknown event
+name is. A reader ignores a key it declares no field for, so a build meeting a
+key it does not know keeps reading, and a line written before a field existed
+stays readable by every build after it.
 
 ## Checklist items
 
@@ -1739,9 +1865,6 @@ point being exercised.
 
 ## Open questions
 
-- The journal event schema, normatively: required fields per event kind
-  (the shape is settled by the worked example; the profile still owes the
-  normative statement of it).
 - Branching and lanes, when the linear flow stops being enough; the Alka
   workbench already contains one prose shortcut that will eventually force
   this.
