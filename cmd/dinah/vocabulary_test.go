@@ -616,6 +616,9 @@ func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
 	if err := json.Unmarshal([]byte(second.out), &report); err != nil {
 		t.Fatalf("read the second run's JSON report: %v\n%s", err, second.out)
 	}
+	if report.Outcome != contract.ReadOK {
+		t.Errorf("a walk with nothing left to carry forward reports outcome %q, wanted %q:\n%s", report.Outcome, contract.ReadOK, second.out)
+	}
 	if len(report.Migrated) != 0 {
 		t.Errorf("the second run carried %d workbenches forward, and there was nothing left to carry:\n%s", len(report.Migrated), second.out)
 	}
@@ -718,8 +721,23 @@ func TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation(t *testing.T)
 	}
 
 	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary")
-	if got.code == 0 {
-		t.Errorf("a preview holding three workbenches still to carry forward exited 0:\n%s", got.out)
+	if got.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Errorf("a preview holding three workbenches still to carry forward exited %d, wanted %d:\n%s", got.code, contract.ExitCodeForRead(contract.ReadFindings), got.out)
+	}
+	// The same preview through the JSON head, so the outcome a scripted or
+	// MCP-shaped caller reads is asserted beside the exit code a shell reads.
+	// dinah-346 added both, and a run carrying one without the other would
+	// leave half of this command's callers guessing again.
+	machine := runCLI(t, root, "--json", "--workbench", root, "check", "--migrate-vocabulary")
+	if machine.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Errorf("the JSON preview exited %d, wanted %d:\n%s", machine.code, contract.ExitCodeForRead(contract.ReadFindings), machine.out)
+	}
+	previewed := verb.TreeVocabularyReport{}
+	if err := json.Unmarshal([]byte(machine.out), &previewed); err != nil {
+		t.Fatalf("read the JSON preview: %v\n%s", err, machine.out)
+	}
+	if previewed.Outcome != contract.ReadFindings {
+		t.Errorf("a preview with three workbenches left to carry forward reports outcome %q, wanted %q", previewed.Outcome, contract.ReadFindings)
 	}
 	if !strings.Contains(got.out, "--yes") {
 		t.Errorf("the preview does not name the flag that would authorize it:\n%s", got.out)
