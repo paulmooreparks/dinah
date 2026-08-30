@@ -1288,3 +1288,36 @@ func TestWorkbenchesRefusesARootWithAnUnreadableAnchor(t *testing.T) {
 		t.Errorf("refusal message: wanted it to name the unreadable anchor %q, got %q", anchorPath, answer.Error.Message)
 	}
 }
+
+// TestTheCheckToolSaysWhetherItFoundAnything is dinah-346 AC-6. MCP carries no
+// exit code, so before this member a caller had to guess from whether the
+// findings array came back empty, null or absent, which is the guesswork
+// dinah-281 already ruled out once for a value of the same shape. The clean
+// case and the dirty one are asserted in one test because the member is only
+// worth anything if it distinguishes them.
+func TestTheCheckToolSaysWhetherItFoundAnything(t *testing.T) {
+	library := newLibrary(t)
+	clean := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check","arguments":{}}}`))
+	outcome, carried := clean["outcome"]
+	if !carried {
+		t.Fatalf("the check tool's answer carries no outcome member: %v", clean)
+	}
+	if outcome != contract.ReadOK {
+		t.Errorf("a clean workbench answers outcome %v, wanted %q, over findings %v", outcome, contract.ReadOK, clean["findings"])
+	}
+
+	// A directory under the cards root with no anchor file in it, which is
+	// the simplest defect the checker names and one no repair here touches.
+	stray := filepath.Join(library.Bench.CardsRoot(), "f00000000001")
+	if err := os.MkdirAll(stray, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	dirty := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"check","arguments":{}}}`))
+	if dirty["outcome"] != contract.ReadFindings {
+		t.Errorf("a workbench carrying a defect answers outcome %v, wanted %q, over findings %v", dirty["outcome"], contract.ReadFindings, dirty["findings"])
+	}
+	found, ok := dirty["findings"].([]any)
+	if !ok || len(found) == 0 {
+		t.Errorf("the answer reports findings %v, and the outcome member is worth nothing unless the array agrees with it", dirty["findings"])
+	}
+}

@@ -1444,6 +1444,22 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 		if got := runCLI(t, root, "check", flag); got.code != 0 {
 			t.Errorf("check %s on a clean workbench: %d %s", flag, got.code, got.errw)
 		}
+		// dinah-346: every flag reaches the same exit-code site, so the
+		// clean case is asserted for each of them on the machine head too,
+		// where the outcome member says the same thing the code does.
+		machine := runCLI(t, root, "--json", "check", flag)
+		if machine.code != contract.ExitCodeForRead(contract.ReadOK) {
+			t.Errorf("check --json %s on a clean workbench exited %d, wanted %d:\n%s", flag, machine.code, contract.ExitCodeForRead(contract.ReadOK), machine.out)
+		}
+		var carried struct {
+			Outcome string `json:"outcome"`
+		}
+		if err := json.Unmarshal([]byte(machine.out), &carried); err != nil {
+			t.Fatalf("decode check --json %s: %v\n%s", flag, err, machine.out)
+		}
+		if carried.Outcome != contract.ReadOK {
+			t.Errorf("check --json %s on a clean workbench reports outcome %q, wanted %q", flag, carried.Outcome, contract.ReadOK)
+		}
 	}
 }
 
@@ -1966,6 +1982,14 @@ func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
 	}
 
 	migrated := runCLI(t, root, "check", "--migrate-ordinals")
+	// dinah-346: the migration stamped the ordinal, so the checker that runs
+	// after it finds nothing, and the guess is the whole report's only
+	// finding. That makes this the case where an outcome computed before the
+	// migration branch appended would call the run clean, so the exit code is
+	// asserted here as well as the sentence.
+	if migrated.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Errorf("a migration reporting a guess exited %d, wanted %d:\n%s", migrated.code, contract.ExitCodeForRead(contract.ReadFindings), migrated.out)
+	}
 	if !strings.Contains(migrated.out, "Stamped 1 creation ordinal.") {
 		t.Errorf("the migration did not say what it stamped:\n%s", migrated.out)
 	}
@@ -1988,6 +2012,16 @@ func TestTheOrdinalMigrationSaysWhatItGuessed(t *testing.T) {
 	flattened := strings.Join(strings.Fields(machine.out), "")
 	if !strings.Contains(flattened, `"stamped_ordinals":1`) {
 		t.Errorf("the machine form carries no stamped count:\n%s", machine.out)
+	}
+	if machine.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Errorf("the JSON migration exited %d, wanted %d:\n%s", machine.code, contract.ExitCodeForRead(contract.ReadFindings), machine.out)
+	}
+	reported := verb.CheckReport{}
+	if err := json.Unmarshal([]byte(machine.out), &reported); err != nil {
+		t.Fatalf("read the machine form: %v\n%s", err, machine.out)
+	}
+	if reported.Outcome != contract.ReadFindings {
+		t.Errorf("the machine form reports outcome %q over %d findings, wanted %q", reported.Outcome, len(reported.Findings), contract.ReadFindings)
 	}
 	if !strings.Contains(machine.out, bench.FindingOrdinalGuessed) || !strings.Contains(machine.out, "e00000000002") {
 		t.Errorf("the machine form does not name the entity it guessed at:\n%s", machine.out)
@@ -5880,9 +5914,18 @@ func TestCheckReportsAndAdoptsAMembershipNamingNothing(t *testing.T) {
 		t.Errorf("the finding names neither the identifier nor the card's anchor:\n%s", reported.out)
 	}
 	machine := runCLI(t, root, "--json", "check")
+	// dinah-346: the JSON head and the human head are separate exit-code
+	// sites, so the machine run is held to the same code the human one above
+	// is, and to the outcome member a caller reads instead of the code.
+	if machine.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Errorf("the machine form exited %d, wanted %d:\n%s", machine.code, contract.ExitCodeForRead(contract.ReadFindings), machine.out)
+	}
 	var report verb.CheckReport
 	if err := json.Unmarshal([]byte(machine.out), &report); err != nil {
 		t.Fatalf("decode the machine form: %v\n%s", err, machine.out)
+	}
+	if report.Outcome != contract.ReadFindings {
+		t.Errorf("the machine form reports outcome %q over %d findings, wanted %q", report.Outcome, len(report.Findings), contract.ReadFindings)
 	}
 	found := false
 	for _, finding := range report.Findings {

@@ -2520,3 +2520,68 @@ func TestArchivingAWorkstreamLeavesItsMembersResolvable(t *testing.T) {
 		}
 	}
 }
+
+// TestACheckReportSaysWhetherItFoundAnything is dinah-346 AC-2. The three
+// cases are the three a client has to tell apart, and the third is the one
+// that constrains where the outcome is computed: a migration branch appends
+// its own findings before the checker runs, so a report stamped any earlier
+// than the end of Check would call that run clean.
+func TestACheckReportSaysWhetherItFoundAnything(t *testing.T) {
+	h := newHarness(t)
+	clean, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if clean.Outcome != contract.ReadOK {
+		t.Errorf("a clean bench reports outcome %q, wanted %q, over findings %+v", clean.Outcome, contract.ReadOK, clean.Findings)
+	}
+
+	// A directory under the cards root carrying no anchor file, which the
+	// checker reports and no migration in this request touches.
+	stray := filepath.Join(h.library.Bench.CardsRoot(), "f00000000001")
+	if err := os.MkdirAll(stray, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	h.reopen()
+	dirty, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if dirty.Outcome != contract.ReadFindings {
+		t.Errorf("a bench carrying %d findings reports outcome %q, wanted %q", len(dirty.Findings), dirty.Outcome, contract.ReadFindings)
+	}
+	if err := os.Remove(stray); err != nil {
+		t.Fatalf("remove the stray directory: %v", err)
+	}
+
+	// A comment written by hand, carrying no ordinal and named by no journal
+	// entry. The ordinal migration stamps it and reports the guess it had to
+	// make, and the checker that runs afterwards finds nothing at all, so
+	// the whole report's findings came from the migration branch.
+	card := h.add("A card the migration reaches")
+	byHand := filepath.Join(filepath.Dir(h.card(card).AnchorPath()), bench.CommentsDir, "e00000000001")
+	if err := os.MkdirAll(byHand, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	body := "---\nts: 2026-08-17T09:00:00Z\nauthor: alka\n---\nBy hand.\n"
+	if err := os.WriteFile(filepath.Join(byHand, bench.CommentAnchor), []byte(body), 0o644); err != nil {
+		t.Fatalf("write the comment: %v", err)
+	}
+	h.reopen()
+	migrated, err := h.library.Check(&Request{Verb: "check", Actor: "alka", MigrateOrdinals: true})
+	if err != nil {
+		t.Fatalf("check --migrate-ordinals: %v", err)
+	}
+	if migrated.Outcome != contract.ReadFindings {
+		t.Errorf("a migration that reported %+v carries outcome %q, wanted %q", migrated.Findings, migrated.Outcome, contract.ReadFindings)
+	}
+	guessedOnly := len(migrated.Findings) > 0
+	for _, finding := range migrated.Findings {
+		if finding.Key != bench.FindingOrdinalGuessed {
+			guessedOnly = false
+		}
+	}
+	if !guessedOnly {
+		t.Errorf("wanted the migration branch to be the only source of findings, got %+v", migrated.Findings)
+	}
+}
