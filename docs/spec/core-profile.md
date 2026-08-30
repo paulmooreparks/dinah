@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.7`, maturity channel `dev`.
+Version identity: `dinah-core 0.8`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -43,7 +43,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.7 of the profile whose identity string is
+This document is version 0.8 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -151,7 +151,7 @@ MUST NOT ->  SHOULD NOT
 A workbench definition names the profile version it was written against, so a
 tool meeting an unfamiliar workbench refuses it in one clear sentence instead
 of misreading it quietly. The statements that carry this are CORE-BENCH-3 and
-CORE-BENCH-4 in section 5.
+CORE-BENCH-5 in section 5.
 
 ### 2.4 The changelog
 
@@ -434,7 +434,7 @@ about how one workbench relates to another.
 
 [CORE-BENCH-3] A workbench definition MUST declare the major number and the minor number of the profile version it targets.
 
-[CORE-BENCH-4] A tool MUST refuse to act on a workbench definition whose declared major number it does not implement, reporting the refusal name `unsupported-version`.
+[CORE-BENCH-5] A tool MUST refuse to act on a workbench definition declaring a profile version that sorts after the profile version the tool's own conformance claim names, ordering two profile versions by major number first and, where the major numbers are equal, by minor number, reporting the refusal name `unsupported-version`.
 
 ### 5.2 Columns
 
@@ -713,16 +713,16 @@ instead, so a card naming a column its workbench does not declare is
 `unknown-column` rather than `malformed`.
 
 Two refusals belong to the workbench rather than to any verb, and they are
-evaluated before the verb's own list. CORE-BENCH-4 refuses a workbench whose
-declared major number the tool does not implement, and CORE-OWNER-3 refuses a
-workbench that designates no operator. A tool that cannot read the definition
-cannot evaluate anything a verb requires of it, and a workbench with nobody
-answering for it cannot be acted on whatever the verb is, so both sit ahead
-of every list in 6.3 to 6.7:
+evaluated before the verb's own list. CORE-BENCH-5 refuses a workbench whose
+declared profile version sorts after the version the tool's own conformance
+claim names, and CORE-OWNER-3 refuses a workbench that designates no
+operator. A tool that cannot read the definition cannot evaluate anything a
+verb requires of it, and a workbench with nobody answering for it cannot be
+acted on whatever the verb is, so both sit ahead of every list in 6.3 to 6.7:
 
 ```
-1  the workbench declares a major number the tool implements   unsupported-version
-2  the workbench designates an operator                        no-operator
+1  the workbench declares a profile version the tool implements  unsupported-version
+2  the workbench designates an operator                          no-operator
 ```
 
 Each verb's list is derived rather than composed. Five tiers order the
@@ -1142,7 +1142,7 @@ quietly.
 | The order in which a tool evaluates its checks | in | Several mandatory refusals can apply to one request, and a caller that cannot predict which name comes back cannot decide what to do with the name it gets. The order fixes which name that is, and DOC-ORDER-2 and DOC-ORDER-3 put the order under the same version discipline as the statements, so no later revision changes a tool's answer by rearranging a list. | | CORE-OUT-6, DOC-ORDER-2, DOC-ORDER-3 |
 | The behaviour when an owner acts on a card another owner holds | in | This is the one place where two owners collide, and leaving it undefined would let one tool queue the second owner's request and another grant it. Claim, move, release and block are ruled together, because a block clears the claim and would otherwise be the way around the rule. | | CORE-CLAIM-2, CORE-MOVE-3, CORE-RELEASE-1, CORE-BLOCK-6 |
 | The layer declaration mechanism | in | Section 9 is required structure, and a profile that excluded concerns without saying how to add them back would be telling implementers to fork it. | | CORE-LAYER-1, CORE-LAYER-2, CORE-LAYER-3, DOC-LAYER-1, DOC-LAYER-2 |
-| The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-4 |
+| The profile version a workbench targets | in | A tool meeting a workbench from a future revision has to refuse it in one clear sentence rather than misread it quietly. | | CORE-BENCH-3, CORE-BENCH-5 |
 | The conformance claim and what it is evaluated over | in | A claim nobody can check is a claim worth nothing, so the profile fixes what a claim names and which statements a run exercises. | | CORE-VER-1, CORE-VER-2, SUITE-CONF-1 |
 | This document's own version discipline and its changelog | in | Two tools built against different revisions have to be able to tell what changed between them, and a discipline stated as operations over the statement list is one a machine can check rather than one a reader has to trust. | | DOC-VER-1, DOC-VER-11, DOC-VER-12, DOC-VER-4, DOC-VER-7, DOC-VER-8, DOC-VER-9, DOC-VER-10, DOC-VER-6, DOC-CHG-1, DOC-CHG-2 |
 | The waiting order within a column | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
@@ -1310,7 +1310,7 @@ themselves carry meaning.
 | CORE-BENCH-1 | must | tool | A workbench definition offered with no title is refused with `malformed`. |
 | CORE-BENCH-2 | must | tool | A workbench definition offered with an empty column list is refused with `malformed`. |
 | CORE-BENCH-3 | must | tool | A workbench definition offered with no declared profile version is refused with `malformed`. |
-| CORE-BENCH-4 | must | tool | A definition declaring a major number the tool does not implement is refused with `unsupported-version`. |
+| CORE-BENCH-5 | must | tool | A definition declaring a profile version that sorts after the version the tool implements, comparing major number first and minor number second where the majors are equal, is refused with `unsupported-version`. |
 | CORE-STATE-1 | must | tool | A definition carrying two columns under one identifier is refused with `malformed`. |
 | CORE-STATE-2 | must | tool | A definition carrying a column with no title is refused with `malformed`. |
 | CORE-STATE-11 | must | tool | A definition carrying a column whose kind is neither one this profile declares nor one carrying a layer's prefix is refused with `malformed`. |
@@ -1428,7 +1428,7 @@ over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.7`. Entries below stay in the order
+The current revision is `dinah-core 0.8`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -1717,3 +1717,41 @@ A reader who meets either refusal reaches for `dinah check`, so the checker
 reports both conditions itself, under `check.card-vocabulary-retired` and
 `check.card-vocabulary-mixed`. It does not report such a card as a directory
 carrying no anchor file, which is untrue of a file that is plainly there.
+
+### 0.8, channel `dev`, 2026-08-31
+
+Identifiers affected: CORE-BENCH-4, retired. CORE-BENCH-5, introduced,
+carrying CORE-BENCH-4's demand with the comparison widened from the major
+number alone to the full profile version, ordered by major number and then,
+where the major numbers are equal, by minor number. No other identifier in
+the section 11 index is affected.
+
+CORE-BENCH-4 is retired because it named a mismatch of major numbers as the
+sole condition for `unsupported-version`, and every revision this document
+now names carries major 0. Section 2.1 reserves the crossing to major 1 for
+the same named event that promotes this document to `stable`, so a workbench
+written against any revision published so far declares major 0, and a tool
+conforming to any of them implements major 0. The condition CORE-BENCH-4
+states cannot hold between such a workbench and such a tool, however far
+apart the two revisions are. A workbench declaring a later minor of a major
+the tool does implement is the case the section 10 boundary row for the
+profile version a workbench targets was written for, where a tool meeting a
+workbench from a future revision refuses it in one clear sentence rather than
+misreading it quietly, and CORE-BENCH-4's text did not reach that case.
+CORE-BENCH-5 carries the same demand over the comparison a tool needs, which
+is the full profile version, major number first and minor number second where
+the major numbers are equal.
+
+Consequence for a caller. A tool conforming to this revision refuses a
+workbench definition whose declared profile version sorts after the version
+the tool's own conformance claim names, whatever the two major numbers are,
+rather than refusing only on a mismatch of major numbers. A workbench
+declaring an earlier profile version of the same major is unaffected, since
+CORE-BENCH-5 does not refuse it and CORE-BENCH-4 did not refuse it either. A
+tool that has never met a workbench declaring a different major sees no
+change until it meets one declaring a later minor of its own major, which is
+a case CORE-BENCH-4 could never have told it to refuse. This entry moves the
+minor number under DOC-VER-7, which sends a retirement to the minor number
+while this document's own major number is 0. The document sits on the `dev`
+channel, so nothing here binds a caller who has not already opted into
+`dinah-core 0.8`.

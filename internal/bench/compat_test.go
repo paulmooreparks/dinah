@@ -86,6 +86,10 @@ func TestAdmitProfileReadsThePublishedLineAndRefusesTheRest(t *testing.T) {
 	}
 	refused := []string{
 		"dinah-core/0.0",
+		// The case CORE-BENCH-4's major-only text could not reach, and the one
+		// CORE-BENCH-5 names: this build's own major, a minor above the
+		// ceiling it implements.
+		"dinah-core/0.8",
 		"dinah-core/1.1",
 		"dinah-core/2.0",
 		"dinah-core/3.0",
