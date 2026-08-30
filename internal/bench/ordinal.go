@@ -12,11 +12,14 @@ import (
 // a one-based integer counting the entity's own arrival within the collection
 // instance it was created in.
 //
-// The ordinal is what a positional reference such as `<card>/comment/2`
-// selects on. The directory listing cannot serve that reference, because a
-// hex identifier is random and the listing is therefore in no order anybody
-// wrote in, and the comment timestamp cannot either, because it is wall-clock
-// and two processes writing inside one second record the same value.
+// The ordinal is a sort key, never an address: it orders the collection, and
+// a positional reference such as `<card>/comment/2` selects whichever member
+// stands second once the collection is sorted into that order, not the member
+// whose stored ordinal happens to read 2. The directory listing cannot supply
+// that order, because a hex identifier is random and the listing is therefore
+// in no order anybody wrote in, and the comment timestamp cannot either,
+// because it is wall-clock and two processes writing inside one second record
+// the same value.
 const OrdinalField = "ordinal"
 
 // OrdinalOf reads the creation ordinal out of an anchor's frontmatter. A
