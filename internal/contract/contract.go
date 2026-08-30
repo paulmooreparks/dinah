@@ -40,6 +40,43 @@ func ExitCode(outcome string) int {
 	return 1
 }
 
+// The two outcome tokens a structural read reports. They are a vocabulary of
+// their own and not a fifth and sixth member of the four above, which
+// CORE-OUT-1 closes at four for a verb's outcome. A read that dinah check or
+// a tree-wide vocabulary migration performs is not a verb the core profile
+// governs, so a token minted here costs no profile revision and takes no
+// DOC-VER version-discipline step. A read's own outcome is never refused,
+// stale or unreachable either: an invocation that could not attempt the read
+// at all is reported through the ordinary refusal path before the read runs,
+// and never carries one of these values (dinah-346).
+const (
+	ReadOK       = "ok"
+	ReadFindings = "findings"
+)
+
+// ExitCodeForRead returns the process exit code a structural-read report
+// carries: 0 for ReadOK and 5 for ReadFindings. A token neither of those
+// names exits 1, on the same terms ExitCode reserves 1 for an outcome the
+// profile does not declare.
+//
+// The table is deliberately kept apart from ExitCode's own, so that 2 out of
+// dinah check means one thing and one thing only, which is that the
+// invocation itself was refused. Both commands used to force 2 by hand for a
+// read that completed and found something to report, and a caller reading $?
+// could not tell a bad --workbench from a workbench carrying defects
+// (dinah-346). 5 rather than 1 carries the new meaning because ExitCode
+// reserves 1 for a response nothing conforming can produce, and handing that
+// code a real, expected meaning would replace one overload with another.
+func ExitCodeForRead(outcome string) int {
+	switch outcome {
+	case ReadOK:
+		return 0
+	case ReadFindings:
+		return 5
+	}
+	return 1
+}
+
 // The sixteen refusal names section 6.1 of the profile declares. A refusal
 // Dinah reports that is not one of these carries the layer prefix of
 // LayerPrefix, which CORE-OUT-3 admits and DOC-LAYER-1 keeps collision-free.
