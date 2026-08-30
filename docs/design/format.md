@@ -281,6 +281,18 @@ the tool refuses to delete a column that cards currently occupy. Backward,
 invariants hold. Check is what makes "manually editable if absolutely
 necessary" safe: edit by hand, then ask the tool whether you broke anything.
 
+The machine answer that `dinah check` and `dinah check --migrate-vocabulary`
+return carries an `outcome` field of its own, which is `"ok"` when the read
+found nothing to report and `"findings"` when it did. That field is a separate
+vocabulary from a refusal's `outcome: "refused"`, and the two never collide,
+because a workbench the read could not even open is answered through the
+ordinary refusal shape before either command runs, and a read that completed is
+never itself refused. The exit codes follow the same split. `dinah check` exits
+5 rather than 0 when its `outcome` is `"findings"`, and a genuine refusal, such
+as a `--workbench` naming nothing or a workbench declaring an unsupported
+profile revision, still exits 2 on the terms every other command's refusal
+does.
+
 ### State
 
 `state` is one of `ready`, `active`, `blocked`. The invariants: `active`
