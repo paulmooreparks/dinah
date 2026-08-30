@@ -711,12 +711,12 @@ so a `claimed` line with no `expires` records an unbounded claim.
 
 An `expired` line carries `expires` unconditionally because the event fires
 only when a claim's own expiry lapsed, so the field it reports is never empty.
-The `created` row is the one row with nothing beyond the skeleton in its
-always-present column, because three commands write that event and they
-write three shapes. A card's line carries the title and the column it was
-created in, a new workstream's carries the title alone, and the line `check`
-writes when it adopts a dangling workstream carries the skeleton and nothing
-else.
+The `created` row lists no field as always present, because three commands
+write that event and they write three shapes. A card's line carries the title
+and the column the card was created in, a new workstream's carries the title
+alone, and the line `check` writes when it adopts a dangling workstream
+carries the skeleton and nothing else.
+
 Every row above `restored` describes lines this build writes, and each was
 read off the writing verb and checked against the sample fixture's journal.
 The last two rows come from somewhere else, and each says where.
