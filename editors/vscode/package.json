@@ -105,6 +105,32 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "dinah.tree.openCard",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.claim",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.move",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.release",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.block",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.unblock",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "dinah.tree.refresh",
