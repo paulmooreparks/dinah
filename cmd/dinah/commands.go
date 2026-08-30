@@ -1020,12 +1020,8 @@ func runCheck(s *session, parsed *arguments) int {
 			return s.reportError(err)
 		}
 		if s.format != formatHuman {
-			code := 0
-			if len(report.Findings) > 0 {
-				code = contract.ExitCode(contract.OutcomeRefused)
-			}
 			s.emitMachine(report)
-			return code
+			return contract.ExitCodeForRead(report.Outcome)
 		}
 		return s.renderCheck(report)
 	})
@@ -1515,10 +1511,7 @@ func runMigrateVocabulary(s *session, confirmed bool) int {
 	if err != nil {
 		return s.reportError(err)
 	}
-	code := 0
-	if !report.Clean() {
-		code = contract.ExitCode(contract.OutcomeRefused)
-	}
+	code := contract.ExitCodeForRead(report.Outcome)
 	if s.format != formatHuman {
 		s.emitMachine(report)
 		return code

@@ -3110,8 +3110,8 @@ func TestCheckReportsTheForeignAnchorsAWalkPassedOver(t *testing.T) {
 	}
 
 	got := runCLI(t, notes, "check")
-	if got.code != contract.ExitCode(contract.OutcomeRefused) {
-		t.Fatalf("a workbench carrying a finding exits refused, got %d %q", got.code, got.errw)
+	if got.code != contract.ExitCodeForRead(contract.ReadFindings) {
+		t.Fatalf("a workbench carrying a finding exits with the findings code, got %d %q", got.code, got.errw)
 	}
 	catalog := msg.For(msg.Base)
 	if !strings.Contains(got.out, catalog.T(bench.FindingIgnoredAnchor)) || !strings.Contains(got.out, foreign) {
@@ -5294,7 +5294,7 @@ func TestAStoredWorkbenchSlugOutsideTheGrammarIsReportedAndStillOpens(t *testing
 		t.Fatalf("the workbench should still open: %d %q %s", got.code, got.out, got.errw)
 	}
 	reported := runCLI(t, root, "check")
-	if reported.code != contract.ExitCode(contract.OutcomeRefused) {
+	if reported.code != contract.ExitCodeForRead(contract.ReadFindings) {
 		t.Fatalf("check should report the slug: %d %s", reported.code, reported.out)
 	}
 	wanted := msg.For(msg.Base).T(bench.FindingWorkbenchSlugMalformed, "detail", "sprint-2")
@@ -5873,7 +5873,7 @@ func TestCheckReportsAndAdoptsAMembershipNamingNothing(t *testing.T) {
 	}
 
 	reported := runCLI(t, root, "check")
-	if reported.code != 2 {
+	if reported.code != contract.ExitCodeForRead(contract.ReadFindings) {
 		t.Fatalf("check on a workbench carrying a dangling membership: %d", reported.code)
 	}
 	if !strings.Contains(reported.out, "f00000000009") || !strings.Contains(reported.out, path) {
@@ -6004,7 +6004,7 @@ func TestAHandWrittenWorkstreamDirectoryIsSkippedRatherThanRefused(t *testing.T)
 	}
 
 	reported := runCLI(t, root, "check")
-	if reported.code != 2 {
+	if reported.code != contract.ExitCodeForRead(contract.ReadFindings) {
 		t.Fatalf("check on a workbench carrying a directory with no anchor: %d", reported.code)
 	}
 	if !strings.Contains(reported.out, "f00000000001") {

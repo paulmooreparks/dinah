@@ -484,7 +484,7 @@ func readCheck(l *verb.Library, r *verb.Request) any {
 	if err != nil {
 		return l.FromError(r, err)
 	}
-	answer := map[string]any{"findings": report.Findings}
+	answer := map[string]any{"outcome": report.Outcome, "findings": report.Findings}
 	if report.StampedOrdinals != nil {
 		answer["stamped_ordinals"] = *report.StampedOrdinals
 	}
