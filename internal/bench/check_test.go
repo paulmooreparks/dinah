@@ -257,10 +257,10 @@ func TestCheckFindsEachInvariantViolation(t *testing.T) {
 			key: FindingOrdinalDuplicate,
 		},
 		{
-			// A deletion leaves a gap, and closing one would renumber every
-			// entity after it and move every positional reference already
-			// written down, so a gap is not a defect. The empty key asserts
-			// that the whole bench reports nothing at all.
+			// A deletion leaves a gap, and the survivor's ordinal stays a
+			// record of where it fell in the write order regardless of the
+			// deletion, so a gap is not a defect. The empty key asserts that
+			// the whole bench reports nothing at all.
 			name: "a gap left where an entity was deleted",
 			breakIt: func(t *testing.T, root string) {
 				writeComment(t, root, "e00000000001", "2026-08-17T09:01:00Z", 1, "first")
