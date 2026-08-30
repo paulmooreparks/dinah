@@ -1525,16 +1525,16 @@ What you may write:
   [--expires <duration>]  how long your claim holds before it goes stale, written as a number and a unit: 30m, 2h, 7d
 
 What can go wrong, in the order each is checked:
-  Order  What can go wrong                                          Refusal
-  -----  ---------------------------------------------------------  -------------------
-  1      the workbench declares a major number the tool implements  unsupported-version
-  2      the workbench designates an operator                       no-operator
-  3      the card exists                                            unknown-card
-  4      the request names an owner                                 no-owner
-  5      the owner named as holder is the owner asking              not-requester
-  6      the card's state is not `blocked`                          blocked
-  7      the card's state is not `active`                           held
-  8      taking the card up is legal for whoever asks               not-operator
+  Order  What can go wrong                                             Refusal
+  -----  ------------------------------------------------------------  -------------------
+  1      the workbench declares a profile version the tool implements  unsupported-version
+  2      the workbench designates an operator                          no-operator
+  3      the card exists                                               unknown-card
+  4      the request names an owner                                    no-owner
+  5      the owner named as holder is the owner asking                 not-requester
+  6      the card's state is not `blocked`                             blocked
+  7      the card's state is not `active`                              held
+  8      taking the card up is legal for whoever asks                  not-operator
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

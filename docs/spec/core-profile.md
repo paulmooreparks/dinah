@@ -721,8 +721,8 @@ verb requires of it, and a workbench with nobody answering for it cannot be
 acted on whatever the verb is, so both sit ahead of every list in 6.3 to 6.7:
 
 ```
-1  the workbench declares a major number the tool implements   unsupported-version
-2  the workbench designates an operator                        no-operator
+1  the workbench declares a profile version the tool implements  unsupported-version
+2  the workbench designates an operator                          no-operator
 ```
 
 Each verb's list is derived rather than composed. Five tiers order the
@@ -1738,9 +1738,6 @@ the tool does implement is the case the section 10 boundary row for the
 profile version a workbench targets was written for, where a tool meeting a
 workbench from a future revision refuses it in one clear sentence rather than
 misreading it quietly, and CORE-BENCH-4's text did not reach that case.
-CORE-BENCH-5 carries the same demand over the comparison a tool needs, which
-is the full profile version, major number first and minor number second where
-the major numbers are equal.
 
 Consequence for a caller. A tool conforming to this revision refuses a
 workbench definition whose declared profile version sorts after the version

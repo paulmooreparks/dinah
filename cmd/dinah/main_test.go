@@ -6897,7 +6897,7 @@ const ratifiedGlobalFlagTable = `  Option             What it does
 
 const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
   -----  --------------------------------------------------  -------------------
-  1      the workbench declares a major number the tool implements
+  1      the workbench declares a profile version the tool implements
                                                             unsupported-version
   2      the workbench designates an operator                no-operator
   3      the card exists                                     unknown-card
