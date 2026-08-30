@@ -752,11 +752,12 @@ func TestTheJournalLookupStopsAtTheWorkbenchRoot(t *testing.T) {
 
 	// A card directory standing above the workbench root, which is what the
 	// walk would climb into if the workbench anchor did not stop it. Nothing
-	// puts a bench there on purpose; the stop is what makes it not matter.
+	// puts a workbench there on purpose, and the stop is what makes it not
+	// matter that nothing does.
 	nested := t.TempDir()
 	write(t, filepath.Join(nested, CardAnchor), cleanCard)
 	write(t, filepath.Join(nested, JournalName), cleanJournal)
-	inner := filepath.Join(nested, "bench")
+	inner := filepath.Join(nested, "inner")
 	write(t, filepath.Join(inner, WorkbenchAnchor), benchDefinition)
 	write(t, filepath.Join(inner, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
 	if got := journalPathFor(inner); got != "" {
