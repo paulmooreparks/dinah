@@ -18,8 +18,9 @@ import (
 // part of its own work, and having to edit this file is the point: DOC-CHG-2
 // asks a changelog entry for the identifiers an increment affects, and the
 // edit is where somebody is made to ask whether one is owed. The document
-// states its own revision in two places that this file now reads, so a bump
-// reddens both and both are corrected in one sitting.
+// states its own revision in three places, and this file reads two of them,
+// so a bump reddens those two and leaves the header at line 3 silent, which
+// is the gap dinah-321 is filed to close.
 const (
 	// declaredVersion is the version sentence of section 2, in full, so a
 	// bump cannot slip through as a one-character diff.
