@@ -6,15 +6,20 @@ import (
 	"testing"
 )
 
-// The three facts dinah-201's boundary-row amendment is not allowed to move.
-// D-8 rules that an amendment changing no extracted statement takes no version
-// increment and no changelog entry, and AC-9 says so in as many words, so all
-// three are recorded here rather than left to a reviewer's eye.
+// The facts this file holds still, so that an edit cannot move one of them
+// quietly. The first three are what dinah-201's boundary-row amendment is not
+// allowed to move. D-8 rules that an amendment changing no extracted statement
+// takes no version increment and no changelog entry, and AC-9 says so in as
+// many words, so all three are recorded here rather than left to a reviewer's
+// eye. The fourth is dinah-203's, and it belongs beside them for the same
+// reason.
 //
 // A later card that legitimately changes a statement changes these numbers as
 // part of its own work, and having to edit this file is the point: DOC-CHG-2
 // asks a changelog entry for the identifiers an increment affects, and the
-// edit is where somebody is made to ask whether one is owed.
+// edit is where somebody is made to ask whether one is owed. The document
+// states its own revision in two places that this file now reads, so a bump
+// reddens both and both are corrected in one sitting.
 const (
 	// declaredVersion is the version sentence of section 2, in full, so a
 	// bump cannot slip through as a one-character diff.
@@ -24,6 +29,13 @@ const (
 	// publishedChangelogEntries is how many entries section 12 carries. The
 	// changelog is append-only under DOC-CHG-1, so this number never falls.
 	publishedChangelogEntries = 7
+	// declaredCurrentRevision is the sentence dinah-203 put at the head of
+	// section 12, where a reader scanning the changelog meets 1.0, 2.0 and 3.0
+	// before meeting anything that says which revision is live. It states the
+	// revision a second time in this document, and an unread second copy is
+	// how the header at line 3 went stale in the first place, so it is read
+	// here.
+	declaredCurrentRevision = "The current revision is `dinah-core 0.7`."
 )
 
 // changelogEntry matches an entry heading of section 12, which carries the
@@ -34,6 +46,11 @@ var changelogEntry = regexp.MustCompile("(?m)^### [0-9]+\\.[0-9]+, channel `[a-z
 // the half that says the amendment is editorial. The statement-list assertion
 // is what makes the other two meaningful: an edit that changes no statement
 // affects no identifier, so it owes no entry and moves no number.
+//
+// dinah-203 added the fourth assertion, over the sentence at the head of
+// section 12. That sentence names the live revision, and until this test read
+// it nothing did, which is the same condition that let the header at line 3
+// sit two revisions behind.
 func TestAnEditorialAmendmentMovesNeitherVersionNorChangelog(t *testing.T) {
 	text := readProfile(t)
 	doc := extractProfile(t)
@@ -44,6 +61,9 @@ func TestAnEditorialAmendmentMovesNeitherVersionNorChangelog(t *testing.T) {
 	}
 	if !strings.Contains(text, declaredVersion) {
 		t.Errorf("section 2 no longer reads:\n%s", declaredVersion)
+	}
+	if !strings.Contains(text, declaredCurrentRevision) {
+		t.Errorf("the head of section 12 no longer reads: %s", declaredCurrentRevision)
 	}
 	if entries := changelogEntry.FindAllString(text, -1); len(entries) != publishedChangelogEntries {
 		t.Errorf("section 12 carries %d entries, and this file records %d: %v",
