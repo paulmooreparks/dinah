@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.5`, maturity channel `dev`.
+Version identity: `dinah-core 0.7`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -80,7 +80,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.4` and says nothing about
+once. A conformance claim names `dinah-core 0.7` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -605,7 +605,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.4",
+  "profile": "dinah-core/0.7",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -1427,6 +1427,11 @@ The index carries 127 rows, which is the number of identifiers an extraction
 over this revision returns.
 
 ## 12. Changelog
+
+The current revision is `dinah-core 0.7`. Entries below stay in the order
+they were published rather than in numeric order. The fourth entry renamed
+the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
+it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
 
 Entries are appended and never edited.
 
