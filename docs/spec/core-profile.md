@@ -721,8 +721,8 @@ verb requires of it, and a workbench with nobody answering for it cannot be
 acted on whatever the verb is, so both sit ahead of every list in 6.3 to 6.7:
 
 ```
-1  the workbench declares a profile version the tool implements  unsupported-version
-2  the workbench designates an operator                          no-operator
+1  the workbench declares a major number the tool implements   unsupported-version
+2  the workbench designates an operator                        no-operator
 ```
 
 Each verb's list is derived rather than composed. Five tiers order the
