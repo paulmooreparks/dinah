@@ -662,8 +662,10 @@ The two counts no longer agree, and neither set contains the other. `restored`
 is queryable over a card and written by nothing, so it sits in the nineteen and
 outside the twenty. `workbench_updated` and `workstream_updated` are written by
 commands but never land on a card's journal, so they sit in the twenty and
-outside the nineteen. Eighteen names sit in both counts, and those eighteen are
-every core event a command writes onto a card.
+outside the nineteen. Eighteen names sit in both counts. Seventeen of those land
+on a card's own journal, and `deleted` is the exception, because deleting a card
+destroys the journal inside it and the record of the deletion goes to the
+workbench's.
 
 The set stays closed mechanically rather than by inspection. A twenty-second
 constant fails the build unless it reaches the sample fixture's journal or is
