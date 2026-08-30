@@ -312,8 +312,9 @@ type AttachmentView struct {
 	// ID is the attachment's identifier.
 	ID string `json:"id"`
 	// Ordinal is the attachment's one-based position among the attachments
-	// of the entity it hangs from: the stored ordinal, or the
-	// directory-order position on an attachment whose anchor carries none.
+	// of the entity it hangs from: its place in that collection once the
+	// collection is sorted, which displayOrdinal counts rather than reading
+	// the stored ordinal off the anchor.
 	Ordinal int `json:"ordinal"`
 	// Ref is what a person types to name the attachment: the card's own
 	// reference, then attachments and the attachment's ordinal. Resolved

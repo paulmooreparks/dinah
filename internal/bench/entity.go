@@ -88,9 +88,9 @@ func Comments(cardDir string) ([]*Comment, error) {
 //
 // The order is the ordinal's rather than the directory listing's, on the same
 // terms Comments already orders its comments. An attachment carrying no
-// ordinal sorts ahead of every stamped one and keeps its place relative to
-// its unstamped neighbours, which is what an unmigrated workbench falls
-// back to until check's missing-ordinal finding is acted on.
+// ordinal sorts ahead of every stamped one, and SortByOrdinal recovers the
+// order such attachments were attached in from the card's journal, which is
+// the order check --migrate-ordinals will stamp them in.
 func Attachments(cardDir string) ([]*Attachment, error) {
 	collection := filepath.Join(cardDir, AttachmentsDir)
 	var attachments []*Attachment
