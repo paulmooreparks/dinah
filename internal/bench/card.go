@@ -333,6 +333,11 @@ func (c *Card) SetLevel(field, value string) {
 // its journal rather than from a frontmatter field. The journal is
 // authoritative for history, and the arrival of a card is a fact about its
 // history, so nothing has to be kept in step with anything.
+//
+// A witnessed correction counts as an arrival alongside a move, because a card
+// whose position was reconciled rather than moved carries no move naming the
+// column it stands in, and reading only moves would report the zero time and
+// sort it ahead of every card that arrived by one.
 func (c *Card) Arrival() time.Time {
 	events, _, err := ReadJournal(c.JournalPath())
 	if err != nil {
@@ -343,7 +348,7 @@ func (c *Card) Arrival() time.Time {
 		switch ev.Event {
 		case contract.EventCreated:
 			arrival = ParseStamp(ev.TS)
-		case contract.EventMoved:
+		case contract.EventMoved, contract.EventManualCorrection:
 			if ev.To == c.Column {
 				arrival = ParseStamp(ev.TS)
 			}

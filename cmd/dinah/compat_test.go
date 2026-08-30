@@ -108,6 +108,7 @@ var wantedEvents = map[string][]string{
 	contract.EventCardUpdated:        {"ts", "event", "actor", "field", "from", "to"},
 	contract.EventWorkstreamJoined:   {"ts", "event", "actor", "workstream"},
 	contract.EventWorkstreamLeft:     {"ts", "event", "actor", "workstream"},
+	contract.EventManualCorrection:   {"ts", "event", "actor", "from", "from_title", "to", "to_title"},
 }
 
 // unwrittenEvents are the event names internal/contract declares that this
@@ -116,8 +117,7 @@ var wantedEvents = map[string][]string{
 // declared set, so adding an event constant turns the build red in the commit
 // that adds it.
 var unwrittenEvents = map[string]string{
-	contract.EventRestored:         "archive has no inverse verb in the command surface, so nothing restores an entity",
-	contract.EventManualCorrection: "a person writes this line into a journal by hand and no command produces it",
+	contract.EventRestored: "archive has no inverse verb in the command surface, so nothing restores an entity",
 }
 
 // shape is what a fixture and a freshly populated workbench are compared on.
@@ -397,6 +397,10 @@ func replayPopulation(t *testing.T) string {
 		if line == "" {
 			continue
 		}
+		if edit, ok := strings.CutPrefix(line, "hand-edit "); ok {
+			handEditStep(t, root, edit)
+			continue
+		}
 		if pause, ok := strings.CutPrefix(line, "wait "); ok {
 			waited, err := verb.ParseDuration(strings.TrimSpace(pause))
 			if err != nil {
@@ -414,6 +418,71 @@ func replayPopulation(t *testing.T) string {
 		}
 	}
 	return benchDir(t, root)
+}
+
+// handEditStep performs the one step of the population sequence no command
+// can perform: it rewrites a card's column in the anchor and leaves the
+// journal saying what it already said, which is what a person with an editor
+// does. The sequence needs it because manual_correction is the tool's answer
+// to that edit, and no capture could carry the event without one.
+//
+// The step reads `hand-edit <card> column <slug>`. Both references are
+// resolved by asking the binary rather than by parsing the tree here, so this
+// replay and the capture script stay one implementation apart rather than two.
+func handEditStep(t *testing.T, root, step string) {
+	t.Helper()
+	fields := strings.Fields(step)
+	if len(fields) != 3 || fields[1] != "column" {
+		t.Fatalf("a hand-edit step reads `hand-edit <card> column <slug>`, got %q", step)
+	}
+	anchor := runCLI(t, root, "path", fields[0])
+	if anchor.code != 0 {
+		t.Fatalf("path %s: %d %s", fields[0], anchor.code, anchor.errw)
+	}
+	listed := runCLI(t, root, "--json", "columns")
+	if listed.code != 0 {
+		t.Fatalf("columns: %d %s", listed.code, listed.errw)
+	}
+	var columns []verb.ColumnView
+	if err := json.Unmarshal([]byte(listed.out), &columns); err != nil {
+		t.Fatalf("decode the columns: %v"+"\n"+"%s", err, listed.out)
+	}
+	wanted := ""
+	for _, column := range columns {
+		if column.Slug == fields[2] {
+			wanted = column.ID
+		}
+	}
+	if wanted == "" {
+		t.Fatalf("the workbench declares no column with the slug %q", fields[2])
+	}
+	path := strings.TrimSpace(anchor.out)
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	edited, found := replaceColumn(string(text), wanted)
+	if !found {
+		t.Fatalf("the anchor at %s carries no column key to edit", path)
+	}
+	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+// replaceColumn rewrites the anchor's column line, reporting whether it found
+// one. It edits the line rather than the value so that a column identifier
+// appearing elsewhere in the file is left alone.
+func replaceColumn(text, column string) (string, bool) {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(line, "column: ") {
+			continue
+		}
+		lines[i] = "column: " + column
+		return strings.Join(lines, "\n"), true
+	}
+	return text, false
 }
 
 // tokenize splits a populate.txt line into arguments under shell quoting, so a

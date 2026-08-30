@@ -144,6 +144,11 @@ type Request struct {
 	// MigrateWorkstreams asks check to create a workstream at every
 	// identifier the live cards list that names none, before it reports.
 	MigrateWorkstreams bool
+	// MigrateWitness asks check to witness every live card whose anchor and
+	// journal disagree about its position, before it reports. It carries no
+	// migrate- prefix on the flag because it repairs a disagreement that is
+	// true right now rather than carrying a workbench past an older shape.
+	MigrateWitness bool
 	// WorkbenchSource names the rung that resolved the active workbench for
 	// this invocation (flag, environment, search, or config), set by the
 	// head once discovery has run, since that is the earliest point the

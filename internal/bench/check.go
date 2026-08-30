@@ -118,7 +118,7 @@ const (
 	// pre-empted by a refusal, and the workbench still opens while it is
 	// reported.
 	FindingWorkbenchSlugMalformed = "check.workbench-slug-malformed"
-	// The last six are raised by a migration rather than by the checker,
+	// The last seven are raised by a repair rather than by the checker,
 	// because each names something only the run that did the work can know:
 	// which entity it placed by guesswork, which card a lock kept it out of,
 	// which entity it could not write to, which title it could derive no
@@ -130,6 +130,11 @@ const (
 	FindingSlugUnderivable          = "check.slug-underivable"
 	FindingSlugUnwritable           = "check.slug-unwritable"
 	FindingWorkbenchSlugUnderivable = "check.workbench-slug-underivable"
+	// FindingWitnessLocked names a card the witness repair could not reach,
+	// because a lock stood on it while the walk passed. The walk stepped over
+	// it and carried on, so the card stays diverged until the repair is run
+	// again or a touch that reads its position reaches it.
+	FindingWitnessLocked = "check.witness-locked"
 )
 
 // The directions an interrupted structural act is reported and finished in.
@@ -353,7 +358,7 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	if torn {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
 	}
-	if position := replayPosition(events); position != "" && position != card.Column {
+	if position := ReplayPosition(events); position != "" && position != card.Column {
 		findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
 	}
 	return findings
@@ -424,17 +429,26 @@ func checkAttachmentFilename(cardDir string) []Finding {
 	return findings
 }
 
-// replayPosition returns the column the journal says a card occupies, which is
-// the column of its last recorded move, or the column it was created in when it
-// has never moved. An empty answer means the journal says nothing about
-// position at all, which is not itself a divergence.
-func replayPosition(events []Event) string {
+// ReplayPosition returns the column the journal says a card occupies, which is
+// the column of its last recorded move or witnessed correction, or the column
+// it was created in when it has never left one. An empty answer means the
+// journal says nothing about position at all, which is not itself a
+// divergence.
+//
+// A manual_correction line counts alongside a move because the witness records
+// the position the anchor already holds, so replay tracks the last recorded
+// position rather than the last position somebody chose. That is what stops a
+// witnessed card from being reported again the instant after it is witnessed,
+// and it is also what keeps a second hand edit after a witness detectable.
+func ReplayPosition(events []Event) string {
 	position := ""
 	for _, ev := range events {
 		switch ev.Event {
 		case contract.EventCreated:
 			position = ev.To
 		case contract.EventMoved:
+			position = ev.To
+		case contract.EventManualCorrection:
 			position = ev.To
 		}
 	}

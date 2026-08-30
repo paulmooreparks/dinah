@@ -410,6 +410,7 @@ var params = map[string][]Param{
 		{Name: "migrate-columns", Flag: true, Marker: true, Field: "MigrateColumns"},
 		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
+		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
 		// Read by migrate-vocabulary alone, which is the one repair here
 		// that walks a whole tree of workbenches rather than acting on the
 		// one the caller is standing in, and whose rewrite has no undo.

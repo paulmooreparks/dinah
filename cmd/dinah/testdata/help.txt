@@ -72,7 +72,8 @@ WORKBENCH
   check [--finish] [--migrate-ordinals]     Look for structural defects in this
     [--migrate-slugs] [--migrate-columns]     workbench
     [--migrate-vocabulary]
-    [--migrate-workstreams] [--yes]
+    [--migrate-workstreams] [--witness]
+    [--yes]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator
   workbench [get|set] [field] [value]       Read this workbench's own fields, or

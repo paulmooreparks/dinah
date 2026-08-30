@@ -691,6 +691,21 @@
       "context": "A check finding: a torn journal tail left by a crash.",
       "skeleton": true
     },
+    "check.witness-locked": {
+      "text": "card {detail} is locked by another process, so the witness repair passed it by",
+      "context": "A check finding the witness repair raises: a lock stood on the card, the walk stepped over it and carried on.",
+      "skeleton": true
+    },
+    "check.witnessed.one": {
+      "text": "Witnessed {count} card whose position had been edited by hand.",
+      "context": "The line the witness repair prints for what it recorded, for exactly one card. Followed by one line per witnessed identifier.",
+      "skeleton": true
+    },
+    "check.witnessed.other": {
+      "text": "Witnessed {count} cards whose position had been edited by hand.",
+      "context": "The line the witness repair prints for what it recorded, for any other number. Followed by one line per witnessed identifier.",
+      "skeleton": true
+    },
     "check.tree.1": {
       "text": "every axis named is one this tool groups on",
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
@@ -1621,6 +1636,11 @@
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
       "skeleton": true
     },
+    "log.manual-correction": {
+      "text": "{from} to {to}, recorded from a hand edit",
+      "context": "The detail of a witnessed correction, carrying the column the journal believed and the column the anchor records. It reads differently from a move because nobody chose this transition; the tool found it.",
+      "skeleton": true
+    },
     "log.moved": {
       "text": "{from} to {to}",
       "context": "The detail of a recorded move, carrying the titles as they stood at the time.",
@@ -1754,6 +1774,11 @@
     "param.check.migrate-workstreams.summary": {
       "text": "adopt every workstream a card names that this workbench does not carry",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.check.witness.summary": {
+      "text": "record a manual correction on every card whose position was edited by hand",
+      "context": "The meaning of the witness argument of `dinah check`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.claim.card.summary": {
