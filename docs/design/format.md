@@ -658,10 +658,12 @@ A second count of nineteen sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
 out `workbench_updated` and `workstream_updated`, since each of those lands on
 the workbench's journal or on a workstream's and never on a card's.
-The two counts no longer agree: twenty core events are written, nineteen of
-them queryable over a card, because `restored` sits in the first count and
-out of the second for the same reason `manual_correction` did until a command
-began writing it, and `workbench_updated`/`workstream_updated` sit in neither.
+The two counts no longer agree, and neither set contains the other. `restored`
+is queryable over a card and written by nothing, so it sits in the nineteen and
+outside the twenty. `workbench_updated` and `workstream_updated` are written by
+commands but never land on a card's journal, so they sit in the twenty and
+outside the nineteen. Eighteen names sit in both counts, and those eighteen are
+every core event a command writes onto a card.
 
 The set stays closed mechanically rather than by inspection. A twenty-second
 constant fails the build unless it reaches the sample fixture's journal or is
@@ -721,9 +723,10 @@ and the column the card was created in, a new workstream's carries the title
 alone, and the line `check` writes when it adopts a dangling workstream
 carries the skeleton and nothing else.
 
-Every row above `restored` describes lines this build writes, and each was
-read off the writing verb and checked against the sample fixture's journal.
-The last two rows come from somewhere else, and each says where.
+Every row but `restored`'s describes lines this build writes, and each was
+read off the writing code and checked against the sample fixture's journal.
+The `restored` row comes from somewhere else, and the paragraph below says
+where.
 
 `restored` is not written by any command, so its row is not read off writing
 code. The requirement comes from `internal/bench/finish.go`'s `eventRecords`,
@@ -736,20 +739,22 @@ Nothing else in the tree asks anything of the event's other fields, so the row
 states the one field shipped code enforces and does not borrow the four-field
 shape `moved` carries.
 
-`manual_correction` is not written by any command either, and its row is
-specified ahead of the implementation rather than read off one. Two sources
-give the shape. dinah-314, which owns the verb-level behaviour of writing the
-line, states in its own description that `from` is the position replay
-reached, `to` is what the anchor says, and `from_title` and `to_title` stand
-as of the moment. CORE-HIST-4 requires a recorded move to carry the identifier
-and the title, as they stood at the time of the move, of the column left and
-the column entered. A witness line corrects what replay believes a card's
-column to be, which is a move whose actor is whoever noticed the divergence,
-so it reuses the four fields `moved` already carries rather than inventing a
-second shape for the same fact. The `Event` struct declares `From`, `To`,
-`FromTitle`, and `ToTitle` as shared fields, so nothing new is added to it.
-When the line is written, which verb or check writes it, and whether writing
-it can be refused are dinah-314's questions and are not settled here.
+`manual_correction` is written by one function, `internal/bench/witness.go`'s
+`WitnessDivergence`, and its row was read off that function as every other
+written row was read off its own. `from` is the column position replay
+reached, `to` is the column the anchor names, and `from_title` and `to_title`
+stand as of the moment the line is written. A touch that reads or writes a
+card's position or claim state calls the writer ahead of its own effect, and
+`dinah check --witness` calls it over every live card in one sweep.
+CORE-HIST-4 requires a recorded move to carry the identifier and the title, as
+they stood at the time of the move, of the column left and the column entered.
+A witness line corrects what replay believes a card's column to be, which is a
+move whose actor is whoever noticed the divergence, so it reuses the four
+fields `moved` already carries rather than inventing a second shape for the
+same fact. The `Event` struct declares `From`, `To`, `FromTitle`, and
+`ToTitle` as shared fields, so nothing new is added to it. Finding a
+divergence is never grounds to refuse the touch that found it, and a witness
+the disk refuses leaves that touch unreachable with its own effect unwritten.
 
 A line missing a field this schema calls always present is still a line. The
 torn trailing line the Corruption and recovery section covers is a crash
