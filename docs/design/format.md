@@ -687,7 +687,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 
 | event | always present | conditional |
 |---|---|---|
-| `created` | `title`, `to`, `to_title` | |
+| `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
 | `claimed` | | `expires`, when the claim carried a duration |
 | `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only under a CORE-MOVE-9 override; `reject`, true only when the destination is the departure column's own `reject_to` target |
 | `released` | | |
@@ -711,6 +711,12 @@ so a `claimed` line with no `expires` records an unbounded claim.
 
 An `expired` line carries `expires` unconditionally because the event fires
 only when a claim's own expiry lapsed, so the field it reports is never empty.
+The `created` row is the one row with nothing beyond the skeleton in its
+always-present column, because three commands write that event and they
+write three shapes. A card's line carries the title and the column it was
+created in, a new workstream's carries the title alone, and the line `check`
+writes when it adopts a dangling workstream carries the skeleton and nothing
+else.
 Every row above `restored` describes lines this build writes, and each was
 read off the writing verb and checked against the sample fixture's journal.
 The last two rows come from somewhere else, and each says where.
