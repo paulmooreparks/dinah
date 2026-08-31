@@ -1167,13 +1167,18 @@ const limitedDefinition = `{
 // cannot reach without a fixture of their own, so that between the two every
 // name a CLI invocation can provoke is asserted through stderr.
 //
-// Four names are structurally unreachable here and are driven at the library
-// level instead: not-requester, because the cli head's claim takes no holder
-// argument and so can never name one other than the asker; layer-collision,
-// because v0 validates no layer declaration; dinah.locked, which needs a
-// second process holding the card mid-transaction; and dinah.no-editor, which
-// needs an environment carrying no editor at any rung and no fallback binary
-// on the path.
+// The following names are structurally unreachable here and are driven at the
+// library level instead: not-requester, because the cli head's claim takes no
+// holder argument and so can never name one other than the asker;
+// layer-collision, because v0 validates no layer declaration; and
+// dinah.locked, which needs a second process holding the card
+// mid-transaction.
+//
+// dinah.no-editor is not among them. The case below reaches it by pointing
+// PATH at a directory holding no editor binary, which starves the fallback
+// rung, while the rungs above it are already empty: isolatedEnv clears
+// DINAH_EDITOR, VISUAL and EDITOR for the whole binary, and the fixture's
+// DINAH_HOME carries no config.
 //
 // The three names discovery raises before a bench is open (dinah.no-workbench,
 // dinah.no-workbench-found and dinah.ambiguous-workbench) are swept by
@@ -1230,6 +1235,20 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			},
 			token:    contract.NoOperator,
 			sentence: "this workbench designates no operator, so its reserved actions are dead",
+		},
+		{
+			// The editor variables need no setting here. isolatedEnv
+			// clears DINAH_EDITOR, VISUAL and EDITOR for the whole
+			// binary and newLimitedBench's DINAH_HOME holds no
+			// config, so the fallback rung is the only one left to
+			// starve.
+			name: "an editor resolving at no rung and no fallback on the path",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				t.Setenv("PATH", t.TempDir())
+				return root, []string{"edit", "."}
+			},
+			token: contract.NoEditor,
 		},
 		{
 			name: "a workbench declaring a profile major this binary does not implement",
