@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -5208,6 +5209,82 @@ func TestPathAndEditReachTheWorkbenchAnchor(t *testing.T) {
 	if leading := strings.SplitN(strings.TrimSpace(bare.errw), " ", 2)[0]; leading != contract.UnknownCard {
 		t.Errorf("a bare path: wanted %s, got %q", contract.UnknownCard, bare.errw)
 	}
+}
+
+// TestPathPrintsOneLineForACardWhoseTitleIsNotASCII asserts the guarantee
+// runPath's own doc comment states, at the exactness a caller pasting the
+// output into another command depends on: one line, the resolved path and
+// nothing else, for a card whose stored text carries an em dash (dinah-199).
+func TestPathPrintsOneLineForACardWhoseTitleIsNotASCII(t *testing.T) {
+	root := newBench(t)
+	title := "Ein Bindestrich — und Hindi हिन्दी"
+	ref := addCard(t, root, title)
+	got := runCLI(t, root, "path", ref)
+	if got.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
+	}
+	line, found := strings.CutSuffix(got.out, "\n")
+	if !found {
+		t.Fatalf("path %s printed %q, wanted a single trailing newline", ref, got.out)
+	}
+	if strings.ContainsAny(line, "\r\n") || line != strings.TrimSpace(line) {
+		t.Errorf("path %s printed %q, wanted the path alone with nothing around it", ref, got.out)
+	}
+	// The line names the card's own file, which is what makes the assertion
+	// above a claim about the resolved path rather than about its shape.
+	stored, err := os.ReadFile(line)
+	if err != nil {
+		t.Fatalf("path %s printed %q, which does not open: %v", ref, line, err)
+	}
+	if !strings.Contains(string(stored), title) {
+		t.Errorf("the file at %q does not carry the title %q the card was filed under", line, title)
+	}
+	within := resolvedDir(t, benchDir(t, root))
+	if !strings.HasPrefix(line, within) {
+		t.Errorf("path %s printed %q, wanted a path inside the workbench at %q", ref, line, within)
+	}
+}
+
+// TestEditHandsTheChildTheRawStreamsWhenItHasThem asserts that the command
+// runEdit runs is given the session's unwrapped *os.File values when main
+// built the session, so an editor receives a real console handle rather than
+// a pipe, and that a session a test built by hand still gets its own streams
+// (dinah-199).
+func TestEditHandsTheChildTheRawStreamsWhenItHasThem(t *testing.T) {
+	dir := t.TempDir()
+	rawOut, err := os.Create(filepath.Join(dir, "out"))
+	if err != nil {
+		t.Fatalf("create the stdout stand-in: %v", err)
+	}
+	defer rawOut.Close()
+	rawErr, err := os.Create(filepath.Join(dir, "err"))
+	if err != nil {
+		t.Fatalf("create the stderr stand-in: %v", err)
+	}
+	defer rawErr.Close()
+
+	wrapped := &session{out: &bytes.Buffer{}, errw: &bytes.Buffer{}, rawOut: rawOut, rawErr: rawErr}
+	cmd := editCmd(wrapped, "an-editor", filepath.Join(dir, "card.md"))
+	if cmd.Stdout != io.Writer(rawOut) {
+		t.Errorf("stdout reached the child as %#v, wanted the raw file itself", cmd.Stdout)
+	}
+	if cmd.Stderr != io.Writer(rawErr) {
+		t.Errorf("stderr reached the child as %#v, wanted the raw file itself", cmd.Stderr)
+	}
+
+	out := &bytes.Buffer{}
+	errw := &bytes.Buffer{}
+	plain := &session{out: out, errw: errw}
+	bare := editCmd(plain, "an-editor", filepath.Join(dir, "card.md"))
+	if bare.Stdout != io.Writer(out) {
+		t.Errorf("stdout reached the child as %#v, wanted the session's own stream", bare.Stdout)
+	}
+	if bare.Stderr != io.Writer(errw) {
+		t.Errorf("stderr reached the child as %#v, wanted the session's own stream", bare.Stderr)
+	}
+	// The command is built and never run, so nothing here launches an
+	// editor or waits on a window.
+	var _ *exec.Cmd = bare
 }
 
 // TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference asserts

@@ -905,6 +905,28 @@ func runPath(s *session, parsed *arguments) int {
 	})
 }
 
+// editCmd builds the command runEdit executes, without running it. Stdout
+// and Stderr are s.rawOut and s.rawErr when those are set, which is a real
+// console or a real redirected file, either way a genuine *os.File the
+// child can use directly. exec.Cmd dups an *os.File straight into the
+// child but builds a pipe and a copying goroutine around any other
+// io.Writer, and an interactive editor needs the real handle for its own
+// cursor control and raw input (dinah-199). They fall back to s.out and
+// s.errw otherwise, which is every session a test builds by hand.
+func editCmd(s *session, editor, path string) *exec.Cmd {
+	cmd := exec.Command(editor, path)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = s.out
+	if s.rawOut != nil {
+		cmd.Stdout = s.rawOut
+	}
+	cmd.Stderr = s.errw
+	if s.rawErr != nil {
+		cmd.Stderr = s.rawErr
+	}
+	return cmd
+}
+
 // runEdit opens a path in the reader's editor.
 func runEdit(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
@@ -917,9 +939,7 @@ func runEdit(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		cmd := exec.Command(editor, resolved)
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, s.out, s.errw
-		if err := cmd.Run(); err != nil {
+		if err := editCmd(s, editor, resolved).Run(); err != nil {
 			return s.reportError(err)
 		}
 		return 0
