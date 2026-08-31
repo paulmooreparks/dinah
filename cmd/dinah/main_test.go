@@ -1169,16 +1169,19 @@ const limitedDefinition = `{
 //
 // The following names are structurally unreachable here and are driven at the
 // library level instead: not-requester, because the cli head's claim takes no
-// holder argument and so can never name one other than the asker;
-// layer-collision, because v0 validates no layer declaration; and
-// dinah.locked, which needs a second process holding the card
-// mid-transaction.
+// holder argument and so can never name one other than the asker; and
+// layer-collision, because v0 validates no layer declaration.
 //
-// dinah.no-editor is not among them. The case below reaches it by pointing
-// PATH at a directory holding no editor binary, which starves the fallback
-// rung, while the rungs above it are already empty: isolatedEnv clears
-// DINAH_EDITOR, VISUAL and EDITOR for the whole binary, and the fixture's
-// DINAH_HOME carries no config.
+// dinah.locked is driven at the library level too, though not because this
+// sweep cannot reach it. No fixture here plants a lock file in a card's
+// directory, and a planted one would be enough, since acquire refuses on any
+// failure of its exclusive create rather than on a second process being alive.
+//
+// dinah.no-editor is not one of the unreachable names either. The case below
+// reaches it by pointing PATH at a directory holding no editor binary, which
+// starves the fallback rung, while the rungs above it are already empty:
+// isolatedEnv clears DINAH_EDITOR, VISUAL and EDITOR for the whole binary,
+// and the fixture's DINAH_HOME carries no config.
 //
 // The three names discovery raises before a bench is open (dinah.no-workbench,
 // dinah.no-workbench-found and dinah.ambiguous-workbench) are swept by
