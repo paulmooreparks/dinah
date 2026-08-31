@@ -997,6 +997,29 @@ class Shells:
         return run_in_shell(self.bash, command, self.sandbox, directory, environment)
 
 
+def write_path_prelude(root, stubdir):
+    """A file that puts `stubdir` first on PATH, read by each shell at startup.
+
+    Returned as a path spelled with forward slashes, which is the spelling
+    the shells here accept on both platforms.
+
+    cygpath is asked to convert the directory where it exists, because a
+    PATH entry has to be in the shell's own vocabulary to be searched, and
+    a drive-letter path is not. Where it does not exist the path is
+    already in that vocabulary and is used as it stands.
+    """
+    prelude = os.path.join(root, "stub-path.sh")
+    with open(prelude, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(
+            "stub_dir='%s'\n"
+            "if command -v cygpath >/dev/null 2>&1; then\n"
+            "  stub_dir=\"$(cygpath -u \"$stub_dir\")\"\n"
+            "fi\n"
+            "PATH=\"$stub_dir:$PATH\"\n"
+            "export PATH\n" % stubdir.replace("\\", "/"))
+    return prelude.replace("\\", "/")
+
+
 def make_executable(bash, path):
     """Mark `path` executable for the shell that will be asked to run it.
 
@@ -1089,6 +1112,22 @@ def main():
         environment = dict(os.environ)
         environment["GIT_STUB_DIR"] = record
         environment["PATH"] = stubdir + os.pathsep + environment.get("PATH", "")
+
+        # Prepending to the PATH we hand the shell is enough on a system
+        # whose shell keeps the PATH it was given, and it is not enough
+        # everywhere. The Git Bash on a GitHub Windows runner assembles
+        # its own PATH at startup and hoists /mingw64/bin and /usr/bin to
+        # the front of whatever the caller set, so the real git wins the
+        # name and the stub, sitting fourth, is never reached. The run
+        # then observes nothing while looking like it observed nothing to
+        # find.
+        #
+        # BASH_ENV is the documented way in: bash expands it when it is
+        # started non-interactively and reads the named file before the
+        # command, which is after the shell has finished assembling its
+        # PATH. Neither --noprofile nor --norc suppresses it. So the same
+        # directory goes on the front a second time, from inside.
+        environment["BASH_ENV"] = write_path_prelude(root, stubdir)
 
         # The stub has to be the git the shell finds, or every comparison
         # below is a comparison with nothing.
