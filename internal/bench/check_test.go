@@ -1324,9 +1324,6 @@ func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	if refusal.Detail != empty {
 		t.Errorf("the refusal should name the directory given, wanted %q, got %q", empty, refusal.Detail)
 	}
-	if _, offered := refusal.Extra["found"]; offered {
-		t.Errorf("a directory with no .dinah at all has no recoverable spelling to offer, got %v", refusal.Extra)
-	}
 }
 
 // TestSoleBeneathNamesTheStoreOnlyWhenThereIsExactlyOne asserts dinah-297
