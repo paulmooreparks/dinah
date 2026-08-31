@@ -1322,24 +1322,100 @@ func TestWorkbenchesToolRefusesCleanlyWhenUnbounded(t *testing.T) {
 	}
 }
 
-// TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded is dinah-307 AC-10.
-// A default library is what answers a call naming no workbench; it is not a
-// directory to search. So the enumeration refuses for the same reason whether
-// or not the server carries one, rather than quietly listing the default.
-func TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded(t *testing.T) {
+// TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded is dinah-301's
+// revision of dinah-307 AC-10. A default library answers a call naming no
+// workbench, and bench.Enumerate("") still cannot run a search. Those two
+// facts no longer add up to a refusal, because the server is demonstrably
+// serving the default on every other call in the same session, and a tool
+// whose summary promises to name what this server may serve should not go
+// silent about the one workbench it can name for certain.
+func TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded(t *testing.T) {
 	library := newLibrary(t)
-	answers := askUnboundedStream(t, "", library,
+	answer := askUnderRoot(t, "", library,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
 
-	if len(answers) != 1 {
-		t.Fatalf("wanted one answer, got %d", len(answers))
+	if answer.Error != nil {
+		t.Fatalf("workbenches against an unbounded server carrying a default refused rather than answered: %+v", answer.Error)
 	}
-	if answers[0].Error == nil {
-		t.Fatalf("workbenches against an unbounded server carrying a default answered rather than refused: %+v", answers[0].Result)
+	decoded := payload(t, answer)
+	if unbounded, _ := decoded["unbounded"].(bool); !unbounded {
+		t.Errorf("the answer does not mark itself unbounded: %+v", decoded)
 	}
-	if !strings.HasPrefix(answers[0].Error.Message, contract.NoWorkbenchFound) {
-		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
+	rows := decodedCandidates(t, decoded)
+	want := []bench.Candidate{{
+		Title: library.Bench.Title,
+		Slug:  library.Bench.Slug,
+		Path:  library.Bench.Root,
+	}}
+	if !reflect.DeepEqual(rows, want) {
+		t.Errorf("workbenches against an unbounded server carrying a default: got %+v, want %+v", rows, want)
 	}
+}
+
+// TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault is dinah-301 AC-3. The
+// answer that names the default is reached only by a call that names no path,
+// so a call that names one walks the directory it was given, and the default
+// the server happens to carry changes nothing about what comes back.
+func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
+	elsewhere := t.TempDir()
+	written := filepath.Join(elsewhere, "second")
+	read, err := bench.ReadDefinition([]byte(definition))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	// The second workbench is instantiated directly at a directory the walk
+	// reaches, as newLibrary does, rather than through verb.Init, which writes
+	// into a dot-prefixed .dinah container that this downward walk skips.
+	if err := bench.Instantiate(written, "sc", "alka", read); err != nil {
+		t.Fatalf("instantiate a second workbench at %s: %v", written, err)
+	}
+	second := newLibraryAt(t, written)
+
+	library := newLibrary(t)
+	request := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/call",
+		"params": map[string]any{
+			"name":      "workbenches",
+			"arguments": map[string]any{"path": elsewhere},
+		},
+	}
+	line, err := json.Marshal(request)
+	if err != nil {
+		t.Fatalf("encode the request: %v", err)
+	}
+	answer := askUnderRoot(t, "", library, string(line))
+
+	decoded := payload(t, answer)
+	if _, present := decoded["unbounded"]; present {
+		t.Errorf("a call naming a path was marked unbounded: %+v", decoded)
+	}
+	rows := decodedCandidates(t, decoded)
+	want := []bench.Candidate{{
+		Title: second.Bench.Title,
+		Slug:  second.Bench.Slug,
+		Path:  second.Bench.Root,
+	}}
+	if !reflect.DeepEqual(rows, want) {
+		t.Errorf("workbenches under %s: got %+v, want %+v", elsewhere, rows, want)
+	}
+}
+
+// decodedCandidates reads the workbenches member of a decoded payload back as
+// the rows the tool composed, so an assertion compares whole candidates rather
+// than the fields a test remembered to pick out of a map.
+func decodedCandidates(t *testing.T, decoded map[string]any) []bench.Candidate {
+	t.Helper()
+	raw, err := json.Marshal(decoded["workbenches"])
+	if err != nil {
+		t.Fatalf("re-encode the workbenches value: %v", err)
+	}
+	var rows []bench.Candidate
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		t.Fatalf("decode the workbenches value: %v", err)
+	}
+	return rows
 }
 
 // TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer is dinah-312 AC-5.
