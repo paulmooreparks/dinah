@@ -442,12 +442,151 @@ func TestNotificationsGetNoAnswer(t *testing.T) {
 
 // TestUnknownMethodIsATransportError asserts that a method the head does not
 // implement comes back as a JSON-RPC error rather than as a refusal, since a
-// refusal is a contract answer and this is not one.
+// refusal is a contract answer and this is not one. The line parsed, so the
+// answer also has to carry the caller's own identifier rather than the null
+// a line that never became a request is answered with.
 func TestUnknownMethodIsATransportError(t *testing.T) {
 	library := newLibrary(t)
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"nonesuch"}`)
 	if answer.Error == nil || answer.Error.Code != codeMethodNotFound {
 		t.Errorf("wanted a method-not-found error, got %+v", answer)
+	}
+	if string(answer.ID) != "1" {
+		t.Errorf("wanted the caller's own identifier, got %q", string(answer.ID))
+	}
+}
+
+// rawStream drives whole lines through the head and returns each answer as the
+// members it was encoded with, rather than decoding into response. A test that
+// holds the encoded shape needs to tell a member carrying null from a member
+// that was never written at all, and response cannot express that difference.
+func rawStream(t *testing.T, library *verb.Library, lines ...string) []map[string]json.RawMessage {
+	t.Helper()
+	out := &strings.Builder{}
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out); err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	var answers []map[string]json.RawMessage
+	for _, encoded := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		if strings.TrimSpace(encoded) == "" {
+			continue
+		}
+		answer := map[string]json.RawMessage{}
+		if err := json.Unmarshal([]byte(encoded), &answer); err != nil {
+			t.Fatalf("decode %q: %v", encoded, err)
+		}
+		answers = append(answers, answer)
+	}
+	return answers
+}
+
+// TestAMalformedLineIsAnsweredRatherThanDropped asserts what dinah-295 fixed:
+// a line json.Unmarshal cannot turn into a request draws one JSON-RPC error
+// response of its own instead of vanishing, on the code the JSON-RPC 2.0
+// error table gives its failure, and the well-formed request on the next line
+// is still answered, which is what proves the loop kept reading.
+func TestAMalformedLineIsAnsweredRatherThanDropped(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		code int
+	}{
+		{"not json at all", `{ this is not json`, codeParseError},
+		{"truncated mid-object", `{"jsonrpc":"2.0","id":1,"method":"ping"`, codeParseError},
+		{"a bare array", `[1,2,3]`, codeInvalidRequest},
+		{"a bare string", `"just a string"`, codeInvalidRequest},
+		{"a bare number", `42`, codeInvalidRequest},
+		{"a field of the wrong type", `{"jsonrpc":"2.0","id":1,"method":123}`, codeInvalidRequest},
+	}
+	for _, one := range cases {
+		t.Run(one.name, func(t *testing.T) {
+			library := newLibrary(t)
+			answers := rawStream(t, library, one.line, `{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
+			if len(answers) != 2 {
+				t.Fatalf("wanted an answer to the malformed line and to the ping, got %d", len(answers))
+			}
+			var failure struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal(answers[0]["error"], &failure); err != nil {
+				t.Fatalf("the malformed line drew no error member: %v", err)
+			}
+			if failure.Code != one.code {
+				t.Errorf("wanted code %d, got %d", one.code, failure.Code)
+			}
+			if failure.Message == "" {
+				t.Error("the error carried no message")
+			}
+			if _, ok := answers[0]["result"]; ok {
+				t.Error("a protocol error carried a result member")
+			}
+			if got, ok := answers[0]["id"]; !ok || string(got) != "null" {
+				t.Errorf("wanted the identifier written as null, got %q present=%v", string(got), ok)
+			}
+			if string(answers[1]["id"]) != "2" {
+				t.Errorf("the request after the malformed line was misaddressed: %q", string(answers[1]["id"]))
+			}
+			if _, ok := answers[1]["result"]; !ok {
+				t.Errorf("the request after the malformed line drew no result: %s", answers[1])
+			}
+		})
+	}
+}
+
+// TestOnlyAnEmptyLineIsSkippedSilently asserts where dinah-295 drew the line
+// between silence and an answer. An empty line carries nothing to answer and a
+// stream ending in a newline produces one, so it is skipped. A line carrying
+// only spaces or only a tab carries bytes the head cannot use, so it draws the
+// parse error every other unusable line draws.
+//
+// The stream ends in a request that must be answered, because a count on its
+// own also passes when the head has stopped answering altogether, and a guard
+// a broken head satisfies guards nothing.
+func TestOnlyAnEmptyLineIsSkippedSilently(t *testing.T) {
+	library := newLibrary(t)
+	answers := rawStream(t, library, "", "   ", "\t", `{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
+	if len(answers) != 3 {
+		t.Fatalf("wanted the two whitespace lines answered, the empty line not, and the ping answered, got %d answers: %s", len(answers), answers)
+	}
+	for i, name := range []string{"a spaces-only line", "a tab-only line"} {
+		var failure struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(answers[i]["error"], &failure); err != nil {
+			t.Fatalf("%s drew no error member: %v", name, err)
+		}
+		if failure.Code != codeParseError {
+			t.Errorf("%s wanted code %d, got %d", name, codeParseError, failure.Code)
+		}
+		if failure.Message == "" {
+			t.Errorf("%s carried no message", name)
+		}
+		if got, ok := answers[i]["id"]; !ok || string(got) != "null" {
+			t.Errorf("%s wanted the identifier written as null, got %q present=%v", name, string(got), ok)
+		}
+	}
+	if string(answers[2]["id"]) != "2" {
+		t.Errorf("the empty line drew an answer of its own, so the ping is not the last: %s", answers[2])
+	}
+}
+
+// TestServeEndsCleanlyAfterAMalformedLine asserts that a malformed line costs
+// the caller an error response and nothing else. Serve still returns nil at
+// ordinary end of input, which is what runMCP reads to exit 0, so this card
+// leaves the exit-code contract where it found it.
+func TestServeEndsCleanlyAfterAMalformedLine(t *testing.T) {
+	library := newLibrary(t)
+	stream := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}`,
+		`{ this is not json`,
+		`[1,2,3]`,
+		`{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`,
+	}, "\n") + "\n"
+	out := &strings.Builder{}
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(stream), out); err != nil {
+		t.Fatalf("a stream carrying malformed lines ended with an error: %v", err)
 	}
 }
 
@@ -1263,24 +1402,100 @@ func TestWorkbenchesToolRefusesCleanlyWhenUnbounded(t *testing.T) {
 	}
 }
 
-// TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded is dinah-307 AC-10.
-// A default library is what answers a call naming no workbench; it is not a
-// directory to search. So the enumeration refuses for the same reason whether
-// or not the server carries one, rather than quietly listing the default.
-func TestWorkbenchesToolRefusesEvenWithADefaultWhenUnbounded(t *testing.T) {
+// TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded is dinah-301's
+// revision of dinah-307 AC-10. A default library answers a call naming no
+// workbench, and bench.Enumerate("") still cannot run a search. Those two
+// facts no longer add up to a refusal, because the server is demonstrably
+// serving the default on every other call in the same session, and a tool
+// whose summary promises to name what this server may serve should not go
+// silent about the one workbench it can name for certain.
+func TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded(t *testing.T) {
 	library := newLibrary(t)
-	answers := askUnboundedStream(t, "", library,
+	answer := askUnderRoot(t, "", library,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbenches","arguments":{}}}`)
 
-	if len(answers) != 1 {
-		t.Fatalf("wanted one answer, got %d", len(answers))
+	if answer.Error != nil {
+		t.Fatalf("workbenches against an unbounded server carrying a default refused rather than answered: %+v", answer.Error)
 	}
-	if answers[0].Error == nil {
-		t.Fatalf("workbenches against an unbounded server carrying a default answered rather than refused: %+v", answers[0].Result)
+	decoded := payload(t, answer)
+	if unbounded, _ := decoded["unbounded"].(bool); !unbounded {
+		t.Errorf("the answer does not mark itself unbounded: %+v", decoded)
 	}
-	if !strings.HasPrefix(answers[0].Error.Message, contract.NoWorkbenchFound) {
-		t.Errorf("the refusal message: wanted one leading with %s, got %q", contract.NoWorkbenchFound, answers[0].Error.Message)
+	rows := decodedCandidates(t, decoded)
+	want := []bench.Candidate{{
+		Title: library.Bench.Title,
+		Slug:  library.Bench.Slug,
+		Path:  library.Bench.Root,
+	}}
+	if !reflect.DeepEqual(rows, want) {
+		t.Errorf("workbenches against an unbounded server carrying a default: got %+v, want %+v", rows, want)
 	}
+}
+
+// TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault is dinah-301 AC-3. The
+// answer that names the default is reached only by a call that names no path,
+// so a call that names one walks the directory it was given, and the default
+// the server happens to carry changes nothing about what comes back.
+func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
+	elsewhere := t.TempDir()
+	written := filepath.Join(elsewhere, "second")
+	read, err := bench.ReadDefinition([]byte(definition))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	// The second workbench is instantiated directly at a directory the walk
+	// reaches, as newLibrary does, rather than through verb.Init, which writes
+	// into a dot-prefixed .dinah container that this downward walk skips.
+	if err := bench.Instantiate(written, "sc", "alka", read); err != nil {
+		t.Fatalf("instantiate a second workbench at %s: %v", written, err)
+	}
+	second := newLibraryAt(t, written)
+
+	library := newLibrary(t)
+	request := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/call",
+		"params": map[string]any{
+			"name":      "workbenches",
+			"arguments": map[string]any{"path": elsewhere},
+		},
+	}
+	line, err := json.Marshal(request)
+	if err != nil {
+		t.Fatalf("encode the request: %v", err)
+	}
+	answer := askUnderRoot(t, "", library, string(line))
+
+	decoded := payload(t, answer)
+	if _, present := decoded["unbounded"]; present {
+		t.Errorf("a call naming a path was marked unbounded: %+v", decoded)
+	}
+	rows := decodedCandidates(t, decoded)
+	want := []bench.Candidate{{
+		Title: second.Bench.Title,
+		Slug:  second.Bench.Slug,
+		Path:  second.Bench.Root,
+	}}
+	if !reflect.DeepEqual(rows, want) {
+		t.Errorf("workbenches under %s: got %+v, want %+v", elsewhere, rows, want)
+	}
+}
+
+// decodedCandidates reads the workbenches member of a decoded payload back as
+// the rows the tool composed, so an assertion compares whole candidates rather
+// than the fields a test remembered to pick out of a map.
+func decodedCandidates(t *testing.T, decoded map[string]any) []bench.Candidate {
+	t.Helper()
+	raw, err := json.Marshal(decoded["workbenches"])
+	if err != nil {
+		t.Fatalf("re-encode the workbenches value: %v", err)
+	}
+	var rows []bench.Candidate
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		t.Fatalf("decode the workbenches value: %v", err)
+	}
+	return rows
 }
 
 // TestWorkbenchesListsTheWorkbenchInTheRootsOwnContainer is dinah-312 AC-5.
