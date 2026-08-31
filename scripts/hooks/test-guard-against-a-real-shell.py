@@ -1016,7 +1016,7 @@ def make_executable(bash, path):
                    capture_output=True, text=True, timeout=30)
 
 
-def report_stub_failure(bash, stub, sandbox, environment):
+def report_stub_failure(bash, stub, sandbox, environment, marker):
     """What the shell says about the stub it did not run.
 
     The probe below can fail because the stub directory never reached the
@@ -1027,7 +1027,10 @@ def report_stub_failure(bash, stub, sandbox, environment):
     """
     script = (
         'echo "resolved to: $(command -v git 2>/dev/null || echo nothing)"\n'
+        'case "$PATH" in *"$2"*) echo "the stub directory reached PATH";; '
+        '*) echo "the stub directory never reached PATH";; esac\n'
         'echo "first PATH entry: ${PATH%%:*}"\n'
+        'echo "PATH: $PATH"\n'
         'if [ -x "$1" ]; then echo "the stub is executable"; '
         'else echo "the stub is not executable"; fi\n'
         'ls -l "$1" 2>&1\n'
@@ -1035,7 +1038,7 @@ def report_stub_failure(bash, stub, sandbox, environment):
     try:
         done = subprocess.run(
             [bash, "--noprofile", "--norc", "-c", script, "stub-report",
-             stub.replace("\\", "/")],
+             stub.replace("\\", "/"), marker],
             cwd=sandbox, env=environment, capture_output=True, text=True, timeout=30)
     except Exception as err:
         print("    the shell could not be asked why: %s" % err)
@@ -1094,7 +1097,8 @@ def main():
         if not probe:
             print("the recording stub is not the git this shell runs: nothing "
                   "would be observed")
-            report_stub_failure(bash, stub, sandbox, environment)
+            report_stub_failure(bash, stub, sandbox, environment,
+                                os.path.basename(root))
             return 1
 
         guard = load_guard()
