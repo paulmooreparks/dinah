@@ -63,12 +63,22 @@ type rpcError struct {
 
 // The JSON-RPC error codes this head reports.
 const (
+	codeParseError     = -32700
+	codeInvalidRequest = -32600
 	codeMethodNotFound = -32601
 	codeInvalidParams  = -32602
 )
 
 // Serve reads line-delimited JSON-RPC from a reader and answers on a writer
-// until the reader closes.
+// until the reader closes. A line json.Unmarshal cannot turn into a request is
+// answered with a JSON-RPC error of its own rather than dropped, so a caller
+// that sent one is told, and scanning continues to the next line either way.
+//
+// A line carrying no bytes at all is the single exception and is skipped in
+// silence, because a stream ending in a newline produces one and there is
+// nothing on it to answer. A line carrying only spaces or a tab is not that
+// case: it carries bytes the head cannot use, so it draws the same error any
+// other unusable line draws.
 //
 // The transport is the standard library's: encoding/json over bufio, which
 // covers the whole of what this head needs, so the module keeps its record of
@@ -83,12 +93,15 @@ func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Lib
 	reader.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	encoder := json.NewEncoder(out)
 	for reader.Scan() {
-		line := strings.TrimSpace(reader.Text())
+		line := reader.Text()
 		if line == "" {
 			continue
 		}
 		var req request
 		if err := json.Unmarshal([]byte(line), &req); err != nil {
+			if err := encoder.Encode(malformedLineResponse(err)); err != nil {
+				return err
+			}
 			continue
 		}
 		answer := dispatch(root, defaultLib, libraries, &req)
@@ -100,6 +113,27 @@ func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Lib
 		}
 	}
 	return reader.Err()
+}
+
+// malformedLineResponse builds the response for one line of stdin that
+// json.Unmarshal could not turn into a request. A *json.SyntaxError means the
+// line was not valid JSON at all, which is JSON-RPC 2.0 section 5.1's -32700
+// "Parse error"; anything else json.Unmarshal returns here means the line was
+// valid JSON but not shaped like a Request object, which is the same section's
+// -32600 "Invalid Request". The identifier is the JSON literal null, per the
+// specification's Response object rule for both of these cases, rather than
+// the zero json.RawMessage the field would otherwise carry, which its own
+// omitempty tag would drop from the encoded response entirely.
+func malformedLineResponse(err error) *response {
+	code := codeInvalidRequest
+	if _, ok := err.(*json.SyntaxError); ok {
+		code = codeParseError
+	}
+	return &response{
+		JSONRPC: "2.0",
+		ID:      json.RawMessage("null"),
+		Error:   &rpcError{Code: code, Message: err.Error()},
+	}
 }
 
 // dispatch answers one request, or returns nil for a notification, which
