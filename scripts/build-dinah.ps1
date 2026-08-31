@@ -87,9 +87,18 @@ try {
         } else {
             git fetch origin
             if ($LASTEXITCODE -ne 0) { throw "git fetch failed" }
-            # The checkout is kept detached at the trunk; fast-forward the detachment.
-            git checkout --detach origin/main -q
-            if ($LASTEXITCODE -ne 0) { throw "git checkout origin/main failed" }
+            # Stay on the branch rather than detaching at the same commit. A
+            # detached head leaves local main behind forever, and the release
+            # workflow tags every commit on the trunk, so git names the position
+            # by that tag and the checkout looks like it has wandered onto a
+            # release. Fast-forward only, so a diverged main is reported instead
+            # of merged.
+            git checkout main -q
+            if ($LASTEXITCODE -ne 0) { throw "git checkout main failed" }
+            git merge --ff-only origin/main -q
+            if ($LASTEXITCODE -ne 0) {
+                throw "main has diverged from origin/main; reconcile it by hand, or pass -SkipPull to build what is checked out"
+            }
         }
     }
 
