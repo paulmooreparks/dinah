@@ -189,6 +189,157 @@ test("runCheck reads exit 2 as the refusal it now exclusively means", async () =
 	assert.equal(outcome.kind === "refused" ? outcome.refusal : "", "dinah.no-workbench");
 });
 
+test("an exit-2 body that parsed but carries no refusal names its own keys", async () => {
+	// dinah-353 AC-5(c). This is the operator's incident, reproduced from this
+	// side of the wire: a binary predating dinah-346 answers `check` on a
+	// workbench carrying defects with exit 2 and its old report body, which has
+	// no `refusal` field because it was never a refusal. The message must say
+	// what was expected and what arrived, rather than the old fixed sentence
+	// that said the check could not run.
+	const { spawner } = stub({
+		code: 2,
+		stdout: JSON.stringify({ findings: [] }),
+		stderr: "",
+	});
+	const outcome = await runCheck(spawner, "dinah", "C:/bench");
+	assert.equal(outcome.kind, "not-json");
+	assert.equal(
+		outcome.kind === "not-json" ? outcome.detail : "",
+		'dinah exited 2 (refused), but its JSON carried no string "refusal" field, ' +
+			"which every refusal envelope carries. Top-level keys: findings.",
+	);
+});
+
+test("an exit-2 body that is not JSON at all is quoted back", async () => {
+	// dinah-353 AC-5(b).
+	const { spawner } = stub({
+		code: 2,
+		stdout: "Usage: dinah [options]\n",
+		stderr: "",
+	});
+	const outcome = await runCheck(spawner, "dinah", "C:/bench");
+	assert.equal(outcome.kind, "not-json");
+	assert.equal(
+		outcome.kind === "not-json" ? outcome.detail : "",
+		"dinah exited 2 (refused), but stdout was not JSON. Expected a refusal " +
+			'envelope with a string "refusal" field. stdout: Usage: dinah [options]',
+	);
+});
+
+test("stderr on an exit-2 answer still wins over both fallbacks", async () => {
+	// dinah-353 AC-5(d). Whatever dinah itself said outranks anything this
+	// module can compose about a body it could not read, so neither new
+	// sentence may appear when stderr carries a message.
+	for (const stdout of ['{"findings":[]}', "Usage: dinah [options]"]) {
+		const { spawner } = stub({
+			code: 2,
+			stdout,
+			stderr: "  the workbench moved\n",
+		});
+		const outcome = await runCheck(spawner, "dinah", "C:/bench");
+		assert.equal(outcome.kind, "not-json", stdout);
+		assert.equal(
+			outcome.kind === "not-json" ? outcome.detail : "",
+			"the workbench moved",
+			stdout,
+		);
+	}
+});
+
+test("a long unreadable exit-2 body is cut to one bounded line", async () => {
+	// dinah-353 AC-6. The bound is what keeps one bad response from filling a
+	// toast, so the assertions are on the excerpt's length and on its having no
+	// newline left in it, not on the sentence around them.
+	const body = `${"x".repeat(120)}\n${"y".repeat(300)}`;
+	const { spawner } = stub({ code: 2, stdout: body, stderr: "" });
+	const outcome = await runCheck(spawner, "dinah", "C:/bench");
+	assert.equal(outcome.kind, "not-json");
+	const detail = outcome.kind === "not-json" ? outcome.detail : "";
+	const marker = "stdout: ";
+	const quoted = detail.slice(detail.indexOf(marker) + marker.length);
+	assert.equal(quoted.endsWith("…"), true, detail);
+	assert.equal(quoted, `${"x".repeat(120)} ${"y".repeat(79)}…`);
+	assert.equal(quoted.length, 201);
+	assert.equal(detail.includes("\n"), false);
+});
+
+test("a short unreadable exit-2 body is quoted whole, with no marker", async () => {
+	// dinah-353 AC-6, the other side of the bound. A body under the limit must
+	// arrive intact, or the marker would say something was cut when nothing was.
+	const { spawner } = stub({ code: 2, stdout: "x".repeat(200), stderr: "" });
+	const outcome = await runCheck(spawner, "dinah", "C:/bench");
+	const detail = outcome.kind === "not-json" ? outcome.detail : "";
+	assert.equal(detail.endsWith(`stdout: ${"x".repeat(200)}`), true, detail);
+	assert.equal(detail.includes("…"), false);
+});
+
+test("an exit-2 body of JSON that is not an object names its shape", async () => {
+	// dinah-353. Object.keys answers an array with its indices, so listing keys
+	// on a top-level array would report the keys 0 and 1 and tell the reader
+	// nothing about the response. Every non-object JSON body says what it was
+	// instead, and none of them lists anything.
+	const cases: [string, string][] = [
+		["[1,2]", "an array"],
+		["null", "null"],
+		["7", "a number"],
+		['"refused"', "a string"],
+		["true", "a boolean"],
+	];
+	for (const [stdout, shape] of cases) {
+		const { spawner } = stub({ code: 2, stdout, stderr: "" });
+		const outcome = await runCheck(spawner, "dinah", "C:/bench");
+		assert.equal(outcome.kind, "not-json", stdout);
+		const detail = outcome.kind === "not-json" ? outcome.detail : "";
+		assert.equal(
+			detail,
+			`dinah exited 2 (refused), but its JSON was ${shape}. Every refusal ` +
+				'envelope is an object carrying a string "refusal" field.',
+			stdout,
+		);
+		assert.equal(detail.includes("Top-level keys"), false, stdout);
+	}
+});
+
+test("an exit-2 body with nothing in it says so in both fallbacks", async () => {
+	// dinah-353. An empty stdout leaves the quoting branch with nothing to
+	// quote, and a message ending in "stdout: " reads as one that broke while
+	// composing itself. An empty object has no keys to list and says that too.
+	const blank = stub({ code: 2, stdout: "   \n", stderr: "" });
+	const blankOutcome = await runCheck(blank.spawner, "dinah", "C:/bench");
+	assert.equal(
+		blankOutcome.kind === "not-json" ? blankOutcome.detail : "",
+		"dinah exited 2 (refused), but stdout was not JSON. Expected a refusal " +
+			'envelope with a string "refusal" field. stdout: (empty)',
+	);
+
+	const empty = stub({ code: 2, stdout: "{}", stderr: "" });
+	const emptyOutcome = await runCheck(empty.spawner, "dinah", "C:/bench");
+	assert.equal(
+		emptyOutcome.kind === "not-json" ? emptyOutcome.detail : "",
+		'dinah exited 2 (refused), but its JSON carried no string "refusal" field, ' +
+			"which every refusal envelope carries. Top-level keys: (none).",
+	);
+});
+
+test("every verb gets the improved exit-2 message, not only check", async () => {
+	// dinah-353 D-4. readRefusal is the one function every exit-2 answer goes
+	// through, so runDinah's callers in cardCommands.ts see the same sentences
+	// runCheck does. A change that composed the message at the check call site
+	// would leave this one on the old wording.
+	const { spawner } = stub({
+		code: 2,
+		stdout: JSON.stringify({ cards: [] }),
+		stderr: "",
+	});
+	const outcome = await runDinah(spawner, "dinah", ["status"]);
+	assert.equal(outcome.kind, "not-json");
+	assert.equal(
+		outcome.kind === "not-json" ? outcome.detail : "",
+		'dinah exited 2 (refused), but its JSON carried no string "refusal" field, ' +
+			"which every refusal envelope carries. Top-level keys: cards.",
+	);
+});
+
 test("runCheck reads exit 3 as stale and exit 4 as unreachable", async () => {
 	const stale = stub({ code: 3, stdout: "", stderr: "the cursor is old" });
 	assert.equal((await runCheck(stale.spawner, "dinah", "C:/b")).kind, "stale");

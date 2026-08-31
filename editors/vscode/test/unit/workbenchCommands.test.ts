@@ -24,6 +24,9 @@ import {
 
 const BENCH = "C:/work/board";
 
+/** How a resolved binary describes itself, as describeVersion composes it. */
+const TOOL = "dinah 0.1.0, dinah-core/0.7, format 1";
+
 /** What a clean check answers, as verb.CheckReport marshals a nil slice. */
 const CLEAN: SpawnOutcome = {
 	code: 0,
@@ -109,6 +112,7 @@ function recorder(outcome: SpawnOutcome = CLEAN): Recorder {
 	r.context = {
 		spawner,
 		exe: "dinah",
+		toolDescription: TOOL,
 		host: r.host,
 		path: BENCH,
 		label: "Work",
@@ -157,7 +161,7 @@ test("contextForWorkbench composes a context for each of the three resolved row 
 		"workbenchForest",
 	] as const) {
 		const element: TreeElement = { kind: "root", row: rootRow({ rowKind }) };
-		const target = contextForWorkbench(element, "dinah", silentHost, silentSpawner);
+		const target = contextForWorkbench(element, "dinah", TOOL, silentHost, silentSpawner);
 		assert.notEqual(target, undefined, `a ${rowKind} row composed no context`);
 		assert.equal(target?.path, BENCH);
 	}
@@ -175,7 +179,7 @@ test("contextForWorkbench reads a candidate's own path before it has been expand
 			candidate: { path: "C:/work/other", title: "Other" },
 		}),
 	};
-	const target = contextForWorkbench(element, "dinah", silentHost, silentSpawner);
+	const target = contextForWorkbench(element, "dinah", TOOL, silentHost, silentSpawner);
 	assert.equal(target?.path, "C:/work/other");
 });
 
@@ -185,7 +189,7 @@ test("contextForWorkbench answers undefined for an absent element", () => {
 	// here, and reading a field off undefined throws before the handler's own
 	// wrong-row branch could run.
 	assert.equal(
-		contextForWorkbench(undefined, "dinah", silentHost, silentSpawner),
+		contextForWorkbench(undefined, "dinah", TOOL, silentHost, silentSpawner),
 		undefined,
 	);
 });
@@ -200,7 +204,7 @@ test("contextForWorkbench answers undefined for a dead end and for a row with no
 	];
 	for (const [what, element] of cases) {
 		assert.equal(
-			contextForWorkbench(element, "dinah", silentHost, silentSpawner),
+			contextForWorkbench(element, "dinah", TOOL, silentHost, silentSpawner),
 			undefined,
 			`${what} composed a context`,
 		);
@@ -235,7 +239,7 @@ test("contextForWorkbench answers undefined for every element kind that is not a
 	];
 	for (const element of elements) {
 		assert.equal(
-			contextForWorkbench(element, "dinah", silentHost, silentSpawner),
+			contextForWorkbench(element, "dinah", TOOL, silentHost, silentSpawner),
 			undefined,
 			`a ${element.kind} row composed a context`,
 		);
@@ -318,7 +322,7 @@ test("the channel opens when the reader asks for it and stays shut when they do 
 	assert.equal(dismissed.appended.length, 3);
 });
 
-test("a check that could not run at all reports itself rather than passing for clean", async () => {
+test("a check that produced no report reports itself rather than passing for clean", async () => {
 	// AC-7. Every non-ok outcome takes this path, and the failure that matters
 	// most is the refusal, which used to be indistinguishable from a dirty
 	// workbench because both exited 2.
@@ -364,17 +368,88 @@ test("a check that could not run at all reports itself rather than passing for c
 		await checkWorkbench(r.context);
 		assert.deepEqual(
 			r.appended,
-			[`Work: check could not run. ${sentence}`],
+			[
+				`Work: check produced no report the extension could read. ${sentence}`,
+				`The binary that answered: dinah (${TOOL}).`,
+			],
 			`the ${kind} outcome wrote the wrong line`,
 		);
 		assert.deepEqual(
 			r.warnings,
-			["Work: check could not run. See the Dinah output channel for details."],
+			[
+				"Work: check produced no report the extension could read. See the Dinah output channel for details.",
+			],
 			`the ${kind} outcome told the reader the wrong thing`,
 		);
 		assert.deepEqual(r.infos, [], `the ${kind} outcome passed for a clean check`);
 		assert.equal(r.revealed, 1, `the ${kind} outcome did not offer the channel`);
 	}
+});
+
+test("the answer a binary predating dinah-346 gives names that binary and no false clause", async () => {
+	// The incident this card is named for, driven through the whole path a
+	// reader meets rather than through readRefusal alone. A binary built before
+	// dinah-346 forces exit 2 for a workbench carrying defects and writes its
+	// old report body, which has no refusal field in it.
+	//
+	// Two properties are asserted here and neither held before. The leading
+	// clause no longer says the check could not run, which on this arm is
+	// false: the check ran and found the defect. And the line beneath names
+	// the executable and what it reported itself to be, so a reader who has
+	// been told the answer could not be read learns whose answer it was.
+	const r = recorder({
+		code: 2,
+		stdout: JSON.stringify({
+			findings: [
+				{ Path: "C:/work/board/workbench.md", Key: "check.missing-slug", Detail: "" },
+			],
+		}),
+		stderr: "",
+	});
+	r.answer = OPEN_OUTPUT;
+	await checkWorkbench(r.context);
+	assert.deepEqual(r.appended, [
+		'Work: check produced no report the extension could read. not-json: dinah exited 2 (refused), but its JSON carried no string "refusal" field, which every refusal envelope carries. Top-level keys: findings.',
+		`The binary that answered: dinah (${TOOL}).`,
+	]);
+	assert.equal(
+		r.appended[0].includes("could not run"),
+		false,
+		"the line still says the check could not run",
+	);
+});
+
+test("the binary line falls back to the path alone, and says so when nothing was resolved", async () => {
+	// Both degradations are representable: a context whose binary answered but
+	// never described itself, and a context composed while no binary was
+	// resolved at all, which is what extension.ts passes when resolution
+	// failed. Neither may print an empty parenthesis or a bare "at".
+	const described = recorder({ code: 3, stdout: "", stderr: "the cursor is old" });
+	await checkWorkbench({ ...described.context, toolDescription: "" });
+	assert.equal(described.appended[1], "The binary that answered: dinah.");
+
+	const unresolved = recorder({ code: 3, stdout: "", stderr: "the cursor is old" });
+	await checkWorkbench({ ...unresolved.context, exe: "", toolDescription: "" });
+	assert.equal(
+		unresolved.appended[1],
+		"No dinah binary was resolved, so nothing ran.",
+	);
+});
+
+test("contextForWorkbench carries the binary's description to the command", async () => {
+	// The field is display-only, so the guard that composes a context is the
+	// only place it can arrive from. A context composed without it would leave
+	// every message about an unreadable answer naming a path and nothing else.
+	const element: TreeElement = { kind: "root", row: rootRow() };
+	const target = contextForWorkbench(
+		element,
+		"C:/tools/dinah.exe",
+		TOOL,
+		silentHost,
+		silentSpawner,
+	);
+	assert.equal(target?.toolDescription, TOOL);
+	assert.equal(target?.exe, "C:/tools/dinah.exe");
 });
 
 // copyWorkbenchPath
@@ -410,7 +485,7 @@ test("copyWorkbenchPath copies an unexpanded candidate's own path", async () => 
 		}),
 	};
 	const r = recorder();
-	const target = contextForWorkbench(element, "dinah", r.host, silentSpawner);
+	const target = contextForWorkbench(element, "dinah", TOOL, r.host, silentSpawner);
 	assert.notEqual(target, undefined);
 	await copyWorkbenchPath(target as WorkbenchCommandContext);
 	assert.deepEqual(r.copied, ["C:/work/other"]);
