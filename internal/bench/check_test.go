@@ -606,8 +606,8 @@ func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
 // The fixture claims its identifiers in the reverse of its write order, so the
 // directory listing and the journal disagree about which comment came first.
 // Before this card the read path took the listing's answer and the migration
-// took the journal's, which is exactly how `<card>/comments/1` came to name
-// one comment on Monday and another on Tuesday.
+// took the journal's, so `<card>/comments/1` named one comment before the
+// migration ran and a different one after it.
 func TestACommentHoldsItsPositionAcrossTheMigration(t *testing.T) {
 	root := newFixture(t)
 	journal := filepath.Join(root, CardsDir, "c00000000001", JournalName)
@@ -734,7 +734,7 @@ func resolvedItem(t *testing.T, opened *Bench, position, when string) string {
 // directory the walk reaches the workbench root from without meeting a card.
 //
 // The two workstream collections are what this is really about. Both hang off
-// the bench root rather than off a card, and both are read through
+// the workbench root rather than off a card, and both are read through
 // SortByOrdinal, so the fallback has to leave them exactly as it found them.
 func TestTheJournalLookupStopsAtTheWorkbenchRoot(t *testing.T) {
 	root := newFixture(t)
@@ -774,24 +774,39 @@ func TestTheJournalLookupStopsAtTheWorkbenchRoot(t *testing.T) {
 // The boundary is worth an assertion rather than a remark because the read
 // path now asks a question about the nearest enclosing card, and these two
 // collections are where that question has no answer.
+//
+// The card's own attachment is the control. Without it the fixture gives the
+// migration nothing at all to stamp, and the two empty anchors then read the
+// same whether the walk narrowed correctly or never ran, so a regression that
+// broke the walk outright would leave this test green.
 func TestTheMigrationLeavesAWorkbenchAndColumnAttachmentUnstamped(t *testing.T) {
 	root := newFixture(t)
 	fm := NewFrontmatter()
 	fm.Set("filename", "loose.txt")
 	fm.Set("provenance", "alka")
-	benchAnchor := filepath.Join(root, AttachmentsDir, "a00000000001", AttachmentAnchor)
+	workbenchAnchor := filepath.Join(root, AttachmentsDir, "a00000000001", AttachmentAnchor)
 	columnAnchor := filepath.Join(root, ColumnsDir, "b00000000001", AttachmentsDir, "a00000000002", AttachmentAnchor)
-	write(t, benchAnchor, fm.Render(""))
+	cardCollection := filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir)
+	cardAnchor := filepath.Join(cardCollection, "a00000000003", AttachmentAnchor)
+	write(t, workbenchAnchor, fm.Render(""))
 	write(t, columnAnchor, fm.Render(""))
+	write(t, cardAnchor, fm.Render(""))
 
 	opened, err := Open(root)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	if _, _, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z"); err != nil {
+	stamped, _, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
 		t.Fatalf("backfill: %v", err)
 	}
-	for _, path := range []string{benchAnchor, columnAnchor} {
+	if stamped != 1 {
+		t.Fatalf("the migration stamped %d entities, wanted the card's own attachment and nothing else", stamped)
+	}
+	if got := EntityOrdinal(cardCollection, "a00000000003", AttachmentAnchor); got != 1 {
+		t.Fatalf("the card's own attachment carries ordinal %d after the run, so the walk reached no card and the two assertions below prove nothing", got)
+	}
+	for _, path := range []string{workbenchAnchor, columnAnchor} {
 		text, err := ReadText(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)

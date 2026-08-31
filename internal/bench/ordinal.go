@@ -121,7 +121,7 @@ func SortByOrdinal(collection, anchor string, ids []string) []string {
 // collection's own listing order.
 //
 // journalPathFor returning "" (no enclosing card, which covers every
-// collection hanging off the workbench itself, off a column and off a
+// collection hanging off the workbench itself, off a column, and off a
 // workstream) and journalOrder naming no checklist item (no event records one
 // being written) both fall straight through to that listing-order ranking,
 // which is what SortByOrdinal did everywhere before this function existed.
@@ -233,8 +233,7 @@ func journalOrder(events []Event) []string {
 // The candidates are an identifier list rather than a collection directory
 // because the two callers pass different members of one collection: the
 // migration passes every member, and fallbackRank passes only the members
-// carrying no ordinal. Both want the same recovery over whatever they pass,
-// which is what makes a read agree with the migration that follows it.
+// carrying no ordinal. Both want the same recovery over whatever they pass.
 func orderedByJournal(candidates []string, order []string) (ordered, guessed []string) {
 	present := map[string]bool{}
 	for _, id := range candidates {

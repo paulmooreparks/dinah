@@ -60,7 +60,10 @@ func AddComment(cardDir, author, ts, body string) (*Comment, error) {
 //
 // The order is the ordinal's rather than the timestamp's, because a timestamp
 // is wall-clock and two processes commenting inside one second record the same
-// one, which leaves the reader's order to the directory listing.
+// one, which leaves the reader's order to the directory listing. A comment
+// carrying no ordinal sorts ahead of every stamped one, and SortByOrdinal
+// recovers the order such comments were written in from the card's journal,
+// which is the order check --migrate-ordinals will stamp them in.
 func Comments(cardDir string) ([]*Comment, error) {
 	collection := filepath.Join(cardDir, CommentsDir)
 	var comments []*Comment

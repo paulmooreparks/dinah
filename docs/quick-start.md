@@ -798,9 +798,9 @@ $ dinah path rel-1/attachments/1/payload
 ```
 
 If you have an older workbench, written before ordinals existed, its comments
-and attachments carry no ordinal, and a position there is only as good as the
-directory listing. You repair that with `dinah check --migrate-ordinals`, and
-the section on defects below runs it.
+and attachments carry no ordinal, and Dinah recovers their order from the
+card's journal on every read. Running `dinah check --migrate-ordinals` stores
+that order on the anchors, and the section on defects below runs it.
 
 Dinah keeps the full record of a card in its journal, and `log` shows you that
 journal oldest first:
@@ -993,8 +993,8 @@ without an edit to `workbench.md` leaves its identifier stranded in the list:
 
 ```console skip=the transcript answers from a legacy workbench, which the narrative never builds
 $ dinah check
-  aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
-  fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
+  aeed974a5f22 carries no creation ordinal, so its position is recovered from the card's journal, or from the directory listing where no event names it (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
+  fcd92b769691 carries no creation ordinal, so its position is recovered from the card's journal, or from the directory listing where no event names it (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
   column 003b09ee6e31 carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/003b09ee6e31/column.md)
   column 780659205f6b carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/780659205f6b/column.md)
   column fcd0d92e167a carries no slug, so it is reachable only by its identifier or its quoted title (/home/ana/legacy/.dinah/d0e41d414bb5/columns/fcd0d92e167a/column.md)
@@ -1008,8 +1008,8 @@ Assigned 3 column slugs.
   intake  Intake
   doing   Doing
   done    Done
-  aeed974a5f22 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
-  fcd92b769691 carries no creation ordinal, so its position depends on the directory listing (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
+  aeed974a5f22 carries no creation ordinal, so its position is recovered from the card's journal, or from the directory listing where no event names it (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/comments/aeed974a5f22/comment.md)
+  fcd92b769691 carries no creation ordinal, so its position is recovered from the card's journal, or from the directory listing where no event names it (/home/ana/legacy/.dinah/d0e41d414bb5/cards/73ca475d0aaa/attachments/fcd92b769691/attachment.md)
   the workbench names a column whose directory is not there (000000000000); dinah check --migrate-columns removes it from the list (/home/ana/legacy/.dinah/d0e41d414bb5/workbench.md)
 3 defects.
 [exit 5]
