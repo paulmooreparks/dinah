@@ -7,5 +7,7 @@
 			"path": "../../../dinah-tests"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"powershell.cwd": "dinah"
+	}
 }
