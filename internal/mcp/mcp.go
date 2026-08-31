@@ -11,6 +11,7 @@ package mcp
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sort"
@@ -282,6 +283,10 @@ func readResource(params json.RawMessage) (map[string]any, error) {
 // the default, the value is resolved to an absolute path, the containment
 // check refuses anything outside the root, a missing workbench.md refuses,
 // and `bench.Open` runs last so its own refusals travel unchanged.
+//
+// Both dispatch paths check the call's argument names against what the tool
+// declares before they act on any of them, so an argument this surface never
+// published is refused rather than read past.
 func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, params json.RawMessage) (map[string]any, error) {
 	var args struct {
 		Name      string         `json:"name"`
@@ -291,11 +296,17 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 		return nil, err
 	}
 	if args.Name == "workbenches" {
+		if err := checkArguments(toolsByName["workbenches"], args.Arguments); err != nil {
+			return nil, err
+		}
 		return answerWorkbenches(root, defaultLib, args.Arguments)
 	}
 	tool, ok := toolsByName[args.Name]
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownVerb, args.Name)
+	}
+	if err := checkArguments(tool, args.Arguments); err != nil {
+		return nil, err
 	}
 	request := request2Args(tool.command, args.Arguments)
 	// A root argument makes this a root-scoped read, which answers about every
@@ -706,6 +717,65 @@ func request2Args(command string, arguments map[string]any) *verb.Request {
 		req.Basis = basis
 	}
 	return req
+}
+
+// unknownArgument is what call returns when a tools/call names an argument
+// outside what the tool it named declares. It is a plain error, so dispatch's
+// tools/call branch wraps it exactly as it already wraps an unrecognized tool
+// name: as a JSON-RPC protocol error, never inside result.content. A refusal
+// travels in the result because the contract defines it as an answer, and an
+// argument this surface never published is not one of those, since no card,
+// column or workbench was reached before the call was turned away.
+type unknownArgument struct {
+	// tool is the name the call gave.
+	tool string
+	// names are the argument names the tool does not declare, sorted.
+	names []string
+	// accepted is every argument name the tool does declare, sorted.
+	accepted []string
+}
+
+// Error names each argument the tool did not recognize and then what it
+// accepts in their place. The reader is an agent correcting its own call with
+// nobody watching, and a message carrying only the news that something was
+// invalid leaves it exactly as unable to compose the next call as the silence
+// this check replaced.
+func (e *unknownArgument) Error() string {
+	word := "argument"
+	if len(e.names) > 1 {
+		word = "arguments"
+	}
+	quoted := make([]string, len(e.names))
+	for i, name := range e.names {
+		quoted[i] = strconv.Quote(name)
+	}
+	return fmt.Sprintf("tool %q does not accept %s %s; it accepts: %s",
+		e.tool, word, strings.Join(quoted, ", "), strings.Join(e.accepted, ", "))
+}
+
+// checkArguments refuses a call carrying an argument name the tool does not
+// declare, and reports every such name rather than the first one a map walk
+// happens to yield. Both lists are sorted, so one call composes one message
+// however Go orders the map on the run that composed it.
+func checkArguments(t tool, arguments map[string]any) error {
+	declared := declaredArgNames(t)
+	var unknown []string
+	for name := range arguments {
+		if declared[name] {
+			continue
+		}
+		unknown = append(unknown, name)
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	accepted := make([]string, 0, len(declared))
+	for name := range declared {
+		accepted = append(accepted, name)
+	}
+	sort.Strings(unknown)
+	sort.Strings(accepted)
+	return &unknownArgument{tool: t.name, names: unknown, accepted: accepted}
 }
 
 // assignValue puts one named string argument on the request.

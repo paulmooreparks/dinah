@@ -1536,3 +1536,224 @@ func TestTheCheckToolSaysWhetherItFoundAnything(t *testing.T) {
 		t.Errorf("the answer reports findings %v, and the outcome member is worth nothing unless the array agrees with it", dirty["findings"])
 	}
 }
+
+// callLine composes a tools/call request line for one tool and one arguments
+// object, so the argument tests below read as the call they make rather than
+// as a JSON literal a reader has to parse to find the argument under test.
+func callLine(t *testing.T, id int, tool string, arguments map[string]any) string {
+	t.Helper()
+	params := map[string]any{"name": tool, "arguments": arguments}
+	encoded, err := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"method":  "tools/call",
+		"params":  params,
+	})
+	if err != nil {
+		t.Fatalf("compose the call: %v", err)
+	}
+	return string(encoded)
+}
+
+// TestAnUnrecognizedArgumentIsRefusedAtTheTransport asserts that a tools/call
+// naming an argument the tool does not declare comes back as a JSON-RPC
+// protocol error naming the argument and what the tool does accept, rather
+// than as a successful answer computed from a request the caller never made.
+//
+// The control matters as much as the refusal. The same call with the invented
+// name removed has to reach an ordinary answer, or the assertion above would
+// hold just as well for a surface that had stopped answering list_cards at
+// all.
+func TestAnUnrecognizedArgumentIsRefusedAtTheTransport(t *testing.T) {
+	library := newLibrary(t)
+	arguments := map[string]any{"column": "Intake", "sortby": "priority"}
+	answer := ask(t, library, callLine(t, 1, "list_cards", arguments))
+	if answer.Error == nil {
+		t.Fatalf("an invented argument was accepted: %+v", answer)
+	}
+	if answer.Error.Code != codeInvalidParams {
+		t.Errorf("the refusal came back on code %d, want %d", answer.Error.Code, codeInvalidParams)
+	}
+	if answer.Result != nil {
+		t.Errorf("the refusal carried a result as well as an error: %v", answer.Result)
+	}
+	message := answer.Error.Message
+	wanted := []string{`"list_cards"`, `"sortby"`, "column", "max-depth", "ready", "root", "workbench", "actor", "basis"}
+	for _, want := range wanted {
+		if !strings.Contains(message, want) {
+			t.Errorf("the message %q does not carry %s, which an agent correcting its own call needs", message, want)
+		}
+	}
+	delete(arguments, "sortby")
+	control := ask(t, library, callLine(t, 2, "list_cards", arguments))
+	if control.Error != nil {
+		t.Fatalf("the same call without the invented argument was refused too, so the refusal above proves nothing: %+v", control.Error)
+	}
+}
+
+// TestEveryUnrecognizedArgumentIsNamedInOneStableOrder asserts that a call
+// carrying more than one undeclared name is told about all of them at once,
+// in an order that does not move between runs.
+//
+// Go randomises its map iteration order per range, so a check that reported
+// the first name it met would name a different argument on different runs and
+// send an agent round the loop once per mistake. The repeated runs below are
+// what make the sort load-bearing rather than incidental.
+func TestEveryUnrecognizedArgumentIsNamedInOneStableOrder(t *testing.T) {
+	library := newLibrary(t)
+	arguments := map[string]any{"foo": "1", "bar": "2", "zzz": "3"}
+	first := ask(t, library, callLine(t, 1, "whoami", arguments))
+	if first.Error == nil {
+		t.Fatalf("three invented arguments were accepted: %+v", first)
+	}
+	if want := `does not accept arguments "bar", "foo", "zzz"`; !strings.Contains(first.Error.Message, want) {
+		t.Errorf("the message %q does not name all three in sorted order (%s)", first.Error.Message, want)
+	}
+	for run := 2; run <= 20; run++ {
+		again := ask(t, library, callLine(t, run, "whoami", arguments))
+		if again.Error == nil {
+			t.Fatalf("run %d accepted what run 1 refused", run)
+		}
+		if again.Error.Message != first.Error.Message {
+			t.Fatalf("run %d composed %q where run 1 composed %q", run, again.Error.Message, first.Error.Message)
+		}
+	}
+}
+
+// TestTheWorkbenchesToolRefusesTheNameItsSchemaWithholds asserts that the one
+// tool dispatched ahead of the table lookup is checked too.
+//
+// workbenches answers about the root rather than about one workbench, so it
+// declares path where every other tool declares workbench, and schemaFor
+// deliberately publishes no workbench property for it. A caller that sends one
+// anyway is exactly the caller this card exists for: it believes it has named
+// a workbench, and before this check it was answered about all of them.
+func TestTheWorkbenchesToolRefusesTheNameItsSchemaWithholds(t *testing.T) {
+	library := newLibrary(t)
+	root := library.Bench.Root
+	answer := askUnderRoot(t, root, library, callLine(t, 1, "workbenches", map[string]any{"workbench": root}))
+	if answer.Error == nil {
+		t.Fatalf("the workbenches tool accepted a workbench argument: %+v", answer)
+	}
+	if answer.Error.Code != codeInvalidParams {
+		t.Errorf("the refusal came back on code %d, want %d", answer.Error.Code, codeInvalidParams)
+	}
+	message := answer.Error.Message
+	for _, want := range []string{`"workbenches"`, `"workbench"`, "path", "max-depth", "actor", "basis"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("the message %q does not carry %s", message, want)
+		}
+	}
+	if strings.Contains(message, "it accepts: actor, basis, max-depth, path, workbench") {
+		t.Errorf("the accepted set names workbench, which this tool does not take: %q", message)
+	}
+	control := askUnderRoot(t, root, library, callLine(t, 2, "workbenches", map[string]any{"path": root}))
+	if control.Error != nil {
+		t.Fatalf("the same tool refused its own declared path argument, so the refusal above proves nothing: %+v", control.Error)
+	}
+}
+
+// TestAnUnrecognizedToolNameIsRefusedAheadOfItsArguments asserts that a call
+// naming no tool this head serves is still turned away by the tool-name
+// refusal it has always used, even when its arguments are undeclared too.
+//
+// The order is the point. checkArguments needs a tool to read a declared set
+// off, so a call whose tool does not exist has to be refused first, and the
+// message says which of the two mistakes the caller made.
+func TestAnUnrecognizedToolNameIsRefusedAheadOfItsArguments(t *testing.T) {
+	library := newLibrary(t)
+	answer := ask(t, library, callLine(t, 1, "no_such_tool", map[string]any{"sortby": "priority"}))
+	if answer.Error == nil {
+		t.Fatalf("a tool this head does not serve was accepted: %+v", answer)
+	}
+	if !strings.Contains(answer.Error.Message, contract.UnknownVerb) {
+		t.Errorf("the message %q does not refuse the tool name, which is the first thing wrong with the call", answer.Error.Message)
+	}
+	if strings.Contains(answer.Error.Message, "sortby") {
+		t.Errorf("the message %q names the argument, so the arguments were read against a tool that does not exist", answer.Error.Message)
+	}
+}
+
+// declaredCall builds an arguments object carrying every name a tool declares,
+// with each value at the empty form of its own declared type, so that a call
+// exercising the whole accepted set changes nothing about the answer.
+func declaredCall(t tool) map[string]any {
+	arguments := map[string]any{}
+	for name := range declaredArgNames(t) {
+		arguments[name] = ""
+	}
+	for _, param := range verb.Params(t.command) {
+		if param.Marker {
+			arguments[param.Name] = false
+		}
+	}
+	return arguments
+}
+
+// TestEveryDeclaredArgumentNameIsAccepted asserts that the check refuses
+// nothing the surface publishes, for every tool on the surface, and that two
+// of them reach an ordinary answer over the transport with their whole
+// declared set sent.
+//
+// The table half is what makes the claim universal, and the transport half is
+// what proves call consults the check rather than the check merely deciding
+// correctly on its own. whoami is one of the two because it declares no
+// parameter of its own, so the injected names are the whole of its set and a
+// check that only ever saw multi-parameter tools would not have met it.
+func TestEveryDeclaredArgumentNameIsAccepted(t *testing.T) {
+	for _, entry := range tools {
+		if err := checkArguments(entry, declaredCall(entry)); err != nil {
+			t.Errorf("%s refused its own declared arguments: %v", entry.name, err)
+		}
+	}
+	library := newLibrary(t)
+	for id, name := range []string{"whoami", "list_cards"} {
+		entry, ok := toolsByName[name]
+		if !ok {
+			t.Fatalf("the surface no longer serves %s, so this test names a tool that is gone", name)
+		}
+		answer := ask(t, library, callLine(t, id+1, name, declaredCall(entry)))
+		if answer.Error != nil {
+			t.Errorf("%s refused its own declared arguments at the transport: %+v", name, answer.Error)
+			continue
+		}
+		if answer.Result == nil {
+			t.Errorf("%s answered with neither a result nor an error", name)
+		}
+	}
+}
+
+// TestTheSchemaPublishesExactlyTheDeclaredArgumentNames asserts that the set
+// tools/list advertises for a tool and the set the argument check accepts are
+// the same set, computed both ways and compared.
+//
+// The two used to be written twice, and the pair this guards is the reason the
+// helper exists: a property added to the schema alone would be advertised and
+// then refused, and a name added to the check alone would be accepted while no
+// caller was ever told it could send it. Neither side is a count here, because
+// a count agrees with a set right up until somebody adds one name and removes
+// another.
+func TestTheSchemaPublishesExactlyTheDeclaredArgumentNames(t *testing.T) {
+	if len(tools) == 0 {
+		t.Fatal("the surface carries no tool, so this test proves nothing")
+	}
+	for _, entry := range tools {
+		schema := schemaFor(entry)
+		properties, ok := schema["properties"].(map[string]any)
+		if !ok {
+			t.Errorf("%s publishes no properties object", entry.name)
+			continue
+		}
+		var published []string
+		for name := range properties {
+			published = append(published, name)
+		}
+		var declared []string
+		for name := range declaredArgNames(entry) {
+			declared = append(declared, name)
+		}
+		if !reflect.DeepEqual(sorted(published), sorted(declared)) {
+			t.Errorf("%s publishes %v and accepts %v", entry.name, sorted(published), sorted(declared))
+		}
+	}
+}
