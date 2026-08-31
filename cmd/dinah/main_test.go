@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -5284,7 +5283,6 @@ func TestEditHandsTheChildTheRawStreamsWhenItHasThem(t *testing.T) {
 	}
 	// The command is built and never run, so nothing here launches an
 	// editor or waits on a window.
-	var _ *exec.Cmd = bare
 }
 
 // TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference asserts

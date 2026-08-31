@@ -133,15 +133,13 @@ func (w *Writer) Write(p []byte) (int, error) {
 // with an incomplete multi-byte UTF-8 sequence. Call it once, after all
 // writing to this stream is done and before the process exits.
 //
-// No call site in this repository can drive a Writer into that state
-// today. Every one of them writes a complete string in a single call, and
-// the only way to leave a truncated sequence pending is to hand Write a
-// deliberately truncated slice, which this package's own tests do and
-// nothing in the shipped command surface does. Flush therefore bounds the
-// buffer's behavior for a caller added later, rather than handling a case
-// that arises now. It is written and wired anyway because a buffer that
-// behaves correctly only for today's callers is the per-site precondition
-// this design set out to remove (D-8).
+// No call site in this repository is known to write a partial sequence,
+// and Writer no longer depends on that being true. Establishing it would
+// take an audit of every caller and of the libraries they write through,
+// which is the per-site precondition D-8 removed rather than proved: the
+// buffer above holds a truncated tail whoever produced it, so Flush is
+// what bounds the buffer at end of stream for callers nobody has audited
+// and for callers not yet written.
 //
 // Flush does not close the underlying file. This type wraps os.Stdout and
 // os.Stderr, and this package must never close either.
@@ -159,9 +157,8 @@ func (w *Writer) Write(p []byte) (int, error) {
 // what []rune(string(p)) does, and what this package's encoding step has
 // always done) yields the replacement rune U+FFFD for the invalid bytes;
 // a truncated trailing sequence is invalid UTF-8 by definition, so it
-// flushes as one or more U+FFFD characters. This is the same degradation
-// Write has always documented for the console branch, applied at
-// end-of-stream instead of introduced as a new failure mode.
+// flushes as one or more U+FFFD characters, which is what the console
+// branch does with invalid UTF-8 anywhere else.
 func (w *Writer) Flush() error {
 	if len(w.pending) == 0 {
 		return nil
@@ -175,10 +172,15 @@ func (w *Writer) Flush() error {
 }
 
 // writeConsole re-encodes b as UTF-16 and submits it to the probe in
-// consoleWriteChunk-sized pieces, honoring the probe's reported count and
-// looping until every unit is written. b must not end with a byte
-// sequence Write or Flush would otherwise have held back; both callers
-// arrange that before calling writeConsole.
+// pieces of at most consoleWriteChunk units, honoring the probe's
+// reported count and looping until every unit is written. b must not end
+// with a byte sequence Write or Flush would otherwise have held back;
+// both callers arrange that before calling writeConsole.
+//
+// No piece ends between the two units of a surrogate pair, which is what
+// chunkEnd is for. Write already rejoins a character a caller split
+// across two of its own calls, and a fixed cut every consoleWriteChunk
+// units would divide one back apart a layer further down.
 func (w *Writer) writeConsole(b []byte) error {
 	units := utf16.Encode([]rune(string(b)))
 	if len(units) == 0 {
@@ -186,10 +188,7 @@ func (w *Writer) writeConsole(b []byte) error {
 	}
 	offset := 0
 	for offset < len(units) {
-		end := offset + consoleWriteChunk
-		if end > len(units) {
-			end = len(units)
-		}
+		end := chunkEnd(units, offset)
 		n, err := w.probe.writeUTF16(w.f, units[offset:end])
 		if err != nil {
 			return err
@@ -200,6 +199,39 @@ func (w *Writer) writeConsole(b []byte) error {
 		offset += n
 	}
 	return nil
+}
+
+// chunkEnd returns the index one past the last unit writeConsole submits
+// in the call starting at offset. It is offset+consoleWriteChunk, clamped
+// to the length of units, and then backed off by one unit when that cut
+// would fall between the two halves of a surrogate pair.
+//
+// The boundary test asks the encoding rather than a numeric range.
+// utf16.DecodeRune "returns the UTF-16 decoding of a surrogate pair", and
+// "if the pair is not a valid UTF-16 surrogate pair, DecodeRune returns
+// the Unicode replacement code point U+FFFD". So when the two units
+// either side of a candidate cut decode to anything but U+FFFD, those two
+// units are one character and the cut is inside it. U+FFFD is itself in
+// the Basic Multilingual Plane and no surrogate pair encodes it, so a
+// genuine pair never answers with the sentinel.
+//
+// Backing off cannot empty the chunk: consoleWriteChunk is well above 1,
+// so a chunk shortened by one unit still carries units to write, and the
+// unit given up opens the next call.
+//
+// Where the console consumes less than it was offered, the next call
+// resumes at whatever count the console reported, which can itself fall
+// inside a pair. That count is the console's to choose and this package
+// only reports it; the cut at consoleWriteChunk is the one it picks.
+func chunkEnd(units []uint16, offset int) int {
+	end := offset + consoleWriteChunk
+	if end >= len(units) {
+		return len(units)
+	}
+	if utf16.DecodeRune(rune(units[end-1]), rune(units[end])) != utf8.RuneError {
+		end--
+	}
+	return end
 }
 
 // splitIncompleteTail splits buf into a leading complete portion and a

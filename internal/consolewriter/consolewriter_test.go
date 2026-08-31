@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 // fakeProbe stands in for a real console so both branches of Write run on a
@@ -299,5 +300,68 @@ func TestBytesThatCanNeverBeCompletedAreNotHeldBack(t *testing.T) {
 	}
 	if got := p.received(); !strings.HasPrefix(got, "A") {
 		t.Errorf("the console received %q, wanted it to open with the valid byte", got)
+	}
+}
+
+// TestNoChunkBoundarySplitsASurrogatePair asserts that the boundary
+// writeConsole chooses between one console call and the next never falls
+// between the two units of a surrogate pair, so a character outside the
+// Basic Multilingual Plane never reaches a console as two halves in two calls.
+//
+// The fake accepts everything it is offered here, unlike the loop test
+// above, because the boundary under test is the one this package picks at
+// consoleWriteChunk. A cap the fake imposes stands in for a console
+// consuming less than it was handed, and where that count falls is the
+// console's choice rather than ours.
+//
+// Two assertions carry the criterion, and they fail on different things.
+// The first reads each pair of adjacent chunks as the console receives
+// them, one call at a time: utf16.DecodeRune "returns the UTF-16 decoding
+// of a surrogate pair" and "if the pair is not a valid UTF-16 surrogate
+// pair, DecodeRune returns the Unicode replacement code point U+FFFD", so
+// a boundary whose two neighbouring units decode to anything else is a
+// boundary sitting inside one character. The second decodes every chunk
+// separately and joins the results, which is what a console displays
+// across several calls, and compares that against the text written.
+func TestNoChunkBoundarySplitsASurrogatePair(t *testing.T) {
+	block := "Ein Bindestrich — ein Emoji \U0001F600 und Hindi हिन्दी. "
+	cases := []struct {
+		name string
+		text string
+	}{
+		// A pair placed so that its high half is the last unit of the
+		// first chunk, which splits at every value consoleWriteChunk
+		// could take.
+		{"a pair straddling the first boundary", strings.Repeat("a", consoleWriteChunk-1) + "\U0001F600" + strings.Repeat("b", 32)},
+		// A payload long enough to cross the boundary a dozen times,
+		// where whether any given crossing lands inside a pair is
+		// arithmetic rather than a guarantee.
+		{"a long mixed payload", strings.Repeat(block, 2000)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := &fakeProbe{console: true}
+			w, _ := newTestWriter(t, p)
+			if _, err := w.Write([]byte(c.text)); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+			if len(p.chunks) < 2 {
+				t.Fatalf("the payload produced %d console calls, wanted at least 2 for a boundary to exist", len(p.chunks))
+			}
+			for i := 0; i+1 < len(p.chunks); i++ {
+				last := p.chunks[i][len(p.chunks[i])-1]
+				first := p.chunks[i+1][0]
+				if r := utf16.DecodeRune(rune(last), rune(first)); r != utf8.RuneError {
+					t.Errorf("call %d ends on %04X and call %d opens on %04X, which utf16.DecodeRune reads as the single character %q: the boundary sits inside one character", i, last, i+1, first, r)
+				}
+			}
+			var perCall strings.Builder
+			for _, chunk := range p.chunks {
+				perCall.WriteString(string(utf16.Decode(chunk)))
+			}
+			if got := perCall.String(); got != c.text {
+				t.Errorf("decoding each console call on its own and joining them gave %d characters, wanted the %d written", len([]rune(got)), len([]rune(c.text)))
+			}
+		})
 	}
 }
