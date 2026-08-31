@@ -666,7 +666,7 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	}
 }
 
-// TestUnsupportedVersionsAreRefusedLoudly asserts CORE-BENCH-4 and the
+// TestUnsupportedVersionsAreRefusedLoudly asserts CORE-BENCH-5 and the
 // storage format's own refusal, each naming the version it wanted, together
 // with CORE-OUT-5, which supplies malformed where no more particular refusal
 // name applies.

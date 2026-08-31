@@ -530,9 +530,9 @@
       "source": "b98bab8e38d09bb1"
     },
     "check.ordinal-missing": {
-      "text": "{detail} trägt keine Erstellungs-Ordnungszahl, sodass seine Position vom Verzeichniseintrag abhängt",
+      "text": "{detail} trägt keine Erstellungs-Ordnungszahl, sodass seine Position aus dem Protokoll der Karte gewonnen wird, oder aus dem Verzeichniseintrag, wenn kein Ereignis seine Erstellung festhält",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it.",
-      "source": "645ca8e9d938ae7d"
+      "source": "ad27d232efa0754e"
     },
     "check.ordinal-stamped.one": {
       "text": "{count} Erstellungs-Ordnungszahl gestempelt.",
@@ -820,9 +820,9 @@
       "source": "53637a3c039ad136"
     },
     "check.workbench.1": {
-      "text": "das Werkzeug implementiert die Hauptnummer",
+      "text": "das Werkzeug implementiert die Profilversion",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
-      "source": "51adf6389bfdb868"
+      "source": "a62190818c1deab5"
     },
     "check.workbench.2": {
       "text": "die Werkbank benennt einen Betreiber",

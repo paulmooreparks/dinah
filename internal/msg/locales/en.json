@@ -406,7 +406,7 @@
       "context": "A check finding the ordinal migration raises: a lock stood on the card, the walk stepped over it and carried on."
     },
     "check.ordinal-missing": {
-      "text": "{detail} carries no creation ordinal, so its position depends on the directory listing",
+      "text": "{detail} carries no creation ordinal, so its position is recovered from the card's journal, or from the directory listing where no event names it",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
     },
     "check.ordinal-unwritable": {
@@ -586,7 +586,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.workbench.1": {
-      "text": "the workbench declares a major number the tool implements",
+      "text": "the workbench declares a profile version the tool implements",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
     },
     "check.workbench.2": {

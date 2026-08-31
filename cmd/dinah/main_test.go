@@ -6897,7 +6897,7 @@ const ratifiedGlobalFlagTable = `  Option             What it does
 
 const ratifiedMoveRefusalTable = `  Order  What can go wrong                                   Refusal
   -----  --------------------------------------------------  -------------------
-  1      the workbench declares a major number the tool implements
+  1      the workbench declares a profile version the tool implements
                                                             unsupported-version
   2      the workbench designates an operator                no-operator
   3      the card exists                                     unknown-card
@@ -7204,11 +7204,11 @@ func TestTheGuideListingIsUnchangedByTheBodyWrap(t *testing.T) {
 // from that number answers to nothing, so the fallback has to run everywhere
 // the number is printed rather than only where the ref is composed.
 //
-// The rows are checked as a set rather than in a fixed order, because the
-// fallback's order is the directory listing's and a hex identifier is random.
-// What the test holds is that the positions are 1 and 2, that they name
-// different attachments, and that each printed ref resolves to the attachment
-// whose row printed it.
+// The rows are checked as a set rather than in a fixed order. What the test
+// holds is that the positions are 1 and 2, that they name different
+// attachments, and that each printed ref resolves to the attachment whose row
+// printed it. Which filename lands on which position is the separate question
+// TestAPositionNamesTheSameAttachmentAcrossTheMigration answers.
 func TestAnAttachmentCarryingNoOrdinalStillNumbersFromOne(t *testing.T) {
 	root := newBench(t)
 	if got := runCLI(t, root, "add", "A card"); got.code != 0 {
@@ -7284,6 +7284,195 @@ func TestAnAttachmentCarryingNoOrdinalStillNumbersFromOne(t *testing.T) {
 	if strings.Contains(human.out, "0  ") {
 		t.Errorf("the attachments block still numbers from zero:\n%s", human.out)
 	}
+}
+
+// TestAPositionNamesTheSameAttachmentAcrossTheMigration asserts the ruling
+// this card carries: `<card>/attachments/2` names the same file before and
+// after check --migrate-ordinals runs on a workbench that predates the ordinal
+// field.
+//
+// The attachments are made in a known order and then stripped of their
+// ordinals, which is the shape a legacy anchor has on disk. The read path
+// recovers that order from the card's journal, which is the same source the
+// migration stamps from, so the migration writes down what the read already
+// said instead of contradicting it.
+func TestAPositionNamesTheSameAttachmentAcrossTheMigration(t *testing.T) {
+	root, collection := legacyAttachmentsAgainstTheListing(t)
+
+	before := shownAttachments(t, root)
+	if len(before) != 2 {
+		t.Fatalf("wanted both attachments, got %d", len(before))
+	}
+	if before[0].Filename != "a.txt" || before[1].Filename != "b.txt" {
+		t.Fatalf("an unmigrated card reads its attachments out of the order they were attached: %s then %s",
+			before[0].Filename, before[1].Filename)
+	}
+	refs := map[string]string{}
+	for _, attachment := range before {
+		refs[attachment.Filename] = attachment.Ref
+	}
+
+	if got := runCLI(t, root, "check", "--migrate-ordinals"); got.code != 0 {
+		t.Fatalf("migrate: %d %s", got.code, got.errw)
+	}
+	wanted := map[string]int{"a.txt": 1, "b.txt": 2}
+	for _, id := range bench.ListIDs(collection) {
+		filename := attachedFilename(t, collection, id)
+		if got := bench.EntityOrdinal(collection, id, bench.AttachmentAnchor); got != wanted[filename] {
+			t.Errorf("the migration stamped %s with ordinal %d, wanted %d", filename, got, wanted[filename])
+		}
+	}
+
+	after := shownAttachments(t, root)
+	if len(after) != 2 {
+		t.Fatalf("wanted both attachments after the migration, got %d", len(after))
+	}
+	for _, attachment := range after {
+		if got := refs[attachment.Filename]; got != attachment.Ref {
+			t.Errorf("%s was named %s before the migration and %s after it", attachment.Filename, got, attachment.Ref)
+		}
+		resolved := runCLI(t, root, "path", attachment.Ref+"/payload")
+		if resolved.code != 0 {
+			t.Errorf("the ref %s resolves to nothing: %d %s", attachment.Ref, resolved.code, resolved.errw)
+			continue
+		}
+		if got := filepath.Base(strings.TrimSpace(resolved.out)); got != attachment.Filename {
+			t.Errorf("the ref %s reaches the payload %s, and its row printed %s", attachment.Ref, got, attachment.Filename)
+		}
+	}
+}
+
+// TestAnUnstampedAttachmentStillReadsWithoutAJournal asserts that the read
+// path degrades rather than refusing when the history it now consults is gone
+// or unreadable.
+//
+// A journal is not a precondition of a read. The order it would have supplied
+// is a repair of the listing order, so a card whose journal was deleted, and a
+// card whose last line a crash tore, both read exactly the way every card read
+// before this card landed: every attachment shown, every printed ref
+// resolving.
+func TestAnUnstampedAttachmentStillReadsWithoutAJournal(t *testing.T) {
+	cases := []struct {
+		name    string
+		breakIt func(*testing.T, string)
+	}{
+		{
+			name: "a deleted journal",
+			breakIt: func(t *testing.T, journal string) {
+				if err := os.Remove(journal); err != nil {
+					t.Fatalf("remove journal: %v", err)
+				}
+			},
+		},
+		{
+			name: "a torn journal tail",
+			breakIt: func(t *testing.T, journal string) {
+				f, err := os.OpenFile(journal, os.O_APPEND|os.O_WRONLY, 0o644)
+				if err != nil {
+					t.Fatalf("open journal: %v", err)
+				}
+				defer f.Close()
+				if _, err := f.WriteString(`{"ts":"2026-08-1`); err != nil {
+					t.Fatalf("tear journal: %v", err)
+				}
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			root, collection := legacyAttachmentsAgainstTheListing(t)
+			c.breakIt(t, filepath.Join(filepath.Dir(collection), bench.JournalName))
+
+			human := runCLI(t, root, "show", "fx-1")
+			if human.code != 0 {
+				t.Fatalf("show: %d %s", human.code, human.errw)
+			}
+			shown := shownAttachments(t, root)
+			if len(shown) != 2 {
+				t.Fatalf("wanted both attachments, got %d", len(shown))
+			}
+			seen := map[int]string{}
+			for _, attachment := range shown {
+				if attachment.Ordinal < 1 {
+					t.Errorf("%s carries the position %d, and a position counts from one", attachment.Filename, attachment.Ordinal)
+					continue
+				}
+				if held, taken := seen[attachment.Ordinal]; taken {
+					t.Errorf("the position %d names both %s and %s", attachment.Ordinal, held, attachment.Filename)
+				}
+				seen[attachment.Ordinal] = attachment.Filename
+				if located := runCLI(t, root, "path", attachment.Ref); located.code != 0 {
+					t.Errorf("the printed ref %s resolves to nothing: %d %s", attachment.Ref, located.code, located.errw)
+					continue
+				}
+				payload := runCLI(t, root, "path", attachment.Ref+"/payload")
+				if payload.code != 0 {
+					t.Errorf("the printed ref %s resolves to nothing: %d %s", attachment.Ref, payload.code, payload.errw)
+					continue
+				}
+				if got := filepath.Base(strings.TrimSpace(payload.out)); got != attachment.Filename {
+					t.Errorf("the ref %s reaches the payload %s, and its row printed %s", attachment.Ref, got, attachment.Filename)
+				}
+			}
+			if seen[1] == "" || seen[2] == "" {
+				t.Errorf("wanted the positions 1 and 2, got %v", seen)
+			}
+		})
+	}
+}
+
+// legacyAttachmentsAgainstTheListing builds a card carrying a.txt and b.txt,
+// attached in that order, whose identifiers put b.txt first in the directory
+// listing, and strips the ordinal from both anchors. It returns the workbench
+// root and the attachments collection.
+//
+// The disagreement has to be built rather than assumed. An identifier is six
+// random bytes, so the listing agrees with the attach order about half the
+// time, and a fixture that took whichever it was handed would let the defect
+// this card fixes through on every other run. Each attempt is a fresh
+// workbench, and twenty-four of them miss the disagreement about one time in
+// sixteen million.
+func legacyAttachmentsAgainstTheListing(t *testing.T) (string, string) {
+	t.Helper()
+	for attempt := 0; attempt < 24; attempt++ {
+		root := newBench(t)
+		if got := runCLI(t, root, "add", "A card"); got.code != 0 {
+			t.Fatalf("add: %d %s", got.code, got.errw)
+		}
+		sources := t.TempDir()
+		for _, name := range []string{"a.txt", "b.txt"} {
+			file := filepath.Join(sources, name)
+			if err := os.WriteFile(file, []byte(name), 0o644); err != nil {
+				t.Fatalf("write %s: %v", name, err)
+			}
+			if got := runCLI(t, root, "attach", "fx-1", file); got.code != 0 {
+				t.Fatalf("attach %s: %d %s", name, got.code, got.errw)
+			}
+		}
+		collection := attachmentsCollection(t, root)
+		listed := bench.ListIDs(collection)
+		if len(listed) != 2 {
+			t.Fatalf("the card carries %d attachments, wanted two", len(listed))
+		}
+		if attachedFilename(t, collection, listed[0]) != "b.txt" {
+			continue
+		}
+		stripOrdinals(t, collection)
+		return root, collection
+	}
+	t.Fatal("twenty-four workbenches all listed a.txt first, which no longer looks like chance")
+	return "", ""
+}
+
+// attachedFilename reads the filename one attachment's anchor carries.
+func attachedFilename(t *testing.T, collection, id string) string {
+	t.Helper()
+	text, err := os.ReadFile(filepath.Join(collection, id, bench.AttachmentAnchor))
+	if err != nil {
+		t.Fatalf("read %s: %v", id, err)
+	}
+	fm, _ := bench.ParseAnchor(string(text))
+	return fm.Value("filename")
 }
 
 // stripOrdinals removes the ordinal line from every anchor of an attachments
