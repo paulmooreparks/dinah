@@ -104,6 +104,14 @@
         "title": "Unblock"
       },
       {
+        "command": "dinah.tree.checkWorkbench",
+        "title": "Check"
+      },
+      {
+        "command": "dinah.tree.copyWorkbenchPath",
+        "title": "Copy Path"
+      },
+      {
         "command": "dinah.tree.openAttachment",
         "title": "Dinah: Open Attachment"
       }
@@ -132,6 +140,14 @@
         },
         {
           "command": "dinah.tree.unblock",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.checkWorkbench",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.copyWorkbenchPath",
           "when": "false"
         },
         {
@@ -171,6 +187,16 @@
           "command": "dinah.tree.unblock",
           "when": "view == dinah.workbenchView && viewItem == dinah.card.blocked",
           "group": "1_flow@1"
+        },
+        {
+          "command": "dinah.tree.checkWorkbench",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.workbench(Root|Candidate|Forest)$/",
+          "group": "1_workbench@1"
+        },
+        {
+          "command": "dinah.tree.copyWorkbenchPath",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.workbench(Root|Candidate|Forest)$/",
+          "group": "1_workbench@2"
         }
       ]
     },

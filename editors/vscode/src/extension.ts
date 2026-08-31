@@ -26,7 +26,9 @@ import { runDinah } from "./cli";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
 	COMMAND_BLOCK,
+	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_MOVE,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
@@ -50,6 +52,15 @@ import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
 import { classifyVersion } from "./version";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
+import type {
+	WorkbenchCommandContext,
+	WorkbenchCommandHost,
+} from "./workbenchCommands";
+import {
+	checkWorkbench,
+	contextForWorkbench,
+	copyWorkbenchPath,
+} from "./workbenchCommands";
 
 let statusItem: vscode.StatusBarItem | undefined;
 let output: vscode.OutputChannel | undefined;
@@ -144,6 +155,27 @@ function commandHost(
 			await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(path));
 		},
 		checkpoint,
+		log: (line) => channel.appendLine(line),
+	};
+}
+
+/** The window calls the workbench-row commands make, bound to the real window. */
+function workbenchCommandHost(
+	channel: vscode.OutputChannel,
+): WorkbenchCommandHost {
+	return {
+		showInfo: (message) => {
+			void vscode.window.showInformationMessage(message);
+		},
+		showWarning: async (message, actions) =>
+			vscode.window.showWarningMessage(message, ...actions),
+		appendLines: (lines) => {
+			for (const line of lines) {
+				channel.appendLine(line);
+			}
+		},
+		revealOutput: () => channel.show(),
+		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
 		log: (line) => channel.appendLine(line),
 	};
 }
@@ -312,6 +344,40 @@ export async function activate(
 					);
 					if (target === undefined) {
 						channel.appendLine(`${id} was invoked on a row that names no card`);
+						return;
+					}
+					await run(target);
+				},
+			),
+		);
+	}
+	// The workbench-row commands get a loop of their own rather than joining the
+	// one above. The two families take different contexts and different hosts,
+	// and a single loop over both would have to widen each of those to a union
+	// that neither handler can use without narrowing it again.
+	const workbenchHost = workbenchCommandHost(channel);
+	const workbenchCommands: [
+		string,
+		(c: WorkbenchCommandContext) => Promise<unknown>,
+	][] = [
+		[COMMAND_CHECK_WORKBENCH, checkWorkbench],
+		[COMMAND_COPY_WORKBENCH_PATH, copyWorkbenchPath],
+	];
+	for (const [id, run] of workbenchCommands) {
+		context.subscriptions.push(
+			vscode.commands.registerCommand(
+				id,
+				async (element: TreeElement | undefined) => {
+					const target = contextForWorkbench(
+						element,
+						binary.state === "ok" ? binary.path : "",
+						workbenchHost,
+						nodeSpawner,
+					);
+					if (target === undefined) {
+						channel.appendLine(
+							`${id} was invoked on a row that names no workbench`,
+						);
 						return;
 					}
 					await run(target);

@@ -48,6 +48,10 @@ export const COMMAND_RELEASE = "dinah.tree.release";
 export const COMMAND_BLOCK = "dinah.tree.block";
 export const COMMAND_UNBLOCK = "dinah.tree.unblock";
 
+/** The two acts a workbench row offers, neither of which touches the board. */
+export const COMMAND_CHECK_WORKBENCH = "dinah.tree.checkWorkbench";
+export const COMMAND_COPY_WORKBENCH_PATH = "dinah.tree.copyWorkbenchPath";
+
 /** The command an attachment row runs on a plain click, when its file can open. */
 export const COMMAND_OPEN_ATTACHMENT = "dinah.tree.openAttachment";
 
@@ -64,6 +68,8 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_RELEASE,
 	COMMAND_BLOCK,
 	COMMAND_UNBLOCK,
+	COMMAND_CHECK_WORKBENCH,
+	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
 ];
 
@@ -83,6 +89,8 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_RELEASE,
 	COMMAND_BLOCK,
 	COMMAND_UNBLOCK,
+	COMMAND_CHECK_WORKBENCH,
+	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
 ];
 

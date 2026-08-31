@@ -4,7 +4,9 @@
 // composed with `--json` in front of it, so nothing above this module can read
 // dinah's human output by accident; and every invocation is classified on its
 // exit code before anything looks at its content, using the four outcome codes
-// the profile declares (0 ok, 2 refused, 3 stale, 4 unreachable).
+// the profile declares (0 ok, 2 refused, 3 stale, 4 unreachable) and, for a
+// structural read, the fifth code that read's own outcome table adds (5,
+// meaning the read completed and found defects to report).
 //
 // The spawner is a parameter rather than an import, so the unit tests drive
 // every branch below without a real process.
@@ -143,6 +145,50 @@ function readRefusal(parsed: unknown, stderr: string): CliOutcome {
 }
 
 /**
+ * The exit code a structural read carries when it completed and found defects,
+ * as contract.ExitCodeForRead spells it.
+ *
+ * 5 rather than 2 because 2 already means the invocation was refused, and 5
+ * rather than 1 because 1 stays reserved for a response nothing conforming
+ * can produce (dinah-346).
+ */
+export const EXIT_READ_FINDINGS = 5;
+
+/**
+ * Classifies an invocation that did not exit 0, which every caller reads the
+ * same way.
+ *
+ * Exit 0 is deliberately not handled here. Each caller says for itself what an
+ * exit it treats as success but cannot parse means, and those sentences differ:
+ * a `version` probe that answers prose is a binary that is not dinah, while a
+ * check that answers prose is a report that went missing.
+ */
+function classifyFailure(outcome: SpawnOutcome, parsed: unknown): CliOutcome {
+	switch (outcome.code) {
+		case 2:
+			return readRefusal(parsed, outcome.stderr);
+		case 3:
+			return {
+				kind: "stale",
+				detail: outcome.stderr.trim() || "dinah reported stale knowledge",
+			};
+		case 4:
+			return {
+				kind: "unreachable",
+				detail:
+					outcome.stderr.trim() || "dinah could not reach what it was asked for",
+			};
+		default:
+			return {
+				kind: "not-json",
+				detail:
+					outcome.stderr.trim() ||
+					`dinah exited ${String(outcome.code)}, which is not an outcome the profile declares`,
+			};
+	}
+}
+
+/**
  * Runs one dinah invocation and classifies it.
  *
  * `args` is what the caller wants dinah to do, without `--json`; this function
@@ -167,36 +213,66 @@ export async function runDinah(
 	}
 
 	const parsed = parseJson(outcome.stdout);
-
-	switch (outcome.code) {
-		case 0:
-			if (parsed === undefined) {
-				return {
-					kind: "not-json",
-					detail:
-						"this binary is not dinah, or is too old to answer `--json version`",
-				};
-			}
-			return { kind: "ok", json: parsed };
-		case 2:
-			return readRefusal(parsed, outcome.stderr);
-		case 3:
+	if (outcome.code === 0) {
+		if (parsed === undefined) {
 			return {
-				kind: "stale",
-				detail: outcome.stderr.trim() || "dinah reported stale knowledge",
-			};
-		case 4:
-			return {
-				kind: "unreachable",
+				kind: "not-json",
 				detail:
-					outcome.stderr.trim() || "dinah could not reach what it was asked for",
+					"this binary is not dinah, or is too old to answer `--json version`",
 			};
-		default:
+		}
+		return { kind: "ok", json: parsed };
+	}
+	return classifyFailure(outcome, parsed);
+}
+
+/**
+ * Runs `dinah check` against one workbench and classifies what came back.
+ *
+ * A structural read answers on two exit codes rather than one: 0 when the
+ * workbench read cleanly and EXIT_READ_FINDINGS when it read fine and found
+ * defects to report. Both are the read having happened, so both are `ok` here
+ * and the caller tells them apart by the report's own `outcome` member. Which
+ * of the two a run took is not re-derived from the body anywhere, because
+ * dinah-346 landed the distinction on the CLI and a client that reimplemented
+ * it would be a second place for the rule to live.
+ *
+ * Exit 2 means the invocation itself was refused and nothing else, which is
+ * what dinah-346 freed it to mean, so it goes through the same refusal
+ * envelope every other call does. The remaining codes are runDinah's own,
+ * shared rather than repeated.
+ */
+export async function runCheck(
+	spawner: Spawner,
+	exe: string,
+	root: string,
+	options: SpawnOptions = {},
+): Promise<CliOutcome> {
+	const outcome = await spawner(
+		exe,
+		composeArgv(["--workbench", root, "check"]),
+		options,
+	);
+
+	if (outcome.spawnError) {
+		return {
+			kind: "spawn-failed",
+			errno: outcome.spawnError.code,
+			detail: outcome.spawnError.message,
+		};
+	}
+
+	const parsed = parseJson(outcome.stdout);
+	if (outcome.code === 0 || outcome.code === EXIT_READ_FINDINGS) {
+		if (parsed === undefined) {
 			return {
 				kind: "not-json",
 				detail:
 					outcome.stderr.trim() ||
-					`dinah exited ${String(outcome.code)}, which is not an outcome the profile declares`,
+					`dinah check exited ${String(outcome.code)} and wrote no JSON report`,
 			};
+		}
+		return { kind: "ok", json: parsed };
 	}
+	return classifyFailure(outcome, parsed);
 }
