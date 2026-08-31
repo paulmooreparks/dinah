@@ -82,20 +82,98 @@ func nextOrdinal(collection, anchor string) int {
 }
 
 // SortByOrdinal returns a collection's identifiers in creation order. An
-// entity carrying no ordinal sorts ahead of every stamped one and keeps its
-// place in the listing order relative to its unstamped neighbours, which is
-// what an unmigrated workbench falls back to until check's missing-ordinal
-// finding is acted on.
+// entity carrying no ordinal sorts ahead of every stamped one, and the
+// unstamped entities are ordered among themselves by fallbackRank, which is
+// the order check --migrate-ordinals would stamp them in if it ran now.
+//
+// Ranking the unstamped group that way is what keeps a position naming the
+// same entity on both sides of the migration. Ordering them by the directory
+// listing instead, which is what this did before, read an unmigrated
+// collection in hex-identifier order and the same collection in journal order
+// the moment it was stamped, so a reference somebody had written down changed
+// what it named while nobody was looking.
 func SortByOrdinal(collection, anchor string, ids []string) []string {
 	ordered := append([]string(nil), ids...)
 	ordinals := make(map[string]int, len(ordered))
+	var unstamped []string
 	for _, id := range ordered {
-		ordinals[id] = EntityOrdinal(collection, id, anchor)
+		n := EntityOrdinal(collection, id, anchor)
+		ordinals[id] = n
+		if n == 0 {
+			unstamped = append(unstamped, id)
+		}
 	}
+	rank := fallbackRank(collection, unstamped)
 	sort.SliceStable(ordered, func(i, j int) bool {
-		return ordinals[ordered[i]] < ordinals[ordered[j]]
+		a, b := ordered[i], ordered[j]
+		if ordinals[a] != ordinals[b] {
+			return ordinals[a] < ordinals[b]
+		}
+		return rank[a] < rank[b]
 	})
 	return ordered
+}
+
+// fallbackRank ranks a collection's unstamped entities the way
+// backfillCollection would number them if check --migrate-ordinals ran right
+// now: in the order the journal of the nearest enclosing card names their
+// creation, with every entity that journal does not name trailing in the
+// collection's own listing order.
+//
+// journalPathFor returning "" (no enclosing card, which covers every
+// collection hanging off the workbench itself, off a column, and off a
+// workstream) and journalOrder naming no checklist item (no event records one
+// being written) both fall straight through to that listing-order ranking,
+// which is what SortByOrdinal did everywhere before this function existed.
+//
+// The journal is read only when the collection holds at least one unstamped
+// entity, so a collection whose entities all carry an ordinal, which is every
+// collection on a workbench somebody has run the migration over, costs this
+// nothing beyond the anchor reads SortByOrdinal already made.
+func fallbackRank(collection string, unstamped []string) map[string]int {
+	rank := make(map[string]int, len(unstamped))
+	if len(unstamped) == 0 {
+		return rank
+	}
+	var order []string
+	if journalPath := journalPathFor(filepath.Dir(collection)); journalPath != "" {
+		if events, _, err := ReadJournal(journalPath); err == nil {
+			order = journalOrder(events)
+		}
+	}
+	recovered, _ := orderedByJournal(unstamped, order)
+	for i, id := range recovered {
+		rank[id] = i
+	}
+	return rank
+}
+
+// journalPathFor names the journal an unstamped entity's creation might be
+// recovered from: the journal of the nearest ancestor directory carrying a
+// card's own anchor, walking up from a collection's owner directory.
+//
+// The walk stops the moment it reaches the workbench's own root, so a
+// collection hanging off the workbench or off a column, neither of which
+// check --migrate-ordinals stamps, costs a couple of stat calls rather than a
+// walk toward the filesystem root. An absent journal is not distinguished
+// from an unreadable one here, because ReadJournal reads a file that is not
+// there as an empty history and an empty history recovers nothing, which is
+// the listing-order answer either way.
+func journalPathFor(ownerDir string) string {
+	dir := ownerDir
+	for {
+		if Exists(filepath.Join(dir, CardAnchor)) {
+			return filepath.Join(dir, JournalName)
+		}
+		if Exists(filepath.Join(dir, WorkbenchAnchor)) {
+			return ""
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }
 
 // stampOrdinal writes an ordinal onto an entity that carries none, preserving
@@ -151,9 +229,14 @@ func journalOrder(events []Event) []string {
 // run that stamped them, rather than standing as a check finding forever,
 // because a bench that keeps hand-created entities is otherwise stuck with a
 // finding nobody can clear.
-func orderedByJournal(collection string, order []string) (ordered, guessed []string) {
+//
+// The candidates are an identifier list rather than a collection directory
+// because the two callers pass different members of one collection: the
+// migration passes every member, and fallbackRank passes only the members
+// carrying no ordinal. Both want the same recovery over whatever they pass.
+func orderedByJournal(candidates []string, order []string) (ordered, guessed []string) {
 	present := map[string]bool{}
-	for _, id := range ListIDs(collection) {
+	for _, id := range candidates {
 		present[id] = true
 	}
 	seen := map[string]bool{}
@@ -164,7 +247,7 @@ func orderedByJournal(collection string, order []string) (ordered, guessed []str
 		seen[id] = true
 		ordered = append(ordered, id)
 	}
-	for _, id := range ListIDs(collection) {
+	for _, id := range candidates {
 		if !seen[id] {
 			ordered = append(ordered, id)
 			guessed = append(guessed, id)
@@ -199,7 +282,7 @@ func orderedByJournal(collection string, order []string) (ordered, guessed []str
 // honoured here as they come back, and neither is second-guessed by a
 // permission check of the tool's own.
 func (b *Bench) backfillCollection(collection, anchor string, order []string) (int, []Finding) {
-	ordered, unrecovered := orderedByJournal(collection, order)
+	ordered, unrecovered := orderedByJournal(ListIDs(collection), order)
 	guessed := map[string]bool{}
 	for _, id := range unrecovered {
 		guessed[id] = true
@@ -266,10 +349,11 @@ func (b *Bench) beforeOrdinalStamp(id string) error {
 // process holds a lock right now, or one file stands in the way, and the
 // migration can be run again once either clears.
 //
-// This is a one-time repair run by hand, not a read path. Nothing re-derives
-// an ordinal on a later read, so a workbench nobody migrated is caught by
-// check's missing-ordinal finding rather than quietly ordered by its directory
-// listing forever.
+// This is a one-time repair run by hand, not a read path. A read of an
+// unmigrated collection recovers the same order from the same journal, which
+// is what holds a position on one entity across this run, but it derives no
+// ordinal and stores none, so a workbench nobody migrated is still caught by
+// check's missing-ordinal finding.
 func (b *Bench) BackfillOrdinals(actor, now string) (int, []Finding, error) {
 	stamped := 0
 	var findings []Finding

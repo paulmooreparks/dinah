@@ -510,9 +510,9 @@
       "source": "b98bab8e38d09bb1"
     },
     "check.ordinal-missing": {
-      "text": "{detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान निर्देशिका सूची पर निर्भर है",
+      "text": "{detail} पर कोई रचना-क्रमांक नहीं, इसलिए उसका स्थान कार्ड की पंजिका से पाया जाता है, और निर्देशिका सूची से तब, जब पंजिका में उसकी रचना का कोई अभिलेख नहीं",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it.",
-      "source": "645ca8e9d938ae7d"
+      "source": "ad27d232efa0754e"
     },
     "check.ordinal-unwritable": {
       "text": "{detail} पर लिखा नहीं जा सका, इसलिए प्रवासन ने उस पर कुछ भी अंकित नहीं किया और आगे बढ़ गया",

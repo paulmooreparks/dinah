@@ -406,7 +406,7 @@
       "context": "A check finding the ordinal migration raises: a lock stood on the card, the walk stepped over it and carried on."
     },
     "check.ordinal-missing": {
-      "text": "{detail} carries no creation ordinal, so its position depends on the directory listing",
+      "text": "{detail} carries no creation ordinal, so its position is recovered from the card's journal, or from the directory listing where no event names it",
       "context": "A check finding: an entity written before the ordinal field existed, or by hand; `dinah check --migrate-ordinals` stamps it."
     },
     "check.ordinal-unwritable": {
