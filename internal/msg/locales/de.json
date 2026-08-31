@@ -2240,6 +2240,11 @@
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "source": "a9324672264c283"
     },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; eine Werkbank liegt eine Stufe tiefer, unter {found}; richten Sie --workbench stattdessen dorthin",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
+      "source": "c5c0bc52302ed34e"
+    },
     "refusal.dinah.no-workbench.next": {
       "text": "; richten Sie --workbench auf ein Verzeichnis, das eine trägt, oder lassen Sie --workbench weg, um von hier aus aufwärts zu suchen",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
@@ -2765,9 +2770,9 @@
       "source": "d079f7c8e67509b5"
     },
     "schema.workbench.description": {
-      "text": "der absolute Pfad der Werkbank, auf die dieser Aufruf einwirkt, etwa C:\\Users\\you\\projects\\plans; weggelassen, um auf die Werkbank einzuwirken, mit der der Server gestartet wurde",
+      "text": "der absolute Pfad des eigenen Speicherverzeichnisses der Werkbank, etwa C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, so wie es das workbenches-Werkzeug und dinah init melden; weggelassen, um auf die Werkbank einzuwirken, mit der der Server gestartet wurde",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "88dc8ca4aea788c0"
+      "source": "732e5002ec4db9c1"
     },
     "show.attachments": {
       "text": "Anhänge:",

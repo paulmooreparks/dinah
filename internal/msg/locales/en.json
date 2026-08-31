@@ -1417,6 +1417,10 @@
       "text": "{detail} was named by --workbench, and it carries no workbench.md",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property."
     },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; a workbench sits one level down, at {found}; point --workbench there instead",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept."
+    },
     "refusal.dinah.no-workbench.next": {
       "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with."
@@ -2118,7 +2122,7 @@
       "context": "The description of the basis property, which every generated machine schema carries and no command declares."
     },
     "schema.workbench.description": {
-      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "text": "the absolute path of the workbench's own store directory, such as C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, which the workbenches tool and dinah init report; omitted to act on the workbench the server started with",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
     },
     "param.card.summary": {

@@ -3050,6 +3050,49 @@ func TestWorkbenchesHelpCarriesNoRefusals(t *testing.T) {
 	}
 }
 
+// TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath asserts
+// dinah-297 AC-4 and AC-5 where a person meets them, which is the sentence the
+// terminal prints. dinah init reports the store it wrote, and a reader who
+// passes the directory they pointed init at instead is still refused. The
+// refusal now ends on the store's own path rather than on the general advice,
+// so the reader retypes the command rather than working out what went wrong.
+//
+// A directory carrying no workbench anywhere beneath it still ends on the
+// general advice, which is the branch this card must not disturb.
+func TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath(t *testing.T) {
+	root := newBench(t)
+	container := filepath.Join(root, bench.UserBaseName)
+	entries, err := os.ReadDir(container)
+	if err != nil {
+		t.Fatalf("read %s: %v", container, err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("the fixture should hold exactly one store, got %d entries", len(entries))
+	}
+	store := filepath.Join(container, entries[0].Name())
+
+	catalog := msg.For(msg.Base)
+	refused := runCLI(t, root, "workbenches", "--workbench", root)
+	if refused.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", refused.code, refused.errw)
+	}
+	if want := catalog.T("refusal.dinah.no-workbench.found", "found", store); !strings.Contains(refused.errw, want) {
+		t.Errorf("the refusal should end on the store that would have worked, wanted %q, got %q", want, refused.errw)
+	}
+	if unwanted := catalog.T("refusal.dinah.no-workbench.next"); strings.Contains(refused.errw, unwanted) {
+		t.Errorf("the alternation renders one next step, and both rendered: %q", refused.errw)
+	}
+
+	tree := emptyTree(t)
+	nowhere := runCLI(t, tree, "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
+	if nowhere.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", nowhere.code, nowhere.errw)
+	}
+	if want := catalog.T("refusal.dinah.no-workbench.next"); !strings.Contains(nowhere.errw, want) {
+		t.Errorf("a directory with nothing beneath it keeps the general advice, wanted %q, got %q", want, nowhere.errw)
+	}
+}
+
 // TestTheOverrideIsSpelledInFull asserts that the listing softens no caller
 // mistake. An explicit --workbench naming a directory holding no workbench is
 // refused exactly as every other command refuses it, and never reported as an

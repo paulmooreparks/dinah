@@ -1324,6 +1324,150 @@ func TestDiscoveryNamesTheDirectoryBenchWasPointedAt(t *testing.T) {
 	if refusal.Detail != empty {
 		t.Errorf("the refusal should name the directory given, wanted %q, got %q", empty, refusal.Detail)
 	}
+	if _, offered := refusal.Extra["found"]; offered {
+		t.Errorf("a directory with no .dinah at all has no recoverable spelling to offer, got %v", refusal.Extra)
+	}
+}
+
+// TestSoleBeneathNamesTheStoreOnlyWhenThereIsExactlyOne asserts dinah-297
+// AC-3. SoleBeneath answers the recovery question the no-workbench refusal
+// poses, and it answers it only where one answer exists: a directory holding
+// exactly one workbench store beneath its .dinah gets that store's path, and
+// zero, two, and a lone entry carrying somebody else's workbench.md each get
+// nothing.
+//
+// The fourth case is the one the design review asked for. A foreign anchor is
+// excluded because soleBench passes it over rather than admitting it as a
+// candidate, so SoleBeneath inherits the exclusion instead of stating it, and
+// nothing else in the suite would notice if soleBench stopped passing it over.
+func TestSoleBeneathNamesTheStoreOnlyWhenThereIsExactlyOne(t *testing.T) {
+	cases := []struct {
+		name string
+		// build populates the directory and returns the store path the
+		// helper should name, empty where it should name none.
+		build func(t *testing.T, dir string) string
+	}{
+		{
+			name: "no store beneath",
+			build: func(t *testing.T, dir string) string {
+				return ""
+			},
+		},
+		{
+			name: "one store beneath",
+			build: func(t *testing.T, dir string) string {
+				store := filepath.Join(dir, UserBaseName, "aaaa11112222")
+				writeWorkbench(t, store, "The only one")
+				return store
+			},
+		},
+		{
+			name: "two stores beneath",
+			build: func(t *testing.T, dir string) string {
+				writeWorkbench(t, filepath.Join(dir, UserBaseName, "aaaa11112222"), "The first")
+				writeWorkbench(t, filepath.Join(dir, UserBaseName, "bbbb33334444"), "The second")
+				return ""
+			},
+		},
+		{
+			name: "one entry carrying a foreign anchor",
+			build: func(t *testing.T, dir string) string {
+				anchor := filepath.Join(dir, UserBaseName, "cccc55556666", WorkbenchAnchor)
+				write(t, anchor, foreignAnchor)
+				return ""
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			want := c.build(t, dir)
+			got, found := SoleBeneath(dir)
+			if want == "" {
+				if found {
+					t.Errorf("wanted no answer, got %q", got)
+				}
+				if got != "" {
+					t.Errorf("a false answer should carry no path, got %q", got)
+				}
+				return
+			}
+			if !found {
+				t.Fatalf("wanted the store %q, got no answer", want)
+			}
+			if got != want {
+				t.Errorf("wanted %q, got %q", want, got)
+			}
+		})
+	}
+}
+
+// TestDiscoveryOffersTheStoreBeneathTheDirectoryNamed asserts dinah-297 AC-4.
+// A --workbench override naming a workbench's containing directory is still
+// refused, and the refusal now carries the store path one rung down as found,
+// which is the spelling the override would have accepted. A directory holding
+// no such store, or holding two, refuses exactly as it did before, carrying no
+// found at all, so the sentence a reader gets is the one they got before this
+// card.
+func TestDiscoveryOffersTheStoreBeneathTheDirectoryNamed(t *testing.T) {
+	t.Run("one store beneath is offered back", func(t *testing.T) {
+		dir := t.TempDir()
+		store := filepath.Join(dir, UserBaseName, "aaaa11112222")
+		writeWorkbench(t, store, "The only one")
+		abs, err := filepath.Abs(store)
+		if err != nil {
+			t.Fatalf("abs %s: %v", store, err)
+		}
+
+		_, _, _, err = DiscoverSource(t.TempDir(), dir, SourceFlag, "", "", "")
+		refusal, ok := err.(*contract.Refusal)
+		if !ok {
+			t.Fatalf("wanted a refusal, got %v", err)
+		}
+		if refusal.Name != contract.NoWorkbench {
+			t.Fatalf("refusal name: wanted %s, got %s", contract.NoWorkbench, refusal.Name)
+		}
+		if got := refusal.Extra["found"]; got != abs {
+			t.Errorf("the refusal should offer the store beneath, wanted %q, got %q", abs, got)
+		}
+	})
+
+	for _, c := range []struct {
+		name  string
+		build func(t *testing.T, dir string)
+	}{
+		{
+			name:  "no store beneath",
+			build: func(t *testing.T, dir string) {},
+		},
+		{
+			name: "two stores beneath",
+			build: func(t *testing.T, dir string) {
+				writeWorkbench(t, filepath.Join(dir, UserBaseName, "aaaa11112222"), "The first")
+				writeWorkbench(t, filepath.Join(dir, UserBaseName, "bbbb33334444"), "The second")
+			},
+		},
+	} {
+		t.Run(c.name+" offers nothing", func(t *testing.T) {
+			dir := t.TempDir()
+			c.build(t, dir)
+
+			_, _, _, err := DiscoverSource(t.TempDir(), dir, SourceFlag, "", "", "")
+			refusal, ok := err.(*contract.Refusal)
+			if !ok {
+				t.Fatalf("wanted a refusal, got %v", err)
+			}
+			if refusal.Name != contract.NoWorkbench {
+				t.Fatalf("refusal name: wanted %s, got %s", contract.NoWorkbench, refusal.Name)
+			}
+			if refusal.Detail != dir {
+				t.Errorf("the refusal should name the directory given, wanted %q, got %q", dir, refusal.Detail)
+			}
+			if _, offered := refusal.Extra["found"]; offered {
+				t.Errorf("nothing recoverable sits beneath this directory, got %v", refusal.Extra)
+			}
+		})
+	}
 }
 
 // TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing asserts the whole

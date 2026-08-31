@@ -530,6 +530,9 @@ func resolveLibrary(root string, defaultLib *verb.Library, libraries map[string]
 		return nil, contract.RefuseWith(contract.OutsideRoot, abs, map[string]string{"root": root})
 	}
 	if !bench.Exists(filepath.Join(abs, bench.WorkbenchAnchor)) {
+		if beneath, ok := bench.SoleBeneath(abs); ok {
+			return nil, contract.RefuseWith(contract.NoWorkbench, abs, map[string]string{"found": beneath})
+		}
 		return nil, contract.Refuse(contract.NoWorkbench, abs)
 	}
 	if libraries != nil {
