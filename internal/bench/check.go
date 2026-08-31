@@ -368,11 +368,12 @@ func (b *Bench) checkCard(card *Card) []Finding {
 // below one card: each entity carries a positive ordinal, and no two entities
 // of one collection carry the same one.
 //
-// A gap in a sequence is not reported. Deletion is directory removal, so a gap
-// is the shape a deletion leaves, and closing it would renumber every entity
-// after the deleted one and move every positional reference already written
-// down. A duplicate is reported because it leaves a positional reference with
-// two answers.
+// A gap in a sequence is not reported. Deletion is directory removal, so an
+// ordinal disappears with the entity that carried it, and the value a
+// survivor carries stays a record of where it fell in the write order: a
+// deleted neighbour does not change where that was, so closing the gap would
+// rewrite a historical fact on entities nobody touched. A duplicate is
+// reported because it leaves a position with two answers.
 func checkOrdinals(cardDir string) []Finding {
 	var findings []Finding
 	for _, collection := range ordinalCollections(cardDir) {
