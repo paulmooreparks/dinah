@@ -77,6 +77,42 @@ jobs:
       # itself in the Checks UI instead of hiding behind whichever ran first.
       - name: Guard cases
         run: python scripts/hooks/test-deny-destructive-git.py
+      - name: TEMPORARY diagnosis of bash discovery
+        shell: python
+        run: |
+          import os, shutil, subprocess, tempfile
+          print("which bash:", shutil.which("bash"))
+          for entry in os.environ.get("PATH", "").split(os.pathsep):
+              for name in ("bash", "bash.exe"):
+                  candidate = os.path.join(entry, name)
+                  if os.path.exists(candidate):
+                      print("  on PATH:", candidate)
+          bash = shutil.which("bash")
+          print("version:", subprocess.run([bash, "--version"], capture_output=True, text=True).stdout.splitlines()[:1])
+          root = tempfile.mkdtemp(prefix="diagnose-")
+          stubdir = os.path.join(root, "stub")
+          os.makedirs(stubdir)
+          stub = os.path.join(stubdir, "git")
+          with open(stub, "w", encoding="utf-8", newline="\n") as handle:
+              handle.write('#!/bin/sh\nout=$(mktemp "$GIT_STUB_DIR/rec.XXXXXXXX")\nfor a in "$@"; do printf %s\\\\n "$a"; done > "$out"\nexit 0\n')
+          os.chmod(stub, 0o755)
+          sandbox = os.path.join(root, "sandbox")
+          os.makedirs(sandbox)
+          record = os.path.join(root, "record")
+          os.makedirs(record)
+          env = dict(os.environ)
+          env["GIT_STUB_DIR"] = record
+          env["PATH"] = stubdir + os.pathsep + env.get("PATH", "")
+          done = subprocess.run([bash, "--noprofile", "--norc", "-c", "git rev-parse --is-inside-work-tree"],
+                                cwd=sandbox, env=env, capture_output=True, text=True)
+          print("probe exit:", done.returncode)
+          print("probe stdout:", repr(done.stdout))
+          print("probe stderr:", repr(done.stderr))
+          print("recorded files:", os.listdir(record))
+          which = subprocess.run([bash, "--noprofile", "--norc", "-c", "command -v git; type git"],
+                                 cwd=sandbox, env=env, capture_output=True, text=True)
+          print("git resolves to:", repr(which.stdout), repr(which.stderr))
+
       - name: Guard against a real shell
         run: python scripts/hooks/test-guard-against-a-real-shell.py
       - name: Hook registration is cwd-independent
