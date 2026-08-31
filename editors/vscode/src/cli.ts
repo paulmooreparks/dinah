@@ -112,8 +112,76 @@ function parseJson(stdout: string): unknown | undefined {
 	}
 }
 
-/** Reads the refusal envelope dinah writes to stdout under `--json`. */
-function readRefusal(parsed: unknown, stderr: string): CliOutcome {
+/**
+ * How much of an unreadable stdout body a diagnostic quotes.
+ *
+ * The number bounds what one VS Code toast and one output-channel line can
+ * carry. A toast silently drops whatever it cannot fit, and an output line
+ * long enough to wrap several times buries the label that says which
+ * workbench the message is about. Two hundred characters is long enough to
+ * show a shell error or the opening of an HTML error page, and short enough
+ * that the label beside it survives. Raise it and you trade that legibility
+ * for more of a body the reader can already see by running dinah themselves;
+ * drop it much below eighty and it starts cutting ordinary shell errors in
+ * half.
+ */
+const EXCERPT_LIMIT = 200;
+
+/**
+ * Cuts a diagnostic to one line and a bounded length, so a raw stdout dump
+ * cannot blow up a toast or a log line.
+ *
+ * An empty body is named rather than left blank, because a message ending in
+ * "stdout: " reads as a message that broke halfway through composing itself.
+ */
+function excerpt(text: string, max = EXCERPT_LIMIT): string {
+	const oneLine = text.replace(/\s+/g, " ").trim();
+	if (oneLine === "") {
+		return "(empty)";
+	}
+	return oneLine.length > max ? `${oneLine.slice(0, max)}…` : oneLine;
+}
+
+/**
+ * Names the JSON shape of a body that parsed but is not an object, so the
+ * diagnostic below can say what arrived without listing anything.
+ *
+ * An array is the case that forced this. `Object.keys` answers an array with
+ * its indices, so a body of `[1, 2]` reported as a key listing would say the
+ * top-level keys were 0 and 1, which is true of the JavaScript value and
+ * tells the reader nothing about the response.
+ */
+function jsonShape(parsed: unknown): string {
+	if (parsed === null) {
+		return "null";
+	}
+	if (Array.isArray(parsed)) {
+		return "an array";
+	}
+	return `a ${typeof parsed}`;
+}
+
+/**
+ * Reads the refusal envelope dinah writes to stdout under `--json`.
+ *
+ * When the envelope is there, this says so and nothing here has changed. When
+ * it is not, the fallback names what was expected against what arrived, which
+ * is the difference between a client saying it could not read a response and
+ * a client saying nothing at all. A binary predating dinah-346 answers `check`
+ * on a workbench carrying defects with exit 2 and its old report body, and the
+ * message that used to come back described neither the exit code nor the body.
+ *
+ * Naming the mismatch is not body-sniffing. Exit 2 still means refused and
+ * means only that (dinah-346), a string `refusal` field still classifies the
+ * answer as a refusal, and no branch below decides what a check found. These
+ * sentences are reached only once no recognised shape matched, and they report
+ * a response this client could not read rather than a verdict about dinah.
+ */
+function readRefusal(
+	parsed: unknown,
+	stdout: string,
+	stderr: string,
+): CliOutcome {
 	const envelope = parsed as
 		| {
 				refusal?: unknown;
@@ -122,25 +190,47 @@ function readRefusal(parsed: unknown, stderr: string): CliOutcome {
 				workbenches?: unknown;
 		  }
 		| undefined;
-	if (!envelope || typeof envelope.refusal !== "string") {
+	if (envelope && typeof envelope.refusal === "string") {
+		return {
+			kind: "refused",
+			refusal: envelope.refusal,
+			detail: typeof envelope.detail === "string" ? envelope.detail : undefined,
+			context:
+				envelope.context && typeof envelope.context === "object"
+					? (envelope.context as Record<string, string>)
+					: undefined,
+			workbenches: Array.isArray(envelope.workbenches)
+				? (envelope.workbenches as Candidate[])
+				: undefined,
+		};
+	}
+	const stderrText = stderr.trim();
+	if (stderrText !== "") {
+		return { kind: "not-json", detail: stderrText };
+	}
+	if (parsed === undefined) {
 		return {
 			kind: "not-json",
 			detail:
-				stderr.trim() ||
-				"dinah refused but wrote no machine-readable refusal to stdout",
+				`dinah exited 2 (refused), but stdout was not JSON. Expected a ` +
+				`refusal envelope with a string "refusal" field. stdout: ${excerpt(stdout)}`,
 		};
 	}
+	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+		return {
+			kind: "not-json",
+			detail:
+				`dinah exited 2 (refused), but its JSON was ${jsonShape(parsed)}. ` +
+				`Every refusal envelope is an object carrying a string "refusal" field.`,
+		};
+	}
+	const keys = Object.keys(parsed as Record<string, unknown>);
 	return {
-		kind: "refused",
-		refusal: envelope.refusal,
-		detail: typeof envelope.detail === "string" ? envelope.detail : undefined,
-		context:
-			envelope.context && typeof envelope.context === "object"
-				? (envelope.context as Record<string, string>)
-				: undefined,
-		workbenches: Array.isArray(envelope.workbenches)
-			? (envelope.workbenches as Candidate[])
-			: undefined,
+		kind: "not-json",
+		detail:
+			`dinah exited 2 (refused), but its JSON carried no string "refusal" ` +
+			`field, which every refusal envelope carries. Top-level keys: ` +
+			`${keys.length > 0 ? keys.join(", ") : "(none)"}.`,
 	};
 }
 
@@ -166,7 +256,7 @@ export const EXIT_READ_FINDINGS = 5;
 function classifyFailure(outcome: SpawnOutcome, parsed: unknown): CliOutcome {
 	switch (outcome.code) {
 		case 2:
-			return readRefusal(parsed, outcome.stderr);
+			return readRefusal(parsed, outcome.stdout, outcome.stderr);
 		case 3:
 			return {
 				kind: "stale",
