@@ -13,9 +13,30 @@
 # so an editor left on an older build talks to whatever dinah it finds and
 # reports things that are not true. An opt-in switch would be one more thing to
 # remember, and forgetting is what let the two drift apart in the first place.
-# Packaging is not free, because it runs a type check, a lint and a compile
-# before it writes the archive, so reach for -SkipExtension when you are
-# iterating on Go and the extension has not moved.
+#
+# Packaging is not free, because it runs a type check, a lint, and a compile
+# before it writes the archive. On one Windows machine with a warm cache, each
+# figure the median of three runs, -SkipExtension took 1.6 seconds and the
+# default took 11.3, so packaging added about ten seconds and made the inner
+# loop roughly seven times longer. A first run in a fresh checkout installs the
+# extension's dependencies as well, and that one took about 70 seconds. Reach
+# for -SkipExtension when you are iterating on Go and the extension has not
+# moved.
+#
+# One thing changes in your checkout the first time you build without
+# -SkipExtension, and it is worth knowing before it happens. Packaging needs
+# editors/vscode/node_modules, so this script installs those dependencies when
+# they are missing. Go's package walk ignores directories whose names begin
+# with a dot or an underscore, directories named testdata, and vendor
+# directories, and it ignores nothing else, so an npm dependency that ships a
+# Go source file becomes part of this module as soon as those dependencies
+# exist. After that, go build ./..., go vet ./..., go test ./..., and
+# gofmt -l . all descend into that tree, take longer than they did, and can
+# report a file this repository never wrote. CI does not see any of it, because
+# the Go jobs there never install npm packages, and the gofmt job already runs
+# over cmd and internal alone for the same reason. That problem is dinah-274
+# and this script does not fix it. Pass -SkipExtension to keep a checkout that
+# has never packaged the extension free of it.
 
 param(
     [switch]$SkipPull,
@@ -25,6 +46,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Windows PowerShell 5.1 has been observed to turn a native command's stderr
+# into a terminating error while that stream is redirected, and the npm and git
+# steps below both write routine progress there. A run captured with *>&1 can
+# therefore end on a deprecation warning rather than on a real failure. VS
+# Code's task runner and this script's own tests redirect at the OS level
+# instead, so neither of them meets it.
 
 # Windows refuses to overwrite an executable that is currently running, and the
 # Go linker surfaces that refusal as an opaque failure to copy a temporary file.
@@ -153,19 +181,41 @@ try {
         Write-Host "Left the VS Code extension alone, because the 'code' command was missing as reported above." -ForegroundColor Yellow
     } else {
         $extension = Join-Path $Repo "editors/vscode"
+        $modules = Join-Path $extension "node_modules"
+        $lockfile = Join-Path $extension "package-lock.json"
+        # npm records what it installed in a hidden lockfile inside
+        # node_modules, so those two files together answer whether the tree on
+        # disk is behind the lockfile that describes it.
+        $installedLock = Join-Path $modules ".package-lock.json"
 
         # Packaging runs the extension's own toolchain out of node_modules, and
         # a fresh clone or a new worktree has none. Installing them here keeps
         # the first run in a checkout working, instead of failing inside a
-        # missing tsc with nothing useful to say.
-        if (-not (Test-Path (Join-Path $extension "node_modules"))) {
-            Write-Host "Installing the extension's dependencies, which this checkout does not have yet" -ForegroundColor Cyan
+        # missing tsc with nothing useful to say. A tree that is merely out of
+        # date is checked for the same reason the install targets are checked
+        # above: the pull earlier in this run can land a new package-lock.json,
+        # and a run that cannot finish should say so before the work rather
+        # than partway through it, in npm's words rather than in ours.
+        $installing = $null
+        if (-not (Test-Path $modules)) {
+            $installing = "Installing the extension's dependencies, which this checkout does not have yet"
+        } elseif ((Test-Path $lockfile) -and (Test-Path $installedLock)) {
+            if ((Get-Item $lockfile).LastWriteTimeUtc -gt (Get-Item $installedLock).LastWriteTimeUtc) {
+                $installing = "Reinstalling the extension's dependencies, which are older than package-lock.json"
+            }
+        } elseif (Test-Path $lockfile) {
+            Write-Host "The installed extension dependencies carry no hidden lockfile, so whether they still match" -ForegroundColor Yellow
+            Write-Host "package-lock.json cannot be checked here. Delete $modules and run this again if" -ForegroundColor Yellow
+            Write-Host "packaging fails on something you did not change." -ForegroundColor Yellow
+        }
+        if ($installing) {
+            Write-Host $installing -ForegroundColor Cyan
             npm --prefix $extension ci
             if ($LASTEXITCODE -ne 0) { throw "installing the extension's dependencies failed" }
         }
 
         Write-Host "Packaging the VS Code extension" -ForegroundColor Cyan
-        # A type check, a lint and a compile run ahead of the archive, so an
+        # A type check, a lint, and a compile run ahead of the archive, so an
         # extension that does not build stops here rather than being installed.
         npm --prefix $extension run package
         if ($LASTEXITCODE -ne 0) {
@@ -183,8 +233,10 @@ try {
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Installing the extension failed, and only the editor is affected. The binaries above are" -ForegroundColor Yellow
             Write-Host "installed and current, so nothing needs rebuilding." -ForegroundColor Yellow
-            Write-Host "Close every VS Code window and run this again. An extension directory a running editor is" -ForegroundColor Yellow
-            Write-Host "still holding has made an install crawl for minutes and then fail." -ForegroundColor Yellow
+            Write-Host "An extension directory a running editor is still holding has made an install crawl for" -ForegroundColor Yellow
+            Write-Host "minutes and then fail, so close every VS Code window and run this script again." -ForegroundColor Yellow
+            Write-Host "Start it from a plain PowerShell window when you do, because Ctrl-Shift-B runs it in the" -ForegroundColor Yellow
+            Write-Host "editor's own terminal, and closing those windows closes that terminal with them." -ForegroundColor Yellow
             Write-Host "If it fails a second time, remove the extension from the Extensions view and install" -ForegroundColor Yellow
             Write-Host "$vsix by hand from there." -ForegroundColor Yellow
             throw "installing the VS Code extension failed"
