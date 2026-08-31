@@ -1124,9 +1124,11 @@ about gaps.
 
 A workbench written before the field existed is repaired once, by hand,
 with `dinah check --migrate-ordinals`, which replays each card's journal to
-recover the order its entities were written in. Nothing re-derives an
-ordinal on a read, so a workbench nobody migrated is caught by the
-checker rather than quietly ordered by its directory listing forever.
+recover the order its entities were written in. A read of an unmigrated
+collection replays the same journal to reach the same order, so a position
+names the same entity before and after the repair. A read derives no
+ordinal and stores none, so a workbench nobody migrated is still caught by
+the checker rather than passing for repaired.
 
 The migration says what it did and what it could not do. It prints how many
 ordinals it stamped; it reports every entity whose creation no journal event

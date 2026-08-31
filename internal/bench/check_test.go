@@ -598,6 +598,227 @@ func TestOrdinalMigrationReplaysTheJournalAndIsIdempotent(t *testing.T) {
 	}
 }
 
+// TestACommentHoldsItsPositionAcrossTheMigration asserts the identifier
+// stability the operator ruled on: the comment standing at position 1 before
+// check --migrate-ordinals runs is the comment standing at position 1
+// afterwards.
+//
+// The fixture claims its identifiers in the reverse of its write order, so the
+// directory listing and the journal disagree about which comment came first.
+// Before this card the read path took the listing's answer and the migration
+// took the journal's, so `<card>/comments/1` named one comment before the
+// migration ran and a different one after it.
+func TestACommentHoldsItsPositionAcrossTheMigration(t *testing.T) {
+	root := newFixture(t)
+	journal := filepath.Join(root, CardsDir, "c00000000001", JournalName)
+	writeComment(t, root, "e00000000009", "2026-08-17T09:01:00Z", 0, "written first")
+	writeComment(t, root, "e00000000001", "2026-08-17T09:02:00Z", 0, "written second")
+	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
+	appendText(t, journal, commentedEvent("e00000000001", "2026-08-17T09:02:00Z"))
+
+	collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
+	if listed := ListIDs(collection); listed[0] != "e00000000001" {
+		t.Fatalf("the fixture no longer disagrees with the listing, which leads with %s", listed[0])
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	wanted := map[string]string{"1": "e00000000009", "2": "e00000000001"}
+	assertCommentPositions(t, opened, wanted, "before the migration")
+
+	comments, err := Comments(filepath.Join(root, CardsDir, "c00000000001"))
+	if err != nil {
+		t.Fatalf("comments: %v", err)
+	}
+	if len(comments) != 2 || !strings.Contains(comments[0].Body, "written first") {
+		t.Errorf("an unmigrated card reads its comments out of write order: %+v", comments)
+	}
+
+	if _, _, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z"); err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	assertCommentPositions(t, opened, wanted, "after the migration")
+	for id, ordinal := range map[string]int{"e00000000009": 1, "e00000000001": 2} {
+		if got := EntityOrdinal(collection, id, CommentAnchor); got != ordinal {
+			t.Errorf("comment %s carries ordinal %d, wanted %d", id, got, ordinal)
+		}
+	}
+}
+
+// assertCommentPositions resolves each position against the fixture card and
+// names the comment it reached, which is the check both halves of the
+// before-and-after assertion make.
+func assertCommentPositions(t *testing.T, opened *Bench, wanted map[string]string, when string) {
+	t.Helper()
+	for position, id := range wanted {
+		path, err := opened.ResolvePath("fx-1/" + CommentsDir + "/" + position)
+		if err != nil {
+			t.Fatalf("resolve position %s %s: %v", position, when, err)
+		}
+		if got := filepath.Base(filepath.Dir(path)); got != id {
+			t.Errorf("%s, position %s resolved to %s, wanted %s", when, position, got, id)
+		}
+	}
+}
+
+// TestAChecklistItemHoldsItsPositionAcrossTheMigration asserts the same
+// stability for the one collection whose creation the journal cannot recover.
+//
+// No event records a checklist item being written and no verb writes one, so
+// there is nothing for the journal to say about these two. The read path and
+// the migration therefore both fall through to the directory listing, and
+// falling through to the same answer is what keeps the position still. The
+// migration does stamp the items, in that guessed order, so the anchors carry
+// an ordinal afterwards and check reports every one of them as a guess.
+func TestAChecklistItemHoldsItsPositionAcrossTheMigration(t *testing.T) {
+	root := newFixture(t)
+	writeItem(t, root, "d00000000009", 0)
+	writeItem(t, root, "d00000000001", 0)
+
+	collection := filepath.Join(root, CardsDir, "c00000000001", ChecklistDir)
+	listed := ListIDs(collection)
+	if len(listed) != 2 {
+		t.Fatalf("the fixture holds %d items, wanted two", len(listed))
+	}
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	first := resolvedItem(t, opened, "1", "before the migration")
+	if first != listed[0] {
+		t.Errorf("position 1 named %s before the migration, and the listing leads with %s", first, listed[0])
+	}
+
+	_, reported, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if got := resolvedItem(t, opened, "1", "after the migration"); got != first {
+		t.Errorf("position 1 named %s before the migration and %s after it", first, got)
+	}
+	for n, id := range listed {
+		if got := EntityOrdinal(collection, id, ItemAnchor); got != n+1 {
+			t.Errorf("item %s carries ordinal %d after the migration, wanted %d", id, got, n+1)
+		}
+	}
+	guessed := map[string]bool{}
+	for _, finding := range reported {
+		if finding.Key == FindingOrdinalGuessed {
+			guessed[finding.Detail] = true
+		}
+	}
+	for _, id := range listed {
+		if !guessed[id] {
+			t.Errorf("the migration did not report item %s as a guess, and every item it stamps is one: %+v", id, reported)
+		}
+	}
+}
+
+// resolvedItem answers which checklist item of the fixture card a position
+// names.
+func resolvedItem(t *testing.T, opened *Bench, position, when string) string {
+	t.Helper()
+	path, err := opened.ResolvePath("fx-1/" + ChecklistDir + "/" + position)
+	if err != nil {
+		t.Fatalf("resolve item %s %s: %v", position, when, err)
+	}
+	return filepath.Base(filepath.Dir(path))
+}
+
+// TestTheJournalLookupStopsAtTheWorkbenchRoot pins the reach of the lookup
+// SortByOrdinal's fallback makes. It answers a card's own journal for a
+// collection below that card, and nothing at all for a collection whose owner
+// directory the walk reaches the workbench root from without meeting a card.
+//
+// The two workstream collections are what this is really about. Both hang off
+// the workbench root rather than off a card, and both are read through
+// SortByOrdinal, so the fallback has to leave them exactly as it found them.
+func TestTheJournalLookupStopsAtTheWorkbenchRoot(t *testing.T) {
+	root := newFixture(t)
+	cardDir := filepath.Join(root, CardsDir, "c00000000001")
+	if got := journalPathFor(cardDir); got != filepath.Join(cardDir, JournalName) {
+		t.Errorf("a collection below a card looked up %q, wanted the card's own journal", got)
+	}
+	// The owner directory of the live workstreams collection, of the
+	// archived one, and of the workbench's own attachments.
+	for _, owner := range []string{root, filepath.Join(root, ArchiveDir), filepath.Join(root, ColumnsDir, "b00000000001")} {
+		if got := journalPathFor(owner); got != "" {
+			t.Errorf("%s looked up the journal %q, and nothing there hangs off a card", owner, got)
+		}
+	}
+
+	// A card directory standing above the workbench root, which is what the
+	// walk would climb into if the workbench anchor did not stop it. Nothing
+	// puts a workbench there on purpose, and the stop is what makes it not
+	// matter that nothing does.
+	nested := t.TempDir()
+	write(t, filepath.Join(nested, CardAnchor), cleanCard)
+	write(t, filepath.Join(nested, JournalName), cleanJournal)
+	inner := filepath.Join(nested, "inner")
+	write(t, filepath.Join(inner, WorkbenchAnchor), benchDefinition)
+	write(t, filepath.Join(inner, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
+	if got := journalPathFor(inner); got != "" {
+		t.Errorf("the walk climbed out of the workbench and reached %q", got)
+	}
+}
+
+// TestTheMigrationLeavesAWorkbenchAndColumnAttachmentUnstamped asserts the
+// boundary of the migration's walk, which this card does not move. Neither
+// collection hangs off a card, so BackfillOrdinals never reaches either, and
+// an attachment sitting in one carries no ordinal after a run that stamped
+// every attachment of every card.
+//
+// The boundary is worth an assertion rather than a remark because the read
+// path now asks a question about the nearest enclosing card, and these two
+// collections are where that question has no answer.
+//
+// The card's own attachment is the control. Without it the fixture gives the
+// migration nothing at all to stamp, and the two empty anchors then read the
+// same whether the walk narrowed correctly or never ran, so a regression that
+// broke the walk outright would leave this test green.
+func TestTheMigrationLeavesAWorkbenchAndColumnAttachmentUnstamped(t *testing.T) {
+	root := newFixture(t)
+	fm := NewFrontmatter()
+	fm.Set("filename", "loose.txt")
+	fm.Set("provenance", "alka")
+	workbenchAnchor := filepath.Join(root, AttachmentsDir, "a00000000001", AttachmentAnchor)
+	columnAnchor := filepath.Join(root, ColumnsDir, "b00000000001", AttachmentsDir, "a00000000002", AttachmentAnchor)
+	cardCollection := filepath.Join(root, CardsDir, "c00000000001", AttachmentsDir)
+	cardAnchor := filepath.Join(cardCollection, "a00000000003", AttachmentAnchor)
+	write(t, workbenchAnchor, fm.Render(""))
+	write(t, columnAnchor, fm.Render(""))
+	write(t, cardAnchor, fm.Render(""))
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	stamped, _, err := opened.BackfillOrdinals("alka", "2026-08-17T10:00:00Z")
+	if err != nil {
+		t.Fatalf("backfill: %v", err)
+	}
+	if stamped != 1 {
+		t.Fatalf("the migration stamped %d entities, wanted the card's own attachment and nothing else", stamped)
+	}
+	if got := EntityOrdinal(cardCollection, "a00000000003", AttachmentAnchor); got != 1 {
+		t.Fatalf("the card's own attachment carries ordinal %d after the run, so the walk reached no card and the two assertions below prove nothing", got)
+	}
+	for _, path := range []string{workbenchAnchor, columnAnchor} {
+		text, err := ReadText(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, line := range SplitLines(text) {
+			if strings.HasPrefix(line, OrdinalField+":") {
+				t.Errorf("the migration stamped %s, which hangs off no card:\n%s", path, text)
+			}
+		}
+	}
+}
+
 // snapshot reads every anchor file under a bench, keyed by path relative to
 // the root, which is how the idempotence check compares two runs byte for
 // byte rather than field by field.
