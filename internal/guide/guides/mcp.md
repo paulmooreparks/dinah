@@ -155,18 +155,22 @@ value lies outside it; a path holding no `workbench.md` is refused
 points you at what is reachable.
 
 The one tool that takes no `workbench` is `workbenches`. It searches the
-directory the server was given to serve and reports a workbench held by any
-directory below that one, at any depth. Dinah skips the top directory
-itself, so a workbench sitting there is missing from the list.
+directory the server was given to serve, and it reports a workbench held by
+that directory itself or by any directory beneath it, at any depth. The
+descent skips two kinds of directory along with everything under them: a
+directory whose name begins with a dot, and a symbolic link.
 
 A server started with no `--root` and no `DINAH_MCP_ROOT` carries no
 boundary at all: any workbench you can name by its absolute path is
 reachable, whether or not the server discovered one to serve as its default
-at startup. The one exception is `workbenches` itself. It needs a root to
-search, so called against a server with no root it refuses
-`no-workbench-found` rather than listing anything, even where the server
-does carry a default. Name the workbench you want directly rather than
-relying on `workbenches` to find it for you.
+at startup. The one exception is `workbenches` itself, called with no path:
+it needs a root to search, so it cannot run that search here. When the
+server also carries no default, it refuses `no-workbench-found`. When it
+does carry a default, it answers that one workbench alone, with `unbounded`
+set on the response so you can tell this is not the outcome of a search:
+naming a second, unrelated workbench directly may still reach it, whether or
+not this listing named it. Name the workbench you want directly rather than
+relying on `workbenches` to find every one for you.
 
 ```json
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status","arguments":{"workbench":"/srv/dinah/incident"}}}

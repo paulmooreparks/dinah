@@ -291,7 +291,7 @@ func call(root string, defaultLib *verb.Library, libraries map[string]*verb.Libr
 		return nil, err
 	}
 	if args.Name == "workbenches" {
-		return answerWorkbenches(root, args.Arguments)
+		return answerWorkbenches(root, defaultLib, args.Arguments)
 	}
 	tool, ok := toolsByName[args.Name]
 	if !ok {
@@ -452,7 +452,14 @@ func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Req
 // and whatever comes back reaches the caller as it did before this argument
 // existed. An unbounded server has no directory to search, and the refusal
 // that says so is a transport error rather than a payload, which is dinah-307's
-// contract and is not this card's to change.
+// contract and still holds wherever that server carries no default library.
+//
+// An unbounded server that did discover a default answers that one workbench
+// rather than refusing (dinah-301). bench.Enumerate("") still cannot run a
+// search, so what comes back is not a listing but the one identity the server
+// already holds, and it is marked unbounded so a caller can tell the two
+// apart. That branch sits inside the no-path arm alone, so a call carrying a
+// path walks the path it names whether or not a default exists.
 //
 // With a non-empty path argument it switches to the same downward walk
 // dinah workbenches <path> runs at a terminal: the path is resolved and checked
@@ -461,7 +468,7 @@ func answerForest(root, tool string, defaultLib *verb.Library, request *verb.Req
 // about an argument the caller sent, so they travel on the response the way
 // every other argument-level refusal on this surface does, which is what
 // resolveLibrary already does for a workbench argument that escapes the root.
-func answerWorkbenches(root string, arguments map[string]any) (map[string]any, error) {
+func answerWorkbenches(root string, defaultLib *verb.Library, arguments map[string]any) (map[string]any, error) {
 	named, _ := arguments["path"].(string)
 	named = strings.TrimSpace(named)
 	depth, _ := arguments["max-depth"].(string)
@@ -472,6 +479,9 @@ func answerWorkbenches(root string, arguments map[string]any) (map[string]any, e
 		// refuses it too, and it is an argument-level refusal like the rest.
 		if strings.TrimSpace(depth) != "" {
 			return workbenchesRefusal(contract.Refuse(contract.DepthWithoutRoot, depth)), nil
+		}
+		if root == "" && defaultLib != nil {
+			return workbenchesDefaultOnly(defaultLib)
 		}
 		listed, err := bench.Enumerate(root)
 		if err != nil {
@@ -526,6 +536,36 @@ func workbenchesPayload(listed []bench.Candidate) (map[string]any, error) {
 		return listed[i].Path < listed[j].Path
 	})
 	payload := wrap(map[string]any{"workbenches": listed}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
+	return textResult(payload)
+}
+
+// workbenchesDefaultOnly answers the workbenches tool for an unbounded server
+// that discovered a default library. bench.Enumerate("") has no directory to
+// search and cannot run, but the default is known without a search, and
+// reporting nothing here would contradict every other tool call on the same
+// session, which goes on answering against that same default (dinah-301). The
+// row is built off the library already opened at startup rather than off a
+// fresh anchor read, because it is the same anchor, and a second read of it
+// tells the caller nothing bench.Open did not already confirm.
+//
+// The unbounded member marks this answer as something other than the outcome
+// of a search. A caller that reads it knows the array may be incomplete, since
+// a server with no root admits any workbench it can resolve and open
+// (dinah-307) rather than only the one row here.
+//
+// The answer is composed here rather than through workbenchesPayload, which
+// sorts a walk's result by path and answers a different question from this
+// one.
+func workbenchesDefaultOnly(defaultLib *verb.Library) (map[string]any, error) {
+	row := bench.Candidate{
+		Title: defaultLib.Bench.Title,
+		Slug:  defaultLib.Bench.Slug,
+		Path:  defaultLib.Bench.Root,
+	}
+	payload := wrap(map[string]any{
+		"workbenches": []bench.Candidate{row},
+		"unbounded":   true,
+	}, []string{"status", "columns", "list_cards", "next_card", "workbenches"})
 	return textResult(payload)
 }
 
