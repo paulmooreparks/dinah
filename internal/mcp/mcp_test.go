@@ -534,22 +534,41 @@ func TestAMalformedLineIsAnsweredRatherThanDropped(t *testing.T) {
 	}
 }
 
-// TestABlankLineIsStillSkippedSilently asserts the line dinah-295 left alone.
-// Nothing was sent on an empty line for parsing to fail on, so it is not a
-// caller error and it draws no answer, which is what separates it from a line
-// that carried bytes the head could not read.
+// TestOnlyAnEmptyLineIsSkippedSilently asserts where dinah-295 drew the line
+// between silence and an answer. An empty line carries nothing to answer and a
+// stream ending in a newline produces one, so it is skipped. A line carrying
+// only spaces or only a tab carries bytes the head cannot use, so it draws the
+// parse error every other unusable line draws.
 //
-// The blank lines are followed by a request that must be answered, because a
-// count of zero on its own also passes when the head has stopped answering
-// altogether, and a guard a broken head satisfies guards nothing.
-func TestABlankLineIsStillSkippedSilently(t *testing.T) {
+// The stream ends in a request that must be answered, because a count on its
+// own also passes when the head has stopped answering altogether, and a guard
+// a broken head satisfies guards nothing.
+func TestOnlyAnEmptyLineIsSkippedSilently(t *testing.T) {
 	library := newLibrary(t)
 	answers := rawStream(t, library, "", "   ", "\t", `{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
-	if len(answers) != 1 {
-		t.Fatalf("wanted the ping answered and the three blank lines not, got %d answers: %s", len(answers), answers)
+	if len(answers) != 3 {
+		t.Fatalf("wanted the two whitespace lines answered, the empty line not, and the ping answered, got %d answers: %s", len(answers), answers)
 	}
-	if string(answers[0]["id"]) != "2" {
-		t.Errorf("the one answer belongs to a blank line rather than to the ping: %s", answers[0])
+	for i, name := range []string{"a spaces-only line", "a tab-only line"} {
+		var failure struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(answers[i]["error"], &failure); err != nil {
+			t.Fatalf("%s drew no error member: %v", name, err)
+		}
+		if failure.Code != codeParseError {
+			t.Errorf("%s wanted code %d, got %d", name, codeParseError, failure.Code)
+		}
+		if failure.Message == "" {
+			t.Errorf("%s carried no message", name)
+		}
+		if got, ok := answers[i]["id"]; !ok || string(got) != "null" {
+			t.Errorf("%s wanted the identifier written as null, got %q present=%v", name, string(got), ok)
+		}
+	}
+	if string(answers[2]["id"]) != "2" {
+		t.Errorf("the empty line drew an answer of its own, so the ping is not the last: %s", answers[2])
 	}
 }
 

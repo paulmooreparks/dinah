@@ -74,6 +74,12 @@ const (
 // answered with a JSON-RPC error of its own rather than dropped, so a caller
 // that sent one is told, and scanning continues to the next line either way.
 //
+// A line carrying no bytes at all is the single exception and is skipped in
+// silence, because a stream ending in a newline produces one and there is
+// nothing on it to answer. A line carrying only spaces or a tab is not that
+// case: it carries bytes the head cannot use, so it draws the same error any
+// other unusable line draws.
+//
 // The transport is the standard library's: encoding/json over bufio, which
 // covers the whole of what this head needs, so the module keeps its record of
 // no external dependencies.
@@ -87,7 +93,7 @@ func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Lib
 	reader.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	encoder := json.NewEncoder(out)
 	for reader.Scan() {
-		line := strings.TrimSpace(reader.Text())
+		line := reader.Text()
 		if line == "" {
 			continue
 		}
