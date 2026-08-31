@@ -75,12 +75,16 @@ jobs:
       - run: python --version
       # Three steps rather than one command chain, so a failing suite names
       # itself in the Checks UI instead of hiding behind whichever ran first.
+      # Cheapest first: a step that fails stops the ones after it, and the
+      # real-shell harness runs tens of thousands of generated strings, so
+      # putting it last is the difference between a verdict in seconds and a
+      # verdict after most of an hour.
       - name: Guard cases
         run: python scripts/hooks/test-deny-destructive-git.py
-      - name: Guard against a real shell
-        run: python scripts/hooks/test-guard-against-a-real-shell.py
       - name: Hook registration is cwd-independent
         run: python scripts/hooks/test-hook-registration-cwd-independence.py
+      - name: Guard against a real shell
+        run: python scripts/hooks/test-guard-against-a-real-shell.py
 
   # The VS Code extension builds beside the Go jobs rather than inside them.
   # Windows is not optional: path handling, the .exe suffix and PATH
