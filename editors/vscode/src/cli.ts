@@ -115,21 +115,28 @@ function parseJson(stdout: string): unknown | undefined {
 /**
  * How much of an unreadable stdout body a diagnostic quotes.
  *
- * The number bounds what one VS Code toast and one output-channel line can
- * carry. A toast silently drops whatever it cannot fit, and an output line
- * long enough to wrap several times buries the label that says which
- * workbench the message is about. Two hundred characters is long enough to
- * show a shell error or the opening of an HTML error page, and short enough
- * that the label beside it survives. Raise it and you trade that legibility
- * for more of a body the reader can already see by running dinah themselves;
- * drop it much below eighty and it starts cutting ordinary shell errors in
- * half.
+ * The body is arbitrary text this extension did not produce, and it is quoted
+ * inside a sentence that carries more than the body. Two call sites in this
+ * tree decide what "more" means: cardCommands.ts passes the composed sentence
+ * to showError, which is an editor notification, and workbenchCommands.ts
+ * writes it into an output-channel line that already carries the workbench
+ * label and a sentence of its own. An unbounded body would be the whole of
+ * both.
+ *
+ * Two hundred characters is a legibility choice rather than a measured
+ * threshold. It carries the opening of a shell error or of an HTML error
+ * page, which is the part that identifies what answered, while leaving the
+ * words around it in view. Nothing in this repository measures how the editor
+ * renders a long notification or how much of a channel line stays readable,
+ * so no branch and no correctness argument here rests on either question:
+ * move the number and the diagnostic gets longer or shorter, and nothing else
+ * about it changes.
  */
 const EXCERPT_LIMIT = 200;
 
 /**
  * Cuts a diagnostic to one line and a bounded length, so a raw stdout dump
- * cannot blow up a toast or a log line.
+ * cannot become the whole of the message that quotes it.
  *
  * An empty body is named rather than left blank, because a message ending in
  * "stdout: " reads as a message that broke halfway through composing itself.

@@ -35,6 +35,17 @@ export interface WorkbenchCommandHost {
 export interface WorkbenchCommandContext {
 	readonly spawner: Spawner;
 	readonly exe: string;
+	/**
+	 * How the resolved binary described itself when the extension probed it at
+	 * activation, as version.ts's describeVersion composes that line, and empty
+	 * when no binary was resolved.
+	 *
+	 * Carried so that a message about an answer can name the binary that gave
+	 * it. This is display and nothing else: no branch here reads it, splits it,
+	 * or measures it against anything, which is the rule version.ts's own
+	 * header states for the release tag inside it.
+	 */
+	readonly toolDescription: string;
 	readonly host: WorkbenchCommandHost;
 	/** The value `--workbench` takes, never the row's on-screen description. */
 	readonly path: string;
@@ -44,6 +55,12 @@ export interface WorkbenchCommandContext {
 
 /** The action a toast offers when there is something in the channel to read. */
 export const OPEN_OUTPUT = "Open Output";
+
+/**
+ * What the toast and the channel line both say when a check produced nothing
+ * this build could read, written once so the two cannot drift apart.
+ */
+const NO_REPORT = "check produced no report the extension could read.";
 
 /**
  * The context for a workbench-row command, or undefined when the row named is
@@ -65,6 +82,7 @@ export const OPEN_OUTPUT = "Open Output";
 export function contextForWorkbench(
 	element: TreeElement | undefined,
 	exe: string,
+	toolDescription: string,
 	host: WorkbenchCommandHost,
 	spawner: Spawner,
 ): WorkbenchCommandContext | undefined {
@@ -81,7 +99,14 @@ export function contextForWorkbench(
 	if (path === undefined || path === "") {
 		return undefined;
 	}
-	return { spawner, exe, host, path, label: treeItemFor(element).label };
+	return {
+		spawner,
+		exe,
+		toolDescription,
+		host,
+		path,
+		label: treeItemFor(element).label,
+	};
 }
 
 /** The line one finding renders as, its path first because that is what a reader looks for. */
@@ -103,6 +128,27 @@ async function offerOutput(
 }
 
 /**
+ * Names the binary that answered, so a reader who has been told the answer
+ * could not be read learns which executable to look at.
+ *
+ * A message about a disagreement over the shape of an answer leaves a reader
+ * knowing that this build and some dinah disagree, and knowing nothing about
+ * which dinah. That was the whole of what the operator could see when a binary
+ * predating dinah-346 answered check on a workbench carrying defects. The path
+ * and the self-reported version are both already in hand here, and printing
+ * them decides nothing: no version is parsed, compared, or read as a statement
+ * about what the tool can do.
+ */
+function answeringBinary(context: WorkbenchCommandContext): string {
+	if (context.exe === "") {
+		return "No dinah binary was resolved, so nothing ran.";
+	}
+	return context.toolDescription === ""
+		? `The binary that answered: ${context.exe}.`
+		: `The binary that answered: ${context.exe} (${context.toolDescription}).`;
+}
+
+/**
  * Runs the workbench's own check and reports what it found.
  *
  * A clean run says so in a toast and writes nothing to the channel, because a
@@ -121,16 +167,25 @@ export async function checkWorkbench(
 ): Promise<CliOutcome> {
 	const outcome = await runCheck(context.spawner, context.exe, context.path);
 	if (outcome.kind !== "ok") {
-		// A check that could not run is never silent. The refusal goes to the
+		// A check with no report is never silent. The reason goes to the
 		// channel and the toast points at it, on the same terms a dirty run
 		// does, so a reader learns the difference between a clean workbench and
-		// a question that was never asked.
+		// a question that was never answered.
+		//
+		// The leading clause says what is true on every arm this branch takes.
+		// A refusal, a spawn that failed and a stale cursor all left this
+		// extension with no report; so did the answer a binary predating
+		// dinah-346 gives for a workbench carrying defects, which is a report
+		// this build cannot read rather than an absent one. The clause it
+		// replaced said the check could not run, and on that last arm the check
+		// ran and found exactly what it was asked to find.
 		context.host.appendLines([
-			`${context.label}: check could not run. ${refusalMessage(outcome)}`,
+			`${context.label}: ${NO_REPORT} ${refusalMessage(outcome)}`,
+			answeringBinary(context),
 		]);
 		await offerOutput(
 			context,
-			`${context.label}: check could not run. See the Dinah output channel for details.`,
+			`${context.label}: ${NO_REPORT} See the Dinah output channel for details.`,
 		);
 		return outcome;
 	}
