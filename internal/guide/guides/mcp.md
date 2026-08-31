@@ -155,8 +155,10 @@ value lies outside it; a path holding no `workbench.md` is refused
 points you at what is reachable.
 
 The one tool that takes no `workbench` is `workbenches`. It searches the
-directory the server was given to serve and reports a workbench held by any
-directory at or below that one, at any depth, including the root itself.
+directory the server was given to serve, and it reports a workbench held by
+that directory itself or by any directory beneath it, at any depth. The
+descent skips two kinds of directory along with everything under them: a
+directory whose name begins with a dot, and a symbolic link.
 
 A server started with no `--root` and no `DINAH_MCP_ROOT` carries no
 boundary at all: any workbench you can name by its absolute path is

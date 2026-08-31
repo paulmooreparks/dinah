@@ -117,3 +117,30 @@ func TestMCPGuideNoLongerPromisesTheOldWorkbenchesRefusal(t *testing.T) {
 		t.Errorf("the mcp guide's workbenches paragraph does not name the unbounded marker: %q", folded)
 	}
 }
+
+// TestMCPGuideNamesTheExclusionsTheWalkApplies holds the workbenches paragraph
+// to what walkableDir in internal/bench actually does. The walk skips a
+// dot-prefixed directory and a symlinked one, so a sentence promising every
+// directory below the root at any depth is false, and an agent reading it has
+// no way to tell an omitted workbench from an absent one. The assertions name
+// marker phrases rather than whole sentences, and the banned phrase is the
+// universal this card first shipped and code review caught.
+func TestMCPGuideNamesTheExclusionsTheWalkApplies(t *testing.T) {
+	text, err := Text("mcp")
+	if err != nil {
+		t.Fatalf("read the mcp guide: %v", err)
+	}
+	folded := strings.Join(strings.Fields(text), " ")
+
+	for _, want := range []string{
+		"name begins with a dot",
+		"symbolic link",
+	} {
+		if !strings.Contains(folded, want) {
+			t.Errorf("the mcp guide's workbenches paragraph does not name an exclusion the walk applies: wanted %q", want)
+		}
+	}
+	if gone := "at or below that one, at any depth"; strings.Contains(folded, gone) {
+		t.Errorf("the mcp guide claims a reach the walk does not have: %q", gone)
+	}
+}
