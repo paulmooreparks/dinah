@@ -442,12 +442,124 @@ func TestNotificationsGetNoAnswer(t *testing.T) {
 
 // TestUnknownMethodIsATransportError asserts that a method the head does not
 // implement comes back as a JSON-RPC error rather than as a refusal, since a
-// refusal is a contract answer and this is not one.
+// refusal is a contract answer and this is not one. The line parsed, so the
+// answer also has to carry the caller's own identifier rather than the null
+// a line that never became a request is answered with.
 func TestUnknownMethodIsATransportError(t *testing.T) {
 	library := newLibrary(t)
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"nonesuch"}`)
 	if answer.Error == nil || answer.Error.Code != codeMethodNotFound {
 		t.Errorf("wanted a method-not-found error, got %+v", answer)
+	}
+	if string(answer.ID) != "1" {
+		t.Errorf("wanted the caller's own identifier, got %q", string(answer.ID))
+	}
+}
+
+// rawStream drives whole lines through the head and returns each answer as the
+// members it was encoded with, rather than decoding into response. A test that
+// holds the encoded shape needs to tell a member carrying null from a member
+// that was never written at all, and response cannot express that difference.
+func rawStream(t *testing.T, library *verb.Library, lines ...string) []map[string]json.RawMessage {
+	t.Helper()
+	out := &strings.Builder{}
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(strings.Join(lines, "\n")+"\n"), out); err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	var answers []map[string]json.RawMessage
+	for _, encoded := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		if strings.TrimSpace(encoded) == "" {
+			continue
+		}
+		answer := map[string]json.RawMessage{}
+		if err := json.Unmarshal([]byte(encoded), &answer); err != nil {
+			t.Fatalf("decode %q: %v", encoded, err)
+		}
+		answers = append(answers, answer)
+	}
+	return answers
+}
+
+// TestAMalformedLineIsAnsweredRatherThanDropped asserts what dinah-295 fixed:
+// a line json.Unmarshal cannot turn into a request draws one JSON-RPC error
+// response of its own instead of vanishing, on the code the JSON-RPC 2.0
+// error table gives its failure, and the well-formed request on the next line
+// is still answered, which is what proves the loop kept reading.
+func TestAMalformedLineIsAnsweredRatherThanDropped(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		code int
+	}{
+		{"not json at all", `{ this is not json`, codeParseError},
+		{"truncated mid-object", `{"jsonrpc":"2.0","id":1,"method":"ping"`, codeParseError},
+		{"a bare array", `[1,2,3]`, codeInvalidRequest},
+		{"a bare string", `"just a string"`, codeInvalidRequest},
+		{"a bare number", `42`, codeInvalidRequest},
+		{"a field of the wrong type", `{"jsonrpc":"2.0","id":1,"method":123}`, codeInvalidRequest},
+	}
+	for _, one := range cases {
+		t.Run(one.name, func(t *testing.T) {
+			library := newLibrary(t)
+			answers := rawStream(t, library, one.line, `{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
+			if len(answers) != 2 {
+				t.Fatalf("wanted an answer to the malformed line and to the ping, got %d", len(answers))
+			}
+			var failure struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal(answers[0]["error"], &failure); err != nil {
+				t.Fatalf("the malformed line drew no error member: %v", err)
+			}
+			if failure.Code != one.code {
+				t.Errorf("wanted code %d, got %d", one.code, failure.Code)
+			}
+			if failure.Message == "" {
+				t.Error("the error carried no message")
+			}
+			if _, ok := answers[0]["result"]; ok {
+				t.Error("a protocol error carried a result member")
+			}
+			if got, ok := answers[0]["id"]; !ok || string(got) != "null" {
+				t.Errorf("wanted the identifier written as null, got %q present=%v", string(got), ok)
+			}
+			if string(answers[1]["id"]) != "2" {
+				t.Errorf("the request after the malformed line was misaddressed: %q", string(answers[1]["id"]))
+			}
+			if _, ok := answers[1]["result"]; !ok {
+				t.Errorf("the request after the malformed line drew no result: %v", answers[1])
+			}
+		})
+	}
+}
+
+// TestABlankLineIsStillSkippedSilently asserts the line dinah-295 left alone.
+// Nothing was sent on an empty line for parsing to fail on, so it is not a
+// caller error and it draws no answer, which is what separates it from a line
+// that carried bytes the head could not read.
+func TestABlankLineIsStillSkippedSilently(t *testing.T) {
+	library := newLibrary(t)
+	if answers := rawStream(t, library, "", "   ", "\t"); len(answers) != 0 {
+		t.Errorf("a blank line was answered: %v", answers)
+	}
+}
+
+// TestServeEndsCleanlyAfterAMalformedLine asserts that a malformed line costs
+// the caller an error response and nothing else. Serve still returns nil at
+// ordinary end of input, which is what runMCP reads to exit 0, so this card
+// leaves the exit-code contract where it found it.
+func TestServeEndsCleanlyAfterAMalformedLine(t *testing.T) {
+	library := newLibrary(t)
+	stream := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}`,
+		`{ this is not json`,
+		`[1,2,3]`,
+		`{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`,
+	}, "\n") + "\n"
+	out := &strings.Builder{}
+	if err := Serve(library.Bench.Root, library, map[string]*verb.Library{}, strings.NewReader(stream), out); err != nil {
+		t.Fatalf("a stream carrying malformed lines ended with an error: %v", err)
 	}
 }
 
