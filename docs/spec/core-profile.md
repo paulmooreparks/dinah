@@ -80,7 +80,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.7` and says nothing about
+once. A conformance claim names `dinah-core 0.8` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -605,7 +605,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.7",
+  "profile": "dinah-core/0.8",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
