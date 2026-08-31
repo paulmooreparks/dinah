@@ -586,7 +586,7 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies."
     },
     "check.workbench.1": {
-      "text": "the workbench declares a major number the tool implements",
+      "text": "the workbench declares a profile version the tool implements",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile."
     },
     "check.workbench.2": {

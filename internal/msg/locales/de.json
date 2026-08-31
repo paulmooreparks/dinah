@@ -820,9 +820,9 @@
       "source": "53637a3c039ad136"
     },
     "check.workbench.1": {
-      "text": "das Werkzeug implementiert die Hauptnummer",
+      "text": "das Werkzeug implementiert die Profilversion",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
-      "source": "51adf6389bfdb868"
+      "source": "a62190818c1deab5"
     },
     "check.workbench.2": {
       "text": "die Werkbank benennt einen Betreiber",

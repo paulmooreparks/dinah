@@ -1331,9 +1331,9 @@ func resolveProfile(declared string, ceiling [2]int) (major, minor int, aliased,
 
 // sortsBelow reports whether one revision is older than another. The major
 // number decides it and the minor number breaks the tie, which is the ordering
-// the profile's own 0.4 changelog entry establishes: while the document's
-// major is 0, section 2.2 sends every retirement and every strengthening to
-// the minor number, so the minor is where compatibility lives today.
+// CORE-BENCH-5 states. While the document's major is 0, section 2.2 sends
+// every retirement and every strengthening to the minor number, so the minor
+// is where compatibility lives today.
 func sortsBelow(a, b [2]int) bool {
 	if a[0] != b[0] {
 		return a[0] < b[0]

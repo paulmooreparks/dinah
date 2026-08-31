@@ -755,9 +755,9 @@
       "source": "53637a3c039ad136"
     },
     "check.workbench.1": {
-      "text": "उपकरण वर्कबेंच का मुख्य संस्करण-अंक लागू करता है",
+      "text": "उपकरण वर्कबेंच का प्रोफ़ाइल संस्करण लागू करता है",
       "context": "One row of the ordered precondition list of workbench, quoted from section 6 of the core profile.",
-      "source": "51adf6389bfdb868"
+      "source": "a62190818c1deab5"
     },
     "check.workbench.2": {
       "text": "वर्कबेंच एक संचालक नियत करती है",
