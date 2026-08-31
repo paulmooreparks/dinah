@@ -50,7 +50,7 @@ import {
 import { composeContextKeys, composeStatus } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
-import { classifyVersion } from "./version";
+import { classifyVersion, describeVersion } from "./version";
 import { NO_WORKBENCH_FOUND, resolveWorkbench } from "./workbench";
 import type {
 	WorkbenchCommandContext,
@@ -371,6 +371,12 @@ export async function activate(
 					const target = contextForWorkbench(
 						element,
 						binary.state === "ok" ? binary.path : "",
+						// describeVersion rather than a second spelling of the
+						// same line: the status tooltip and the demotion
+						// diagnostic already describe a binary this way, and
+						// this is display, the only thing version.ts's header
+						// allows the release tag inside it to be used for.
+						binary.state === "ok" ? describeVersion(binary.version) : "",
 						workbenchHost,
 						nodeSpawner,
 					);
