@@ -528,7 +528,7 @@ func TestAMalformedLineIsAnsweredRatherThanDropped(t *testing.T) {
 				t.Errorf("the request after the malformed line was misaddressed: %q", string(answers[1]["id"]))
 			}
 			if _, ok := answers[1]["result"]; !ok {
-				t.Errorf("the request after the malformed line drew no result: %v", answers[1])
+				t.Errorf("the request after the malformed line drew no result: %s", answers[1])
 			}
 		})
 	}
@@ -538,10 +538,18 @@ func TestAMalformedLineIsAnsweredRatherThanDropped(t *testing.T) {
 // Nothing was sent on an empty line for parsing to fail on, so it is not a
 // caller error and it draws no answer, which is what separates it from a line
 // that carried bytes the head could not read.
+//
+// The blank lines are followed by a request that must be answered, because a
+// count of zero on its own also passes when the head has stopped answering
+// altogether, and a guard a broken head satisfies guards nothing.
 func TestABlankLineIsStillSkippedSilently(t *testing.T) {
 	library := newLibrary(t)
-	if answers := rawStream(t, library, "", "   ", "\t"); len(answers) != 0 {
-		t.Errorf("a blank line was answered: %v", answers)
+	answers := rawStream(t, library, "", "   ", "\t", `{"jsonrpc":"2.0","id":2,"method":"ping","params":{}}`)
+	if len(answers) != 1 {
+		t.Fatalf("wanted the ping answered and the three blank lines not, got %d answers: %s", len(answers), answers)
+	}
+	if string(answers[0]["id"]) != "2" {
+		t.Errorf("the one answer belongs to a blank line rather than to the ping: %s", answers[0])
 	}
 }
 
