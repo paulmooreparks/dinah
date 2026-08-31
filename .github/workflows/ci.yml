@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: &os-matrix [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -43,6 +43,44 @@ jobs:
             echo "$unformatted"
             exit 1
           fi
+
+  # The suites under scripts/hooks/ cover the guard that refuses destructive
+  # git against the operator's live checkout. Until this job existed nothing in
+  # the build ran them: they executed only when a person remembered to invoke
+  # them by hand, which is not a defensible gate for that file. The OS list is
+  # an alias of the one `test` declares, so the two cannot drift apart the way
+  # two typed-out copies could. GitHub Actions has supported YAML anchors and
+  # aliases since September 2025; merge keys (`<<:`) it still does not, which
+  # is why this is an alias of a whole list rather than a merge.
+  hook-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: *os-matrix
+    runs-on: ${{ matrix.os }}
+    steps:
+      # test-guard-against-a-real-shell.py reads the deployed guard with
+      # `git show origin/main:scripts/hooks/deny-destructive-git.py` and treats
+      # an unreadable trunk as a hard failure rather than a skip. The action's
+      # shallow default does not guarantee that origin/main resolves, so the
+      # suite would go red for a reason unrelated to the guard.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The runner images all ship a Python 3, but which one they ship changes
+      # over time and is not a pinned contract. This is.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python --version
+      # Three steps rather than one command chain, so a failing suite names
+      # itself in the Checks UI instead of hiding behind whichever ran first.
+      - name: Guard cases
+        run: python scripts/hooks/test-deny-destructive-git.py
+      - name: Guard against a real shell
+        run: python scripts/hooks/test-guard-against-a-real-shell.py
+      - name: Hook registration is cwd-independent
+        run: python scripts/hooks/test-hook-registration-cwd-independence.py
 
   # The VS Code extension builds beside the Go jobs rather than inside them.
   # Windows is not optional: path handling, the .exe suffix and PATH
