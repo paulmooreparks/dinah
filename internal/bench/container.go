@@ -490,8 +490,7 @@ func resumableLift(container string) (string, error) {
 	}
 	if len(partial) > 1 {
 		sort.Strings(partial)
-		extra := map[string]string{"source": partial[1]}
-		return "", contract.RefuseWith(contract.Unconfirmed, partial[0], extra)
+		return "", fmt.Errorf("%s holds more than one directory an interrupted lift could have left, %s, and choosing between them is not this repair's to make", container, strings.Join(partial, " and "))
 	}
 	return partial[0], nil
 }
