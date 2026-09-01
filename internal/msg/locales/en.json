@@ -1433,6 +1433,10 @@
       "text": "; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with."
     },
+    "refusal.dinah.no-workbench-found.bare": {
+      "text": "; a workbench.md sits at {bare}, outside any .dinah container, which is why no search reaches it; run `dinah check --migrate-container` there to carry it into one",
+      "context": "Spliced onto refusal.dinah.no-workbench-found in place of its ordinary next step when the walk went past a workbench.md sitting outside any container. {bare} carries those directories, separated by commas. It is what tells an operator whose workbench stopped being found why it stopped, rather than printing the sentence an empty machine prints."
+    },
     "refusal.dinah.no-editor": {
       "text": "no editor was resolvable",
       "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or column the refusal is about."
@@ -2709,6 +2713,14 @@
       "text": "{count} workbench could not be carried into a container.",
       "context": "The heading over the workbenches the container migration could not move, for exactly one. Each row names the directory and the reason."
     },
+    "check.container-moved-unfinished.other": {
+      "text": "{count} workbenches moved into a container and the migration then stopped, so they are no longer where they were.",
+      "context": "The heading over the workbenches that moved and whose migration then stopped, for any other number."
+    },
+    "check.container-moved-unfinished.one": {
+      "text": "{count} workbench moved into a container and the migration then stopped, so it is no longer where it was.",
+      "context": "The heading over the workbenches that moved and whose migration then stopped, for exactly one. Each row names the directory it sat in, the directory it now sits in, and the reason the run stopped."
+    },
     "check.container-duplicate.other": {
       "text": "{count} workbench identifiers are claimed by more than one directory, and none of them was touched.",
       "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number."
@@ -2746,7 +2758,7 @@
       "context": "A check finding: two or more directories share one workbench identifier. {detail} carries the identifier and every path claiming it. The sweep never repairs this, because a git clone and an accidental copy look identical on disk."
     },
     "check.bare-workbench": {
-      "text": "the workbench.md at {detail} sits outside any .dinah container, so no search finds it; dinah check --migrate-container carries it into one",
+      "text": "the workbench.md at {detail} sits outside any .dinah container, so no search finds it; dinah check --migrate-container creates a .dinah container inside {detail} and moves the workbench's own files into it, leaving everything else in {detail} where it stands",
       "context": "A check finding: a directory carrying a workbench.md Dinah recognises as its own, sitting outside any container, which the containment rule means is no longer a workbench. {detail} carries that directory."
     },
     "param.check.migrate-vocabulary.summary": {

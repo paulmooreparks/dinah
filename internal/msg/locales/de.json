@@ -2260,6 +2260,10 @@
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "source": "a9324672264c283"
     },
+    "refusal.dinah.no-workbench-found.bare": {
+      "text": "; bei {bare} liegt eine workbench.md außerhalb jedes .dinah-Containers, deshalb erreicht sie keine Suche; führen Sie dort `dinah check --migrate-container` aus, um sie in einen Container zu tragen",
+      "source": "ac254523e5b742bb"
+    },
     "refusal.dinah.no-workbench.found": {
       "text": "; eine Werkbank liegt eine Stufe tiefer, unter {found}; richten Sie --workbench stattdessen dorthin",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
@@ -3411,6 +3415,14 @@
       "context": "The heading over the workbenches the container migration could not move, for exactly one. Each row names the directory and the reason.",
       "source": "9dbc6c9011bf44d4"
     },
+    "check.container-moved-unfinished.other": {
+      "text": "{count} Werkbänke wurden in einen Container getragen, und danach ist die Migration abgebrochen, sie liegen also nicht mehr dort, wo sie lagen.",
+      "source": "ae82b3b503a63e30"
+    },
+    "check.container-moved-unfinished.one": {
+      "text": "{count} Werkbank wurde in einen Container getragen, und danach ist die Migration abgebrochen, sie liegt also nicht mehr dort, wo sie lag.",
+      "source": "97a44864c6552984"
+    },
     "check.container-duplicate.other": {
       "text": "{count} Werkbank-Bezeichner werden von mehr als einem Verzeichnis beansprucht, und keines davon wurde angerührt.",
       "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number.",
@@ -3457,9 +3469,9 @@
       "source": "ada21cba263d332a"
     },
     "check.bare-workbench": {
-      "text": "die workbench.md bei {detail} liegt außerhalb jedes .dinah-Containers, daher findet sie keine Suche; dinah check --migrate-container trägt sie in einen hinein",
+      "text": "die workbench.md bei {detail} liegt außerhalb jedes .dinah-Containers, daher findet sie keine Suche; dinah check --migrate-container legt in {detail} einen .dinah-Container an und verschiebt die eigenen Dateien der Werkbank dorthin, alles andere in {detail} bleibt liegen",
       "context": "A check finding: a directory carrying a workbench.md Dinah recognises as its own, sitting outside any container, which the containment rule means is no longer a workbench. {detail} carries that directory.",
-      "source": "ac5b52daacbf9bd3"
+      "source": "6a0ea494b600226f"
     },
     "param.check.migrate-vocabulary.summary": {
       "text": "jede Werkbank in diesem Wurzelverzeichnis oder darunter über die Umbenennung von Spalte und Zustand tragen",

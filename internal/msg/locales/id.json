@@ -2216,6 +2216,10 @@
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
+    "refusal.dinah.no-workbench-found.bare": {
+      "text": "; a workbench.md sits at {bare}, outside any .dinah container, which is why no search reaches it; run `dinah check --migrate-container` there to carry it into one",
+      "skeleton": true
+    },
     "refusal.dinah.no-workbench.found": {
       "text": "; a workbench sits one level down, at {found}; point --workbench there instead",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
@@ -3386,6 +3390,14 @@
       "context": "The heading over the workbenches the container migration could not move, for exactly one. Each row names the directory and the reason.",
       "skeleton": true
     },
+    "check.container-moved-unfinished.other": {
+      "text": "{count} workbenches moved into a container and the migration then stopped, so they are no longer where they were.",
+      "skeleton": true
+    },
+    "check.container-moved-unfinished.one": {
+      "text": "{count} workbench moved into a container and the migration then stopped, so it is no longer where it was.",
+      "skeleton": true
+    },
     "check.container-duplicate.other": {
       "text": "{count} workbench identifiers are claimed by more than one directory, and none of them was touched.",
       "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number.",
@@ -3432,7 +3444,7 @@
       "skeleton": true
     },
     "check.bare-workbench": {
-      "text": "the workbench.md at {detail} sits outside any .dinah container, so no search finds it; dinah check --migrate-container carries it into one",
+      "text": "the workbench.md at {detail} sits outside any .dinah container, so no search finds it; dinah check --migrate-container creates a .dinah container inside {detail} and moves the workbench's own files into it, leaving everything else in {detail} where it stands",
       "context": "A check finding: a directory carrying a workbench.md Dinah recognises as its own, sitting outside any container, which the containment rule means is no longer a workbench. {detail} carries that directory.",
       "skeleton": true
     },

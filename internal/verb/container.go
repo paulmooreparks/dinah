@@ -54,9 +54,17 @@ type ContainerEntry struct {
 
 // TreeContainerFailure is one workbench the sweep could not carry forward, and
 // the reason it could not.
+//
+// To is set when the workbench had already moved by the time the run failed,
+// which the move and the format stamp being two writes makes possible. A
+// report that named only the path a workbench used to occupy would send a
+// reader looking for it where it no longer is, so the destination travels on
+// the failure and the rendering says a workbench moved and the migration then
+// stopped. It is empty on a failure that moved nothing.
 type TreeContainerFailure struct {
 	Path   string `json:"path"`
 	Shape  string `json:"shape"`
+	To     string `json:"to,omitempty"`
 	Reason string `json:"reason"`
 }
 
@@ -141,7 +149,7 @@ func migrateOneContainer(report *TreeContainerReport, candidate bench.ContainerC
 	}
 	moved, err := bench.MigrateContainer(candidate.Path)
 	if err != nil {
-		failure := TreeContainerFailure{Path: candidate.Path, Shape: shape, Reason: err.Error()}
+		failure := TreeContainerFailure{Path: candidate.Path, Shape: shape, To: moved, Reason: err.Error()}
 		report.Failed = append(report.Failed, failure)
 		return
 	}

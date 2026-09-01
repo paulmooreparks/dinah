@@ -324,10 +324,24 @@ var Shapes = []Shape{
 		},
 	},
 	{
-		Name:      NoWorkbenchFound,
-		Values:    []string{"home"},
-		Fragments: []Fragment{{Key: "refusal.dinah.no-workbench-found.next"}},
-		NextStep:  []string{"refusal.dinah.no-workbench-found.next"},
+		// The walk found nothing, and sometimes it walked past a workbench
+		// that would have answered before the containment rule: a
+		// workbench.md sitting outside any .dinah container. Naming it is the
+		// difference between an operator learning that his workbench stopped
+		// being found and an operator being told, in the same sentence he
+		// would read on an empty machine, that there is nothing there. The
+		// alternation gives that reader the repair and everybody else the
+		// general advice.
+		Name:   NoWorkbenchFound,
+		Values: []string{"home", "bare"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.no-workbench-found.bare", When: "bare"},
+			{Key: "refusal.dinah.no-workbench-found.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.no-workbench-found.bare",
+			"refusal.dinah.no-workbench-found.next",
+		},
 	},
 	{
 		Name:      Occupied,

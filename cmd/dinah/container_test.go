@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -384,5 +385,168 @@ func TestTheContainerMigrationReportsAWorkbenchItCouldNotMove(t *testing.T) {
 	}
 	if !bench.Exists(legacy) {
 		t.Error("the sweep moved a workbench somebody was holding")
+	}
+}
+
+// bareWorkbench writes a workbench directly into a project directory, beside a
+// source file, a readme and a git directory, which is the arrangement the
+// format allows and the one the containment rule stopped finding. It answers
+// the project directory.
+func bareWorkbench(t *testing.T, project string) string {
+	t.Helper()
+	for path, text := range map[string]string{
+		filepath.Join(project, "README.md"):      "A project that happens to hold a workbench.\n",
+		filepath.Join(project, "src", "main.go"): "package main\n\nfunc main() {}\n",
+		filepath.Join(project, ".git", "HEAD"):   "ref: refs/heads/main\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+	definition, err := bench.ReadDefinition([]byte(fmtBaseDefinition("Bare")))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := bench.Instantiate(project, "br", "alka", definition); err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+	return project
+}
+
+// TestTheRefusalSaysWhyABareWorkbenchStoppedBeingFound asserts the half of
+// dinah-285 AC-5 a person meets. A workbench sitting outside a container is no
+// longer found, and the reader who runs a command inside it has to be told
+// that rather than being handed the sentence an empty machine prints. The
+// assertion is on the rendered sentence, because the refusal carried the fact
+// in its data long before any catalog carried a sentence naming it.
+func TestTheRefusalSaysWhyABareWorkbenchStoppedBeingFound(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
+
+	got := runCLI(t, project, "status")
+	if got.code == 0 {
+		t.Fatalf("a bare workbench should not be found, got exit 0: %s", got.out)
+	}
+	if !strings.Contains(got.errw, project) {
+		t.Errorf("the refusal does not name the bare workbench it walked past:\n%s", got.errw)
+	}
+	if !strings.Contains(got.errw, "--migrate-container") {
+		t.Errorf("the refusal does not say how to carry the workbench into a container:\n%s", got.errw)
+	}
+
+	// The sentence printed where nothing is there at all is the one this
+	// refusal used to print here, and a reader cannot act on a report that
+	// says the same thing about two different situations.
+	empty := filepath.Join(tree, "nothing")
+	if err := os.MkdirAll(empty, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	nothing := runCLI(t, empty, "status")
+	if nothing.code == 0 {
+		t.Fatalf("an empty directory should not resolve a workbench, got exit 0: %s", nothing.out)
+	}
+	if strings.Contains(nothing.errw, "--migrate-container") {
+		t.Errorf("a directory with nothing in it was told to migrate a container:\n%s", nothing.errw)
+	}
+}
+
+// TestThePreviewSaysWhatMovesAndWhatStays asserts that a reader authorizing a
+// directory move is told the blast radius rather than a shape word. The lift
+// creates a container inside the project directory and moves the workbench's
+// own files into it, and the preview says so, because a row reading only
+// "(bare)" leaves a reader unable to predict which directory is created or
+// what else is involved.
+func TestThePreviewSaysWhatMovesAndWhatStays(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
+
+	preview := runCLI(t, tree, "check", "--migrate-container")
+	if preview.code != 5 {
+		t.Fatalf("the preview exited %d, wanted the findings code 5: %s%s", preview.code, preview.out, preview.errw)
+	}
+	if !strings.Contains(preview.out, project) {
+		t.Errorf("the preview does not name the project directory:\n%s", preview.out)
+	}
+	if !strings.Contains(preview.out, bench.UserBaseName) {
+		t.Errorf("the preview does not name the container it would create:\n%s", preview.out)
+	}
+	if strings.Contains(preview.out, "(bare)") {
+		t.Errorf("the preview names the shape and not what happens to the directory:\n%s", preview.out)
+	}
+
+	applied := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	if applied.code != 0 {
+		t.Fatalf("the migration exited %d: %s%s", applied.code, applied.out, applied.errw)
+	}
+	// The ground the workbench stood on is still where it stood.
+	for _, kept := range []string{
+		filepath.Join(project, "README.md"),
+		filepath.Join(project, "src", "main.go"),
+		filepath.Join(project, ".git", "HEAD"),
+	} {
+		if !bench.Exists(kept) {
+			t.Errorf("the lift carried away %s, which is not the workbench's to move", kept)
+		}
+	}
+	if bench.Exists(filepath.Join(project, bench.WorkbenchAnchor)) {
+		t.Error("the anchor never moved into the container")
+	}
+	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container inside the project holds %v, wanted the one workbench that moved", ids)
+	}
+	entries, err := os.ReadDir(tree)
+	if err != nil {
+		t.Fatalf("read %s: %v", tree, err)
+	}
+	var beside []string
+	for _, entry := range entries {
+		if entry.Name() != filepath.Base(project) {
+			beside = append(beside, entry.Name())
+		}
+	}
+	if len(beside) != 0 {
+		t.Errorf("the lift created %v beside the project directory, and the container belongs inside it", beside)
+	}
+}
+
+// TestTheReportSaysAWorkbenchMovedBeforeTheMigrationStopped asserts what an
+// operator reads when the move succeeds and the format stamp does not. The two
+// are separate writes, so the workbench really is somewhere else, and a report
+// naming only the directory it used to occupy would send him looking for it
+// there.
+func TestTheReportSaysAWorkbenchMovedBeforeTheMigrationStopped(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
+	anchor := filepath.Join(project, bench.WorkbenchAnchor)
+	text, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	stamped := regexp.MustCompile(`(?m)^format: .*$`).ReplaceAllString(string(text), "format: 99")
+	if stamped == string(text) {
+		t.Fatal("the anchor carries no format line, so this case cannot be arranged")
+	}
+	if err := os.WriteFile(anchor, []byte(stamped), 0o644); err != nil {
+		t.Fatalf("write the anchor: %v", err)
+	}
+
+	got := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	if got.code != 5 {
+		t.Fatalf("a migration that stopped exited %d, wanted the findings code 5: %s%s", got.code, got.out, got.errw)
+	}
+	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Fatalf("the container holds %v, wanted the one workbench that moved before the stamp failed", ids)
+	}
+	landed := filepath.Join(project, bench.UserBaseName, ids[0])
+	if !strings.Contains(got.out, landed) {
+		t.Errorf("the report does not say where the workbench went:\n%s", got.out)
+	}
+	if !strings.Contains(got.out, project) {
+		t.Errorf("the report does not name the directory the workbench came from:\n%s", got.out)
 	}
 }

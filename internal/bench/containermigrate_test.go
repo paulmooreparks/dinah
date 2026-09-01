@@ -36,14 +36,17 @@ func populatedBench(t *testing.T, root, definition string) string {
 	return root
 }
 
-// contents answers every file of a tree keyed on its path relative to that
-// tree, with the digest of its bytes, which is what a comparison of two
-// workbenches has to be made of. Comparing what exists rather than what a file
-// holds is the shape of the migration that destroyed every card's position on
-// dinah-287 while its own test passed.
+// contents answers every file a workbench owns, keyed on its path relative to
+// the directory the workbench sits in, with the digest of its bytes, which is
+// what a comparison of two workbenches has to be made of. Comparing what exists
+// rather than what a file holds is the shape of the migration that destroyed
+// every card's position on dinah-287 while its own test passed.
+//
+// It answers for the workbench and says nothing about the ground the workbench
+// stands on, which is the blindness aroundTheWorkbench exists to cover.
 func contents(t *testing.T, root string) map[string]string {
 	t.Helper()
-	digests, err := treeDigest(root)
+	digests, err := memberDigest(root)
 	if err != nil {
 		t.Fatalf("digest %s: %v", root, err)
 	}
@@ -77,6 +80,92 @@ func sameContents(t *testing.T, what string, want, got map[string]string) {
 			t.Errorf("%s: %s holds different bytes now", what, name)
 		}
 	}
+}
+
+// benchMemberNames is every top-level name a workbench owns inside the
+// directory it sits in, which is the set the lift is entitled to move. The
+// test spells it out rather than importing the production list, so that a
+// production list which quietly loses a member fails here instead of agreeing
+// with itself.
+var benchMemberNames = []string{
+	WorkbenchAnchor,
+	JournalName,
+	ColumnsDir,
+	PreVocabularyDir,
+	CardsDir,
+	WorkstreamsDir,
+	AttachmentsDir,
+	ArchiveDir,
+}
+
+// aroundTheWorkbench answers the digest of every file in a directory that the
+// workbench sitting there does not own, keyed on its path relative to that
+// directory. The container the migration creates is left out, because it is
+// the one thing the migration is entitled to add.
+//
+// This is the question a content proof over the workbench cannot ask. A digest
+// keyed on paths inside the workbench matches after a migration that moved the
+// whole directory holding it, because no byte of the workbench changed; what
+// changed was everything around it. So the fixture puts something around it and
+// this reads that ground back.
+func aroundTheWorkbench(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	owned := map[string]bool{UserBaseName: true}
+	for _, member := range benchMemberNames {
+		owned[member] = true
+	}
+	ground := map[string]string{}
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		slashed := filepath.ToSlash(relative)
+		if slashed == "." {
+			return nil
+		}
+		first := strings.SplitN(slashed, "/", 2)[0]
+		if owned[first] {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.IsDir() {
+			ground[slashed] = "a directory"
+			return nil
+		}
+		revision, err := Revision(path)
+		if err != nil {
+			return err
+		}
+		ground[slashed] = revision
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("read the ground around %s: %v", dir, err)
+	}
+	return ground
+}
+
+// namesIn answers the sorted names of a directory's own entries, which is how
+// a test asks whether a migration created anything beside the directory it was
+// pointed at.
+func namesIn(t *testing.T, dir string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	sort.Strings(names)
+	return names
 }
 
 // treeShape answers every path beneath a directory, relative to it and sorted,
@@ -130,7 +219,13 @@ func migrateTree(t *testing.T, root string) map[string]string {
 func TestTheContainerMigrationIsIdempotentAndKeepsEveryFile(t *testing.T) {
 	tree := t.TempDir()
 	legacy := populatedBench(t, filepath.Join(tree, "a", UserBaseName, "d00000000001"), benchDefinition)
-	bare := populatedBench(t, filepath.Join(tree, "b"), currentBenchDefinition)
+	// The bare workbench sits in a project repository, which is the
+	// arrangement the format explicitly allows and the one the lift has to
+	// leave standing. The source file, the readme and the git directory are
+	// the ground the migration has no business touching, and they exist here
+	// because a fixture whose bare workbench sits alone in a directory of its
+	// own gives a migration that moves that directory nothing to destroy.
+	bare := populatedBench(t, filepath.Join(tree, "b", "myproject"), currentBenchDefinition)
 	stray := populatedBench(t, filepath.Join(tree, "c", UserBaseName, "notes"), benchDefinition)
 
 	before := map[string]map[string]string{
@@ -138,6 +233,11 @@ func TestTheContainerMigrationIsIdempotentAndKeepsEveryFile(t *testing.T) {
 		"bare":   contents(t, bare),
 		"stray":  contents(t, stray),
 	}
+
+	write(t, filepath.Join(bare, "README.md"), "A project that happens to hold a workbench.\n")
+	write(t, filepath.Join(bare, "src", "main.go"), "package main\n\nfunc main() {}\n")
+	write(t, filepath.Join(bare, ".git", "HEAD"), "ref: refs/heads/main\n")
+	ground := aroundTheWorkbench(t, bare)
 
 	first := migrateTree(t, tree)
 	if len(first) != 3 {
@@ -164,6 +264,24 @@ func TestTheContainerMigrationIsIdempotentAndKeepsEveryFile(t *testing.T) {
 		if opened.Format != ContainerFormat {
 			t.Errorf("%s declares format %d after the migration, wanted %d", name, opened.Format, ContainerFormat)
 		}
+	}
+
+	// What the workbench stood on. A lift moves the workbench's own members
+	// and creates the container inside the directory holding them, so that
+	// directory still exists, everything else in it is untouched, and nothing
+	// at all appeared beside it.
+	if !Exists(bare) {
+		t.Fatalf("the directory holding the bare workbench, %s, stopped existing", bare)
+	}
+	sameContents(t, "the ground around the bare workbench", ground, aroundTheWorkbench(t, bare))
+	if got := strings.Join(namesIn(t, filepath.Join(tree, "b")), " "); got != "myproject" {
+		t.Errorf("the lift created something beside the project directory: %s holds %q, wanted only myproject", filepath.Join(tree, "b"), got)
+	}
+	if landed := first[bare]; filepath.Dir(filepath.Dir(landed)) != bare {
+		t.Errorf("the bare workbench landed at %s, and the container belongs inside %s", landed, bare)
+	}
+	if Exists(filepath.Join(bare, WorkbenchAnchor)) {
+		t.Errorf("%s still carries a workbench.md, so the anchor never moved into the container", bare)
 	}
 
 	shape := treeShape(t, tree)
@@ -225,7 +343,7 @@ func TestACrossDeviceLiftRefusesToDeleteASourceItCouldNotVerify(t *testing.T) {
 	if refusal.Name != contract.Unconfirmed {
 		t.Errorf("refusal name: wanted %s, got %s", contract.Unconfirmed, refusal.Name)
 	}
-	if !Exists(root) {
+	if !Exists(filepath.Join(root, WorkbenchAnchor)) {
 		t.Fatal("the migration deleted a source it could not verify")
 	}
 	sameContents(t, "the source", before, contents(t, root))
@@ -250,10 +368,10 @@ func TestAnInterruptedLiftIsFinishedByTheNextRun(t *testing.T) {
 	if _, err := MigrateContainer(root); !errors.Is(err, crash) {
 		t.Fatalf("the planted crash did not reach the caller, got %v", err)
 	}
-	if !Exists(root) {
+	if !Exists(filepath.Join(root, WorkbenchAnchor)) {
 		t.Fatal("the interrupted run deleted the original, and the crash was planted before the delete")
 	}
-	container := filepath.Join(filepath.Dir(root), UserBaseName)
+	container := filepath.Join(root, UserBaseName)
 	copied := ListWorkbenchIDs(container)
 	if len(copied) != 1 {
 		t.Fatalf("the interrupted run left %v in the container, wanted the one copy it made", copied)
@@ -268,8 +386,11 @@ func TestAnInterruptedLiftIsFinishedByTheNextRun(t *testing.T) {
 	if moved != landed {
 		t.Errorf("the second run answered %s, wanted the copy the first run made at %s", moved, landed)
 	}
-	if Exists(root) {
+	if Exists(filepath.Join(root, WorkbenchAnchor)) {
 		t.Error("the second run left the original in place, so the migration never finished")
+	}
+	if !Exists(root) {
+		t.Errorf("the second run removed %s, and a lift moves the workbench's members rather than the directory holding them", root)
 	}
 	if got := ListWorkbenchIDs(container); len(got) != 1 {
 		t.Errorf("the container holds %v, so the second run copied again rather than finishing the first", got)
@@ -419,5 +540,121 @@ func TestTheStorageFormatMovedAndTheProfileDidNot(t *testing.T) {
 	}
 	if opened.Profile != "dinah-core/0.9" {
 		t.Errorf("the workbench reports the profile %q, wanted the one it declares", opened.Profile)
+	}
+}
+
+// TestALiftStoppedPartWayFinishesIntoTheSameDirectory asserts the crash story
+// of the ordinary path, where the members move one rename at a time and no
+// filesystem offers to move eight names as one act. A stop is planted on the
+// anchor, which is the member the lift moves last: the workbench is still
+// recognised where it stood, the container carries a directory holding the
+// members that did move and no anchor of its own, and the next run carries on
+// into that same directory rather than minting a second one and stranding the
+// first.
+func TestALiftStoppedPartWayFinishesIntoTheSameDirectory(t *testing.T) {
+	root := populatedBench(t, filepath.Join(t.TempDir(), "myproject"), currentBenchDefinition)
+	write(t, filepath.Join(root, "README.md"), "the project's own file\n")
+	before := contents(t, root)
+
+	stop := errors.New("the process died before the anchor moved")
+	previous := containerRename
+	containerRename = func(from, to string) error {
+		if filepath.Base(from) == WorkbenchAnchor {
+			return stop
+		}
+		return previous(from, to)
+	}
+	t.Cleanup(func() { containerRename = previous })
+
+	if _, err := MigrateContainer(root); !errors.Is(err, stop) {
+		t.Fatalf("the planted stop did not reach the caller, got %v", err)
+	}
+	if !Exists(filepath.Join(root, WorkbenchAnchor)) {
+		t.Fatal("the anchor moved before the stop, so a sweep would no longer find the workbench where it left it")
+	}
+	container := filepath.Join(root, UserBaseName)
+	partial := ListWorkbenchIDs(container)
+	if len(partial) != 1 {
+		t.Fatalf("the stopped run left %v in the container, wanted the one directory it was filling", partial)
+	}
+	landed := filepath.Join(container, partial[0])
+
+	containerRename = previous
+	moved, err := MigrateContainer(root)
+	if err != nil {
+		t.Fatalf("the second run refused: %v", err)
+	}
+	if moved != landed {
+		t.Errorf("the second run answered %s, wanted the directory the first run was already filling at %s", moved, landed)
+	}
+	if got := ListWorkbenchIDs(container); len(got) != 1 {
+		t.Errorf("the container holds %v, so the second run minted a second directory and stranded what the first one moved", got)
+	}
+	after := contents(t, moved)
+	delete(after, WorkbenchAnchor)
+	want := before
+	delete(want, WorkbenchAnchor)
+	sameContents(t, "the finished workbench", want, after)
+	if _, err := Revision(filepath.Join(root, "README.md")); err != nil {
+		t.Errorf("the project's own file did not survive the lift: %v", err)
+	}
+}
+
+// TestAMigrationThatMovedAndThenFailedAnswersWithWhereItWent asserts what a
+// half-finished migration tells its caller. The move and the format stamp are
+// two writes, so a workbench declaring a format this build cannot open moves
+// and then fails to be stamped. The answer carries the directory it moved to,
+// because a failure reporting only where the workbench used to be sends a
+// reader looking for it there.
+func TestAMigrationThatMovedAndThenFailedAnswersWithWhereItWent(t *testing.T) {
+	unsupported := strings.Replace(benchDefinition, "format: 1", "format: 99", 1)
+	root := populatedBench(t, filepath.Join(t.TempDir(), "myproject"), unsupported)
+
+	moved, err := MigrateContainer(root)
+	if err == nil {
+		t.Fatal("a workbench declaring a format this build cannot open should not stamp cleanly")
+	}
+	if moved == "" {
+		t.Fatal("the failure named no destination, and the workbench is not where it was")
+	}
+	if !Exists(filepath.Join(moved, WorkbenchAnchor)) {
+		t.Errorf("the failure names %s and no workbench is there", moved)
+	}
+	if Exists(filepath.Join(root, WorkbenchAnchor)) {
+		t.Errorf("%s still carries the anchor, so nothing moved and the destination is a fiction", root)
+	}
+}
+
+// TestTwoCopiesOfALegacyWorkbenchShareOneIdentifier asserts that the older
+// width counts as an identity claim. Two clones of a repository carrying a
+// workbench that has not been carried forward yet are two directories claiming
+// one identifier, and a sweep blind to that would mint a fresh identifier for
+// each of them without saying anything, which is the choice this report exists
+// to refuse. A name a person typed claims nothing, so two of those are not a
+// duplicate however alike they look.
+func TestTwoCopiesOfALegacyWorkbenchShareOneIdentifier(t *testing.T) {
+	tree := t.TempDir()
+	first := populatedBench(t, filepath.Join(tree, "one", UserBaseName, "d00000000001"), benchDefinition)
+	second := populatedBench(t, filepath.Join(tree, "two", UserBaseName, "d00000000001"), benchDefinition)
+	populatedBench(t, filepath.Join(tree, "three", UserBaseName, "notes"), benchDefinition)
+	populatedBench(t, filepath.Join(tree, "four", UserBaseName, "notes"), benchDefinition)
+
+	candidates, err := ScanContainers(tree)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	duplicates := DuplicateWorkbenchIDs(candidates)
+	paths, reported := duplicates["d00000000001"]
+	if !reported {
+		t.Fatalf("the shared legacy identifier was not reported: %v", duplicates)
+	}
+	sort.Strings(paths)
+	want := []string{first, second}
+	sort.Strings(want)
+	if strings.Join(paths, " ") != strings.Join(want, " ") {
+		t.Errorf("the report names %v, wanted both %v", paths, want)
+	}
+	if named, reported := duplicates["notes"]; reported {
+		t.Errorf("two directories under a name a person typed were reported as claiming one identifier: %v", named)
 	}
 }

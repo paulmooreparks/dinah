@@ -1745,6 +1745,10 @@
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "source": "a9324672264c283"
     },
+    "refusal.dinah.no-workbench-found.bare": {
+      "text": "; {bare} पर एक workbench.md किसी भी .dinah कंटेनर के बाहर रखी है, इसलिए कोई खोज उस तक नहीं पहुँचती; उसे कंटेनर में ले जाने के लिए वहाँ `dinah check --migrate-container` चलाएँ",
+      "source": "ac254523e5b742bb"
+    },
     "refusal.dinah.no-editor": {
       "text": "कोई संपादक नहीं मिला",
       "context": "The sentence printed after the refusal name dinah.no-editor. {detail} carries the identifier, owner or column the refusal is about.",
@@ -3396,6 +3400,14 @@
       "context": "The heading over the workbenches the container migration could not move, for exactly one. Each row names the directory and the reason.",
       "source": "9dbc6c9011bf44d4"
     },
+    "check.container-moved-unfinished.other": {
+      "text": "{count} वर्कबेंच कंटेनर में चली गईं और उसके बाद माइग्रेशन रुक गया, इसलिए वे अब वहाँ नहीं हैं जहाँ थीं।",
+      "source": "ae82b3b503a63e30"
+    },
+    "check.container-moved-unfinished.one": {
+      "text": "{count} वर्कबेंच कंटेनर में चली गई और उसके बाद माइग्रेशन रुक गया, इसलिए वह अब वहाँ नहीं है जहाँ थी।",
+      "source": "97a44864c6552984"
+    },
     "check.container-duplicate.other": {
       "text": "{count} वर्कबेंच पहचानकर्ताओं पर एक से अधिक निर्देशिकाएँ दावा करती हैं, और उनमें से किसी को छुआ नहीं गया।",
       "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number.",
@@ -3442,9 +3454,9 @@
       "source": "ada21cba263d332a"
     },
     "check.bare-workbench": {
-      "text": "{detail} पर रखी workbench.md किसी भी .dinah कंटेनर के बाहर है, इसलिए कोई खोज उसे नहीं पाती; dinah check --migrate-container उसे किसी कंटेनर में ले जाता है",
+      "text": "{detail} पर रखी workbench.md किसी भी .dinah कंटेनर के बाहर है, इसलिए कोई खोज उसे नहीं पाती; dinah check --migrate-container {detail} के अंदर एक .dinah कंटेनर बनाता है और वर्कबेंच की अपनी फ़ाइलें उसमें ले जाता है, {detail} में बाकी सब जहाँ है वहीं रहता है",
       "context": "A check finding: a directory carrying a workbench.md Dinah recognises as its own, sitting outside any container, which the containment rule means is no longer a workbench. {detail} carries that directory.",
-      "source": "ac5b52daacbf9bd3"
+      "source": "6a0ea494b600226f"
     },
     "param.check.migrate-vocabulary.summary": {
       "text": "इस रूट या उसके नीचे की हर वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ",

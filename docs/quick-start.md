@@ -1214,14 +1214,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        704/704
-  af        0/704
-  cs        0/704
-  de        704/704
-  es        0/704
-  fil       0/704
-  hi        704/704
-  id        0/704
+  en        707/707
+  af        0/707
+  cs        0/707
+  de        707/707
+  es        0/707
+  fil       0/707
+  hi        707/707
+  id        0/707
 [exit 0]
 ```
 

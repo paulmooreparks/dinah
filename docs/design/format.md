@@ -249,7 +249,12 @@ A `workbench.md` sitting outside a container is not a workbench, however
 well-formed it is. Discovery does not return one, and a workbench declaring
 storage format 2 or higher is refused by name when it is opened outside a
 container. `dinah check --migrate-container` repairs that by creating the
-container and moving the workbench into it under a freshly minted identifier.
+container inside the directory the workbench sits in and moving the
+workbench's own members, its anchor, its journal and its collections, into
+that container under a freshly minted identifier. Everything else in that
+directory stays exactly where it is. The directory holding a bare workbench is
+commonly a project repository carrying source code and a git directory as
+well, and none of that belongs to the workbench or travels with it.
 A workbench declaring format 1, or declaring no format at all, was written
 before the rule and still opens where it stands.
 
