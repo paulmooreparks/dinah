@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -769,5 +770,84 @@ func TestALockRefusalNamesTheEntityThatIsHeld(t *testing.T) {
 	}
 	if want := filepath.Join(root, CardsDir, "c00000000003"); refusal.Detail != want {
 		t.Errorf("the refusal names %q, wanted the entity the sibling lock stands beside at %s", refusal.Detail, want)
+	}
+}
+
+// TestTheStampDeclinesAContainedWorkbenchSomebodyIsHolding asserts that the one
+// repair which moves nothing refuses a held workbench exactly as the two that
+// move one do.
+//
+// The stamp is a read-modify-write of the whole anchor, so a writer holding the
+// lock and saving the anchor either loses its edit or swallows the stamp. The
+// fixture is the shape a crash between the last move and the stamp leaves,
+// which is the only workbench this arm has work to do on: contained under a
+// minted name and still declaring the format the rule replaced.
+func TestTheStampDeclinesAContainedWorkbenchSomebodyIsHolding(t *testing.T) {
+	root := populatedBench(t, containedPath(t.TempDir()), benchDefinition)
+	before := contents(t, root)
+	card := filepath.Join(root, CardsDir, "c00000000001")
+	write(t, filepath.Join(card, LockName), "{\"holder\":\"alka\"}\n")
+
+	_, err := MigrateContainer(root)
+	refusal, refused := err.(*contract.Refusal)
+	if !refused {
+		t.Fatalf("a held workbench should be refused before the stamp, got %v", err)
+	}
+	if refusal.Name != contract.Locked {
+		t.Errorf("refusal name: wanted %s, got %s", contract.Locked, refusal.Name)
+	}
+	if refusal.Detail != card {
+		t.Errorf("the refusal names %q, wanted the card whose lock is held at %s", refusal.Detail, card)
+	}
+	after := contents(t, root)
+	delete(after, filepath.Join(CardsDir, "c00000000001", LockName))
+	sameContents(t, "the held workbench", before, after)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open after the refusal: %v", err)
+	}
+	if opened.Format != 1 {
+		t.Errorf("the anchor declares format %d, so the refused stamp was written anyway", opened.Format)
+	}
+}
+
+// TestAContainedWorkbenchThisBuildCannotOpenIsLeftAlone asserts that the sweep
+// answers for a healthy workbench a newer build wrote without reading anything
+// about it beyond the format it declares.
+//
+// A workbench already declaring the format the containment rule arrived at is
+// owed no stamp, so the question of whether this build can open it never
+// arises. Deciding that question through Open instead would turn every board a
+// later release wrote into a migration failure on a machine still running this
+// one, and would make a preview, which opens nothing, contradict the run that
+// applies.
+//
+// The lock in the second half is what fixes the order of the two guards. A
+// workbench owed no stamp is not refused for a lock it holds, because nothing
+// is going to be written to it.
+func TestAContainedWorkbenchThisBuildCannotOpenIsLeftAlone(t *testing.T) {
+	beyond := ProfileName + "/" + strconv.Itoa(ProfileMajor+99) + ".0"
+	definition := strings.Replace(benchDefinition, "format: 1", "format: "+strconv.Itoa(ContainerFormat), 1)
+	definition = strings.Replace(definition, "profile: dinah-core/0.7", "profile: "+beyond, 1)
+	root := populatedBench(t, containedPath(t.TempDir()), definition)
+	_, opening := Open(root)
+	refusal, refused := opening.(*contract.Refusal)
+	if !refused || refusal.Name != contract.UnsupportedVer {
+		t.Fatalf("this build answers %v for the fixture, wanted %s, so the fixture does not stand for a workbench a newer build wrote", opening, contract.UnsupportedVer)
+	}
+	before := contents(t, root)
+
+	landed, err := MigrateContainer(root)
+	if err != nil {
+		t.Fatalf("a workbench owed no stamp was reported as a migration failure: %v", err)
+	}
+	if landed != root {
+		t.Errorf("the migration answered %q, wanted the directory the workbench already sits in at %s", landed, root)
+	}
+	sameContents(t, "the workbench this build cannot open", before, contents(t, root))
+
+	write(t, filepath.Join(root, CardsDir, "c00000000001", LockName), "{\"holder\":\"alka\"}\n")
+	if _, err := MigrateContainer(root); err != nil {
+		t.Errorf("a workbench owed no stamp was refused for a lock the sweep was never going to write past: %v", err)
 	}
 }

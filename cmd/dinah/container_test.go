@@ -641,3 +641,158 @@ func anchorDeclares(t *testing.T, path, line string) bool {
 	}
 	return false
 }
+
+// TestTheSweepLeavesAContainedWorkbenchItCannotOpenAlone asserts that a healthy
+// workbench a later release wrote is reported as already contained rather than
+// as a migration failure, and that the preview and the applying run say the
+// same thing about it.
+//
+// A machine can hold one board written by a newer build and another this one
+// still has to carry forward, and the sweep meets both in the same walk.
+// Nothing about the newer board needs carrying: it already sits where the rule
+// puts one, under a minted name, declaring the format the rule arrived at. A
+// sweep that reported it as a failure would exit on findings every time it ran
+// unattended, and it would do so over a workbench that is not this build's
+// business to read at all.
+//
+// The two runs are compared against each other rather than only against an
+// expectation, because MigrateContainerTree's own promise is that a preview
+// classifies every workbench exactly as a migration does. That promise is
+// falsifiable only by running both over one unchanged tree.
+func TestTheSweepLeavesAContainedWorkbenchItCannotOpenAlone(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := filepath.Join(tree, "project")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, project, "init", project, "--slug", "nw", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init at %s: %d %s", project, got.code, got.errw)
+	}
+	written := benchDir(t, project)
+	anchor := filepath.Join(written, bench.WorkbenchAnchor)
+	beyond := bench.ProfileName + "/" + strconv.Itoa(bench.ProfileMajor+99) + ".0"
+	editAnchorAt(t, anchor, "profile: "+bench.ProfileVersion, "profile: "+beyond)
+	if !anchorDeclares(t, anchor, "format: "+strconv.Itoa(bench.ContainerFormat)) {
+		t.Fatalf("the fixture does not declare the format the containment rule arrived at:\n%s", readAnchorText(t, anchor))
+	}
+	before := readAnchorText(t, anchor)
+
+	preview := runCLI(t, tree, "--json", "check", "--migrate-container")
+	if preview.code != 0 {
+		t.Fatalf("the preview exited %d over a tree with nothing to carry forward: %s%s", preview.code, preview.out, preview.errw)
+	}
+	applied := runCLI(t, tree, "--json", "check", "--migrate-container", "--yes")
+	if applied.code != 0 {
+		t.Fatalf("the applying run exited %d over a workbench it had no work to do on: %s%s", applied.code, applied.out, applied.errw)
+	}
+	// The two runs are compared through the machine form with the preview flag
+	// itself dropped, because that flag is the one thing the two are entitled
+	// to disagree about. What is left is the classification, which is what
+	// MigrateContainerTree promises the two share.
+	previewClass, appliedClass := classification(t, preview.out), classification(t, applied.out)
+	if previewClass != appliedClass {
+		t.Errorf("the preview and the applying run classify the same unchanged tree differently:\npreview: %s\napplied: %s", previewClass, appliedClass)
+	}
+	if !strings.Contains(appliedClass, jsonPath(written)) {
+		t.Errorf("the run does not report the workbench as already contained:\n%s", applied.out)
+	}
+	if strings.Contains(appliedClass, "failed") {
+		t.Errorf("a workbench with nothing to carry forward was reported as a migration failure:\n%s", applied.out)
+	}
+	if got := readAnchorText(t, anchor); got != before {
+		t.Errorf("the sweep wrote to a workbench it had no work to do on:\nbefore:\n%s\nafter:\n%s", before, got)
+	}
+}
+
+// classification answers a container run's machine form with the preview flag
+// removed, which is the report's verdict on a tree stripped of the one field
+// that says which of the two runs produced it.
+func classification(t *testing.T, out string) string {
+	t.Helper()
+	var report map[string]any
+	if err := json.Unmarshal([]byte(out), &report); err != nil {
+		t.Fatalf("the machine form did not decode: %v\n%s", err, out)
+	}
+	delete(report, "preview")
+	verdict, err := json.Marshal(report)
+	if err != nil {
+		t.Fatalf("re-encode: %v", err)
+	}
+	return string(verdict)
+}
+
+// jsonPath spells a path the way the machine form carries it, since a Windows
+// separator is escaped inside a JSON string and a test comparing against a
+// composed path has to ask the same encoder.
+func jsonPath(path string) string {
+	encoded, err := json.Marshal(path)
+	if err != nil {
+		return path
+	}
+	return strings.Trim(string(encoded), "\"")
+}
+
+// TestOneSweepRefusesEveryHeldWorkbenchItMeets asserts that the two repairs and
+// the stamp answer a held workbench the same way, in one run over one tree.
+//
+// The sweep is meant to run over boards somebody is using, so the workbench it
+// meets under a lock is the ordinary case rather than the exotic one. A bare
+// workbench under a lock is refused because the lift would move the directory
+// the lock sits in. A contained workbench still owed its format stamp is
+// refused for a different reason, since nothing moves there: the stamp is a
+// read-modify-write of the whole anchor, so a writer holding the lock and
+// saving the anchor either loses its edit or swallows the stamp.
+//
+// Both halves are asserted in one run because the defect this guards against
+// was invisible in any run holding only one of them. A sweep that refused the
+// bare workbench and wrote to the contained one read as a sweep that refuses
+// held workbenches.
+func TestOneSweepRefusesEveryHeldWorkbenchItMeets(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	bare := bareWorkbench(t, filepath.Join(tree, "myproject"))
+	bareAnchor := filepath.Join(bare, bench.WorkbenchAnchor)
+	editAnchorAt(t, bareAnchor, "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+
+	contained := filepath.Join(tree, "other")
+	if err := os.MkdirAll(contained, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, contained, "init", contained, "--slug", "ct", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init at %s: %d %s", contained, got.code, got.errw)
+	}
+	held := benchDir(t, contained)
+	heldAnchor := filepath.Join(held, bench.WorkbenchAnchor)
+	// The stamp has real work to do only on a workbench interrupted between
+	// its last move and its stamp, which is a contained workbench under a
+	// minted name still declaring the format the rule replaced.
+	editAnchorAt(t, heldAnchor, "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+
+	for _, root := range []string{bare, held} {
+		if err := os.WriteFile(filepath.Join(root, bench.LockName), []byte("{\"holder\":\"alka\"}\n"), 0o644); err != nil {
+			t.Fatalf("plant a lock in %s: %v", root, err)
+		}
+	}
+	bareWas, heldWas := readAnchorText(t, bareAnchor), readAnchorText(t, heldAnchor)
+
+	swept := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	if swept.code != 5 {
+		t.Fatalf("a sweep over two held workbenches exited %d, wanted the findings code 5: %s%s", swept.code, swept.out, swept.errw)
+	}
+	for _, root := range []string{bare, held} {
+		if !strings.Contains(swept.out, root) {
+			t.Errorf("the report does not name the held workbench at %s:\n%s", root, swept.out)
+		}
+	}
+	if strings.Count(swept.out, "dinah.locked") != 2 {
+		t.Errorf("the sweep reports %d lock refusals, wanted one for each of the two held workbenches:\n%s", strings.Count(swept.out, "dinah.locked"), swept.out)
+	}
+	if got := readAnchorText(t, bareAnchor); got != bareWas {
+		t.Errorf("the sweep wrote to the held bare workbench:\n%s", got)
+	}
+	if got := readAnchorText(t, heldAnchor); got != heldWas {
+		t.Errorf("the sweep stamped the held contained workbench, so the stamp is the one write here that walks past a lock:\n%s", got)
+	}
+	if bench.Exists(filepath.Join(bare, bench.UserBaseName)) {
+		t.Error("the refused lift created the container anyway")
+	}
+}

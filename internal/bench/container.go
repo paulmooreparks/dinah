@@ -259,12 +259,10 @@ func DuplicateWorkbenchIDs(candidates []ContainerCandidate) map[string][]string 
 // move and the stamp are two writes, so a process that died between them left
 // a workbench sitting exactly where the rule puts one and still declaring the
 // format that predates the rule, and a sweep that answered here without
-// writing would walk past that workbench on every later run. Stamping instead
-// costs a read of an anchor that is already open, does nothing when the format
-// is already current, and cannot reach a workbench that is legitimately older,
-// because nothing else in this format writes a contained workbench under a
-// minted name declaring the older format. A second run over a tree already
-// carried forward still moves nothing.
+// writing would walk past that workbench on every later run. finishContained
+// writes that stamp, on the two conditions its own comment states, and a
+// second run over a tree already carried forward still moves nothing and
+// writes nothing.
 //
 // A failure after the workbench has moved answers with the directory it moved
 // to as well as the error. The move and the format stamp are two writes, and a
@@ -276,7 +274,7 @@ func DuplicateWorkbenchIDs(candidates []ContainerCandidate) map[string][]string 
 func MigrateContainer(path string) (string, error) {
 	switch shapeOf(path) {
 	case ShapeContained:
-		return path, stampContainerFormat(path)
+		return path, finishContained(path)
 	case ShapeBare:
 		return liftIntoContainer(path)
 	default:
@@ -551,6 +549,63 @@ func freshTarget(container string) (string, error) {
 	return "", fmt.Errorf("could not mint a free workbench identifier in %s after 16 attempts", container)
 }
 
+// finishContained writes the format stamp a workbench already sitting where the
+// rule puts one is still owed, and it is the only write in this migration that
+// reaches a workbench nothing is moving. Two questions stand in front of that
+// write, and each of them has to be asked separately, because neither answers
+// the other.
+//
+// The first is whether the workbench is owed a stamp at all, read off its own
+// anchor rather than through Open. A workbench declaring the format this rule
+// arrived at, or a later one, is owed nothing, so the sweep answers for it
+// without reading anything else about it. Asking Open instead would decide the
+// question by validating the whole anchor, which turns every healthy workbench
+// a newer build wrote into a migration failure and makes a preview that opens
+// nothing contradict the run that applies. A workbench declaring less than the
+// rule's format and refusing to open is a different matter and still fails,
+// because that one really is owed the stamp and this build really cannot write
+// it.
+//
+// The second is whether somebody is holding the workbench. The stamp is a
+// read-modify-write of the whole anchor through Open and Save, so a writer
+// holding the lock and saving the anchor either loses its edit or swallows the
+// stamp, and this migration refuses on a lock everywhere else it writes. The
+// order matters as much as the pair: a workbench owed no stamp is not refused
+// for a lock it holds, because nothing is going to be written to it and a
+// sweep that reported a locked healthy workbench as a failure would be
+// reporting work it never needed to do.
+func finishContained(root string) error {
+	if declared, ok := declaredFormat(root); ok && declared >= ContainerFormat {
+		return nil
+	}
+	if held := heldLocks(root); len(held) > 0 {
+		return contract.Refuse(contract.Locked, lockedEntity(held[0]))
+	}
+	return stampContainerFormat(root)
+}
+
+// declaredFormat reports the storage format a workbench's own anchor declares,
+// and whether it declares one at all. It reads the one frontmatter key the way
+// describe reads a title, and it validates nothing else, because the caller is
+// deciding whether to write rather than deciding whether to trust.
+//
+// An anchor that is absent, will not read, declares no format, or declares
+// something that is not a number answers false. Every one of those predates the
+// containment rule or is broken in a way the stamp's own Open will name, so
+// none of them is a workbench this sweep may pass over silently.
+func declaredFormat(root string) (int, bool) {
+	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
+	if err != nil {
+		return 0, false
+	}
+	fm, _ := ParseAnchor(text)
+	declared, err := strconv.Atoi(fm.Value("format"))
+	if err != nil {
+		return 0, false
+	}
+	return declared, true
+}
+
 // stampContainerFormat records on a migrated workbench's own anchor that it is
 // held to the containment rule from now on. It opens the workbench through the
 // containment check rather than around it, so a directory this function is
@@ -583,13 +638,20 @@ func stampContainerFormat(root string) error {
 //
 // This is a check read once, before anything moves, rather than a lock held
 // across the whole migration, and the choice is deliberate. A lock in this
-// format is a file inside the directory it protects, so both primitives here
-// would move the lock they were holding: a remint renames the directory the
-// lock file sits in, and a lift empties the directory the lock file was left
-// in, so a release would go looking for it at a path that no longer holds a
-// workbench. The check is also wider than a hold would be, because Acquire
-// takes the workbench's own root lock and this walk refuses on a lock held
-// anywhere in the tree, which is where a writer working one card holds one.
+// format is a file inside the directory it protects, so either primitive that
+// moves a workbench would move the lock it was holding: a remint renames the
+// directory the lock file sits in, and a lift empties the directory the lock
+// file was left in, so a release would go looking for it at a path that no
+// longer holds a workbench. The check is also wider than a hold would be,
+// because Acquire takes the workbench's own root lock and this walk refuses on
+// a lock held anywhere in the tree, which is where a writer working one card
+// holds one.
+//
+// The format stamp finishContained writes is the third path that reads this
+// check, and it is the one write here that moves nothing, so a real hold would
+// have been available to it. It reads the snapshot anyway, so that one repair
+// speaks with one voice about what a lock means, and because the sweep meets a
+// workbench through the same walk whichever repair it turns out to need.
 //
 // What a snapshot leaves open is a writer that starts after the check and
 // before the move. The copying path answers that: it digests the source after
