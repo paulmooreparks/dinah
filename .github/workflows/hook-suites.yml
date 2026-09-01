@@ -1,0 +1,79 @@
+name: Hook suites
+
+# The suites under scripts/hooks/ cover deny-destructive-git.py, the guard that
+# refuses destructive git against the operator's live checkout. Until this
+# workflow existed nothing in the build ran them at all: they executed only when
+# a person remembered to invoke them by hand, which is not a defensible gate for
+# the most safety-critical file in this repository.
+#
+# They run here rather than in ci.yml because of what the differential harness
+# costs. It generates 37,721 strings and starts a real shell for each one, which
+# took 29m31s of a 31m02s job on windows-latest, 14m01s of 14m53s on
+# macos-latest and 4m18s of 5m16s on ubuntu-latest. Thirty-one minutes added to
+# every pull request on this repository is a worse trade than the delay this
+# schedule introduces, and the harness's cost is honest: sampling its strings,
+# cutting its settle delay or lowering its worker count would each change what
+# it proves, and it exists precisely because nobody could tell whether the guard
+# agreed with a real shell.
+#
+# What this gives up is real and is not hidden. A change to the guard now gets
+# no automated check before it merges. Whoever changes that file should run
+# these three suites by hand before handing the card off.
+#
+# The three platforms all stay. The guard's own operator works on Windows, and
+# Windows is where its worst behaviour has been found, so buying speed by
+# dropping a platform would discard the signal that matters most.
+
+on:
+  # Nightly, at a minute away from the hour. GitHub runs scheduled workflows in
+  # UTC and delays them when the top of the hour is congested.
+  schedule:
+    - cron: "17 3 * * *"
+  # So anybody can run the suites on demand, which is what a card touching the
+  # guard should do before it hands off.
+  workflow_dispatch:
+  # A merge to the trunk gets the same answer immediately rather than that
+  # night, and it costs nothing beyond the runs already described.
+  push:
+    branches: [main]
+
+jobs:
+  hook-suites:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Typed out rather than shared with ci.yml's `test` job, because a YAML
+        # anchor is resolved within one document and cannot reach across files.
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # test-guard-against-a-real-shell.py reads the deployed guard with
+      # `git show origin/main:scripts/hooks/deny-destructive-git.py` and treats
+      # an unreadable trunk as a hard failure rather than a skip. The action's
+      # shallow default does not guarantee that origin/main resolves, so the
+      # suite would go red for a reason unrelated to the guard.
+      #
+      # On a push to the trunk the checked-out commit is origin/main, so that
+      # comparison finds no difference and the regression rule cannot fire. The
+      # harness still runs its real oracle, which asks whether the guard allowed
+      # a string that reached git with a deny-set verb, and that is the half
+      # which catches a fail-open.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The runner images all ship a Python 3, but which one they ship changes
+      # over time and is not a pinned contract. This is.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python --version
+      # Three steps rather than one command chain, so a failing suite names
+      # itself in the Checks UI instead of hiding behind whichever ran first.
+      # Cheapest first, so a run that is going to fail on one of the quick
+      # suites says so in about a minute instead of after the harness.
+      - name: Guard cases
+        run: python scripts/hooks/test-deny-destructive-git.py
+      - name: Hook registration is cwd-independent
+        run: python scripts/hooks/test-hook-registration-cwd-independence.py
+      - name: Guard against a real shell
+        run: python scripts/hooks/test-guard-against-a-real-shell.py
