@@ -1,0 +1,33 @@
+# The gofmt pass, in one place so that ci.yml and promote.yml hold the same
+# tree to the same standard.
+
+name: gofmt check
+description: Fail when gofmt would reformat any of this repository's Go source.
+
+inputs:
+  path:
+    description: The directory holding go.mod, relative to the workspace.
+    required: false
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.path }}/go.mod
+    - name: gofmt
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        # Scoped to the Go trees rather than run from the root. `gofmt -l .`
+        # descends into editors/vscode/node_modules/, so an npm dependency
+        # that vendors an unformatted .go file as testdata would turn this
+        # job red for a reason that has nothing to do with this repository's
+        # own code.
+        unformatted="$(gofmt -l cmd internal)"
+        if [ -n "$unformatted" ]; then
+          echo "gofmt would reformat:"
+          echo "$unformatted"
+          exit 1
+        fi

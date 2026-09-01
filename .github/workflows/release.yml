@@ -3,11 +3,19 @@
 # a person with the project page open can download a binary and run it.
 #
 # The version comes from the VERSION file at the repository root. A push to
-# main cuts a dev release tagged v{VERSION}.0-dev.{N}, where N is one more
+# main cuts a dev release tagged v{VERSION}.{N}-dev, where N is one more
 # than the highest dev tag that already exists on the remote for the same
 # major.minor. The counter is read from the tags API rather than from a
 # local commit count, because a commit count is not monotonic across a
 # rebase and two runs can compute the same number from it.
+#
+# Tags published before dinah-361 carry that counter in the pre-release label
+# with the patch pinned at zero (v0.1.0-dev.73), and the operator ruled that
+# none of them is ever rewritten. So the tag list carries both shapes
+# permanently, and the counter is computed across both of them. Reading only
+# the new shape would find no tags at all on a line that had reached the
+# seventies and would restart the numbering at one. docs/release.md says where
+# the discontinuity is and why.
 #
 # The tag is created before anything is built. Two pushes landing close
 # together can still both compute the same N, but only the first createRef
@@ -50,6 +58,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: Compute and reserve the dev tag
         id: version
         env:
@@ -58,31 +70,18 @@ jobs:
         run: |
           set -e
           BASE=$(tr -d '[:space:]' < VERSION)
-          PREFIX="v${BASE}.0-dev."
 
           # Page through the repository's tags at the API maximum of 100 per
           # page. dinah will not need a second page for a long time, and the
           # page guard aborts rather than looping if that ever changes.
-          MAX=0
           PAGE=1
+          : > all-tags.txt
           while :; do
             RESULT=$(gh api -X GET "repos/$REPO/tags" -F per_page=100 -F page=$PAGE --jq '.[].name' || true)
             if [ -z "$RESULT" ]; then
               break
             fi
-            while IFS= read -r tag; do
-              case "$tag" in
-                "${PREFIX}"*)
-                  N="${tag#$PREFIX}"
-                  case "$N" in
-                    ''|*[!0-9]*) continue ;;
-                  esac
-                  if [ "$N" -gt "$MAX" ]; then
-                    MAX="$N"
-                  fi
-                  ;;
-              esac
-            done <<< "$RESULT"
+            printf '%s\n' "$RESULT" >> all-tags.txt
             COUNT=$(echo "$RESULT" | wc -l)
             if [ "$COUNT" -lt 100 ]; then
               break
@@ -94,9 +93,12 @@ jobs:
             fi
           done
 
-          NEXT=$((MAX + 1))
-          TAG="${PREFIX}${NEXT}"
-          echo "Highest existing dev tag for v${BASE}: ${MAX}, so this run is ${NEXT}"
+          # Which tag comes next is a rule with two shapes in it and a reset
+          # per line, so it is decided by tested Go rather than by shell that
+          # nothing can exercise. internal/release/tags_test.go drives the same
+          # code against a fixture list mixing the old and new shapes.
+          TAG=$(go run ./cmd/dinah-release next-tag --channel dev --base "$BASE" < all-tags.txt)
+          echo "This run is ${TAG}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           SHA=$(git rev-parse HEAD)
@@ -217,6 +219,11 @@ jobs:
     permissions:
       contents: write # creates the release and uploads its assets
     steps:
+      # The checkout comes before the download because actions/checkout cleans
+      # the workspace it lands in, and the binaries would go with it.
+      - name: Checkout source
+        uses: actions/checkout@v4
+
       - name: Download every binary
         uses: actions/download-artifact@v4
         with:
@@ -260,46 +267,11 @@ jobs:
           fi
 
       - name: Write the checksums and the channel manifest
-        env:
-          TAG: ${{ needs.compute-version.outputs.tag }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -e
-          mkdir -p manifest
-          cd dist
-          sha256sum dinah-* | tee SHA256SUMS.txt
-
-          PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${TAG}/"
-          {
-            echo "{"
-            echo "  \"channel\": \"dev\","
-            echo "  \"version\": \"${TAG}\","
-            echo "  \"tag\": \"${TAG}\","
-            echo "  \"publishedAt\": \"${PUBLISHED_AT}\","
-            echo "  \"downloadBase\": \"${DOWNLOAD_BASE}\","
-            echo "  \"binaries\": {"
-            first=true
-            for binary in dinah-*; do
-              hash=$(sha256sum "$binary" | cut -d' ' -f1)
-              size=$(stat -c%s "$binary")
-              if [ "$first" = true ]; then
-                first=false
-              else
-                echo ","
-              fi
-              printf '    "%s": { "sha256": "%s", "size": %s }' "$binary" "$hash" "$size"
-            done
-            echo ""
-            echo "  }"
-            echo "}"
-          } > ../manifest/dev.json
-          cd ..
-          # Reformatting through a JSON parser both pretty-prints the file and
-          # fails the run if the assembly above produced anything invalid.
-          python3 -m json.tool manifest/dev.json manifest/dev-checked.json
-          mv manifest/dev-checked.json manifest/dev.json
-          cat manifest/dev.json
+        uses: ./.github/actions/channel-manifest
+        with:
+          channel: dev
+          tag: ${{ needs.compute-version.outputs.tag }}
+          repository: ${{ github.repository }}
 
       - name: Create the GitHub Release
         uses: softprops/action-gh-release@v2

@@ -1007,8 +1007,8 @@ func buildPublishedRelease(downloadBase string) (publishedRelease, error) {
 	var compact bytes.Buffer
 	compact.WriteString("{\n")
 	fmt.Fprintf(&compact, "  %q: %q,\n", "channel", "dev")
-	fmt.Fprintf(&compact, "  %q: %q,\n", "version", "v0.1.0-dev.7")
-	fmt.Fprintf(&compact, "  %q: %q,\n", "tag", "v0.1.0-dev.7")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "version", "v0.1.7-dev")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "tag", "v0.1.7-dev")
 	fmt.Fprintf(&compact, "  %q: %q,\n", "publishedAt", "2026-01-01T00:00:00Z")
 	fmt.Fprintf(&compact, "  %q: %q,\n", "downloadBase", downloadBase)
 	compact.WriteString("  \"binaries\": {\n")
@@ -1077,7 +1077,7 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 	}))
 	defer server.Close()
 
-	built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.0-dev.7/")
+	built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.7-dev/")
 	if err != nil {
 		t.Fatalf("assembling the stand-in release: %v", err)
 	}
@@ -1231,7 +1231,7 @@ func TestInstallScriptSaysWhetherDinahIsReadyToRun(t *testing.T) {
 			}))
 			defer server.Close()
 
-			built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.0-dev.7/")
+			built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.7-dev/")
 			if err != nil {
 				t.Fatalf("assembling the stand-in release: %v", err)
 			}
@@ -1326,15 +1326,15 @@ func TestInstallScriptsReportATruncatedDownloadDistinctlyFromCorruption(t *testi
 			case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
 				compact := fmt.Sprintf(`{
   "channel": "dev",
-  "version": "v0.1.0-dev.7",
-  "tag": "v0.1.0-dev.7",
+  "version": "v0.1.7-dev",
+  "tag": "v0.1.7-dev",
   "publishedAt": "2026-01-01T00:00:00Z",
   "downloadBase": %q,
   "binaries": {
     %q: { "sha256": %q, "size": %d }
   }
 }
-`, server.URL+"/releases/download/v0.1.0-dev.7/", binary, sum, len(full))
+`, server.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full))
 				var pretty bytes.Buffer
 				if err := json.Indent(&pretty, []byte(compact), "", "    "); err != nil {
 					t.Fatalf("indenting the stand-in manifest: %v", err)
@@ -1554,15 +1554,15 @@ func TestInstallPS1VerifiesWithoutGetFileHash(t *testing.T) {
 		case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
 			fmt.Fprintf(w, `{
   "channel": "dev",
-  "version": "v0.1.0-dev.7",
-  "tag": "v0.1.0-dev.7",
+  "version": "v0.1.7-dev",
+  "tag": "v0.1.7-dev",
   "publishedAt": "2026-01-01T00:00:00Z",
   "downloadBase": %q,
   "binaries": {
     %q: { "sha256": %q, "size": %d }
   }
 }
-`, server.URL+"/releases/download/v0.1.0-dev.7/", binary, sum, len(full))
+`, server.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full))
 		case strings.HasSuffix(r.URL.Path, "/"+binary):
 			w.Write(full)
 		default:
@@ -1739,15 +1739,15 @@ func TestInstallPS1SaysWhetherDinahIsReadyToRun(t *testing.T) {
 				case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
 					fmt.Fprintf(w, `{
   "channel": "dev",
-  "version": "v0.1.0-dev.7",
-  "tag": "v0.1.0-dev.7",
+  "version": "v0.1.7-dev",
+  "tag": "v0.1.7-dev",
   "publishedAt": "2026-01-01T00:00:00Z",
   "downloadBase": %q,
   "binaries": {
     %q: { "sha256": %q, "size": %d }
   }
 }
-`, real.URL+"/releases/download/v0.1.0-dev.7/", binary, sum, len(full))
+`, real.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full))
 				case strings.HasSuffix(r.URL.Path, "/"+binary):
 					w.Write(full)
 				default:

@@ -1,0 +1,74 @@
+# Writes the SHA256SUMS file and one channel manifest for a set of built
+# binaries.
+#
+# The three channels publish the same document under different names, and the
+# install scripts read whichever one DINAH_CHANNEL names. Keeping the assembly
+# here means a change to the manifest's shape reaches dev, beta and stable
+# together, and internal/profile/guards_test.go reproduces this step's output
+# to hold the install scripts to it.
+
+name: Channel manifest
+description: Write SHA256SUMS.txt and the channel manifest for the binaries in a directory.
+
+inputs:
+  channel:
+    description: dev, beta or stable.
+    required: true
+  tag:
+    description: The release tag the manifest names.
+    required: true
+  repository:
+    description: The owner/name the download URLs point at.
+    required: true
+  dist:
+    description: The directory holding the built binaries.
+    required: false
+    default: dist
+
+runs:
+  using: composite
+  steps:
+    - name: Write the checksums and the channel manifest
+      shell: bash
+      env:
+        CHANNEL: ${{ inputs.channel }}
+        TAG: ${{ inputs.tag }}
+        REPO: ${{ inputs.repository }}
+        DIST: ${{ inputs.dist }}
+      run: |
+        set -e
+        mkdir -p manifest
+        cd "$DIST"
+        sha256sum dinah-* | tee SHA256SUMS.txt
+
+        PUBLISHED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${TAG}/"
+        {
+          echo "{"
+          echo "  \"channel\": \"${CHANNEL}\","
+          echo "  \"version\": \"${TAG}\","
+          echo "  \"tag\": \"${TAG}\","
+          echo "  \"publishedAt\": \"${PUBLISHED_AT}\","
+          echo "  \"downloadBase\": \"${DOWNLOAD_BASE}\","
+          echo "  \"binaries\": {"
+          first=true
+          for binary in dinah-*; do
+            hash=$(sha256sum "$binary" | cut -d' ' -f1)
+            size=$(stat -c%s "$binary")
+            if [ "$first" = true ]; then
+              first=false
+            else
+              echo ","
+            fi
+            printf '    "%s": { "sha256": "%s", "size": %s }' "$binary" "$hash" "$size"
+          done
+          echo ""
+          echo "  }"
+          echo "}"
+        } > "${GITHUB_WORKSPACE}/manifest/${CHANNEL}.json"
+        cd "$GITHUB_WORKSPACE"
+        # Reformatting through a JSON parser both pretty-prints the file and
+        # fails the run if the assembly above produced anything invalid.
+        python3 -m json.tool "manifest/${CHANNEL}.json" "manifest/${CHANNEL}-checked.json"
+        mv "manifest/${CHANNEL}-checked.json" "manifest/${CHANNEL}.json"
+        cat "manifest/${CHANNEL}.json"

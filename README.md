@@ -85,7 +85,7 @@ CertUtil: -hashfile command completed successfully.
 
 Compare the middle line against the line for your binary in `SHA256SUMS.txt`.
 
-These are dev builds, cut from every commit to `main`. They are unstable, and no release of Dinah promises compatibility with them.
+The install scripts fetch the dev channel unless you tell them otherwise. Dev builds are cut from every qualifying commit to `main`, they are unstable, and no release of Dinah promises compatibility with them. Set `DINAH_CHANNEL` to `beta` or `stable` to install from a channel that moves only when somebody promotes work into it. `docs/release.md` describes the three channels, what each of their version numbers counts, and how a promotion assembles the tree it publishes.
 
 ## Building
 
