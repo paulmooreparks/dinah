@@ -87,3 +87,25 @@ export function declaredProfile(): string {
 	}
 	return report.profile;
 }
+
+/**
+ * The storage format the binary under test writes, asked of that binary for
+ * the reason declaredProfile asks it for the conformance claim: the number
+ * moves on Dinah's own schedule, and a suite that spelled it out would fail on
+ * the day it moved while telling nobody anything about the extension. What is
+ * worth asserting is that the extension reports what the binary said.
+ */
+export function declaredFormat(): number {
+	const binary = process.env.DINAH_FIXTURE_BINARY;
+	if (binary === undefined || binary.trim() === "") {
+		throw new Error(
+			"DINAH_FIXTURE_BINARY is unset, so this suite cannot ask the binary what it writes",
+		);
+	}
+	const stdout = execFileSync(binary, ["--json", "version"], { encoding: "utf8" });
+	const report = JSON.parse(stdout) as { format?: unknown };
+	if (typeof report.format !== "number") {
+		throw new Error(`\`dinah --json version\` from ${binary} reported no storage format`);
+	}
+	return report.format;
+}

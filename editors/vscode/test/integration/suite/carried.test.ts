@@ -9,7 +9,7 @@
 import * as assert from "node:assert/strict";
 import { statSync } from "node:fs";
 
-import { api, declaredProfile } from "./support";
+import { api, declaredFormat, declaredProfile } from "./support";
 
 suite("a carried binary whose executable bit was stripped", () => {
 	test("the resolver chmods it and its version call succeeds", async function () {
@@ -27,7 +27,7 @@ suite("a carried binary whose executable bit was stripped", () => {
 		}
 		assert.equal(reported.binary.source, "carried");
 		assert.equal(reported.binary.version.profile, declaredProfile());
-		assert.equal(reported.binary.version.format, 1);
+		assert.equal(reported.binary.version.format, declaredFormat());
 
 		const mode = statSync(reported.binary.path).mode;
 		assert.equal(
