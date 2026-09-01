@@ -17,8 +17,13 @@ import type { VersionReport } from "./api";
  * A format is a serialisation, not a capability level, so "anything at or
  * above 1" is not a claim this extension can make about a number it has never
  * seen.
+ *
+ * 2 joined the set at dinah-285, which fixed a workbench inside a `.dinah`
+ * container and made its directory name a wider identifier. Neither of those
+ * reaches this extension: it drives the binary through the JSON verb surface
+ * and never reads the tree itself, and that surface did not change.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2];
 
 /**
  * The conformance claim this extension needs. A different name or major is
