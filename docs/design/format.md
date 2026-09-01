@@ -15,9 +15,9 @@ format deliberately excludes.
 
 Terminology note: "workbench" and "card" are working terms. Whether Dinah
 keeps them is an open question tracked on the board, and nothing below depends
-on the final names. "Column" and "card" no longer sit beside them: a column is
-where a card stands and a state is how it stands there, which dinah-287 settled
-and which this document's own prose now uses throughout.
+on the final names. "Column" and "state" no longer sit beside them: a column
+is where a card stands and a state is how it stands there, which dinah-287
+settled and which this document's own prose now uses throughout.
 
 ## Storage is the filesystem, entirely
 
@@ -229,22 +229,10 @@ project repository holds its workbench in a `.dinah` of its own, so a workbench
 inside a repository and one in the user base sit in the same shape; discovery
 walks up from the current directory before falling back to the user base.
 
-A `workbench.md` sitting anywhere else is not a workbench, however well-formed
-it is. Discovery does not return one, and a workbench declaring storage format
-2 or higher is refused by name when it is opened outside a container, which
-`dinah check --migrate-container` repairs by creating the container and moving
-the workbench into it under a freshly minted identifier. A workbench declaring
-format 1, or declaring no format at all, predates the rule and still opens
-where it stands, so nobody loses a board to a version they installed.
-
-The rule has no silent exceptions, and the one exception it does have is
-stated where it lives. An attachment's payload filename stays free-form, under
-"Anchor files and collections" and "Comments and attachments", because it sits
-alone inside its own `payload/` directory, which is a namespace holding no
-reserved names. Every other name in the tree is Dinah's to mint. `DINAH_HOME` moves the user base, so it moves where
-that fallback looks and where the user's own config and instruction layer
-are read from. The walk observes one boundary for its sake. At the machine's
-own home directory it looks for a `workbench.md` and skips that directory's
+`DINAH_HOME` moves the user base, so it moves where that fallback looks and
+where the user's own config and instruction layer are read from. The walk
+observes one boundary for its sake. At the machine's own home directory it
+looks for a `workbench.md` and skips that directory's
 `.dinah`. The real user base is left to the fallback alone, so a relocated
 base stays relocated even for a working directory sitting beneath the real
 home. The fallback runs at that home directory rather than after the climb,
@@ -256,6 +244,20 @@ other directory's `.dinah` on the way up is consulted as it always was. The user
 workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
+
+A `workbench.md` sitting outside a container is not a workbench, however
+well-formed it is. Discovery does not return one, and a workbench declaring
+storage format 2 or higher is refused by name when it is opened outside a
+container. `dinah check --migrate-container` repairs that by creating the
+container and moving the workbench into it under a freshly minted identifier.
+A workbench declaring format 1, or declaring no format at all, was written
+before the rule and still opens where it stands.
+
+One name in the tree is not Dinah's to mint, and it is stated where it lives
+rather than left for a reader to discover. An attachment's payload filename
+stays free-form, under "Anchor files and collections" and "Comments and
+attachments", because it sits alone inside its own `payload/` directory, which
+is a namespace holding no reserved names.
 
 A `workbench.md` on disk claims its directory only when its frontmatter
 carries `profile`, or carries `format` or `columns` without it. The three keys
@@ -1144,9 +1146,9 @@ directory listing is ascending hex and an entity identifier is random, so the
 listing is in an order nobody wrote. The workbench's own identifier is minted
 time-ordered instead, and for a different purpose entirely: it exists to be
 unique across independently created copies rather than to be counted to, since
-nobody types `.dinah/3` the way somebody types `<card>/comments/2`. A comment timestamp is wall clock,
-and two processes writing inside one second record the same value, which
-hands the tie back to the listing.
+nobody types `.dinah/3` the way somebody types `<card>/comments/2`. A comment
+timestamp is wall clock, and two processes writing inside one second record
+the same value, which hands the tie back to the listing.
 
 A position is an index into the collection taken in ordinal order, so
 `<card>/comments/2` names whichever comment stands second once the
