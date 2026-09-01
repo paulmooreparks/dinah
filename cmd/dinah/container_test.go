@@ -118,6 +118,12 @@ func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) 
 		if err := bench.Instantiate(where, "cp", "alka", definition); err != nil {
 			t.Fatalf("instantiate: %v", err)
 		}
+		// Two clones of a repository whose workbench was interrupted between
+		// its last move and its stamp declare the format that predates the
+		// rule, which is the one state the stamp still has work to do on. It
+		// is left undone here, because the report says these directories were
+		// untouched.
+		editAnchorAt(t, filepath.Join(where, bench.WorkbenchAnchor), "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
 	}
 
 	swept := runCLI(t, tree, "check", "--migrate-container", "--yes")
@@ -130,6 +136,9 @@ func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) 
 		}
 		if !bench.Exists(where) {
 			t.Errorf("the sweep moved %s, and choosing between two copies is not its to make", where)
+		}
+		if !anchorDeclares(t, filepath.Join(where, bench.WorkbenchAnchor), "format: 1") {
+			t.Errorf("the sweep wrote into %s, which its own report says it left alone", where)
 		}
 	}
 

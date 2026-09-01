@@ -143,10 +143,17 @@ func heldByDuplicate(duplicates map[string][]string) map[string]bool {
 // finished. It is reported as already contained either way, because its
 // directory does not change and a run that repaired it should read the same as
 // the run after it, which is what the idempotence this command promises means.
+//
+// A directory a duplicate report names is left alone here as it is everywhere
+// else in this sweep. The stamp settles nothing between two directories
+// claiming one identifier, so writing it would not be the choice D-4 refuses,
+// but the report tells its reader those directories were untouched, and a
+// write the report denies costs more than a repair left to the run after he
+// has sorted them out.
 func migrateOneContainer(report *TreeContainerReport, candidate bench.ContainerCandidate, apply bool, held map[string]bool) {
 	shape := string(candidate.Shape)
 	if candidate.Shape == bench.ShapeContained {
-		if apply {
+		if apply && !held[candidate.Path] {
 			if _, err := bench.MigrateContainer(candidate.Path); err != nil {
 				report.Failed = append(report.Failed, TreeContainerFailure{Path: candidate.Path, Shape: shape, Reason: err.Error()})
 				return
