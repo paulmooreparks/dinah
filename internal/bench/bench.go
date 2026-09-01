@@ -56,10 +56,20 @@ const StorageFormat = 1
 // conformance claim CORE-VER-1 requires, and no channel name joins them,
 // which CORE-VER-2 forbids. They are also the ceiling of the window
 // admitProfile applies.
+//
+// The claim moved from 0.7 to 0.9 at dinah-358, past a revision it never
+// stamped. A claim may trail the document's published revision, which is the
+// ruling dinah-123 recorded when it published 0.8 and left this constant
+// where it stood, and this build implements what both intervening revisions
+// state: CORE-BENCH-5, which 0.8 published, is the full-version comparison
+// sortsBelow already performed, and CORE-OUT-7, which 0.9 published, is the
+// separation contract.ExitCode and contract.ExitCodeForRead already keep. The
+// claim is what a client reads to learn the second of those, so leaving it at
+// 0.7 would have published nothing about a contract this build honours.
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 7
+	ProfileMinor = 9
 )
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the
@@ -373,6 +383,9 @@ func DiscoverSource(start, override, overrideSource, home, nativeHome, configure
 			return "", "", nil, err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
+			if beneath, ok := SoleBeneath(abs); ok {
+				return "", "", nil, contract.RefuseWith(contract.NoWorkbench, abs, map[string]string{"found": beneath})
+			}
 			return "", "", nil, contract.Refuse(contract.NoWorkbench, abs)
 		}
 		return abs, overrideSource, nil, nil
@@ -1017,6 +1030,32 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 		return "", candidates, passed, nil
 	}
 	return "", nil, passed, nil
+}
+
+// SoleBeneath reports the one workbench store directory sitting immediately
+// beneath dir's .dinah, when dir holds exactly one. It answers the recovery
+// question the dinah.no-workbench refusal poses when the directory a caller
+// named is a workbench's containing directory rather than its store: whether
+// there is exactly one store one rung down, so the refusal can name the
+// address that would have worked instead of naming only the one that did not.
+//
+// It reports found=false on zero stores, on more than one, and on an anchor it
+// could not read, because none of those name a single answer worth offering.
+// A directory whose one entry carries a workbench.md that claims none of
+// Dinah's own keys counts as zero here, since soleBench passes such an anchor
+// over rather than admitting it as a candidate, so no path belonging to
+// somebody else is ever offered back.
+//
+// The probe is one non-recursive read of dir's .dinah and one anchor read per
+// hex-named entry in it, which is what soleBench already costs at every rung
+// of an ordinary climb. Nothing here recurses, so a caller-supplied path
+// cannot turn this into a walk.
+func SoleBeneath(dir string) (path string, found bool) {
+	sole, ambiguous, _, err := soleBench(filepath.Join(dir, UserBaseName))
+	if err != nil || sole == "" || len(ambiguous) > 0 {
+		return "", false
+	}
+	return sole, true
 }
 
 // anchorRecognition is what a workbench.md holds at one rung of the search, without

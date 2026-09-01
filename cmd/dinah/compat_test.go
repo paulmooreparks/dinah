@@ -632,7 +632,7 @@ func readJournalMembers(t *testing.T, path string, into map[string]map[string]bo
 // told which migration to run, which is the whole point of the gate that
 // refuses it. A revision nothing has ever read is refused with the window.
 func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
-	opens := []string{"dinah-core/0.7"}
+	opens := []string{"dinah-core/0.7", "dinah-core/0.8", "dinah-core/0.9"}
 	migrates := []string{"dinah-core/0.1", "dinah-core/0.2", "dinah-core/0.3", "dinah-core/0.4", "dinah-core/0.5", "dinah-core/0.6", "dinah-core/1.0"}
 	refuses := []string{"dinah-core/0.0", "dinah-core/1.1", "dinah-core/2.0", "dinah-core/3.0", "dinah-core/4.0", "dinah-core/9.9"}
 	for _, declared := range opens {
@@ -702,11 +702,11 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	root := newBench(t)
 	editAnchor(t, root, "profile: "+bench.ProfileVersion, "profile: dinah-core/9.9")
 	got := runCLI(t, root, "status")
-	// The window is one revision wide while the floor sits at the rename, and
-	// the clause is composed from the constants rather than spelled here, so
-	// this reads the sentence's shape without pinning the numbers a later
-	// bump moves.
-	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.7"
+	// The window runs from the rename the floor sits at up to the claim this
+	// build stamps, and the clause is composed from the constants rather than
+	// spelled there, so this reads the sentence's shape while naming the two
+	// numbers a later bump moves.
+	wanted := "; this build reads dinah-core 0.7 through dinah-core 0.9"
 	if !strings.Contains(got.errw, wanted) {
 		t.Errorf("the refusal reads %q, wanted it to carry %q", got.errw, wanted)
 	}

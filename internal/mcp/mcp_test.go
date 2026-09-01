@@ -716,6 +716,86 @@ func TestARefusalFromWorkbenchResolutionNamesRecoveryInToolNames(t *testing.T) {
 	}
 }
 
+// TestAWorkbenchArgumentNamingTheContainingDirectoryIsOfferedTheStore asserts
+// dinah-297 AC-5. A caller who sends the directory dinah init was pointed at,
+// rather than the store directory init reported back, is still refused with
+// dinah.no-workbench, and the refusal now carries the store path one rung
+// down under context.found, which is the exact spelling the workbench
+// property would have accepted. A directory holding no such store, or holding
+// two, refuses exactly as it did before and carries no found at all.
+//
+// The server runs unbounded, as TestResolveLibraryAdmitsAnyPathWhenRootIsEmpty
+// does, because a root would refuse these paths outside-root before the
+// anchor check this card changes is ever reached.
+func TestAWorkbenchArgumentNamingTheContainingDirectoryIsOfferedTheStore(t *testing.T) {
+	t.Run("one store beneath is offered back", func(t *testing.T) {
+		container := t.TempDir()
+		store := filepath.Join(container, bench.UserBaseName, "aaaa11112222")
+		instantiate(t, store)
+		abs, err := filepath.Abs(store)
+		if err != nil {
+			t.Fatalf("abs %s: %v", store, err)
+		}
+
+		refused := refusalFor(t, container)
+		if refused["refusal"] != contract.NoWorkbench {
+			t.Fatalf("wanted %s, got %v", contract.NoWorkbench, refused)
+		}
+		context, ok := refused["context"].(map[string]any)
+		if !ok {
+			t.Fatalf("the refusal carries no context member: %v", refused)
+		}
+		if context["found"] != abs {
+			t.Errorf("the refusal should offer the store beneath, wanted %q, got %v", abs, context["found"])
+		}
+	})
+
+	t.Run("no store beneath offers nothing", func(t *testing.T) {
+		refused := refusalFor(t, t.TempDir())
+		if refused["refusal"] != contract.NoWorkbench {
+			t.Fatalf("wanted %s, got %v", contract.NoWorkbench, refused)
+		}
+		if _, offered := refused["context"]; offered {
+			t.Errorf("nothing recoverable sits beneath this directory, got %v", refused["context"])
+		}
+	})
+
+	t.Run("two stores beneath offer nothing", func(t *testing.T) {
+		container := t.TempDir()
+		instantiate(t, filepath.Join(container, bench.UserBaseName, "aaaa11112222"))
+		instantiate(t, filepath.Join(container, bench.UserBaseName, "bbbb33334444"))
+
+		refused := refusalFor(t, container)
+		if refused["refusal"] != contract.NoWorkbench {
+			t.Fatalf("wanted %s, got %v", contract.NoWorkbench, refused)
+		}
+		if _, offered := refused["context"]; offered {
+			t.Errorf("two stores name no single answer, got %v", refused["context"])
+		}
+	})
+}
+
+// refusalFor drives one workbench tool call naming a directory, against an
+// unbounded server with no default library, and returns the decoded payload.
+func refusalFor(t *testing.T, dir string) map[string]any {
+	t.Helper()
+	line := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workbench","arguments":{"actor":"alka","workbench":"` + filepath.ToSlash(dir) + `"}}}`
+	return payload(t, askUnderRoot(t, "", nil, line))
+}
+
+// instantiate puts a workbench store at a path, which is what newLibrary does
+// for its own fixture and all these tests need of a store they never open.
+func instantiate(t *testing.T, root string) {
+	t.Helper()
+	read, err := bench.ReadDefinition([]byte(definition))
+	if err != nil {
+		t.Fatalf("definition: %v", err)
+	}
+	if err := bench.Instantiate(root, "fx", "alka", read); err != nil {
+		t.Fatalf("instantiate %s: %v", root, err)
+	}
+}
+
 // newLibraryAt opens a second library over a workbench that already exists,
 // which is how a test reads back what a write through the head landed.
 func newLibraryAt(t *testing.T, root string) *verb.Library {
