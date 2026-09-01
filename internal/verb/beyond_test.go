@@ -436,7 +436,7 @@ func TestInterchangeRoundTrip(t *testing.T) {
 		}
 	}
 
-	second := filepath.Join(t.TempDir(), "again")
+	second := containedPath(filepath.Join(t.TempDir(), "again"))
 	if err := bench.Instantiate(second, "again", "alka", definition); err != nil {
 		t.Fatalf("instantiate: %v", err)
 	}
@@ -489,7 +489,7 @@ func TestExtractReproducesTheDefinition(t *testing.T) {
 		t.Error("extract carried a journal out with the definition")
 	}
 
-	extracted, err := bench.Open(target)
+	extracted, err := bench.OpenUncontained(target)
 	if err != nil {
 		t.Fatalf("open the extracted definition: %v", err)
 	}

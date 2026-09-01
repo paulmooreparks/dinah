@@ -165,3 +165,121 @@ func Exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
+
+// WorkbenchIDLength is the number of characters a workbench identifier takes:
+// sixteen bytes of UUID rendered as two lowercase hex characters each.
+const WorkbenchIDLength = 32
+
+// NewWorkbenchID mints a workbench identifier, which is a UUID version 7 per
+// RFC 9562 section 5.7 rendered as WorkbenchIDLength lowercase hex characters
+// with the canonical hyphens stripped.
+//
+// The layout the RFC fixes is a 48-bit big-endian count of milliseconds since
+// the Unix epoch, a 4-bit version field holding 0111, a 12-bit random field,
+// a 2-bit variant field holding 10, and a 62-bit random field. Both random
+// fields come from crypto/rand, so two workbenches created on two machines in
+// the same millisecond still differ, and the leading timestamp orders a
+// listing by the moment each workbench was created.
+//
+// The hyphens are dropped because every directory name this format mints is
+// lowercase hex and nothing else, which is what lets one glance at a path say
+// whether a name was minted by the tool or typed by a person.
+func NewWorkbenchID() (string, error) {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	milliseconds := time.Now().UTC().UnixMilli()
+	for i := 0; i < 6; i++ {
+		raw[i] = byte(milliseconds >> (40 - 8*i))
+	}
+	raw[6] = (raw[6] & 0x0f) | 0x70
+	raw[8] = (raw[8] & 0x3f) | 0x80
+	return hex.EncodeToString(raw[:]), nil
+}
+
+// IsWorkbenchID reports whether a string is a workbench identifier this build
+// minted: WorkbenchIDLength lowercase hex characters decoding to a UUID whose
+// version field is 7 and whose variant field is 10.
+//
+// It is deliberately not IsID widened. IsID governs every entity directory in
+// the format and has to go on refusing anything wider, so that a workbench
+// identifier can never be read as a card, a comment or an attachment, and a
+// 12-hex entity identifier can never be read as a workbench. The two
+// predicates are disjoint by their lengths alone, which is what makes a
+// legacy workbench directory and a migrated one impossible to confuse.
+func IsWorkbenchID(s string) bool {
+	if len(s) != WorkbenchIDLength {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		digit := c >= '0' && c <= '9'
+		letter := c >= 'a' && c <= 'f'
+		if !digit && !letter {
+			return false
+		}
+	}
+	if s[12] != '7' {
+		return false
+	}
+	switch s[16] {
+	case '8', '9', 'a', 'b':
+		return true
+	}
+	return false
+}
+
+// ClaimWorkbenchID creates the directory of a fresh workbench inside a
+// container, which is the atomic test-and-claim of its identifier exactly as
+// ClaimID performs it for an entity: mkdir either wins the name or reports
+// that somebody else holds it. It retries on a collision and returns the id
+// it claimed.
+func ClaimWorkbenchID(container string) (string, error) {
+	if err := os.MkdirAll(container, 0o755); err != nil {
+		return "", err
+	}
+	for attempt := 0; attempt < 16; attempt++ {
+		id, err := NewWorkbenchID()
+		if err != nil {
+			return "", err
+		}
+		err = os.Mkdir(filepath.Join(container, id), 0o755)
+		if err == nil {
+			return id, nil
+		}
+		if !os.IsExist(err) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("could not claim a workbench identifier in %s after 16 attempts", container)
+}
+
+// ListWorkbenchIDs returns the identifiers of a .dinah container, sorted
+// ascending, admitting both widths a workbench directory can carry: the wide
+// identifier this build mints, and the 12-hex one a workbench written before
+// the container rule still carries until the migration reminents it.
+//
+// It is separate from ListIDs rather than a widening of it because ListIDs
+// governs every entity collection, and those stay 12-hex only. A container is
+// the one directory in the format holding names of two widths, so it is the
+// one directory that gets its own listing, and a caller asking what a
+// container holds asks this rather than reaching for the entity listing.
+func ListWorkbenchIDs(container string) []string {
+	entries, err := os.ReadDir(container)
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.IsDir() {
+			continue
+		}
+		if !IsID(name) && !IsWorkbenchID(name) {
+			continue
+		}
+		ids = append(ids, name)
+	}
+	return ids
+}

@@ -92,7 +92,7 @@ The leading `$` marks a command line. Do not type it.
 $ dinah version
 dinah 0.1.0
 conforms to dinah-core/0.9
-storage format 1
+storage format 2
 [exit 0]
 ```
 
@@ -1209,19 +1209,19 @@ carries, ask:
 $ dinah version --catalogs
 dinah 0.1.0
 conforms to dinah-core/0.9
-storage format 1
+storage format 2
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        686/686
-  af        0/686
-  cs        0/686
-  de        686/686
-  es        0/686
-  fil       0/686
-  hi        686/686
-  id        0/686
+  en        704/704
+  af        0/704
+  cs        0/704
+  de        704/704
+  es        0/704
+  fil       0/704
+  hi        704/704
+  id        0/704
 [exit 0]
 ```
 

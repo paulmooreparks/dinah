@@ -28,14 +28,30 @@ const definition = `{
   ]
 }`
 
+// fixtureWorkbenchID is the workbench identifier every fixture in this package
+// plants under. It is written out rather than minted so that a failing test
+// names the same path twice running, and IsWorkbenchID admits it: 32 lowercase
+// hex characters whose thirteenth is the version nibble 7 and whose
+// seventeenth carries the variant bits 10.
+const fixtureWorkbenchID = "0199a1b2c3d47abc8000000000000001"
+
+// containedPath answers the directory a fixture workbench is written to when a
+// test names the place it wants one: that place's own .dinah container, under
+// fixtureWorkbenchID.
+func containedPath(dir string) string {
+	return filepath.Join(dir, bench.UserBaseName, fixtureWorkbenchID)
+}
+
 // newLibrary builds the bench and the library both heads project.
 func newLibrary(t *testing.T) *verb.Library {
 	t.Helper()
 	base := t.TempDir()
-	root := filepath.Join(base, "workbench")
+	root := containedPath(filepath.Join(base, "workbench"))
 	// The fixture instantiates the bench directly rather than through
-	// verb.Init, which writes into a .dinah container under the directory it
-	// is given; these tests want a bench at a path they name.
+	// verb.Init, which mints its own identifier; these tests want a bench at a
+	// path they name. The path is still a container child, because a workbench
+	// Instantiate writes declares the storage format the containment rule
+	// arrived at and one written to a bare directory no longer opens.
 	read, err := bench.ReadDefinition([]byte(definition))
 	if err != nil {
 		t.Fatalf("definition: %v", err)
@@ -1423,6 +1439,7 @@ func TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded(t *testing.T) {
 	}
 	rows := decodedCandidates(t, decoded)
 	want := []bench.Candidate{{
+		ID:    library.Bench.ID,
 		Title: library.Bench.Title,
 		Slug:  library.Bench.Slug,
 		Path:  library.Bench.Root,
@@ -1438,14 +1455,16 @@ func TestWorkbenchesToolAnswersOnlyTheDefaultWhenUnbounded(t *testing.T) {
 // the server happens to carry changes nothing about what comes back.
 func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
 	elsewhere := t.TempDir()
-	written := filepath.Join(elsewhere, "second")
+	written := containedPath(filepath.Join(elsewhere, "second"))
 	read, err := bench.ReadDefinition([]byte(definition))
 	if err != nil {
 		t.Fatalf("definition: %v", err)
 	}
-	// The second workbench is instantiated directly at a directory the walk
-	// reaches, as newLibrary does, rather than through verb.Init, which writes
-	// into a dot-prefixed .dinah container that this downward walk skips.
+	// The second workbench is instantiated directly in the container of a
+	// directory the walk reaches, as newLibrary does, rather than through
+	// verb.Init, which mints its own identifier. The walk skips a dot-prefixed
+	// name on its way down and reads the container of each directory it
+	// reaches, which is how it finds this one.
 	if err := bench.Instantiate(written, "sc", "alka", read); err != nil {
 		t.Fatalf("instantiate a second workbench at %s: %v", written, err)
 	}
@@ -1473,6 +1492,7 @@ func TestWorkbenchesToolWithAPathIgnoresAnUnboundedDefault(t *testing.T) {
 	}
 	rows := decodedCandidates(t, decoded)
 	want := []bench.Candidate{{
+		ID:    second.Bench.ID,
 		Title: second.Bench.Title,
 		Slug:  second.Bench.Slug,
 		Path:  second.Bench.Root,

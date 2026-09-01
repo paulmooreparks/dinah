@@ -141,6 +141,18 @@ type Request struct {
 	// workbench is opened rather than after, because a workbench still written
 	// in the old vocabulary is exactly what the ordinary open refuses.
 	MigrateVocabulary bool
+	// MigrateContainer asks check to carry every workbench at or beneath the
+	// root into a .dinah container under an identifier Dinah minted. Like
+	// MigrateVocabulary it is read before a workbench is opened rather than
+	// after, because a workbench outside a container is exactly what the
+	// ordinary open now refuses.
+	MigrateContainer bool
+	// Remint is the one workbench directory the container repair reminents,
+	// as the caller wrote it, empty when the caller asked for no remint. It
+	// carries a path rather than a flag because the choice of which of two
+	// colliding directories keeps its identifier is the operator's, and this
+	// is where he states it.
+	Remint string
 	// MigrateWorkstreams asks check to create a workstream at every
 	// identifier the live cards list that names none, before it reports.
 	MigrateWorkstreams bool

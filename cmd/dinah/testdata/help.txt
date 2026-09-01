@@ -72,6 +72,7 @@ WORKBENCH
   check [--finish] [--migrate-ordinals]     Look for structural defects in this
     [--migrate-slugs] [--migrate-columns]     workbench
     [--migrate-vocabulary]
+    [--migrate-container] [--remint <dir>]
     [--migrate-workstreams] [--witness]
     [--yes]
   whoami                                    The actor your actions carry, and

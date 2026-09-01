@@ -29,7 +29,7 @@ const levelledDefinition = `{
 func newLevelledLibrary(t *testing.T) *verb.Library {
 	t.Helper()
 	base := t.TempDir()
-	root := filepath.Join(base, "workbench")
+	root := containedPath(filepath.Join(base, "workbench"))
 	read, err := bench.ReadDefinition([]byte(levelledDefinition))
 	if err != nil {
 		t.Fatalf("definition: %v", err)

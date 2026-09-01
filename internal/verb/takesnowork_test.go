@@ -57,7 +57,7 @@ func harnessFromDefinition(t *testing.T, slug, definition string) *harness {
 	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
-	root := filepath.Join(base, "workbench")
+	root := containedPath(filepath.Join(base, "workbench"))
 	if err := os.MkdirAll(filepath.Join(home, bench.UserBaseName), 0o755); err != nil {
 		t.Fatalf("user base: %v", err)
 	}

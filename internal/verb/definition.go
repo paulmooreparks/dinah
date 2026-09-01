@@ -409,6 +409,12 @@ var params = map[string][]Param{
 		{Name: "migrate-slugs", Flag: true, Marker: true, Field: "MigrateSlugs"},
 		{Name: "migrate-columns", Flag: true, Marker: true, Field: "MigrateColumns"},
 		{Name: "migrate-vocabulary", Flag: true, Marker: true, Field: "MigrateVocabulary"},
+		{Name: "migrate-container", Flag: true, Marker: true, Field: "MigrateContainer"},
+		// remint takes a path rather than standing alone, because it repairs
+		// the one condition the tree sweep refuses to decide: two directories
+		// claiming one identifier. Naming the directory is the whole of the
+		// operator's decision, so the flag carries it.
+		{Name: "remint", Flag: true, Value: "dir", Field: "Remint"},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
 		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
 		// Read by migrate-vocabulary alone, which is the one repair here

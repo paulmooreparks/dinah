@@ -1118,3 +1118,48 @@ func (s *session) vocabularySection(key string, rows []string) {
 		s.line(row)
 	}
 }
+
+// renderContainer prints what a tree-wide container migration did, or would
+// do. It follows renderVocabulary line for line, because the two commands
+// answer the same question about different repairs and a reader who has
+// learned one should not have to learn a second.
+func (s *session) renderContainer(report *verb.TreeContainerReport) {
+	if report.Preview {
+		s.line(s.r.TN("check.container-would-migrate", len(report.Migrated)))
+		for _, entry := range report.Migrated {
+			s.line(entry.Path + " (" + entry.Shape + ")")
+		}
+	} else {
+		s.line(s.r.TN("check.container-migrated", len(report.Migrated)))
+		for _, entry := range report.Migrated {
+			s.line(entry.Path + " -> " + entry.To)
+		}
+	}
+	s.vocabularySection("check.container-already", report.AlreadyContained)
+	s.vocabularySection("check.container-duplicate", s.duplicateRows(report))
+	failed := make([]string, 0, len(report.Failed))
+	for _, entry := range report.Failed {
+		failed = append(failed, entry.Path+": "+entry.Reason)
+	}
+	s.vocabularySection("check.container-failed", failed)
+	if report.Preview {
+		s.line(s.r.T("check.container-confirm"))
+	}
+}
+
+// duplicateRows renders each duplicated identifier as one row naming every
+// directory claiming it, in the order the report fixed, so two runs over one
+// tree print the same rows.
+func (s *session) duplicateRows(report *verb.TreeContainerReport) []string {
+	findings := report.DuplicateFindings()
+	rows := make([]string, 0, len(findings))
+	for _, finding := range findings {
+		rows = append(rows, finding.Detail)
+	}
+	return rows
+}
+
+// renderRemint prints the one rename a remint performed.
+func (s *session) renderRemint(report *verb.RemintReport) {
+	s.line(s.r.T("check.reminted", "from", report.From, "to", report.To))
+}

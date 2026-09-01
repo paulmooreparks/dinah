@@ -181,6 +181,14 @@ const (
 	// has no reading for at all. No shipped build raises it yet, since the
 	// floor sits below the alias's own output.
 	NeedsVocabularyMigration = LayerPrefix + "needs-vocabulary-migration"
+	// NeedsContainerMigration is Open refusing a workbench that declares the
+	// storage format the containment rule arrived at and does not sit where
+	// that rule puts a workbench: as the immediately-named child of a .dinah
+	// container, under an identifier Dinah minted. It is distinct from
+	// Malformed because nothing inside the workbench is wrong, and the repair
+	// is a move rather than an edit: `dinah check --migrate-container` carries
+	// it into a container and names it there.
+	NeedsContainerMigration = LayerPrefix + "needs-container-migration"
 	// VocabularyMixed is a header carrying a key from each of the two
 	// vocabularies this format has had, which no writer produces and which
 	// Dinah refuses rather than guessing its way through. Two shapes reach

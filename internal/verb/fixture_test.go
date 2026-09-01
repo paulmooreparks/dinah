@@ -60,6 +60,22 @@ const fixtureDefinition = `{
   ]
 }`
 
+// harnessWorkbenchID is the workbench identifier every harness in this package
+// plants under. It is written out rather than minted so that a failing test
+// names the same path twice running, and IsWorkbenchID admits it: 32 lowercase
+// hex characters whose thirteenth is the version nibble 7 and whose
+// seventeenth carries the variant bits 10.
+const harnessWorkbenchID = "0199a1b2c3d47abc8000000000000001"
+
+// containedPath answers the directory a fixture workbench is written to when a
+// test names the place it wants one: that place's own .dinah container, under
+// harnessWorkbenchID. A workbench Instantiate writes declares the storage
+// format the containment rule arrived at, so one written straight into a bare
+// directory no longer opens.
+func containedPath(dir string) string {
+	return filepath.Join(dir, bench.UserBaseName, harnessWorkbenchID)
+}
+
 // harness is one test's bench, its library and the clock the library reads.
 type harness struct {
 	// library is the verb layer under test.
@@ -79,7 +95,11 @@ func newHarness(t *testing.T) *harness {
 	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
-	root := filepath.Join(base, "workbench")
+	// The bench sits in a container under a minted-looking identifier, because
+	// a workbench Instantiate writes declares the storage format the
+	// containment rule arrived at and one written to a bare directory no
+	// longer opens.
+	root := filepath.Join(base, "workbench", bench.UserBaseName, harnessWorkbenchID)
 	if err := os.MkdirAll(filepath.Join(home, bench.UserBaseName), 0o755); err != nil {
 		t.Fatalf("user base: %v", err)
 	}

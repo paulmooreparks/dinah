@@ -11,7 +11,7 @@ import (
 // field of the version record that opens every compact payload. A caller
 // reads it before assuming the field order this file fixes, and an
 // incompatible change to any record increments it.
-const compactVersion = "1"
+const compactVersion = "2"
 
 // The compact projection is a second machine form of the answers a driver
 // loop reads most: line-oriented UTF-8 rather than JSON, carrying the same
@@ -21,7 +21,7 @@ const compactVersion = "1"
 // A payload is a sequence of records, one per line, ending on a single
 // trailing newline. A record is fields joined by "|", and its first field is
 // its kind, which says how many fields follow and what each of them means. A
-// payload opens with the version record fmt|compact|1 and nothing else may
+// payload opens with the version record fmt|compact|2 and nothing else may
 // precede it.
 //
 // The record kinds, with their fields in order after the kind:
@@ -36,7 +36,7 @@ const compactVersion = "1"
 //	move     column, ref, title, direction, reject
 //	ctx      key, value
 //	msgval   key, value
-//	wb       title, slug, path
+//	wb       id, title, slug, path
 //	aff      one trailing field per affordance token
 //	lst      column
 //	off      column, title, awaiting_outside, no_taker, taken_by_pull
@@ -208,7 +208,7 @@ func compactRefusal(report refusalReport) string {
 	payload.record("rsp", report.Outcome, "", report.Refusal, report.Detail, "", "", "", "")
 	payload.pairs("ctx", report.Context)
 	for _, candidate := range report.Workbenches {
-		payload.record("wb", candidate.Title, candidate.Slug, candidate.Path)
+		payload.record("wb", candidate.ID, candidate.Title, candidate.Slug, candidate.Path)
 	}
 	payload.record("aff")
 	return payload.text()

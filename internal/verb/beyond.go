@@ -810,7 +810,7 @@ func Init(root, slug, operator, source, override, overrideSource string) (string
 		return "", err
 	}
 	container := filepath.Join(root, bench.UserBaseName)
-	id, err := bench.ClaimID(container, nil)
+	id, err := bench.ClaimWorkbenchID(container)
 	if err != nil {
 		return "", err
 	}
@@ -829,7 +829,13 @@ func readSource(root, source string) (*bench.Definition, error) {
 		return defaultDefinition(filepath.Base(root)), nil
 	}
 	if bench.Exists(filepath.Join(source, bench.WorkbenchAnchor)) {
-		opened, err := bench.Open(source)
+		// A template is read through the uncontained opener, because a
+		// template is a definition rather than a workbench: Extract writes one
+		// to whatever path a caller names, it holds no cards and no journal,
+		// and nothing ever serves it. Holding it to the rule that says where a
+		// workbench lives would refuse every template this tool has ever
+		// written.
+		opened, err := bench.OpenUncontained(source)
 		if err != nil {
 			return nil, err
 		}

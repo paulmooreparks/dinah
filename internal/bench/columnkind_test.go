@@ -259,7 +259,7 @@ func assertFindingNames(t *testing.T, b *Bench, key, detail string) {
 // per shape.
 func kindFixture(t *testing.T, columns []map[string]any) string {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), "workbench")
+	root := containedPath(filepath.Join(t.TempDir(), "workbench"))
 	definition := map[string]any{
 		"profile":      ProfileVersion,
 		"title":        "Kinds",

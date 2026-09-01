@@ -355,6 +355,11 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.needs-vocabulary-migration.next"},
 	},
 	{
+		Name:      NeedsContainerMigration,
+		Fragments: []Fragment{{Key: "refusal.dinah.needs-container-migration.next"}},
+		NextStep:  []string{"refusal.dinah.needs-container-migration.next"},
+	},
+	{
 		// The detail names the file inside the workbench, and path names it
 		// on disk, so a reader of a tree-wide run learns which of several
 		// hundred cards is the one refused. Malformed's location clause is

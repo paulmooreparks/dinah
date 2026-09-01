@@ -189,7 +189,7 @@ func assertNoRejectFinding(t *testing.T, b *Bench, what string) {
 // knownColumnKeys, and it passes here with interchange.go untouched because
 // reject_to travels as an unrecognized member under CORE-JSON-7.
 func TestRejectToRidesTheInterchange(t *testing.T) {
-	first := filepath.Join(t.TempDir(), "first")
+	first := containedPath(filepath.Join(t.TempDir(), "first"))
 	definition, err := ReadDefinition([]byte(rejectDefinition))
 	if err != nil {
 		t.Fatalf("definition: %v", err)
@@ -225,7 +225,7 @@ func TestRejectToRidesTheInterchange(t *testing.T) {
 	// init --from reads the export back, which is the import half, and an
 	// export of the result matching the first byte for byte is what proves
 	// nothing was dropped or invented in between.
-	second := filepath.Join(t.TempDir(), "second")
+	second := containedPath(filepath.Join(t.TempDir(), "second"))
 	reread, err := ReadDefinition(exported)
 	if err != nil {
 		t.Fatalf("read the export back: %v", err)

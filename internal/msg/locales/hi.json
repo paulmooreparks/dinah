@@ -2035,6 +2035,16 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
       "source": "2d044b02d1cbb5c1"
     },
+    "refusal.dinah.needs-container-migration": {
+      "text": "Dinah अब {detail} को नहीं खोलता, क्योंकि वर्कबेंच .dinah कंटेनर के भीतर रहती है और यह वहाँ नहीं है",
+      "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
+      "source": "658a71835c2be723"
+    },
+    "refusal.dinah.needs-container-migration.next": {
+      "text": "; इसे किसी कंटेनर में ले जाने के लिए `dinah check --migrate-container --yes` चलाएँ, फिर इसे दोबारा खोलें",
+      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. The command name is machine vocabulary and is not translated.",
+      "source": "d05823cad551f81a"
+    },
     "refusal.dinah.add-needs-a-column": {
       "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई कॉलम नहीं बचा है",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-column. {detail} is the workbench.md path Add read an empty live columns list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
@@ -2690,10 +2700,20 @@
       "context": "The meaning of the migrate-columns argument of `dinah check`, printed in that command's arguments table.",
       "source": "2a383b2471db9773"
     },
+    "param.check.migrate-container.summary": {
+      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ",
+      "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
+      "source": "525351d53ebb9dae"
+    },
     "param.check.migrate-workstreams.summary": {
       "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
       "source": "a1f0e6c7ae6251db"
+    },
+    "param.check.remint.summary": {
+      "text": "इस पथ की वर्कबेंच को नया पहचानकर्ता दें",
+      "context": "The one-line summary of the check command flag --remint, printed by `dinah help check`. The flag takes one directory path.",
+      "source": "1d1a5352f959b7ee"
     },
     "param.check.witness.summary": {
       "text": "हर उस कार्ड पर हाथ से सुधार दर्ज करें जिसकी स्थिति हाथ से बदली गई थी",
@@ -3355,6 +3375,76 @@
       "text": "{count} वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाया जाएगा।",
       "context": "The heading of a vocabulary-migration preview, for any other number. Followed by one line per workbench, each naming its directory and the revision it declares.",
       "source": "5c81f9e7e19e514b"
+    },
+    "check.reminted": {
+      "text": "{from} अब नया पहचानकर्ता रखती है, {to} पर।",
+      "context": "The one line dinah check --remint prints. {from} is the directory the workbench sat in and {to} is the directory it now sits in.",
+      "source": "55745e928e01dab6"
+    },
+    "check.container-confirm": {
+      "text": "कुछ नहीं लिखा गया। यह मरम्मत निर्देशिकाएँ हटाती है, इसलिए अनुमति देने से पहले ऊपर की सूची पढ़ें, फिर वही आदेश दोबारा --yes के साथ चलाएँ।",
+      "context": "The closing line of a container-migration preview, telling the reader how to authorize the move.",
+      "source": "895667b3fee0f9dd"
+    },
+    "check.container-failed.other": {
+      "text": "{count} वर्कबेंच को कंटेनर में नहीं ले जाया जा सका।",
+      "context": "The heading over the workbenches the container migration could not move, for any other number.",
+      "source": "ed62199903a94788"
+    },
+    "check.container-failed.one": {
+      "text": "{count} वर्कबेंच को कंटेनर में नहीं ले जाया जा सका।",
+      "context": "The heading over the workbenches the container migration could not move, for exactly one. Each row names the directory and the reason.",
+      "source": "9dbc6c9011bf44d4"
+    },
+    "check.container-duplicate.other": {
+      "text": "{count} वर्कबेंच पहचानकर्ताओं पर एक से अधिक निर्देशिकाएँ दावा करती हैं, और उनमें से किसी को छुआ नहीं गया।",
+      "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number.",
+      "source": "d6c3e741e0002d77"
+    },
+    "check.container-duplicate.one": {
+      "text": "{count} वर्कबेंच पहचानकर्ता पर एक से अधिक निर्देशिकाएँ दावा करती हैं, और उनमें से किसी को छुआ नहीं गया।",
+      "context": "The heading over the duplicated workbench identifiers a sweep found, for exactly one. Each row names the identifier and every path claiming it.",
+      "source": "44b82251f0e835b0"
+    },
+    "check.container-already.other": {
+      "text": "{count} वर्कबेंच पहले से किसी कंटेनर में, गढ़े गए पहचानकर्ता के नाम पर हैं।",
+      "context": "The heading over the workbenches the container migration left alone because they already sit where the rule puts one, for any other number.",
+      "source": "6b9b70195e11d415"
+    },
+    "check.container-already.one": {
+      "text": "{count} वर्कबेंच पहले से किसी कंटेनर में, गढ़े गए पहचानकर्ता के नाम पर है।",
+      "context": "The heading over the workbenches the container migration left alone because they already sit where the rule puts one, for exactly one.",
+      "source": "2073a8008c7f9946"
+    },
+    "check.container-migrated.other": {
+      "text": "{count} वर्कबेंच को कंटेनर में ले जाया गया।",
+      "context": "The heading over what the container migration moved, for any other number.",
+      "source": "341aa3626418b6af"
+    },
+    "check.container-migrated.one": {
+      "text": "{count} वर्कबेंच को कंटेनर में ले जाया गया।",
+      "context": "The heading over what the container migration moved, for exactly one workbench. Each row names where the workbench came from and where it went.",
+      "source": "8800802c2417e51f"
+    },
+    "check.container-would-migrate.other": {
+      "text": "{count} वर्कबेंच को कंटेनर में ले जाया जाएगा।",
+      "context": "The heading over what a preview of the container migration would move, for any other number.",
+      "source": "ed9b2cb442cceb87"
+    },
+    "check.container-would-migrate.one": {
+      "text": "{count} वर्कबेंच को कंटेनर में ले जाया जाएगा।",
+      "context": "The heading over what a preview of the container migration would move, for exactly one workbench.",
+      "source": "a487de1b4c762fe3"
+    },
+    "check.duplicate-workbench-id": {
+      "text": "एक ही वर्कबेंच पहचानकर्ता पर एक से अधिक निर्देशिकाएँ दावा करती हैं ({detail}); dinah check --remint <path> उनमें से एक को नया पहचानकर्ता देता है",
+      "context": "A check finding: two or more directories share one workbench identifier. {detail} carries the identifier and every path claiming it. The sweep never repairs this, because a git clone and an accidental copy look identical on disk.",
+      "source": "ada21cba263d332a"
+    },
+    "check.bare-workbench": {
+      "text": "{detail} पर रखी workbench.md किसी भी .dinah कंटेनर के बाहर है, इसलिए कोई खोज उसे नहीं पाती; dinah check --migrate-container उसे किसी कंटेनर में ले जाता है",
+      "context": "A check finding: a directory carrying a workbench.md Dinah recognises as its own, sitting outside any container, which the containment rule means is no longer a workbench. {detail} carries that directory.",
+      "source": "ac5b52daacbf9bd3"
     },
     "param.check.migrate-vocabulary.summary": {
       "text": "इस रूट या उसके नीचे की हर वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ",
