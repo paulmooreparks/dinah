@@ -597,10 +597,28 @@ test("the unit layer runs through the guard that refuses an empty run", () => {
 	);
 });
 
-test("the version's major and minor come from the repository's VERSION file", () => {
-	const base = readFileSync(join(extensionRoot, "..", "..", "VERSION"), "utf8").trim();
+test("the extension's version is its own and is read from no CLI file", () => {
+	// This used to assert the opposite, that the version began with whatever
+	// the repository's VERSION file said. That coupling published a dev build
+	// as 0.1.42 and then published the stable release v0.1.0 as 0.1.0, which
+	// the marketplace reads as older and never offers as an update. The two
+	// numbers count different things on separate cadences now, so what is
+	// guarded is that nothing computes one from the other.
 	assert.ok(
-		String(manifest.version).startsWith(`${base}.`),
-		`the extension version ${String(manifest.version)} does not derive from VERSION ${base}`,
+		!/^0\.0\.\d+$/.test(String(manifest.version)),
+		`package.json carries ${String(manifest.version)}, which is on the 0.0.x line reserved for unpublished archives`,
 	);
+	const packagingFiles = [
+		join(extensionRoot, "esbuild.mjs"),
+		join(extensionRoot, "scripts", "package.mjs"),
+		join(extensionRoot, "scripts", "version.mjs"),
+		join(extensionRoot, "scripts", "publish-extension.ps1"),
+	];
+	for (const file of packagingFiles) {
+		const text = readFileSync(file, "utf8");
+		assert.ok(
+			!/["']VERSION["']/.test(text),
+			`${file} reads the CLI's VERSION file, so the extension's version is a projection of the CLI's again`,
+		);
+	}
 });

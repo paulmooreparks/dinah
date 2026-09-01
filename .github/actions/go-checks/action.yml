@@ -1,0 +1,46 @@
+# The Go build, vet and test pass, in one place so that two workflows run the
+# same checks rather than two copies of them that drift apart.
+#
+# ci.yml runs this on the commit a push or a pull request names. promote.yml
+# runs it on a tree it has just assembled by cherry-pick, which is a
+# combination nobody has built before and which therefore has to be checked in
+# its own right rather than inheriting a green result from the dev build any of
+# its commits came from.
+#
+# This is a composite action rather than a reusable workflow on purpose. A
+# reusable workflow runs its own checkout, so it can only ever check a tree
+# that already exists at a ref on the remote. The tree promote.yml assembles
+# exists only in the job's own checkout and is deliberately not pushed until
+# every check has passed, so a called workflow could not see it at all.
+
+name: Go checks
+description: Build, vet and test the Go module at the given path.
+
+inputs:
+  path:
+    description: The directory holding go.mod, relative to the workspace.
+    required: false
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.path }}/go.mod
+    - name: Go version
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: go version
+    - name: Build
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: go build ./...
+    - name: Vet
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: go vet ./...
+    - name: Test
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: go test -count=1 ./...

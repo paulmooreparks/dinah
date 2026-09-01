@@ -1,0 +1,293 @@
+# Promotes work from one channel to the next.
+#
+# A promotion is not the same commit under a second name. The operator chooses
+# what makes the cut, so a beta is assembled from a chosen subset of the cards
+# that have merged since the minor opened, and the tree that comes out is a
+# combination nobody has built before. That is why this workflow runs the Go
+# checks against its own assembled tree instead of inheriting the green result
+# of the dev build any one of those commits came from. Two branches that each
+# passed their own suite can still fail together, and a release is the worst
+# place to meet that for the first time.
+#
+# The two promotions differ. beta selects cards; stable never does, because the
+# card selection already happened when the beta was cut, and re-running it
+# would make the stable tree something other than the beta anybody tested.
+#
+# Nothing is pushed until every check has passed. The assembly happens in this
+# job's own checkout, which the runner discards when the job ends, so a cut
+# that fails leaves no tag, no manifest and no half-built lineage behind.
+
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Which channel to promote into.
+        type: choice
+        options: [beta, stable]
+        required: true
+      cards:
+        description: "beta: the card human-ids this cut carries, comma-separated."
+        type: string
+        required: false
+      links:
+        description: "beta: one declaration per card in the cut, as dependent>predecessor, or dependent>none where a card has no predecessor."
+        type: string
+        required: false
+      beta_tag:
+        description: "stable: the beta tag to promote, for example v0.1.2-beta."
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Resolve what the promotion carries and build the tree it will publish, then
+  # hand that tree to the checks as a bundle. A bundle rather than a pushed
+  # branch, because a tree that has not passed its checks has no business on
+  # the remote.
+  assemble:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tree.outputs.tag }}
+      head: ${{ steps.tree.outputs.head }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch every tag
+        run: git fetch --tags --force origin
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Identify the assembling committer
+        run: |
+          set -e
+          # A cherry-pick writes a commit, and a commit needs an author. This
+          # names the run rather than a person, because no person made these
+          # commits: each one already has its original author, which the
+          # cherry-pick preserves.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Assemble the cut
+        id: tree
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          CARDS: ${{ inputs.cards }}
+          LINKS: ${{ inputs.links }}
+          BETA_TAG: ${{ inputs.beta_tag }}
+        run: |
+          set -e
+          if [ "$CHANNEL" = "beta" ]; then
+            # A beta is cut from the trunk, so the trunk's own VERSION names
+            # the line it belongs to.
+            BASE=$(tr -d '[:space:]' < VERSION)
+            if [ -z "$CARDS" ]; then
+              echo "::error::a beta cut needs a cards input naming what it carries"
+              exit 1
+            fi
+            # The helper resolves the named cards against the tagged commits of
+            # this minor, refuses a cut that names a card the links input says
+            # nothing about, refuses a cut that holds back a predecessor, and
+            # cherry-picks what is left onto this minor's beta base. Every
+            # refusal happens before the first cherry-pick, and a conflict
+            # aborts the sequence rather than leaving a half-applied tree.
+            go run ./cmd/dinah-release cut \
+              --base "$BASE" \
+              --cards "$CARDS" \
+              --links "$LINKS" \
+              --ref origin/main
+          else
+            if [ -z "$BETA_TAG" ]; then
+              echo "::error::a stable promotion needs the beta_tag input naming the beta it promotes"
+              exit 1
+            fi
+            if ! git rev-parse -q --verify "refs/tags/${BETA_TAG}" >/dev/null; then
+              echo "::error::${BETA_TAG} is not a tag in this repository"
+              exit 1
+            fi
+            # The line comes from the tree being promoted, never from the
+            # trunk. The trunk moves on after a beta is cut, so a VERSION read
+            # from this workflow's own checkout can name a later minor than the
+            # tree in hand, and the run would then mint a number belonging to a
+            # line the promoted tree is not on.
+            BASE=$(git show "${BETA_TAG}:VERSION" | tr -d '[:space:]')
+            # The tag also has to be a beta of that line. git rev-parse says
+            # only that a ref exists, which a dev tag and a stable tag satisfy
+            # too, and promoting either of those is not what this input means.
+            go run ./cmd/dinah-release patch --channel beta --base "$BASE" --tag "$BETA_TAG" >/dev/null
+            # The tag list and the next number are read before the checkout,
+            # because the checkout replaces this working tree with the promoted
+            # one, which need not carry a copy of this helper at all.
+            TAG=$(git tag --list | go run ./cmd/dinah-release next-tag --channel stable --base "$BASE")
+            # No selection happens here. The stable tree is the beta tree, and
+            # the only question is what to call it.
+            git checkout --detach "refs/tags/${BETA_TAG}"
+            {
+              echo "tag=${TAG}"
+              echo "head=$(git rev-parse HEAD)"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bundle the assembled tree
+        run: |
+          set -e
+          # A named ref, because a bundle is created from refs and a clone of
+          # it checks out the ref it names.
+          git branch --force cut-tree HEAD
+          git bundle create cut.bundle cut-tree
+          git bundle verify cut.bundle
+
+      - name: Upload the assembled tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: cut-tree
+          path: cut.bundle
+          if-no-files-found: error
+
+  # The promoted tree is checked in its own right, on the same three platforms
+  # ci.yml checks the trunk on, running the same composite actions ci.yml runs.
+  verify:
+    needs: assemble
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # The workflow's own checkout supplies the composite actions. The tree
+      # under test arrives separately, as the bundle assemble produced.
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download the assembled tree
+        uses: actions/download-artifact@v4
+        with:
+          name: cut-tree
+
+      - name: Restore the assembled tree
+        shell: bash
+        run: git clone --branch cut-tree cut.bundle tree
+
+      - uses: ./.github/actions/go-checks
+        with:
+          path: tree
+
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/gofmt-check
+        with:
+          path: tree
+
+  # Only now does anything leave the runner.
+  publish:
+    needs: [assemble, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # pushes the tag and creates the release
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download the assembled tree
+        uses: actions/download-artifact@v4
+        with:
+          name: cut-tree
+
+      - name: Restore the assembled tree
+        run: git clone --branch cut-tree cut.bundle tree
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tree/go.mod
+
+      - name: Build every binary from the promoted tree
+        working-directory: tree
+        env:
+          CGO_ENABLED: "0"
+          TAG: ${{ needs.assemble.outputs.tag }}
+        run: |
+          set -e
+          for target in windows/amd64/.exe windows/arm64/.exe linux/amd64/ linux/arm64/ darwin/amd64/ darwin/arm64/; do
+            GOOS=${target%%/*}
+            rest=${target#*/}
+            GOARCH=${rest%%/*}
+            EXT=${rest#*/}
+            export GOOS GOARCH
+            go build -trimpath -ldflags="-s -w -X dinah/internal/verb.ToolRelease=${TAG}" \
+              -o "${GITHUB_WORKSPACE}/dist/dinah-${GOOS}-${GOARCH}${EXT}" \
+              ./cmd/dinah
+          done
+          ls -1 "${GITHUB_WORKSPACE}/dist"
+
+      - name: Check the release number reached the binary
+        env:
+          TAG: ${{ needs.assemble.outputs.tag }}
+        run: |
+          set -e
+          chmod +x dist/dinah-linux-amd64
+          REPORTED=$(dist/dinah-linux-amd64 --json version)
+          echo "$REPORTED"
+          if ! printf '%s' "$REPORTED" | grep -qF "\"tool\": \"${TAG}\""; then
+            echo "::error::the linux/amd64 binary reports something other than ${TAG}; the ldflags injection did not reach verb.ToolRelease"
+            exit 1
+          fi
+
+      - name: Push the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.assemble.outputs.tag }}
+        run: |
+          set -e
+          # The tag's commit exists only in this runner's clone, so the objects
+          # travel with the push. Creating the ref through the API instead
+          # would name a commit the remote has never seen.
+          git -C tree push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
+            "cut-tree:refs/tags/${TAG}"
+          echo "Pushed ${TAG}"
+
+      - name: Write the checksums and the channel manifest
+        uses: ./.github/actions/channel-manifest
+        with:
+          channel: ${{ inputs.channel }}
+          tag: ${{ needs.assemble.outputs.tag }}
+          repository: ${{ github.repository }}
+
+      - name: Create the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.assemble.outputs.tag }}
+          prerelease: ${{ inputs.channel == 'beta' }}
+          generate_release_notes: true
+          files: |
+            dist/dinah-*
+            dist/SHA256SUMS.txt
+
+      - name: Publish the channel manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -e
+          # "channels" is the rolling release that hosts one manifest per
+          # channel at a URL that never changes, which is what the install
+          # scripts fetch. release.yml creates it if it is missing; this does
+          # the same, because a beta can be the first thing a fresh fork
+          # publishes.
+          if ! gh release view channels --repo "$REPO" >/dev/null 2>&1; then
+            gh release create channels \
+              --repo "$REPO" \
+              --title "Channel manifests" \
+              --notes "A rolling release that hosts one manifest per channel. Each manifest names the current tag for its channel and lists every binary published under that tag with its SHA-256 and its size. The install scripts under scripts/ read these files."
+          fi
+          gh release upload channels "manifest/${CHANNEL}.json" --repo "$REPO" --clobber
+          echo "Updated ${CHANNEL}.json on the 'channels' release"

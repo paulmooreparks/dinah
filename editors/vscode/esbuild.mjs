@@ -6,7 +6,7 @@
 
 import { build, context } from "esbuild";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,24 +30,6 @@ function pairedRelease() {
 		return declared.trim();
 	}
 	return "source";
-}
-
-/**
- * The extension version, derived from the repository's VERSION file.
- *
- * The marketplace will not accept the tag shape release.yml produces, because
- * `v0.1.0-dev.42` carries a prerelease suffix and an extension version is
- * `major.minor.patch` and nothing else. The mapping is a rule rather than a
- * judgement: the major and minor come from VERSION, and the patch is the dev
- * counter that same release run computed. So `v0.1.0-dev.42` pairs with
- * `0.1.42`.
- */
-export function extensionVersion() {
-	const base = readFileSync(join(repoRoot, "VERSION"), "utf8").trim();
-	const tag = process.env.DINAH_PAIRED_RELEASE ?? "";
-	const match = /-dev\.(\d+)$/.exec(tag);
-	const counter = match ? match[1] : "0";
-	return `${base}.${counter}`;
 }
 
 function generate() {

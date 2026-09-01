@@ -6,6 +6,11 @@ on:
   pull_request:
 
 jobs:
+  # The bodies of these two jobs live in composite actions under
+  # .github/actions/, because promote.yml runs the same checks against a tree
+  # it assembles by cherry-pick and a promoted tree has to be verified in its
+  # own right. The job names stay here, and they stay exactly as they were,
+  # because release.yml's publish gate waits for check runs by name.
   test:
     strategy:
       fail-fast: false
@@ -14,35 +19,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - run: go version
-      - run: go build ./...
-      - run: go vet ./...
-      - run: go test -count=1 ./...
+      - uses: ./.github/actions/go-checks
 
   gofmt:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - run: go version
-      - name: gofmt
-        run: |
-          # Scoped to the Go trees rather than run from the root. `gofmt -l .`
-          # descends into editors/vscode/node_modules/, so an npm dependency
-          # that vendors an unformatted .go file as testdata would turn this
-          # job red for a reason that has nothing to do with this repository's
-          # own code.
-          unformatted="$(gofmt -l cmd internal)"
-          if [ -n "$unformatted" ]; then
-            echo "gofmt would reformat:"
-            echo "$unformatted"
-            exit 1
-          fi
+      - uses: ./.github/actions/gofmt-check
 
   # The VS Code extension builds beside the Go jobs rather than inside them.
   # Windows is not optional: path handling, the .exe suffix and PATH

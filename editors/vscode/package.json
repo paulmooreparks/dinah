@@ -2,7 +2,7 @@
   "name": "dinah",
   "displayName": "Dinah",
   "description": "Dinah in VS Code: see which workbench this folder resolves to and which dinah binary the editor is talking to.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "paulmooreparks",
   "license": "MIT",
   "repository": {
