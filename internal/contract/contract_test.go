@@ -41,6 +41,15 @@ func TestMintedKindsCarriesTheBufferAndNothingUndotted(t *testing.T) {
 // exit status of dinah check can tell a bad --workbench from a workbench
 // carrying defects. A token neither ReadOK nor ReadFindings exits 1, on the
 // terms ExitCode reserves 1 for an outcome the profile does not declare.
+//
+// It is also what drives CORE-OUT-7, which the core profile published at 0.9.
+// That statement holds a tool answering an outcome as a number to giving
+// `refused` a number no other outcome it reports uses, and the assertion at
+// the foot of this test is that comparison over this build's own two tables.
+// dinah-346 minted these tokens under a decision that a convention of one
+// tool's invocation surface sat outside the profile, and dinah-358 reversed
+// that decision, so the convention now moves the profile revision and this
+// test is the conformance evidence for it.
 func TestAReadsExitCodeIsItsOwnTableAndNeverTheRefusedOne(t *testing.T) {
 	if ReadOK != "ok" {
 		t.Errorf("ReadOK is %q, and the token a client reads is ok", ReadOK)

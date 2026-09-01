@@ -91,3 +91,56 @@ func TestMCPGuideNoLongerPromisesTheNarrowingThatWasRemoved(t *testing.T) {
 		t.Errorf("the mcp guide does not tell an agent what an unbounded server reaches: wanted %q", want)
 	}
 }
+
+// TestMCPGuideNoLongerPromisesTheOldWorkbenchesRefusal is dinah-301's guide
+// correction, covering two stale claims in one paragraph pair: dinah-312
+// already made the root-skip claim false, and this card's own fix makes the
+// unconditional-refusal claim false. The assertions name marker phrases rather
+// than whole sentences, so a later rewording of the surrounding prose does not
+// fail this test over wording the claim itself does not depend on.
+func TestMCPGuideNoLongerPromisesTheOldWorkbenchesRefusal(t *testing.T) {
+	text, err := Text("mcp")
+	if err != nil {
+		t.Fatalf("read the mcp guide: %v", err)
+	}
+	folded := strings.Join(strings.Fields(text), " ")
+
+	for _, gone := range []string{
+		"skips the top directory itself",
+		"rather than listing anything, even where the server does carry a default",
+	} {
+		if strings.Contains(folded, gone) {
+			t.Errorf("the mcp guide still carries a claim dinah-301 falsified: %q", gone)
+		}
+	}
+	if !strings.Contains(folded, "`unbounded`") {
+		t.Errorf("the mcp guide's workbenches paragraph does not name the unbounded marker: %q", folded)
+	}
+}
+
+// TestMCPGuideNamesTheExclusionsTheWalkApplies holds the workbenches paragraph
+// to what walkableDir in internal/bench actually does. The walk skips a
+// dot-prefixed directory and a symlinked one, so a sentence promising every
+// directory below the root at any depth is false, and an agent reading it has
+// no way to tell an omitted workbench from an absent one. The assertions name
+// marker phrases rather than whole sentences, and the banned phrase is the
+// universal this card first shipped and code review caught.
+func TestMCPGuideNamesTheExclusionsTheWalkApplies(t *testing.T) {
+	text, err := Text("mcp")
+	if err != nil {
+		t.Fatalf("read the mcp guide: %v", err)
+	}
+	folded := strings.Join(strings.Fields(text), " ")
+
+	for _, want := range []string{
+		"name begins with a dot",
+		"symbolic link",
+	} {
+		if !strings.Contains(folded, want) {
+			t.Errorf("the mcp guide's workbenches paragraph does not name an exclusion the walk applies: wanted %q", want)
+		}
+	}
+	if gone := "at or below that one, at any depth"; strings.Contains(folded, gone) {
+		t.Errorf("the mcp guide claims a reach the walk does not have: %q", gone)
+	}
+}

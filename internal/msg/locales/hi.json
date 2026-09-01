@@ -1725,6 +1725,11 @@
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property.",
       "source": "438f10bd6ee2b700"
     },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; एक वर्कबेंच एक स्तर नीचे {found} पर है; --workbench को इसके बजाय वहीं सेट करें",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
+      "source": "c5c0bc52302ed34e"
+    },
     "refusal.dinah.no-workbench.next": {
       "text": "; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
@@ -2887,7 +2892,7 @@
     },
     "tool.workbenches.summary": {
       "text": "वे वर्कबेंच जिन्हें यह सर्वर परोस सकता है",
-      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root.",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root, and is now a partial rather than a false answer on a server with no root at all, when a default is being served (dinah-301): the one row it carries is real, but the tool cannot promise it is the only workbench this server may serve.",
       "source": "e803d837439b3c74"
     },
     "mcp.reach": {
@@ -2906,9 +2911,9 @@
       "source": "e0312a77ab34963a"
     },
     "mcp.reach.unbounded": {
-      "text": "आप किसी भी ऐसी वर्कबेंच तक पहुँच सकते हैं जिसे आप नाम दे सकें; इस सर्वर को कोई रूट नहीं दिया गया है और यह तयशुदा रूप से {title} परोस रहा है। workbenches उपकरण को खोजने के लिए रूट चाहिए और यहाँ dinah.no-workbench-found के साथ मना करता है, इसलिए चाहें तो वर्कबेंच को किसी भी दूसरे उपकरण की workbench property में सीधे नामें, या तयशुदा वर्कबेंच के उपयोग के लिए इसे बिना नाम के छोड़ दें।",
-      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title.",
-      "source": "c365458c87d58ad3"
+      "text": "आप किसी भी ऐसी वर्कबेंच तक पहुँच सकते हैं जिसे आप नाम दे सकें; इस सर्वर को कोई रूट नहीं दिया गया है और यह तयशुदा रूप से {title} परोस रहा है। workbenches उपकरण को खोजने के लिए रूट चाहिए, इसलिए बिना पथ के किए गए कॉल का उत्तर यहाँ केवल उसी तयशुदा वर्कबेंच से मिलता है जिसे यह पहले से जानता है, प्रतिक्रिया पर unbounded सेट करते हुए, न कि किसी खोज के परिणाम के रूप में; चाहें तो वर्कबेंच को किसी भी दूसरे उपकरण की workbench property में सीधे नामें, या तयशुदा वर्कबेंच के उपयोग के लिए इसे बिना नाम के छोड़ दें।",
+      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title. The workbenches tool still cannot search an empty root, so a call naming no path answers the one candidate it already knows, the default, marked unbounded rather than presented as a completed search (dinah-301); it no longer refuses dinah.no-workbench-found in this one combination, though it still does when there is no default to fall back on.",
+      "source": "2fd7404f8a163b56"
     },
     "mcp.no-default": {
       "text": "कोई तयशुदा वर्कबेंच नहीं: {detail}",
@@ -2936,9 +2941,9 @@
       "source": "f3935cffe44663d9"
     },
     "schema.workbench.description": {
-      "text": "यह कॉल जिस वर्कबेंच पर काम करती है उसका पूर्ण पथ, जैसे C:\\Users\\you\\projects\\plans; सर्वर जिस वर्कबेंच के साथ शुरू हुआ उसी पर काम करने के लिए इसे छोड़ दें",
+      "text": "वर्कबेंच की अपनी स्टोर डायरेक्टरी का पूर्ण पथ, जैसे C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, जिसे workbenches टूल और dinah init बताते हैं; सर्वर जिस वर्कबेंच के साथ शुरू हुआ उसी पर काम करने के लिए इसे छोड़ दें",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "88dc8ca4aea788c0"
+      "source": "732e5002ec4db9c1"
     },
     "param.mcp.root.summary": {
       "text": "वह डायरेक्टरी जिसके नीचे यह सर्वर की परोसी हर वर्कबेंच पड़ती है; आप कोई न नामें, तो शुरुआत में मिली वर्कबेंच",

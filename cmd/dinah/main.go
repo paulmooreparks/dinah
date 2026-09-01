@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"dinah/internal/bench"
+	"dinah/internal/consolewriter"
 	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
@@ -26,6 +27,14 @@ type session struct {
 	// every non-zero outcome, so a script reads the reason with cut.
 	out  io.Writer
 	errw io.Writer
+	// rawOut and rawErr are the unwrapped *os.File behind out and errw, set
+	// only when main built this session, which is the case where out and
+	// errw are *consolewriter.Writer values wrapping a real file. Both are
+	// nil for a session a test builds directly with bytes.Buffer streams.
+	// runEdit uses them instead of out and errw so an exec'd editor gets a
+	// real console handle rather than the pipe exec.Cmd would build around
+	// this package's Writer type (dinah-199).
+	rawOut, rawErr *os.File
 	// in is where a command reading its argument from a pipe finds it.
 	in io.Reader
 	// r renders every string a person reads.
@@ -80,7 +89,18 @@ type session struct {
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+	// Both streams are wrapped identically, because stderr carries the
+	// refusals and a refusal is as likely to name a card whose title is not
+	// ASCII as any listing is (dinah-199).
+	out := consolewriter.New(os.Stdout)
+	errw := consolewriter.New(os.Stderr)
+	code := run(os.Args[1:], os.Stdin, out, errw)
+	// Flush's own error goes no further. By the time it runs, run has
+	// already produced this invocation's outcome, there is no stream left to
+	// report a console failure on, and no exit code left to adjust.
+	out.Flush()
+	errw.Flush()
+	os.Exit(code)
 }
 
 // run is main with its streams and arguments passed in, so a test drives the
@@ -114,6 +134,12 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		benchFlagSource: benchFlagSource,
 		cwd:             cwd,
 		width:           windowWidth(),
+	}
+	if w, ok := out.(*consolewriter.Writer); ok {
+		s.rawOut = w.File()
+	}
+	if w, ok := errw.(*consolewriter.Writer); ok {
+		s.rawErr = w.File()
 	}
 	if parseErr != nil {
 		// The parse failed, and the refusal still reaches its reader in

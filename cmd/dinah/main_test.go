@@ -1167,13 +1167,21 @@ const limitedDefinition = `{
 // cannot reach without a fixture of their own, so that between the two every
 // name a CLI invocation can provoke is asserted through stderr.
 //
-// Four names are structurally unreachable here and are driven at the library
-// level instead: not-requester, because the cli head's claim takes no holder
-// argument and so can never name one other than the asker; layer-collision,
-// because v0 validates no layer declaration; dinah.locked, which needs a
-// second process holding the card mid-transaction; and dinah.no-editor, which
-// needs an environment carrying no editor at any rung and no fallback binary
-// on the path.
+// The following names are structurally unreachable here and are driven at the
+// library level instead: not-requester, because the cli head's claim takes no
+// holder argument and so can never name one other than the asker; and
+// layer-collision, because v0 validates no layer declaration.
+//
+// dinah.locked is driven at the library level too, though not because this
+// sweep cannot reach it. No fixture here plants a lock file in a card's
+// directory, and a planted one would be enough, since acquire refuses on any
+// failure of its exclusive create rather than on a second process being alive.
+//
+// dinah.no-editor is not one of the unreachable names either. The case below
+// reaches it by pointing PATH at a directory holding no editor binary, which
+// starves the fallback rung, while the rungs above it are already empty:
+// isolatedEnv clears DINAH_EDITOR, VISUAL and EDITOR for the whole binary,
+// and the fixture's DINAH_HOME carries no config.
 //
 // The three names discovery raises before a bench is open (dinah.no-workbench,
 // dinah.no-workbench-found and dinah.ambiguous-workbench) are swept by
@@ -1230,6 +1238,20 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			},
 			token:    contract.NoOperator,
 			sentence: "this workbench designates no operator, so its reserved actions are dead",
+		},
+		{
+			// The editor variables need no setting here. isolatedEnv
+			// clears DINAH_EDITOR, VISUAL and EDITOR for the whole
+			// binary and newLimitedBench's DINAH_HOME holds no
+			// config, so the fallback rung is the only one left to
+			// starve.
+			name: "an editor resolving at no rung and no fallback on the path",
+			build: func(t *testing.T) (string, []string) {
+				root := newLimitedBench(t)
+				t.Setenv("PATH", t.TempDir())
+				return root, []string{"edit", "."}
+			},
+			token: contract.NoEditor,
 		},
 		{
 			name: "a workbench declaring a profile major this binary does not implement",
@@ -3047,6 +3069,49 @@ func TestWorkbenchesHelpCarriesNoRefusals(t *testing.T) {
 	}
 	if strings.Contains(got.out, catalog.T("help.refusals")) {
 		t.Errorf("a command that never refuses should list no refusals, got %q", got.out)
+	}
+}
+
+// TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath asserts
+// dinah-297 AC-4 and AC-5 where a person meets them, which is the sentence the
+// terminal prints. dinah init reports the store it wrote, and a reader who
+// passes the directory they pointed init at instead is still refused. The
+// refusal now ends on the store's own path rather than on the general advice,
+// so the reader retypes the command rather than working out what went wrong.
+//
+// A directory carrying no workbench anywhere beneath it still ends on the
+// general advice, which is the branch this card must not disturb.
+func TestAnOverrideNamingTheContainingDirectoryIsGivenTheStorePath(t *testing.T) {
+	root := newBench(t)
+	container := filepath.Join(root, bench.UserBaseName)
+	entries, err := os.ReadDir(container)
+	if err != nil {
+		t.Fatalf("read %s: %v", container, err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("the fixture should hold exactly one store, got %d entries", len(entries))
+	}
+	store := filepath.Join(container, entries[0].Name())
+
+	catalog := msg.For(msg.Base)
+	refused := runCLI(t, root, "workbenches", "--workbench", root)
+	if refused.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", refused.code, refused.errw)
+	}
+	if want := catalog.T("refusal.dinah.no-workbench.found", "found", store); !strings.Contains(refused.errw, want) {
+		t.Errorf("the refusal should end on the store that would have worked, wanted %q, got %q", want, refused.errw)
+	}
+	if unwanted := catalog.T("refusal.dinah.no-workbench.next"); strings.Contains(refused.errw, unwanted) {
+		t.Errorf("the alternation renders one next step, and both rendered: %q", refused.errw)
+	}
+
+	tree := emptyTree(t)
+	nowhere := runCLI(t, tree, "workbenches", "--workbench", filepath.Join(tree, "nowhere"))
+	if nowhere.code != 2 {
+		t.Fatalf("exit code: wanted 2, got %d (%s)", nowhere.code, nowhere.errw)
+	}
+	if want := catalog.T("refusal.dinah.no-workbench.next"); !strings.Contains(nowhere.errw, want) {
+		t.Errorf("a directory with nothing beneath it keeps the general advice, wanted %q, got %q", want, nowhere.errw)
 	}
 }
 
@@ -5208,6 +5273,81 @@ func TestPathAndEditReachTheWorkbenchAnchor(t *testing.T) {
 	if leading := strings.SplitN(strings.TrimSpace(bare.errw), " ", 2)[0]; leading != contract.UnknownCard {
 		t.Errorf("a bare path: wanted %s, got %q", contract.UnknownCard, bare.errw)
 	}
+}
+
+// TestPathPrintsOneLineForACardWhoseTitleIsNotASCII asserts the guarantee
+// runPath's own doc comment states, at the exactness a caller pasting the
+// output into another command depends on: one line, the resolved path and
+// nothing else, for a card whose stored text carries an em dash (dinah-199).
+func TestPathPrintsOneLineForACardWhoseTitleIsNotASCII(t *testing.T) {
+	root := newBench(t)
+	title := "Ein Bindestrich — und Hindi हिन्दी"
+	ref := addCard(t, root, title)
+	got := runCLI(t, root, "path", ref)
+	if got.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
+	}
+	line, found := strings.CutSuffix(got.out, "\n")
+	if !found {
+		t.Fatalf("path %s printed %q, wanted a single trailing newline", ref, got.out)
+	}
+	if strings.ContainsAny(line, "\r\n") || line != strings.TrimSpace(line) {
+		t.Errorf("path %s printed %q, wanted the path alone with nothing around it", ref, got.out)
+	}
+	// The line names the card's own file, which is what makes the assertion
+	// above a claim about the resolved path rather than about its shape.
+	stored, err := os.ReadFile(line)
+	if err != nil {
+		t.Fatalf("path %s printed %q, which does not open: %v", ref, line, err)
+	}
+	if !strings.Contains(string(stored), title) {
+		t.Errorf("the file at %q does not carry the title %q the card was filed under", line, title)
+	}
+	within := resolvedDir(t, benchDir(t, root))
+	if !strings.HasPrefix(line, within) {
+		t.Errorf("path %s printed %q, wanted a path inside the workbench at %q", ref, line, within)
+	}
+}
+
+// TestEditHandsTheChildTheRawStreamsWhenItHasThem asserts that the command
+// runEdit runs is given the session's unwrapped *os.File values when main
+// built the session, so an editor receives a real console handle rather than
+// a pipe, and that a session a test built by hand still gets its own streams
+// (dinah-199).
+func TestEditHandsTheChildTheRawStreamsWhenItHasThem(t *testing.T) {
+	dir := t.TempDir()
+	rawOut, err := os.Create(filepath.Join(dir, "out"))
+	if err != nil {
+		t.Fatalf("create the stdout stand-in: %v", err)
+	}
+	defer rawOut.Close()
+	rawErr, err := os.Create(filepath.Join(dir, "err"))
+	if err != nil {
+		t.Fatalf("create the stderr stand-in: %v", err)
+	}
+	defer rawErr.Close()
+
+	wrapped := &session{out: &bytes.Buffer{}, errw: &bytes.Buffer{}, rawOut: rawOut, rawErr: rawErr}
+	cmd := editCmd(wrapped, "an-editor", filepath.Join(dir, "card.md"))
+	if cmd.Stdout != io.Writer(rawOut) {
+		t.Errorf("stdout reached the child as %#v, wanted the raw file itself", cmd.Stdout)
+	}
+	if cmd.Stderr != io.Writer(rawErr) {
+		t.Errorf("stderr reached the child as %#v, wanted the raw file itself", cmd.Stderr)
+	}
+
+	out := &bytes.Buffer{}
+	errw := &bytes.Buffer{}
+	plain := &session{out: out, errw: errw}
+	bare := editCmd(plain, "an-editor", filepath.Join(dir, "card.md"))
+	if bare.Stdout != io.Writer(out) {
+		t.Errorf("stdout reached the child as %#v, wanted the session's own stream", bare.Stdout)
+	}
+	if bare.Stderr != io.Writer(errw) {
+		t.Errorf("stderr reached the child as %#v, wanted the session's own stream", bare.Stderr)
+	}
+	// The command is built and never run, so nothing here launches an
+	// editor or waits on a window.
 }
 
 // TestInitDerivesTheReadableSlugAndRefusesOneThatReadsAsACardReference asserts

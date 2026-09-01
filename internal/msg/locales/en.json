@@ -827,7 +827,7 @@
     },
     "tool.workbenches.summary": {
       "text": "the workbenches this server may serve",
-      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root."
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root, and is now a partial rather than a false answer on a server with no root at all, when a default is being served (dinah-301): the one row it carries is real, but the tool cannot promise it is the only workbench this server may serve."
     },
     "cmd.move.summary": {
       "text": "Carry a card to another column",
@@ -1306,8 +1306,8 @@
       "context": "The third paragraph of the working agreement when the server has no default workbench and no root: --root and DINAH_MCP_ROOT were both empty and discovery found nothing, so PathUnderRoot admits every candidate and only the checks made when the workbench is opened can refuse one."
     },
     "mcp.reach.unbounded": {
-      "text": "You may reach any workbench you can name; this server was given no root and is serving {title} by default. The workbenches tool needs a root to search and refuses dinah.no-workbench-found here, so name the one you want directly on the workbench property of any other tool, or leave it unnamed to use the default.",
-      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title."
+      "text": "You may reach any workbench you can name; this server was given no root and is serving {title} by default. The workbenches tool needs a root to search, so a call naming no path answers only the default it is serving, with unbounded set on the response rather than as a search result; name the workbench you want directly on the workbench property of any other tool, or leave it unnamed to use the default.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title. The workbenches tool still cannot search an empty root, so a call naming no path answers the one candidate it already knows, the default, marked unbounded rather than presented as a completed search (dinah-301); it no longer refuses dinah.no-workbench-found in this one combination, though it still does when there is no default to fall back on."
     },
     "mcp.no-default": {
       "text": "no default workbench: {detail}",
@@ -1416,6 +1416,10 @@
     "refusal.dinah.no-workbench": {
       "text": "{detail} was named by --workbench, and it carries no workbench.md",
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property."
+    },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; a workbench sits one level down, at {found}; point --workbench there instead",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept."
     },
     "refusal.dinah.no-workbench.next": {
       "text": "; point --workbench at a directory that does, or drop --workbench to search upward from here",
@@ -2118,7 +2122,7 @@
       "context": "The description of the basis property, which every generated machine schema carries and no command declares."
     },
     "schema.workbench.description": {
-      "text": "the absolute path of the workbench this call acts on, such as C:\\Users\\you\\projects\\plans; omitted to act on the workbench the server started with",
+      "text": "the absolute path of the workbench's own store directory, such as C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, which the workbenches tool and dinah init report; omitted to act on the workbench the server started with",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with."
     },
     "param.card.summary": {

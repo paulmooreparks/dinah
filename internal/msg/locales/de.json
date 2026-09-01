@@ -1706,9 +1706,9 @@
       "source": "e0312a77ab34963a"
     },
     "mcp.reach.unbounded": {
-      "text": "Sie können jede Werkbank erreichen, die Sie nennen können; diesem Server wurde kein Wurzelverzeichnis übergeben, und er stellt standardmäßig {title} bereit. Das Werkzeug workbenches benötigt ein Wurzelverzeichnis zum Suchen und verweigert hier mit dinah.no-workbench-found, also nennen Sie die gewünschte Werkbank direkt in der Eigenschaft workbench jedes anderen Werkzeugs, oder lassen Sie sie unbenannt, um die Standardwerkbank zu verwenden.",
-      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title.",
-      "source": "c365458c87d58ad3"
+      "text": "Sie können jede Werkbank erreichen, die Sie nennen können; diesem Server wurde kein Wurzelverzeichnis übergeben, und er stellt standardmäßig {title} bereit. Das Werkzeug workbenches benötigt ein Wurzelverzeichnis zum Suchen, daher beantwortet ein Aufruf ohne Pfad hier nur die Standardwerkbank, die es bereits kennt, mit unbounded auf der Antwort statt als Ergebnis einer Suche; nennen Sie die gewünschte Werkbank direkt in der Eigenschaft workbench jedes anderen Werkzeugs, oder lassen Sie sie unbenannt, um die Standardwerkbank zu verwenden.",
+      "context": "The third paragraph of the working agreement when the server has a default workbench but no root: --root and DINAH_MCP_ROOT were both empty, discovery found a workbench to serve as default, and the auto-narrowing that used to bind root to that workbench's own directory (dinah-307) no longer runs, so PathUnderRoot admits every other candidate too. {title} is the default workbench's own title. The workbenches tool still cannot search an empty root, so a call naming no path answers the one candidate it already knows, the default, marked unbounded rather than presented as a completed search (dinah-301); it no longer refuses dinah.no-workbench-found in this one combination, though it still does when there is no default to fall back on.",
+      "source": "2fd7404f8a163b56"
     },
     "next.none": {
       "text": "nichts bereit",
@@ -2240,6 +2240,11 @@
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "source": "a9324672264c283"
     },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; eine Werkbank liegt eine Stufe tiefer, unter {found}; richten Sie --workbench stattdessen dorthin",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
+      "source": "c5c0bc52302ed34e"
+    },
     "refusal.dinah.no-workbench.next": {
       "text": "; richten Sie --workbench auf ein Verzeichnis, das eine trägt, oder lassen Sie --workbench weg, um von hier aus aufwärts zu suchen",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
@@ -2765,9 +2770,9 @@
       "source": "d079f7c8e67509b5"
     },
     "schema.workbench.description": {
-      "text": "der absolute Pfad der Werkbank, auf die dieser Aufruf einwirkt, etwa C:\\Users\\you\\projects\\plans; weggelassen, um auf die Werkbank einzuwirken, mit der der Server gestartet wurde",
+      "text": "der absolute Pfad des eigenen Speicherverzeichnisses der Werkbank, etwa C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, so wie es das workbenches-Werkzeug und dinah init melden; weggelassen, um auf die Werkbank einzuwirken, mit der der Server gestartet wurde",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "88dc8ca4aea788c0"
+      "source": "732e5002ec4db9c1"
     },
     "show.attachments": {
       "text": "Anhänge:",
@@ -3044,7 +3049,7 @@
     },
     "tool.workbenches.summary": {
       "text": "die Werkbänke, die dieser Server bereitstellen darf",
-      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root.",
+      "context": "The one-line summary of the workbenches tool, shown beside its name in the MCP surface. Overrides the command's own summary, which reads about reachability from here and is false on a server bounded by a root, and is now a partial rather than a false answer on a server with no root at all, when a default is being served (dinah-301): the one row it carries is real, but the tool cannot promise it is the only workbench this server may serve.",
       "source": "e803d837439b3c74"
     },
     "tree.empty": {

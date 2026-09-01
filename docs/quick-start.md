@@ -91,7 +91,7 @@ The leading `$` marks a command line. Do not type it.
 ```console
 $ dinah version
 dinah 0.1.0
-conforms to dinah-core/0.7
+conforms to dinah-core/0.9
 storage format 1
 [exit 0]
 ```
@@ -326,7 +326,7 @@ transcript:
 ```file path=<workbench>/workbench.md
 ---
 format: 1
-profile: dinah-core/0.7
+profile: dinah-core/0.9
 title: Release 0.2
 slug: rel
 operator: ana
@@ -1208,20 +1208,20 @@ carries, ask:
 ```console
 $ dinah version --catalogs
 dinah 0.1.0
-conforms to dinah-core/0.7
+conforms to dinah-core/0.9
 storage format 1
 
 Catalogs:
   Language  Translated
   --------  ----------
-  en        685/685
-  af        0/685
-  cs        0/685
-  de        685/685
-  es        0/685
-  fil       0/685
-  hi        685/685
-  id        0/685
+  en        686/686
+  af        0/686
+  cs        0/686
+  de        686/686
+  es        0/686
+  fil       0/686
+  hi        686/686
+  id        0/686
 [exit 0]
 ```
 
@@ -1399,7 +1399,7 @@ $ dinah export
     }
   ],
   "instructions": "Every card on this workbench ends with a line in the changelog.\n",
-  "profile": "dinah-core/0.7",
+  "profile": "dinah-core/0.9",
   "title": "Release 0.2"
 }
 [exit 0]
