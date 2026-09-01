@@ -1002,13 +1002,20 @@ type publishedRelease struct {
 // a fixture written by hand in the compact shape tests something the workflow
 // never publishes.
 func buildPublishedRelease(downloadBase string) (publishedRelease, error) {
+	return buildPublishedChannelRelease("dev", "v0.1.7-dev", downloadBase)
+}
+
+// buildPublishedChannelRelease is buildPublishedRelease for a named channel
+// and tag. The three channels publish one schema, so a beta or stable
+// manifest differs from the dev one only in the two strings this takes.
+func buildPublishedChannelRelease(channel, tag, downloadBase string) (publishedRelease, error) {
 	release := publishedRelease{binaries: map[string][]byte{}}
 	var sums bytes.Buffer
 	var compact bytes.Buffer
 	compact.WriteString("{\n")
-	fmt.Fprintf(&compact, "  %q: %q,\n", "channel", "dev")
-	fmt.Fprintf(&compact, "  %q: %q,\n", "version", "v0.1.7-dev")
-	fmt.Fprintf(&compact, "  %q: %q,\n", "tag", "v0.1.7-dev")
+	fmt.Fprintf(&compact, "  %q: %q,\n", "channel", channel)
+	fmt.Fprintf(&compact, "  %q: %q,\n", "version", tag)
+	fmt.Fprintf(&compact, "  %q: %q,\n", "tag", tag)
 	fmt.Fprintf(&compact, "  %q: %q,\n", "publishedAt", "2026-01-01T00:00:00Z")
 	fmt.Fprintf(&compact, "  %q: %q,\n", "downloadBase", downloadBase)
 	compact.WriteString("  \"binaries\": {\n")

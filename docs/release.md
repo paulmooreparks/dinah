@@ -41,7 +41,7 @@ release is the worst place to meet that for the first time.
 
 ## Cutting a beta
 
-Dispatch `.github/workflows/promote.yml` with `channel: beta` and three inputs.
+Dispatch `.github/workflows/promote.yml` with `channel: beta` and two inputs.
 
 `cards` lists the card human-ids the cut carries, comma-separated. Each one has
 to resolve to a commit on the trunk, inside the current minor, that the release
@@ -50,21 +50,33 @@ tree is assembled, and the run names it. The pipeline cannot tell a mistyped
 identifier from a card whose merge has not landed yet, so it refuses both the
 same way rather than quietly promoting less than what was asked for.
 
-`links` lists the incoming `blocks` and `parked_behind` links of the cards in
-the cut, written as `dependent>predecessor` pairs, or the single word `none`
-when there are none. Every predecessor must be in the same cut or already
-carried by an earlier beta of this minor, because holding back the work another
-card was built on ships a tree that has never worked. The check refuses the run
-and names every violated pair.
+`links` declares the incoming `blocks` and `parked_behind` links of every card
+in the cut, one answer per card. A card with a predecessor is written
+`dependent>predecessor`, and a card with none is written `dependent>none`.
+Every predecessor must be in the same cut or already carried by an earlier beta
+of this minor, because holding back the work another card was built on ships a
+tree that has never worked. The check refuses the run and names every violated
+pair.
 
-The word `none` is required rather than assumed. An empty input is refused,
-since a dependency check that switches itself off when somebody forgets an
-input is absent exactly when it is needed.
+Read the pairs off the board at the moment of dispatch rather than from memory.
+Whoever dispatches a cut has board access, which is the whole reason the input
+can take this shape at all, so the instruction is to look rather than to
+recall.
+
+A card in `cards` that `links` says nothing about is a refusal, and so is an
+empty input. Silence about a card is an omission, and an omission is not a
+claim that the card has no predecessors. The earlier shape of this input took
+the single word `none` for a whole cut, which meant one word switched the
+dependency check off for a cut of any size while the refusal on an empty input
+went on looking like protection. That spelling is now refused by name, and the
+run prints which cards it was told to treat as having no predecessor, so an
+assumption it was handed can be read back afterwards.
 
 What happens then, in order:
 
 1. The cards resolve against the tagged commits of the current minor.
-2. The dependency pairs are checked.
+2. The dependency declarations are checked, and every card the run was told
+   has no predecessor is named in the log.
 3. The commits are cherry-picked, in the trunk's own order, onto the tip of
    this minor's latest beta tag, or onto the minor's start commit when no beta
    exists yet. Every pick uses `git cherry-pick -x`, so the provenance trailer
@@ -91,6 +103,14 @@ beta to promote. No card selection happens here. The stable tree is the beta
 tree, and re-running the selection would make it something other than the beta
 anybody tested. The checks run again all the same, against that exact tree,
 because a green result belongs to the run that produced it.
+
+The version line comes from the promoted tree rather than from the trunk. The
+run reads `VERSION` out of the beta tag's own tree, so a trunk that has since
+opened a later minor cannot make the promotion mint a number belonging to a
+line the tree is not on. It also refuses a `beta_tag` that is not a beta tag of
+that line, because the existence of a ref says nothing about which channel it
+belongs to and a dev or stable tag would otherwise be promoted as though it
+were a beta.
 
 ## Two tag shapes, permanently
 

@@ -32,7 +32,7 @@ on:
         type: string
         required: false
       links:
-        description: "beta: incoming blocks and parked_behind links, as dependent>predecessor pairs, or the single word none."
+        description: "beta: one declaration per card in the cut, as dependent>predecessor, or dependent>none where a card has no predecessor."
         type: string
         required: false
       beta_tag:
@@ -85,15 +85,17 @@ jobs:
           BETA_TAG: ${{ inputs.beta_tag }}
         run: |
           set -e
-          BASE=$(tr -d '[:space:]' < VERSION)
-
           if [ "$CHANNEL" = "beta" ]; then
+            # A beta is cut from the trunk, so the trunk's own VERSION names
+            # the line it belongs to.
+            BASE=$(tr -d '[:space:]' < VERSION)
             if [ -z "$CARDS" ]; then
               echo "::error::a beta cut needs a cards input naming what it carries"
               exit 1
             fi
             # The helper resolves the named cards against the tagged commits of
-            # this minor, refuses a cut that holds back a predecessor, and
+            # this minor, refuses a cut that names a card the links input says
+            # nothing about, refuses a cut that holds back a predecessor, and
             # cherry-picks what is left onto this minor's beta base. Every
             # refusal happens before the first cherry-pick, and a conflict
             # aborts the sequence rather than leaving a half-applied tree.
@@ -111,10 +113,23 @@ jobs:
               echo "::error::${BETA_TAG} is not a tag in this repository"
               exit 1
             fi
+            # The line comes from the tree being promoted, never from the
+            # trunk. The trunk moves on after a beta is cut, so a VERSION read
+            # from this workflow's own checkout can name a later minor than the
+            # tree in hand, and the run would then mint a number belonging to a
+            # line the promoted tree is not on.
+            BASE=$(git show "${BETA_TAG}:VERSION" | tr -d '[:space:]')
+            # The tag also has to be a beta of that line. git rev-parse says
+            # only that a ref exists, which a dev tag and a stable tag satisfy
+            # too, and promoting either of those is not what this input means.
+            go run ./cmd/dinah-release patch --channel beta --base "$BASE" --tag "$BETA_TAG" >/dev/null
+            # The tag list and the next number are read before the checkout,
+            # because the checkout replaces this working tree with the promoted
+            # one, which need not carry a copy of this helper at all.
+            TAG=$(git tag --list | go run ./cmd/dinah-release next-tag --channel stable --base "$BASE")
             # No selection happens here. The stable tree is the beta tree, and
             # the only question is what to call it.
             git checkout --detach "refs/tags/${BETA_TAG}"
-            TAG=$(git tag --list | go run ./cmd/dinah-release next-tag --channel stable --base "$BASE")
             {
               echo "tag=${TAG}"
               echo "head=$(git rev-parse HEAD)"

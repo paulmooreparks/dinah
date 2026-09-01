@@ -195,22 +195,52 @@ type Link struct {
 	Predecessor string
 }
 
-// ParseLinks reads the dependency list a cut is dispatched with, written as
-// "dependent>predecessor" pairs separated by commas. The single word "none"
-// declares that the cards in this cut have no predecessors at all.
+// Dependencies is what the dispatcher declared about the cards in a cut. It
+// holds the pairs themselves and, separately, the set of cards an answer was
+// given for at all.
 //
-// The word is required rather than optional, and an empty input is refused,
-// because a dependency check that switches itself off when somebody forgets an
-// input is a check that is absent exactly when it is needed.
-func ParseLinks(spec string) ([]Link, error) {
+// The second half is the part that matters. A list of pairs alone cannot tell
+// a card with no predecessors from a card nobody thought about, and those two
+// have to be told apart: the first is a fact and the second is an omission.
+type Dependencies struct {
+	// Links are the declared dependent-on-predecessor pairs.
+	Links []Link
+	// answered is every card the input said something about, including the
+	// ones it said have no predecessor.
+	answered map[string]bool
+}
+
+// Answered reports whether the input declared anything at all about a card.
+func (d Dependencies) Answered(card string) bool {
+	return d.answered[card]
+}
+
+// NoPredecessorWord is how the input says a card has no predecessors. It is
+// written per card, as "dinah-359>none", and never on its own.
+const NoPredecessorWord = "none"
+
+// ParseLinks reads the dependency declaration a cut is dispatched with. Each
+// comma-separated entry is a "dependent>predecessor" pair, and a card with no
+// predecessors is declared by writing "dependent>none".
+//
+// The grammar takes one answer per card on purpose, and Select refuses a cut
+// naming a card this input said nothing about. An earlier shape accepted the
+// single word "none" for a whole cut, which meant one word switched the
+// dependency check off for a cut of any size while the refusal on an empty
+// input went on looking like protection. A refusal any value satisfies is not
+// a refusal, so the placeholder is now something the dispatcher has to write
+// against each card by name.
+func ParseLinks(spec string) (Dependencies, error) {
+	deps := Dependencies{answered: map[string]bool{}}
 	spec = strings.TrimSpace(spec)
 	if spec == "" {
-		return nil, fmt.Errorf("the links input is empty; pass the incoming blocks and parked_behind links of every card in this cut as dependent>predecessor pairs, or the single word none if there are none")
+		return deps, fmt.Errorf("the links input is empty; declare every card in this cut, writing each incoming blocks or parked_behind link as dependent>predecessor and each card that has none as dependent>none")
 	}
-	if spec == "none" {
-		return nil, nil
+	if spec == NoPredecessorWord {
+		return deps, fmt.Errorf("the links input is the bare word %q, which no longer declares anything; write %s once per card, for example dinah-359>none,dinah-297>none, so that a card nobody answered for is refused rather than assumed to be unconstrained", NoPredecessorWord, NoPredecessorWord)
 	}
-	var result []Link
+	declaredNone := map[string]bool{}
+	hasPredecessor := map[string]bool{}
 	for _, entry := range strings.Split(spec, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
@@ -220,11 +250,30 @@ func ParseLinks(spec string) ([]Link, error) {
 		card = strings.TrimSpace(card)
 		predecessor = strings.TrimSpace(predecessor)
 		if !found || card == "" || predecessor == "" {
-			return nil, fmt.Errorf("%q is not a dependency pair; write each one as dependent>predecessor, for example dinah-359>dinah-297", entry)
+			return Dependencies{answered: map[string]bool{}}, fmt.Errorf("%q is not a dependency declaration; write each one as dependent>predecessor, for example dinah-359>dinah-297, or dependent>none for a card with no predecessors", entry)
 		}
-		result = append(result, Link{Card: card, Predecessor: predecessor})
+		deps.answered[card] = true
+		if predecessor == NoPredecessorWord {
+			declaredNone[card] = true
+			continue
+		}
+		hasPredecessor[card] = true
+		deps.Links = append(deps.Links, Link{Card: card, Predecessor: predecessor})
 	}
-	return result, nil
+	var contradictory []string
+	for card := range declaredNone {
+		if hasPredecessor[card] {
+			contradictory = append(contradictory, card)
+		}
+	}
+	if len(contradictory) > 0 {
+		sort.Strings(contradictory)
+		return Dependencies{answered: map[string]bool{}}, fmt.Errorf("the links input declares both a predecessor and none for %s; say one or the other", strings.Join(contradictory, ", "))
+	}
+	if len(deps.answered) == 0 {
+		return Dependencies{answered: map[string]bool{}}, fmt.Errorf("the links input declares no card; declare every card in this cut, writing each one as dependent>predecessor or dependent>none")
+	}
+	return deps, nil
 }
 
 // Selection is what a validated cut carries.
@@ -234,19 +283,34 @@ type Selection struct {
 	// AlreadyCarried names the requested cards the beta base already holds,
 	// which are skipped rather than picked twice.
 	AlreadyCarried []string
+	// Unconstrained names the requested cards the dispatcher declared to have
+	// no predecessor, in the order the cards input names them. The run prints
+	// these, so an assumption the check was told to make is read back rather
+	// than supplied invisibly.
+	Unconstrained []string
 }
 
 // Select resolves the requested cards against the candidates, checks the
 // dependency graph, and returns what to cherry-pick.
 //
-// It refuses in two ways and neither of them half-finishes. A requested card
+// It refuses in three ways and none of them half-finishes. A requested card
 // that resolves to no tagged commit fails the whole run, because the pipeline
 // cannot tell a mistyped identifier from a card whose merge has not landed,
 // and promoting the smaller set the operator did not ask for is the worse of
-// the two answers. A card whose predecessor is neither in this cut nor already
+// the two answers. A requested card the links input said nothing about fails
+// the run, because silence about a card is not a claim that the card is free
+// of predecessors. A card whose predecessor is neither in this cut nor already
 // in the lineage fails the run too, since holding back the work another card
 // was built on ships a tree that has never worked.
-func Select(requested []string, candidates []Candidate, links []Link, carriedSHAs map[string]bool) (*Selection, error) {
+//
+// The three refusal messages run to several capitalised sentences with
+// terminal punctuation, which the Go style standard's rule 5 asks against.
+// They are exceptions on purpose. Each one is a terminal message an operator
+// reads in a run log, reached through promote.yml's "::error::%s", and none of
+// them is ever wrapped into a longer sentence by a caller, so the reason the
+// rule exists does not apply. The same holds for the conflict message on
+// CherryPick below.
+func Select(requested []string, candidates []Candidate, deps Dependencies, carriedSHAs map[string]bool) (*Selection, error) {
 	wanted := map[string]bool{}
 	var order []string
 	for _, id := range requested {
@@ -284,6 +348,19 @@ func Select(requested []string, candidates []Candidate, links []Link, carriedSHA
 			strings.Join(unresolved, ", "))
 	}
 
+	var undeclared []string
+	for _, id := range order {
+		if !deps.Answered(id) {
+			undeclared = append(undeclared, id)
+		}
+	}
+	if len(undeclared) > 0 {
+		return nil, fmt.Errorf(
+			"the links input says nothing about these cards in the cut: %s\n"+
+				"Read each one's incoming blocks and parked_behind links off the board and declare them as %s>predecessor, or declare %s>none where the card has no predecessor. A card nobody answered for is refused here rather than assumed to be unconstrained, because an omission and a card with no predecessors are not the same thing. Nothing was assembled, tagged or published.",
+			strings.Join(undeclared, ", "), undeclared[0], undeclared[0])
+	}
+
 	carriedCards := map[string]bool{}
 	for _, c := range candidates {
 		if c.Card != "" && carriedSHAs[c.SHA] {
@@ -292,7 +369,7 @@ func Select(requested []string, candidates []Candidate, links []Link, carriedSHA
 	}
 
 	var violations []string
-	for _, link := range links {
+	for _, link := range deps.Links {
 		if !wanted[link.Card] {
 			continue
 		}
@@ -309,7 +386,16 @@ func Select(requested []string, candidates []Candidate, links []Link, carriedSHA
 			strings.Join(violations, "\n  "))
 	}
 
+	constrained := map[string]bool{}
+	for _, link := range deps.Links {
+		constrained[link.Card] = true
+	}
 	selection := &Selection{}
+	for _, id := range order {
+		if !constrained[id] {
+			selection.Unconstrained = append(selection.Unconstrained, id)
+		}
+	}
 	for _, c := range candidates {
 		if c.Card == "" || !wanted[c.Card] {
 			continue

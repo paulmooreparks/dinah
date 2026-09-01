@@ -33,6 +33,8 @@ func main() {
 		err = nextTag(os.Args[2:])
 	case "cut":
 		err = cut(os.Args[2:])
+	case "patch":
+		err = patch(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 		return
@@ -53,9 +55,14 @@ func usage() {
       Reads tag names, one per line, from standard input and prints the tag the
       next release on that channel and line takes.
 
-  cut --base 0.1 --cards dinah-1,dinah-2 --links none [--ref main] [--repo .]
+  patch --channel dev|beta|stable --base 0.1 --tag v0.1.2-beta
+      Prints the number the tag carries on that channel and line, and fails
+      when the tag belongs to another channel or another line.
+
+  cut --base 0.1 --cards dinah-1,dinah-2 --links dinah-1>none,dinah-2>dinah-1 [--ref main] [--repo .]
       Resolves the named cards against the tagged commits of the current minor,
-      refuses a cut that holds back a predecessor, and cherry-picks what is left
+      refuses a cut that names a card --links says nothing about, refuses a cut
+      that holds back a predecessor, and cherry-picks what is left
       onto the minor's beta base. Writes tag, base and head to GITHUB_OUTPUT
       when that variable is set, and to standard output otherwise.
 `)
@@ -94,11 +101,41 @@ func nextTag(args []string) error {
 	return nil
 }
 
+// patch reads the number a tag carries on a channel and a line, and refuses a
+// tag that belongs to neither. The stable promotion calls it to establish that
+// the tag it was handed really is a beta of the line it is about to publish,
+// which nothing else in the workflow asks.
+func patch(args []string) error {
+	fs := flag.NewFlagSet("patch", flag.ExitOnError)
+	channel := fs.String("channel", "", "dev, beta or stable")
+	base := fs.String("base", "", "the major.minor line, as the VERSION file spells it")
+	tag := fs.String("tag", "", "the tag to read")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	c, err := release.ParseChannel(*channel)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(*base) == "" {
+		return fmt.Errorf("--base is required and names the major.minor line")
+	}
+	if strings.TrimSpace(*tag) == "" {
+		return fmt.Errorf("--tag is required and names the tag to read")
+	}
+	n, ok := release.Patch(c, *base, strings.TrimSpace(*tag))
+	if !ok {
+		return fmt.Errorf("%s is not a %s tag on the v%s line, so it cannot be read as one; a %s tag on that line is shaped %s", *tag, c, *base, c, release.Tag(c, *base, 0))
+	}
+	fmt.Println(n)
+	return nil
+}
+
 func cut(args []string) error {
 	fs := flag.NewFlagSet("cut", flag.ExitOnError)
 	base := fs.String("base", "", "the major.minor line, as the VERSION file spells it")
 	cards := fs.String("cards", "", "comma-separated card human-ids to promote")
-	links := fs.String("links", "", "dependent>predecessor pairs, or the single word none")
+	links := fs.String("links", "", "one dependent>predecessor or dependent>none declaration per card in the cut")
 	ref := fs.String("ref", "main", "the trunk ref the candidates come from")
 	repo := fs.String("repo", ".", "the repository to assemble the cut in")
 	if err := fs.Parse(args); err != nil {
@@ -146,6 +183,13 @@ func cut(args []string) error {
 		return err
 	}
 
+	if len(selection.Unconstrained) > 0 {
+		// Printed rather than assumed silently. The dependency check believes
+		// what the dispatcher declared, so the cards it was told to treat as
+		// having no predecessor belong in the run's own log where they can be
+		// read back after a bad cut.
+		fmt.Fprintf(os.Stderr, "declared to have no predecessor, and promoted on that declaration: %s\n", strings.Join(selection.Unconstrained, ", "))
+	}
 	for _, already := range selection.AlreadyCarried {
 		fmt.Fprintf(os.Stderr, "%s is already in this minor's beta lineage, so it is not picked again\n", already)
 	}

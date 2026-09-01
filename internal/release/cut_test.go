@@ -161,7 +161,7 @@ func TestSelectRefusesACardThatResolvesToNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Candidates: %v", err)
 	}
-	_, err = Select([]string{"dinah-2", "dinah-999"}, candidates, nil, nil)
+	_, err = Select([]string{"dinah-2", "dinah-999"}, candidates, mustLinks(t, "dinah-2>none,dinah-999>none"), nil)
 	if err == nil {
 		t.Fatal("a cards input naming an unresolvable card was accepted")
 	}
@@ -186,10 +186,7 @@ func TestSelectRefusesACutThatHoldsBackAPredecessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Candidates: %v", err)
 	}
-	links, err := ParseLinks("dinah-3>dinah-2")
-	if err != nil {
-		t.Fatalf("ParseLinks: %v", err)
-	}
+	links := mustLinks(t, "dinah-3>dinah-2")
 
 	_, err = Select([]string{"dinah-3"}, candidates, links, nil)
 	if err == nil {
@@ -200,7 +197,7 @@ func TestSelectRefusesACutThatHoldsBackAPredecessor(t *testing.T) {
 		t.Errorf("the refusal does not name the violated pair; want %q, got: %v", want, err)
 	}
 
-	selection, err := Select([]string{"dinah-2", "dinah-3"}, candidates, links, nil)
+	selection, err := Select([]string{"dinah-2", "dinah-3"}, candidates, mustLinks(t, "dinah-3>dinah-2,dinah-2>none"), nil)
 	if err != nil {
 		t.Fatalf("a cut carrying both the card and its predecessor was refused: %v", err)
 	}
@@ -217,10 +214,7 @@ func TestSelectAcceptsAPredecessorAnEarlierCutCarried(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Candidates: %v", err)
 	}
-	links, err := ParseLinks("dinah-3>dinah-2")
-	if err != nil {
-		t.Fatalf("ParseLinks: %v", err)
-	}
+	links := mustLinks(t, "dinah-3>dinah-2")
 	carried := map[string]bool{f.sha["two"]: true}
 
 	selection, err := Select([]string{"dinah-3"}, candidates, links, carried)
@@ -239,7 +233,7 @@ func TestSelectSkipsACardTheBaseAlreadyCarries(t *testing.T) {
 		t.Fatalf("Candidates: %v", err)
 	}
 	carried := map[string]bool{f.sha["two"]: true}
-	selection, err := Select([]string{"dinah-2", "dinah-3"}, candidates, nil, carried)
+	selection, err := Select([]string{"dinah-2", "dinah-3"}, candidates, mustLinks(t, "dinah-2>none,dinah-3>none"), carried)
 	if err != nil {
 		t.Fatalf("Select: %v", err)
 	}
@@ -251,23 +245,99 @@ func TestSelectSkipsACardTheBaseAlreadyCarries(t *testing.T) {
 	}
 }
 
-func TestParseLinksRefusesAnEmptyInputAndAcceptsNone(t *testing.T) {
+// mustLinks parses a dependency declaration a test expects to be well formed.
+func mustLinks(t *testing.T, spec string) Dependencies {
+	t.Helper()
+	deps, err := ParseLinks(spec)
+	if err != nil {
+		t.Fatalf("ParseLinks(%q): %v", spec, err)
+	}
+	return deps
+}
+
+// The links input takes one answer per card, so the placeholder cannot be
+// written once for a whole cut. An earlier shape accepted the bare word "none"
+// and switched the dependency check off for any number of cards, which is why
+// that spelling is refused by name rather than merely being undocumented.
+func TestParseLinksRequiresOneAnswerPerCard(t *testing.T) {
 	if _, err := ParseLinks(""); err == nil {
 		t.Error("an empty links input was accepted, which would switch the dependency check off silently")
 	}
-	links, err := ParseLinks("none")
-	if err != nil || len(links) != 0 {
-		t.Errorf("ParseLinks(none) = %v, %v; want no links and no error", links, err)
+	bare, err := ParseLinks("none")
+	if err == nil {
+		t.Error("the bare word none was accepted, which switches the dependency check off for a cut of any size")
+	} else if !strings.Contains(err.Error(), "once per card") {
+		t.Errorf("the refusal does not say what to write instead: %v", err)
 	}
-	links, err = ParseLinks(" dinah-3>dinah-2 , dinah-9>dinah-1 ")
-	if err != nil {
-		t.Fatalf("ParseLinks: %v", err)
+	if bare.Answered("dinah-3") {
+		t.Error("a refused input still reports a card as answered")
 	}
-	if len(links) != 2 || links[0] != (Link{"dinah-3", "dinah-2"}) || links[1] != (Link{"dinah-9", "dinah-1"}) {
-		t.Errorf("ParseLinks read %+v", links)
+
+	deps := mustLinks(t, " dinah-3>dinah-2 , dinah-9>dinah-1 ")
+	if len(deps.Links) != 2 || deps.Links[0] != (Link{"dinah-3", "dinah-2"}) || deps.Links[1] != (Link{"dinah-9", "dinah-1"}) {
+		t.Errorf("ParseLinks read %+v", deps.Links)
 	}
+	if !deps.Answered("dinah-3") || !deps.Answered("dinah-9") || deps.Answered("dinah-1") {
+		t.Errorf("the answered set is wrong: %+v", deps)
+	}
+
+	none := mustLinks(t, "dinah-3>none")
+	if len(none.Links) != 0 {
+		t.Errorf("dinah-3>none produced a link: %+v", none.Links)
+	}
+	if !none.Answered("dinah-3") {
+		t.Error("dinah-3>none did not answer for dinah-3")
+	}
+
 	if _, err := ParseLinks("dinah-3"); err == nil {
 		t.Error("a links entry with no predecessor was accepted")
+	}
+	if _, err := ParseLinks("dinah-3>none,dinah-3>dinah-2"); err == nil {
+		t.Error("a card declared both unconstrained and dependent was accepted")
+	}
+}
+
+// The refusal this test guards is the one a placeholder used to walk past. A
+// card in the cut that the links input never mentions is an omission, and an
+// omission is not a claim that the card has no predecessors.
+func TestSelectRefusesACardTheLinksInputSaysNothingAbout(t *testing.T) {
+	f := newFixture(t)
+	candidates, err := Candidates(f.git, f.start, "main", "0.1")
+	if err != nil {
+		t.Fatalf("Candidates: %v", err)
+	}
+	// dinah-2 is declared, dinah-3 is not, and both are in the cut.
+	_, err = Select([]string{"dinah-2", "dinah-3"}, candidates, mustLinks(t, "dinah-2>none"), nil)
+	if err == nil {
+		t.Fatal("a cut naming a card the links input says nothing about was accepted")
+	}
+	if !strings.Contains(err.Error(), "dinah-3") {
+		t.Errorf("the refusal does not name the undeclared card: %v", err)
+	}
+	if strings.Contains(err.Error(), "dinah-2") && !strings.Contains(err.Error(), "dinah-3>") {
+		t.Errorf("the refusal names a card that was declared: %v", err)
+	}
+	for _, remedy := range []string{"blocks and parked_behind", ">none", "Nothing was assembled"} {
+		if !strings.Contains(err.Error(), remedy) {
+			t.Errorf("the refusal does not tell the operator about %q: %v", remedy, err)
+		}
+	}
+}
+
+// What the run was told to assume is printed rather than kept to itself, so a
+// bad cut can be read back afterwards.
+func TestSelectReportsTheCardsItTreatedAsUnconstrained(t *testing.T) {
+	f := newFixture(t)
+	candidates, err := Candidates(f.git, f.start, "main", "0.1")
+	if err != nil {
+		t.Fatalf("Candidates: %v", err)
+	}
+	selection, err := Select([]string{"dinah-2", "dinah-3"}, candidates, mustLinks(t, "dinah-3>dinah-2,dinah-2>none"), nil)
+	if err != nil {
+		t.Fatalf("Select: %v", err)
+	}
+	if len(selection.Unconstrained) != 1 || selection.Unconstrained[0] != "dinah-2" {
+		t.Errorf("the cards treated as having no predecessor are %+v; want just dinah-2", selection.Unconstrained)
 	}
 }
 
@@ -277,7 +347,7 @@ func TestCherryPickAssemblesTheCutAndRecordsProvenance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Candidates: %v", err)
 	}
-	selection, err := Select([]string{"dinah-1", "dinah-2"}, candidates, nil, nil)
+	selection, err := Select([]string{"dinah-1", "dinah-2"}, candidates, mustLinks(t, "dinah-1>none,dinah-2>none"), nil)
 	if err != nil {
 		t.Fatalf("Select: %v", err)
 	}
@@ -310,7 +380,7 @@ func TestCherryPickAbortsOnAConflictAndNamesIt(t *testing.T) {
 	}
 	// dinah-3 rewrites the line dinah-2 introduced, so picking it onto the
 	// minor's start without dinah-2 cannot apply.
-	selection, err := Select([]string{"dinah-3"}, candidates, nil, nil)
+	selection, err := Select([]string{"dinah-3"}, candidates, mustLinks(t, "dinah-3>none"), nil)
 	if err != nil {
 		t.Fatalf("Select: %v", err)
 	}

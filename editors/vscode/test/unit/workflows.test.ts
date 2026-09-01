@@ -65,6 +65,45 @@ test("a promoted tree is checked in its own right", () => {
 	);
 });
 
+test("a stable promotion reads its version line from the tree it promotes", () => {
+	// Reading VERSION from the workflow's own checkout reads the trunk, which
+	// moves on after a beta is cut. Promote a 0.1 beta once the trunk says 0.2
+	// and the run mints v0.2.0 over the 0.1 tree and publishes it as stable.
+	const assemble = promote.slice(
+		promote.indexOf("Assemble the cut"),
+		promote.indexOf("\n      - name: Bundle the assembled tree"),
+	);
+	const stable = assemble.slice(assemble.indexOf("\n          else"));
+	assert.ok(
+		stable.includes('git show "${BETA_TAG}:VERSION"'),
+		"the stable branch no longer reads VERSION out of the promoted tag's own tree",
+	);
+	assert.ok(
+		!/BASE=\$\(tr -d '\[:space:\]' < VERSION\)/.test(stable),
+		"the stable branch reads VERSION from the workflow's checkout, which is the trunk rather than the tree being promoted",
+	);
+	assert.ok(
+		/dinah-release patch --channel beta --base "\$BASE" --tag "\$BETA_TAG"/.test(
+			stable,
+		),
+		"the stable branch no longer checks that beta_tag is a beta of the line it is publishing",
+	);
+});
+
+test("a beta cut declares its dependencies one card at a time", () => {
+	// The refusal this guards used to be satisfied by the single word "none",
+	// which switched the dependency check off for a cut of any size.
+	const links = promote.slice(promote.indexOf("      links:"));
+	assert.ok(
+		links.includes("dependent>none"),
+		"promote.yml's links input no longer asks for a declaration per card",
+	);
+	assert.ok(
+		!/or the single word none/.test(promote),
+		"promote.yml still offers the whole-cut placeholder that any value satisfies",
+	);
+});
+
 test("the jobs the release gate waits for are still named what it waits for", () => {
 	// release.yml's wait-for-ci selects check runs by name. Moving a job's
 	// body into a composite action leaves the name where it was, and that is
