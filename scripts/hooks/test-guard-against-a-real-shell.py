@@ -725,9 +725,18 @@ def two_in_one_span(linked, stub):
 
 
 # The name a declared relaxation carries. A string generated under this
-# prefix is one this branch intends to allow and the deployed guard
-# refuses; anything else that the trunk refuses and this branch allows is
-# a regression.
+# prefix is one this branch must allow, and it is exempt from the
+# regression rule that anything the trunk refuses and this branch allows
+# is a regression.
+#
+# The exemption is written this way round on purpose. A relaxation is
+# born on the branch that introduces it, where the trunk still refuses
+# the string, and it lives on after that branch merges, where the trunk
+# allows it too. Both are ordinary states of the same declaration, so
+# the run reports which of the two each one is in and fails on neither.
+# What it does fail on is the half that is about the guard rather than
+# about history: a string declared here that this branch refuses is the
+# fix gone missing.
 RELAXATION = "declared relaxation: "
 
 # The deny-set verbs a path segment can trip on its own. The rules left
@@ -761,7 +770,7 @@ def declares_relaxation(name):
 
 
 def relaxations(checkout, verbnamed):
-    """Strings this branch allows and the deployed guard refuses.
+    """Strings this branch must allow, whatever the deployed guard does.
 
     Every verb in the deny set is also a word a directory can be named
     after, and this board names them that way, because a worktree belongs
@@ -988,6 +997,79 @@ class Shells:
         return run_in_shell(self.bash, command, self.sandbox, directory, environment)
 
 
+def write_path_prelude(root, stubdir):
+    """A file that puts `stubdir` first on PATH, read by each shell at startup.
+
+    Returned as a path spelled with forward slashes, which is the spelling
+    the shells here accept on both platforms.
+
+    cygpath is asked to convert the directory where it exists, because a
+    PATH entry has to be in the shell's own vocabulary to be searched, and
+    a drive-letter path is not. Where it does not exist the path is
+    already in that vocabulary and is used as it stands.
+    """
+    prelude = os.path.join(root, "stub-path.sh")
+    with open(prelude, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(
+            "stub_dir='%s'\n"
+            "if command -v cygpath >/dev/null 2>&1; then\n"
+            "  stub_dir=\"$(cygpath -u \"$stub_dir\")\"\n"
+            "fi\n"
+            "PATH=\"$stub_dir:$PATH\"\n"
+            "export PATH\n" % stubdir.replace("\\", "/"))
+    return prelude.replace("\\", "/")
+
+
+def make_executable(bash, path):
+    """Mark `path` executable for the shell that will be asked to run it.
+
+    os.chmod is the whole story on POSIX. On Windows it is documented not
+    to be: Python's own reference says that although Windows supports
+    chmod(), only the read-only flag can be set with it, so the execute
+    bit the shell looks for is never written. Where that shell keeps its
+    own view of the permission, the shell's own chmod is the documented
+    way to set it, so it is asked as well rather than left to whatever
+    the shell infers from the file's first two characters.
+    """
+    os.chmod(path, 0o755)
+    if os.name != "nt":
+        return
+    subprocess.run([bash, "--noprofile", "--norc", "-c", 'chmod +x -- "$1"',
+                    "make-executable", path.replace("\\", "/")],
+                   capture_output=True, text=True, timeout=30)
+
+
+def report_stub_failure(bash, stub, sandbox, environment, marker):
+    """What the shell says about the stub it did not run.
+
+    The probe below can fail because the stub directory never reached the
+    shell's PATH or because the stub is not executable there, and the two
+    want different repairs. Asking the shell costs one more invocation on
+    a run that is already over, and it saves the next reader the round of
+    guessing this cost once.
+    """
+    script = (
+        'echo "resolved to: $(command -v git 2>/dev/null || echo nothing)"\n'
+        'case "$PATH" in *"$2"*) echo "the stub directory reached PATH";; '
+        '*) echo "the stub directory never reached PATH";; esac\n'
+        'echo "first PATH entry: ${PATH%%:*}"\n'
+        'echo "PATH: $PATH"\n'
+        'if [ -x "$1" ]; then echo "the stub is executable"; '
+        'else echo "the stub is not executable"; fi\n'
+        'ls -l "$1" 2>&1\n'
+    )
+    try:
+        done = subprocess.run(
+            [bash, "--noprofile", "--norc", "-c", script, "stub-report",
+             stub.replace("\\", "/"), marker],
+            cwd=sandbox, env=environment, capture_output=True, text=True, timeout=30)
+    except Exception as err:
+        print("    the shell could not be asked why: %s" % err)
+        return
+    for line in (done.stdout + done.stderr).splitlines():
+        print("    %s" % line)
+
+
 def main():
     bash = shutil.which("bash")
     if not bash:
@@ -1000,6 +1082,7 @@ def main():
     shapes = {}
     over_refusals = 0
     relaxed = 0
+    settled = 0
     total = 0
     reached = 0
     trunk = None
@@ -1011,7 +1094,7 @@ def main():
         stub = os.path.join(stubdir, "git")
         with open(stub, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(STUB)
-        os.chmod(stub, 0o755)
+        make_executable(bash, stub)
 
         sandbox = os.path.join(root, "sandbox")
         os.makedirs(sandbox)
@@ -1022,7 +1105,7 @@ def main():
         # extension names the same file.
         relative_stub = os.path.join(sandbox, "git")
         shutil.copyfile(stub, relative_stub)
-        os.chmod(relative_stub, 0o755)
+        make_executable(bash, relative_stub)
         record = os.path.join(root, "record-probe")
         os.makedirs(record)
 
@@ -1030,12 +1113,31 @@ def main():
         environment["GIT_STUB_DIR"] = record
         environment["PATH"] = stubdir + os.pathsep + environment.get("PATH", "")
 
+        # Prepending to the PATH we hand the shell is enough on a system
+        # whose shell keeps the PATH it was given, and it is not enough
+        # everywhere. The Git Bash on a GitHub Windows runner assembles
+        # its own PATH at startup and hoists /mingw64/bin and /usr/bin to
+        # the front of whatever the caller set, so the real git wins the
+        # name and the stub, sitting fourth, is never reached. The run
+        # then observes nothing while looking like it observed nothing to
+        # find.
+        #
+        # BASH_ENV is the documented way in: bash expands it when it is
+        # started non-interactively and reads the named file before the
+        # command, which is after the shell has finished assembling its
+        # PATH. Neither --noprofile nor --norc suppresses it. So the same
+        # directory goes on the front a second time, from inside.
+        environment["BASH_ENV"] = write_path_prelude(root, stubdir)
+
         # The stub has to be the git the shell finds, or every comparison
         # below is a comparison with nothing.
         probe = run_in_shell(bash, "git rev-parse --is-inside-work-tree",
                              sandbox, record, environment)
         if not probe:
-            print("the recording stub is not first on PATH: nothing would be observed")
+            print("the recording stub is not the git this shell runs: nothing "
+                  "would be observed")
+            report_stub_failure(bash, stub, sandbox, environment,
+                                os.path.basename(root))
             return 1
 
         guard = load_guard()
@@ -1085,20 +1187,20 @@ def main():
                     examine, strings(checkout, linked, spaced, verbnamed, stub)):
                 total += 1
                 if declares_relaxation(name):
-                    # Held to both halves of what it claims. A string the
-                    # trunk no longer refuses has stopped being a
-                    # relaxation, and a string this branch refuses is the
-                    # fix gone missing.
+                    # Held to the half that is about the guard. A string
+                    # declared here and refused by this branch is the fix
+                    # gone missing, and that is a failure. Whether the
+                    # deployed guard still refuses it only says how far
+                    # the declaration has travelled, so it is counted in
+                    # one of two buckets rather than asserted.
                     if not allowed:
                         failures.append((name, command,
                                          "declared as a relaxation and refused by this branch",
                                          None))
-                    elif trunk is not None and not trunk_refused:
-                        failures.append((name, command,
-                                         "declared as a relaxation and allowed by the deployed "
-                                         "guard too, so it relaxes nothing", None))
-                    else:
+                    elif trunk_refused:
                         relaxed += 1
+                    else:
+                        settled += 1
                 elif trunk_refused:
                     regressions.append((name, command))
                 if offences is None:
@@ -1122,8 +1224,10 @@ def main():
           "(over-refusal, not a failure)" % over_refusals)
     for shape, count in sorted(shapes.items(), key=lambda pair: -pair[1])[:12]:
         print("    %4d  %s" % (count, shape))
-    print("%d of them are declared relaxations, allowed here and refused by the "
-          "deployed guard" % relaxed)
+    print("%d of them are declared relaxations this branch allows and the deployed "
+          "guard still refuses" % relaxed)
+    print("%d are declared relaxations the deployed guard has adopted as well, so "
+          "they hold here as ordinary allow cases" % settled)
     if trunk is None:
         print("the deployed guard at %s could not be read, so no string was "
               "compared against it" % TRUNK_REF)
