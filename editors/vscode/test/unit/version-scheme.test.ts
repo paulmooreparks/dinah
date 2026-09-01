@@ -94,6 +94,22 @@ test("every unpublished archive sorts below the published version", async () => 
 	}
 });
 
+test("the README says the two numbers are unrelated and names what to read instead", () => {
+	// Decoupling the two numbers took away the only by-inspection way to tell
+	// whether an installed extension and an installed binary belong together.
+	// A reader who meets the mismatch has to be told what replaces it, or the
+	// README states a problem and offers no answer.
+	const readme = readFileSync(join(extensionRoot, "README.md"), "utf8");
+	assert.ok(
+		/unrelated by design/.test(readme),
+		"the README no longer says the extension's version and the CLI's are unrelated by design",
+	);
+	assert.ok(
+		/profile revision/.test(readme) && /--json version/.test(readme),
+		"the README no longer names the profile revision as what a reader checks instead",
+	);
+});
+
 test("nothing derives the extension's version from a dinah release tag", () => {
 	const esbuild = readFileSync(join(extensionRoot, "esbuild.mjs"), "utf8");
 	assert.ok(
