@@ -1,0 +1,5 @@
+{"ts":"2026-08-31T20:57:01Z","event":"deleted","actor":"sam","title":"eighth card","note":"34943a06d35c"}
+{"ts":"2026-08-31T20:57:01Z","event":"archived","actor":"sam","note":"68091798ab26"}
+{"ts":"2026-08-31T20:57:01Z","event":"workbench_updated","actor":"sam","from":"Sample workbench","to":"Sample workbench, renamed","field":"title"}
+{"ts":"2026-08-31T20:57:01Z","event":"workbench_updated","actor":"sam","from":"Sample workbench, renamed","to":"Sample workbench","field":"title"}
+{"ts":"2026-08-31T20:57:01Z","event":"workbench_updated","actor":"sam","from":"sam","to":"sam","field":"operator"}

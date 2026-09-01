@@ -1,0 +1,3 @@
+{"ts":"2026-08-31T20:56:59Z","event":"created","actor":"sam","title":"sixth card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-08-31T20:57:00Z","event":"moved","actor":"sam","from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing","override":true}
+{"ts":"2026-08-31T20:57:00Z","event":"archived","actor":"sam","note":"771ae736de03"}

@@ -56,10 +56,20 @@ const StorageFormat = 1
 // conformance claim CORE-VER-1 requires, and no channel name joins them,
 // which CORE-VER-2 forbids. They are also the ceiling of the window
 // admitProfile applies.
+//
+// The claim moved from 0.7 to 0.9 at dinah-358, past a revision it never
+// stamped. A claim may trail the document's published revision, which is the
+// ruling dinah-123 recorded when it published 0.8 and left this constant
+// where it stood, and this build implements what both intervening revisions
+// state: CORE-BENCH-5, which 0.8 published, is the full-version comparison
+// sortsBelow already performed, and CORE-OUT-7, which 0.9 published, is the
+// separation contract.ExitCode and contract.ExitCodeForRead already keep. The
+// claim is what a client reads to learn the second of those, so leaving it at
+// 0.7 would have published nothing about a contract this build honours.
 const (
 	ProfileName  = "dinah-core"
 	ProfileMajor = 0
-	ProfileMinor = 7
+	ProfileMinor = 9
 )
 
 // The oldest profile revision this build opens. dinah-core 0.7 renamed the

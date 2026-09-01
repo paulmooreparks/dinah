@@ -44,11 +44,20 @@ func ExitCode(outcome string) int {
 // their own and not a fifth and sixth member of the four above, which
 // CORE-OUT-1 closes at four for a verb's outcome. A read that dinah check or
 // a tree-wide vocabulary migration performs is not a verb the core profile
-// governs, so a token minted here costs no profile revision and takes no
-// DOC-VER version-discipline step. A read's own outcome is never refused,
-// stale or unreachable either: an invocation that could not attempt the read
-// at all is reported through the ordinary refusal path before the read runs,
-// and never carries one of these values (dinah-346).
+// governs. A read's own outcome is never refused, stale or unreachable
+// either: an invocation that could not attempt the read at all is reported
+// through the ordinary refusal path before the read runs, and never carries
+// one of these values (dinah-346).
+//
+// A token minted here does cost a profile revision, which reverses what
+// dinah-346 recorded in this comment. The core profile published CORE-OUT-7
+// at 0.9, holding a tool that answers an outcome as a number to giving
+// `refused` a number no other outcome it reports uses, so the exit code a
+// token here resolves to falls inside the profile's scope and moves the
+// minor number when it changes. dinah-358 made that ruling, and the 0.9
+// changelog entry records why: a caller with no published number to read for
+// this convention is left with the tool's own release number, which says
+// nothing about conformance and which a second implementation cannot answer.
 const (
 	ReadOK       = "ok"
 	ReadFindings = "findings"

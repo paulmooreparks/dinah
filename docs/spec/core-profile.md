@@ -1,6 +1,6 @@
 # The core profile
 
-Version identity: `dinah-core 0.8`, maturity channel `dev`.
+Version identity: `dinah-core 0.9`, maturity channel `dev`.
 
 ## 1. Scope and audience
 
@@ -21,6 +21,18 @@ directories, databases, wire protocols, transports, user interfaces, or the
 words a screen shows a reader in any particular language. Two conforming
 tools may share no design decision below the model this document states, and
 the profile is written on the assumption that they will not.
+
+One thing a tool publishes on its own surface does fall inside the profile,
+and the boundary around it is narrow. A caller driving a tool without a person
+watching often learns what happened from a single number the tool answers
+with, rather than from a document it reads. That number is the whole of what
+such a caller has, so section 6.9 holds it to the outcomes this document
+already declares. A revision that changes what such a number means is an
+increment of this profile like any other, which is what lets a caller ask one
+question, the conformance claim, and learn whether the tool in front of it
+answers the way the caller expects. Nothing else about a tool's own surface
+enters here: which commands it offers, what it calls them, and what it prints
+for a person to read all stay outside.
 
 The profile also does not specify a method. It says how a card moves and who
 may move it; it never says what work should happen at any position in the
@@ -43,7 +55,7 @@ that would bring it in.
 
 ## 2. Version identity and compatibility
 
-This document is version 0.8 of the profile whose identity string is
+This document is version 0.9 of the profile whose identity string is
 `dinah-core`. The version of this profile is a property of this document. It
 is unrelated to the release numbering of any tool, and a tool's own version
 number tells a reader nothing about which profile version that tool
@@ -80,7 +92,7 @@ in the changelog like any other change, and the promise starts to bind at
 that event. The move of this document's own major number from 0 to 1 is a
 named event of the same kind, recorded in the entry that promotes the
 document to `stable`, so no revision is ever `dev` or `beta` and major 1 at
-once. A conformance claim names `dinah-core 0.8` and says nothing about
+once. A conformance claim names `dinah-core 0.9` and says nothing about
 the channel, because the channel belongs to the document's history and the
 number belongs to the contract.
 
@@ -605,7 +617,7 @@ with the meanings RFC 8259 gives them.
 
 ```json
 {
-  "profile": "dinah-core/0.8",
+  "profile": "dinah-core/0.9",
   "title": "Wedding",
   "columns": [
     { "id": "s1", "title": "Ideas",   "kind": "intake" },
@@ -1005,6 +1017,30 @@ overridden move produces one act and not two.
 
 [CORE-HIST-6] A tool MUST NOT resolve an identifier carried in a recorded act against the workbench's present contents when it presents that act.
 
+### 6.9 The outcome as a number
+
+A tool serving an automated caller often has one number to answer with and
+nothing else that reaches the caller at all. Section 6.1 keeps the four
+outcomes apart because they call for four different next moves, and a tool
+that answers two of them with one number takes that distinction away again. A
+caller meeting such a number cannot tell a request it must repair from a
+result it must act on, so it either guesses from the shape of what it was
+sent, which is the guessing the closed set of outcomes exists to remove, or it
+reports something untrue.
+
+The rule below is narrow deliberately. It fixes no number to any outcome,
+because which numbers a tool has available belongs to that tool and two tools
+serving two kinds of caller will not agree on them. It fixes one thing only,
+that the outcome a caller can least afford to confuse with another arrives
+under a number of its own.
+
+[CORE-OUT-7] A tool that reports an outcome to whoever invoked it as a number MUST report `refused` under a number it reports for no other outcome.
+
+A tool answering an outcome this profile does not declare, which a reading of
+a workbench that completed and found something worth reporting is, is bound
+here too. Such an answer is an outcome the tool reports, so the number
+carrying it is a number `refused` may not also use.
+
 ## 7. Instruction serving
 
 A workbench carries its method in prose, and the method reaches whoever needs
@@ -1148,6 +1184,7 @@ quietly.
 | The waiting order within a column | in | Two tools reading one workbench have to agree which card is next, or the workbench reorders itself for no visible reason when it changes hands. | | CORE-QUEUE-3, CORE-QUEUE-4 |
 | The basis on a changing verb, and the revision it names | in | Deciding on a card that has since moved is the commonest way an automated caller does the wrong thing, and a basis compared against the card's current revision is the smallest thing that catches it. | | CORE-BASIS-1, CORE-BASIS-2, CORE-BASIS-3, CORE-BASIS-4, CORE-BASIS-5 |
 | The four outcomes of a verb | in | Refused, stale and unreachable call for three different next moves, and a caller that cannot tell them apart cannot be driven without a person watching. | | CORE-OUT-1, CORE-OUT-4 |
+| The number a tool answers an outcome with, where it answers with one | in | A caller driving a tool without a person watching often reads one number and nothing else, so two outcomes arriving under one number leave it unable to tell a request it must repair from a result it must act on. The concept is ruled in narrowly: no number is fixed to any outcome, because which numbers a tool has available belongs to that tool rather than to the shared model, so what enters the core is the separation and not a table of values. | | CORE-OUT-7 |
 | The claim as a lease that may expire | in | An owner that disappears must not be able to hold a card forever, and expiry that is recorded rather than silent keeps the record honest. | | CORE-CLAIM-4, CORE-CLAIM-5, CORE-HIST-2 |
 | The interchange form of a workbench definition | in | A workbench definition nobody can carry between tools makes the whole exercise theoretical. One serialization is the smallest thing that solves it, and storage stays unconstrained. | | CORE-JSON-1, CORE-JSON-2, CORE-JSON-3, CORE-JSON-4, CORE-JSON-5, CORE-JSON-9, CORE-JSON-7, CORE-JSON-8 |
 | Text encoding and the untranslated token | in | Two tools that disagree about encoding or that translate a token cannot read each other at all. | | CORE-TEXT-1, CORE-TEXT-2, CORE-TEXT-3, CORE-TEXT-4 |
@@ -1176,7 +1213,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 33. Rows ruled out: 23. Total rows: 56.
+Rows ruled in: 34. Rows ruled out: 23. Total rows: 57.
 
 ### 10.1 Walking a wedding through the whole profile
 
@@ -1406,6 +1443,7 @@ themselves carry meaning.
 | CORE-HIST-4 | must | tool | A recorded move carries the identifier and the title of the column left and of the column entered. |
 | CORE-HIST-5 | must | tool | The order of acts reported matches the order in which they were performed. |
 | CORE-HIST-6 | must not | tool | A recorded act still reports its titles after the columns it names have been renamed or removed. |
+| CORE-OUT-7 | must | tool | Where the tool answers whoever invoked it with a number, the number carrying `refused` carries no other outcome the tool reports. |
 | CORE-INSTR-1 | may | tool | A column carrying instructions is accepted. |
 | CORE-INSTR-2 | may | tool | A workbench carrying standing instructions is accepted. |
 | CORE-INSTR-3 | must | tool | The response to a claim that succeeded carries the column's instructions. |
@@ -1428,7 +1466,7 @@ over this revision returns.
 
 ## 12. Changelog
 
-The current revision is `dinah-core 0.8`. Entries below stay in the order
+The current revision is `dinah-core 0.9`. Entries below stay in the order
 they were published rather than in numeric order. The fourth entry renamed
 the first three from `1.0`, `2.0`, and `3.0` to `0.1`, `0.2`, and `0.3`, so
 it reads here as a drop from `3.0` to `0.4` even though nothing was undone.
@@ -1752,3 +1790,52 @@ minor number under DOC-VER-7, which sends a retirement to the minor number
 while this document's own major number is 0. The document sits on the `dev`
 channel, so nothing here binds a caller who has not already opted into
 `dinah-core 0.8`.
+
+### 0.9, channel `dev`, 2026-09-01
+
+Identifiers affected: CORE-OUT-7, introduced. No other identifier in the
+section 11 index is affected, and this entry retires none.
+
+CORE-OUT-7 widens what this profile covers. Until this revision the document
+said nothing about the answer a tool gives whoever invoked it, on the ground
+that such an answer belongs to one tool's own surface rather than to the
+shared model. A real case tested that ground and it did not hold. A tool
+changed what the number it answers with means, which every automated caller of
+it depended on, and no number this document publishes moved. A caller meeting
+an older tool afterwards had nothing it could read: it could compare the
+tool's own release number, which says nothing about conformance and which a
+second implementation cannot answer at all, or it could infer the contract
+from the shape of an answer, which is the guessing the closed set of outcomes
+exists to remove. Section 1 now records the widened scope together with its
+narrow edges, and section 6.9 carries the rule itself.
+
+The widening is a reversal of an earlier ruling rather than a gap being filled
+for the first time, and it is recorded here as one so that a later reader who
+meets the earlier ruling knows it has been overtaken. The earlier ruling held
+that a convention of one tool's invocation surface sits outside a profile
+written for a second implementation that may have no such surface. That
+argument survives in the shape of the rule, which fixes no number to any
+outcome and binds only a tool that answers with a number at all. What did not
+survive is the conclusion, because a contract every caller depends on and no
+published number describes is a contract a caller cannot check.
+
+Consequence for a caller. A caller reading a conformance claim of
+`dinah-core 0.9` or later learns that the tool answers `refused` under a
+number it gives no other outcome, and needs no further question to learn it. A
+caller reading an earlier claim learns nothing about that separation, which is
+the honest answer for a revision published before the rule existed. From this
+revision on, a change to what such a number means moves this document's minor
+number under section 2.2's rule that a minor increment adds statements, with
+DOC-VER-11 satisfied because every identifier 0.8 published is still
+published here.
+
+That one ordinal now covers a command's own answer alongside everything else
+this document states, and the coupling costs something. A caller can refuse
+over an increment that touched nothing it uses, and a second implementation
+supporting most of a revision has to claim the revision below it, because a
+single number cannot say that a capability is partial. Both costs were weighed
+against the two alternatives, a number published per command and a published
+set of tokens naming one contract each, and this shape was chosen because the
+number is already published and already read, so no caller learns a new
+question to ask. The document sits on the `dev` channel, so nothing here binds
+a caller who has not already opted into `dinah-core 0.9`.

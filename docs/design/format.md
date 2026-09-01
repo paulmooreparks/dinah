@@ -293,6 +293,19 @@ as a `--workbench` naming nothing or a workbench declaring an unsupported
 profile revision, still exits 2 on the terms every other command's refusal
 does.
 
+That split is a published contract rather than a local convention. The core
+profile states it as CORE-OUT-7, introduced at `dinah-core 0.9`: a tool
+answering an outcome as a number gives `refused` a number it gives no other
+outcome. The rule fixes no number to any outcome, so the table above is this
+tool's own choice within it, and a second implementation may choose different
+numbers and still conform. What the profile fixes is that a caller reading one
+number can tell a refusal from a reading that completed. A later change to
+what these numbers mean is therefore an increment of the profile and moves its
+minor number, which is how a client learns what a binary in front of it
+speaks. When this convention landed the profile did not cover it, and a client
+meeting an older binary had nothing to read; the 0.9 changelog entry records
+that reversal and its cost.
+
 ### State
 
 `state` is one of `ready`, `active`, `blocked`. The invariants: `active`
