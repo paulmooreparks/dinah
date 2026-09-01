@@ -180,20 +180,50 @@ func toolList() []map[string]any {
 	return list
 }
 
+// injectedProperties names the schema properties that come from no command's
+// parameter list, mapped to the catalog key describing each. None is a
+// parameter, so each is resolved by name: actor takes the sentence the global
+// flag row already prints, basis takes one written for it, and workbench takes
+// one written for the address space the MCP head binds.
+var injectedProperties = map[string]string{
+	"actor":     "flag.actor.summary",
+	"basis":     "schema.basis.description",
+	"workbench": "schema.workbench.description",
+}
+
+// declaredArgNames is the set of argument names one tool accepts: every
+// parameter verb.Params declares for its command, plus the injected names
+// above.
+//
+// The workbench name is held out for workbenches itself, whose scope argument
+// is the positional path instead, so it would otherwise carry a name whose
+// value the tool does not consume. That exception lives here and nowhere else.
+//
+// The published schema and the check that refuses an unrecognized argument
+// both read this one function, so a caller cannot be refused a name tools/list
+// offered it, nor have a name accepted that tools/list never offered.
+func declaredArgNames(t tool) map[string]bool {
+	names := map[string]bool{}
+	for _, param := range verb.Params(t.command) {
+		names[param.Name] = true
+	}
+	for name := range injectedProperties {
+		if name == "workbench" && t.name == "workbenches" {
+			continue
+		}
+		names[name] = true
+	}
+	return names
+}
+
 // schemaFor generates one tool's input schema from the parameter list the cli
 // head composes its syntax line from, so the two heads cannot drift.
 //
 // Every property carries the same sentence the cli head prints beside the
 // argument, so an agent reading the schema and a person reading the help page
-// are told the same thing. The three properties beyond the parameter list are
-// resolved by name, because none is a parameter: actor takes the sentence
-// the global flag row already prints, basis takes one written for it, and
-// workbench takes one written for the address space the MCP head binds.
-//
-// The workbench property is held out for workbenches itself, which would
-// otherwise carry a property whose value the tool does not consume; the
-// exclusion is the one case the uniformity rule gives up, since a caller
-// asking what the property may say cannot already know the answer.
+// are told the same thing. Which properties the schema publishes beyond the
+// parameter list is declaredArgNames' answer, since a property offered here
+// and refused there would tell a caller two different things.
 //
 // No property carries an enum. A description is additive and constrains no
 // caller, where an enum changes what a strict client will send, which is a
@@ -209,10 +239,12 @@ func schemaFor(t tool) map[string]any {
 			required = append(required, param.Name)
 		}
 	}
-	properties["actor"] = map[string]any{"type": "string", "description": catalog.T("flag.actor.summary")}
-	properties["basis"] = map[string]any{"type": "string", "description": catalog.T("schema.basis.description")}
-	if t.name != "workbenches" {
-		properties["workbench"] = map[string]any{"type": "string", "description": catalog.T("schema.workbench.description")}
+	declared := declaredArgNames(t)
+	for name, key := range injectedProperties {
+		if !declared[name] {
+			continue
+		}
+		properties[name] = map[string]any{"type": "string", "description": catalog.T(key)}
 	}
 	sort.Strings(required)
 	schema := map[string]any{
