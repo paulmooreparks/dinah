@@ -40,7 +40,11 @@ func legacyContainerBench(t *testing.T, container string) string {
 // names what it would move and writes nothing, and a confirmed run moves each
 // workbench and says where it went.
 func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
-	tree := emptyTree(t)
+	// The tree is resolved the way the head resolves its own working
+	// directory, because these cases compare a path the head printed against a
+	// path composed here, and a temporary directory reached through a symlink
+	// has two spellings on macOS.
+	tree := resolvedDir(t, emptyTree(t))
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
 
@@ -98,7 +102,7 @@ func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
 // sweep and repaired by nothing, and `dinah check --remint <path>` renames the
 // one directory it is given.
 func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) {
-	tree := emptyTree(t)
+	tree := resolvedDir(t, emptyTree(t))
 	first := filepath.Join(tree, "one", bench.UserBaseName, "0199a1b2c3d47abc8000000000000001")
 	second := filepath.Join(tree, "two", bench.UserBaseName, "0199a1b2c3d47abc8000000000000001")
 	for _, where := range []string{first, second} {
@@ -150,7 +154,7 @@ func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) 
 // a machine caller with the same facts it prints, since an unattended sweep is
 // the caller this repair exists for.
 func TestTheContainerMigrationSpeaksTheMachineForm(t *testing.T) {
-	tree := emptyTree(t)
+	tree := resolvedDir(t, emptyTree(t))
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
 
@@ -190,7 +194,7 @@ func TestTheContainerMigrationSpeaksTheMachineForm(t *testing.T) {
 // identifier for a migrated workbench and omit it for one the migration has not
 // reached.
 func TestEveryWorkbenchListingCarriesTheIdentifier(t *testing.T) {
-	tree := emptyTree(t)
+	tree := resolvedDir(t, emptyTree(t))
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
 
@@ -261,7 +265,7 @@ func TestTwoBranchesAppendingToOneJournalMergeWithoutAConflict(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not on the path, so the merge behaviour cannot be exercised")
 	}
-	tree := emptyTree(t)
+	tree := resolvedDir(t, emptyTree(t))
 	if got := runCLI(t, tree, "init", tree, "--slug", "mg", "--operator", "alka"); got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
@@ -359,7 +363,7 @@ func fmtBaseDefinition(title string) string {
 // the reason, moves nothing, and carries the finding out in its exit code, so
 // an unattended run cannot read as a clean pass.
 func TestTheContainerMigrationReportsAWorkbenchItCouldNotMove(t *testing.T) {
-	tree := emptyTree(t)
+	tree := resolvedDir(t, emptyTree(t))
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
 	cards := bench.ListIDs(filepath.Join(legacy, bench.CardsDir))

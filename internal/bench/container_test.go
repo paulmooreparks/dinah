@@ -244,7 +244,7 @@ func TestSoleBenchStillFindsBothWidths(t *testing.T) {
 	// saw only one of them would resolve rather than report a tie.
 	found, ambiguous, _, err := soleBench(base)
 	if err != nil {
-		t.Fatalf("soleBench: %v", err)
+		t.Fatalf("the sole-workbench probe: %v", err)
 	}
 	if found != "" {
 		t.Errorf("a container holding two workbenches resolved to %q", found)
@@ -283,10 +283,10 @@ func TestAStrayContainerEntryIsInvisibleToDiscoveryAndFoundByTheSweep(t *testing
 	}
 	found, ambiguous, passed, err := soleBench(base)
 	if err != nil {
-		t.Fatalf("soleBench: %v", err)
+		t.Fatalf("the sole-workbench probe: %v", err)
 	}
 	if found != "" || len(ambiguous) != 0 || len(passed) != 0 {
-		t.Errorf("soleBench reported found=%q ambiguous=%v passed=%v over a stray entry it cannot see", found, ambiguous, passed)
+		t.Errorf("the sole-workbench probe reported found=%q ambiguous=%v passed=%v over a stray entry it cannot see", found, ambiguous, passed)
 	}
 
 	candidates, err := ScanContainers(tree)
