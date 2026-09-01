@@ -47,9 +47,11 @@ const (
 	// the directory is there, and what npm recorded in it is older than the
 	// lockfile that now describes it.
 	modulesStale
-	// modulesUnknowable is a directory with no hidden lockfile in it, which npm
-	// stopped producing before version 7. Nothing here can tell whether it
-	// matches, so the script says so rather than guessing either way.
+	// modulesUnknowable is a directory with no hidden lockfile in it. npm has
+	// written that file inside node_modules since version 7, so a tree without
+	// one was put there by something older or assembled by hand. Nothing here
+	// can tell whether it matches, so the script says so rather than guessing
+	// either way.
 	modulesUnknowable
 )
 
@@ -380,9 +382,10 @@ func TestBuildDinahExplainsAFailedExtensionInstall(t *testing.T) {
 	if !strings.Contains(run.output, "close every VS Code window and run this script again") {
 		t.Errorf("the failure never said what to do about it:\n%s", run.output)
 	}
-	// Ctrl-Shift-B runs this script in the editor's own terminal, so advice to
-	// close every window has to say where to run it from afterwards. Advice that
-	// does not ends the run that gave it.
+	// A reader who started this script from the editor's own terminal loses that
+	// terminal when the editor closes, so advice to close every window has to
+	// say where to run it from afterwards. Advice that does not ends the run
+	// that gave it.
 	if !strings.Contains(run.output, "from a plain PowerShell window") {
 		t.Errorf("the failure told the reader to close the terminal it runs in, without saying where to run it instead:\n%s", run.output)
 	}

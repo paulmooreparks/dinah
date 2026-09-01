@@ -1,6 +1,6 @@
 # Builds the dinah binaries and installs them into your bin directory, then
-# packages the VS Code extension and installs that too.
-# Wired to Ctrl-Shift-B in this workspace; run directly for the same result.
+# packages the VS Code extension and installs that too. You run it yourself
+# from a shell, and -SkipExtension leaves the extension half out.
 #
 #   -SkipPull        Build whatever is currently checked out instead of updating to origin/main.
 #   -SkipExtension   Install the binaries alone and leave the VS Code extension as it is.
@@ -235,8 +235,8 @@ try {
             Write-Host "installed and current, so nothing needs rebuilding." -ForegroundColor Yellow
             Write-Host "An extension directory a running editor is still holding has made an install crawl for" -ForegroundColor Yellow
             Write-Host "minutes and then fail, so close every VS Code window and run this script again." -ForegroundColor Yellow
-            Write-Host "Start it from a plain PowerShell window when you do, because Ctrl-Shift-B runs it in the" -ForegroundColor Yellow
-            Write-Host "editor's own terminal, and closing those windows closes that terminal with them." -ForegroundColor Yellow
+            Write-Host "Start it from a plain PowerShell window when you do, because closing the editor can close" -ForegroundColor Yellow
+            Write-Host "the terminal you started this script from and take the run down with it." -ForegroundColor Yellow
             Write-Host "If it fails a second time, remove the extension from the Extensions view and install" -ForegroundColor Yellow
             Write-Host "$vsix by hand from there." -ForegroundColor Yellow
             throw "installing the VS Code extension failed"
