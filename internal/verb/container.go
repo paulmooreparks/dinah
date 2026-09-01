@@ -134,9 +134,24 @@ func heldByDuplicate(duplicates map[string][]string) map[string]bool {
 
 // migrateOneContainer classifies one workbench and sorts it into the report,
 // carrying it into a container when its shape asks for that and apply is set.
+//
+// A workbench already sitting where the rule puts one still goes through the
+// migration on an applying run, and it is the format stamp it goes for. The
+// move and the stamp are two writes, so a lift that died between them left a
+// contained workbench still declaring the format that predates the rule, and
+// that is the one interruption an earlier sweep walked past rather than
+// finished. It is reported as already contained either way, because its
+// directory does not change and a run that repaired it should read the same as
+// the run after it, which is what the idempotence this command promises means.
 func migrateOneContainer(report *TreeContainerReport, candidate bench.ContainerCandidate, apply bool, held map[string]bool) {
 	shape := string(candidate.Shape)
 	if candidate.Shape == bench.ShapeContained {
+		if apply {
+			if _, err := bench.MigrateContainer(candidate.Path); err != nil {
+				report.Failed = append(report.Failed, TreeContainerFailure{Path: candidate.Path, Shape: shape, Reason: err.Error()})
+				return
+			}
+		}
 		report.AlreadyContained = append(report.AlreadyContained, candidate.Path)
 		return
 	}

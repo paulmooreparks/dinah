@@ -90,9 +90,9 @@ func MigrateVocabularyTree(root string, apply bool) (*TreeVocabularyReport, erro
 //
 // The walk is bench.ScanContainers rather than bench.Enumerate, and dinah-285
 // is why. Enumerate answers through the discovery walk, which since the
-// containment rule no longer returns a bare workbench, and a workbench written
-// in the retired vocabulary is old enough to be exactly the one likely to be
-// sitting bare. Running this sweep through discovery would therefore have hidden
+// containment rule landed no longer returns a bare workbench, and a workbench
+// written in the retired vocabulary is old enough to be exactly the one likely
+// to be sitting bare. Running this sweep through discovery would therefore have hidden
 // the workbenches it exists for. What Enumerate was chosen for still holds and
 // this walk keeps it: one function answers the root and everything beneath it,
 // so the root's own .dinah cannot go unopened while every other directory's is

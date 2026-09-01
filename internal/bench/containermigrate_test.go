@@ -658,3 +658,116 @@ func TestTwoCopiesOfALegacyWorkbenchShareOneIdentifier(t *testing.T) {
 		t.Errorf("two directories under a name a person typed were reported as claiming one identifier: %v", named)
 	}
 }
+
+// TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun asserts the interruption
+// that sits after every member has moved and before the format is stamped. The
+// two are separate writes, so a process can die between them, and what it
+// leaves is a workbench sitting exactly where the containment rule puts one
+// while it still declares the format that predates the rule. That workbench
+// opens, is found and works, which is what makes the state hide: a sweep
+// classifies it as already contained, and one that returned without writing
+// would walk past it on that run and on every run after it.
+//
+// The stop is planted on the anchor's rename, which is the member the lift
+// moves last, and it is taken after the rename has been performed rather than
+// instead of it. That is what puts the cut between the last move and the
+// stamp rather than before the last move, which is the interruption
+// TestALiftStoppedPartWayFinishesIntoTheSameDirectory already covers.
+func TestALiftStoppedBeforeTheStampIsFinishedByTheNextRun(t *testing.T) {
+	tree := t.TempDir()
+	root := populatedBench(t, filepath.Join(tree, "myproject"), benchDefinition)
+	write(t, filepath.Join(root, "README.md"), "the project's own file\n")
+	before := contents(t, root)
+
+	stop := errors.New("the process died after the last member moved and before the stamp")
+	previous := containerRename
+	containerRename = func(from, to string) error {
+		if err := previous(from, to); err != nil {
+			return err
+		}
+		if filepath.Base(from) == WorkbenchAnchor {
+			return stop
+		}
+		return nil
+	}
+	t.Cleanup(func() { containerRename = previous })
+
+	if _, err := MigrateContainer(root); !errors.Is(err, stop) {
+		t.Fatalf("the planted stop did not reach the caller, got %v", err)
+	}
+	containerRename = previous
+
+	if Exists(filepath.Join(root, WorkbenchAnchor)) {
+		t.Fatal("the anchor is still at the old path, so the stop landed before the last move rather than after it")
+	}
+	container := filepath.Join(root, UserBaseName)
+	ids := ListWorkbenchIDs(container)
+	if len(ids) != 1 {
+		t.Fatalf("the stopped run left %v in the container, wanted the one directory it filled", ids)
+	}
+	landed := filepath.Join(container, ids[0])
+	stopped, err := Open(landed)
+	if err != nil {
+		t.Fatalf("the workbench the stopped run left behind will not open: %v", err)
+	}
+	if stopped.Format != 1 {
+		t.Fatalf("the stopped run left format %d, so the cut did not land before the stamp", stopped.Format)
+	}
+
+	moved := migrateTree(t, tree)
+	if moved[landed] != landed {
+		t.Errorf("the sweep answered %q for the interrupted workbench, wanted the directory it already sits in at %s", moved[landed], landed)
+	}
+	finished, err := Open(landed)
+	if err != nil {
+		t.Fatalf("open after the sweep: %v", err)
+	}
+	if finished.Format != ContainerFormat {
+		t.Errorf("the workbench declares format %d after the sweep, so the sweep walked past the one interruption it had to finish", finished.Format)
+	}
+	if got := ListWorkbenchIDs(container); len(got) != 1 {
+		t.Errorf("the container holds %v, so the sweep minted a second directory rather than finishing the first", got)
+	}
+	after := contents(t, landed)
+	delete(after, WorkbenchAnchor)
+	delete(before, WorkbenchAnchor)
+	sameContents(t, "the finished workbench", before, after)
+	if _, err := Revision(filepath.Join(root, "README.md")); err != nil {
+		t.Errorf("the project's own file did not survive the lift: %v", err)
+	}
+}
+
+// TestALockRefusalNamesTheEntityThatIsHeld asserts what the migration tells a
+// person whose board is in use. The refusal the sweep raises is the message an
+// operator running this repair over boards he is working is most likely to
+// meet, and naming the workbench tells him nothing he did not already know,
+// since he named the workbench himself. The lock's own path is what says which
+// card is held and what has to be released, and the check already has it.
+func TestALockRefusalNamesTheEntityThatIsHeld(t *testing.T) {
+	root := populatedBench(t, filepath.Join(t.TempDir(), UserBaseName, "d00000000001"), benchDefinition)
+	card := filepath.Join(root, CardsDir, "c00000000001")
+	write(t, filepath.Join(card, LockName), "{\"holder\":\"alka\"}\n")
+
+	_, err := MigrateContainer(root)
+	refusal, refused := err.(*contract.Refusal)
+	if !refused {
+		t.Fatalf("a held workbench should be refused, got %v", err)
+	}
+	if refusal.Detail != card {
+		t.Errorf("the refusal names %q, wanted the card whose lock is held at %s", refusal.Detail, card)
+	}
+
+	sibling := filepath.Join(root, CardsDir, "c00000000003"+SiblingSuffix)
+	write(t, sibling, "{\"holder\":\"alka\",\"op\":\"archive\"}\n")
+	if err := os.RemoveAll(filepath.Join(card, LockName)); err != nil {
+		t.Fatalf("clear the card's lock: %v", err)
+	}
+	_, err = MigrateContainer(root)
+	refusal, refused = err.(*contract.Refusal)
+	if !refused {
+		t.Fatalf("a workbench carrying a sibling lock should be refused, got %v", err)
+	}
+	if want := filepath.Join(root, CardsDir, "c00000000003"); refusal.Detail != want {
+		t.Errorf("the refusal names %q, wanted the entity the sibling lock stands beside at %s", refusal.Detail, want)
+	}
+}

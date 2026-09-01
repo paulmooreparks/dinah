@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -549,4 +550,85 @@ func TestTheReportSaysAWorkbenchMovedBeforeTheMigrationStopped(t *testing.T) {
 	if !strings.Contains(got.out, project) {
 		t.Errorf("the report does not name the directory the workbench came from:\n%s", got.out)
 	}
+}
+
+// TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped asserts the last
+// interruption the migration's recoverability story leaves, and the only one
+// that hides. Every member of a bare workbench moves before the format stamp
+// is written, so a run that stops between the two leaves a workbench sitting
+// exactly where the containment rule puts one and still declaring the format
+// that predates the rule. It opens, it is found, and it works, which is why a
+// sweep that classified it as already contained and returned would walk past
+// it on that run and on every run after it.
+//
+// The interruption here is a real one rather than a state the test wrote. The
+// workbench declares a profile revision above this build's ceiling, so the
+// members move and Open refuses inside the stamp, which leaves the format line
+// untouched at 1. Removing that refusal is then the whole of the fixture, and
+// the second sweep meets a workbench in the state a crash leaves.
+func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
+	anchorWas := filepath.Join(project, bench.WorkbenchAnchor)
+	// A bare workbench in the field predates the containment rule, so it
+	// declares the format the rule replaced, and that is the workbench the
+	// stamp has real work to do on.
+	editAnchorAt(t, anchorWas, "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+	beyond := bench.ProfileName + "/" + strconv.Itoa(bench.ProfileMajor+1) + ".0"
+	editAnchorAt(t, anchorWas, "profile: "+bench.ProfileVersion, "profile: "+beyond)
+
+	stopped := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	if stopped.code != 5 {
+		t.Fatalf("a migration that stopped at the stamp exited %d, wanted the findings code 5: %s%s", stopped.code, stopped.out, stopped.errw)
+	}
+	container := filepath.Join(project, bench.UserBaseName)
+	ids := bench.ListWorkbenchIDs(container)
+	if len(ids) != 1 {
+		t.Fatalf("the container holds %v, wanted the one workbench whose members moved before the stamp", ids)
+	}
+	landed := filepath.Join(container, ids[0])
+	anchor := filepath.Join(landed, bench.WorkbenchAnchor)
+	if !anchorDeclares(t, anchor, "format: 1") {
+		t.Fatalf("the stopped run left a format this fixture cannot use:\n%s", readAnchorText(t, anchor))
+	}
+
+	editAnchorAt(t, anchor, "profile: "+beyond, "profile: "+bench.ProfileVersion)
+	again := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	if again.code != 0 {
+		t.Fatalf("the second sweep exited %d: %s%s", again.code, again.out, again.errw)
+	}
+	if !anchorDeclares(t, anchor, "format: "+strconv.Itoa(bench.ContainerFormat)) {
+		t.Errorf("the workbench still declares the format it was left with, so the sweep walked past the one interruption it had to finish:\n%s", readAnchorText(t, anchor))
+	}
+	if got := bench.ListWorkbenchIDs(container); len(got) != 1 || got[0] != ids[0] {
+		t.Errorf("the container holds %v, wanted the one directory the interrupted run had already filled at %s", got, landed)
+	}
+	third := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	if third.code != 0 || third.out != again.out {
+		t.Errorf("a third sweep read differently from the second, so finishing the interruption is not idempotent:\n%s\n%s", again.out, third.out)
+	}
+}
+
+// readAnchorText answers an anchor's bytes, so a failure can print what the
+// file actually says rather than only that it disagreed.
+func readAnchorText(t *testing.T, path string) string {
+	t.Helper()
+	text, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(text)
+}
+
+// anchorDeclares reports whether an anchor carries a frontmatter line, which
+// is the reading a test wanting the declared value rather than the value a
+// reader would default to has to make.
+func anchorDeclares(t *testing.T, path, line string) bool {
+	t.Helper()
+	for _, each := range strings.Split(readAnchorText(t, path), "\n") {
+		if strings.TrimRight(each, "\r") == line {
+			return true
+		}
+	}
+	return false
 }

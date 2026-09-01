@@ -1368,13 +1368,21 @@ func benchDir(t *testing.T, root string) string {
 // a bench that a hand edit has put outside what the tool will serve.
 func editAnchor(t *testing.T, root, from, to string) {
 	t.Helper()
-	path := filepath.Join(benchDir(t, root), "workbench.md")
+	editAnchorAt(t, filepath.Join(benchDir(t, root), "workbench.md"), from, to)
+}
+
+// editAnchorAt is editAnchor for an anchor the caller has already located,
+// which is what a test working a workbench discovery cannot reach needs: a
+// bare workbench is not found by the walk benchDir runs, and neither is one
+// sitting under a name this build did not mint.
+func editAnchorAt(t *testing.T, path, from, to string) {
+	t.Helper()
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
 	if !strings.Contains(string(text), from) {
-		t.Fatalf("the anchor carries no %q", from)
+		t.Fatalf("the anchor at %s carries no %q", path, from)
 	}
 	edited := strings.Replace(string(text), from, to, 1)
 	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {

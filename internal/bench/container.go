@@ -131,8 +131,8 @@ var afterContainerVerify func(source, target string) error
 //
 // It runs its own walk rather than reusing Enumerate, and both halves of that
 // are deliberate. Enumerate answers through benchIn, which since the
-// containment rule no longer returns a bare workbench as found, so the shape
-// this migration exists for is invisible to it. And no listing in this format
+// containment rule landed no longer returns a bare workbench as found, so the
+// shape this migration exists for is invisible to it. And no listing in this format
 // has ever seen a container subdirectory whose name is neither width, because
 // ListIDs filters on IsID before an anchor is read at all, so a walk built on
 // any existing listing cannot find ShapeStray either.
@@ -254,9 +254,17 @@ func DuplicateWorkbenchIDs(candidates []ContainerCandidate) map[string][]string 
 // and it lives nowhere else. Lift-into-container creates the .dinah beside a
 // bare workbench and moves the whole tree into it under a fresh identifier.
 //
-// A workbench already contained under a minted name is returned unchanged,
-// which is what makes a second run over one tree a no-op rather than a second
-// rename.
+// A workbench already contained under a minted name keeps the directory it is
+// in, and the one thing this repair still owes it is the format stamp. The
+// move and the stamp are two writes, so a process that died between them left
+// a workbench sitting exactly where the rule puts one and still declaring the
+// format that predates the rule, and a sweep that answered here without
+// writing would walk past that workbench on every later run. Stamping instead
+// costs a read of an anchor that is already open, does nothing when the format
+// is already current, and cannot reach a workbench that is legitimately older,
+// because nothing else in this format writes a contained workbench under a
+// minted name declaring the older format. A second run over a tree already
+// carried forward still moves nothing.
 //
 // A failure after the workbench has moved answers with the directory it moved
 // to as well as the error. The move and the format stamp are two writes, and a
@@ -268,7 +276,7 @@ func DuplicateWorkbenchIDs(candidates []ContainerCandidate) map[string][]string 
 func MigrateContainer(path string) (string, error) {
 	switch shapeOf(path) {
 	case ShapeContained:
-		return path, nil
+		return path, stampContainerFormat(path)
 	case ShapeBare:
 		return liftIntoContainer(path)
 	default:
@@ -305,7 +313,7 @@ func Remint(path string) (string, error) {
 // about.
 func remintInPlace(path string) (string, error) {
 	if held := heldLocks(path); len(held) > 0 {
-		return "", contract.RefuseWith(contract.Locked, path, map[string]string{"lock": held[0]})
+		return "", contract.Refuse(contract.Locked, lockedEntity(held[0]))
 	}
 	container := filepath.Dir(path)
 	target, err := freshTarget(container)
@@ -351,7 +359,7 @@ func remintInPlace(path string) (string, error) {
 // completedLift recognises that state by content on the next run.
 func liftIntoContainer(path string) (string, error) {
 	if held := heldLocks(path); len(held) > 0 {
-		return "", contract.RefuseWith(contract.Locked, path, map[string]string{"lock": held[0]})
+		return "", contract.Refuse(contract.Locked, lockedEntity(held[0]))
 	}
 	container := filepath.Join(path, UserBaseName)
 	resumed, err := completedLift(path, container)
@@ -572,6 +580,26 @@ func stampContainerFormat(root string) error {
 // descend into anything the workbench does not own, because a file called lock
 // inside a project's source tree is not this tool's business and refusing on it
 // would close the migration to a repository that happens to hold one.
+//
+// This is a check read once, before anything moves, rather than a lock held
+// across the whole migration, and the choice is deliberate. A lock in this
+// format is a file inside the directory it protects, so both primitives here
+// would move the lock they were holding: a remint renames the directory the
+// lock file sits in, and a lift empties the directory the lock file was left
+// in, so a release would go looking for it at a path that no longer holds a
+// workbench. The check is also wider than a hold would be, because Acquire
+// takes the workbench's own root lock and this walk refuses on a lock held
+// anywhere in the tree, which is where a writer working one card holds one.
+//
+// What a snapshot leaves open is a writer that starts after the check and
+// before the move. The copying path answers that: it digests the source after
+// the copy and refuses to delete anything it cannot show arrived, so a write
+// that landed late costs the delete rather than the data. The renaming path
+// cannot be made to answer it here, because closing that window wants a lock
+// the migration can carry across the rename of the directory holding it, and
+// no such lock exists in this format. The migration is a repair an operator
+// runs deliberately, and it refuses on every lock it can see rather than
+// breaking one.
 func heldLocks(root string) []string {
 	var held []string
 	if entries, err := os.ReadDir(root); err == nil {
@@ -599,6 +627,19 @@ func heldLocks(root string) []string {
 	}
 	sort.Strings(held)
 	return held
+}
+
+// lockedEntity names the directory a lock file stands for, which is what a
+// refusal has to say if the reader is to know which of his cards is held and
+// what to release. An entity's own lock sits inside the directory it protects
+// and a sibling lock stands beside that directory in the same collection, so
+// the two spellings answer with a path of the same kind.
+func lockedEntity(lock string) string {
+	name := filepath.Base(lock)
+	if name == LockName {
+		return filepath.Dir(lock)
+	}
+	return filepath.Join(filepath.Dir(lock), strings.TrimSuffix(name, SiblingSuffix))
 }
 
 // memberDigest maps every regular file a workbench owns to a digest of its
