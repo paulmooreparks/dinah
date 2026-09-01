@@ -307,9 +307,21 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.no-editor.next"},
 	},
 	{
-		Name:      NoWorkbench,
-		Fragments: []Fragment{{Key: "refusal.dinah.no-workbench.next"}},
-		NextStep:  []string{"refusal.dinah.no-workbench.next"},
+		// The directory a caller named holds no workbench.md of its own, and
+		// sometimes it holds exactly one workbench store a rung below, which
+		// is the address the caller meant. The alternation gives that reader
+		// the spelling that would have worked and everybody else the general
+		// advice.
+		Name:   NoWorkbench,
+		Values: []string{"found"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.no-workbench.found", When: "found"},
+			{Key: "refusal.dinah.no-workbench.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.no-workbench.found",
+			"refusal.dinah.no-workbench.next",
+		},
 	},
 	{
 		Name:      NoWorkbenchFound,

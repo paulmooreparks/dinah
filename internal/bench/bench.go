@@ -383,6 +383,9 @@ func DiscoverSource(start, override, overrideSource, home, nativeHome, configure
 			return "", "", nil, err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
+			if beneath, ok := SoleBeneath(abs); ok {
+				return "", "", nil, contract.RefuseWith(contract.NoWorkbench, abs, map[string]string{"found": beneath})
+			}
 			return "", "", nil, contract.Refuse(contract.NoWorkbench, abs)
 		}
 		return abs, overrideSource, nil, nil
@@ -1027,6 +1030,32 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 		return "", candidates, passed, nil
 	}
 	return "", nil, passed, nil
+}
+
+// SoleBeneath reports the one workbench store directory sitting immediately
+// beneath dir's .dinah, when dir holds exactly one. It answers the recovery
+// question the dinah.no-workbench refusal poses when the directory a caller
+// named is a workbench's containing directory rather than its store: whether
+// there is exactly one store one rung down, so the refusal can name the
+// address that would have worked instead of naming only the one that did not.
+//
+// It reports found=false on zero stores, on more than one, and on an anchor it
+// could not read, because none of those name a single answer worth offering.
+// A directory whose one entry carries a workbench.md that claims none of
+// Dinah's own keys counts as zero here, since soleBench passes such an anchor
+// over rather than admitting it as a candidate, so no path belonging to
+// somebody else is ever offered back.
+//
+// The probe is one non-recursive read of dir's .dinah and one anchor read per
+// hex-named entry in it, which is what soleBench already costs at every rung
+// of an ordinary climb. Nothing here recurses, so a caller-supplied path
+// cannot turn this into a walk.
+func SoleBeneath(dir string) (path string, found bool) {
+	sole, ambiguous, _, err := soleBench(filepath.Join(dir, UserBaseName))
+	if err != nil || sole == "" || len(ambiguous) > 0 {
+		return "", false
+	}
+	return sole, true
 }
 
 // anchorRecognition is what a workbench.md holds at one rung of the search, without

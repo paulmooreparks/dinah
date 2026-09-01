@@ -1725,6 +1725,11 @@
       "context": "The sentence printed after the refusal name dinah.no-workbench. {detail} is the directory the caller named with --workbench or DINAH_WORKBENCH, or the absolute path an MCP caller named in the call's workbench property.",
       "source": "438f10bd6ee2b700"
     },
+    "refusal.dinah.no-workbench.found": {
+      "text": "; एक वर्कबेंच एक स्तर नीचे {found} पर है; --workbench को इसके बजाय वहीं सेट करें",
+      "context": "Spliced onto refusal.dinah.no-workbench as the next step in place of refusal.dinah.no-workbench.next, when the directory named with --workbench, DINAH_WORKBENCH, or an MCP call's workbench property held exactly one workbench store immediately beneath its .dinah, so the caller named the workbench's containing directory rather than its store. {found} is that store's absolute path, the exact spelling --workbench or the workbench property would accept.",
+      "source": "c5c0bc52302ed34e"
+    },
     "refusal.dinah.no-workbench.next": {
       "text": "; किसी वर्कबेंच वाली डायरेक्टरी पर --workbench सेट करें, या यहां से ऊपर खोजने के लिए --workbench हटा दें",
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
@@ -2936,9 +2941,9 @@
       "source": "f3935cffe44663d9"
     },
     "schema.workbench.description": {
-      "text": "यह कॉल जिस वर्कबेंच पर काम करती है उसका पूर्ण पथ, जैसे C:\\Users\\you\\projects\\plans; सर्वर जिस वर्कबेंच के साथ शुरू हुआ उसी पर काम करने के लिए इसे छोड़ दें",
+      "text": "वर्कबेंच की अपनी स्टोर डायरेक्टरी का पूर्ण पथ, जैसे C:\\Users\\you\\projects\\plans\\.dinah\\4fa1c9d2e8b0, जिसे workbenches टूल और dinah init बताते हैं; सर्वर जिस वर्कबेंच के साथ शुरू हुआ उसी पर काम करने के लिए इसे छोड़ दें",
       "context": "The description of the workbench property, which every generated machine schema carries except the workbenches tool, and which an MCP caller sets to reach a workbench other than the one the server started with.",
-      "source": "88dc8ca4aea788c0"
+      "source": "732e5002ec4db9c1"
     },
     "param.mcp.root.summary": {
       "text": "वह डायरेक्टरी जिसके नीचे यह सर्वर की परोसी हर वर्कबेंच पड़ती है; आप कोई न नामें, तो शुरुआत में मिली वर्कबेंच",
