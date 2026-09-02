@@ -13,9 +13,11 @@ design history, because much of this format encodes lessons that
 implementation paid for first, and as the named boundary for concerns this
 format deliberately excludes.
 
-Terminology note: "workbench", "column", "card", and "state" are working
-terms. Whether Dinah keeps Andoneer's vocabulary wholesale is an open
-question tracked on the board, and nothing below depends on the final names.
+Terminology note: "workbench" and "card" are working terms. Whether Dinah
+keeps them is an open question tracked on the board, and nothing below depends
+on the final names. "Column" and "state" no longer sit beside them: a column
+is where a card stands and a state is how it stands there, which dinah-287
+settled and which this document's own prose now uses throughout.
 
 ## Storage is the filesystem, entirely
 
@@ -133,10 +135,16 @@ asked.
 
 Every entity is named by a 12-character lowercase hex identifier, unique
 within its containing collection. Identity therefore detaches from title, so
-renames are free, and entity identity is never a word in any language. The
-same identifier scheme is Andoneer's public-id scheme, so a workbench paired
-with a hosted board can share identifiers outright, and that reduces the
-eventual passthrough MCP from a mapping problem to none.
+renames are free, and entity identity is never a word in any language.
+
+A workbench's own identifier is wider and is minted differently. It is a UUID
+version 7 per RFC 9562, written as 32 lowercase hex characters with the
+canonical hyphens stripped, and it is the name of the workbench's own
+directory. Two of them minted on two machines in the same millisecond still
+differ, which is what lets independently created copies be told apart, and the
+leading timestamp puts a listing of workbenches in the order they were created.
+The two widths never overlap, so a workbench identifier can never be read as a
+card and a card identifier can never be read as a workbench.
 
 The legibility cost is deliberate. A raw directory listing is plumbing, not
 porcelain; humans read the workbench through the CLI, and the fixed anchor
@@ -215,12 +223,16 @@ core vocabulary that did not work somewhere first.
 
 Workbenches live in an overlay that works like git's. `~/.dinah/` is the
 user base, holding workbenches that belong to no repository, keyed by
-workbench id. A workbench may equally live inside a project repository (or
-anywhere else); discovery walks up from the current directory before falling
-back to the user base. `DINAH_HOME` moves the user base, so it moves where
-that fallback looks and where the user's own config and instruction layer
-are read from. The walk observes one boundary for its sake. At the machine's
-own home directory it looks for a `workbench.md` and skips that directory's
+workbench id. A workbench directory is always the immediate child of a `.dinah`
+directory, and the directory's own name is the workbench's identifier. A
+project repository holds its workbench in a `.dinah` of its own, so a workbench
+inside a repository and one in the user base sit in the same shape; discovery
+walks up from the current directory before falling back to the user base.
+
+`DINAH_HOME` moves the user base, so it moves where that fallback looks and
+where the user's own config and instruction layer are read from. The walk
+observes one boundary for its sake. At the machine's own home directory it
+looks for a `workbench.md` and skips that directory's
 `.dinah`. The real user base is left to the fallback alone, so a relocated
 base stays relocated even for a working directory sitting beneath the real
 home. The fallback runs at that home directory rather than after the climb,
@@ -232,6 +244,25 @@ other directory's `.dinah` on the way up is consulted as it always was. The user
 workbenches so a listing sees everything. A workbench inside a repository is
 versioned by that repository's git, so board history rides project history
 and board changes can be reviewed like code.
+
+A `workbench.md` sitting outside a container is not a workbench, however
+well-formed it is. Discovery does not return one, and a workbench declaring
+storage format 2 or higher is refused by name when it is opened outside a
+container. `dinah check --migrate-container` repairs that by creating the
+container inside the directory the workbench sits in and moving the
+workbench's own members, its anchor, its journal and its collections, into
+that container under a freshly minted identifier. Everything else in that
+directory stays exactly where it is. The directory holding a bare workbench is
+commonly a project repository carrying source code and a git directory as
+well, and none of that belongs to the workbench or travels with it.
+A workbench declaring format 1, or declaring no format at all, was written
+before the rule and still opens where it stands.
+
+One name in the tree is not Dinah's to mint, and it is stated where it lives
+rather than left for a reader to discover. An attachment's payload filename
+stays free-form, under "Anchor files and collections" and "Comments and
+attachments", because it sits alone inside its own `payload/` directory, which
+is a namespace holding no reserved names.
 
 A `workbench.md` on disk claims its directory only when its frontmatter
 carries `profile`, or carries `format` or `columns` without it. The three keys
@@ -632,7 +663,12 @@ over a JSON array because appending touches nothing that exists, so a crash
 can tear at most the final line, while an array's closing bracket makes
 every append a rewrite and every torn write a whole-file corruption. It is
 chosen also because line order is visible order, lines grep and hand-append
-like text, and two git branches' appends union-merge.
+like text, and two git branches' appends union-merge. That last one is a
+property of the `.gitattributes` a workbench is written with rather than of
+git's own default: git three-way-merges a text file and conflicts on
+concurrent appends, so a fresh workbench carries `journal.ndjson merge=union`
+and `*/journal.ndjson merge=union`, which names git's own union driver for the
+workbench's journal and for every card's.
 
 Journals are per-card rather than one per workbench because history then
 travels with the card when it is moved or archived, because concurrent
@@ -1111,10 +1147,13 @@ interleaved with another writer. Nothing creates a checklist item yet, and
 whatever eventually does owes the same field on the same terms.
 
 Ordinals exist because the two orderings already on disk both fail. A
-directory listing is ascending hex and a hex identifier is random, so the
-listing is in an order nobody wrote. A comment timestamp is wall clock,
-and two processes writing inside one second record the same value, which
-hands the tie back to the listing.
+directory listing is ascending hex and an entity identifier is random, so the
+listing is in an order nobody wrote. The workbench's own identifier is minted
+time-ordered instead, and for a different purpose entirely: it exists to be
+unique across independently created copies rather than to be counted to, since
+nobody types `.dinah/3` the way somebody types `<card>/comments/2`. A comment
+timestamp is wall clock, and two processes writing inside one second record
+the same value, which hands the tie back to the listing.
 
 A position is an index into the collection taken in ordinal order, so
 `<card>/comments/2` names whichever comment stands second once the
@@ -1503,16 +1542,18 @@ them; unknown keys are tolerated.
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 1` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 2` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the ambition is to never bump it.
+  approximately once) is the model, and the number has moved once, from 1 to 2,
+  when the rule that a workbench lives inside a `.dinah` container landed.
 - **Profile version.** The contract's public promise, with the channel and
-  increment rules recorded with the contract-profile work. Andoneer never
-  reads `format:`; implementations meet through the JSON interchange, which
-  declares the profile version it speaks.
+  increment rules recorded with the contract-profile work. `format:` is an
+  integer read by exactly one implementation, this one, and it carries no
+  cross-implementation meaning at all; implementations meet through the JSON
+  interchange, which declares the profile version it speaks.
 
 One reader posture makes upgrades safe. Readers ignore keys they do not
 know, and the format version gates only changes that would make an old
@@ -1908,6 +1949,5 @@ point being exercised.
   this.
 - Human handles: whether cards get a slug or number alias for CLI ergonomics,
   or titles resolved by search are enough.
-- Terminology: whether "workbench", "column", "card" survive into the
-  contract, coherent with Andoneer either way.
+- Terminology: whether "workbench" and "card" survive into the contract.
 - The CLI, API, and MCP surfaces, which are the next conversation.

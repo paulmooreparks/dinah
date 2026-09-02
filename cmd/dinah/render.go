@@ -1118,3 +1118,73 @@ func (s *session) vocabularySection(key string, rows []string) {
 		s.line(row)
 	}
 }
+
+// renderContainer prints what a tree-wide container migration did, or would
+// do. It follows renderVocabulary line for line, because the two commands
+// answer the same question about different repairs and a reader who has
+// learned one should not have to learn a second.
+func (s *session) renderContainer(report *verb.TreeContainerReport) {
+	if report.Preview {
+		s.line(s.r.TN("check.container-would-migrate", len(report.Migrated)))
+		for _, entry := range report.Migrated {
+			s.line(s.containerPreviewRow(report, entry))
+		}
+	} else {
+		s.line(s.r.TN("check.container-migrated", len(report.Migrated)))
+		for _, entry := range report.Migrated {
+			s.line(entry.Path + " -> " + entry.To)
+		}
+	}
+	s.vocabularySection("check.container-already", report.AlreadyContained)
+	s.vocabularySection("check.container-duplicate", s.findingRows(report.DuplicateFindings()))
+	unfinished := make([]string, 0, len(report.Failed))
+	failed := make([]string, 0, len(report.Failed))
+	for _, entry := range report.Failed {
+		if entry.To != "" {
+			unfinished = append(unfinished, entry.Path+" -> "+entry.To+": "+entry.Reason)
+			continue
+		}
+		failed = append(failed, entry.Path+": "+entry.Reason)
+	}
+	s.vocabularySection("check.container-moved-unfinished", unfinished)
+	s.vocabularySection("check.container-failed", failed)
+	if report.Preview {
+		s.line(s.r.T("check.container-confirm"))
+	}
+}
+
+// containerPreviewRow is the line a preview prints for one workbench it would
+// carry forward.
+//
+// A bare workbench prints its own finding sentence rather than a shape word,
+// because it is the one shape whose repair creates a directory and empties
+// another, and a reader deciding whether to authorize that needs to be told
+// which directory is created and that only the workbench's own files move.
+// Every other shape is a rename inside a container the workbench already sits
+// in, where the shape word is the whole of what happens.
+func (s *session) containerPreviewRow(report *verb.TreeContainerReport, entry verb.ContainerEntry) string {
+	if entry.Shape == string(bench.ShapeBare) {
+		for _, finding := range report.BareWorkbenchFindings() {
+			if finding.Detail == entry.Path {
+				return s.r.T(finding.Key, "detail", finding.Detail)
+			}
+		}
+	}
+	return entry.Path + " (" + entry.Shape + ")"
+}
+
+// findingRows renders each finding as its own catalog sentence, which is how
+// the rows of a container sweep reach a reader in his own language rather than
+// as a detail string a caller assembled.
+func (s *session) findingRows(findings []bench.Finding) []string {
+	rows := make([]string, 0, len(findings))
+	for _, finding := range findings {
+		rows = append(rows, s.r.T(finding.Key, "detail", finding.Detail))
+	}
+	return rows
+}
+
+// renderRemint prints the one rename a remint performed.
+func (s *session) renderRemint(report *verb.RemintReport) {
+	s.line(s.r.T("check.reminted", "from", report.From, "to", report.To))
+}

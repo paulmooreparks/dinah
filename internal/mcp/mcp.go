@@ -573,6 +573,9 @@ func workbenchesDefaultOnly(defaultLib *verb.Library) (map[string]any, error) {
 		Slug:  defaultLib.Bench.Slug,
 		Path:  defaultLib.Bench.Root,
 	}
+	if bench.IsWorkbenchID(defaultLib.Bench.ID) {
+		row.ID = defaultLib.Bench.ID
+	}
 	payload := wrap(map[string]any{
 		"workbenches": []bench.Candidate{row},
 		"unbounded":   true,
@@ -826,6 +829,8 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Kind = value
 	case "file":
 		req.File = value
+	case "remint":
+		req.Remint = value
 	case "expires":
 		if parsed, err := verb.ParseDuration(value); err == nil {
 			req.Expires = parsed
@@ -854,6 +859,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateColumns = value
 	case "migrate-vocabulary":
 		req.MigrateVocabulary = value
+	case "migrate-container":
+		req.MigrateContainer = value
 	case "migrate-workstreams":
 		req.MigrateWorkstreams = value
 	case "witness":

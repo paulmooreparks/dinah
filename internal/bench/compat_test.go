@@ -282,7 +282,7 @@ func TestARevisionTheAliasResolvedIsToldToMigrateRatherThanRefusedAsUnknown(t *t
 // same way with no edit here.
 func openFixture(t *testing.T, fixture string) (*Bench, error) {
 	t.Helper()
-	root := filepath.Join(compatDir, fixture)
+	root := stagedFixture(t, fixture)
 	major, minor, ok, err := ClassifyVocabulary(root)
 	if err != nil {
 		return nil, err
@@ -423,7 +423,7 @@ func fixtureColumns(t *testing.T, root, key string) map[string]string {
 // current one spells it `column`.
 func interchangeSource(t *testing.T, fixture string) (string, map[string]string) {
 	t.Helper()
-	root := filepath.Join(compatDir, fixture)
+	root := stagedFixture(t, fixture)
 	major, minor, ok, err := ClassifyVocabulary(root)
 	if err != nil {
 		t.Fatalf("classify %s: %v", fixture, err)
@@ -432,16 +432,34 @@ func interchangeSource(t *testing.T, fixture string) (string, map[string]string)
 		return root, fixtureColumns(t, root, columnKey)
 	}
 	stood := fixtureColumns(t, root, preVocabularyColumnKey)
-	copied := filepath.Join(t.TempDir(), fixture)
-	copyTree(t, root, copied)
-	opened, err := OpenPreVocabulary(copied)
+	opened, err := OpenPreVocabulary(root)
 	if err != nil {
 		t.Fatalf("open %s for migration: %v", fixture, err)
 	}
 	if _, err := MigrateVocabulary(opened); err != nil {
 		t.Fatalf("migrate %s: %v", fixture, err)
 	}
-	return copied, stood
+	return root, stood
+}
+
+// stagedFixture copies one committed fixture into a container a test may write
+// to, and answers the workbench directory it wrote.
+//
+// The corpus stores each fixture as a bare tree, which is a record of what a
+// build wrote rather than a workbench anybody serves. A fixture declaring the
+// storage format the containment rule arrived at therefore does not open where
+// it is stored, and staging it into a .dinah container is what asks the
+// question the corpus exists to ask: whether this build reads a tree an earlier
+// build wrote, once that tree sits where a workbench lives.
+//
+// Staging also means a migration these tests run rewrites the copy rather than
+// the committed fixture, which is the reason copyTree existed before this and
+// the reason every caller now goes through here.
+func stagedFixture(t *testing.T, fixture string) string {
+	t.Helper()
+	staged := filepath.Join(t.TempDir(), UserBaseName, fixtureWorkbenchID)
+	copyTree(t, filepath.Join(compatDir, fixture), staged)
+	return staged
 }
 
 // copyTree copies a fixture into a directory a test may write to, since a

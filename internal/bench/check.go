@@ -42,6 +42,21 @@ const (
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
 	FindingStrandedColumn     = "check.stranded-column"
+	// FindingBareWorkbench names a directory carrying a workbench.md this tool
+	// recognises as its own and sitting outside any .dinah container, which
+	// the containment rule means is no longer a workbench. It is reported
+	// rather than refused because the repair moves a directory, and it is
+	// reported separately from a foreign anchor because the two need
+	// different sentences: a foreign anchor was never Dinah's, where this one
+	// is a workbench somebody has been using that stopped being found.
+	FindingBareWorkbench = "check.bare-workbench"
+	// FindingDuplicateWorkbenchID names two or more directories sharing one
+	// workbench identifier, with every path in Detail. It is never repaired
+	// by the sweep, because a git clone of one workbench and a copy somebody
+	// made instead of creating a second workbench look identical on disk and
+	// want opposite repairs. `dinah check --remint <path>` is the explicit
+	// act that settles it.
+	FindingDuplicateWorkbenchID = "check.duplicate-workbench-id"
 	// FindingUnknownLevel names a card whose stored severity or priority is
 	// no member of what this workbench declares for that axis, which covers
 	// a declaration that has since changed and one that was never made. It

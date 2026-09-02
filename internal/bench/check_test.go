@@ -1490,11 +1490,12 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 	})
 
 	t.Run("a local workbench wins over a configured default pointing elsewhere", func(t *testing.T) {
-		local := t.TempDir()
+		here := t.TempDir()
+		local := containedPath(here)
 		writeWorkbench(t, local, "Local one")
 		configured := t.TempDir()
 		writeWorkbench(t, configured, "Elsewhere")
-		root, source, _, err := DiscoverSource(local, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		root, source, _, err := DiscoverSource(here, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		if err != nil {
 			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
 		}
@@ -1507,10 +1508,11 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 	})
 
 	t.Run("a local workbench wins even when the configured default is unreachable", func(t *testing.T) {
-		local := t.TempDir()
+		here := t.TempDir()
+		local := containedPath(here)
 		writeWorkbench(t, local, "Local one")
 		configured := filepath.Join(t.TempDir(), "does-not-exist")
-		root, source, _, err := DiscoverSource(local, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		root, source, _, err := DiscoverSource(here, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		if err != nil {
 			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
 		}
@@ -1685,6 +1687,22 @@ func TestMalformedCarriesTheFileItWasRaisedOver(t *testing.T) {
 
 // writeWorkbench puts a minimal workbench anchor carrying a title at a path,
 // which is all discovery reads of a candidate.
+// fixtureWorkbenchID is documented in enumeratedeep_test.go, where the walk
+// fixtures use it for the same reason these do.
+
+// containedPath answers the directory a fixture workbench is written to when a
+// test names the place it wants one: that place's own .dinah container, under
+// an identifier IsWorkbenchID admits.
+//
+// A workbench Instantiate writes declares the storage format the containment
+// rule arrived at, so one written straight into a bare directory no longer
+// opens. That is the rule these fixtures exist alongside rather than an
+// inconvenience to route around, and writing the container path in one helper
+// keeps every fixture agreeing about where a workbench lives.
+func containedPath(dir string) string {
+	return filepath.Join(dir, UserBaseName, fixtureWorkbenchID)
+}
+
 func writeWorkbench(t *testing.T, root, title string) {
 	t.Helper()
 	write(t, filepath.Join(root, WorkbenchAnchor), strings.Replace(benchDefinition, "title: Fixture", "title: "+title, 1))
@@ -1700,7 +1718,7 @@ func writeWorkbench(t *testing.T, root, title string) {
 func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	tree := t.TempDir()
 	root := filepath.VolumeName(tree) + string(filepath.Separator)
-	if found, ambiguous, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
+	if found, ambiguous, _, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	home := filepath.Join(tree, "home")
@@ -1763,20 +1781,22 @@ func TestDiscoveryLeavesTheNativeHomeBaseToTheFallback(t *testing.T) {
 		t.Errorf("the nested workbench: wanted %q, got %q", nested, found)
 	}
 
-	// Only the .dinah check is skipped at the native home. A workbench sitting
-	// there as a bare anchor is still discovered.
+	// Only the .dinah check is skipped at the native home, and since dinah-285
+	// a bare anchor sitting there is no longer a workbench at all, so the
+	// search refuses rather than resolving to the home directory itself.
 	anchored := filepath.Join(t.TempDir(), "anchored")
 	inside := filepath.Join(anchored, "sub")
 	if err := os.MkdirAll(inside, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	writeWorkbench(t, anchored, "Checked out at home")
-	found, _, err = Discover(inside, "", t.TempDir(), anchored)
-	if err != nil {
-		t.Fatalf("an anchor at the native home should still resolve, got %v", err)
+	_, _, err = Discover(inside, "", t.TempDir(), anchored)
+	refusal, refused := err.(*contract.Refusal)
+	if !refused {
+		t.Fatalf("a bare anchor at the native home resolved, and a workbench.md outside a container is not a workbench: %v", err)
 	}
-	if found != anchored {
-		t.Errorf("the workbench at the native home: wanted %q, got %q", anchored, found)
+	if refusal.Extra["bare"] != anchored {
+		t.Errorf("the refusal should name the bare workbench it walked past, wanted %q, got %q", anchored, refusal.Extra["bare"])
 	}
 }
 

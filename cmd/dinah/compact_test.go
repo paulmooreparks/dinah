@@ -347,9 +347,10 @@ func decodeCompactRefusalReport(payload string) (refusalReport, error) {
 			report.Context[record.field(0)] = record.field(1)
 		case "wb":
 			report.Workbenches = append(report.Workbenches, bench.Candidate{
-				Title: record.field(0),
-				Slug:  record.field(1),
-				Path:  record.field(2),
+				ID:    record.field(0),
+				Title: record.field(1),
+				Slug:  record.field(2),
+				Path:  record.field(3),
 			})
 		case "aff":
 		default:
@@ -976,11 +977,13 @@ func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 // So this literal is the pin. Changing compactVersion reddens the test below
 // by name and does not compile away, which makes whoever renumbers the grammar
 // say so here deliberately.
-const wantVersionLine = "fmt|compact|1"
+const wantVersionLine = "fmt|compact|2"
 
-// TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision on
-// this card: every compact payload opens with fmt|compact|1, before any other
-// record, so a caller can check the version before it assumes the field order.
+// TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision the
+// compact form was introduced on: every compact payload opens with its version
+// record, before any other record, so a caller can check the version before it
+// assumes the field order. The number moved to 2 at dinah-285, which gave the
+// wb record an id field ahead of its title.
 func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{{"ls"}, {"next"}, {"claim", "fx-2"}} {

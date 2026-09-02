@@ -1771,9 +1771,19 @@
       "context": "The meaning of the migrate-columns argument of `dinah check`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.check.migrate-container.summary": {
+      "text": "carry every workbench at or beneath this root into a .dinah container under an identifier Dinah minted",
+      "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
+      "skeleton": true
+    },
     "param.check.migrate-workstreams.summary": {
       "text": "adopt every workstream a card names that this workbench does not carry",
       "context": "The meaning of the migrate-workstreams argument of `dinah check`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.check.remint.summary": {
+      "text": "give the workbench at this path a fresh identifier",
+      "context": "The one-line summary of the check command flag --remint, printed by `dinah help check`. The flag takes one directory path.",
       "skeleton": true
     },
     "param.check.witness.summary": {
@@ -2031,6 +2041,16 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
       "skeleton": true
     },
+    "refusal.dinah.needs-container-migration": {
+      "text": "Dinah no longer opens {detail}, because a workbench lives inside a .dinah container and this one does not",
+      "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
+      "skeleton": true
+    },
+    "refusal.dinah.needs-container-migration.next": {
+      "text": "; run `dinah check --migrate-container --yes` to carry it into one, then open it again",
+      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. The command name is machine vocabulary and is not translated.",
+      "skeleton": true
+    },
     "refusal.dinah.add-needs-a-column": {
       "text": "this workbench has no columns left to file a new card into",
       "context": "The sentence printed after the refusal name dinah.add-needs-a-column. {detail} is the workbench.md path Add read an empty live columns list from, since l.refuse carries no path of its own for the malformed.at/.fix splice to reach.",
@@ -2194,6 +2214,10 @@
     "refusal.dinah.no-workbench-found.next": {
       "text": "; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-workbench-found.bare": {
+      "text": "; a workbench.md sits at {bare}, outside any .dinah container, which is why no search reaches it; run `dinah check --migrate-container` there to carry it into one",
       "skeleton": true
     },
     "refusal.dinah.no-workbench.found": {
@@ -3344,6 +3368,84 @@
     "check.vocabulary-would-migrate.other": {
       "text": "{count} workbenches would be carried across the column and state rename.",
       "context": "The heading of a vocabulary-migration preview, for any other number. Followed by one line per workbench, each naming its directory and the revision it declares.",
+      "skeleton": true
+    },
+    "check.reminted": {
+      "text": "{from} now carries a fresh identifier, at {to}.",
+      "context": "The one line dinah check --remint prints. {from} is the directory the workbench sat in and {to} is the directory it now sits in.",
+      "skeleton": true
+    },
+    "check.container-confirm": {
+      "text": "Nothing was written. This repair moves directories, so read the list above before you authorize it, then run the same command again with --yes.",
+      "context": "The closing line of a container-migration preview, telling the reader how to authorize the move.",
+      "skeleton": true
+    },
+    "check.container-failed.other": {
+      "text": "{count} workbenches could not be carried into a container.",
+      "context": "The heading over the workbenches the container migration could not move, for any other number.",
+      "skeleton": true
+    },
+    "check.container-failed.one": {
+      "text": "{count} workbench could not be carried into a container.",
+      "context": "The heading over the workbenches the container migration could not move, for exactly one. Each row names the directory and the reason.",
+      "skeleton": true
+    },
+    "check.container-moved-unfinished.other": {
+      "text": "{count} workbenches moved into a container and the migration then stopped, so they are no longer where they were.",
+      "skeleton": true
+    },
+    "check.container-moved-unfinished.one": {
+      "text": "{count} workbench moved into a container and the migration then stopped, so it is no longer where it was.",
+      "skeleton": true
+    },
+    "check.container-duplicate.other": {
+      "text": "{count} workbench identifiers are claimed by more than one directory, and none of them was touched.",
+      "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number.",
+      "skeleton": true
+    },
+    "check.container-duplicate.one": {
+      "text": "{count} workbench identifier is claimed by more than one directory, and none of them was touched.",
+      "context": "The heading over the duplicated workbench identifiers a sweep found, for exactly one. Each row names the identifier and every path claiming it.",
+      "skeleton": true
+    },
+    "check.container-already.other": {
+      "text": "{count} workbenches already sit in a container under a minted identifier.",
+      "context": "The heading over the workbenches the container migration left alone because they already sit where the rule puts one, for any other number.",
+      "skeleton": true
+    },
+    "check.container-already.one": {
+      "text": "{count} workbench already sits in a container under a minted identifier.",
+      "context": "The heading over the workbenches the container migration left alone because they already sit where the rule puts one, for exactly one.",
+      "skeleton": true
+    },
+    "check.container-migrated.other": {
+      "text": "Carried {count} workbenches into a container.",
+      "context": "The heading over what the container migration moved, for any other number.",
+      "skeleton": true
+    },
+    "check.container-migrated.one": {
+      "text": "Carried {count} workbench into a container.",
+      "context": "The heading over what the container migration moved, for exactly one workbench. Each row names where the workbench came from and where it went.",
+      "skeleton": true
+    },
+    "check.container-would-migrate.other": {
+      "text": "{count} workbenches would be carried into a container.",
+      "context": "The heading over what a preview of the container migration would move, for any other number.",
+      "skeleton": true
+    },
+    "check.container-would-migrate.one": {
+      "text": "{count} workbench would be carried into a container.",
+      "context": "The heading over what a preview of the container migration would move, for exactly one workbench.",
+      "skeleton": true
+    },
+    "check.duplicate-workbench-id": {
+      "text": "one workbench identifier is claimed by more than one directory ({detail}); dinah check --remint <path> gives one of them a fresh identifier",
+      "context": "A check finding: two or more directories share one workbench identifier. {detail} carries the identifier and every path claiming it. The sweep never repairs this, because a git clone and an accidental copy look identical on disk.",
+      "skeleton": true
+    },
+    "check.bare-workbench": {
+      "text": "the workbench.md at {detail} sits outside any .dinah container, so no search finds it; dinah check --migrate-container creates a .dinah container inside {detail} and moves the workbench's own files into it, leaving everything else in {detail} where it stands",
+      "context": "A check finding: a directory carrying a workbench.md Dinah recognises as its own, sitting outside any container, which the containment rule means is no longer a workbench. {detail} carries that directory.",
       "skeleton": true
     },
     "param.check.migrate-vocabulary.summary": {

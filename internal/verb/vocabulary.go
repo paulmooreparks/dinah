@@ -85,12 +85,20 @@ func MigrateVocabularyTree(root string, apply bool) (*TreeVocabularyReport, erro
 }
 
 // vocabularyCandidates answers every directory at or beneath the root that
-// offers a workbench, including the root itself, with no directory named
-// twice. bench.Enumerate is the one place that question is answered, and a
-// second, independent root check here was what let the root's own .dinah go
-// unopened while every other directory's was opened (dinah-312).
+// carries a workbench, including the root itself, with no directory named
+// twice.
+//
+// The walk is bench.ScanContainers rather than bench.Enumerate, and dinah-285
+// is why. Enumerate answers through the discovery walk, which since the
+// containment rule landed no longer returns a bare workbench, and a workbench
+// written in the retired vocabulary is old enough to be exactly the one likely
+// to be sitting bare. Running this sweep through discovery would therefore have hidden
+// the workbenches it exists for. What Enumerate was chosen for still holds and
+// this walk keeps it: one function answers the root and everything beneath it,
+// so the root's own .dinah cannot go unopened while every other directory's is
+// opened (dinah-312).
 func vocabularyCandidates(root string) ([]string, error) {
-	listed, err := bench.Enumerate(root)
+	listed, err := bench.ScanContainers(root)
 	if err != nil {
 		return nil, err
 	}

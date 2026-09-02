@@ -23,7 +23,7 @@ func mcpForest(t *testing.T, places ...string) (string, *verb.Library) {
 	root := filepath.Join(base, "forest")
 	var first *verb.Library
 	for _, place := range places {
-		dir := filepath.Join(append([]string{root}, strings.Split(place, "/")...)...)
+		dir := containedPath(filepath.Join(append([]string{root}, strings.Split(place, "/")...)...))
 		read, err := bench.ReadDefinition([]byte(definition))
 		if err != nil {
 			t.Fatalf("definition: %v", err)
@@ -174,7 +174,7 @@ func TestARootArgumentOutsideTheServersRootIsRefused(t *testing.T) {
 	if err != nil {
 		t.Fatalf("definition: %v", err)
 	}
-	if err := bench.Instantiate(outside, "elsewhere", "alka", read); err != nil {
+	if err := bench.Instantiate(containedPath(outside), "elsewhere", "alka", read); err != nil {
 		t.Fatalf("instantiate: %v", err)
 	}
 

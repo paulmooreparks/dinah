@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -97,20 +96,22 @@ func rewriteFile(t *testing.T, path string, edit func(string) string) {
 }
 
 // buildTreeFixture writes four workbenches under one root: one in the root's
-// own container, one two levels below it in the same shape, one standing bare
-// inside a sibling directory, and one already carrying the current vocabulary.
-// It answers the root and the anchor directory of each.
+// own container, one two levels below it in the same shape, one in a sibling
+// directory's container, and one already carrying the current vocabulary. It
+// answers the root and the anchor directory of each.
 //
-// The fixture plants two shapes on purpose, because the tool reaches
-// workbenches in both and a fixture holding only one of them cannot tell when
-// the other stops working. atRoot and nested carry the shape dinah init
-// writes, a workbench inside the .dinah container of a directory, and atRoot
-// puts it at the walk's own root, which is the position the walk used to
-// probe with a different question and lose (dinah-312). sibling carries a bare
-// anchor with no .dinah anywhere on its path, a layout no command produces,
-// kept because the --workbench override and the native-home rung of the
-// ordinary discovery climb both rest on benchIn's unconditional anchor check
-// and nothing else in this fixture exercises it.
+// Every one of them carries the shape dinah init writes, a workbench inside
+// the .dinah container of a directory, and each sits at a different depth so
+// that the walk is asked the same question at four positions. atRoot puts one
+// at the walk's own root, which is the position the walk used to probe with a
+// different question and lose (dinah-312).
+//
+// The fixture used to plant one of them bare, with no .dinah anywhere on its
+// path, to exercise benchIn's unconditional anchor check. dinah-285 removed
+// that check: a workbench.md outside a container is no longer a workbench, so
+// a bare anchor here would test a shape the tool refuses rather than one it
+// serves. The bare shape is exercised where it now belongs, on the container
+// migration that repairs it.
 func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, current string) {
 	t.Helper()
 	base := t.TempDir()
@@ -120,35 +121,6 @@ func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, curre
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
-	planted := 0
-	// plantBare creates a workbench and moves its anchor directory out of the
-	// container dinah init wrote it into, so the anchor stands at a path of
-	// the fixture's own choosing with no .dinah above it. Only sibling is
-	// planted this way now, and the comment on this function says why that one
-	// still is.
-	plantBare := func(where string, cards ...string) string {
-		planted++
-		scratch := filepath.Join(base, "planting", strconv.Itoa(planted))
-		if err := os.MkdirAll(scratch, 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if got := runCLI(t, scratch, "init", scratch, "--slug", "fx", "--operator", "alka"); got.code != 0 {
-			t.Fatalf("init at %s: %d %s", scratch, got.code, got.errw)
-		}
-		anchor := benchDir(t, scratch)
-		for _, title := range cards {
-			if got := runCLI(t, scratch, "--workbench", anchor, "add", title); got.code != 0 {
-				t.Fatalf("add at %s: %d %s", anchor, got.code, got.errw)
-			}
-		}
-		if err := os.MkdirAll(filepath.Dir(where), 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.Rename(anchor, where); err != nil {
-			t.Fatalf("plant %s: %v", where, err)
-		}
-		return where
-	}
 	// plantInContainer creates a workbench exactly where dinah init puts one,
 	// inside the .dinah container of the directory it is given, and answers the
 	// anchor directory it wrote. Nothing is renamed, so what the fixture holds
@@ -180,8 +152,8 @@ func buildTreeFixture(t *testing.T) (root string, atRoot, nested, sibling, curre
 	}
 	atRoot = plantInContainer(root, "a card at the root")
 	nested = plantInContainer(filepath.Join(root, "customer", "project"), "a nested card", "a second nested card")
-	sibling = plantBare(filepath.Join(root, "elsewhere"), "a card in a sibling")
-	current = plantBare(filepath.Join(root, "already"), "a card that needs nothing")
+	sibling = plantInContainer(filepath.Join(root, "elsewhere"), "a card in a sibling")
+	current = plantInContainer(filepath.Join(root, "already"), "a card that needs nothing")
 	// The nested workbench's two cards are stood in the two conditions that
 	// are not the default, because an absent state key reads as ready. A
 	// fixture whose every card is ready cannot tell a condition carried

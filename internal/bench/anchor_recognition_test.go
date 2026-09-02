@@ -23,7 +23,8 @@ const foreignAnchor = "# Notes\n\nJust some notes, unrelated to any workbench.\n
 // foreign file, and the foreign file is reported back as passed over.
 func TestAForeignAnchorDoesNotStopTheClimb(t *testing.T) {
 	outer := t.TempDir()
-	write(t, filepath.Join(outer, WorkbenchAnchor), benchDefinition)
+	real := containedPath(outer)
+	write(t, filepath.Join(real, WorkbenchAnchor), benchDefinition)
 	notes := filepath.Join(outer, "notes")
 	write(t, filepath.Join(notes, WorkbenchAnchor), foreignAnchor)
 
@@ -31,8 +32,8 @@ func TestAForeignAnchorDoesNotStopTheClimb(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a foreign anchor below a real workbench should not stop the climb, got %v", err)
 	}
-	if found != outer {
-		t.Errorf("wanted the ancestor workbench %q, got %q", outer, found)
+	if found != real {
+		t.Errorf("wanted the ancestor workbench %q, got %q", real, found)
 	}
 	want := filepath.Join(notes, WorkbenchAnchor)
 	if len(passed) != 1 || passed[0] != want {
@@ -47,12 +48,13 @@ func TestAForeignAnchorDoesNotStopTheClimb(t *testing.T) {
 // always carried.
 func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 	outer := t.TempDir()
-	write(t, filepath.Join(outer, WorkbenchAnchor), benchDefinition)
+	write(t, filepath.Join(containedPath(outer), WorkbenchAnchor), benchDefinition)
 	damaged := strings.Replace(benchDefinition, "profile: dinah-core/0.7\n", "", 1)
-	inner := filepath.Join(outer, "damaged")
+	below := filepath.Join(outer, "damaged")
+	inner := containedPath(below)
 	write(t, filepath.Join(inner, WorkbenchAnchor), damaged)
 
-	found, passed, err := Discover(inner, "", "", "")
+	found, passed, err := Discover(below, "", "", "")
 	if err != nil {
 		t.Fatalf("a recognized anchor should stop the climb rather than refuse discovery, got %v", err)
 	}
@@ -81,10 +83,11 @@ func TestARecognizedButDamagedAnchorStillStopsTheClimb(t *testing.T) {
 // declared stops the climb exactly as before, since profile alone already
 // claims the directory.
 func TestARecognizedAnchorStopsTheClimbOnProfileAlone(t *testing.T) {
-	root := t.TempDir()
+	dir := t.TempDir()
+	root := containedPath(dir)
 	write(t, filepath.Join(root, WorkbenchAnchor), "---\nprofile: dinah-core/0.7\n---\n")
 
-	found, passed, err := Discover(root, "", "", "")
+	found, passed, err := Discover(dir, "", "", "")
 	if err != nil {
 		t.Fatalf("an anchor declaring profile should stop the climb, got %v", err)
 	}
@@ -106,10 +109,11 @@ func TestARecognizedAnchorStopsTheClimbOnProfileAlone(t *testing.T) {
 // arm reads. This one writes no profile at all, which is what makes it the
 // test that fails when the arm names the retired key.
 func TestARecognizedAnchorStopsTheClimbOnTheColumnSequenceAlone(t *testing.T) {
-	root := t.TempDir()
+	dir := t.TempDir()
+	root := containedPath(dir)
 	write(t, filepath.Join(root, WorkbenchAnchor), "---\ntitle: Sequence only\ncolumns:\n  - b00000000001\n---\n")
 
-	found, passed, err := Discover(root, "", "", "")
+	found, passed, err := Discover(dir, "", "", "")
 	if err != nil {
 		t.Fatalf("an anchor declaring a column sequence should stop the climb, got %v", err)
 	}
@@ -202,7 +206,7 @@ func TestReadAnchorContentOnlyRunsWhereExistsFoundAFile(t *testing.T) {
 	// Nothing anywhere in this tree carries a workbench.md, so the walk
 	// exhausts and refuses; the read must never have run.
 	root := filepath.VolumeName(deep) + string(filepath.Separator)
-	if found, ambiguous, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
+	if found, ambiguous, _, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	if _, _, err := Discover(deep, "", "", root); err == nil {

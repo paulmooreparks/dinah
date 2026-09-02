@@ -309,7 +309,7 @@ func readCardAnchor(t *testing.T, collection string) string {
 // per line and in LevelAxes order, and the model reads both axes back out of
 // the workbench that was created.
 func TestADefinitionsLevelsMemberIsRenderedAsABlock(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "created")
+	root := containedPath(filepath.Join(t.TempDir(), "created"))
 	member := `{"priority": ["later", "soon", "next", "now"], "severity": ["trivial", "minor", "major", "critical"]}`
 	instantiateWithLevels(t, root, member)
 	anchor := readWorkbenchAnchor(t, root)
@@ -334,7 +334,7 @@ func TestADefinitionsLevelsMemberIsRenderedAsABlock(t *testing.T) {
 // priority second and a renderer walking positions rather than presence would
 // pass the two-axis case and fail this one.
 func TestADefinitionDeclaringOneAxisWritesThatAxisAlone(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "created")
+	root := containedPath(filepath.Join(t.TempDir(), "created"))
 	instantiateWithLevels(t, root, `{"priority": ["later", "soon", "now"]}`)
 	anchor := readWorkbenchAnchor(t, root)
 	if !strings.Contains(anchor, "levels:\n  priority: [later, soon, now]\n") {
@@ -360,7 +360,7 @@ func TestADefinitionDeclaringOneAxisWritesThatAxisAlone(t *testing.T) {
 // strings loses nothing: it lands as the one raw JSON line every unrecognized
 // member has always travelled as.
 func TestALevelsMemberTheRendererCannotReadTravelsAsOneRawLine(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "created")
+	root := containedPath(filepath.Join(t.TempDir(), "created"))
 	member := `{"severity": [{"name": "major", "rank": 2}]}`
 	instantiateWithLevels(t, root, member)
 	anchor := readWorkbenchAnchor(t, root)
@@ -392,7 +392,7 @@ func TestALevelsMemberTheRendererCannotReadTravelsAsOneRawLine(t *testing.T) {
 // half of the renderer's ordering rule: an axis the model does not read is
 // written after the two it does, rather than dropped.
 func TestAFurtherAxisIsRenderedAfterTheTwoInSortedOrder(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "created")
+	root := containedPath(filepath.Join(t.TempDir(), "created"))
 	member := `{"urgency": ["whenever"], "severity": ["minor"], "abandon": ["never"]}`
 	instantiateWithLevels(t, root, member)
 	anchor := readWorkbenchAnchor(t, root)

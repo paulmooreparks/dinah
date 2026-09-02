@@ -1,8 +1,0 @@
-{"ts":"2026-08-31T20:56:59Z","event":"created","actor":"sam","title":"second card","to":"004acda2c28a","to_title":"Intake"}
-{"ts":"2026-08-31T20:57:00Z","event":"moved","actor":"sam","from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing"}
-{"ts":"2026-08-31T20:57:00Z","event":"claimed","actor":"sam"}
-{"ts":"2026-08-31T20:57:00Z","event":"released","actor":"sam"}
-{"ts":"2026-08-31T20:57:02Z","event":"card_updated","actor":"sam","to":"trivial","field":"severity"}
-{"ts":"2026-08-31T20:57:02Z","event":"card_updated","actor":"sam","from":"trivial","field":"severity"}
-{"ts":"2026-08-31T20:57:02Z","event":"workstream_joined","actor":"sam","workstream":"e5f893cec024"}
-{"ts":"2026-08-31T20:57:02Z","event":"manual_correction","actor":"sam","from":"7b5cfe51cb3b","to":"004acda2c28a","from_title":"Doing","to_title":"Intake"}

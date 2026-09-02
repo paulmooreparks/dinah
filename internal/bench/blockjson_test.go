@@ -21,7 +21,7 @@ func cloneThrough(t *testing.T, opened *Bench) string {
 	if err != nil {
 		t.Fatalf("read the definition back: %v", err)
 	}
-	root := filepath.Join(t.TempDir(), "clone")
+	root := containedPath(filepath.Join(t.TempDir(), "clone"))
 	if err := Instantiate(root, "cl", "sam", definition); err != nil {
 		t.Fatalf("instantiate: %v", err)
 	}

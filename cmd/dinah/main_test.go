@@ -242,11 +242,15 @@ func carryToDoing(t *testing.T, root, card string) {
 // itself rather than searching it, need this rather than the container.
 func soleBenchDir(t *testing.T, container string) string {
 	t.Helper()
-	ids := bench.ListIDs(filepath.Join(container, bench.UserBaseName))
-	if len(ids) != 1 {
-		t.Fatalf("wanted one workbench in the container, got %v", ids)
+	// bench.SoleBeneath answers exactly this question, and it is asked here
+	// rather than by listing the container because a container holds names of
+	// two widths since dinah-285 and ListIDs governs the 12-hex entity
+	// collections alone.
+	sole, found := bench.SoleBeneath(container)
+	if !found {
+		t.Fatalf("wanted one workbench in the container beneath %s", container)
 	}
-	return filepath.Join(container, bench.UserBaseName, ids[0])
+	return sole
 }
 
 // TestHelpBlockIsTheRatifiedSurface asserts that `dinah` with no arguments
@@ -437,7 +441,7 @@ func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("init: %d %s", got.code, got.errw)
 	}
-	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
 	if len(ids) != 1 {
 		t.Fatalf("the container should hold one workbench, got %v", ids)
 	}
@@ -446,8 +450,17 @@ func TestInitWritesIntoTheContainerAndSaysWhere(t *testing.T) {
 	if !sameDirs(t, []string{reported}, []string{written}) {
 		t.Errorf("the message should name the directory init wrote, wanted %s, got %s", written, reported)
 	}
-	if !bench.IsID(filepath.Base(reported)) || filepath.Base(filepath.Dir(reported)) != bench.UserBaseName {
+	if !bench.IsWorkbenchID(filepath.Base(reported)) || filepath.Base(filepath.Dir(reported)) != bench.UserBaseName {
 		t.Errorf("the path should be a generated identifier inside the container, got %s", reported)
+	}
+	// dinah-285 AC-3: the workbench answers with the identifier its own
+	// directory is named by, which is the whole of where its identity lives.
+	opened, opening := bench.Open(written)
+	if opening != nil {
+		t.Fatalf("open the workbench init wrote: %v", opening)
+	}
+	if opened.ID != filepath.Base(written) {
+		t.Errorf("the workbench reports the identifier %q, wanted its own directory name %q", opened.ID, filepath.Base(written))
 	}
 	if !bench.Exists(filepath.Join(written, "workbench.md")) {
 		t.Errorf("%s carries no workbench.md", written)
@@ -476,7 +489,7 @@ func TestASecondInitAddsAWorkbenchBesideTheFirst(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("the second init: %d %s", got.code, got.errw)
 	}
-	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
 	if len(ids) != 2 {
 		t.Fatalf("the container should hold two workbenches, got %v", ids)
 	}
@@ -546,7 +559,7 @@ func TestInitProceedsPastAForeignWorkbenchFile(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("init past a foreign anchor: wanted 0, got %d (%s)", got.code, got.errw)
 	}
-	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
 	if len(ids) != 1 {
 		t.Fatalf("the container should hold one workbench, got %v", ids)
 	}
@@ -687,7 +700,7 @@ func TestInitRefusesTheWorkbenchFlag(t *testing.T) {
 		if got.code != 0 {
 			t.Fatalf("init with neither set: wanted 0, got %d (%s)", got.code, got.errw)
 		}
-		ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+		ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
 		if len(ids) != 1 {
 			t.Fatalf("the container should hold one workbench, got %v", ids)
 		}
@@ -709,7 +722,7 @@ func TestInitStillHonoursThePositionalRootAlone(t *testing.T) {
 	if got.code != 0 {
 		t.Fatalf("init with a positional root alone: wanted 0, got %d (%s)", got.code, got.errw)
 	}
-	ids := bench.ListIDs(filepath.Join(root, bench.UserBaseName))
+	ids := bench.ListWorkbenchIDs(filepath.Join(root, bench.UserBaseName))
 	if len(ids) != 1 {
 		t.Fatalf("the container should hold one workbench at the positional root, got %v", ids)
 	}
@@ -1341,25 +1354,35 @@ func benchDir(t *testing.T, root string) string {
 	if bench.Exists(filepath.Join(root, "workbench.md")) {
 		return root
 	}
-	base := filepath.Join(root, bench.UserBaseName)
-	ids := bench.ListIDs(base)
-	if len(ids) != 1 {
-		t.Fatalf("%s holds %d workbenches, wanted one", base, len(ids))
+	// bench.SoleBeneath is asked rather than the container listed, because a
+	// container holds names of two widths since dinah-285 and ListIDs governs
+	// the 12-hex entity collections alone.
+	sole, found := bench.SoleBeneath(root)
+	if !found {
+		t.Fatalf("%s holds no single workbench in its container", root)
 	}
-	return filepath.Join(base, ids[0])
+	return sole
 }
 
 // editAnchor rewrites the workbench anchor, which is how the cases above build
 // a bench that a hand edit has put outside what the tool will serve.
 func editAnchor(t *testing.T, root, from, to string) {
 	t.Helper()
-	path := filepath.Join(benchDir(t, root), "workbench.md")
+	editAnchorAt(t, filepath.Join(benchDir(t, root), "workbench.md"), from, to)
+}
+
+// editAnchorAt is editAnchor for an anchor the caller has already located,
+// which is what a test working a workbench discovery cannot reach needs: a
+// bare workbench is not found by the walk benchDir runs, and neither is one
+// sitting under a name this build did not mint.
+func editAnchorAt(t *testing.T, path, from, to string) {
+	t.Helper()
 	text, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
 	if !strings.Contains(string(text), from) {
-		t.Fatalf("the anchor carries no %q", from)
+		t.Fatalf("the anchor at %s carries no %q", path, from)
 	}
 	edited := strings.Replace(string(text), from, to, 1)
 	if err := os.WriteFile(path, []byte(edited), 0o644); err != nil {
@@ -1449,7 +1472,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-workstreams] [--witness] [--yes]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -1462,7 +1485,11 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if generated.code != 0 {
 		t.Fatalf("help check: %d %s", generated.code, generated.errw)
 	}
-	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-workstreams", "--witness"} {
+	// --remint is left out of this loop deliberately: it takes a directory
+	// rather than standing alone, so running it bare on a clean workbench
+	// would refuse over the missing path rather than exercising the clean
+	// case every other repair flag is exercised for here.
+	for _, flag := range []string{"--finish", "--migrate-ordinals", "--migrate-slugs", "--migrate-columns", "--migrate-vocabulary", "--migrate-container", "--migrate-workstreams", "--witness"} {
 		if !strings.Contains(generated.out, flag) {
 			t.Errorf("the generated help does not name %s:\n%s", flag, generated.out)
 		}
@@ -1747,7 +1774,7 @@ func TestConfigSetWorkbenchStoresAnAbsolutePathAndClears(t *testing.T) {
 func TestConfiguredWorkbenchAnswersOnlyWhereDiscoveryRefuses(t *testing.T) {
 	t.Run("opens the configured workbench when nothing local is reachable", func(t *testing.T) {
 		here := emptyTree(t)
-		elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+		elsewhere := filepath.Join(t.TempDir(), "elsewhere", bench.UserBaseName, fixtureWorkbenchID(1))
 		if err := os.MkdirAll(elsewhere, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
@@ -2728,8 +2755,23 @@ const baseDefinition = `{
   ]
 }`
 
+// fixtureWorkbenchID answers a workbench identifier for the nth fixture
+// workbench. It is composed rather than minted so that a failing test names
+// the same path twice running, and IsWorkbenchID admits it: 32 lowercase hex
+// characters whose thirteenth is the version nibble 7 and whose seventeenth
+// carries the variant bits 10.
+func fixtureWorkbenchID(n int) string {
+	return fmt.Sprintf("0199a1b2c3d47abc8%015x", n)
+}
+
 // populateBase writes one workbench per slug into a base directory, and
 // returns the directory each one landed in, in the order the slugs were given.
+//
+// The directory each workbench lands in is named by a fixture identifier
+// rather than by the title, because a workbench a container holds is named by
+// an identifier Dinah minted and one carrying any other name no longer opens.
+// The title still carries the readable name, which is what the cases assert
+// against.
 //
 // Each workbench is instantiated at the directory named for it rather than
 // created through `init`, which writes into a .dinah container under the
@@ -2740,7 +2782,7 @@ func populateBase(t *testing.T, base string, slugs ...string) []string {
 	rooms := make([]string, 0, len(slugs))
 	for i, slug := range slugs {
 		name := fmt.Sprintf("d0000000000%d", i+1)
-		room := filepath.Join(base, name)
+		room := filepath.Join(base, fixtureWorkbenchID(i+1))
 		definition, err := bench.ReadDefinition([]byte(fmt.Sprintf(baseDefinition, name)))
 		if err != nil {
 			t.Fatalf("definition: %v", err)
@@ -6716,14 +6758,14 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	wantValued := []string{
 		"actor", "card", "column", "depth", "description", "expires",
 		"format", "from", "group-by", "kind", "lang", "max-depth",
-		"operator", "priority", "root",
+		"operator", "priority", "remint", "root",
 		"severity", "since", "slug", "workbench",
 	}
 	wantMarkers := []string{
 		"catalogs", "finish", "help", "json", "migrate-columns",
-		"migrate-ordinals", "migrate-slugs", "migrate-vocabulary",
-		"migrate-workstreams", "no-claim", "override", "quiet", "ready",
-		"replace", "version", "witness", "yes",
+		"migrate-container", "migrate-ordinals", "migrate-slugs",
+		"migrate-vocabulary", "migrate-workstreams", "no-claim", "override",
+		"quiet", "ready", "replace", "version", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

@@ -27,6 +27,7 @@ const (
 	ConfigName       = "config.md"
 	InstructionsName = "instructions.md"
 	IgnoreName       = ".gitignore"
+	AttributesName   = ".gitattributes"
 )
 
 // ignoreLocks is what a new bench's .gitignore carries. A bench inside a
@@ -36,6 +37,19 @@ const (
 // every listing walks the identifiers of a collection and no lock is ever a
 // member of one; this is about what git picks up.
 const ignoreLocks = "lock\n*.lock\n"
+
+// unionJournals is what a new bench's .gitattributes carries. A journal is
+// append-only, so two branches that each add a line to one have not disagreed
+// about anything, and the merge a reader wants keeps both lines. Git does not
+// do that on its own: with no attribute it three-way-merges a journal as
+// ordinary text and raises a conflict over concurrent appends at the end of a
+// file. The union driver is git's own, so this is one line of configuration
+// rather than any code of ours.
+//
+// Two patterns cover every journal the format writes, the workbench's own and
+// each card's, since no journal is ever nested deeper than one collection
+// below the workbench root.
+const unionJournals = JournalName + " merge=union\n*/" + JournalName + " merge=union\n"
 
 // The collection directory names.
 const (
@@ -50,7 +64,27 @@ const (
 
 // StorageFormat is the storage format version this binary implements. A bench
 // declaring a higher number is refused loudly, naming the version it wanted.
-const StorageFormat = 1
+//
+// The number moved from 1 to 2 at dinah-285, which fixed where a workbench is
+// allowed to sit and how wide its directory name is. Neither of those is an
+// interchange fact, so the dinah-core profile did not move with it: nothing
+// about the abstract card, column or verb model changed, and the Versioning
+// section of docs/design/format.md already calls the on-disk layout Dinah's
+// private business. A workbench declaring 2 is held to the containment rule
+// Contained states; one declaring 1, or declaring no format at all, predates
+// the rule and opens as it always did.
+const StorageFormat = 2
+
+// ContainerFormat is the storage format from which the containment rule binds.
+// A workbench declaring this number or a higher one is held to Contained; one
+// declaring less, or declaring nothing at all, is not, and `dinah check` names
+// it rather than Open refusing it out from under an operator mid-migration.
+//
+// It is a constant of its own rather than a literal 2 written at the gate,
+// because the two numbers answer different questions: StorageFormat is what
+// this build writes, and this is the revision one rule arrived at. A later
+// format bump moves the first and leaves this one alone.
+const ContainerFormat = 2
 
 // The profile revision this build conforms to. The two numbers are the
 // conformance claim CORE-VER-1 requires, and no channel name joins them,
@@ -284,6 +318,14 @@ type Hooks struct {
 type Bench struct {
 	// Root is the bench directory, the one holding workbench.md.
 	Root string
+	// ID is the workbench's identifier, which is the name of its own
+	// directory and is repeated nowhere inside it. It reads as a wide
+	// identifier on a workbench this build minted or migrated, as the older
+	// 12-hex name on one the container migration has not reached yet, and as
+	// whatever a person typed on a workbench opened out of a directory Dinah
+	// never named. Identity therefore lives in exactly one place, so no
+	// stored copy of it can ever disagree with the directory holding it.
+	ID string
 	// Title is the workbench's title.
 	Title string
 	// Slug is the short name a card reference carries ahead of its number.
@@ -411,7 +453,11 @@ func DiscoverSource(start, override, overrideSource, home, nativeHome, configure
 		}
 		return abs, SourceConfig, search.passed, nil
 	}
-	return "", "", nil, contract.RefuseWith(contract.NoWorkbenchFound, start, map[string]string{"home": search.userBase})
+	extra := map[string]string{"home": search.userBase}
+	if len(search.bare) > 0 {
+		extra["bare"] = strings.Join(search.bare, ", ")
+	}
+	return "", "", nil, contract.RefuseWith(contract.NoWorkbenchFound, start, extra)
 }
 
 // Reachable reports what Discover's walk finds right now, without turning
@@ -461,6 +507,12 @@ type search struct {
 	// accumulated across every rung of the climb and the fallback base, in
 	// the order the walk met them.
 	passed []string
+	// bare is the directories the walk met carrying a workbench.md this tool
+	// recognises as its own, sitting outside any container and therefore no
+	// longer a workbench. It is separate from passed because a reader whose
+	// workbench stopped being found needs to be told which of the two
+	// happened to it.
+	bare []string
 }
 
 // walk runs the ancestor search and the fallback to the user base, and reports
@@ -496,11 +548,12 @@ func walk(start, home, nativeHome string) (search, error) {
 	consulted := false
 	for {
 		atNativeHome := samePath(dir, boundary)
-		found, ambiguous, passed, err := benchIn(dir, atNativeHome)
+		found, ambiguous, passed, bare, err := benchIn(dir, atNativeHome)
 		if err != nil {
 			return search{}, err
 		}
 		result.passed = append(result.passed, passed...)
+		result.bare = append(result.bare, bare...)
 		if found != "" {
 			result.sole = found
 			return result, nil
@@ -555,36 +608,75 @@ func (s *search) fallbackTo(home string) (bool, error) {
 	return false, nil
 }
 
-// benchIn reports the bench a single directory offers, either as the bench
-// itself or as the sole bench of a .dinah directory inside it. The second
-// value carries the candidates when that .dinah holds several, which is what
-// tells a caller apart from a base holding nothing at all. The third value
-// carries the workbench.md files met at this rung and not claimed. The error
-// is a workbench.md that exists and could not be read.
+// benchIn reports the bench a single directory offers, which since dinah-285
+// is the sole bench of a .dinah directory inside it and nothing else. The
+// second value carries the candidates when that .dinah holds several, which
+// is what tells a caller apart from a base holding nothing at all. The third
+// value carries the workbench.md files met at this rung and not claimed
+// because they are somebody else's document. The fourth carries the ones met
+// and not claimed because they are recognisably Dinah's own and sit outside
+// any container. The error is a workbench.md that exists and could not be
+// read.
+//
+// A bare recognized anchor used to be returned as found, and that is the test
+// the containment rule removed: a workbench.md sitting directly in a project
+// directory is no longer a workbench, however well-formed it is. It is
+// reported rather than passed over in silence, and reported separately from a
+// foreign anchor, because the two need different sentences. A foreign anchor
+// is somebody else's file and always was; a bare one is a workbench a person
+// has been using, which stopped being found the day this rule landed, and a
+// refusal that could not tell the reader that would be the worst possible
+// answer to give them.
 //
 // skipBase drops the .dinah half, and the walk sets it at the one directory
 // that is the machine's native home. The anchor half still runs there, so a
-// repository checked out at the home directory is found exactly as before.
-func benchIn(dir string, skipBase bool) (found string, ambiguous, passed []string, err error) {
+// bare anchor in the home directory is still reported as bare.
+func benchIn(dir string, skipBase bool) (found string, ambiguous, passed, bare []string, err error) {
 	anchorPath := filepath.Join(dir, WorkbenchAnchor)
 	recognition, err := readAnchor(anchorPath)
 	if err != nil {
-		return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
+		return "", nil, nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 	}
-	if recognition == anchorOurs {
-		return dir, nil, nil, nil
-	}
-	if recognition == anchorForeign {
+	switch recognition {
+	case anchorOurs:
+		if inContainer(dir) {
+			return dir, nil, nil, nil, nil
+		}
+		bare = append(bare, dir)
+	case anchorForeign:
 		passed = append(passed, anchorPath)
 	}
 	if skipBase {
-		return "", nil, passed, nil
+		return "", nil, passed, bare, nil
 	}
 	baseFound, baseAmbiguous, basePassed, err := soleBench(filepath.Join(dir, UserBaseName))
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
-	return baseFound, baseAmbiguous, append(passed, basePassed...), nil
+	return baseFound, baseAmbiguous, append(passed, basePassed...), bare, nil
+}
+
+// inContainer reports whether a workbench directory sits immediately inside a
+// .dinah container under a name that container's own listing admits, which is
+// either width: the wide identifier this build mints, or the 12-hex one a
+// workbench carries until the container migration reminents it.
+//
+// It is the test discovery applies, and Contained is the stricter test Open
+// applies from ContainerFormat onward. The two differ on exactly one case, a
+// contained workbench still carrying the older width, and they differ on it
+// deliberately: such a workbench is found and opened as it always was, and
+// `dinah check --migrate-container` is what gives it a minted name. Writing
+// the discovery test against ListWorkbenchIDs' own admission rule is what
+// keeps the climb and soleBench agreeing about which directories are
+// workbenches, since a climb that stops inside a workbench reaches it as a
+// rung while a climb that starts beside it reaches the same directory through
+// the container listing.
+func inContainer(root string) bool {
+	if filepath.Base(filepath.Dir(root)) != UserBaseName {
+		return false
+	}
+	name := filepath.Base(root)
+	return IsID(name) || IsWorkbenchID(name)
 }
 
 // Enumerate lists every workbench the benchIn check would accept at the root
@@ -652,7 +744,7 @@ func enumerate(root string) ([]Candidate, error) {
 	// (dinah-312). The third return, the foreign anchors met and not claimed,
 	// is discarded here exactly as walkFor already discards it, because
 	// Enumerate's answer carries no field for it.
-	found, ambiguous, _, err := benchIn(root, false)
+	found, ambiguous, _, _, err := benchIn(root, false)
 	if err != nil {
 		return nil, err
 	}
@@ -688,11 +780,11 @@ func walkFor(dir string, collected *[]Candidate, seen map[string]bool) error {
 		if !walkable {
 			continue
 		}
-		found, ambiguous, passed, err := benchIn(full, false)
+		found, ambiguous, passed, bare, err := benchIn(full, false)
 		if err != nil {
 			return err
 		}
-		_ = passed
+		_, _ = passed, bare
 		if found != "" {
 			addDescribed(collected, seen, found)
 		}
@@ -847,7 +939,7 @@ func walkDeep(dir string, collected *[]Candidate, seen map[string]bool, depth, m
 		if !walkable {
 			continue
 		}
-		found, ambiguous, _, err := benchIn(full, false)
+		found, ambiguous, _, _, err := benchIn(full, false)
 		if err != nil {
 			addRefused(collected, seen, full, refusalNameOf(err))
 			continue
@@ -1007,7 +1099,7 @@ func PathUnderRoot(root, candidate string) (bool, error) {
 // that exists and could not be read.
 func soleBench(base string) (found string, ambiguous, passed []string, err error) {
 	var candidates []string
-	for _, id := range ListIDs(base) {
+	for _, id := range ListWorkbenchIDs(base) {
 		candidate := filepath.Join(base, id)
 		anchorPath := filepath.Join(candidate, WorkbenchAnchor)
 		recognition, rerr := readAnchor(anchorPath)
@@ -1118,6 +1210,12 @@ func AnchorRecognized(path string) (bool, error) {
 // recognise it, and the path that selects it. The members stop where reading
 // the anchor stops, so a listing never opens a workbench to describe it.
 type Candidate struct {
+	// ID is the workbench's identifier, which is its own directory name,
+	// absent on a workbench whose directory still carries the 12-hex name it
+	// was written with before the container rule. That absence is the signal
+	// `dinah check --migrate-container` acts on rather than a defect, so the
+	// key is omitted rather than carried empty.
+	ID string `json:"id,omitempty"`
 	// Title is the workbench's title, empty when its anchor declares none or
 	// will not read.
 	Title string `json:"title"`
@@ -1151,6 +1249,9 @@ type Candidate struct {
 // failing, so one unreadable workbench does not hide the others.
 func describe(root string) Candidate {
 	found := Candidate{Path: root}
+	if name := filepath.Base(root); IsWorkbenchID(name) {
+		found.ID = name
+	}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
 		return found
@@ -1207,7 +1308,38 @@ var (
 // stops a reader taking an old card's state field, holding a flow-position
 // identifier under the old vocabulary, for one of ready, active or blocked.
 func Open(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary)
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true)
+}
+
+// Contained reports whether a workbench directory sits where the format now
+// says a workbench lives: as the immediate child of a .dinah container, under
+// a name Dinah itself minted. A workbench.md anywhere else is a document
+// rather than a workbench, however well-formed it is, and a directory holding
+// one is not a workbench either.
+//
+// The two halves are one question rather than two, because containment
+// without a minted name leaves a workbench nothing can address across
+// machines, and a minted name outside a container leaves it somewhere the
+// climbing search never looks.
+func Contained(root string) bool {
+	if filepath.Base(filepath.Dir(root)) != UserBaseName {
+		return false
+	}
+	return IsWorkbenchID(filepath.Base(root))
+}
+
+// OpenUncontained reads a workbench-shaped directory the containment rule does
+// not govern. It runs every check Open runs except that one, mirroring exactly
+// the way OpenPreVocabulary skips only the vocabulary check.
+//
+// Two callers reach it, and each reads a directory that is not a workbench in
+// the sense the rule fixes. The container migration reads one on its way in,
+// and the template reader reads a definition Extract wrote to a path a caller
+// named, which holds no cards and no journal and which nothing ever serves.
+// Every other caller goes through Open and is refused an uncontained workbench
+// by name.
+func OpenUncontained(root string) (*Bench, error) {
+	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false)
 }
 
 // OpenPreVocabulary reads a workbench still written in the vocabulary this
@@ -1216,7 +1348,7 @@ func Open(root string) (*Bench, error) {
 // is reachable from the vocabulary migration alone: every other caller goes
 // through Open and is refused a workbench of this age by name.
 func OpenPreVocabulary(root string) (*Bench, error) {
-	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile)
+	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile, true)
 }
 
 // openWithVocabulary is the body both openers share. It reads and parses the
@@ -1226,7 +1358,7 @@ func OpenPreVocabulary(root string) (*Bench, error) {
 // change to any of them is a change here and reaches both callers; a second
 // copy of any of them appearing elsewhere in this file is the drift this
 // arrangement exists to make visible.
-func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error)) (*Bench, error) {
+func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer bool) (*Bench, error) {
 	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor)}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
@@ -1235,6 +1367,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	fm, body := ParseAnchor(text)
 	b := &Bench{
 		Root:              root,
+		ID:                filepath.Base(root),
 		Title:             fm.Value("title"),
 		Slug:              fm.Value("slug"),
 		Operator:          fm.Value("operator"),
@@ -1267,6 +1400,9 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, contract.Refuse(contract.UnsupportedVer, "format "+declared)
 		}
 		b.Format = n
+		if requireContainer && n >= ContainerFormat && !Contained(root) {
+			return nil, contract.Refuse(contract.NeedsContainerMigration, root)
+		}
 	}
 	ids := fm.Seq(vocab.SequenceKey)
 	if len(ids) == 0 {

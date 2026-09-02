@@ -125,6 +125,8 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateSlugs:      parsed.has("migrate-slugs"),
 		MigrateColumns:    parsed.has("migrate-columns"),
 		MigrateVocabulary: parsed.has("migrate-vocabulary"),
+		MigrateContainer:  parsed.has("migrate-container"),
+		Remint:            parsed.value("remint"),
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		MigrateWitness:     parsed.has("witness"),
@@ -1034,6 +1036,12 @@ func runCheck(s *session, parsed *arguments) int {
 	if parsed.has("migrate-vocabulary") {
 		return runMigrateVocabulary(s, parsed.has("yes"))
 	}
+	if path := parsed.value("remint"); path != "" {
+		return runRemint(s, path)
+	}
+	if parsed.has("migrate-container") {
+		return runMigrateContainer(s, parsed.has("yes"))
+	}
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
@@ -1495,6 +1503,71 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 		return s.emitMachine(response)
 	}
 	s.renderWorkstreamLine(response.Workstream)
+	return 0
+}
+
+// runMigrateContainer carries every workbench at or beneath a root into a
+// .dinah container under an identifier Dinah minted.
+//
+// The root is resolved exactly the way runMigrateVocabulary resolves its own,
+// and for the same reason: this command asks which directory to walk down
+// from rather than which workbench it is standing in, and a climb would
+// resolve to one workbench and then walk beneath it, finding none of its
+// siblings. The override is trusted on a plain stat rather than on discovery,
+// because the directories this repair exists for are precisely the ones
+// discovery no longer finds.
+//
+// The rewrite waits for --yes for the reason the vocabulary sweep does, and
+// with one more behind it: this repair moves directories rather than editing
+// files inside them, so a preview is the only way to read the blast radius
+// before it happens.
+func runMigrateContainer(s *session, confirmed bool) int {
+	root := s.cwd
+	if s.benchFlag != "" {
+		root = s.benchFlag
+	}
+	resolved, err := filepath.Abs(root)
+	if err != nil {
+		return s.reportError(err)
+	}
+	report, err := verb.MigrateContainerTree(resolved, confirmed)
+	if err != nil {
+		return s.reportError(err)
+	}
+	code := contract.ExitCodeForRead(report.Outcome)
+	if s.format != formatHuman {
+		s.emitMachine(report)
+		return code
+	}
+	s.renderContainer(report)
+	return code
+}
+
+// runRemint gives one workbench directory a fresh identifier.
+//
+// It takes the path from the flag rather than from discovery, on the same
+// override trust the sweep applies, and it acts on that one directory and no
+// other. It is not gated on the directory appearing in a current duplicate
+// report: an operator who has read one and decided which copy is the
+// accidental one is performing an administrative act, and gating it on a
+// finding that may have gone stale would make the escape hatch racier than
+// the condition it repairs.
+func runRemint(s *session, path string) int {
+	resolved, err := filepath.Abs(path)
+	if err != nil {
+		return s.reportError(err)
+	}
+	if !bench.Exists(filepath.Join(resolved, bench.WorkbenchAnchor)) {
+		return s.fail(contract.NoWorkbench, resolved)
+	}
+	report, err := verb.RemintWorkbench(resolved)
+	if err != nil {
+		return s.reportError(err)
+	}
+	if s.format != formatHuman {
+		return s.emitMachine(report)
+	}
+	s.renderRemint(report)
 	return 0
 }
 

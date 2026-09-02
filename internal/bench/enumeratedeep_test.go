@@ -11,19 +11,41 @@ import (
 	"dinah/internal/contract"
 )
 
-// deepTree writes one workbench anchor at each relative path beneath a fresh
+// deepTree writes one workbench at each relative path beneath a fresh
 // directory and returns that directory. A path is written as a slash-separated
 // string, so a case reads as the shape it builds rather than as a pile of
 // filepath.Join calls.
+//
+// Each workbench is planted in the named directory's own .dinah container
+// rather than at the directory itself, because a workbench sitting anywhere
+// else is not a workbench and the walk under test correctly reports none. The
+// cases go on naming the containing directory, which is what a person calls
+// the place a workbench lives, and deepPlace is the one function that knows
+// how the two spellings relate.
 func deepTree(t *testing.T, places ...string) string {
 	t.Helper()
 	root := t.TempDir()
 	for _, place := range places {
-		parts := append([]string{root}, strings.Split(place, "/")...)
-		writeWorkbench(t, filepath.Join(parts...), "Fixture "+place)
+		writeWorkbench(t, deepPlace(root, place), "Fixture "+place)
 	}
 	return root
 }
+
+// deepPlace answers the workbench directory a fixture plants for one
+// slash-separated place: the container beneath that place, under a fixture
+// identifier wide enough for IsWorkbenchID to admit it.
+func deepPlace(root, place string) string {
+	parts := append([]string{root}, strings.Split(place, "/")...)
+	return filepath.Join(filepath.Join(parts...), UserBaseName, fixtureWorkbenchID)
+}
+
+// fixtureWorkbenchID is one minted-looking workbench identifier these fixtures
+// reuse, since each is the only workbench in its own container and no case
+// here turns on two of them differing. It is written out rather than minted so
+// that a failure names the same path twice running, and IsWorkbenchID admits
+// it: 32 lowercase hex characters whose thirteenth is the version nibble 7 and
+// whose seventeenth carries the variant bits 10.
+const fixtureWorkbenchID = "0199a1b2c3d47abc8000000000000001"
 
 // paths returns the candidates' paths relative to root, sorted, which is what
 // a case asserts against: the walk's own order is stable but it is not the
@@ -31,12 +53,13 @@ func deepTree(t *testing.T, places ...string) string {
 func paths(t *testing.T, root string, found []Candidate) []string {
 	t.Helper()
 	var out []string
+	suffix := "/" + UserBaseName + "/" + fixtureWorkbenchID
 	for _, candidate := range found {
 		rel, err := filepath.Rel(root, candidate.Path)
 		if err != nil {
 			t.Fatalf("relative path of %q: %v", candidate.Path, err)
 		}
-		out = append(out, filepath.ToSlash(rel))
+		out = append(out, strings.TrimSuffix(filepath.ToSlash(rel), suffix))
 	}
 	sort.Strings(out)
 	return out
@@ -163,7 +186,7 @@ func TestDefaultEnumerateDepthIsTheBoundTheSurfacesApply(t *testing.T) {
 // not deny it on another.
 func TestABadAnchorIsAReportedRowRatherThanAFailedWalk(t *testing.T) {
 	root := deepTree(t, "alpha", "broken", "omega")
-	broken := filepath.Join(root, "broken", WorkbenchAnchor)
+	broken := filepath.Join(deepPlace(root, "broken"), WorkbenchAnchor)
 	unreadable := errors.New("simulated unreadable file")
 	previous := readAnchorContent
 	readAnchorContent = func(path string) (string, error) {
@@ -184,7 +207,10 @@ func TestABadAnchorIsAReportedRowRatherThanAFailedWalk(t *testing.T) {
 	}
 	var row Candidate
 	for _, candidate := range found {
-		if filepath.Base(candidate.Path) == "broken" {
+		// The refused row names the directory whose container could not be
+		// read rather than the workbench inside it, because the read failed
+		// before anything named that workbench.
+		if candidate.Path == filepath.Join(root, "broken") {
 			row = candidate
 		}
 	}
@@ -262,7 +288,7 @@ func TestEnumerateDeepReadsTheDiskEveryCall(t *testing.T) {
 	if cached, err := Enumerate(root); err != nil || len(cached) != 1 {
 		t.Fatalf("the first cached walk found %d workbenches: %v", len(cached), err)
 	}
-	writeWorkbench(t, filepath.Join(root, "second"), "Fixture second")
+	writeWorkbench(t, deepPlace(root, "second"), "Fixture second")
 
 	found, err := EnumerateDeep(root, 0)
 	if err != nil {

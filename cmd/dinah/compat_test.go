@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -712,7 +713,7 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	}
 
 	other := newBench(t)
-	editAnchor(t, other, "format: 1", "format: 99")
+	editAnchor(t, other, "format: "+strconv.Itoa(bench.StorageFormat), "format: 99")
 	storage := runCLI(t, other, "status")
 	if storage.code != 2 {
 		t.Fatalf("a workbench declaring a newer storage format exited %d, wanted 2", storage.code)
