@@ -654,8 +654,15 @@ func TestAWorkbenchDeclaringEachRevisionOpensOrIsRefused(t *testing.T) {
 		if leading != contract.NeedsVocabularyMigration {
 			t.Errorf("a workbench declaring %s was refused %q, wanted %s", declared, got.errw, contract.NeedsVocabularyMigration)
 		}
-		if !strings.Contains(got.errw, "dinah check --migrate-vocabulary") {
-			t.Errorf("the refusal over %s does not name the migration to run: %s", declared, got.errw)
+		// The scope is asserted alongside the flag, and not by naming the
+		// whole command as one literal, because dinah-362 put a resolved
+		// path between the two words. A sentence naming the migration and
+		// no scope is advice the reader cannot follow from wherever he
+		// typed the invocation, which is what that card was raised over;
+		// TestTheVocabularyMigrationAdviceIsACommandThatWorks follows this
+		// sentence rather than reading it.
+		if !strings.Contains(got.errw, "--migrate-vocabulary") || !strings.Contains(got.errw, "--root ") {
+			t.Errorf("the refusal over %s does not name the migration to run against a named workbench: %s", declared, got.errw)
 		}
 	}
 	for _, declared := range refuses {

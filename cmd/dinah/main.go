@@ -74,6 +74,17 @@ type session struct {
 	// workbenchSource names the rung that resolved the active workbench for
 	// this invocation, set by open() once discovery has run.
 	workbenchSource string
+	// benchRoot is the workbench directory discovery resolved for this
+	// invocation, set by open() before the workbench is opened so that it
+	// survives an open that refuses. It stays empty on a tree sweep, which
+	// resolves a directory to walk down from rather than one workbench.
+	//
+	// reportError reads it to name the workbench in the advice of the
+	// refusals whose repair acts on one workbench rather than on wherever
+	// the reader is standing. Discovery is what knows the answer, and it has
+	// already run by the time any of those refusals is raised, so recording
+	// it here saves threading a path through the reading layers below.
+	benchRoot string
 	// width is how many columns the window gives, zero when no documented
 	// source answers and the layout is then unbounded. It is resolved once
 	// per invocation, so every row of one run is laid out against one width.
@@ -316,6 +327,7 @@ func (s *session) reportError(err error) int {
 		io.WriteString(s.errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
 		return contract.ExitCode(contract.OutcomeUnreachable)
 	}
+	refusal = s.nameTheWorkbench(refusal)
 	if s.format != formatHuman {
 		report := refusalReport{
 			Outcome: contract.OutcomeRefused,
@@ -335,6 +347,48 @@ func (s *session) reportError(err error) int {
 	return contract.ExitCode(contract.OutcomeRefused)
 }
 
+// benchScopedAdvice names the refusals whose next step recommends a repair
+// that acts on one named workbench, so that the sentence has to name which
+// workbench rather than leaving the reader to run the repair from wherever he
+// happens to be standing.
+//
+// Both of them recommend a form of `dinah check` whose reach dinah-362
+// narrowed. Before that card the two repair sweeps walked down from the
+// current directory, so an unqualified command in the advice found the
+// workbench the refusal was about whenever the reader stood at or above it.
+// They climb now, like every other form of check, and a reader who reached the
+// refusal by naming a workbench with --workbench is standing somewhere the
+// climb does not reach, so the unqualified advice answers him with a second
+// refusal instead of the repair.
+//
+// The set is a table rather than a condition on every refusal, because
+// attaching a workbench to refusals whose sentences never name one would put
+// a value into the machine form of each of them that nothing reads.
+var benchScopedAdvice = map[string]bool{
+	contract.NeedsVocabularyMigration: true,
+	contract.VocabularyMixed:          true,
+}
+
+// nameTheWorkbench attaches the workbench discovery resolved to a refusal
+// whose advice needs one, and returns every other refusal unchanged.
+//
+// A refusal already carrying the value keeps what it carries, because a raise
+// site that named a workbench knew which one it meant and this layer only
+// knows which one the invocation opened. A tree sweep resolves no single
+// workbench, leaves benchRoot empty, and so renders the shape's unqualified
+// alternative, which is the right sentence there: a caller who named a tree
+// has already said where to look and runs the same command again.
+func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
+	if !benchScopedAdvice[r.Name] || s.benchRoot == "" || r.Extra[contract.ValueWorkbench] != "" {
+		return r
+	}
+	named, ok := contract.With(r, contract.ValueWorkbench, s.benchRoot).(*contract.Refusal)
+	if !ok {
+		return r
+	}
+	return named
+}
+
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
 	root, source, passed, err := bench.DiscoverSource(
@@ -349,6 +403,7 @@ func (s *session) open() (*verb.Library, error) {
 		return nil, err
 	}
 	s.workbenchSource = source
+	s.benchRoot = root
 	opened, err := bench.Open(root)
 	if err != nil {
 		return nil, err

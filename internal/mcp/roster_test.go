@@ -59,6 +59,73 @@ func TestEveryLibraryCommandIsServedOrExempted(t *testing.T) {
 	}
 }
 
+// TestEveryArgumentExemptionNamesSomethingThatExists asserts that
+// argumentExemptions names a tool this head publishes and, under it,
+// parameters that tool's command really declares.
+//
+// It is the sibling of the last two checks in the roster test above, which
+// refuse a toolExemptions key the verb table no longer defines, and it exists
+// for the same reason one rung down: an exemption is paperwork excusing a gap,
+// and paperwork that outlives what it excused reads as an argued decision
+// while standing for nothing. A parameter renamed in the verb table leaves the
+// entry beneath it naming a parameter nobody declares, and the tool then
+// publishes the new name with no exemption in front of it, silently, since
+// every other check here reads the exemption only when a live parameter
+// matches it.
+//
+// Nothing else catches either shape. TestTheRootScopedRosterIsTheParamsTableRootCarryingSet
+// asks whether an exemption that fires really holds its argument back, and the
+// schema check in mcp_test.go asks the same of the published schema; both are
+// silent about an exemption that never fires at all. A dead tool key and a
+// dead parameter key were both planted here and both suites stayed green.
+func TestEveryArgumentExemptionNamesSomethingThatExists(t *testing.T) {
+	if len(argumentExemptions) == 0 {
+		t.Fatal("no argument exemption is declared, so this check read nothing")
+	}
+	for _, name := range sortedExemptedTools() {
+		held := argumentExemptions[name]
+		entry, served := toolsByName[name]
+		if !served {
+			t.Errorf("%q holds arguments back in argumentExemptions and this head publishes no tool by that name, so the exemption outlived its tool", name)
+			continue
+		}
+		if len(held) == 0 {
+			t.Errorf("%s carries an argument exemption naming no parameter, which is a gap nobody has argued for", name)
+		}
+		declared := map[string]bool{}
+		for _, param := range verb.Params(entry.command) {
+			declared[param.Name] = true
+		}
+		for _, param := range sortedNames(held) {
+			if !declared[param] {
+				t.Errorf("%s holds %q back and its command %s declares no such parameter, so the exemption outlived its argument", name, param, entry.command)
+			}
+			if held[param] == "" {
+				t.Errorf("%s holds %s back with no reason, which is a gap nobody has argued for", name, param)
+			}
+		}
+	}
+}
+
+// sortedExemptedTools returns the tool names argumentExemptions carries, in
+// order, so a failing run reports the same tool first every time.
+func sortedExemptedTools() []string {
+	names := make([]string, 0, len(argumentExemptions))
+	for name := range argumentExemptions {
+		names = append(names, name)
+	}
+	return sorted(names)
+}
+
+// sortedNames returns a reason map's keys in order, for the same reason.
+func sortedNames(reasons map[string]string) []string {
+	names := make([]string, 0, len(reasons))
+	for name := range reasons {
+		names = append(names, name)
+	}
+	return sorted(names)
+}
+
 // TestTheAffordanceTranslationAgreesWithTheRoster asserts that the map which
 // rewrites a library affordance into a tool name says what the roster says.
 //

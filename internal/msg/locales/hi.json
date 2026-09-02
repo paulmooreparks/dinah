@@ -1741,9 +1741,9 @@
       "source": "6a5c5807c6b66cc2"
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें, या किसी निर्देशिका के नीचे खोजने के लिए `dinah check` को --root <dir> दें, या `dinah workbenches` को एक निर्देशिका दें",
+      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें, या किसी निर्देशिका के नीचे खोजने के लिए `check` को --root <dir> दें, या `workbenches` को एक निर्देशिका दें",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
-      "source": "bf92ad15c8e843c8"
+      "source": "4cef6166a5125328"
     },
     "refusal.dinah.no-workbench-found.bare": {
       "text": "; {bare} पर एक workbench.md किसी भी .dinah कंटेनर के बाहर रखी है, इसलिए कोई खोज उस तक नहीं पहुँचती; उसे कंटेनर में ले जाने के लिए वहाँ `dinah check --root . --migrate-container` चलाएँ",
@@ -1994,6 +1994,11 @@
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated.",
       "source": "9b4d2512a901f950"
     },
+    "refusal.dinah.vocabulary-mixed.next-named": {
+      "text": "; फ़ाइल को हाथ से बदलें ताकि वह एक ही शब्दावली रखे, दोनों नहीं, फिर वर्कबेंच को आगे ले जाने के लिए `dinah check --root {workbench} --migrate-vocabulary --yes` चलाएँ",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag renders for a sweep over a tree, where the caller has already said which tree he wants walked. The command spelling is machine vocabulary and is not translated.",
+      "source": "ed8cc5ac17a867fe"
+    },
     "refusal.dinah.vocabulary-retired": {
       "text": "{detail} उस शब्दावली में लिखा है जिसे इस प्रारूप ने सेवानिवृत्त कर दिया, और उसके चारों ओर की वर्कबेंच वर्तमान शब्दावली घोषित करती है, इसलिए कार्ड और उसकी वर्कबेंच इस बात पर असहमत हैं कि कार्ड की कुंजियों का अर्थ क्या है",
       "context": "The sentence printed after the refusal name dinah.vocabulary-retired. {detail} names the card inside the workbench, its identifier and card.md, so a tree-wide run says which of several hundred cards it refused. The file itself carries one vocabulary and not both, which is what separates this refusal from dinah.vocabulary-mixed, and the defect is that it disagrees with the anchor above it.",
@@ -2039,15 +2044,20 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
       "source": "2d044b02d1cbb5c1"
     },
+    "refusal.dinah.needs-vocabulary-migration.next-named": {
+      "text": "; पहले `dinah check --root {workbench} --migrate-vocabulary --yes` चलाएँ, फिर इसे दोबारा खोलें",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag renders for a sweep over a tree. The command spelling is machine vocabulary and is not translated.",
+      "source": "9a3772ed13a7492f"
+    },
     "refusal.dinah.needs-container-migration": {
       "text": "Dinah अब {detail} को नहीं खोलता, क्योंकि वर्कबेंच .dinah कंटेनर के भीतर रहती है और यह वहाँ नहीं है",
       "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
       "source": "658a71835c2be723"
     },
     "refusal.dinah.needs-container-migration.next": {
-      "text": "; इसे किसी कंटेनर में ले जाने के लिए `dinah check --migrate-container --yes` चलाएँ, फिर इसे दोबारा खोलें",
+      "text": "; इसे किसी कंटेनर में ले जाने के लिए `dinah check --root {detail} --migrate-container --yes` चलाएँ, फिर इसे दोबारा खोलें",
       "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. The command name is machine vocabulary and is not translated.",
-      "source": "d05823cad551f81a"
+      "source": "5c0bd1f41ec13a83"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई कॉलम नहीं बचा है",
@@ -2705,9 +2715,9 @@
       "source": "2a383b2471db9773"
     },
     "param.check.migrate-container.summary": {
-      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ",
+      "text": "इस वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ, या --root के नीचे की हर वर्कबेंच को",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
-      "source": "525351d53ebb9dae"
+      "source": "26ead382b2d32a9a"
     },
     "param.check.migrate-workstreams.summary": {
       "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
@@ -3469,9 +3479,9 @@
       "source": "6a0ea494b600226f"
     },
     "param.check.migrate-vocabulary.summary": {
-      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ",
+      "text": "इस वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ, या --root के नीचे की हर वर्कबेंच को",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table.",
-      "source": "7384eb6c936bda3b"
+      "source": "339d49aea61cc5dd"
     },
     "refusal.dinah.conflicting-scope": {
       "text": "{detail} नीचे की ओर चलने के लिए एक डायरेक्टरी बताता है और {workbench} एक वर्कबेंच बताता है, और एक कमांड इनमें से किसी एक ही दायरे का उत्तर देता है",

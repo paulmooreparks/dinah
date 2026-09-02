@@ -89,8 +89,16 @@ func rootScopedTools(t *testing.T) map[string]string {
 }
 
 // toolNamed answers the surface entry a tool name stands for, and fails the
-// test when no tool carries that name, so a renamed tool cannot leave an
-// exemption pointing at nothing.
+// test when no tool carries that name.
+//
+// That failure is a backstop and not a guard. Every caller here reaches it
+// with a name taken from ranging over tools, so the name it is handed is a
+// name tools carries and the check cannot fire. What does catch an exemption
+// naming a tool this head no longer publishes is
+// TestEveryArgumentExemptionNamesSomethingThatExists in roster_test.go, which
+// reads the exemption table itself rather than the set of tools that matched
+// it. This comment used to claim the protection that test provides, which is
+// how the gap survived a review.
 func toolNamed(t *testing.T, name string) tool {
 	t.Helper()
 	for _, one := range tools {

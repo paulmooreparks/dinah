@@ -1821,9 +1821,9 @@
       "source": "2a383b2471db9773"
     },
     "param.check.migrate-container.summary": {
-      "text": "jede Werkbank in diesem Wurzelverzeichnis oder darunter in einen .dinah-Container unter einem von Dinah geprägten Bezeichner tragen",
+      "text": "diese Werkbank in einen .dinah-Container unter einem von Dinah geprägten Bezeichner tragen, oder jede Werkbank unterhalb von --root",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
-      "source": "525351d53ebb9dae"
+      "source": "26ead382b2d32a9a"
     },
     "param.check.migrate-workstreams.summary": {
       "text": "jeden von einer Karte genannten Arbeitsstrang übernehmen, den diese Werkbank nicht führt",
@@ -2095,15 +2095,20 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
       "source": "2d044b02d1cbb5c1"
     },
+    "refusal.dinah.needs-vocabulary-migration.next-named": {
+      "text": "; führen Sie zuerst `dinah check --root {workbench} --migrate-vocabulary --yes` aus und öffnen Sie sie danach erneut",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag renders for a sweep over a tree. The command spelling is machine vocabulary and is not translated.",
+      "source": "9a3772ed13a7492f"
+    },
     "refusal.dinah.needs-container-migration": {
       "text": "Dinah öffnet {detail} nicht mehr, denn eine Werkbank lebt in einem .dinah-Container und diese tut es nicht",
       "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
       "source": "658a71835c2be723"
     },
     "refusal.dinah.needs-container-migration.next": {
-      "text": "; führen Sie `dinah check --migrate-container --yes` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
+      "text": "; führen Sie `dinah check --root {detail} --migrate-container --yes` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
       "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. The command name is machine vocabulary and is not translated.",
-      "source": "d05823cad551f81a"
+      "source": "5c0bd1f41ec13a83"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "dieser Werkbank ist keine Spalte geblieben, in der eine neue Karte angelegt werden könnte",
@@ -2256,9 +2261,9 @@
       "source": "6a5c5807c6b66cc2"
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; führen Sie hier `dinah init` aus, um eine anzulegen, übergeben Sie --workbench <Verzeichnis>, um auf eine vorhandene zu zeigen, oder übergeben Sie --root <Verzeichnis> an `dinah check`, oder ein Verzeichnis an `dinah workbenches`, um unterhalb eines Verzeichnisses zu suchen",
+      "text": "; führen Sie hier `dinah init` aus, um eine anzulegen, übergeben Sie --workbench <Verzeichnis>, um auf eine vorhandene zu zeigen, oder übergeben Sie --root <Verzeichnis> an `check`, oder ein Verzeichnis an `workbenches`, um unterhalb eines Verzeichnisses zu suchen",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
-      "source": "bf92ad15c8e843c8"
+      "source": "4cef6166a5125328"
     },
     "refusal.dinah.no-workbench-found.bare": {
       "text": "; bei {bare} liegt eine workbench.md außerhalb jedes .dinah-Containers, deshalb erreicht sie keine Suche; führen Sie dort `dinah check --root . --migrate-container` aus, um sie in einen Container zu tragen",
@@ -2574,6 +2579,11 @@
       "text": "; bearbeiten Sie die Datei von Hand, sodass sie ein Vokabular trägt und nicht beide, und führen Sie dann `dinah check --migrate-vocabulary` aus, um die Werkbank weiterzuführen",
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated.",
       "source": "9b4d2512a901f950"
+    },
+    "refusal.dinah.vocabulary-mixed.next-named": {
+      "text": "; bearbeiten Sie die Datei von Hand, sodass sie ein Vokabular trägt und nicht beide, und führen Sie dann `dinah check --root {workbench} --migrate-vocabulary --yes` aus, um die Werkbank weiterzuführen",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag renders for a sweep over a tree, where the caller has already said which tree he wants walked. The command spelling is machine vocabulary and is not translated.",
+      "source": "ed8cc5ac17a867fe"
     },
     "refusal.dinah.vocabulary-retired": {
       "text": "{detail} ist in dem Vokabular geschrieben, das dieses Format ausgemustert hat, und die Werkbank darum herum deklariert das aktuelle, daher sind sich die Karte und ihre Werkbank uneinig darüber, was die Schlüssel der Karte bedeuten",
@@ -3484,9 +3494,9 @@
       "source": "6a0ea494b600226f"
     },
     "param.check.migrate-vocabulary.summary": {
-      "text": "jede Werkbank in diesem Wurzelverzeichnis oder darunter über die Umbenennung von Spalte und Zustand tragen",
+      "text": "diese Werkbank über die Umbenennung von Spalte und Zustand tragen, oder jede Werkbank unterhalb von --root",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table.",
-      "source": "7384eb6c936bda3b"
+      "source": "339d49aea61cc5dd"
     },
     "refusal.dinah.conflicting-scope": {
       "text": "{detail} nennt ein Verzeichnis, das abwärts durchlaufen wird, und {workbench} nennt eine einzelne Werkbank, und ein Befehl beantwortet den einen oder den anderen Bereich",

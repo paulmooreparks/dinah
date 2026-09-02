@@ -81,7 +81,7 @@ type Fragment struct {
 	WhenCommand string
 }
 
-// The three values the head supplies, which a shape names in Values like any
+// The four values the head supplies, which a shape names in Values like any
 // other and no raise site fills. A shape may name one only where every raise
 // site of its refusal is reached after the value is known, which is why card
 // is declared on four refusals rather than on every refusal whose sentence
@@ -94,6 +94,13 @@ const (
 	// ValueUsage is that command's syntax line, which dinah help <command>
 	// already prints.
 	ValueUsage = "usage"
+	// ValueWorkbench is the workbench directory discovery resolved for this
+	// invocation. It is the one value here a raise site can also fill, and
+	// the head leaves such a value alone: a sweep over a tree knows which of
+	// the workbenches it walked raised the refusal, where the head knows
+	// only which one the invocation opened. A shape naming it declares an
+	// alternative sentence for the runs that resolve no single workbench.
+	ValueWorkbench = "workbench"
 )
 
 // Shapes declares the shape of every refusal name the tool raises. A name
@@ -364,9 +371,25 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.repair-would-empty-columns.next"},
 	},
 	{
-		Name:      NeedsVocabularyMigration,
-		Fragments: []Fragment{{Key: "refusal.dinah.needs-vocabulary-migration.next"}},
-		NextStep:  []string{"refusal.dinah.needs-vocabulary-migration.next"},
+		// The repair this recommends carries one workbench forward, and
+		// where it looks for that workbench is decided by the same rule
+		// every other form of check obeys: it climbs from the current
+		// directory unless the caller names a scope. A reader who reached
+		// this refusal by naming a workbench with --workbench is not
+		// standing anywhere that climb reaches, so the sentence names the
+		// workbench for him wherever the head resolved one. The
+		// unqualified alternative is what a tree sweep renders, and there
+		// the caller has already named the tree he wants walked.
+		Name:   NeedsVocabularyMigration,
+		Values: []string{ValueWorkbench},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.needs-vocabulary-migration.next-named", When: ValueWorkbench},
+			{Key: "refusal.dinah.needs-vocabulary-migration.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.needs-vocabulary-migration.next-named",
+			"refusal.dinah.needs-vocabulary-migration.next",
+		},
 	},
 	{
 		Name:      NeedsContainerMigration,
@@ -380,13 +403,22 @@ var Shapes = []Shape{
 		// the model, and this refusal keeps only the half of it that
 		// applies: every raise site holds a path and none of them reads a
 		// definition file or a request argument.
+		// The next step alternates for the reason the vocabulary-migration
+		// refusal's does. It tells the reader to hand-edit the file and then
+		// run the migration, and the migration acts on a workbench rather
+		// than on a directory, so the sentence names the workbench wherever
+		// the head resolved one.
 		Name:   VocabularyMixed,
-		Values: []string{"path"},
+		Values: []string{"path", ValueWorkbench},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.vocabulary-mixed.at", When: "path"},
+			{Key: "refusal.dinah.vocabulary-mixed.next-named", When: ValueWorkbench},
 			{Key: "refusal.dinah.vocabulary-mixed.next"},
 		},
-		NextStep: []string{"refusal.dinah.vocabulary-mixed.next"},
+		NextStep: []string{
+			"refusal.dinah.vocabulary-mixed.next-named",
+			"refusal.dinah.vocabulary-mixed.next",
+		},
 	},
 	{
 		// The retired-vocabulary refusal reads as the mixed one does, and
