@@ -74,6 +74,17 @@ type session struct {
 	// workbenchSource names the rung that resolved the active workbench for
 	// this invocation, set by open() once discovery has run.
 	workbenchSource string
+	// workbenchRoot is the workbench directory discovery resolved for this
+	// invocation, set by open() before the workbench is opened so that it
+	// survives an open that refuses. It stays empty on a tree sweep, which
+	// resolves a directory to walk down from rather than one workbench.
+	//
+	// reportError reads it to name the workbench in the advice of the
+	// refusals whose repair acts on one workbench rather than on wherever
+	// the reader is standing. Discovery is what knows the answer, and it has
+	// already run by the time any of those refusals is raised, so recording
+	// it here saves threading a path through the reading layers below.
+	workbenchRoot string
 	// width is how many columns the window gives, zero when no documented
 	// source answers and the layout is then unbounded. It is resolved once
 	// per invocation, so every row of one run is laid out against one width.
@@ -316,6 +327,7 @@ func (s *session) reportError(err error) int {
 		io.WriteString(s.errw, contract.OutcomeUnreachable+" "+err.Error()+"\n")
 		return contract.ExitCode(contract.OutcomeUnreachable)
 	}
+	refusal = s.nameTheWorkbench(refusal)
 	if s.format != formatHuman {
 		report := refusalReport{
 			Outcome: contract.OutcomeRefused,
@@ -335,6 +347,78 @@ func (s *session) reportError(err error) int {
 	return contract.ExitCode(contract.OutcomeRefused)
 }
 
+// benchScopedAdvice names the refusals whose next step recommends a repair
+// that acts on one named workbench, so that the sentence has to name which
+// workbench rather than leaving the reader to run the repair from wherever he
+// happens to be standing.
+//
+// Every one of them recommends a form of `dinah check`, and a form of check
+// reaches one workbench: the two repair sweeps climb from the current
+// directory since dinah-362 narrowed them, and the bare verb and --finish have
+// always climbed. A reader who reached the refusal by naming a workbench with
+// --workbench is standing somewhere that climb does not reach, so unqualified
+// advice answers him with a second refusal instead of the repair.
+//
+// The first two entries are the pair dinah-362's own diff broke. The four
+// below them were already broken on the trunk before this card, they were
+// reproduced against a trunk binary rather than inferred, and the operator
+// ruled on 2026-09-02 that this card owns the whole family rather than the
+// half it caused.
+//
+// Malformed is deliberately absent, though its repair advice takes the same
+// treatment. Its raise sites attach the workbench themselves, because the
+// advice belongs to the malformed anchor a reader can hand-edit rather than to
+// every malformed value an opened workbench can refuse, and a table entry here
+// cannot tell those two apart. The Malformed shape in internal/contract says
+// so where a reader of the alternation meets it.
+//
+// The set is a table rather than a condition on every refusal, because
+// attaching a workbench to refusals whose sentences never name one would put
+// a value into the machine form of each of them that nothing reads.
+var benchScopedAdvice = map[string]bool{
+	contract.NeedsVocabularyMigration: true,
+	contract.VocabularyMixed:          true,
+	contract.AddNeedsAColumn:          true,
+	contract.Interrupted:              true,
+	contract.Locked:                   true,
+	contract.NoOperator:               true,
+}
+
+// nameTheWorkbench attaches the workbench discovery resolved to a refusal
+// whose advice needs one, and returns every other refusal unchanged.
+//
+// A refusal already carrying the value keeps what it carries, because a raise
+// site that named a workbench knew which one it meant and this layer only
+// knows which one the invocation opened.
+//
+// Both halves of the head call this: reportError, for a refusal the open
+// raised, and reportOutcome, for one a verb answered with. Two of the table's
+// refusals arrive by the first route and four by the second.
+//
+// Every refusal in that table reaches this function after an open, so the
+// value is there and the shape's qualified fragment is the one that renders.
+// The unqualified fragment behind it is the alternation's unconditional last
+// member rather than a sentence some path prints. A tree sweep prints
+// neither: it collects a per-workbench failure into a report row and never
+// composes a refusal at all.
+//
+// That is a property of where these refusals are raised rather than of
+// anything this function can enforce. A path composing one of them without an
+// open would leave workbenchRoot empty and print the unqualified sentence, and
+// the sweeps are the paths near enough to that to be worth a test, so
+// cmd/dinah/advice_test.go runs them. It carries the reasoning in full, along
+// with what the tests there do and do not reach.
+func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
+	if !benchScopedAdvice[r.Name] || s.workbenchRoot == "" || r.Extra[contract.ValueWorkbench] != "" {
+		return r
+	}
+	named, ok := contract.With(r, contract.ValueWorkbench, s.workbenchRoot).(*contract.Refusal)
+	if !ok {
+		return r
+	}
+	return named
+}
+
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
 	root, source, passed, err := bench.DiscoverSource(
@@ -349,6 +433,7 @@ func (s *session) open() (*verb.Library, error) {
 		return nil, err
 	}
 	s.workbenchSource = source
+	s.workbenchRoot = root
 	opened, err := bench.Open(root)
 	if err != nil {
 		return nil, err

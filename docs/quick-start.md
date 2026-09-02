@@ -1214,14 +1214,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        707/707
-  af        0/707
-  cs        0/707
-  de        707/707
-  es        0/707
-  fil       0/707
-  hi        707/707
-  id        0/707
+  en        716/716
+  af        0/716
+  cs        0/716
+  de        716/716
+  es        0/716
+  fil       0/716
+  hi        716/716
+  id        0/716
 [exit 0]
 ```
 
@@ -1313,7 +1313,7 @@ its own yet:
 
 ```console
 $ dinah status
-dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists
+dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `dinah check`, or a bare directory argument to `dinah workbenches`, to look for one beneath a directory instead
 [exit 2]
 ```
 

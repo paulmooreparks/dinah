@@ -622,3 +622,40 @@ func refusedMalformed(err error) bool {
 	var refusal *contract.Refusal
 	return errors.As(err, &refusal) && refusal.Name == contract.Malformed
 }
+
+// TestTheSlugRefusalCarriesTheWorkbenchItWasRaisedOver asserts that the map
+// openWithVocabulary hands to admitSlug names the workbench beside the path.
+//
+// The refusals admitSlug raises reach a reader as contract.Malformed, whose
+// repair advice comes in two forms: one naming the workbench to confirm
+// against, and one naming none, which sends a reader standing anywhere else to
+// run a check that climbs from where he is and finds nothing. Which one he gets
+// is decided entirely by whether this map carries the workbench, and it did not
+// until dinah-362.
+//
+// The call site is reached rather than admitSlug driven directly, because the
+// defect was in the map the caller built and a test supplying its own map
+// cannot see it. The mandating major is out of Open's reach while this binary
+// declares major 0, so it arrives through the admit function openWithVocabulary
+// takes, which is the seam that exists for exactly this.
+func TestTheSlugRefusalCarriesTheWorkbenchItWasRaisedOver(t *testing.T) {
+	root := newTwoColumnFixture(t, ProfileVersion, "Only", "review")
+	mandating := func(declared string) (int, int, error) {
+		return SlugMandatoryMajor, 0, nil
+	}
+
+	_, err := openWithVocabulary(root, currentVocabulary, mandating, false)
+	var refusal *contract.Refusal
+	if !errors.As(err, &refusal) {
+		t.Fatalf("a column carrying an unacceptable slug at the mandating major should refuse, got %v", err)
+	}
+	if refusal.Name != contract.Malformed {
+		t.Fatalf("the slug refusal is %s, wanted %s", refusal.Name, contract.Malformed)
+	}
+	if refusal.Extra["path"] == "" {
+		t.Errorf("the slug refusal names no file for its reader to open: %v", refusal.Extra)
+	}
+	if got := refusal.Extra[contract.ValueWorkbench]; got != root {
+		t.Errorf("the slug refusal carries workbench %q, wanted %q, so its reader is given the repair that names no workbench and cannot confirm it from where he stands", got, root)
+	}
+}

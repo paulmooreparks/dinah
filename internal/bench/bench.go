@@ -1358,8 +1358,16 @@ func OpenPreVocabulary(root string) (*Bench, error) {
 // change to any of them is a change here and reaches both callers; a second
 // copy of any of them appearing elsewhere in this file is the drift this
 // arrangement exists to make visible.
+//
+// Every malformed refusal raised here carries the workbench alongside the path
+// of the file that will not read, because the sentence it renders tells the
+// reader to confirm his hand edit with a check and a check finds only what the
+// climb from where he stands finds. The value travels from the raise site
+// rather than from the head, so it reaches the repair advice exactly where a
+// path does and nowhere else; see the Malformed shape in internal/contract for
+// why the head's own table is the wrong place for it.
 func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer bool) (*Bench, error) {
-	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor)}
+	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor), contract.ValueWorkbench: root}
 	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
 		return nil, contract.RefuseWith(contract.Malformed, WorkbenchAnchor, anchor)
@@ -1425,7 +1433,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, err
 		}
 		path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path}); err != nil {
+		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path, contract.ValueWorkbench: root}); err != nil {
 			return nil, err
 		}
 		b.Columns = append(b.Columns, column)
@@ -1599,7 +1607,7 @@ func readColumn(root, id string, position int) (*Column, error) {
 // names that vocabulary used.
 func readColumnIn(root string, vocab columnVocabulary, id string, position int) (*Column, error) {
 	path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-	anchor := map[string]string{"path": path}
+	anchor := map[string]string{"path": path, contract.ValueWorkbench: root}
 	text, err := ReadText(path)
 	if err != nil {
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)

@@ -115,7 +115,7 @@ func ClassifyVocabulary(root string) (major, minor int, ok bool, err error) {
 	path := filepath.Join(root, WorkbenchAnchor)
 	text, err := ReadText(path)
 	if err != nil {
-		return 0, 0, false, contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path})
+		return 0, 0, false, contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path, contract.ValueWorkbench: root})
 	}
 	fm, _ := ParseAnchor(text)
 	declared := fm.Value("profile")
@@ -200,7 +200,7 @@ func migrateCardVocabulary(b *Bench) ([]string, error) {
 			}
 			text, err := ReadText(path)
 			if err != nil {
-				return touched, contract.RefuseWith(contract.Malformed, CardAnchor, map[string]string{"path": path})
+				return touched, contract.RefuseWith(contract.Malformed, CardAnchor, map[string]string{"path": path, contract.ValueWorkbench: b.Root})
 			}
 			fm, body := ParseAnchor(text)
 			// A card carrying the column key has been across this rename
@@ -310,7 +310,7 @@ func migrateBenchAnchor(b *Bench) error {
 	path := filepath.Join(b.Root, WorkbenchAnchor)
 	text, err := ReadText(path)
 	if err != nil {
-		return contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path})
+		return contract.RefuseWith(contract.Malformed, WorkbenchAnchor, map[string]string{"path": path, contract.ValueWorkbench: b.Root})
 	}
 	fm, body := ParseAnchor(text)
 	if err := fm.Rename(preVocabularySequenceKey, currentVocabulary.SequenceKey); err != nil {

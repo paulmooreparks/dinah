@@ -1472,7 +1472,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -4851,6 +4851,11 @@ func TestANamedValueSurvivesTheVerbLayer(t *testing.T) {
 // refusal name covers: a workbench anchor the reader edits and confirms with
 // dinah check, a definition file the reader edits with no workbench to confirm
 // against, and a request argument nobody edits at all.
+//
+// The anchor branch takes the repair that names the workbench, because
+// dinah-362 gave every raise site carrying a file path the workbench that path
+// belongs to, so the reader can run the check from wherever he is standing
+// rather than only from inside the workbench he has just been refused.
 func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 	english := msg.For(msg.Base)
 
@@ -4861,10 +4866,20 @@ func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 		if got.code != 2 {
 			t.Fatalf("a broken anchor exited %d, wanted 2", got.code)
 		}
-		for _, want := range []string{", in ", english.T("refusal.malformed.fix")} {
+		// The workbench the head attaches to this refusal is the directory it
+		// resolved for itself after chdir'ing, so the expected value has to be
+		// produced by that same mechanism rather than by joining onto the raw
+		// fixture path. On macOS the temporary directory sits behind a symlink
+		// and the two spellings differ, which is what reddened this test on
+		// that platform alone while it passed everywhere else.
+		repair := english.T("refusal.malformed.fix-named", contract.ValueWorkbench, resolvedDir(t, benchDir(t, root)))
+		for _, want := range []string{", in ", repair} {
 			if !strings.Contains(got.errw, want) {
 				t.Errorf("the anchor-side refusal should carry %q, got %q", want, got.errw)
 			}
+		}
+		if strings.Contains(got.errw, english.T("refusal.malformed.fix")) {
+			t.Errorf("the anchor-side refusal took the repair that names no workbench: %q", got.errw)
 		}
 		if strings.Contains(got.errw, english.T("refusal.malformed.next-file", "file", "x")) {
 			t.Errorf("the anchor-side refusal took the definition-file repair: %q", got.errw)

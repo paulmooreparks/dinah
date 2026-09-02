@@ -248,7 +248,7 @@ func TestTheVocabularyMigrationWalksTheWholeTree(t *testing.T) {
 	}
 	assertConditionVaries(t, stood)
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	got := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if got.code != 0 {
 		t.Fatalf("migrate the tree: %d %s\n%s", got.code, got.errw, got.out)
 	}
@@ -404,7 +404,7 @@ func TestTheVocabularyMigrationCarriesOnPastAFailure(t *testing.T) {
 	assertConditionVaries(t, all)
 	denyWrite(t, filepath.Join(sibling, bench.WorkbenchAnchor))
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	got := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run with a failed workbench exited 0:\n%s", got.out)
 	}
@@ -437,7 +437,7 @@ func TestTheVocabularyMigrationReportsWhatItWillNotOpen(t *testing.T) {
 		return strings.Replace(text, "profile: dinah-core/0.6\n", "", 1)
 	})
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	got := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run holding a candidate it could not classify exited 0:\n%s", got.out)
 	}
@@ -564,7 +564,7 @@ func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
 	}
 	assertConditionVaries(t, all)
 
-	first := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	first := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if first.code != 0 {
 		t.Fatalf("the first run: %d %s\n%s", first.code, first.errw, first.out)
 	}
@@ -580,7 +580,7 @@ func TestASecondVocabularyMigrationChangesNothing(t *testing.T) {
 	// fourth workbench in the fixture would slip past it and a reworded
 	// catalog entry would silently stop it asserting, which is the class of
 	// check this file has already had to repair twice.
-	second := runCLI(t, root, "--json", "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	second := runCLI(t, root, "--json", "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if second.code != 0 {
 		t.Fatalf("the second run: %d %s\n%s", second.code, second.errw, second.out)
 	}
@@ -640,7 +640,7 @@ func TestTheVocabularyMigrationResumesAWorkbenchLeftHalfConverted(t *testing.T) 
 	last := ids[len(ids)-1]
 	denyWrite(t, filepath.Join(nested, bench.CardsDir, last, bench.CardAnchor))
 
-	failed := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	failed := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if failed.code == 0 {
 		t.Fatalf("the run that could not write a card exited 0:\n%s", failed.out)
 	}
@@ -658,7 +658,7 @@ func TestTheVocabularyMigrationResumesAWorkbenchLeftHalfConverted(t *testing.T) 
 	}
 
 	allowWrite(t, filepath.Join(nested, bench.CardsDir, last, bench.CardAnchor))
-	resumed := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	resumed := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if resumed.code != 0 {
 		t.Fatalf("the resumed run: %d %s\n%s", resumed.code, resumed.errw, resumed.out)
 	}
@@ -692,7 +692,7 @@ func TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation(t *testing.T)
 		before[where] = treeContents(t, where)
 	}
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary")
+	got := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary")
 	if got.code != contract.ExitCodeForRead(contract.ReadFindings) {
 		t.Errorf("a preview holding three workbenches still to carry forward exited %d, wanted %d:\n%s", got.code, contract.ExitCodeForRead(contract.ReadFindings), got.out)
 	}
@@ -700,7 +700,7 @@ func TestTheVocabularyMigrationWritesNothingWithoutTheConfirmation(t *testing.T)
 	// MCP-shaped caller reads is asserted beside the exit code a shell reads.
 	// dinah-346 added both, and a run carrying one without the other would
 	// leave half of this command's callers guessing again.
-	machine := runCLI(t, root, "--json", "--workbench", root, "check", "--migrate-vocabulary")
+	machine := runCLI(t, root, "--json", "check", "--root", root, "--migrate-vocabulary")
 	if machine.code != contract.ExitCodeForRead(contract.ReadFindings) {
 		t.Errorf("the JSON preview exited %d, wanted %d:\n%s", machine.code, contract.ExitCodeForRead(contract.ReadFindings), machine.out)
 	}
@@ -800,7 +800,7 @@ func TestAnAnchorCarryingBothSequenceKeysIsRefusedBeforeAnythingIsWritten(t *tes
 	})
 	before := treeContents(t, sibling)
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	got := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run meeting an anchor in both vocabularies exited 0:\n%s", got.out)
 	}
@@ -839,7 +839,7 @@ func TestACardCarryingBothVocabulariesIsRefusedByName(t *testing.T) {
 		return strings.Replace(text, "\nstate: ", "\ncolumn: b00000000001\nstate: ", 1)
 	})
 
-	got := runCLI(t, root, "--workbench", root, "check", "--migrate-vocabulary", "--yes")
+	got := runCLI(t, root, "check", "--root", root, "--migrate-vocabulary", "--yes")
 	if got.code == 0 {
 		t.Errorf("a run meeting a card in both vocabularies exited 0:\n%s", got.out)
 	}

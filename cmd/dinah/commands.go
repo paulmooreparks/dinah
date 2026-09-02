@@ -1023,24 +1023,124 @@ func runConfig(s *session, parsed *arguments) int {
 	return s.fail(contract.Usage, first)
 }
 
+// checkModalFlags are the three flags that decide what check does before it
+// ever builds a request, in the order a refusal names them. Each one answers
+// on its own path and returns, so a second modal flag beside the first is
+// never reached.
+var checkModalFlags = []string{"migrate-vocabulary", "migrate-container", "remint"}
+
+// checkStarvedMarkers are the markers a modal flag silently swallows: they are
+// read off the request Library.Check receives, and a modal flag returns before
+// that request is built.
+var checkStarvedMarkers = []string{
+	"finish",
+	"migrate-ordinals",
+	"migrate-slugs",
+	"migrate-columns",
+	"migrate-workstreams",
+	"witness",
+}
+
+// checkFlagConflict answers the flag combinations check refuses, and it
+// answers them all in one place because they are one question: which of the
+// words the caller typed is this run going to act on, and is every other word
+// he typed still going to mean something.
+//
+// A modal flag beside a second modal flag, or beside any of the six markers,
+// is the first half. runCheck takes the first modal flag it finds and returns
+// on that path, so everything else the caller asked for is dropped without a
+// word. That silent drop is the complaint this command was rewritten over,
+// one flag combination sideways, so it refuses and names every flag it found
+// in conflict rather than picking one and going quiet about the rest.
+//
+// --root or --max-depth beside anything that is not a tree sweep is the second
+// half. Neither flag has a downward walk to aim or to bound outside the two
+// sweeps, so accepting one there would either drop a word the caller typed or
+// give it a meaning nothing else on check gives it.
+//
+// The two halves are ordered rather than merged. A run naming --root, a modal
+// flag and a starved marker together has two defects, and the modal conflict
+// is the one that decides what the command would have done, so it is reported
+// first.
+//
+// The two scope flags arrive as values rather than being read here, because
+// runCheck reads them by name in its own body and args_coverage_test.go looks
+// no deeper than that.
+func checkFlagConflict(parsed *arguments, root, maxDepth string) string {
+	modal := make([]string, 0, len(checkModalFlags))
+	for _, name := range checkModalFlags {
+		if name == "remint" {
+			if parsed.value("remint") != "" {
+				modal = append(modal, name)
+			}
+			continue
+		}
+		if parsed.has(name) {
+			modal = append(modal, name)
+		}
+	}
+	starved := make([]string, 0, len(checkStarvedMarkers))
+	for _, name := range checkStarvedMarkers {
+		if parsed.has(name) {
+			starved = append(starved, name)
+		}
+	}
+	if len(modal) > 1 || (len(modal) == 1 && len(starved) > 0) {
+		conflicting := append(append([]string(nil), modal...), starved...)
+		for i, name := range conflicting {
+			conflicting[i] = "--" + name
+		}
+		return strings.Join(conflicting, " ")
+	}
+	if len(modal) == 1 && modal[0] != "remint" {
+		return ""
+	}
+	if root != "" {
+		return root
+	}
+	return maxDepth
+}
+
 // runCheck checks the bench for structural defects.
 //
 // The vocabulary migration is answered before the workbench is opened, which
 // no other migration marker needs. Every one of its siblings repairs an
 // additive gap in a workbench this build can already read; this one repairs
 // the key names the reader itself is looking for, so the ordinary open would
-// refuse the very workbench the migration exists to carry forward. It also
-// walks a tree rather than acting on one bench, since the boards it was asked
-// for sit spread across directories nobody wants to visit one at a time.
+// refuse the very workbench the migration exists to carry forward.
+//
+// Where the command acts is decided once, by one rule, on every invocation:
+// --root names a directory to walk downward from, and its absence means the
+// ordinary climb to the workbench the caller is standing in. Before this the
+// two tree sweeps descended from the current directory while every other form
+// of check climbed, so one flag silently changed what "here" meant and the
+// output said nothing about it. An operator standing above thirteen
+// workbenches now gets the same answer from `dinah check --migrate-container`
+// as he gets from a bare `dinah check`, and the old reach is written
+// `--root .`, which says out loud what tree is about to be touched.
+//
+// Both flags are read by name here rather than inside the sweep functions.
+// args_coverage_test.go walks one call level down from a command's run
+// function, so a read living in rootWalkFor, which the sweeps would reach
+// through a second call, is a read that guard cannot see.
 func runCheck(s *session, parsed *arguments) int {
+	root := parsed.value("root")
+	maxDepth := parsed.value("max-depth")
+	if conflict := checkFlagConflict(parsed, root, maxDepth); conflict != "" {
+		return s.fail(contract.Usage, conflict)
+	}
+	walk, refusal := s.rootWalkFor(parsed, root)
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
 	if parsed.has("migrate-vocabulary") {
-		return runMigrateVocabulary(s, parsed.has("yes"))
+		return runMigrateVocabulary(s, parsed, walk)
 	}
 	if path := parsed.value("remint"); path != "" {
 		return runRemint(s, path)
 	}
 	if parsed.has("migrate-container") {
-		return runMigrateContainer(s, parsed.has("yes"))
+		return runMigrateContainer(s, parsed, walk)
 	}
 	req := s.request("check", parsed)
 	return s.withBench(func(l *verb.Library) int {
@@ -1510,23 +1610,26 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 // .dinah container under an identifier Dinah minted.
 //
 // The root is resolved exactly the way runMigrateVocabulary resolves its own,
-// and for the same reason: this command asks which directory to walk down
-// from rather than which workbench it is standing in, and a climb would
-// resolve to one workbench and then walk beneath it, finding none of its
-// siblings. The override is trusted on a plain stat rather than on discovery,
-// because the directories this repair exists for are precisely the ones
-// discovery no longer finds.
+// and for the same reason: the two commands answer the same question about
+// different repairs, and an operator who has learned where one of them acts
+// should not have to learn a second rule for the other.
+//
+// A walk arrives here when the invocation named --root, and the sweep then
+// descends from that directory. Nothing named a root when the walk is nil, so
+// the command climbs like every other form of check and repairs the one
+// workbench the climb found. The climb goes through s.open rather than
+// through bench.Discover, which no command in this package calls directly,
+// and the opened library carries the workbench's own directory. Handing that
+// directory to the tree sweep walks a tree of exactly one node, so a single
+// workbench is repaired by the same code that repairs a thousand.
 //
 // The rewrite waits for --yes for the reason the vocabulary sweep does, and
 // with one more behind it: this repair moves directories rather than editing
 // files inside them, so a preview is the only way to read the blast radius
 // before it happens.
-func runMigrateContainer(s *session, confirmed bool) int {
-	root := s.cwd
-	if s.benchFlag != "" {
-		root = s.benchFlag
-	}
-	resolved, err := filepath.Abs(root)
+func runMigrateContainer(s *session, parsed *arguments, walk *rootWalk) int {
+	confirmed := parsed.has("yes")
+	resolved, err := s.sweepRoot(walk)
 	if err != nil {
 		return s.reportError(err)
 	}
@@ -1571,33 +1674,69 @@ func runRemint(s *session, path string) int {
 	return 0
 }
 
+// sweepRoot answers the directory a tree sweep walks down from, and it is the
+// one place either sweep decides that.
+//
+// A caller who named --root has already had it resolved to an absolute path by
+// rootWalkFor, along with every refusal that pair of flags can raise, so there
+// is nothing left to decide here. A caller who named no root gets the ordinary
+// climb, and the workbench it lands on is the whole of the tree the sweep then
+// walks.
+//
+// The climb discovers and stops there, where every other command's climb goes
+// on to open what it found. It stops because one of the two sweeps repairs the
+// key names the reader itself looks for, so opening a workbench that needs the
+// vocabulary carried forward refuses that workbench by name, and the repair
+// would refuse to run on exactly the workbenches it exists for. Discovery
+// resolves an override, an ambiguous base, a configured default and a failed
+// walk identically to s.open, which is where these arguments are copied from,
+// and only the open is left out.
+//
+// Putting the open back is four lines, and cmd/dinah's
+// TestTheClimbingSweepRepairsRatherThanRefuses fails on them. What it costs is
+// more than the refusal: the refusal is composed on a path that resolved no
+// workbenchRoot, so its advice names no workbench and recommends the command
+// that just refused.
+func (s *session) sweepRoot(walk *rootWalk) (string, error) {
+	if walk != nil {
+		return walk.Root, nil
+	}
+	root, source, _, err := bench.DiscoverSource(
+		s.cwd,
+		s.benchFlag,
+		s.benchFlagSource,
+		s.home,
+		s.nativeHome,
+		s.cfg.Get("workbench"),
+	)
+	if err != nil {
+		return "", err
+	}
+	s.workbenchSource = source
+	return root, nil
+}
+
 // runMigrateVocabulary carries every workbench at or beneath a root across the
 // vocabulary rename.
 //
-// The root is a directory rather than a workbench, and it is not resolved by
-// the ordinary discovery climb. Every other command asks which workbench it is
-// standing in and climbs until it finds one; this one asks which directory to
-// walk down from, and the two questions have different answers wherever a
-// person keeps several workbenches side by side. Climbing first would resolve
-// the root to one workbench and then walk beneath that, which finds none of
-// its siblings, and that is the case this command exists for: the boards it
-// was asked for sit spread across customer directories. So --workbench names
-// the root when it is given, and the current directory is the root when it is
-// not, and a root that is itself a workbench is found by the walk rather than
-// by the climb.
+// --root names the directory to walk down from, and the walk arrives here
+// already resolved. Without it the command climbs to the workbench the caller
+// is standing in and carries that one workbench forward, which is what every
+// other form of check does with the same silence.
 //
-// That reach is also why the rewrite waits for --yes. The root is wherever the
-// operator happens to be standing, the walk descends the whole way, and the
-// rewrite it performs is irreversible, so a bare run reports what it would
-// carry forward and writes nothing. The flag is the one this command's
-// siblings already use for a deliberate act, so the preview costs no new
-// vocabulary.
-func runMigrateVocabulary(s *session, confirmed bool) int {
-	root := s.cwd
-	if s.benchFlag != "" {
-		root = s.benchFlag
-	}
-	resolved, err := filepath.Abs(root)
+// The two questions have different answers wherever a person keeps several
+// workbenches side by side, and the command used to answer the second one
+// while its own siblings answered the first. An operator sweeping a directory
+// of customer boards still gets that reach, by writing --root and naming the
+// directory, and what he gives up is a walk he did not ask for.
+//
+// The rewrite waits for --yes because it is irreversible, so a bare run
+// reports what it would carry forward and writes nothing. The flag is the one
+// this command's siblings already use for a deliberate act, so the preview
+// costs no new vocabulary.
+func runMigrateVocabulary(s *session, parsed *arguments, walk *rootWalk) int {
+	confirmed := parsed.has("yes")
+	resolved, err := s.sweepRoot(walk)
 	if err != nil {
 		return s.reportError(err)
 	}

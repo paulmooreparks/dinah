@@ -74,7 +74,8 @@ WORKBENCH
     [--migrate-vocabulary]
     [--migrate-container] [--remint <dir>]
     [--migrate-workstreams] [--witness]
-    [--yes]
+    [--yes] [--root <path>]
+    [--max-depth <n>]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator
   workbench [get|set] [field] [value]       Read this workbench's own fields, or

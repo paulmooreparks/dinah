@@ -1685,6 +1685,11 @@
       "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with.",
       "source": "73daeb41e90ffc3c"
     },
+    "refusal.dinah.interrupted.next-named": {
+      "text": ", और `dinah check --workbench {workbench} --finish` उसे पूरा करता है",
+      "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "248f008d8842a382"
+    },
     "refusal.dinah.locked": {
       "text": "इस पर पहले से ताला है; {detail}",
       "context": "The sentence printed after the refusal name dinah.locked. {detail} carries the identifier, owner or column the refusal is about.",
@@ -1699,6 +1704,11 @@
       "text": "; इसके पूरा होने की प्रतीक्षा करके दोबारा आज़माएँ, या यदि वह कभी पूरा न हो तो `dinah check --finish` चलाएँ",
       "context": "Spliced onto refusal.dinah.locked as the next step, and onto refusal.dinah.locked.unnamed, since the advice is the same whether the lock names somebody or nobody.",
       "source": "5673bca461c6c9a5"
+    },
+    "refusal.dinah.locked.next-named": {
+      "text": "; इसके पूरा होने की प्रतीक्षा करके दोबारा आज़माएँ, या यदि वह कभी पूरा न हो तो `dinah check --workbench {workbench} --finish` चलाएँ",
+      "context": "Spliced onto refusal.dinah.locked as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader clear an act the tool left standing from where he is rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "8d566324f652a577"
     },
     "refusal.dinah.no-configured-workbench": {
       "text": "वर्कबेंच सेटिंग {detail} बताती है, और उसमें कोई workbench.md नहीं है",
@@ -1741,13 +1751,13 @@
       "source": "6a5c5807c6b66cc2"
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, या मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें",
+      "text": "; यहां एक बनाने के लिए `dinah init` चलाएँ, मौजूदा वर्कबेंच दिखाने के लिए --workbench <dir> दें, या किसी निर्देशिका के नीचे खोजने के लिए `dinah check` को --root <dir> दें, या `dinah workbenches` को एक निर्देशिका दें",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
-      "source": "a9324672264c283"
+      "source": "bf92ad15c8e843c8"
     },
     "refusal.dinah.no-workbench-found.bare": {
-      "text": "; {bare} पर एक workbench.md किसी भी .dinah कंटेनर के बाहर रखी है, इसलिए कोई खोज उस तक नहीं पहुँचती; उसे कंटेनर में ले जाने के लिए वहाँ `dinah check --migrate-container` चलाएँ",
-      "source": "ac254523e5b742bb"
+      "text": "; {bare} पर एक workbench.md किसी भी .dinah कंटेनर के बाहर रखी है, इसलिए कोई खोज उस तक नहीं पहुँचती; उसे कंटेनर में ले जाने के लिए वहाँ `dinah check --root . --migrate-container` चलाएँ",
+      "source": "7700822e3c75a9c1"
     },
     "refusal.dinah.no-editor": {
       "text": "कोई संपादक नहीं मिला",
@@ -1994,6 +2004,11 @@
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated.",
       "source": "9b4d2512a901f950"
     },
+    "refusal.dinah.vocabulary-mixed.next-named": {
+      "text": "; फ़ाइल को हाथ से बदलें ताकि वह एक ही शब्दावली रखे, दोनों नहीं, फिर वर्कबेंच को आगे ले जाने के लिए `dinah check --root {workbench} --migrate-vocabulary` चलाएँ",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated.",
+      "source": "ccace2b0ced93be7"
+    },
     "refusal.dinah.vocabulary-retired": {
       "text": "{detail} उस शब्दावली में लिखा है जिसे इस प्रारूप ने सेवानिवृत्त कर दिया, और उसके चारों ओर की वर्कबेंच वर्तमान शब्दावली घोषित करती है, इसलिए कार्ड और उसकी वर्कबेंच इस बात पर असहमत हैं कि कार्ड की कुंजियों का अर्थ क्या है",
       "context": "The sentence printed after the refusal name dinah.vocabulary-retired. {detail} names the card inside the workbench, its identifier and card.md, so a tree-wide run says which of several hundred cards it refused. The file itself carries one vocabulary and not both, which is what separates this refusal from dinah.vocabulary-mixed, and the defect is that it disagrees with the anchor above it.",
@@ -2039,15 +2054,20 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling.",
       "source": "2d044b02d1cbb5c1"
     },
+    "refusal.dinah.needs-vocabulary-migration.next-named": {
+      "text": "; पहले `dinah check --root {workbench} --migrate-vocabulary` चलाएँ, फिर इसे दोबारा खोलें",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated.",
+      "source": "1e012fe589abf690"
+    },
     "refusal.dinah.needs-container-migration": {
       "text": "Dinah अब {detail} को नहीं खोलता, क्योंकि वर्कबेंच .dinah कंटेनर के भीतर रहती है और यह वहाँ नहीं है",
       "context": "The sentence printed after the refusal name dinah.needs-container-migration. {detail} carries the workbench directory the refusal was raised over.",
       "source": "658a71835c2be723"
     },
     "refusal.dinah.needs-container-migration.next": {
-      "text": "; इसे किसी कंटेनर में ले जाने के लिए `dinah check --migrate-container --yes` चलाएँ, फिर इसे दोबारा खोलें",
-      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. The command name is machine vocabulary and is not translated.",
-      "source": "d05823cad551f81a"
+      "text": "; इसे किसी कंटेनर में ले जाने के लिए `dinah check --root {detail} --migrate-container` चलाएँ, फिर इसे दोबारा खोलें",
+      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated.",
+      "source": "b06c3e162e0a89c6"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "इस वर्कबेंच में नया कार्ड दाखिल करने के लिए कोई कॉलम नहीं बचा है",
@@ -2058,6 +2078,11 @@
       "text": "; {detail} को हाथ से बदलकर columns सूची में एक कॉलम जोड़ें और उसकी columns/<id>/column.md बनाएं, फिर पुष्टि के लिए `dinah check` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
       "source": "fe71af28f4ee8805"
+    },
+    "refusal.dinah.add-needs-a-column.next-named": {
+      "text": "; {detail} को हाथ से बदलकर columns सूची में एक कॉलम जोड़ें और उसकी columns/<id>/column.md बनाएं, फिर पुष्टि के लिए `dinah check --workbench {workbench}` चलाएँ, उसके बाद दोबारा `dinah add` आज़माएं",
+      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "8a268bcc89e6b74f"
     },
     "refusal.dinah.multiple-words": {
       "text": "Dinah ने {label} के लिए {count} अलग-अलग शब्द पढ़े, और यह केवल एक स्वीकार करता है।",
@@ -2124,6 +2149,11 @@
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
       "source": "8c452b4b200ff031"
     },
+    "refusal.malformed.fix-named": {
+      "text": "; फ़ाइल को स्वयं संपादित करके जोड़ें, फिर पुष्टि के लिए `dinah check --workbench {workbench}` चलाएँ",
+      "context": "Spliced onto refusal.malformed as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench whose file would not read. The workbench is attached by the raise site rather than by the head, so this repair renders exactly where the file path does and nowhere else. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "fd0cab63edc2986b"
+    },
     "refusal.malformed.reads-as-a-card-reference": {
       "text": "; Dinah {cardRef} को कार्ड संदर्भ के रूप में पढ़ता है, इसलिए वर्कबेंच उपनाम डैश और संख्या पर समाप्त नहीं हो सकता",
       "context": "Spliced onto the malformed sentence when `dinah init --slug` is handed a slug the reference grammar would read as a card. {cardRef} carries that slug. It opens with a semicolon, the way refusal.malformed.at and refusal.malformed.fix do.",
@@ -2138,6 +2168,11 @@
       "text": "; वर्कबेंच की workbench.md में operator पंक्ति जोड़ें, फिर पुष्टि के लिए `dinah check` चलाएँ",
       "context": "Spliced onto refusal.no-operator as the next step. operator is a key name and stays in Latin script.",
       "source": "846bcc9304d0276"
+    },
+    "refusal.no-operator.next-named": {
+      "text": "; वर्कबेंच की workbench.md में operator पंक्ति जोड़ें, फिर पुष्टि के लिए `dinah check --workbench {workbench}` चलाएँ",
+      "context": "Spliced onto refusal.no-operator as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the operator line on the workbench he named. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "f8ef4f1b0fd3426c"
     },
     "refusal.no-owner": {
       "text": "Dinah नहीं जानती कि आप कौन हैं",
@@ -2705,9 +2740,9 @@
       "source": "2a383b2471db9773"
     },
     "param.check.migrate-container.summary": {
-      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ",
+      "text": "इस वर्कबेंच को .dinah कंटेनर में, Dinah द्वारा गढ़े गए पहचानकर्ता के नाम पर ले जाएँ, या --root के नीचे की हर वर्कबेंच को",
       "context": "The one-line summary of the check command flag --migrate-container, printed by `dinah help check`.",
-      "source": "525351d53ebb9dae"
+      "source": "26ead382b2d32a9a"
     },
     "param.check.migrate-workstreams.summary": {
       "text": "हर उस वर्कस्ट्रीम को अपनाएँ जिसे कोई कार्ड नाम देता है और यह वर्कबेंच नहीं रखता",
@@ -3428,15 +3463,25 @@
       "context": "The heading over the workbenches the container migration left alone because they already sit where the rule puts one, for exactly one.",
       "source": "2073a8008c7f9946"
     },
-    "check.container-migrated.other": {
-      "text": "{count} वर्कबेंच को कंटेनर में ले जाया गया।",
-      "context": "The heading over what the container migration moved, for any other number.",
-      "source": "341aa3626418b6af"
+    "check.container-migrated-bare.other": {
+      "text": "कंटेनर से बाहर रखी {count} वर्कबेंच को कंटेनर में ले जाया गया।",
+      "context": "The heading over the workbenches an applied container migration carried into a container it also created, for any other number.",
+      "source": "d270a0f4acbda15b"
     },
-    "check.container-migrated.one": {
-      "text": "{count} वर्कबेंच को कंटेनर में ले जाया गया।",
-      "context": "The heading over what the container migration moved, for exactly one workbench. Each row names where the workbench came from and where it went.",
-      "source": "8800802c2417e51f"
+    "check.container-migrated-bare.one": {
+      "text": "कंटेनर से बाहर रखी {count} वर्कबेंच को कंटेनर में ले जाया गया।",
+      "context": "The heading over the workbenches an applied container migration carried into a container it also created, for exactly one. Each row names where the workbench came from and where it went.",
+      "source": "3da5188ed8372153"
+    },
+    "check.container-migrated-legacy.other": {
+      "text": "पहले से किसी कंटेनर में रखी {count} वर्कबेंच के नाम बदले गए।",
+      "context": "The heading over the workbenches an applied container migration renamed inside a container they already sat in, for any other number.",
+      "source": "be4f7fa3ce8a2558"
+    },
+    "check.container-migrated-legacy.one": {
+      "text": "पहले से किसी कंटेनर में रखी {count} वर्कबेंच का नाम बदला गया।",
+      "context": "The heading over the workbenches an applied container migration renamed inside a container it already sat in, for exactly one. Each row names the directory the workbench left and the one it now sits in.",
+      "source": "9c9c2294fcb3c200"
     },
     "check.container-would-migrate.other": {
       "text": "{count} वर्कबेंच को कंटेनर में ले जाया जाएगा।",
@@ -3459,9 +3504,9 @@
       "source": "6a0ea494b600226f"
     },
     "param.check.migrate-vocabulary.summary": {
-      "text": "इस रूट या उसके नीचे की हर वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ",
+      "text": "इस वर्कबेंच को कॉलम और स्थिति के पुनर्नामकरण के पार ले जाएँ, या --root के नीचे की हर वर्कबेंच को",
       "context": "The meaning of the migrate-vocabulary argument of `dinah check`, printed in that command's arguments table.",
-      "source": "7384eb6c936bda3b"
+      "source": "339d49aea61cc5dd"
     },
     "refusal.dinah.conflicting-scope": {
       "text": "{detail} नीचे की ओर चलने के लिए एक डायरेक्टरी बताता है और {workbench} एक वर्कबेंच बताता है, और एक कमांड इनमें से किसी एक ही दायरे का उत्तर देता है",

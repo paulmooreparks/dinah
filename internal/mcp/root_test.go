@@ -88,6 +88,39 @@ func rootScopedTools(t *testing.T) map[string]string {
 	return paired
 }
 
+// toolNamed answers the surface entry a tool name stands for, and fails the
+// test when no tool carries that name.
+//
+// That failure is a backstop and not a guard. Every caller here reaches it
+// with a name taken from ranging over tools, so the name it is handed is a
+// name tools carries and the check cannot fire. What does catch an exemption
+// naming a tool this head no longer publishes is
+// TestEveryArgumentExemptionNamesSomethingThatExists in roster_test.go, which
+// reads the exemption table itself rather than the set of tools that matched
+// it. This comment used to claim the protection that test provides, which is
+// how the gap survived a review.
+func toolNamed(t *testing.T, name string) tool {
+	t.Helper()
+	for _, one := range tools {
+		if one.name == name {
+			return one
+		}
+	}
+	t.Fatalf("this head publishes no tool named %s", name)
+	return tool{}
+}
+
+// schemaProperties answers the properties one tool's published input schema
+// carries, which is what a caller reading tools/list is offered.
+func schemaProperties(t *testing.T, name string) map[string]any {
+	t.Helper()
+	properties, ok := schemaFor(toolNamed(t, name))["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("the schema of %s carries no properties object", name)
+	}
+	return properties
+}
+
 // TestTheRootScopedRosterIsTheParamsTableRootCarryingSet asserts that
 // rootScoped is not a second, hand-maintained declaration of which reads take
 // a root. internal/verb's params table already declares that set, by which
@@ -106,11 +139,30 @@ func rootScopedTools(t *testing.T) map[string]string {
 // is why the missing pairing showed up on this head alone.
 func TestTheRootScopedRosterIsTheParamsTableRootCarryingSet(t *testing.T) {
 	declared := map[string]bool{}
+	held := map[string]bool{}
 	for _, one := range tools {
 		for _, param := range verb.Params(one.command) {
-			if param.Name == "root" {
-				declared[one.name] = true
+			if param.Name != "root" {
+				continue
 			}
+			if exemptArgument(one.name, param.Name) {
+				held[one.name] = true
+				continue
+			}
+			declared[one.name] = true
+		}
+	}
+	// A tool that holds its root back has to really hold it back. The
+	// exemption is what takes such a tool out of the rule below, so an
+	// exemption that lied would switch the rule off for that tool while the
+	// schema went on advertising the argument, which is the defect this test
+	// exists to catch wearing the paperwork that excuses it.
+	for name := range held {
+		if declaredArgNames(toolNamed(t, name))["root"] {
+			t.Errorf("%s names root in argumentExemptions and still declares it, so the exemption excuses a root this head publishes", name)
+		}
+		if _, published := schemaProperties(t, name)["root"]; published {
+			t.Errorf("%s names root in argumentExemptions and its schema still advertises it", name)
 		}
 	}
 	if len(declared) == 0 {
