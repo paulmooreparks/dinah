@@ -283,9 +283,18 @@ func TestEverySweepAdviceIsDispositioned(t *testing.T) {
 	if len(seen) == 0 {
 		t.Fatal("no catalog message names either sweep, so this guard read nothing")
 	}
-	for key := range sweepAdviceProvenByRunning {
+	declared := testFunctionsDeclaredHere(t)
+	for key, named := range sweepAdviceProvenByRunning {
 		if !seen[key] {
 			t.Errorf("%s is dispositioned as proven by running and no catalog message by that key names a sweep, so the disposition outlived its message", key)
+		}
+		// The name of a test is the whole of this disposition's claim, so a
+		// name nothing declares is the same defect the MCP head's argument
+		// exemptions carried until this card: paperwork reading as an argued
+		// decision and standing for nothing. Renaming or deleting the test
+		// that follows a sentence has to cost somebody a line here.
+		if !declared[named] {
+			t.Errorf("%s is dispositioned as proven by %s and this package declares no test by that name", key, named)
 		}
 	}
 	for key := range sweepAdviceNeedingNoScope {
@@ -304,4 +313,35 @@ func namesANarrowedSweep(text string) bool {
 		}
 	}
 	return false
+}
+
+// testFunctionsDeclaredHere answers the names of every test function this
+// package declares, read out of the sources rather than out of a list, so the
+// answer cannot go stale on its own.
+func testFunctionsDeclaredHere(t *testing.T) map[string]bool {
+	t.Helper()
+	sources, err := filepath.Glob("*_test.go")
+	if err != nil {
+		t.Fatalf("glob the test sources: %v", err)
+	}
+	if len(sources) == 0 {
+		t.Fatal("no test source was found, so this read proves nothing")
+	}
+	declared := map[string]bool{}
+	for _, source := range sources {
+		text, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatalf("read %s: %v", source, err)
+		}
+		for _, line := range strings.Split(string(text), "\n") {
+			if !strings.HasPrefix(line, "func Test") {
+				continue
+			}
+			name := strings.TrimPrefix(line, "func ")
+			if cut := strings.Index(name, "("); cut > 0 {
+				declared[name[:cut]] = true
+			}
+		}
+	}
+	return declared
 }
