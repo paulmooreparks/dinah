@@ -129,12 +129,19 @@ jobs:
           SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Waiting for ci.yml's six check runs on $SHA"
-          for attempt in $(seq 1 60); do
+          # The budget is written once, here, and every line below derives from
+          # it. Before dinah-363 the count and the interval were spelled into
+          # the loop, the progress line and the timeout message separately, and
+          # raising the budget meant finding all four.
+          ATTEMPTS=180
+          INTERVAL=10
+          BUDGET=$(( ATTEMPTS * INTERVAL / 60 ))
+          echo "Waiting up to $BUDGET minutes for ci.yml's six check runs on $SHA"
+          for attempt in $(seq 1 "$ATTEMPTS"); do
             # A failing API call prints its own error and stops the run. Hiding
-            # it here would turn a 403 or a rate limit into the same five-minute
-            # timeout a commit with no CI produces, and those need different
-            # answers from whoever reads the log.
+            # it here would turn a 403 or a rate limit into the same timeout a
+            # commit with no CI produces, and those need different answers from
+            # whoever reads the log.
             if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
               --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test")) or (.name | startswith("extension"))) | .status + ":" + (.conclusion // "none")'); then
               echo "::error::could not read the check runs for $SHA; the API error is above"
@@ -151,10 +158,14 @@ jobs:
               echo "All six CI checks passed."
               exit 0
             fi
-            echo "  $GOOD of 6 checks done (attempt $attempt of 60)"
-            sleep 5
+            echo "  $GOOD of 6 checks done (attempt $attempt of $ATTEMPTS)"
+            sleep "$INTERVAL"
           done
-          echo "::error::timed out after five minutes waiting for ci.yml on $SHA"
+          # The count reached is part of the message on purpose. A run that
+          # timed out at five of six was slow, and a run that timed out at zero
+          # never had CI at all, and those want different answers from whoever
+          # reads the log.
+          echo "::error::timed out after $BUDGET minutes waiting for ci.yml on $SHA; $GOOD of 6 checks had passed"
           exit 1
 
   # Every binary is cross-compiled from one Linux runner. dinah has no cgo
