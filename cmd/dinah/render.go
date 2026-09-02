@@ -45,10 +45,17 @@ func (s *session) emit(response *verb.Response) int {
 // reportOutcome writes the leading token and the sentence a person reads.
 // For a refusal the token is the refusal name; for the other two non-zero
 // outcomes it is the outcome name itself.
+//
+// A refusal a verb answered with goes through nameTheWorkbench exactly as one
+// the open raised does, because advice that needs a workbench named needs it
+// whichever half of the head composed the sentence. Four of the six entries in
+// that table are refused by a verb rather than by the open, so leaving this
+// path out would have left their scoped advice declared and never rendered.
 func (s *session) reportOutcome(response *verb.Response) {
 	switch response.Outcome {
 	case contract.OutcomeRefused:
-		for _, line := range s.composeRefusal(contract.RefuseWith(response.Refusal, response.Detail, s.outcomeValues(response))) {
+		refused := contract.RefuseWith(response.Refusal, response.Detail, s.outcomeValues(response))
+		for _, line := range s.composeRefusal(s.nameTheWorkbench(refused)) {
 			io.WriteString(s.errw, line+"\n")
 		}
 	case contract.OutcomeStale:

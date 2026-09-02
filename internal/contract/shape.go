@@ -148,26 +148,53 @@ var Shapes = []Shape{
 		// and splices the clause saying so. It names no location and no
 		// file, so the alternation's tail gives it the command-spelling next
 		// step, which is the advice a reader who typed the slug needs.
+		//
+		// The repair alternation leads with the sibling that names the
+		// workbench, because a reader told to confirm his hand edit with a
+		// check needs the check to reach the file he just edited, and a
+		// bare check reaches only what the climb from where he stands
+		// reaches. That sibling's condition is the workbench value, and
+		// this is the one refusal in the family whose raise sites fill that
+		// value themselves: openWithVocabulary attaches it beside the path,
+		// so the named repair renders exactly where the unnamed one would
+		// have and nowhere else. Naming Malformed in the head's
+		// benchScopedAdvice table instead would attach a workbench to every
+		// malformed refusal an opened workbench raises, including the empty
+		// title dinah add refuses, and hand that reader a repair written
+		// about a file he has not touched.
 		Name:   Malformed,
-		Values: []string{"path", "file", "cardRef", ValueUsage},
+		Values: []string{"path", "file", "cardRef", ValueUsage, ValueWorkbench},
 		Fragments: []Fragment{
 			{Key: "refusal.malformed.at", When: "path"},
 			{Key: "refusal.malformed.in-file", When: "file"},
 			{Key: "refusal.malformed.reads-as-a-card-reference", When: "cardRef"},
+			{Key: "refusal.malformed.fix-named", When: ValueWorkbench},
 			{Key: "refusal.malformed.fix", When: "path"},
 			{Key: "refusal.malformed.next-file", When: "file"},
 			{Key: "refusal.malformed.next"},
 		},
 		NextStep: []string{
+			"refusal.malformed.fix-named",
 			"refusal.malformed.fix",
 			"refusal.malformed.next-file",
 			"refusal.malformed.next",
 		},
 	},
 	{
-		Name:      NoOperator,
-		Fragments: []Fragment{{Key: "refusal.no-operator.next"}},
-		NextStep:  []string{"refusal.no-operator.next"},
+		// The four raise sites all sit behind an open, so the head has a
+		// workbench to name and the named sibling is what renders. The
+		// unqualified sibling behind it is the alternation's unconditional
+		// last member.
+		Name:   NoOperator,
+		Values: []string{ValueWorkbench},
+		Fragments: []Fragment{
+			{Key: "refusal.no-operator.next-named", When: ValueWorkbench},
+			{Key: "refusal.no-operator.next"},
+		},
+		NextStep: []string{
+			"refusal.no-operator.next-named",
+			"refusal.no-operator.next",
+		},
 	},
 	{
 		Name:      NoOwner,
@@ -245,9 +272,21 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.unsupported-version.next"},
 	},
 	{
-		Name:      AddNeedsAColumn,
-		Fragments: []Fragment{{Key: "refusal.dinah.add-needs-a-column.next"}},
-		NextStep:  []string{"refusal.dinah.add-needs-a-column.next"},
+		// The advice tells the reader to confirm the hand edit with a
+		// check, and a check reaches the workbench it is about only where
+		// the reader stands in it. Every raise site of this refusal sits
+		// behind an open, so the head knows which workbench the invocation
+		// was about and the named sibling is what renders.
+		Name:   AddNeedsAColumn,
+		Values: []string{ValueWorkbench},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.add-needs-a-column.next-named", When: ValueWorkbench},
+			{Key: "refusal.dinah.add-needs-a-column.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.add-needs-a-column.next-named",
+			"refusal.dinah.add-needs-a-column.next",
+		},
 	},
 	{
 		Name:      AmbiguousWorkbench,
@@ -270,9 +309,20 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.exists.next"},
 	},
 	{
-		Name:      Interrupted,
-		Fragments: []Fragment{{Key: "refusal.dinah.interrupted.next"}},
-		NextStep:  []string{"refusal.dinah.interrupted.next"},
+		// The reader of this refusal is the person whose own act was cut
+		// short, so he is standing wherever he typed it, which is not
+		// necessarily inside the workbench he named. The named sibling
+		// carries the finish to that workbench from where he stands.
+		Name:   Interrupted,
+		Values: []string{ValueWorkbench},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.interrupted.next-named", When: ValueWorkbench},
+			{Key: "refusal.dinah.interrupted.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.interrupted.next-named",
+			"refusal.dinah.interrupted.next",
+		},
 	},
 	{
 		Name:      LastColumn,
@@ -283,10 +333,17 @@ var Shapes = []Shape{
 		// One unconditional next step covers both branches, since the
 		// advice for a lock naming nobody is the advice for a lock naming
 		// somebody.
-		Name:      Locked,
-		Subject:   "detail",
-		Fragments: []Fragment{{Key: "refusal.dinah.locked.next"}},
-		NextStep:  []string{"refusal.dinah.locked.next"},
+		Name:    Locked,
+		Subject: "detail",
+		Values:  []string{ValueWorkbench},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.locked.next-named", When: ValueWorkbench},
+			{Key: "refusal.dinah.locked.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.locked.next-named",
+			"refusal.dinah.locked.next",
+		},
 	},
 	{
 		// The pair the composer used to pick between by name, re-expressed

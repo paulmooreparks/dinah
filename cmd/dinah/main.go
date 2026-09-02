@@ -352,14 +352,25 @@ func (s *session) reportError(err error) int {
 // workbench rather than leaving the reader to run the repair from wherever he
 // happens to be standing.
 //
-// Both of them recommend a form of `dinah check` whose reach dinah-362
-// narrowed. Before that card the two repair sweeps walked down from the
-// current directory, so an unqualified command in the advice found the
-// workbench the refusal was about whenever the reader stood at or above it.
-// They climb now, like every other form of check, and a reader who reached the
-// refusal by naming a workbench with --workbench is standing somewhere the
-// climb does not reach, so the unqualified advice answers him with a second
-// refusal instead of the repair.
+// Every one of them recommends a form of `dinah check`, and a form of check
+// reaches one workbench: the two repair sweeps climb from the current
+// directory since dinah-362 narrowed them, and the bare verb and --finish have
+// always climbed. A reader who reached the refusal by naming a workbench with
+// --workbench is standing somewhere that climb does not reach, so unqualified
+// advice answers him with a second refusal instead of the repair.
+//
+// The first two entries are the pair dinah-362's own diff broke. The four
+// below them were already broken on the trunk before this card, they were
+// reproduced against a trunk binary rather than inferred, and the operator
+// ruled on 2026-09-02 that this card owns the whole family rather than the
+// half it caused.
+//
+// Malformed is deliberately absent, though its repair advice takes the same
+// treatment. Its raise sites attach the workbench themselves, because the
+// advice belongs to the malformed anchor a reader can hand-edit rather than to
+// every malformed value an opened workbench can refuse, and a table entry here
+// cannot tell those two apart. The Malformed shape in internal/contract says
+// so where a reader of the alternation meets it.
 //
 // The set is a table rather than a condition on every refusal, because
 // attaching a workbench to refusals whose sentences never name one would put
@@ -367,6 +378,10 @@ func (s *session) reportError(err error) int {
 var benchScopedAdvice = map[string]bool{
 	contract.NeedsVocabularyMigration: true,
 	contract.VocabularyMixed:          true,
+	contract.AddNeedsAColumn:          true,
+	contract.Interrupted:              true,
+	contract.Locked:                   true,
+	contract.NoOperator:               true,
 }
 
 // nameTheWorkbench attaches the workbench discovery resolved to a refusal
@@ -376,14 +391,18 @@ var benchScopedAdvice = map[string]bool{
 // site that named a workbench knew which one it meant and this layer only
 // knows which one the invocation opened.
 //
-// Every refusal in that table reaches this function through an open, so the
+// Both halves of the head call this: reportError, for a refusal the open
+// raised, and reportOutcome, for one a verb answered with. Two of the table's
+// refusals arrive by the first route and four by the second.
+//
+// Every refusal in that table reaches this function after an open, so the
 // value is there and the shape's qualified fragment is the one that renders.
 // The unqualified fragment behind it is the alternation's unconditional last
 // member rather than a sentence some path prints. A tree sweep prints
 // neither: it collects a per-workbench failure into a report row and never
 // composes a refusal at all.
 //
-// That is a property of where the two refusals are raised rather than of
+// That is a property of where these refusals are raised rather than of
 // anything this function can enforce. A path composing one of them without an
 // open would leave workbenchRoot empty and print the unqualified sentence, and
 // the sweeps are the paths near enough to that to be worth a test, so

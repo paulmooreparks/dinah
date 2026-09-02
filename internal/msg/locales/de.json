@@ -2106,9 +2106,9 @@
       "source": "658a71835c2be723"
     },
     "refusal.dinah.needs-container-migration.next": {
-      "text": "; führen Sie `dinah check --root {detail} --migrate-container --yes` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
-      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. The command name is machine vocabulary and is not translated.",
-      "source": "5c0bd1f41ec13a83"
+      "text": "; führen Sie `dinah check --root {detail} --migrate-container` aus, um sie in einen zu tragen, und öffnen Sie sie danach erneut",
+      "context": "Spliced onto refusal.dinah.needs-container-migration as the next step. It names the preview rather than the applied run, so the reader sees what the repair would move before he types the flag that moves it, which is what the other two sentences of this family already do. The command name is machine vocabulary and is not translated.",
+      "source": "b06c3e162e0a89c6"
     },
     "refusal.dinah.add-needs-a-column": {
       "text": "dieser Werkbank ist keine Spalte geblieben, in der eine neue Karte angelegt werden könnte",
@@ -2119,6 +2119,11 @@
       "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
       "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step, carrying the clause that base entry used to end with. {detail} is the workbench.md path to hand-edit.",
       "source": "fe71af28f4ee8805"
+    },
+    "refusal.dinah.add-needs-a-column.next-named": {
+      "text": "; bearbeiten Sie {detail} von Hand, um der Spaltenliste eine Spalte hinzuzufügen und deren columns/<id>/column.md anzulegen, und führen Sie dann `dinah check --workbench {workbench}` aus, um es zu bestätigen, bevor Sie `dinah add` erneut versuchen",
+      "context": "Spliced onto refusal.dinah.add-needs-a-column as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench he was filing into. {detail} is the workbench.md path to hand-edit. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "8a268bcc89e6b74f"
     },
     "refusal.dinah.ambiguous-workbench": {
       "text": "von {base} aus ist mehr als eine Werkbank erreichbar",
@@ -2180,6 +2185,11 @@
       "context": "Spliced onto refusal.dinah.interrupted as the next step, carrying the clause that base entry used to end with.",
       "source": "73daeb41e90ffc3c"
     },
+    "refusal.dinah.interrupted.next-named": {
+      "text": ", und `dinah check --workbench {workbench} --finish` schließt sie ab",
+      "context": "Spliced onto refusal.dinah.interrupted as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader finish the act from wherever he was standing when it broke. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "248f008d8842a382"
+    },
     "refusal.dinah.last-column": {
       "text": "{detail} ist die einzige verbliebene Spalte",
       "context": "The sentence printed after the refusal name dinah.last-column. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2199,6 +2209,11 @@
       "text": "; warten Sie, bis es fertig ist, und versuchen Sie es erneut, oder führen Sie `dinah check --finish` aus, falls es nie fertig wird",
       "context": "Spliced onto refusal.dinah.locked as the next step, and onto refusal.dinah.locked.unnamed, since the advice is the same whether the lock names somebody or nobody.",
       "source": "5673bca461c6c9a5"
+    },
+    "refusal.dinah.locked.next-named": {
+      "text": "; warten Sie, bis es fertig ist, und versuchen Sie es erneut, oder führen Sie `dinah check --workbench {workbench} --finish` aus, falls es nie fertig wird",
+      "context": "Spliced onto refusal.dinah.locked as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader clear an act the tool left standing from where he is rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "8d566324f652a577"
     },
     "refusal.dinah.locked.unnamed": {
       "text": "dies ist bereits gesperrt",
@@ -2647,6 +2662,11 @@
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
       "source": "8c452b4b200ff031"
     },
+    "refusal.malformed.fix-named": {
+      "text": "; bearbeiten Sie die Datei von Hand und fügen Sie es hinzu, und führen Sie dann `dinah check --workbench {workbench}` aus, um es zu bestätigen",
+      "context": "Spliced onto refusal.malformed as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the hand edit on the workbench whose file would not read. The workbench is attached by the raise site rather than by the head, so this repair renders exactly where the file path does and nowhere else. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "fd0cab63edc2986b"
+    },
     "refusal.malformed.in-file": {
       "text": ", in {file}",
       "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
@@ -2677,6 +2697,11 @@
       "text": "; fügen Sie der workbench.md der Werkbank eine operator-Zeile hinzu, und führen Sie dann `dinah check` aus, um es zu bestätigen",
       "context": "Spliced onto refusal.no-operator as the next step. operator is a key name and stays in Latin script.",
       "source": "846bcc9304d0276"
+    },
+    "refusal.no-operator.next-named": {
+      "text": "; fügen Sie der workbench.md der Werkbank eine operator-Zeile hinzu, und führen Sie dann `dinah check --workbench {workbench}` aus, um es zu bestätigen",
+      "context": "Spliced onto refusal.no-operator as the next step wherever a workbench was resolved for this invocation, which covers every reader standing in one and every reader who named one with --workbench from somewhere else. {workbench} is the workbench directory, and naming it is what lets the reader confirm the operator line on the workbench he named. The sibling entry without the flag is the alternation's unconditional last member. The command spelling is machine vocabulary and is not translated.",
+      "source": "f8ef4f1b0fd3426c"
     },
     "refusal.no-owner": {
       "text": "Dinah weiß nicht, wer Sie sind",

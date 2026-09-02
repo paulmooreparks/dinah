@@ -4851,6 +4851,11 @@ func TestANamedValueSurvivesTheVerbLayer(t *testing.T) {
 // refusal name covers: a workbench anchor the reader edits and confirms with
 // dinah check, a definition file the reader edits with no workbench to confirm
 // against, and a request argument nobody edits at all.
+//
+// The anchor branch takes the repair that names the workbench, because
+// dinah-362 gave every raise site carrying a file path the workbench that path
+// belongs to, so the reader can run the check from wherever he is standing
+// rather than only from inside the workbench he has just been refused.
 func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 	english := msg.For(msg.Base)
 
@@ -4861,10 +4866,14 @@ func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 		if got.code != 2 {
 			t.Fatalf("a broken anchor exited %d, wanted 2", got.code)
 		}
-		for _, want := range []string{", in ", english.T("refusal.malformed.fix")} {
+		repair := english.T("refusal.malformed.fix-named", contract.ValueWorkbench, benchDir(t, root))
+		for _, want := range []string{", in ", repair} {
 			if !strings.Contains(got.errw, want) {
 				t.Errorf("the anchor-side refusal should carry %q, got %q", want, got.errw)
 			}
+		}
+		if strings.Contains(got.errw, english.T("refusal.malformed.fix")) {
+			t.Errorf("the anchor-side refusal took the repair that names no workbench: %q", got.errw)
 		}
 		if strings.Contains(got.errw, english.T("refusal.malformed.next-file", "file", "x")) {
 			t.Errorf("the anchor-side refusal took the definition-file repair: %q", got.errw)
