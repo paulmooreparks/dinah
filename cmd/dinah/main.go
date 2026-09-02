@@ -376,14 +376,19 @@ var benchScopedAdvice = map[string]bool{
 // site that named a workbench knew which one it meant and this layer only
 // knows which one the invocation opened.
 //
-// Every refusal that reaches this function has come through an open, which is
-// the only writer of workbenchRoot, so the value is there and the shape's
-// qualified fragment is the one that renders. The unqualified fragment behind
-// it is the alternation's unconditional last member rather than a sentence
-// some path prints. A tree sweep prints neither: it collects a per-workbench
-// failure into a report row and never composes a refusal at all.
-// cmd/dinah/advice_test.go carries that reasoning in full, along with the
-// guard that holds the sole-writer premise it rests on.
+// Every refusal in that table reaches this function through an open, so the
+// value is there and the shape's qualified fragment is the one that renders.
+// The unqualified fragment behind it is the alternation's unconditional last
+// member rather than a sentence some path prints. A tree sweep prints
+// neither: it collects a per-workbench failure into a report row and never
+// composes a refusal at all.
+//
+// That is a property of where the two refusals are raised rather than of
+// anything this function can enforce. A path composing one of them without an
+// open would leave workbenchRoot empty and print the unqualified sentence, and
+// the sweeps are the paths near enough to that to be worth a test, so
+// cmd/dinah/advice_test.go runs them. It carries the reasoning in full, along
+// with what the tests there do and do not reach.
 func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
 	if !benchScopedAdvice[r.Name] || s.workbenchRoot == "" || r.Extra[contract.ValueWorkbench] != "" {
 		return r

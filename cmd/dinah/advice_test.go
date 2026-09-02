@@ -1,6 +1,9 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -112,6 +115,85 @@ func TestTheVocabularyMigrationAdviceIsACommandThatWorks(t *testing.T) {
 				t.Errorf("the workbench does not open after the advice was followed: %d %s", opened.code, opened.errw)
 			}
 		})
+	}
+}
+
+// TestTheClimbingSweepRepairsRatherThanRefuses holds the premise the two
+// unqualified sweep-advice dispositions rest on, which is that no refusal
+// carrying that advice is composed on a path that never opened a workbench.
+//
+// The unqualified fragment renders when nameTheWorkbench finds workbenchRoot
+// empty, and a refusal composed without an open is what leaves it empty. The
+// nearest such path in the tree is sweepRoot, which discovers a workbench and
+// then deliberately stops short of opening it, because opening a workbench
+// that needs the vocabulary carried forward refuses that workbench by name and
+// the repair would refuse to run on exactly the workbenches it exists for. The
+// doc comment there says as much, and the next reader who puts the open back
+// is the reader who has not read it.
+//
+// So the premise is exercised rather than argued. Each run below is the
+// climbing form of the sweep over a workbench the sweep exists to repair, and
+// each asserts that the run reaches the preview and prints neither the refusal
+// it came to clear nor the sentence that names no workbench. Four lines in
+// sweepRoot that open what it discovered turn both of these red and put the
+// circular advice of round one back on the screen, which is the plant this
+// test was written from.
+//
+// The blind spot is worth naming, because this guard is narrower than the
+// disposition it supports. It watches the two sweeps. A raise site anywhere
+// else that composed one of these refusals without an open would print the
+// unqualified sentence and nothing here would see it, and the same is true of
+// a workbench shape the fixture below does not build. That residue is held by
+// reading the raise sites, which is recorded above sweepAdviceNeedingNoScope
+// rather than claimed as covered.
+func TestTheClimbingSweepRepairsRatherThanRefuses(t *testing.T) {
+	for _, from := range []string{"standing in the workbench", "naming it from elsewhere"} {
+		t.Run(from, func(t *testing.T) {
+			tree, workbench := preVocabularyFixture(t)
+			where, scope := workbench, []string{}
+			if from == "naming it from elsewhere" {
+				where, scope = tree, []string{"--workbench", workbench}
+			}
+
+			swept := runCLI(t, where, append(scope, "check", "--migrate-vocabulary")...)
+			// What the run printed is read before its exit code, so that a
+			// red run names the sentence that reached the operator rather
+			// than stopping at the number beside it.
+			if strings.Contains(swept.errw, contract.NeedsVocabularyMigration) {
+				t.Errorf("the sweep refused the workbench it came to repair:\n%s", swept.errw)
+			}
+			assertNoUnqualifiedSweepAdvice(t, swept.out+swept.errw)
+			if swept.code != 5 {
+				t.Fatalf("the climbing vocabulary sweep exited %d rather than reaching the preview: %s%s", swept.code, swept.out, swept.errw)
+			}
+			if !strings.Contains(swept.out, workbench) {
+				t.Errorf("the preview does not name the workbench it would carry forward:\n%s", swept.out)
+			}
+		})
+	}
+}
+
+// unqualifiedSweepAdvice names the two fragments that tell a reader to run a
+// sweep and leave him to work out for himself which workbench to run it on.
+// Each is the last member of its refusal's alternation, and each is
+// dispositioned in sweepAdviceNeedingNoScope as text no invocation renders.
+var unqualifiedSweepAdvice = []string{
+	"refusal.dinah.needs-vocabulary-migration.next",
+	"refusal.dinah.vocabulary-mixed.next",
+}
+
+// assertNoUnqualifiedSweepAdvice asserts that a run printed neither of those
+// two fragments.
+//
+// The sentence is rendered from the catalog rather than written out here, so
+// that rewording the English cannot quietly retire the assertion.
+func assertNoUnqualifiedSweepAdvice(t *testing.T, printed string) {
+	t.Helper()
+	for _, key := range unqualifiedSweepAdvice {
+		advice := msg.For(msg.Base).T(key)
+		if strings.Contains(printed, advice) {
+			t.Errorf("the run printed %s, which tells its reader to run a sweep without saying where:\n%s", key, printed)
+		}
 	}
 }
 
@@ -299,9 +381,22 @@ var sweepAdviceProvenByRunning = map[string]string{
 // unqualified sentence, which is the unscoped advice dinah-362 was blocked
 // over. sweepRoot is the nearest such path in the tree today: it resolves a
 // workbench through bench.DiscoverSource and records workbenchSource while
-// leaving workbenchRoot alone. TestWorkbenchRootHasOneWriter holds the
-// premise, so a second writer costs somebody a line here rather than shipping
-// quietly.
+// leaving workbenchRoot alone, and putting the open back there is four lines
+// that compile, pass vet, and print the round-one blocker again.
+// TestTheClimbingSweepRepairsRatherThanRefuses runs that path and fails on
+// exactly that change.
+//
+// Two things guard this and neither guards all of it, so the division is
+// written down rather than left to be inferred. The behavioural test above
+// covers the two sweeps, which is where the hazard lives today.
+// TestWorkbenchRootHasOneWriter covers a different proposition, that a
+// refusal's named workbench is always the one the open just resolved, and it
+// says nothing about whether some path reaches a refusal without opening at
+// all. What neither reaches is a raise site elsewhere in the tree composing
+// one of these two refusals without an open. That rests on reading the raise
+// sites: every one of them today is behind bench.Open, which session.open
+// calls, and a card adding another is a card that has to come back to this
+// map.
 var sweepAdviceNeedingNoScope = map[string]string{
 	"check.bare-workbench":                          "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
 	"refusal.dinah.vocabulary-retired.next":         "the instruction is the hand edit, and the command is named only to say which rename to perform by hand; running it would do nothing, because the workbench this refusal fires on already declares the current vocabulary and the sweep skips it",
@@ -435,57 +530,107 @@ func testBodiesDeclaredHere(t *testing.T) map[string]string {
 	return declared
 }
 
-// TestWorkbenchRootHasOneWriter holds the premise the two unqualified
-// sweep-advice dispositions rest on, which is that session.open is the only
-// thing that writes workbenchRoot.
+// TestWorkbenchRootHasOneWriter holds that session.open is the only thing
+// that writes workbenchRoot, so a refusal that names a workbench names the one
+// the open just resolved rather than one some earlier path left behind.
 //
-// The claim those dispositions make is that nothing renders the unqualified
-// fragment, and the reason nothing does is that every refusal reaching the
-// composer has come through an open, so nameTheWorkbench always finds a
-// workbench to attach. A second writer would not break this package's tests;
-// it would quietly make the unqualified sentence reachable again, which is the
-// unscoped advice dinah-362 was blocked over, while the disposition guard went
-// on reporting the family as handled. So the premise is held here rather than
-// asserted in a comment.
+// That is the whole of what this guard holds, and the distinction cost a
+// review round. A second writer sets the field, and a field that is set makes
+// nameTheWorkbench attach a workbench, so a second writer can only ever make
+// the unqualified fragment render less often. What makes it render is a
+// refusal composed on a path that never opened, which is the opposite
+// direction and which TestTheClimbingSweepRepairsRatherThanRefuses exercises.
+// Both propositions are worth holding; neither substitutes for the other.
 //
-// The sources are read rather than the behaviour exercised, because the defect
-// this guards against is a write that no current call path reaches: a
-// behavioural test would go green on the very code that introduced it.
+// The sources are parsed rather than the behaviour exercised, because a second
+// writer is a write no current call path reaches, and a behavioural test would
+// go green on the very code that introduced it. Parsing rather than matching
+// text is the round-four repair: the scan this replaces read a line for the
+// field name immediately left of an assignment, so
+// `s.workbenchRoot, s.workbenchSource = root, source` passed it while the same
+// two operands in the other order failed, and += escaped for the same reason.
+// An assignment is a shape in the syntax tree, so the syntax tree is what
+// answers the question.
 func TestWorkbenchRootHasOneWriter(t *testing.T) {
 	sources, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("glob the package sources: %v", err)
 	}
 	writers := map[string]int{}
+	read := 0
 	for _, source := range sources {
 		if strings.HasSuffix(source, "_test.go") {
 			continue
 		}
-		text, err := os.ReadFile(source)
+		parsed, err := parser.ParseFile(token.NewFileSet(), source, nil, 0)
 		if err != nil {
-			t.Fatalf("read %s: %v", source, err)
+			t.Fatalf("parse %s: %v", source, err)
 		}
-		function := "(file scope)"
-		for _, line := range strings.Split(string(text), "\n") {
-			if strings.HasPrefix(line, "func ") {
-				function = strings.TrimPrefix(line, "func ")
+		read++
+		for _, decl := range parsed.Decls {
+			where := source + " (file scope)"
+			if function, ok := decl.(*ast.FuncDecl); ok {
+				where = source + " " + declaredName(function)
 			}
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "//") {
-				continue
-			}
-			assigns := strings.Contains(trimmed, ".workbenchRoot =") && !strings.Contains(trimmed, ".workbenchRoot ==")
-			if assigns || strings.Contains(trimmed, "workbenchRoot:") {
-				writers[source+" "+function]++
-			}
+			ast.Inspect(decl, func(node ast.Node) bool {
+				switch found := node.(type) {
+				case *ast.AssignStmt:
+					for _, target := range found.Lhs {
+						if namesWorkbenchRoot(target) {
+							writers[where]++
+						}
+					}
+				case *ast.KeyValueExpr:
+					if key, ok := found.Key.(*ast.Ident); ok && key.Name == "workbenchRoot" {
+						writers[where]++
+					}
+				case *ast.UnaryExpr:
+					// Handing the field's address to something else is a
+					// write this file cannot follow, so it counts as one.
+					if found.Op == token.AND && namesWorkbenchRoot(found.X) {
+						writers[where]++
+					}
+				}
+				return true
+			})
 		}
+	}
+	if read == 0 {
+		t.Fatal("no package source was parsed, so this read proves nothing")
 	}
 	if len(writers) != 1 {
-		t.Fatalf("workbenchRoot is written in %d places and the sweep-advice dispositions rest on there being one: %v", len(writers), writers)
+		t.Fatalf("workbenchRoot is written in %d places and this guard rests on there being one: %v", len(writers), writers)
 	}
 	for where := range writers {
-		if !strings.HasPrefix(where, "main.go (s *session) open(") {
+		if where != "main.go (*session).open" {
 			t.Errorf("workbenchRoot's one writer is %s rather than session.open in main.go, so the dispositions in this file need rereading", where)
 		}
 	}
+}
+
+// namesWorkbenchRoot reports whether an expression is a selection of the
+// workbenchRoot field, which is the form every write to it takes.
+func namesWorkbenchRoot(expr ast.Expr) bool {
+	selected, ok := expr.(*ast.SelectorExpr)
+	return ok && selected.Sel.Name == "workbenchRoot"
+}
+
+// declaredName answers a function declaration's name, carrying its receiver
+// type where it has one, so that the place a write happens reads the way a
+// person would say it.
+func declaredName(function *ast.FuncDecl) string {
+	name := function.Name.Name
+	if function.Recv == nil || len(function.Recv.List) == 0 {
+		return name
+	}
+	receiver := function.Recv.List[0].Type
+	if pointer, ok := receiver.(*ast.StarExpr); ok {
+		if to, ok := pointer.X.(*ast.Ident); ok {
+			return "(*" + to.Name + ")." + name
+		}
+	}
+	if to, ok := receiver.(*ast.Ident); ok {
+		return "(" + to.Name + ")." + name
+	}
+	return name
 }

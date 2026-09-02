@@ -1691,6 +1691,12 @@ func runRemint(s *session, path string) int {
 // resolves an override, an ambiguous base, a configured default and a failed
 // walk identically to s.open, which is where these arguments are copied from,
 // and only the open is left out.
+//
+// Putting the open back is four lines, and cmd/dinah's
+// TestTheClimbingSweepRepairsRatherThanRefuses fails on them. What it costs is
+// more than the refusal: the refusal is composed on a path that resolved no
+// workbenchRoot, so its advice names no workbench and recommends the command
+// that just refused.
 func (s *session) sweepRoot(walk *rootWalk) (string, error) {
 	if walk != nil {
 		return walk.Root, nil
