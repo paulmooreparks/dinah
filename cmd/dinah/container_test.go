@@ -50,7 +50,7 @@ func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
 
-	preview := runCLI(t, tree, "check", "--migrate-container")
+	preview := runCLI(t, tree, "check", "--root", ".", "--migrate-container")
 	if preview.code != 5 {
 		t.Fatalf("the preview exited %d, wanted the findings code 5: %s%s", preview.code, preview.out, preview.errw)
 	}
@@ -64,7 +64,7 @@ func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
 		t.Fatal("the preview moved the workbench")
 	}
 
-	applied := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	applied := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if applied.code != 0 {
 		t.Fatalf("the migration exited %d: %s%s", applied.code, applied.out, applied.errw)
 	}
@@ -90,7 +90,7 @@ func TestTheContainerMigrationPreviewsBeforeItMoves(t *testing.T) {
 
 	// A second confirmed run has nothing to do and says so, which is what an
 	// unattended sweep over an already-migrated tree looks like.
-	again := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	again := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if again.code != 0 {
 		t.Fatalf("the second run exited %d: %s%s", again.code, again.out, again.errw)
 	}
@@ -126,7 +126,7 @@ func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) 
 		editAnchorAt(t, filepath.Join(where, bench.WorkbenchAnchor), "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
 	}
 
-	swept := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	swept := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if swept.code != 5 {
 		t.Fatalf("a tree carrying a duplicate exited %d, wanted the findings code 5: %s%s", swept.code, swept.out, swept.errw)
 	}
@@ -169,7 +169,7 @@ func TestTheContainerMigrationSpeaksTheMachineForm(t *testing.T) {
 	container := filepath.Join(tree, "project", bench.UserBaseName)
 	legacy := legacyContainerBench(t, container)
 
-	got := runCLI(t, tree, "--json", "check", "--migrate-container")
+	got := runCLI(t, tree, "--json", "check", "--root", ".", "--migrate-container")
 	if got.code != 5 {
 		t.Fatalf("the preview exited %d, wanted 5: %s%s", got.code, got.out, got.errw)
 	}
@@ -220,7 +220,7 @@ func TestEveryWorkbenchListingCarriesTheIdentifier(t *testing.T) {
 		t.Errorf("the row names %v, wanted %s", before[0]["path"], legacy)
 	}
 
-	if got := runCLI(t, tree, "check", "--migrate-container", "--yes"); got.code != 0 {
+	if got := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes"); got.code != 0 {
 		t.Fatalf("migrate: %d %s", got.code, got.errw)
 	}
 	ids := bench.ListWorkbenchIDs(container)
@@ -386,7 +386,7 @@ func TestTheContainerMigrationReportsAWorkbenchItCouldNotMove(t *testing.T) {
 		t.Fatalf("write the lock: %v", err)
 	}
 
-	got := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	got := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if got.code != 5 {
 		t.Fatalf("a held workbench exited %d, wanted the findings code 5: %s%s", got.code, got.out, got.errw)
 	}
@@ -473,7 +473,7 @@ func TestThePreviewSaysWhatMovesAndWhatStays(t *testing.T) {
 	tree := resolvedDir(t, emptyTree(t))
 	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
 
-	preview := runCLI(t, tree, "check", "--migrate-container")
+	preview := runCLI(t, tree, "check", "--root", ".", "--migrate-container")
 	if preview.code != 5 {
 		t.Fatalf("the preview exited %d, wanted the findings code 5: %s%s", preview.code, preview.out, preview.errw)
 	}
@@ -487,7 +487,7 @@ func TestThePreviewSaysWhatMovesAndWhatStays(t *testing.T) {
 		t.Errorf("the preview names the shape and not what happens to the directory:\n%s", preview.out)
 	}
 
-	applied := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	applied := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if applied.code != 0 {
 		t.Fatalf("the migration exited %d: %s%s", applied.code, applied.out, applied.errw)
 	}
@@ -544,7 +544,7 @@ func TestTheReportSaysAWorkbenchMovedBeforeTheMigrationStopped(t *testing.T) {
 		t.Fatalf("write the anchor: %v", err)
 	}
 
-	got := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	got := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if got.code != 5 {
 		t.Fatalf("a migration that stopped exited %d, wanted the findings code 5: %s%s", got.code, got.out, got.errw)
 	}
@@ -586,7 +586,7 @@ func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
 	beyond := bench.ProfileName + "/" + strconv.Itoa(bench.ProfileMajor+1) + ".0"
 	editAnchorAt(t, anchorWas, "profile: "+bench.ProfileVersion, "profile: "+beyond)
 
-	stopped := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	stopped := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if stopped.code != 5 {
 		t.Fatalf("a migration that stopped at the stamp exited %d, wanted the findings code 5: %s%s", stopped.code, stopped.out, stopped.errw)
 	}
@@ -602,7 +602,7 @@ func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
 	}
 
 	editAnchorAt(t, anchor, "profile: "+beyond, "profile: "+bench.ProfileVersion)
-	again := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	again := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if again.code != 0 {
 		t.Fatalf("the second sweep exited %d: %s%s", again.code, again.out, again.errw)
 	}
@@ -612,7 +612,7 @@ func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
 	if got := bench.ListWorkbenchIDs(container); len(got) != 1 || got[0] != ids[0] {
 		t.Errorf("the container holds %v, wanted the one directory the interrupted run had already filled at %s", got, landed)
 	}
-	third := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	third := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if third.code != 0 || third.out != again.out {
 		t.Errorf("a third sweep read differently from the second, so finishing the interruption is not idempotent:\n%s\n%s", again.out, third.out)
 	}
@@ -677,11 +677,11 @@ func TestTheSweepLeavesAContainedWorkbenchItCannotOpenAlone(t *testing.T) {
 	}
 	before := readAnchorText(t, anchor)
 
-	preview := runCLI(t, tree, "--json", "check", "--migrate-container")
+	preview := runCLI(t, tree, "--json", "check", "--root", ".", "--migrate-container")
 	if preview.code != 0 {
 		t.Fatalf("the preview exited %d over a tree with nothing to carry forward: %s%s", preview.code, preview.out, preview.errw)
 	}
-	applied := runCLI(t, tree, "--json", "check", "--migrate-container", "--yes")
+	applied := runCLI(t, tree, "--json", "check", "--root", ".", "--migrate-container", "--yes")
 	if applied.code != 0 {
 		t.Fatalf("the applying run exited %d over a workbench it had no work to do on: %s%s", applied.code, applied.out, applied.errw)
 	}
@@ -774,7 +774,7 @@ func TestOneSweepRefusesEveryHeldWorkbenchItMeets(t *testing.T) {
 	}
 	bareWas, heldWas := readAnchorText(t, bareAnchor), readAnchorText(t, heldAnchor)
 
-	swept := runCLI(t, tree, "check", "--migrate-container", "--yes")
+	swept := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
 	if swept.code != 5 {
 		t.Fatalf("a sweep over two held workbenches exited %d, wanted the findings code 5: %s%s", swept.code, swept.out, swept.errw)
 	}

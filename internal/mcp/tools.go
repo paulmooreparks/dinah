@@ -116,6 +116,35 @@ var toolExemptions = map[string]string{
 	"help":    "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal",
 }
 
+// argumentExemptions names, per tool, the parameters this head deliberately
+// does not publish, with the reason each is held back. Everything else a
+// command declares is published, so a parameter reaches a caller unless
+// somebody has written down why it should not.
+//
+// check's two scope flags are the case it was written for. They select which
+// tree the terminal's two repair sweeps walk down, and this head runs neither
+// sweep: its check tool reads the workbench it was given and answers what it
+// found. Publishing them would offer an agent an argument that changes nothing
+// about the answer it gets back, which is the silent drop dinah-362 exists to
+// close, arriving on the other head.
+var argumentExemptions = map[string]map[string]string{
+	"check": {
+		"root":      "aims the terminal's two repair sweeps at a tree, and this head runs neither sweep",
+		"max-depth": "bounds the walk root names, and this head takes no root for check",
+	},
+}
+
+// exemptArgument reports whether a tool holds a parameter back rather than
+// publishing it.
+func exemptArgument(tool, param string) bool {
+	held, named := argumentExemptions[tool]
+	if !named {
+		return false
+	}
+	_, exempt := held[param]
+	return exempt
+}
+
 // ToolNameFor returns the name this head publishes for a library command, and
 // the empty string when the head serves no tool for it. A caller outside this
 // package that has a command and needs the tool behind it asks here rather
@@ -205,6 +234,9 @@ var injectedProperties = map[string]string{
 func declaredArgNames(t tool) map[string]bool {
 	names := map[string]bool{}
 	for _, param := range verb.Params(t.command) {
+		if exemptArgument(t.name, param.Name) {
+			continue
+		}
 		names[param.Name] = true
 	}
 	for name := range injectedProperties {
@@ -233,6 +265,9 @@ func schemaFor(t tool) map[string]any {
 	properties := map[string]any{}
 	var required []string
 	for _, param := range verb.Params(t.command) {
+		if exemptArgument(t.name, param.Name) {
+			continue
+		}
 		description := catalog.T(param.SummaryKey(t.command))
 		properties[param.Name] = map[string]any{"type": param.Type(), "description": description}
 		if param.Required {

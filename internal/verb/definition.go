@@ -417,12 +417,24 @@ var params = map[string][]Param{
 		{Name: "remint", Flag: true, Value: "dir", Field: "Remint"},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
 		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
-		// Read by migrate-vocabulary alone, which is the one repair here
-		// that walks a whole tree of workbenches rather than acting on the
-		// one the caller is standing in, and whose rewrite has no undo.
-		// Without it that repair reports what it would carry forward and
-		// writes nothing.
+		// Read by migrate-vocabulary and by migrate-container, which are the
+		// two repairs here that walk a whole tree of workbenches under --root
+		// rather than acting on the one the caller is standing in, and whose
+		// rewrites have no undo. Without it either repair reports what it
+		// would carry forward and writes nothing. None of the other markers
+		// reads it, and check accepts it beside them rather than refusing,
+		// because a marker that runs unconditionally is not made more or less
+		// dangerous by a confirmation nothing consults.
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
+		// root and max-depth are the same pair status, ls, next, tree and
+		// changes declare, and they carry the same meaning here: absent, the
+		// command climbs to the workbench the caller stands in, and present,
+		// it walks downward from the named directory instead. They select
+		// scope for the two tree sweeps and runCheck refuses them beside
+		// anything else, because no other form of check has a downward walk
+		// for either flag to bound or to aim.
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
 	},
 	"whoami": {},
 	// workbenches takes its scope as a positional rather than as --workbench,

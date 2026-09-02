@@ -1130,10 +1130,9 @@ func (s *session) renderContainer(report *verb.TreeContainerReport) {
 			s.line(s.containerPreviewRow(report, entry))
 		}
 	} else {
-		s.line(s.r.TN("check.container-migrated", len(report.Migrated)))
-		for _, entry := range report.Migrated {
-			s.line(entry.Path + " -> " + entry.To)
-		}
+		bare, alreadyNamed := splitByShape(report.Migrated)
+		s.migratedSection("check.container-migrated-bare", bare)
+		s.migratedSection("check.container-migrated-legacy", alreadyNamed)
 	}
 	s.vocabularySection("check.container-already", report.AlreadyContained)
 	s.vocabularySection("check.container-duplicate", s.findingRows(report.DuplicateFindings()))
@@ -1150,6 +1149,46 @@ func (s *session) renderContainer(report *verb.TreeContainerReport) {
 	s.vocabularySection("check.container-failed", failed)
 	if report.Preview {
 		s.line(s.r.T("check.container-confirm"))
+	}
+}
+
+// splitByShape divides what a container migration moved into the two groups
+// its applied report speaks about: the bare workbenches, whose repair created
+// a container and emptied a directory, and the ones that already sat inside a
+// container under a name the rule does not mint.
+//
+// The second group holds two shapes rather than one. A legacy name is one
+// Dinah minted under an older width and a stray name is one a person typed,
+// and both take the identical repair, so an operator counting what happened to
+// his tree learns nothing from having them apart. What he does need to be told
+// is which workbenches moved between directories, and that is the split this
+// makes.
+func splitByShape(migrated []verb.ContainerEntry) (bare, alreadyNamed []verb.ContainerEntry) {
+	for _, entry := range migrated {
+		if entry.Shape == string(bench.ShapeBare) {
+			bare = append(bare, entry)
+			continue
+		}
+		alreadyNamed = append(alreadyNamed, entry)
+	}
+	return bare, alreadyNamed
+}
+
+// migratedSection prints one heading of an applied container migration and the
+// workbenches it counts, or nothing at all when that group caught none.
+//
+// A group with no members prints no heading, which is why an applied run that
+// moved nothing prints no count line. The old single heading printed one over
+// every shape at once and said every workbench had been carried into a
+// container, which was untrue of the tree the operator ran it on: all thirteen
+// of his workbenches were already in containers and were renamed in place.
+func (s *session) migratedSection(key string, entries []verb.ContainerEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	s.line(s.r.TN(key, len(entries)))
+	for _, entry := range entries {
+		s.line(entry.Path + " -> " + entry.To)
 	}
 }
 

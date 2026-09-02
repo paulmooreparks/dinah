@@ -2212,12 +2212,12 @@
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; run `dinah init` here to create one, or pass --workbench <dir> to point at one that exists",
+      "text": "; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `dinah check`, or a bare directory argument to `dinah workbenches`, to look for one beneath a directory instead",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
     "refusal.dinah.no-workbench-found.bare": {
-      "text": "; a workbench.md sits at {bare}, outside any .dinah container, which is why no search reaches it; run `dinah check --migrate-container` there to carry it into one",
+      "text": "; a workbench.md sits at {bare}, outside any .dinah container, which is why no search reaches it; run `dinah check --root . --migrate-container` there to carry it into one",
       "skeleton": true
     },
     "refusal.dinah.no-workbench.found": {
@@ -3418,14 +3418,24 @@
       "context": "The heading over the workbenches the container migration left alone because they already sit where the rule puts one, for exactly one.",
       "skeleton": true
     },
-    "check.container-migrated.other": {
-      "text": "Carried {count} workbenches into a container.",
-      "context": "The heading over what the container migration moved, for any other number.",
+    "check.container-migrated-bare.other": {
+      "text": "Carried {count} bare workbenches into a container.",
+      "context": "The heading over the workbenches an applied container migration carried into a container it also created, for any other number.",
       "skeleton": true
     },
-    "check.container-migrated.one": {
-      "text": "Carried {count} workbench into a container.",
-      "context": "The heading over what the container migration moved, for exactly one workbench. Each row names where the workbench came from and where it went.",
+    "check.container-migrated-bare.one": {
+      "text": "Carried {count} bare workbench into a container.",
+      "context": "The heading over the workbenches an applied container migration carried into a container it also created, for exactly one. Each row names where the workbench came from and where it went.",
+      "skeleton": true
+    },
+    "check.container-migrated-legacy.other": {
+      "text": "Renamed {count} workbenches already in a container.",
+      "context": "The heading over the workbenches an applied container migration renamed inside a container they already sat in, for any other number.",
+      "skeleton": true
+    },
+    "check.container-migrated-legacy.one": {
+      "text": "Renamed {count} workbench already in a container.",
+      "context": "The heading over the workbenches an applied container migration renamed inside a container it already sat in, for exactly one. Each row names the directory the workbench left and the one it now sits in.",
       "skeleton": true
     },
     "check.container-would-migrate.other": {

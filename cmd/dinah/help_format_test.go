@@ -81,7 +81,7 @@ WORKBENCH
     [--migrate-slugs] [--migrate-columns]
     [--migrate-vocabulary] [--migrate-container]
     [--remint <dir>] [--migrate-workstreams] [--witness]
-    [--yes]
+    [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench [get|set] [field] [value] [--yes]            Read this workbench's own fields, or write one
@@ -159,7 +159,7 @@ WORKBENCH
   config [get|set] [key] [value]                                                                   List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns]                      Look for structural defects in this workbench
     [--migrate-vocabulary] [--migrate-container] [--remint <dir>] [--migrate-workstreams]
-    [--witness] [--yes]
+    [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                           The actor your actions carry, and whether it is the operator
   workbench [get|set] [field] [value] [--yes]                                                      Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field] [value] [--yes]                              Read this workbench's workstreams, create one, or write one's fields

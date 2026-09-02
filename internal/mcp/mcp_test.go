@@ -182,7 +182,14 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 		}
 		command := toolsByName[tool.Name].command
 		for _, param := range verb.Params(command) {
-			if _, carried := properties[param.Name]; !carried {
+			_, carried := properties[param.Name]
+			if exemptArgument(tool.Name, param.Name) {
+				if carried {
+					t.Errorf("%s: the schema advertises %s, which argumentExemptions says this head holds back", tool.Name, param.Name)
+				}
+				continue
+			}
+			if !carried {
 				t.Errorf("%s: the schema is missing the parameter %s the library defines", tool.Name, param.Name)
 			}
 		}
