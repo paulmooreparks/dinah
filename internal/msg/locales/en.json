@@ -1430,7 +1430,7 @@
       "context": "The sentence printed after the refusal name dinah.no-workbench-found. {detail} is the directory the search started from or the directory the MCP server started in, and {home} is the user base it fell back to."
     },
     "refusal.dinah.no-workbench-found.next": {
-      "text": "; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `check`, or a bare directory argument to `workbenches`, to look for one beneath a directory instead",
+      "text": "; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `dinah check`, or a bare directory argument to `dinah workbenches`, to look for one beneath a directory instead",
       "context": "Spliced onto refusal.dinah.no-workbench-found as the next step, carrying the clause that base entry used to end with."
     },
     "refusal.dinah.no-workbench-found.bare": {
@@ -1634,8 +1634,8 @@
       "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step. dinah check --migrate-vocabulary is a command spelling and is never translated."
     },
     "refusal.dinah.vocabulary-mixed.next-named": {
-      "text": "; hand-edit the file so that it carries one vocabulary and not both, then run `dinah check --root {workbench} --migrate-vocabulary --yes` to carry the workbench forward",
-      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag renders for a sweep over a tree, where the caller has already said which tree he wants walked. The command spelling is machine vocabulary and is not translated."
+      "text": "; hand-edit the file so that it carries one vocabulary and not both, then run `dinah check --root {workbench} --migrate-vocabulary` to carry the workbench forward",
+      "context": "Spliced onto refusal.dinah.vocabulary-mixed as the next step wherever the head resolved which workbench the invocation was about. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated."
     },
     "refusal.dinah.vocabulary-retired": {
       "text": "{detail} is written in the vocabulary this format retired, and the workbench around it declares the current one, so the card and its workbench disagree about what the card's keys mean",
@@ -1674,8 +1674,8 @@
       "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step. The flag name dinah check --migrate-vocabulary is provisional pending dinah-287's own naming, and is updated in that card's commit if it settles on a different spelling."
     },
     "refusal.dinah.needs-vocabulary-migration.next-named": {
-      "text": "; run `dinah check --root {workbench} --migrate-vocabulary --yes` first, then open it again",
-      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag renders for a sweep over a tree. The command spelling is machine vocabulary and is not translated."
+      "text": "; run `dinah check --root {workbench} --migrate-vocabulary` first, then open it again",
+      "context": "Spliced onto refusal.dinah.needs-vocabulary-migration as the next step wherever the head resolved which workbench the invocation was about, which covers every reader standing in one and every reader who named one with --workbench. {workbench} is the workbench directory, and naming it is what lets the reader run the repair from where he stands rather than from where the workbench is. The sibling entry without the flag is the alternation's unconditional last member, and no invocation renders it today. The command spelling is machine vocabulary and is not translated."
     },
     "refusal.dinah.needs-container-migration": {
       "text": "Dinah no longer opens {detail}, because a workbench lives inside a .dinah container and this one does not",

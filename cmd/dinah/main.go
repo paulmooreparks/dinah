@@ -74,7 +74,7 @@ type session struct {
 	// workbenchSource names the rung that resolved the active workbench for
 	// this invocation, set by open() once discovery has run.
 	workbenchSource string
-	// benchRoot is the workbench directory discovery resolved for this
+	// workbenchRoot is the workbench directory discovery resolved for this
 	// invocation, set by open() before the workbench is opened so that it
 	// survives an open that refuses. It stays empty on a tree sweep, which
 	// resolves a directory to walk down from rather than one workbench.
@@ -84,7 +84,7 @@ type session struct {
 	// the reader is standing. Discovery is what knows the answer, and it has
 	// already run by the time any of those refusals is raised, so recording
 	// it here saves threading a path through the reading layers below.
-	benchRoot string
+	workbenchRoot string
 	// width is how many columns the window gives, zero when no documented
 	// source answers and the layout is then unbounded. It is resolved once
 	// per invocation, so every row of one run is laid out against one width.
@@ -374,15 +374,21 @@ var benchScopedAdvice = map[string]bool{
 //
 // A refusal already carrying the value keeps what it carries, because a raise
 // site that named a workbench knew which one it meant and this layer only
-// knows which one the invocation opened. A tree sweep resolves no single
-// workbench, leaves benchRoot empty, and so renders the shape's unqualified
-// alternative, which is the right sentence there: a caller who named a tree
-// has already said where to look and runs the same command again.
+// knows which one the invocation opened.
+//
+// Every refusal that reaches this function has come through an open, which is
+// the only writer of workbenchRoot, so the value is there and the shape's
+// qualified fragment is the one that renders. The unqualified fragment behind
+// it is the alternation's unconditional last member rather than a sentence
+// some path prints. A tree sweep prints neither: it collects a per-workbench
+// failure into a report row and never composes a refusal at all.
+// cmd/dinah/advice_test.go carries that reasoning in full, along with the
+// guard that holds the sole-writer premise it rests on.
 func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
-	if !benchScopedAdvice[r.Name] || s.benchRoot == "" || r.Extra[contract.ValueWorkbench] != "" {
+	if !benchScopedAdvice[r.Name] || s.workbenchRoot == "" || r.Extra[contract.ValueWorkbench] != "" {
 		return r
 	}
-	named, ok := contract.With(r, contract.ValueWorkbench, s.benchRoot).(*contract.Refusal)
+	named, ok := contract.With(r, contract.ValueWorkbench, s.workbenchRoot).(*contract.Refusal)
 	if !ok {
 		return r
 	}
@@ -403,7 +409,7 @@ func (s *session) open() (*verb.Library, error) {
 		return nil, err
 	}
 	s.workbenchSource = source
-	s.benchRoot = root
+	s.workbenchRoot = root
 	opened, err := bench.Open(root)
 	if err != nil {
 		return nil, err

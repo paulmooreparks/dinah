@@ -1313,7 +1313,7 @@ its own yet:
 
 ```console
 $ dinah status
-dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `check`, or a bare directory argument to `workbenches`, to look for one beneath a directory instead
+dinah.no-workbench-found no workbench was found walking up from /home/ana, or in the user base at /home/ana/.dinah; run `dinah init` here to create one, pass --workbench <dir> to point at one that exists, or pass --root <dir> to `dinah check`, or a bare directory argument to `dinah workbenches`, to look for one beneath a directory instead
 [exit 2]
 ```
 

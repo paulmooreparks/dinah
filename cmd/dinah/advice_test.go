@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -90,9 +91,21 @@ func TestTheVocabularyMigrationAdviceIsACommandThatWorks(t *testing.T) {
 				t.Fatalf("a pre-vocabulary workbench does not refuse %s: %d %s%s", contract.NeedsVocabularyMigration, refused.code, refused.out, refused.errw)
 			}
 			argv := adviceFrom(t, refused.errw, "refusal.dinah.needs-vocabulary-migration.next-named", contract.ValueWorkbench, workbench)
-			took := runCLI(t, where, argv...)
+			adviceLeavesTheConfirmationToTheReader(t, argv)
+			// The advice as printed previews, which is the findings code 5,
+			// and the preview's own foot carries the reader to the second
+			// step. Both steps are run here, because a test that took only
+			// the second would pass against advice that skipped the first.
+			previewed := runCLI(t, where, argv...)
+			if previewed.code != 5 {
+				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d rather than reaching the preview: %s%s", argv, previewed.code, previewed.out, previewed.errw)
+			}
+			if !strings.Contains(previewed.out, workbench) {
+				t.Errorf("the preview the advice reached does not name the workbench it would carry forward:\n%s", previewed.out)
+			}
+			took := runCLI(t, where, append(append([]string{}, argv...), "--yes")...)
 			if took.code != 0 {
-				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
+				t.Fatalf("the advice, confirmed, exited %d: %s%s", took.code, took.out, took.errw)
 			}
 			opened := runCLI(t, where, append(scope, "status")...)
 			if opened.code != 0 {
@@ -124,9 +137,15 @@ func TestTheMixedVocabularyAdviceIsACommandThatWorks(t *testing.T) {
 			// The sentence's own first clause, performed: the card is left
 			// carrying one vocabulary rather than half of each.
 			dropPreVocabularyState(t, workbench)
-			took := runCLI(t, where, argv...)
-			if took.code != 0 {
-				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
+			adviceLeavesTheConfirmationToTheReader(t, argv)
+			// The hand edit is the repair here, so the sweep the sentence
+			// names finds nothing left to carry and says so. That is why this
+			// half asserts a clean run rather than a preview: the reader is
+			// told what the sweep would do, and in this shape it would do
+			// nothing.
+			carried := runCLI(t, where, argv...)
+			if carried.code != 0 {
+				t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, carried.code, carried.out, carried.errw)
 			}
 			listed := runCLI(t, where, append(scope, "ls")...)
 			if listed.code != 0 {
@@ -156,6 +175,26 @@ func adviceFrom(t *testing.T, printed, key, name, value string) []string {
 		t.Fatalf("no `dinah ...` invocation was found in the advice %q, so this test would assert nothing", advice)
 	}
 	return argv
+}
+
+// adviceLeavesTheConfirmationToTheReader asserts that a piece of advice does
+// not carry --yes, so that the first thing the reader is told to type is the
+// preview rather than the irreversible rewrite.
+//
+// The rewrite waits for --yes because it cannot be undone, and the preview it
+// prints ends by naming the second step. Advice that skips that step routes
+// the reader past the one thing that would have told him what the command was
+// about to do, which is the complaint dinah-362 was filed over. The container
+// half of this family has read the preview since round one, in
+// TestTheBareWorkbenchAdviceIsACommandThatWorks, and this is the assertion
+// that half already makes, named so the vocabulary halves can make it too.
+func adviceLeavesTheConfirmationToTheReader(t *testing.T, argv []string) {
+	t.Helper()
+	for _, flag := range argv {
+		if flag == "--yes" {
+			t.Fatalf("the advice dinah %v names --yes, so it walks the reader past the preview the rewrite deliberately provides", argv)
+		}
+	}
 }
 
 // preVocabularyFixture writes one workbench carrying a card, in the shape a
@@ -236,15 +275,38 @@ var sweepAdviceProvenByRunning = map[string]string{
 // one of the two sweeps, with the reason its reader has nothing to run that the
 // climb could get wrong.
 //
-// Two shapes land here. One is a sentence describing what a command does rather
-// than asking anybody to type it. The other is a sentence that does ask, and
-// reaches its reader only inside a run he has already scoped himself, so the
-// invocation he repeats is his own and carries whatever scope he gave it.
+// Three shapes land here. One is a sentence describing what a command does
+// rather than asking anybody to type it. The second is a sentence that does
+// ask, and reaches its reader only inside a run he has already scoped himself,
+// so the invocation he repeats is his own and carries whatever scope he gave
+// it. The third is text no invocation renders.
+//
+// The two unqualified `.next` fragments are that third shape, and the reason
+// recorded for them here was wrong for a round. It said they render on a sweep
+// over a tree. A sweep prints a report row per workbench and never composes a
+// refusal, so no sweep prints either sentence, and a reviewer replaced both
+// English texts with nonsense and watched this package stay green. What is
+// true is narrower. Each of the two shapes ends in an alternation whose last
+// member carries no condition, because the last member of an alternation
+// cannot carry one and still be a fallback, and that member is the fragment
+// dispositioned here. Nothing reaches it: the refusals it belongs to are
+// composed by session.reportError, which calls nameTheWorkbench first, and
+// session.open is the only writer of the workbenchRoot that function reads.
+//
+// What would make one render is worth naming, because it is the situation
+// these dispositions exist for. A raise site that composed one of these two
+// refusals without an open would leave workbenchRoot empty and print the
+// unqualified sentence, which is the unscoped advice dinah-362 was blocked
+// over. sweepRoot is the nearest such path in the tree today: it resolves a
+// workbench through bench.DiscoverSource and records workbenchSource while
+// leaving workbenchRoot alone. TestWorkbenchRootHasOneWriter holds the
+// premise, so a second writer costs somebody a line here rather than shipping
+// quietly.
 var sweepAdviceNeedingNoScope = map[string]string{
 	"check.bare-workbench":                          "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
 	"refusal.dinah.vocabulary-retired.next":         "the instruction is the hand edit, and the command is named only to say which rename to perform by hand; running it would do nothing, because the workbench this refusal fires on already declares the current vocabulary and the sweep skips it",
-	"refusal.dinah.needs-vocabulary-migration.next": "the unqualified sibling of next-named, which renders only where the head resolved no single workbench, and that is a sweep over a tree the caller has already named",
-	"refusal.dinah.vocabulary-mixed.next":           "the unqualified sibling of next-named, rendering under the same condition and for the same reason",
+	"refusal.dinah.needs-vocabulary-migration.next": "the alternation's unconditional last member, which no invocation renders today, for the reasons written above this map",
+	"refusal.dinah.vocabulary-mixed.next":           "the alternation's unconditional last member, unrendered on the same evidence",
 }
 
 // TestEverySweepAdviceIsDispositioned holds the family of catalog sentences
@@ -283,7 +345,7 @@ func TestEverySweepAdviceIsDispositioned(t *testing.T) {
 	if len(seen) == 0 {
 		t.Fatal("no catalog message names either sweep, so this guard read nothing")
 	}
-	declared := testFunctionsDeclaredHere(t)
+	declared := testBodiesDeclaredHere(t)
 	for key, named := range sweepAdviceProvenByRunning {
 		if !seen[key] {
 			t.Errorf("%s is dispositioned as proven by running and no catalog message by that key names a sweep, so the disposition outlived its message", key)
@@ -293,8 +355,19 @@ func TestEverySweepAdviceIsDispositioned(t *testing.T) {
 		// exemptions carried until this card: paperwork reading as an argued
 		// decision and standing for nothing. Renaming or deleting the test
 		// that follows a sentence has to cost somebody a line here.
-		if !declared[named] {
+		body, ok := declared[named]
+		if !ok {
 			t.Errorf("%s is dispositioned as proven by %s and this package declares no test by that name", key, named)
+			continue
+		}
+		// Declaring the name is not enough, and a reviewer proved it by
+		// pointing a disposition at this guard itself and watching it pass.
+		// A test that follows a sentence has to render that sentence to cut
+		// the command out of it, so it names the catalog key as a literal,
+		// and requiring the literal is what separates the test that follows
+		// this sentence from a test that follows another one.
+		if !strings.Contains(body, strconv.Quote(key)) {
+			t.Errorf("%s is dispositioned as proven by %s and that test's body never names %s, so it follows some other sentence or none", key, named, key)
 		}
 	}
 	for key := range sweepAdviceNeedingNoScope {
@@ -315,10 +388,14 @@ func namesANarrowedSweep(text string) bool {
 	return false
 }
 
-// testFunctionsDeclaredHere answers the names of every test function this
-// package declares, read out of the sources rather than out of a list, so the
-// answer cannot go stale on its own.
-func testFunctionsDeclaredHere(t *testing.T) map[string]bool {
+// testBodiesDeclaredHere answers every test function this package declares,
+// each against its own source text, read out of the sources rather than out of
+// a list, so the answer cannot go stale on its own.
+//
+// A body runs from its declaration to the next declaration at column zero,
+// which is what gofmt guarantees of a Go source and what makes this reading
+// safe without a parser.
+func testBodiesDeclaredHere(t *testing.T) map[string]string {
 	t.Helper()
 	sources, err := filepath.Glob("*_test.go")
 	if err != nil {
@@ -327,21 +404,88 @@ func testFunctionsDeclaredHere(t *testing.T) map[string]bool {
 	if len(sources) == 0 {
 		t.Fatal("no test source was found, so this read proves nothing")
 	}
-	declared := map[string]bool{}
+	declared := map[string]string{}
 	for _, source := range sources {
 		text, err := os.ReadFile(source)
 		if err != nil {
 			t.Fatalf("read %s: %v", source, err)
 		}
+		name := ""
+		body := &strings.Builder{}
+		keep := func() {
+			if name != "" {
+				declared[name] = body.String()
+			}
+		}
 		for _, line := range strings.Split(string(text), "\n") {
-			if !strings.HasPrefix(line, "func Test") {
+			if strings.HasPrefix(line, "func ") {
+				keep()
+				name, body = "", &strings.Builder{}
+				if declaration := strings.TrimPrefix(line, "func "); strings.HasPrefix(declaration, "Test") {
+					if cut := strings.Index(declaration, "("); cut > 0 {
+						name = declaration[:cut]
+					}
+				}
+			}
+			body.WriteString(line)
+			body.WriteString("\n")
+		}
+		keep()
+	}
+	return declared
+}
+
+// TestWorkbenchRootHasOneWriter holds the premise the two unqualified
+// sweep-advice dispositions rest on, which is that session.open is the only
+// thing that writes workbenchRoot.
+//
+// The claim those dispositions make is that nothing renders the unqualified
+// fragment, and the reason nothing does is that every refusal reaching the
+// composer has come through an open, so nameTheWorkbench always finds a
+// workbench to attach. A second writer would not break this package's tests;
+// it would quietly make the unqualified sentence reachable again, which is the
+// unscoped advice dinah-362 was blocked over, while the disposition guard went
+// on reporting the family as handled. So the premise is held here rather than
+// asserted in a comment.
+//
+// The sources are read rather than the behaviour exercised, because the defect
+// this guards against is a write that no current call path reaches: a
+// behavioural test would go green on the very code that introduced it.
+func TestWorkbenchRootHasOneWriter(t *testing.T) {
+	sources, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatalf("glob the package sources: %v", err)
+	}
+	writers := map[string]int{}
+	for _, source := range sources {
+		if strings.HasSuffix(source, "_test.go") {
+			continue
+		}
+		text, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatalf("read %s: %v", source, err)
+		}
+		function := "(file scope)"
+		for _, line := range strings.Split(string(text), "\n") {
+			if strings.HasPrefix(line, "func ") {
+				function = strings.TrimPrefix(line, "func ")
+			}
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "//") {
 				continue
 			}
-			name := strings.TrimPrefix(line, "func ")
-			if cut := strings.Index(name, "("); cut > 0 {
-				declared[name[:cut]] = true
+			assigns := strings.Contains(trimmed, ".workbenchRoot =") && !strings.Contains(trimmed, ".workbenchRoot ==")
+			if assigns || strings.Contains(trimmed, "workbenchRoot:") {
+				writers[source+" "+function]++
 			}
 		}
 	}
-	return declared
+	if len(writers) != 1 {
+		t.Fatalf("workbenchRoot is written in %d places and the sweep-advice dispositions rest on there being one: %v", len(writers), writers)
+	}
+	for where := range writers {
+		if !strings.HasPrefix(where, "main.go (s *session) open(") {
+			t.Errorf("workbenchRoot's one writer is %s rather than session.open in main.go, so the dispositions in this file need rereading", where)
+		}
+	}
 }

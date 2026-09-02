@@ -378,8 +378,10 @@ var Shapes = []Shape{
 		// this refusal by naming a workbench with --workbench is not
 		// standing anywhere that climb reaches, so the sentence names the
 		// workbench for him wherever the head resolved one. The
-		// unqualified alternative is what a tree sweep renders, and there
-		// the caller has already named the tree he wants walked.
+		// unqualified alternative is the alternation's last member, which
+		// carries no condition because the last member of an alternation
+		// cannot, and no invocation renders it today. cmd/dinah's
+		// advice_test.go records what would have to change for one to.
 		Name:   NeedsVocabularyMigration,
 		Values: []string{ValueWorkbench},
 		Fragments: []Fragment{
