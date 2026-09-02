@@ -894,21 +894,32 @@ func dispositionedCheckAdvice() []string {
 // TestWorkbenchRootHasOneWriter's scan was moved to a parser: a text scan reads
 // the spelling somebody happened to use, where an argument is a shape in the
 // syntax tree whatever it is spelled beside.
+//
+// cmd and internal are named rather than the repository root walked, which is
+// the shape TestNoSecondAnswerAboutColumnKind uses, so an untracked worktree
+// or a vendored dependency inside the tree never reaches the parser.
+//
+// What this guard still misses, stated so nobody infers more from its silence
+// than it proves. It matches the identifier LayerCollisionErr, so a raise site
+// that reaches the same value another way defeats it: through
+// contract.Declared, through a local variable assigned from the constant, or
+// through a name composed at run time. It reads Go under cmd and internal, so
+// a raise site introduced anywhere else in the module is outside it. Those two
+// holes are the price of a syntactic check, and the coverage requirement below
+// closes neither of them; it closes only the failure of looking in the wrong
+// place, which is the one that has actually happened here.
+//
+// The version of this guard that shipped in round five walked one level out of
+// this package, which is cmd, so it read eight of the repository's raise sites
+// and none of the forty-six under internal. It passed, and its non-vacuity
+// check passed with it, because one parsed directory satisfies a check that
+// only asks whether anything was read. What replaces that check is below:
+// every package known to raise refusals has to have been reached and had a
+// raise site seen in it, so a walk that arrives nowhere fails by name instead
+// of reporting silence it never earned.
 func TestNothingRaisesTheLayerCollisionRefusal(t *testing.T) {
-	read := 0
 	var raised []string
-	err := filepath.Walk("..", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
-		if err != nil {
-			return err
-		}
-		read++
+	eachRefusalSource(t, func(path string, parsed *ast.File) {
 		ast.Inspect(parsed, func(node ast.Node) bool {
 			call, ok := node.(*ast.CallExpr)
 			if !ok {
@@ -921,17 +932,316 @@ func TestNothingRaisesTheLayerCollisionRefusal(t *testing.T) {
 			}
 			return true
 		})
-		return nil
 	})
-	if err != nil {
-		t.Fatalf("walk the tree's sources: %v", err)
-	}
-	if read == 0 {
-		t.Fatal("no source was parsed, so this read proves nothing")
-	}
 	if len(raised) != 0 {
 		t.Errorf("layer-collision is now handed to %v, so its advice reaches a reader standing somewhere and needs the treatment the other five sentences got in dinah-362", raised)
 	}
+}
+
+// eachRefusalSource parses every non-test Go source under cmd and internal and
+// hands each one to visit, then refuses to return quietly unless the walk
+// reached every package that raises refusals.
+//
+// That second half is the guard on the guard. A walk rooted one directory too
+// high or too low still parses files, so a caller checking only that it read
+// something reports silence it never earned, which is exactly what shipped in
+// round five of dinah-362. Counting a RefuseWith sighting per package proves
+// both halves at once: that the walk arrived, and that the inspection still
+// recognises a call there that it recognises elsewhere.
+func eachRefusalSource(t *testing.T, visit func(path string, parsed *ast.File)) {
+	t.Helper()
+	refusalsSeenIn := map[string]int{}
+	for _, top := range []string{"cmd", "internal"} {
+		err := filepath.Walk(filepath.Join(repositoryRoot, top), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			parsed, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+			if err != nil {
+				return err
+			}
+			within := packageOf(path)
+			ast.Inspect(parsed, func(node ast.Node) bool {
+				if call, ok := node.(*ast.CallExpr); ok && declaredCallee(call) == "RefuseWith" {
+					refusalsSeenIn[within]++
+				}
+				return true
+			})
+			visit(path, parsed)
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("walk %s: %v", top, err)
+		}
+	}
+	for _, within := range packagesThatRaiseRefusals {
+		if refusalsSeenIn[within] == 0 {
+			t.Errorf("no refusal is raised anywhere in %s as this walk reads the tree, which it cannot be, so the walk is not reaching that package and anything a caller concludes from its silence covers nothing", within)
+		}
+	}
+}
+
+// TestEveryMalformedRefusalCarryingAPathNamesItsWorkbench holds the premise the
+// refusal.malformed.fix disposition rests on.
+//
+// That disposition records the repair naming no workbench as unrendered,
+// because every raise site handing contract.Malformed a path also hands it the
+// workbench that path belongs to, which makes the head take the fix-named
+// branch every time. An audit found that true and nothing held it, so a raise
+// site added later could attach a path without a workbench and print the
+// unqualified sentence with no test saying otherwise. This is that holding.
+//
+// The map is resolved through a local name as well as read at the call,
+// because two of the sites that carry a path build their map a line above the
+// raise and pass the variable. A guard reading only the literal at the call
+// would miss both, and they are the two the anchor branch of
+// TestMalformedAnswersEachOfItsThreeReaders actually runs through, so it would
+// have watched everything except the thing it was written for.
+//
+// A map argument this guard cannot resolve fails rather than passing. The
+// disposition rests on every path-carrying site naming a workbench, so a site
+// whose map cannot be read leaves that unheld, and reporting it is the point.
+// A nil argument is the one exception, since it carries no path at all.
+func TestEveryMalformedRefusalCarryingAPathNamesItsWorkbench(t *testing.T) {
+	checked := map[string]int{}
+	eachRefusalSource(t, func(path string, parsed *ast.File) {
+		checkedAtEveryCallSite(t, path, parsed, checked)
+		for _, declaration := range parsed.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			assigned := mapLiteralsOf(function)
+			ast.Inspect(function, func(node ast.Node) bool {
+				call, ok := node.(*ast.CallExpr)
+				if !ok || declaredCallee(call) != "RefuseWith" || len(call.Args) < 3 {
+					return true
+				}
+				if !namesTheRefusal(call.Args[0], "Malformed") {
+					return true
+				}
+				if identifierNames(call.Args[2], "nil") {
+					return true
+				}
+				if raisesOverACallersMap(function, call.Args[2]) {
+					// The map arrives as a parameter, so it is checked where it
+					// is built instead. checkedAtEveryCallSite below is what
+					// makes that a redirection rather than a hole.
+					return true
+				}
+				literal := mapArgumentOf(call.Args[2], assigned)
+				if literal == nil {
+					t.Errorf("%s hands a malformed refusal a map this guard cannot read, so whether that reader is given a workbench beside his path is unchecked and the refusal.malformed.fix disposition rests on nothing; write the map at the raise site, assign it to a plain name in the same function, or add the function to mapsSuppliedByCaller so its callers are checked instead", path)
+					return true
+				}
+				keys := keysOfMap(literal)
+				if keys["path"] && !keys[contract.ValueWorkbench] {
+					t.Errorf("%s hands a malformed refusal a path with no workbench beside it, so that reader is told to repair the file and left with no scope to confirm it from; the refusal.malformed.fix disposition records this as never rendered", path)
+				}
+				return true
+			})
+		}
+	})
+	for called := range mapsSuppliedByCaller {
+		if checked[called] == 0 {
+			t.Errorf("mapsSuppliedByCaller redirects %s's raise sites to its callers and this guard found no call to it, so those sites are checked nowhere; drop the entry if the function is gone, or fix the walk that should have found the call", called)
+		}
+	}
+}
+
+// mapsSuppliedByCaller names the functions that raise a malformed refusal over
+// a map their caller built and passed in, against the position of that
+// parameter. A raise site inside one of these is checked at the call sites
+// instead, which is where the map is written and where a missing workbench
+// would be introduced.
+//
+// An entry here is a redirection and not an exemption: checkedAtEveryCallSite
+// requires each named function to have been called with a map this guard could
+// read, so an entry covering nothing fails rather than quietly excusing its
+// function.
+var mapsSuppliedByCaller = map[string]int{
+	// admitSlug takes openWithVocabulary's anchor map, which that function
+	// writes with both the path and the workbench a line before it opens
+	// anything.
+	"admitSlug": 3,
+}
+
+// raisesOverACallersMap reports whether a raise site inside function hands a
+// refusal the very parameter mapsSuppliedByCaller names for it.
+func raisesOverACallersMap(function *ast.FuncDecl, argument ast.Expr) bool {
+	position, named := mapsSuppliedByCaller[function.Name.Name]
+	if !named || function.Type.Params == nil {
+		return false
+	}
+	passed, ok := argument.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	at := 0
+	for _, field := range function.Type.Params.List {
+		for _, name := range field.Names {
+			if at == position {
+				return name.Name == passed.Name
+			}
+			at++
+		}
+	}
+	return false
+}
+
+// checkedAtEveryCallSite holds the maps that reach a raise site through a
+// parameter, by reading them where they are built. Every call to a function
+// mapsSuppliedByCaller names has its argument resolved and checked, and a call
+// whose argument cannot be resolved fails, so the redirection ends in a real
+// check rather than in another name.
+func checkedAtEveryCallSite(t *testing.T, path string, parsed *ast.File, checked map[string]int) {
+	t.Helper()
+	for _, declaration := range parsed.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		assigned := mapLiteralsOf(function)
+		ast.Inspect(function, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			called := declaredCallee(call)
+			position, named := mapsSuppliedByCaller[called]
+			if !named || position >= len(call.Args) {
+				return true
+			}
+			checked[called]++
+			literal := mapArgumentOf(call.Args[position], assigned)
+			if literal == nil {
+				t.Errorf("%s calls %s with a map this guard cannot read, and %s raises a malformed refusal over it, so the path that call supplies is unchecked for the workbench beside it", path, called, called)
+				return true
+			}
+			keys := keysOfMap(literal)
+			if keys["path"] && !keys[contract.ValueWorkbench] {
+				t.Errorf("%s calls %s with a path and no workbench beside it, and %s raises a malformed refusal over that map, so that reader is told to repair the file with no scope to confirm it from", path, called, called)
+			}
+			return true
+		})
+	}
+}
+
+// mapLiteralsOf answers the composite literals a function assigns to a plain
+// name, so a raise site passing a map it built a line earlier is read rather
+// than skipped. A name assigned twice answers the last literal, which is the
+// conservative reading: this guard would rather report a site it has misread
+// than pass one it never read.
+func mapLiteralsOf(function *ast.FuncDecl) map[string]*ast.CompositeLit {
+	assigned := map[string]*ast.CompositeLit{}
+	ast.Inspect(function, func(node ast.Node) bool {
+		statement, ok := node.(*ast.AssignStmt)
+		if !ok {
+			return true
+		}
+		for i, left := range statement.Lhs {
+			name, ok := left.(*ast.Ident)
+			if !ok || i >= len(statement.Rhs) {
+				continue
+			}
+			if literal, ok := statement.Rhs[i].(*ast.CompositeLit); ok {
+				assigned[name.Name] = literal
+			}
+		}
+		return true
+	})
+	return assigned
+}
+
+// mapArgumentOf answers the literal an argument stands for, whether it is
+// written at the call or is a name the function assigned one to, and nil for an
+// argument this guard cannot resolve.
+func mapArgumentOf(argument ast.Expr, assigned map[string]*ast.CompositeLit) *ast.CompositeLit {
+	switch written := argument.(type) {
+	case *ast.CompositeLit:
+		return written
+	case *ast.Ident:
+		return assigned[written.Name]
+	}
+	return nil
+}
+
+// identifierNames reports whether an expression is a bare identifier of the
+// given name, which is how the nil argument is told from a map.
+func identifierNames(expr ast.Expr, name string) bool {
+	identifier, ok := expr.(*ast.Ident)
+	return ok && identifier.Name == name
+}
+
+// namesTheRefusal reports whether an expression is the named refusal constant,
+// under either spelling a caller can reach it by, which is the shape
+// namesLayerCollision reads for its own name.
+func namesTheRefusal(expr ast.Expr, name string) bool {
+	switch named := expr.(type) {
+	case *ast.SelectorExpr:
+		return named.Sel.Name == name
+	case *ast.Ident:
+		return named.Name == name
+	}
+	return false
+}
+
+// keysOfMap answers the string keys a map literal is written with. A key that
+// is not a literal string is not answered, because this guard reads what a
+// raise site says rather than what it might compute.
+func keysOfMap(literal *ast.CompositeLit) map[string]bool {
+	keys := map[string]bool{}
+	for _, element := range literal.Elts {
+		pair, ok := element.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		switch key := pair.Key.(type) {
+		case *ast.BasicLit:
+			if key.Kind == token.STRING {
+				if unquoted, err := strconv.Unquote(key.Value); err == nil {
+					keys[unquoted] = true
+				}
+			}
+		case *ast.SelectorExpr:
+			// contract.ValueWorkbench and its siblings are constants, so the
+			// spelling at the call is the selector rather than the string.
+			if key.Sel.Name == "ValueWorkbench" {
+				keys[contract.ValueWorkbench] = true
+			}
+		}
+	}
+	return keys
+}
+
+// packagesThatRaiseRefusals names the packages this guard has to have reached
+// before its silence means anything, each of which hands a refusal name to
+// contract.RefuseWith today. internal/bench is the furthest of them from this
+// test and holds thirty of the fifty-four sites, so it is where a break is
+// planted to arm the guard.
+//
+// A package that stops raising refusals belongs out of this list, and the
+// failure above says so plainly enough to make that the obvious repair.
+var packagesThatRaiseRefusals = []string{
+	"cmd/dinah",
+	"internal/bench",
+	"internal/contract",
+	"internal/mcp",
+	"internal/verb",
+}
+
+// packageOf answers the slash-spelled package path a source file sits in,
+// relative to the repository, so a coverage count keys on the same spelling
+// packagesThatRaiseRefusals is written in whatever separator the platform uses.
+func packageOf(path string) string {
+	relative, err := filepath.Rel(repositoryRoot, filepath.Dir(path))
+	if err != nil {
+		return filepath.ToSlash(filepath.Dir(path))
+	}
+	return filepath.ToSlash(relative)
 }
 
 // namesLayerCollision reports whether an expression is the refusal name this

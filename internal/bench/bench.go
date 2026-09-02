@@ -1433,7 +1433,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, err
 		}
 		path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
-		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path}); err != nil {
+		if err := admitSlug(column, major, seenSlug, map[string]string{"path": path, contract.ValueWorkbench: root}); err != nil {
 			return nil, err
 		}
 		b.Columns = append(b.Columns, column)

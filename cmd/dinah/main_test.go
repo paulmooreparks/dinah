@@ -4866,7 +4866,13 @@ func TestMalformedAnswersEachOfItsThreeReaders(t *testing.T) {
 		if got.code != 2 {
 			t.Fatalf("a broken anchor exited %d, wanted 2", got.code)
 		}
-		repair := english.T("refusal.malformed.fix-named", contract.ValueWorkbench, benchDir(t, root))
+		// The workbench the head attaches to this refusal is the directory it
+		// resolved for itself after chdir'ing, so the expected value has to be
+		// produced by that same mechanism rather than by joining onto the raw
+		// fixture path. On macOS the temporary directory sits behind a symlink
+		// and the two spellings differ, which is what reddened this test on
+		// that platform alone while it passed everywhere else.
+		repair := english.T("refusal.malformed.fix-named", contract.ValueWorkbench, resolvedDir(t, benchDir(t, root)))
 		for _, want := range []string{", in ", repair} {
 			if !strings.Contains(got.errw, want) {
 				t.Errorf("the anchor-side refusal should carry %q, got %q", want, got.errw)

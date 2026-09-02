@@ -25,8 +25,38 @@ import (
 // the replay is exempt from. Each one reads text against text, so each one is
 // a backstop rather than proof that the tool prints what the document shows.
 
-// repositoryRoot is the tree these checks read, relative to this package.
-var repositoryRoot = filepath.Join("..", "..")
+// repositoryRoot is the tree these checks read.
+//
+// It is derived by climbing to the directory holding go.mod rather than by
+// spelling a hop out of this package, because a hop is right only for the
+// number of levels its author counted. dinah-362 shipped a guard that walked
+// one level and claimed the tree, and the miscount was invisible in the
+// source, in review and under arming. Climbing until the module root answers
+// says which directory it found and proves it is the repository by the file
+// it stopped at.
+var repositoryRoot = findRepositoryRoot()
+
+// findRepositoryRoot climbs from this package to the directory holding go.mod.
+//
+// It panics rather than taking a *testing.T, because it initialises a package
+// variable that every check in this package reads. A test binary that cannot
+// find the tree it is written to read has nothing to report but this.
+func findRepositoryRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		panic("the repository root cannot be found because the working directory is unreadable: " + err.Error())
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			panic("no go.mod stands above this package, so the tree these checks read cannot be identified")
+		}
+		dir = parent
+	}
+}
 
 // guardedDocument is one text this file's checks read, with the name a finding
 // calls it by.
