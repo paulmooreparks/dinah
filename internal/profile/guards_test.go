@@ -1883,10 +1883,15 @@ var processStreamHolders = []string{"main", "windowWidth"}
 // status.workbench.unsourced is status.workbench with its last field removed,
 // chosen by the same caller for the one read that resolves no workbench by any
 // rung, so it is exempt for that entry's own reason.
+// columns.new.line is the same shape again for an act on a column, and is
+// exempt for workstream.line's own reason: one line about one thing, printed
+// after the act that made it, where there is no second row for a column to
+// align against.
 var columnarCatalogKeys = []string{
 	"card.line",
 	"card.line.workstreams",
 	"workstream.line",
+	"columns.new.line",
 	"status.workbench",
 	"status.workbench.unsourced",
 }
