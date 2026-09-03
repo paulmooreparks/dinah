@@ -99,6 +99,9 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		openFile: async (path) => {
 			files.push(path);
 		},
+		// No command in this file opens a picker, so this answers nothing.
+		// dinah-331 put the field on the host; the creation commands drive it.
+		pickFile: async () => undefined,
 		checkpoint: async (folder) => {
 			checkpoints.push(folder);
 		},
@@ -394,6 +397,7 @@ const silentHost: CommandHost = {
 	input: async () => undefined,
 	openDocument: async () => undefined,
 	openFile: async () => undefined,
+	pickFile: async () => undefined,
 	checkpoint: async () => undefined,
 	log: () => undefined,
 };

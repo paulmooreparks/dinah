@@ -20,6 +20,8 @@ import {
 	CONTEXT_CARD_READY_CLAIM,
 	CONTEXT_CARD_READY_NONE,
 	CONTEXT_COLUMN,
+	CONTEXT_COLUMN_FULL,
+	CONTEXT_COLUMN_OPEN,
 	CONTEXT_STATE_GROUP,
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
@@ -31,6 +33,7 @@ import {
 	actionsFor,
 	cardDescription,
 	cardIcon,
+	columnActionsFor,
 	columnDescription,
 	columnRef,
 	relativeTo,
@@ -252,7 +255,12 @@ test("the root is one workbench whose children are the declared columns in order
 		["Intake", "Customer approval", "Done"],
 	);
 	for (const element of columns) {
-		assert.equal(treeItemFor(element).contextValue, CONTEXT_COLUMN);
+		// All three declare no capacity, so all three take another card and
+		// carry the open suffix. This assertion read the bare CONTEXT_COLUMN
+		// until dinah-331 gave a column row two acts of its own; the bare
+		// value now means only that the status/tree join missed the column,
+		// which the join-miss test below still pins.
+		assert.equal(treeItemFor(element).contextValue, CONTEXT_COLUMN_OPEN);
 	}
 });
 
@@ -1337,4 +1345,82 @@ test("a forest member that declined a read keeps the attachment count it carried
 	await view.refresh("C:\\customers");
 	const [second] = await view.getChildren();
 	assert.equal(dataOf(second).attachmentCount, 5);
+});
+
+// ---------------------------------------------------------------------------
+// dinah-331 AC-2 and AC-3: which columns offer New Card, and how the row says so
+// ---------------------------------------------------------------------------
+
+test("a column row says whether it will take another card, from the two fields it publishes", () => {
+	// dinah-331 AC-2. The table is the whole contract: a declared capacity the
+	// count has reached is the one condition that closes the row, an undeclared
+	// capacity never closes it however many cards stand there, and a column the
+	// status/tree join missed answers neither way.
+	//
+	// The capacity 0 rows matter most. Zero is what a column that declares no
+	// capacity reports, so reading it as a limit would close every such column
+	// against a count of nothing, which is every column on a young workbench.
+	const cases: [string, ColumnView | undefined, string][] = [
+		["no capacity declared, and nothing in it", column({ id: "a" }), CONTEXT_COLUMN_OPEN],
+		[
+			"no capacity declared, and plenty in it",
+			column({ id: "a", capacity: 0, count: 9 }),
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"capacity absent from the answer entirely",
+			column({ id: "a", capacity: undefined, count: 9 }),
+			CONTEXT_COLUMN_OPEN,
+		],
+		["room for one more", column({ id: "a", capacity: 3, count: 2 }), CONTEXT_COLUMN_OPEN],
+		["exactly full", column({ id: "a", capacity: 3, count: 3 }), CONTEXT_COLUMN_FULL],
+		["over its own limit", column({ id: "a", capacity: 3, count: 4 }), CONTEXT_COLUMN_FULL],
+		["the join missed the column", undefined, CONTEXT_COLUMN],
+	];
+	for (const [name, view, expected] of cases) {
+		assert.equal(columnActionsFor(view), expected, name);
+	}
+});
+
+test("the column row's other four fields are what they were before the contextValue moved", async () => {
+	// dinah-331 AC-3. Changing one field of a TreeItemSpec is the kind of edit
+	// that quietly takes a neighbouring field with it, so the label, the
+	// description, the tooltip and the collapsible state are pinned here
+	// against the same fixture the AC-1 tests draw.
+	const view = await loadedBench();
+	const roots = await view.getChildren();
+	const columns = await view.getChildren(roots[0]);
+	const item = treeItemFor(columns[0]);
+	assert.equal(item.label, "Intake");
+	assert.equal(item.description, "taken, 3");
+	assert.equal(item.tooltip, "Intake");
+	assert.equal(item.collapsibleState, "expanded");
+	assert.equal(item.contextValue, CONTEXT_COLUMN_OPEN);
+});
+
+test("a column standing at its declared capacity draws the full suffix through the provider", async () => {
+	// The table above drives columnActionsFor directly. This drives the whole
+	// join, so a treeItemFor that stopped calling columnActionsFor at all would
+	// be caught here rather than passing on the strength of a unit test of a
+	// function nothing calls.
+	const { spawner } = stubSpawner({
+		status: {
+			workbench: "Trees",
+			root: "C:\\work\\bench",
+			columns: [
+				column({ id: "intake", title: "Intake", capacity: 3, count: 3 }),
+				column({ id: "review", title: "Customer approval", capacity: 9, count: 2 }),
+				column({ id: "done", title: "Done", count: 1 }),
+			],
+		},
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const treeView = provider(spawner);
+	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
+	const columns = await treeView.getChildren((await treeView.getChildren())[0]);
+	assert.deepEqual(
+		columns.map((element) => treeItemFor(element).contextValue),
+		[CONTEXT_COLUMN_FULL, CONTEXT_COLUMN_OPEN, CONTEXT_COLUMN_OPEN],
+	);
 });

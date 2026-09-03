@@ -33,6 +33,8 @@ import {
 	CONTEXT_CARD_READY_CLAIM,
 	CONTEXT_CARD_READY_NONE,
 	CONTEXT_COLUMN,
+	CONTEXT_COLUMN_FULL,
+	CONTEXT_COLUMN_OPEN,
 	CONTEXT_STATE_GROUP,
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
@@ -371,6 +373,32 @@ export function actionsFor(card: CardStanding): string {
 	}
 }
 
+/**
+ * The contextValue a column row carries, which decides whether New Card is
+ * offered on it.
+ *
+ * Capacity is the only column fact this reads, because it is the only one
+ * ColumnView publishes. Add can also refuse Locked when the destination column
+ * is mid-retirement, and that is not a fact this tree holds, so the menu
+ * accepts that race rather than gating on a field that does not exist
+ * (dinah-331 Decision 2). The two fields read here are the same two
+ * columnDescription already reads for the row's own description text.
+ *
+ * A column the status/tree join missed carries no ColumnView at all, and it
+ * gets the bare CONTEXT_COLUMN, which offers neither New Card nor Attach File
+ * until the next checkpoint's tree and status answers agree again. That is the
+ * same self-heal columnsOf already logs for the same miss.
+ */
+export function columnActionsFor(view: ColumnView | undefined): string {
+	if (view === undefined) {
+		return CONTEXT_COLUMN;
+	}
+	const capacity = view.capacity ?? 0;
+	return capacity > 0 && view.count >= capacity
+		? CONTEXT_COLUMN_FULL
+		: CONTEXT_COLUMN_OPEN;
+}
+
 /** The label a state group carries, title-cased from the axis value. */
 export function groupLabel(value: string | undefined): string {
 	switch (value) {
@@ -516,7 +544,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 				label: view?.title ?? element.node.value ?? "",
 				description: columnDescription(view, element.node),
 				tooltip: view?.title ?? element.node.value ?? "",
-				contextValue: CONTEXT_COLUMN,
+				contextValue: columnActionsFor(view),
 				collapsibleState: "expanded",
 			};
 		}

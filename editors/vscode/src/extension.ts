@@ -23,13 +23,21 @@ import {
 import type { CheckpointEntry, Watcher } from "./changes";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
+import {
+	attachFile,
+	contextForAttach,
+	contextForColumn,
+	newCard,
+} from "./creationCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
+	COMMAND_ATTACH_FILE,
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_MOVE,
+	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
 	COMMAND_REFRESH,
@@ -153,6 +161,18 @@ function commandHost(
 		// Decision 3).
 		openFile: async (path) => {
 			await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(path));
+		},
+		// One file, and a file rather than a folder, because `dinah attach`
+		// takes one payload path. The label names the act rather than the
+		// dialog's default "Open", which would say the wrong verb.
+		pickFile: async () => {
+			const picked = await vscode.window.showOpenDialog({
+				canSelectMany: false,
+				canSelectFiles: true,
+				canSelectFolders: false,
+				openLabel: "Attach",
+			});
+			return picked?.[0]?.fsPath;
 		},
 		checkpoint,
 		log: (line) => channel.appendLine(line),
@@ -399,6 +419,51 @@ export async function activate(
 			COMMAND_OPEN_ATTACHMENT,
 			async (element: TreeElement | undefined) => {
 				await openAttachment(element, host, (line) => channel.appendLine(line));
+			},
+		),
+	);
+	// The two creation commands are registered on their own for the reason the
+	// loops above are separate from each other: New Card takes a column context
+	// and Attach File takes an entity context, and neither fits CommandContext,
+	// which names a card. Both need the checkpoint the flow host carries, so
+	// both take that host rather than the workbench one.
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			COMMAND_NEW_CARD,
+			async (element: TreeElement | undefined) => {
+				const target = contextForColumn(
+					element,
+					binary.state === "ok" ? binary.path : "",
+					host,
+					nodeSpawner,
+				);
+				if (target === undefined) {
+					channel.appendLine(
+						`${COMMAND_NEW_CARD} was invoked on a row that names no column`,
+					);
+					return;
+				}
+				await newCard(target);
+			},
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			COMMAND_ATTACH_FILE,
+			async (element: TreeElement | undefined) => {
+				const target = contextForAttach(
+					element,
+					binary.state === "ok" ? binary.path : "",
+					host,
+					nodeSpawner,
+				);
+				if (target === undefined) {
+					channel.appendLine(
+						`${COMMAND_ATTACH_FILE} was invoked on a row that names no attachable entity`,
+					);
+					return;
+				}
+				await attachFile(target, host.pickFile);
 			},
 		),
 	);

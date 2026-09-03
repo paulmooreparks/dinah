@@ -55,6 +55,12 @@ export const COMMAND_COPY_WORKBENCH_PATH = "dinah.tree.copyWorkbenchPath";
 /** The command an attachment row runs on a plain click, when its file can open. */
 export const COMMAND_OPEN_ATTACHMENT = "dinah.tree.openAttachment";
 
+/** The command a column row runs to file a new card into it. */
+export const COMMAND_NEW_CARD = "dinah.tree.newCard";
+
+/** The command a workbench, column or card row runs to attach a file. */
+export const COMMAND_ATTACH_FILE = "dinah.tree.attachFile";
+
 /**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
@@ -71,6 +77,8 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_NEW_CARD,
+	COMMAND_ATTACH_FILE,
 ];
 
 /**
@@ -81,6 +89,8 @@ export const TREE_COMMANDS: readonly string[] = [
  * command no argument at all and a command that cannot act on a row is an
  * illegal action there. dinah-330 and dinah-335 extend this array with the
  * row-scoped commands they add, and they do not repeat the reasoning.
+ * dinah-331's two creation commands join them for the same reason: each one
+ * aims at the row it was invoked on, and a palette invocation names no row.
  */
 export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_CARD,
@@ -92,6 +102,8 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_NEW_CARD,
+	COMMAND_ATTACH_FILE,
 ];
 
 /**
@@ -126,3 +138,14 @@ export const CONTEXT_WORKBENCH_FOREST = "dinah.workbenchForest";
 /** The contextValue a column row and a state group row carry. */
 export const CONTEXT_COLUMN = "dinah.column";
 export const CONTEXT_STATE_GROUP = "dinah.stateGroup";
+
+/**
+ * The two answers columnActionsFor composes for a column whose ColumnView the
+ * status/tree join found, by whether that column will take another card.
+ *
+ * CONTEXT_COLUMN itself stays the value a column row carries when the join
+ * missed and no ColumnView reached the row. Neither suffixed value matches it,
+ * so such a row offers neither creation until the next checkpoint resolves it.
+ */
+export const CONTEXT_COLUMN_OPEN = "dinah.column.open";
+export const CONTEXT_COLUMN_FULL = "dinah.column.full";
