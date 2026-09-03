@@ -82,7 +82,7 @@ WORKBENCH
     [--yes]                                   write one
   workstream [new|get|set]                  Read this workbench's workstreams,
     [workstream|title] [field] [value]        create one, or write one's fields
-    [--yes]
+    [--slug <slug>] [--yes]
   workbenches [path] [--max-depth <n>]      The workbenches beneath a directory,
                                               or the ones reachable from here
   version [--catalogs]                      What Dinah is and what it conforms
