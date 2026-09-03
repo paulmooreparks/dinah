@@ -116,6 +116,14 @@
         "title": "Copy Path"
       },
       {
+        "command": "dinah.tree.editWorkbenchDefinition",
+        "title": "Edit Definition"
+      },
+      {
+        "command": "dinah.tree.editColumnInstructions",
+        "title": "Edit Instructions"
+      },
+      {
         "command": "dinah.tree.openAttachment",
         "title": "Dinah: Open Attachment"
       }
@@ -156,6 +164,14 @@
         },
         {
           "command": "dinah.tree.copyWorkbenchPath",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.editWorkbenchDefinition",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.editColumnInstructions",
           "when": "false"
         },
         {
@@ -210,6 +226,16 @@
           "command": "dinah.tree.copyWorkbenchPath",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.workbench(Root|Candidate|Forest)$/",
           "group": "1_workbench@2"
+        },
+        {
+          "command": "dinah.tree.editWorkbenchDefinition",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.workbench(Root|Candidate|Forest)$/",
+          "group": "1_workbench@3"
+        },
+        {
+          "command": "dinah.tree.editColumnInstructions",
+          "when": "view == dinah.workbenchView && viewItem == dinah.column",
+          "group": "1_column@1"
         }
       ]
     },

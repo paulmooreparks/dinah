@@ -11,11 +11,12 @@
 // and copying a path makes no invocation at all (dinah-330 D-8).
 
 import type { CliOutcome, Spawner } from "./cli";
-import { runCheck } from "./cli";
+import { runCheck, runDinah } from "./cli";
 import { refusalMessage, isRow } from "./cardCommands";
+import { COMMAND_EDIT_WORKBENCH_DEFINITION } from "./identity";
 import type { TreeElement } from "./tree";
 import { treeItemFor } from "./tree";
-import type { CheckAnswer, CheckFinding } from "./wire";
+import type { CheckAnswer, CheckFinding, PathAnswer } from "./wire";
 import { READ_FINDINGS } from "./wire";
 
 /** The window calls a workbench-row command makes, injected so tests watch them. */
@@ -28,6 +29,8 @@ export interface WorkbenchCommandHost {
 	readonly appendLines: (lines: readonly string[]) => void;
 	readonly revealOutput: () => void;
 	readonly copyToClipboard: (text: string) => Promise<void>;
+	/** Opens a file as an ordinary, writable text document. */
+	readonly openDocument: (path: string) => Promise<void>;
 	readonly log: (line: string) => void;
 }
 
@@ -223,4 +226,56 @@ export async function copyWorkbenchPath(
 ): Promise<void> {
 	await context.host.copyToClipboard(context.path);
 	context.host.showInfo(`Copied ${context.path}`);
+}
+
+/**
+ * Opens the workbench's own definition file for editing.
+ *
+ * No narrower surface is built (dinah-332 D-1). workbench.md carries no
+ * witness convention to protect, because witnessing in this codebase is a
+ * per-card position reconciler and the format's own documentation calls a
+ * hand edit of a definition file legal and deliberately unjournaled. So this
+ * opens the raw file exactly as openCard opens a card's own file, and a
+ * narrower editor would have to re-derive the ordering and slug rules the
+ * columns list already single-authorities.
+ *
+ * The generic runDinah rather than a wrapper of its own: path refuses through
+ * the ordinary refusal envelope and carries none of check's exit-code
+ * overload, so readRefusal classifies it with no special casing.
+ *
+ * This command also recovers a workbench whose own workbench.md, or any of
+ * its columns' files, is malformed, and it needs no code change here to do so
+ * (dinah-332's recovery-gap section). The ok and non-ok arms below are already
+ * generic, and dinah-272's AC-8 and AC-9 are what make `path workbench` answer
+ * ok in that case by resolving from the discovered root alone. Until those
+ * land on the trunk, a broken definition file refuses here like any other
+ * refusal and the reader is told so.
+ */
+export async function editWorkbenchDefinition(
+	context: WorkbenchCommandContext,
+): Promise<void> {
+	const outcome = await runDinah(
+		context.spawner,
+		context.exe,
+		["--workbench", context.path, "path", "workbench"],
+		{ cwd: context.path },
+	);
+	if (outcome.kind !== "ok") {
+		context.host.appendLines([
+			`${context.label}: could not open the workbench definition file. ${refusalMessage(outcome)}`,
+		]);
+		await offerOutput(
+			context,
+			`${context.label}: could not open the workbench definition file. See the Dinah output channel for details.`,
+		);
+		return;
+	}
+	const path = (outcome.json as PathAnswer).path;
+	if (path === undefined || path === "") {
+		context.host.log(
+			`${COMMAND_EDIT_WORKBENCH_DEFINITION} answered with no path`,
+		);
+		return;
+	}
+	await context.host.openDocument(path);
 }

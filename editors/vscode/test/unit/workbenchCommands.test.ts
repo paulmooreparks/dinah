@@ -10,6 +10,7 @@ import { test } from "node:test";
 
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import { EXIT_READ_FINDINGS } from "../../src/cli";
+import { COMMAND_EDIT_WORKBENCH_DEFINITION } from "../../src/identity";
 import type { RootRow, TreeElement } from "../../src/tree";
 import type {
 	WorkbenchCommandContext,
@@ -20,6 +21,7 @@ import {
 	checkWorkbench,
 	contextForWorkbench,
 	copyWorkbenchPath,
+	editWorkbenchDefinition,
 } from "../../src/workbenchCommands";
 
 const BENCH = "C:/work/board";
@@ -60,6 +62,8 @@ interface Recorder {
 	readonly warnings: string[];
 	readonly appended: string[];
 	readonly copied: string[];
+	/** Every path handed to the editor, in call order. */
+	readonly opened: string[];
 	readonly logged: string[];
 	/** How many times the channel was revealed. */
 	revealed: number;
@@ -78,6 +82,7 @@ function recorder(outcome: SpawnOutcome = CLEAN): Recorder {
 		warnings: [],
 		appended: [],
 		copied: [],
+		opened: [],
 		logged: [],
 		revealed: 0,
 		host: {
@@ -100,6 +105,9 @@ function recorder(outcome: SpawnOutcome = CLEAN): Recorder {
 			},
 			copyToClipboard: async (text) => {
 				r.copied.push(text);
+			},
+			openDocument: async (path) => {
+				r.opened.push(path);
 			},
 			log: (line) => {
 				r.logged.push(line);
@@ -143,6 +151,7 @@ const silentHost: WorkbenchCommandHost = {
 	appendLines: () => undefined,
 	revealOutput: () => undefined,
 	copyToClipboard: async () => undefined,
+	openDocument: async () => undefined,
 	log: () => undefined,
 };
 
@@ -489,4 +498,137 @@ test("copyWorkbenchPath copies an unexpanded candidate's own path", async () => 
 	assert.notEqual(target, undefined);
 	await copyWorkbenchPath(target as WorkbenchCommandContext);
 	assert.deepEqual(r.copied, ["C:/work/other"]);
+});
+
+// editWorkbenchDefinition
+// ---------------------------------------------------------------------------
+
+/** What `path workbench` answers once dinah-272 lands, as PathAnswer marshals it. */
+const RESOLVED: SpawnOutcome = {
+	code: 0,
+	stdout: JSON.stringify({
+		path: `${BENCH}/workbench.md`,
+		workbench_source: "search",
+	}),
+	stderr: "",
+};
+
+test("editWorkbenchDefinition asks path for the workbench and nothing else", async () => {
+	// dinah-332 AC-5. The argv is the contract between this command and the
+	// binary, and the bare `workbench` reference is the one dinah-272's own
+	// fast path answers from discovery alone. A --migrate flag here would turn
+	// an act that reads into an act that writes.
+	const r = recorder(RESOLVED);
+	await editWorkbenchDefinition(r.context);
+	assert.deepEqual(r.calls, [
+		["--json", "--workbench", BENCH, "path", "workbench"],
+	]);
+});
+
+test("editWorkbenchDefinition hands the resolved path to the editor and says nothing", async () => {
+	// dinah-332 AC-6. Opening the file is the whole answer, so a toast would
+	// tell a reader something the editor has already shown them.
+	const r = recorder(RESOLVED);
+	await editWorkbenchDefinition(r.context);
+	assert.deepEqual(r.opened, [`${BENCH}/workbench.md`]);
+	assert.deepEqual(r.appended, []);
+	assert.deepEqual(r.infos, []);
+	assert.deepEqual(r.warnings, []);
+	assert.equal(r.revealed, 0);
+});
+
+test("editWorkbenchDefinition opens nothing when the answer carries no path", async () => {
+	// dinah-332 AC-6's other half. An ok answer with no path is a binary this
+	// build and dinah disagree about, not a file to open, and openDocument on
+	// an empty string would ask the editor for the current directory.
+	for (const [what, stdout] of [
+		["an absent path", JSON.stringify({ workbench_source: "search" })],
+		["an empty path", JSON.stringify({ path: "", workbench_source: "search" })],
+	] as const) {
+		const r = recorder({ code: 0, stdout, stderr: "" });
+		await editWorkbenchDefinition(r.context);
+		assert.deepEqual(r.opened, [], `${what} still reached the editor`);
+		assert.deepEqual(
+			r.logged,
+			[`${COMMAND_EDIT_WORKBENCH_DEFINITION} answered with no path`],
+			`${what} logged the wrong line`,
+		);
+		assert.deepEqual(r.warnings, [], `${what} raised a toast`);
+	}
+});
+
+test("editWorkbenchDefinition reports every refusal and opens nothing", async () => {
+	// dinah-332 AC-7. Each non-ok kind reaches the same arm, and each has to
+	// say why: a definition file that will not open is exactly the moment a
+	// reader needs the reason rather than silence.
+	const cases: [string, SpawnOutcome, string][] = [
+		[
+			"refused",
+			{
+				code: 2,
+				stdout: JSON.stringify({
+					outcome: "refused",
+					refusal: "dinah.malformed",
+					detail: "column spec",
+				}),
+				stderr: "",
+			},
+			"dinah.malformed: column spec",
+		],
+		[
+			"stale",
+			{ code: 3, stdout: "", stderr: "the cursor is old" },
+			"stale: the cursor is old",
+		],
+		[
+			"unreachable",
+			{ code: 4, stdout: "", stderr: "no such directory" },
+			"unreachable: no such directory",
+		],
+		[
+			"spawn-failed",
+			{
+				code: null,
+				stdout: "",
+				stderr: "",
+				spawnError: { code: "ENOENT", message: "spawn dinah ENOENT" },
+			},
+			"spawn-failed: spawn dinah ENOENT",
+		],
+		[
+			"not-json",
+			{ code: 0, stdout: "C:/work/board/workbench.md\n", stderr: "" },
+			"not-json: this binary is not dinah, or is too old to answer `--json version`",
+		],
+	];
+	for (const [kind, outcome, sentence] of cases) {
+		const r = recorder(outcome);
+		r.answer = OPEN_OUTPUT;
+		await editWorkbenchDefinition(r.context);
+		assert.deepEqual(
+			r.appended,
+			[`Work: could not open the workbench definition file. ${sentence}`],
+			`the ${kind} outcome wrote the wrong line`,
+		);
+		assert.deepEqual(
+			r.warnings,
+			[
+				"Work: could not open the workbench definition file. See the Dinah output channel for details.",
+			],
+			`the ${kind} outcome told the reader the wrong thing`,
+		);
+		assert.deepEqual(r.opened, [], `the ${kind} outcome opened a file anyway`);
+		assert.equal(r.revealed, 1, `the ${kind} outcome did not offer the channel`);
+	}
+});
+
+test("a dismissed refusal toast leaves the channel unrevealed and the reason in it", async () => {
+	// dinah-332 AC-7's action half. The button is only worth offering if
+	// picking it reveals the channel and dismissing it does not, and the reason
+	// is in the channel either way.
+	const r = recorder({ code: 3, stdout: "", stderr: "the cursor is old" });
+	r.answer = undefined;
+	await editWorkbenchDefinition(r.context);
+	assert.equal(r.revealed, 0);
+	assert.equal(r.appended.length, 1);
 });
