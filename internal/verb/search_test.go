@@ -546,16 +546,34 @@ const swapped = "coelacnath"
 // finds it never and an ordered subsequence finds it never either, since a
 // string is a subsequence of another of equal length only when the two are
 // equal. An alignment distance prices the swap at one edit and finds it.
+//
+// The second row is what arms the first against the algorithm rather than
+// against the layer. Its phrase is seven runes, so the budget is exactly one
+// edit, and a matcher that priced an adjacent swap at two, which is what a
+// plain Levenshtein distance does, answers nothing for it. The ten-rune row
+// alone would go on passing against such a matcher, since a budget of two
+// absorbs the swap either way.
 func TestLayerTwoFindsATitleWithTwoLettersSwapped(t *testing.T) {
-	h := newHarness(t)
-	ref := h.add("Coelacnath")
-	results := found(h, &Request{SearchText: planted})
-	if len(results.Hits) != 1 {
-		t.Fatalf("wanted the one fuzzy hit, got %+v", results.Hits)
-	}
-	if results.Hits[0].Ref != ref || results.Hits[0].MatchedIn != MatchedInTitle {
-		t.Errorf("the hit is %s/%s, wanted the title of %s",
-			results.Hits[0].Ref, results.Hits[0].MatchedIn, ref)
+	for _, c := range []struct {
+		what   string
+		phrase string
+		title  string
+	}{
+		{"a budget of two", planted, "Coelacnath"},
+		{"a budget of one, where the swap must cost one edit", "narwhal", "Narhwal"},
+	} {
+		t.Run(c.what, func(t *testing.T) {
+			h := newHarness(t)
+			ref := h.add(c.title)
+			results := found(h, &Request{SearchText: c.phrase})
+			if len(results.Hits) != 1 {
+				t.Fatalf("wanted the one fuzzy hit, got %+v", results.Hits)
+			}
+			if results.Hits[0].Ref != ref || results.Hits[0].MatchedIn != MatchedInTitle {
+				t.Errorf("the hit is %s/%s, wanted the title of %s",
+					results.Hits[0].Ref, results.Hits[0].MatchedIn, ref)
+			}
+		})
 	}
 }
 
@@ -598,6 +616,7 @@ func TestTheAlignmentDistancePricesOneSwapAsOneEdit(t *testing.T) {
 		want     int
 	}{
 		{"one adjacent swap", planted, swapped, 1},
+		{"one adjacent swap in a shorter word", "narwhal", "narhwal", 1},
 		{"one letter dropped", planted, "colacanth", 1},
 		{"one letter changed", planted, "coelacantz", 1},
 		{"two letters changed", planted, "xoelacantz", 2},
