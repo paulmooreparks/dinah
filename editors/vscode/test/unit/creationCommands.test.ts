@@ -35,7 +35,29 @@ import type { CardView, ColumnView, TreeNode } from "../../src/wire";
 // Fixtures
 // ---------------------------------------------------------------------------
 
+/**
+ * The workbench root, and the workspace folder the row was produced for.
+ *
+ * These are two different paths on purpose. A folder resolves to a workbench
+ * at or above itself, so the two coincide on most benches and diverge on the
+ * nested case dinah-241 named, and a context that carried one where it means
+ * the other would be invisible in a fixture that gave them a single value.
+ * The argv is pinned to ROOT and the checkpoint is asked for FOLDER, so a
+ * swap of the two reddens both.
+ */
 const ROOT = "C:\\work\\bench";
+const FOLDER = "C:\\work\\bench\\editors";
+
+/**
+ * The card's ref as each of the two joined answers carries it.
+ *
+ * The listing and the tree name the same card, so on a real read these hold
+ * one value. They are spelled apart here because contextForAttach reads them
+ * in an order, and a fixture that agreed with itself would let that order be
+ * reversed with nothing to say so (dinah-331 AC-6).
+ */
+const LISTING_REF = "tr-4";
+const TREE_REF = "tr-9";
 
 function ok(payload: unknown): SpawnOutcome {
 	return { code: 0, stdout: JSON.stringify(payload), stderr: "" };
@@ -114,7 +136,7 @@ function recorder(typed: (string | undefined)[] = []): Recorder {
 function rowFixture(over: Partial<RootRow> = {}): RootRow {
 	return {
 		rowKind: "workbenchRoot",
-		folder: ROOT,
+		folder: FOLDER,
 		folderName: "bench",
 		description: "",
 		sole: false,
@@ -142,8 +164,20 @@ function columnView(over: Partial<ColumnView> = {}): ColumnView {
 	};
 }
 
+/**
+ * The tree's own name for the column, spelled apart from the listing's slug.
+ *
+ * The join keys a listing column by columnRef and a tree node names the same
+ * column by that same value, so on a real read these two agree. They are
+ * given different spellings here for the reason the two card refs are: the
+ * context is composed from the listing's answer, and a fixture that let both
+ * sources say "intake" would let the composition read the node instead with
+ * nothing to notice.
+ */
+const NODE_COLUMN = "intake-from-the-tree";
+
 function columnNode(): TreeNode {
-	return { kind: "group", axis: "column", value: "intake", count: 0 };
+	return { kind: "group", axis: "column", value: NODE_COLUMN, count: 0 };
 }
 
 function columnRow(over: Partial<ColumnView> | undefined, row = rowFixture()): TreeElement {
@@ -159,8 +193,8 @@ function cardRow(view: Partial<CardView> | undefined, node: Partial<TreeNode> = 
 	return {
 		kind: "card",
 		row: rowFixture(),
-		node: { kind: "card", id: "aaa", ref: "tr-4", title: "Draw the guides", count: 1, ...node },
-		view: view === undefined ? undefined : { id: "aaa", ref: "tr-4", ...view },
+		node: { kind: "card", id: "aaa", ref: TREE_REF, title: "Draw the guides", count: 1, ...node },
+		view: view === undefined ? undefined : { id: "aaa", ref: LISTING_REF, ...view },
 	};
 }
 
@@ -214,7 +248,7 @@ test("a column row carries its own ref and title into the context", () => {
 	assert.equal(context?.column, "intake");
 	assert.equal(context?.label, "Intake");
 	assert.equal(context?.root, ROOT);
-	assert.equal(context?.folder, ROOT);
+	assert.equal(context?.folder, FOLDER);
 });
 
 test("a column published with no slug is named by its id", () => {
@@ -278,7 +312,7 @@ test("a title files one card, trimmed, with the column behind its flag", async (
 		"--column",
 		"intake",
 	]);
-	assert.deepEqual(r.checkpoints, [ROOT]);
+	assert.deepEqual(r.checkpoints, [FOLDER]);
 	assert.deepEqual(r.errors, []);
 });
 
@@ -310,7 +344,7 @@ test("a refused filing is reported and the row is repainted anyway", async () =>
 	assert.equal(r.errors[0], "at-capacity: doing");
 	assert.ok(r.errors[0].includes("at-capacity"));
 	assert.ok(r.errors[0].includes("doing"));
-	assert.deepEqual(r.checkpoints, [ROOT]);
+	assert.deepEqual(r.checkpoints, [FOLDER]);
 });
 
 // ---------------------------------------------------------------------------
@@ -359,7 +393,7 @@ test("Attach File aims at each of the three levels the format carries one on", (
 	const cases: [string, TreeElement, string][] = [
 		["the workbench root", { kind: "root", row: rowFixture() }, ""],
 		["a column", columnRow({}), "intake"],
-		["a card", cardRow({}), "tr-4"],
+		["a card", cardRow({}), LISTING_REF],
 	];
 	for (const [name, element, ref] of cases) {
 		const context = contextForAttach(element, "dinah", r.host, r.spawner);
@@ -372,9 +406,36 @@ test("Attach File aims at each of the three levels the format carries one on", (
 test("a card row falls back to the tree's own ref when the listing missed the card", () => {
 	// The two answers are joined per checkpoint and either can miss, so the
 	// card's ref is read from the view first and from the tree node behind it.
+	// This row drives the fallback: no view at all, so only the node can answer.
 	const r = recorder();
 	const context = contextForAttach(cardRow(undefined), "dinah", r.host, r.spawner);
-	assert.equal(context?.ref, "tr-4");
+	assert.equal(context?.ref, TREE_REF);
+});
+
+test("a card row prefers the listing's ref to the tree's own when the two disagree", () => {
+	// The precedence itself, which the fallback row above cannot ask: it is
+	// silent on which source wins because it offers only one. Here both
+	// sources answer and they answer differently, so reversing the two
+	// operands in contextForAttach reddens this row and nothing else.
+	const r = recorder();
+	const element = cardRow({ ref: LISTING_REF }, { ref: TREE_REF });
+	assert.notEqual(LISTING_REF, TREE_REF, "the fixture has to disagree with itself here");
+	const context = contextForAttach(element, "dinah", r.host, r.spawner);
+	assert.equal(context?.ref, LISTING_REF);
+});
+
+test("an expanded candidate attaches to the workbench it resolved to, not to the path it was offered under", () => {
+	// A candidate that has been expanded carries both fields (RootRow.data is
+	// "set on a resolved row and on a candidate that has been expanded"), and
+	// the two name different directories whenever discovery climbed. The
+	// resolved path is the workbench, so it is the one the call is pinned to.
+	const r = recorder();
+	const row = rowFixture({
+		rowKind: "workbenchCandidate",
+		candidate: { path: "C:\\work", title: "Work" },
+	});
+	const context = contextForAttach({ kind: "root", row }, "dinah", r.host, r.spawner);
+	assert.equal(context?.root, ROOT);
 });
 
 test("a candidate row that has not been expanded attaches to its candidate path", () => {
@@ -445,7 +506,7 @@ test("an empty description is an answer, and the attach goes through without the
 		!r.calls[0].some((word) => word.includes("--description")),
 		`a description flag was sent for an empty description: ${r.calls[0].join(" ")}`,
 	);
-	assert.deepEqual(r.checkpoints, [ROOT]);
+	assert.deepEqual(r.checkpoints, [FOLDER]);
 });
 
 test("a typed description rides in one --description word, trimmed", async () => {
@@ -494,7 +555,7 @@ test("a refused attach is reported and the row is repainted anyway", async () =>
 	assert.equal(r.errors.length, 1);
 	assert.ok(r.errors[0].includes("dinah.locked"));
 	assert.ok(r.errors[0].includes("bob"));
-	assert.deepEqual(r.checkpoints, [ROOT]);
+	assert.deepEqual(r.checkpoints, [FOLDER]);
 });
 
 // ---------------------------------------------------------------------------
@@ -555,10 +616,19 @@ test("extension.ts opens the dialog through that seam rather than around it", ()
 	// actually calls is wired to the two names above. This reads source text,
 	// which is weak, so it reads only the two identifiers rather than the
 	// shape of the code around them, and a reformat cannot break it.
-	for (const name of ["ATTACH_DIALOG_OPTIONS", "pickedFilePath"]) {
-		assert.ok(
-			EXTENSION_SOURCE.includes(`showOpenDialog(${name})`) ||
-				EXTENSION_SOURCE.includes(`${name}(await vscode.window.showOpenDialog`),
+	// One spelling per name, because only one of them can exist. The options
+	// are the dialog's argument and the read takes its answer, so the pair of
+	// alternatives this loop used to accept included two shapes that could
+	// never compile: calling the options object, and passing the read where
+	// options are expected.
+	const seams: [string, RegExp][] = [
+		["ATTACH_DIALOG_OPTIONS", /showOpenDialog\(\s*ATTACH_DIALOG_OPTIONS\s*\)/],
+		["pickedFilePath", /pickedFilePath\(\s*await vscode\.window\.showOpenDialog/],
+	];
+	for (const [name, pattern] of seams) {
+		assert.match(
+			EXTENSION_SOURCE,
+			pattern,
 			`extension.ts no longer reaches the file picker through ${name}`,
 		);
 	}

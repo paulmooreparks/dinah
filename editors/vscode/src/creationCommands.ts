@@ -17,7 +17,7 @@ import { isRow, pinnedArgv, refusalMessage } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
 import { runDinah } from "./cli";
 import type { TreeElement } from "./tree";
-import { columnRef, treeItemFor } from "./tree";
+import { columnRef } from "./tree";
 
 /** What New Card needs: where the workbench stands, and which column it fills. */
 export interface ColumnCommandContext {
@@ -117,8 +117,6 @@ export interface AttachCommandContext {
 	readonly root: string;
 	/** What `attach` takes as its first argument, which is "" for the workbench itself. */
 	readonly ref: string;
-	/** The row's own label, reused in prompts rather than composed twice. */
-	readonly label: string;
 }
 
 /**
@@ -155,7 +153,6 @@ export function contextForAttach(
 			folder: element.row.folder,
 			root,
 			ref: "",
-			label: treeItemFor(element).label,
 		};
 	}
 	if (element.kind === "column") {
@@ -173,10 +170,12 @@ export function contextForAttach(
 			folder: element.row.folder,
 			root,
 			ref: columnRef(element.view),
-			label: element.view.title,
 		};
 	}
 	if (element.kind === "card") {
+		// The listing's ref first and the tree node's behind it. The two
+		// answers are joined per checkpoint, so either can be missing, and
+		// where both are present the listing is the fresher read.
 		const ref = element.view?.ref ?? element.node.ref;
 		const root = element.row.data?.path;
 		if (ref === undefined || ref === "" || root === undefined) {
@@ -189,7 +188,6 @@ export function contextForAttach(
 			folder: element.row.folder,
 			root,
 			ref,
-			label: element.node.title ?? element.view?.title ?? ref,
 		};
 	}
 	return undefined;
