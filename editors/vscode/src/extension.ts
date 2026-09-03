@@ -532,9 +532,9 @@ export async function activate(
 	});
 
 	// Every registration above has run by now, so this is where a dropped one
-	// becomes visible. It throws, activation fails, and the thrown message
-	// names the id, which is what stops a command from shipping as a menu
-	// item that reports itself missing on the first click (dinah-369).
+	// becomes visible. Activation fails with a message naming the id rather
+	// than shipping a command as a menu item that reports itself missing on
+	// the first click (dinah-369).
 	assertCommandsFullyRegistered(TREE_COMMANDS, registeredIds);
 
 	return {
