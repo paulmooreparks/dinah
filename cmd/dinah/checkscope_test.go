@@ -427,6 +427,13 @@ func TestTheDamagedWorkbenchAdviceIsACommandThatWorks(t *testing.T) {
 	if !strings.Contains(pointed.errw, contract.Malformed) {
 		t.Errorf("the pointer does not reach the per-field refusal the advice promises:\n%s", pointed.errw)
 	}
+	// The name alone is a substring of dinah.malformed-depth, so the field
+	// this fixture's damage actually removed is named beside it. A refusal
+	// from anywhere else in the malformed family satisfies the check above
+	// and cannot satisfy this one.
+	if !strings.Contains(pointed.errw, "profile") {
+		t.Errorf("the refusal does not name the field the damage removed:\n%s", pointed.errw)
+	}
 
 	// The second half: restore the file the way the sentence says, then run
 	// the invocation it names and read what it answers.
