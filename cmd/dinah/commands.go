@@ -798,7 +798,7 @@ func runInstructions(s *session, parsed *arguments) int {
 		if s.format != formatHuman {
 			return s.emitMachine(served)
 		}
-		s.renderInstructions(&served.Instructions, served.LegalMoves)
+		s.renderInstructions(&served.Instructions, served.LegalMoves, served.Loop)
 		return 0
 	})
 }

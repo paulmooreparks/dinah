@@ -72,6 +72,16 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.Held, Key: "check.move.6"},
 		{Refusal: contract.Terminal, Key: "check.move.7"},
 		{Refusal: contract.AtCapacity, Key: "check.move.8"},
+		// The ninth row is Dinah's own: the profile's section 6.4 list ends
+		// at the eighth, so the loop limit is appended rather than inserted
+		// among the eight, which would renumber rows the profile numbers. Its
+		// key names where it sits in this list, and canLand runs it where
+		// this list prints it, after the capacity row, so a move failing
+		// both is refused at-capacity. dinah help move heads its table
+		// Order and promises the rows in the order each is checked, so the
+		// published numbering decides the evaluation order rather than the
+		// code deciding what the page prints.
+		{Refusal: contract.AtLoopLimit, Key: "check.move.9"},
 	},
 	Release: {
 		{Refusal: contract.UnknownCard, Key: "check.release.1"},
