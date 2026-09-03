@@ -766,9 +766,16 @@ test("both creation commands are registered against the identifiers identity.ts 
 	// The registration is the other half extension.ts owns. A command declared
 	// in the manifest and registered nowhere shows up as "command not found"
 	// on the first click and in no test, which is what this notices.
+	//
+	// dinah-369 routed every registration through activate()'s own register()
+	// helper, so the spelling this reads is that helper's rather than
+	// vscode.commands.registerCommand's. The same card also made the whole
+	// roster fail activation when a registration is dropped, which is a
+	// stronger guard than this one and covers all fifteen commands rather than
+	// these two.
 	for (const constant of ["COMMAND_NEW_CARD", "COMMAND_ATTACH_FILE"]) {
 		assert.ok(
-			EXTENSION_SOURCE.includes(`vscode.commands.registerCommand( ${constant},`),
+			EXTENSION_SOURCE.includes(`register(${constant},`),
 			`${constant} is declared in the manifest and registered nowhere`,
 		);
 	}

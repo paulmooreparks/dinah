@@ -67,8 +67,10 @@ import {
 	SETTING_POLL_INTERVAL,
 	SETTING_WATCH_FILES,
 	SETTING_WORKBENCH,
+	TREE_COMMANDS,
 	VIEW_ID,
 } from "./identity";
+import { assertCommandsFullyRegistered } from "./registrationGuard";
 import {
 	ensureExecutable,
 	joinPath,
@@ -389,6 +391,20 @@ export async function activate(
 	});
 	context.subscriptions.push({ dispose: () => checkpointing.stop() });
 
+	// Every command this extension contributes is registered through this one
+	// helper, so that registeredIds is a record of what activation actually
+	// did rather than a second hand-maintained roster. The completeness check
+	// below reads it, and a registration that went around the helper would be
+	// invisible to that check (dinah-369).
+	const registeredIds: string[] = [];
+	function register(
+		id: string,
+		handler: (element: TreeElement | undefined) => Promise<unknown>,
+	): void {
+		registeredIds.push(id);
+		context.subscriptions.push(vscode.commands.registerCommand(id, handler));
+	}
+
 	const host = commandHost(channel, (folder) => checkpointing.checkNow(folder));
 	const flowCommands: [string, (c: CommandContext) => Promise<unknown>][] = [
 		[COMMAND_CLAIM, claimCard],
@@ -400,23 +416,18 @@ export async function activate(
 		[COMMAND_OPEN_CARD, openCard],
 	];
 	for (const [id, run] of flowCommands) {
-		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				id,
-				async (element: TreeElement | undefined) => {
-					const target = contextFor(
-						element,
-						binary.state === "ok" ? binary.path : "",
-						host,
-					);
-					if (target === undefined) {
-						channel.appendLine(`${id} was invoked on a row that names no card`);
-						return;
-					}
-					await run(target);
-				},
-			),
-		);
+		register(id, async (element: TreeElement | undefined) => {
+			const target = contextFor(
+				element,
+				binary.state === "ok" ? binary.path : "",
+				host,
+			);
+			if (target === undefined) {
+				channel.appendLine(`${id} was invoked on a row that names no card`);
+				return;
+			}
+			await run(target);
+		});
 	}
 	// The workbench-row commands get a loop of their own rather than joining the
 	// one above. The two families take different contexts and different hosts,
@@ -432,119 +443,99 @@ export async function activate(
 		[COMMAND_EDIT_WORKBENCH_DEFINITION, editWorkbenchDefinition],
 	];
 	for (const [id, run] of workbenchCommands) {
-		context.subscriptions.push(
-			vscode.commands.registerCommand(
-				id,
-				async (element: TreeElement | undefined) => {
-					const target = contextForWorkbench(
-						element,
-						binary.state === "ok" ? binary.path : "",
-						// describeVersion rather than a second spelling of the
-						// same line: the status tooltip and the demotion
-						// diagnostic already describe a binary this way, and
-						// this is display, the only thing version.ts's header
-						// allows the release tag inside it to be used for.
-						binary.state === "ok" ? describeVersion(binary.version) : "",
-						workbenchHost,
-						nodeSpawner,
-					);
-					if (target === undefined) {
-						channel.appendLine(
-							`${id} was invoked on a row that names no workbench`,
-						);
-						return;
-					}
-					await run(target);
-				},
-			),
-		);
+		register(id, async (element: TreeElement | undefined) => {
+			const target = contextForWorkbench(
+				element,
+				binary.state === "ok" ? binary.path : "",
+				// describeVersion rather than a second spelling of the same
+				// line: the status tooltip and the demotion diagnostic already
+				// describe a binary this way, and this is display, the only
+				// thing version.ts's header allows the release tag inside it to
+				// be used for.
+				binary.state === "ok" ? describeVersion(binary.version) : "",
+				workbenchHost,
+				nodeSpawner,
+			);
+			if (target === undefined) {
+				channel.appendLine(`${id} was invoked on a row that names no workbench`);
+				return;
+			}
+			await run(target);
+		});
 	}
 	// The column row's one command gets its own registration rather than a
 	// third loop. A loop over a single pair reads as though more were coming,
 	// and this command takes a context and a host neither family above shares.
 	const columnHost = columnCommandHost(channel);
-	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			COMMAND_EDIT_COLUMN_INSTRUCTIONS,
-			async (element: TreeElement | undefined) => {
-				const target: ColumnCommandContext | undefined = contextForInstructions(
-					element,
-					binary.state === "ok" ? binary.path : "",
-					columnHost,
-					nodeSpawner,
+	register(
+		COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+		async (element: TreeElement | undefined) => {
+			const target: ColumnCommandContext | undefined = contextForInstructions(
+				element,
+				binary.state === "ok" ? binary.path : "",
+				columnHost,
+				nodeSpawner,
+			);
+			if (target === undefined) {
+				channel.appendLine(
+					`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} was invoked on a row that names no column`,
 				);
-				if (target === undefined) {
-					channel.appendLine(
-						`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} was invoked on a row that names no column`,
-					);
-					return;
-				}
-				await editColumnInstructions(target);
-			},
-		),
+				return;
+			}
+			await editColumnInstructions(target);
+		},
 	);
 	// An attachment row is registered on its own rather than through the loop
 	// above, because it is not a card and carries no CommandContext: the path
 	// it was drawn from is the whole of what opening it needs.
-	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			COMMAND_OPEN_ATTACHMENT,
-			async (element: TreeElement | undefined) => {
-				await openAttachment(element, host, (line) => channel.appendLine(line));
-			},
-		),
-	);
+	register(COMMAND_OPEN_ATTACHMENT, async (element: TreeElement | undefined) => {
+		await openAttachment(element, host, (line) => channel.appendLine(line));
+	});
 	// The two creation commands are registered on their own for the reason the
 	// loops above are separate from each other: New Card takes a column context
 	// and Attach File takes an entity context, and neither fits CommandContext,
 	// which names a card. Both need the checkpoint the flow host carries, so
 	// both take that host rather than the workbench one.
-	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			COMMAND_NEW_CARD,
-			async (element: TreeElement | undefined) => {
-				const target = contextForNewCard(
-					element,
-					binary.state === "ok" ? binary.path : "",
-					host,
-					nodeSpawner,
-				);
-				if (target === undefined) {
-					channel.appendLine(
-						`${COMMAND_NEW_CARD} was invoked on a row that names no column`,
-					);
-					return;
-				}
-				await newCard(target);
-			},
-		),
-	);
-	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			COMMAND_ATTACH_FILE,
-			async (element: TreeElement | undefined) => {
-				const target = contextForAttach(
-					element,
-					binary.state === "ok" ? binary.path : "",
-					host,
-					nodeSpawner,
-				);
-				if (target === undefined) {
-					channel.appendLine(
-						`${COMMAND_ATTACH_FILE} was invoked on a row that names no attachable entity`,
-					);
-					return;
-				}
-				await attachFile(target, host.pickFile);
-			},
-		),
-	);
-	context.subscriptions.push(
-		vscode.commands.registerCommand(COMMAND_REFRESH, async () => {
-			await checkpointing.refreshNow();
-			emitter.fire(undefined);
-		}),
-	);
+	register(COMMAND_NEW_CARD, async (element: TreeElement | undefined) => {
+		const target = contextForNewCard(
+			element,
+			binary.state === "ok" ? binary.path : "",
+			host,
+			nodeSpawner,
+		);
+		if (target === undefined) {
+			channel.appendLine(
+				`${COMMAND_NEW_CARD} was invoked on a row that names no column`,
+			);
+			return;
+		}
+		await newCard(target);
+	});
+	register(COMMAND_ATTACH_FILE, async (element: TreeElement | undefined) => {
+		const target = contextForAttach(
+			element,
+			binary.state === "ok" ? binary.path : "",
+			host,
+			nodeSpawner,
+		);
+		if (target === undefined) {
+			channel.appendLine(
+				`${COMMAND_ATTACH_FILE} was invoked on a row that names no attachable entity`,
+			);
+			return;
+		}
+		await attachFile(target, host.pickFile);
+	});
+	register(COMMAND_REFRESH, async () => {
+		await checkpointing.refreshNow();
+		emitter.fire(undefined);
+	});
+
+	// Every registration above has run by now, so this is where a dropped one
+	// becomes visible. It throws, activation fails, and the thrown message
+	// names the id, which is what stops a command from shipping as a menu
+	// item that reports itself missing on the first click (dinah-369).
+	assertCommandsFullyRegistered(TREE_COMMANDS, registeredIds);
 
 	return {
 		binary,
