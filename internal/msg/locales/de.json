@@ -3652,7 +3652,7 @@
       "source": "70af97de3ad8fb23"
     },
     "column.search.reference": {
-      "text": "Verweis",
+      "text": "Referenz",
       "context": "Heading over the reference a person types to name what matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "fe88d270aa3e71da"
     },
@@ -3692,7 +3692,7 @@
       "source": "b489804a833b5a0"
     },
     "token.reference": {
-      "text": "Verweis",
+      "text": "Referenz",
       "context": "Names a card's own human reference, in the matched-in column of the table `dinah search` prints.",
       "source": "9a7b103262a7ba7a"
     },

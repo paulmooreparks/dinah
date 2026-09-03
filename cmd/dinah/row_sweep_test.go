@@ -2614,7 +2614,7 @@ func TestTheSweepsEditorRowIgnoresTheEnvironment(t *testing.T) {
 const (
 	sweptSearchPhrase      = "hay"
 	sweptSearchColumnNote  = "hay column"
-	sweptSearchBenchNote   = "hay bench"
+	sweptSearchBenchNote   = "hay body"
 	sweptSearchColumnID    = "f00000000001"
 	sweptSearchColumnTitle = "Needles"
 	sweptSearchColumnSlug  = "needles"
