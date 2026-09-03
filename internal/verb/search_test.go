@@ -559,8 +559,8 @@ func TestLayerTwoFindsATitleWithTwoLettersSwapped(t *testing.T) {
 		phrase string
 		title  string
 	}{
-		{"a budget of two", planted, "Coelacnath"},
-		{"a budget of one, where the swap must cost one edit", "narwhal", "Narhwal"},
+		{"a ten-rune phrase", planted, "Coelacnath"},
+		{"a seven-rune phrase, where the swap must cost one edit", "narwhal", "Narhwal"},
 	} {
 		t.Run(c.what, func(t *testing.T) {
 			h := newHarness(t)
@@ -642,14 +642,25 @@ func TestTheAlignmentDistancePricesOneSwapAsOneEdit(t *testing.T) {
 // that forgave everything, so the pair is what pins the threshold to the
 // budget rather than to any other number. The distances themselves are
 // asserted in the case above.
+//
+// The two titles moved one edit nearer the phrase when D-11 replaced the
+// proportional budget with the square-root one. The phrase is ten runes, where
+// the first version allowed two edits and this one allows the floor of one, so
+// the pair that sits either side of the threshold is now a distance of one
+// against a distance of two rather than two against three. Anything else here
+// would be measuring the old number.
 func TestLayerTwoStopsAtTheTypoBudget(t *testing.T) {
+	if budget := typoBudget(len([]rune(planted))); budget != 1 {
+		t.Fatalf("the fixture below is built for a budget of 1 at %d runes, but the budget is %d",
+			len([]rune(planted)), budget)
+	}
 	for _, c := range []struct {
 		what  string
 		title string
 		want  int
 	}{
-		{"at the budget", "xoelacantz", 1},
-		{"one edit past the budget", "xoelycantz", 0},
+		{"at the budget", "coelacantz", 1},
+		{"one edit past the budget", "xoelacantz", 0},
 	} {
 		t.Run(c.what, func(t *testing.T) {
 			h := newHarness(t)
@@ -752,23 +763,39 @@ func noiseCorpus(count int) []string {
 	return titles
 }
 
-// mistype exchanges the two letters either side of a word's midpoint, which is
-// the shape of slip the widened matcher exists to catch. It answers the empty
-// string for a word too short for layer 2 to look at, and that is exactly the
-// words at or below fuzzyFloor, since withinTypoBudget refuses a phrase whose
-// length is at or below the floor and admits every longer one. A four-rune
-// word is therefore swept rather than skipped, and it is the one this sweep
-// can least afford to miss: a budget of one forgiven edit against four runes
-// is the largest ratio of tolerance to phrase the design ever allows, so it is
-// the loudest regime the matcher has.
+// mistype exchanges an adjacent pair of letters near a word's midpoint, which
+// is the shape of slip the widened matcher exists to catch. It answers the
+// empty string for a word too short for layer 2 to look at, and that is
+// exactly the words at or below fuzzyFloor, since withinTypoBudget refuses a
+// phrase whose length is at or below the floor and admits every longer one. A
+// four-rune word is therefore swept rather than skipped, and it is the one
+// this sweep can least afford to miss: a budget of one forgiven edit against
+// four runes is the largest ratio of tolerance to phrase the design ever
+// allows, so it is the loudest regime the matcher has.
+//
+// The pair it exchanges is the one nearest the midpoint whose two letters
+// differ, and searching outward for that pair is not fussiness. Exchanging a
+// doubled letter with itself answers the word back unchanged, so the phrase
+// would be the word rather than a mistyping of it, layer 1 would answer it as
+// a substring, and the sweep would count a measurement of layer 2 it never
+// took. The word "comment" in the vocabulary below is exactly that case, and
+// the plain midpoint exchange was silently returning it whole.
 func mistype(word string) string {
 	letters := []rune(word)
 	if len(letters) <= fuzzyFloor {
 		return ""
 	}
-	at := len(letters) / 2
-	letters[at-1], letters[at] = letters[at], letters[at-1]
-	return string(letters)
+	middle := len(letters) / 2
+	for step := 0; step < len(letters); step++ {
+		for _, at := range [2]int{middle - step, middle + step} {
+			if at < 1 || at >= len(letters) || letters[at-1] == letters[at] {
+				continue
+			}
+			letters[at-1], letters[at] = letters[at], letters[at-1]
+			return string(letters)
+		}
+	}
+	return ""
 }
 
 // TestTheNoiseAgainstAGeneratedCorpus asserts dinah-268 AC-20, which is a
@@ -861,6 +888,12 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 			continue
 		}
 		swept++
+		// A phrase equal to its own word is not a mistyping of it, and layer
+		// 1 would answer it as a substring, so such a phrase measures nothing
+		// about layer 2 while still being counted as swept.
+		if phrase == word {
+			t.Errorf("the phrase built from %q is the word itself, so it measures nothing about layer 2", word)
+		}
 		if standalone[word] {
 			reachable++
 		} else {
@@ -932,5 +965,321 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 	// answer a tenth of a board fails here.
 	if len(noise) > 9 {
 		t.Errorf("the search answered %d unrelated titles out of %d, wanted single digits", len(noise), len(titles))
+	}
+	// The criterion's ceiling is over the whole sweep and not only over the one
+	// phrase above, and a bound that reads one phrase while logging the sweep
+	// is the shape of check this card came back from Merge for. This is that
+	// ceiling: fewer than ten unrelated titles across every phrase the
+	// vocabulary yielded.
+	if noisy > 9 {
+		t.Errorf("the sweep of %d phrases answered %d unrelated titles across %d, wanted fewer than 10",
+			swept, noisy, len(titles))
+	}
+}
+
+// firstVersionTypoBudget is the budget dinah-268 shipped before D-11 was
+// revised: max(1, n/4), growing in direct proportion to the phrase. It is
+// written out here rather than referred to, because the code no longer carries
+// it and a property this card asserts about it cannot rest on a formula that
+// exists only in a card note.
+func firstVersionTypoBudget(length int) int {
+	if scaled := length / 4; scaled > 1 {
+		return scaled
+	}
+	return 1
+}
+
+// TestTheRevisedBudgetIsNeverLooserThanTheFirstVersion asserts dinah-268 AC-21
+// over the whole range rather than at a handful of lengths. A revision that
+// was looser anywhere would mean a title correctly rejected before this card
+// now qualifies, which would quietly reopen every fixture verified against the
+// first version's numbers.
+//
+// The named boundaries go with it. The range check alone would pass against a
+// budget that answered one at every length, which is tighter everywhere and
+// also useless, so the boundaries pin the curve to the one D-11 chose: one
+// through 63 runes, two at 64, still two at 143, three at 144.
+func TestTheRevisedBudgetIsNeverLooserThanTheFirstVersion(t *testing.T) {
+	for length := 4; length <= 400; length++ {
+		revised, first := typoBudget(length), firstVersionTypoBudget(length)
+		if revised > first {
+			t.Fatalf("at %d runes the revised budget forgives %d edits and the first version forgave %d, so the revision is looser",
+				length, revised, first)
+		}
+	}
+	for _, c := range []struct {
+		length, want int
+	}{
+		{4, 1}, {10, 1}, {63, 1}, {64, 2}, {143, 2}, {144, 3}, {255, 3}, {256, 4},
+	} {
+		if got := typoBudget(c.length); got != c.want {
+			t.Errorf("the budget at %d runes is %d, wanted %d", c.length, got, c.want)
+		}
+	}
+}
+
+// TestTheIntegerSquareRootIsExactAtEveryBoundary arms the case above against
+// the one way the budget could drift without any formula changing. A perfect
+// square is where a floating-point root can answer a hair under the integer
+// and floor to one less, and it is exactly where the budget steps, so the
+// boundaries the criterion names are the values most exposed to it.
+func TestTheIntegerSquareRootIsExactAtEveryBoundary(t *testing.T) {
+	for root := 0; root <= 64; root++ {
+		square := root * root
+		if got := integerSquareRoot(square); got != root {
+			t.Errorf("the root of %d is %d, wanted %d", square, got, root)
+		}
+		if square > 0 {
+			if got := integerSquareRoot(square - 1); got != root-1 {
+				t.Errorf("the root of %d is %d, wanted %d", square-1, got, root-1)
+			}
+		}
+		if got := integerSquareRoot(square + root); got != root {
+			t.Errorf("the root of %d is %d, wanted %d", square+root, got, root)
+		}
+	}
+}
+
+// noiseFillerPath is the checked-in word list dinah-268 AC-20's templated
+// corpus draws from. The criterion names the path itself, so that two builds
+// draw the same corpus and no build can pick fillers that dodge a collision.
+const noiseFillerPath = "testdata/noise_fillers.txt"
+
+// noiseFillerBands reads that list into its length bands. The file is one
+// lowercase-ASCII word per line, and a blank line ends a band, which is the
+// whole of its format: the order of the words inside a band is the chain the
+// criterion asks for, and it is the order the corpus draws in.
+func noiseFillerBands(t *testing.T) [][]string {
+	t.Helper()
+	payload, err := os.ReadFile(noiseFillerPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", noiseFillerPath, err)
+	}
+	var bands [][]string
+	var band []string
+	for _, line := range strings.Split(strings.ReplaceAll(string(payload), "\r\n", "\n"), "\n") {
+		if line == "" {
+			if len(band) > 0 {
+				bands = append(bands, band)
+				band = nil
+			}
+			continue
+		}
+		band = append(band, line)
+	}
+	if len(band) > 0 {
+		bands = append(bands, band)
+	}
+	if len(bands) == 0 {
+		t.Fatalf("%s carries no bands", noiseFillerPath)
+	}
+	return bands
+}
+
+// TestTheFillerListIsTheChainItClaims asserts that the file on disk is the
+// thing dinah-268 AC-20 describes, rather than a list somebody edited later
+// into something the corpus below would quietly accept.
+//
+// Each property here is one clause of the criterion. The words are ordinary
+// lowercase ASCII. Each band is at least forty words, which is the size the
+// criterion sets for every band the templates draw from. Every word in a band
+// sits within one rune of every other, which is what lets any twenty of them
+// share a template. And consecutive words are near-miss partners, an alignment
+// distance of two or fewer, which is the property the whole measurement rests
+// on: a corpus of same-length words that share no letters would report a clean
+// number without ever exercising the regime the flooding came from.
+func TestTheFillerListIsTheChainItClaims(t *testing.T) {
+	seen := map[string]bool{}
+	for number, band := range noiseFillerBands(t) {
+		if len(band) < 40 {
+			t.Errorf("band %d carries %d words, wanted at least 40", number, len(band))
+		}
+		shortest, longest := len([]rune(band[0])), len([]rune(band[0]))
+		for _, word := range band {
+			if seen[word] {
+				t.Errorf("%q appears twice in %s", word, noiseFillerPath)
+			}
+			seen[word] = true
+			for _, letter := range word {
+				if letter < 'a' || letter > 'z' {
+					t.Errorf("%q is not an ordinary lowercase-ASCII word", word)
+					break
+				}
+			}
+			if length := len([]rune(word)); length < shortest {
+				shortest = length
+			} else if length > longest {
+				longest = length
+			}
+		}
+		if longest-shortest > 1 {
+			t.Errorf("band %d runs from %d runes to %d, so two of its words cannot share a template",
+				number, shortest, longest)
+		}
+		for at := 1; at < len(band); at++ {
+			distance := alignmentDistance([]rune(band[at-1]), []rune(band[at]))
+			if distance > 2 {
+				t.Errorf("band %d has %q and %q consecutive at a distance of %d, wanted 2 or fewer",
+					number, band[at-1], band[at], distance)
+			}
+		}
+	}
+}
+
+// noiseTemplates are the ten long card titles dinah-268 AC-20's templated
+// corpus is built from. Each carries one %s where its filler goes, and each is
+// long enough that a filled title clears the ninety runes the criterion sets.
+// Sibling titles from one template differ in that one word and nowhere else,
+// which is the shape a real board full of near-identical titles takes and the
+// shape the first version's budget flooded on.
+var noiseTemplates = []string{
+	"the workbench refuses a card whose column names no ready zone and the operator is left %s at the station",
+	"a column that declares no instructions of its own leaves the agent %s over the card it has just pulled",
+	"the journal records every refusal in the order it happened so that nobody is left %s about what a verb did",
+	"an attachment past the cap is read up to the cap and no further, which stops the scan %s at the boundary",
+	"the contract names the states a card may stand in and the profile keeps the tree from %s past its anchor",
+	"a workstream gathers the cards a reader wants beside each other without %s the columns they stand in",
+	"the guide explains the pull and the claim in one place so that a first reader is not %s between the two",
+	"a reference minted for a card outlives every rename it meets, so a link written today is not %s next year",
+	"the catalog falls back to english message by message, which leaves a half translated build %s not broken",
+	"the discovery walk climbs to the drive root and stops there instead of %s into a directory nobody named",
+}
+
+// noiseTemplatedCorpus builds the templated corpus: one title per template and
+// filler, drawn in file order.
+//
+// The draw is the part worth reading. Each template takes twenty consecutive
+// words from one band, starting at an offset the template's own index fixes,
+// so the corpus is the same on every machine and nobody chose which words went
+// into it. Consecutive in file order is consecutive in the chain, which is
+// what carries the near-miss property from the file into the corpus: drawing
+// the same words in any other order, alphabetical order among them, would
+// scatter the chain and leave a template of words that merely share a length.
+func noiseTemplatedCorpus(t *testing.T) (titles []string, fillers []string) {
+	t.Helper()
+	bands := noiseFillerBands(t)
+	for number, template := range noiseTemplates {
+		band := bands[number%len(bands)]
+		start := (number / len(bands)) * 4
+		for at := 0; at < fillersPerTemplate; at++ {
+			filler := band[(start+at)%len(band)]
+			titles = append(titles, fmt.Sprintf(template, filler))
+			fillers = append(fillers, filler)
+		}
+	}
+	return titles, fillers
+}
+
+// fillersPerTemplate is how many sibling titles each template contributes, and
+// twenty is the number AC-20 sets.
+const fillersPerTemplate = 20
+
+// TestTheNoiseAgainstATemplatedCorpus asserts dinah-268 AC-20's long-phrase
+// half, which is the regime the operator's 2026-09-03 ruling was about: two
+// hundred titles of ninety-odd runes, ten templates of twenty siblings each,
+// where a sibling differs from its neighbours in one word and nowhere else.
+//
+// The measurement is a sweep of one mistyped phrase per title, each built by
+// exchanging an adjacent pair of letters inside that title's own filler. Every
+// phrase must still find the title it was a mistyping of, and the criterion
+// sets two ceilings the run enforces rather than reports: fewer than ten
+// unrelated titles across the whole sweep, and no single phrase reaching more
+// than three.
+//
+// The sweep measures withinTypoBudget rather than running two hundred searches
+// through the library. That is the function layer 2 is, and a phrase of ninety
+// runes with two of its letters exchanged is a substring of nothing, so layer
+// 1 has no answer to give and the two would agree. One end-to-end search runs
+// beside it so the corpus is known to be reachable through the verb itself.
+//
+//	go test ./internal/verb/ -run TestTheNoiseAgainstATemplatedCorpus -v
+func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
+	titles, fillers := noiseTemplatedCorpus(t)
+	if len(titles) < 200 {
+		t.Fatalf("the corpus carries %d titles, wanted at least 200", len(titles))
+	}
+	for at, title := range titles {
+		if length := len([]rune(title)); length < 90 {
+			t.Fatalf("title %d is %d runes, wanted at least 90: %q", at, length, title)
+		}
+	}
+	// Every filler must have a near-miss partner on its own template, which is
+	// the property that makes this corpus adversarial rather than comfortable.
+	// It is asserted here against the corpus as drawn, not only against the
+	// file, because the draw is what decides which words meet on a template.
+	for start := 0; start < len(fillers); start += fillersPerTemplate {
+		for at := start; at < start+fillersPerTemplate; at++ {
+			nearest := len(fillers[at]) + 1
+			for other := start; other < start+fillersPerTemplate; other++ {
+				if other == at || fillers[other] == fillers[at] {
+					continue
+				}
+				if distance := alignmentDistance([]rune(fillers[at]), []rune(fillers[other])); distance < nearest {
+					nearest = distance
+				}
+			}
+			if nearest > 2 {
+				t.Errorf("the filler %q sits %d edits from its nearest sibling on its own template, wanted 2 or fewer",
+					fillers[at], nearest)
+			}
+		}
+	}
+
+	phrases := make([]string, len(titles))
+	for at := range titles {
+		mistyped := mistype(fillers[at])
+		if mistyped == "" || mistyped == fillers[at] {
+			t.Fatalf("the filler %q yielded no mistyping, so title %d measures nothing", fillers[at], at)
+		}
+		phrases[at] = strings.Replace(titles[at], fillers[at], mistyped, 1)
+		if phrases[at] == titles[at] {
+			t.Fatalf("the phrase for title %d is the title itself", at)
+		}
+	}
+
+	budget := typoBudget(len([]rune(phrases[0])))
+	lost, noisy, worst, worstAt := 0, 0, 0, 0
+	for at, phrase := range phrases {
+		if _, ok := withinTypoBudget(phrase, titles[at]); !ok {
+			lost++
+			continue
+		}
+		here := 0
+		for other, title := range titles {
+			if other == at {
+				continue
+			}
+			if _, ok := withinTypoBudget(phrase, title); ok {
+				here++
+			}
+		}
+		noisy += here
+		if here > worst {
+			worst, worstAt = here, at
+		}
+	}
+	t.Logf("dinah-268 AC-20: %d templated titles of %d runes, a budget of %d edits, swept with %d mistyped phrases: %d phrases lost their own title, %d unrelated titles answered in total, the loudest single phrase answered %d (the filler %q on template %d)",
+		len(titles), len([]rune(titles[0])), budget, len(phrases), lost, noisy, worst, fillers[worstAt], worstAt/fillersPerTemplate)
+
+	// One search through the library, so the corpus is known to be reachable
+	// through the verb and not only through the matcher the sweep calls.
+	h := newHarness(t)
+	for _, title := range titles {
+		h.add(title)
+	}
+	results := found(h, &Request{SearchText: phrases[0]})
+	if len(results.Hits) == 0 {
+		t.Errorf("the search answered nothing for the first phrase, so the sweep above measures a corpus the verb cannot reach")
+	}
+
+	if lost > 0 {
+		t.Errorf("%d of %d phrases no longer find the title they were a mistyping of, so the transposition-catching behaviour is lost",
+			lost, len(phrases))
+	}
+	if noisy > 9 {
+		t.Errorf("the sweep answered %d unrelated titles across %d, wanted fewer than 10", noisy, len(titles))
+	}
+	if worst > 3 {
+		t.Errorf("one phrase answered %d unrelated titles, wanted no more than 3", worst)
 	}
 }

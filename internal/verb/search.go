@@ -337,9 +337,11 @@ func substringIn(phrase, field string) (at, length int, ok bool) {
 // inside typoBudget of the phrase's own length.
 //
 // The quality it answers with is 1 - distance/n, on the same coverage-ratio
-// scale layer 1's own quality uses. Since a qualifying distance is at least 1
-// and at most n/4, that quality lands in [0.75, 1): high enough to sit beside
-// a substring hit on the same title tier, and bounded below 1 so an exact hit
+// scale layer 1's own quality uses. A qualifying distance is at least 1 and at
+// most typoBudget(n), and that budget is largest against its own phrase at the
+// shortest phrase layer 2 looks at, where one forgiven edit in four runes is a
+// quarter, so the quality lands in [0.75, 1): high enough to sit beside a
+// substring hit on the same title tier, and bounded below 1 so an exact hit
 // always wins. A distance of 0 cannot arrive here, because two equal strings
 // are a substring match and layer 1 already answered them.
 func withinTypoBudget(phrase, title string) (float64, bool) {
@@ -361,15 +363,46 @@ func withinTypoBudget(phrase, title string) (float64, bool) {
 // a caller might have mistyped, and it floors at one so even a short phrase
 // catches a single slip.
 //
+// It grows with the square root of the phrase rather than with the phrase
+// itself. A budget in direct proportion to length hands a hundred-rune phrase
+// two dozen forgiven edits, which is room enough to absorb a whole different
+// word, and a board of long titles then answers a mistyped phrase with a
+// crowd of titles nobody meant. Under this curve the budget stays at one
+// through 63 runes, reaches two at 64 and three at 144, and it is never
+// looser at any length than the proportional rule it replaces.
+//
+// The divisor is four so that budget(4) is exactly one, which is the shortest
+// phrase layer 2 looks at and the ratio the quality band above rests on.
+//
 // Nothing else has to reject a title of wildly different length from the
 // phrase. An alignment distance is never smaller than the difference between
 // the two lengths, so a title much longer or shorter than the phrase fails
 // this budget on that ground alone.
 func typoBudget(length int) int {
-	if scaled := length / 4; scaled > 1 {
+	if scaled := integerSquareRoot(length) / 4; scaled > 1 {
 		return scaled
 	}
 	return 1
+}
+
+// integerSquareRoot answers the largest integer whose square is no greater
+// than n. It is computed in integers rather than through math.Sqrt so that no
+// floating-point rounding can move a budget across a boundary: at a perfect
+// square a sqrt that answers a hair under the integer would floor to one less
+// and quietly tighten the threshold at exactly the lengths the design names.
+//
+// The walk costs one step per unit of the root, so a phrase of two hundred
+// runes costs fourteen, which is nothing beside the alignment distance the
+// caller is about to compute.
+func integerSquareRoot(n int) int {
+	if n < 0 {
+		return 0
+	}
+	root := 0
+	for (root+1)*(root+1) <= n {
+		root++
+	}
+	return root
 }
 
 // alignmentDistance is the restricted Damerau-Levenshtein distance between two
