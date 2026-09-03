@@ -167,8 +167,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 34 {
-		t.Errorf("wanted thirty-four tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 35 {
+		t.Errorf("wanted thirty-five tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -1862,5 +1862,71 @@ func TestTheSchemaPublishesExactlyTheDeclaredArgumentNames(t *testing.T) {
 		if !reflect.DeepEqual(sorted(published), sorted(declared)) {
 			t.Errorf("%s publishes %v and accepts %v", entry.name, sorted(published), sorted(declared))
 		}
+	}
+}
+
+// TestTheColumnToolAnswersTheWayTheTerminalDoes is part of dinah-204 AC-6. The
+// new_column tool reaches the same library call `dinah column new` reaches, so
+// the two surfaces accept and refuse the same things: a plain creation by an
+// owner who is not the operator succeeds on both, and a slug a live column
+// already carries is refused by name on both. The terminal half of the same
+// pair is TestColumnNewCreatesAColumnFromTheTerminal in cmd/dinah.
+//
+// The tool fills in the action itself, so the call names none. Both of this
+// fixture's columns carry a card, and its flow ends at a work station, so the
+// one placement that changes nowhere a card is standing is a done column on
+// the end: nothing takes work up at a done column, so the station before it
+// goes on carrying into nothing. Every other placement here changes somebody's
+// routing, which is the refusing subtest below.
+func TestTheColumnToolAnswersTheWayTheTerminalDoes(t *testing.T) {
+	library := newLibrary(t)
+	root := library.Bench.Root
+
+	created := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"actor":"brin","column":"Signed off","kind":"done","slug":"signed-off"}}}`))
+	if created["outcome"] != contract.OutcomeOK {
+		t.Fatalf("creating a column as an owner who is not the operator: %v", created)
+	}
+	made, ok := created["column"].(map[string]any)
+	if !ok {
+		t.Fatalf("the answer carries no column member: %v", created)
+	}
+	if made["slug"] != "signed-off" || made["kind"] != contract.KindDone || made["title"] != "Signed off" {
+		t.Errorf("the created column reads %v", made)
+	}
+	if made["takes_work_up"] != false {
+		t.Errorf("a done column reads takes_work_up %v", made["takes_work_up"])
+	}
+
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"columns","arguments":{"actor":"alka"}}}`))
+	rows, ok := listed["columns"].([]any)
+	if !ok || len(rows) != 3 {
+		t.Fatalf("the flow now reads %v, wanted the three columns the creation leaves", listed["columns"])
+	}
+	if rows[2].(map[string]any)["slug"] != "signed-off" {
+		t.Errorf("the new column stands at %v rather than last in the flow", rows[2])
+	}
+
+	taken := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"actor":"brin","column":"Another","kind":"done","slug":"signed-off"}}}`))
+	if taken["outcome"] != contract.OutcomeRefused || taken["refusal"] != contract.ColumnSlugTaken {
+		t.Errorf("a slug a live column carries: wanted %s, got %v", contract.ColumnSlugTaken, taken)
+	}
+	if taken["detail"] != "signed-off" {
+		t.Errorf("the refusal names %v rather than the slug the caller asked for", taken["detail"])
+	}
+
+	// A work column placed ahead of the done column would give the card
+	// standing at doing an automatic forward pull it does not have today, so
+	// the check refuses the placement and names that station.
+	between := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"actor":"brin","column":"Aftercare","before":"signed-off"}}}`))
+	if between["outcome"] != contract.OutcomeRefused || between["refusal"] != contract.ColumnRoutingDisrupted {
+		t.Errorf("a work column ahead of the done column: wanted %s, got %v", contract.ColumnRoutingDisrupted, between)
+	}
+	if between["detail"] != "doing" {
+		t.Errorf("the refusal names %v rather than the column whose routing would change", between["detail"])
+	}
+
+	nameless := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"column":"Nameless","kind":"done"}}}`))
+	if nameless["outcome"] != contract.OutcomeRefused || nameless["refusal"] != contract.NoOwner {
+		t.Errorf("a call naming no owner: wanted %s, got %v", contract.NoOwner, nameless)
 	}
 }

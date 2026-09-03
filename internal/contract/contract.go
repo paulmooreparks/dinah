@@ -258,6 +258,20 @@ const (
 	// a column, because a card belongs to a workstream and stands in a
 	// column, and one sentence cannot honestly say both.
 	Referenced = LayerPrefix + "referenced"
+	// ColumnSlugTaken is an explicit slug column new was given already
+	// carrying a live column. A caller who typed nothing has nothing to be
+	// surprised by when the tool derives one, and a caller who typed a
+	// specific slug and got a different one back silently has no way to
+	// notice.
+	ColumnSlugTaken = LayerPrefix + "column-slug-taken"
+	// ColumnRoutingDisrupted is a column new placement (--before or bare
+	// append) that would change an existing column's automatic pull-routing
+	// answer (carriesInto, internal/verb/pull.go) while that column still
+	// carries a live card. Modeled on Occupied, which already refuses to
+	// archive or delete a column cards still stand in; this is the same
+	// invariant applied to a column the placement does not touch directly
+	// but whose routing the placement would still change out from under it.
+	ColumnRoutingDisrupted = LayerPrefix + "column-routing-disrupted"
 	// UnknownRoot is a --root naming a directory the filesystem does not
 	// carry at startup. The mcp command raises it before serving, and the
 	// beyond check that names it carries the same wording.
@@ -351,6 +365,7 @@ var Introduced = []string{
 	AddNeedsAColumn, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced,
+	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	AmbiguousName, NotRenamable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
@@ -396,6 +411,12 @@ const KindBuffer = LayerPrefix + "buffer"
 // refusal names, because the layer prefix carries both and a reader meeting a
 // dotted token in a document needs one place to ask what it is.
 var MintedKinds = []string{KindBuffer}
+
+// Kinds lists every column kind this build admits by name: the three the
+// profile declares and the one Dinah mints. A surface offering a caller the
+// choice reads this rather than writing the four out again, so the set a
+// command accepts cannot drift from the set the tool understands.
+var Kinds = []string{KindIntake, KindWork, KindDone, KindBuffer}
 
 // The journal event names. The set is closed, and an extension kind's own
 // events carry a dotted name of their own rather than joining this list.

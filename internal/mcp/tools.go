@@ -94,6 +94,11 @@ var tools = []tool{
 	{name: "card", command: "card", run: doCard},
 	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "workstream", command: "workstream", run: doWorkstream},
+	// The tool sets the action itself, since column carries exactly one. A
+	// later card adding get and set can keep this tool single-purpose beside
+	// its siblings or fold the three into one the way workstream does;
+	// nothing downstream depends on which yet.
+	{name: "new_column", command: "column", run: func(l *verb.Library, r *verb.Request) any { r.Action = "new"; return l.NewColumn(r) }},
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
 	{name: "check", command: "check", run: readCheck},

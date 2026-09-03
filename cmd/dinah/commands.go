@@ -95,6 +95,13 @@ func init() {
 		// so it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkstream).
 		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true},
+		// column dispatches on its own first word the way workstream does, so
+		// it declares an open tail here and runs its own arity and
+		// mistyped-flag checks (see runColumn). It sits under groupBench
+		// rather than groupWork because it authors a station of the flow,
+		// which is workbench structure rather than an act on a card, and
+		// groupWork is the group every card-acting command is in.
+		{name: "column", group: groupBench, run: runColumn, openTail: true},
 		// workbenches takes one positional, which is the directory to walk
 		// downward from. Without it the command keeps answering what is
 		// reachable from here, which is the upward search it has always run.
@@ -1603,6 +1610,50 @@ func (s *session) emitWorkstream(response *verb.Response) int {
 		return s.emitMachine(response)
 	}
 	s.renderWorkstreamLine(response.Workstream)
+	return 0
+}
+
+// runColumn authors a column. Only new is implemented, and every other first
+// word, the empty one included, refuses under usage; dinah columns is the read
+// path this build offers beside it.
+func runColumn(s *session, parsed *arguments) int {
+	words := parsed.rest()
+	first := at(words, 0)
+	if looksLikeMistypedFlag(first) {
+		return s.fail(contract.Usage, first)
+	}
+	if first != "new" {
+		return s.fail(contract.Usage, first)
+	}
+	title, refusal := s.freeText([]string{"column", "new"}, words[min(1, len(words)):], "slot.title")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		req := s.request("column", parsed)
+		req.Action, req.Column = first, title
+		req.Kind = parsed.value("kind")
+		req.Capacity = parsed.value("capacity")
+		req.Slug = parsed.value("slug")
+		req.Before = parsed.value("before")
+		return s.emitColumn(l.NewColumn(req))
+	})
+}
+
+// emitColumn renders a column-authoring response, mirroring emitWorkstream for
+// the one field that differs.
+func (s *session) emitColumn(response *verb.Response) int {
+	if response.Outcome != contract.OutcomeOK {
+		s.reportOutcome(response)
+		if s.format != formatHuman {
+			s.emitMachine(response)
+		}
+		return contract.ExitCode(response.Outcome)
+	}
+	if s.format != formatHuman {
+		return s.emitMachine(response)
+	}
+	s.renderColumnLine(response.Column)
 	return 0
 }
 

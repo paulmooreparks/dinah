@@ -696,6 +696,16 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-workstream.next"},
 	},
 	{
+		Name:      ColumnSlugTaken,
+		Fragments: []Fragment{{Key: "refusal.dinah.column-slug-taken.next"}},
+		NextStep:  []string{"refusal.dinah.column-slug-taken.next"},
+	},
+	{
+		Name:      ColumnRoutingDisrupted,
+		Fragments: []Fragment{{Key: "refusal.dinah.column-routing-disrupted.next"}},
+		NextStep:  []string{"refusal.dinah.column-routing-disrupted.next"},
+	},
+	{
 		Name:      WorkbenchNotApplicable,
 		Values:    []string{"source"},
 		Fragments: []Fragment{{Key: "refusal.dinah.workbench-not-applicable.next"}},

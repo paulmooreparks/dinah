@@ -102,7 +102,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all forty-one commands, in the four groups Dinah sorts
+`dinah help` lists all forty-two commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -1214,14 +1214,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        716/716
-  af        0/716
-  cs        0/716
-  de        716/716
-  es        0/716
-  fil       0/716
-  hi        716/716
-  id        0/716
+  en        730/730
+  af        0/730
+  cs        0/730
+  de        730/730
+  es        0/730
+  fil       0/730
+  hi        730/730
+  id        0/730
 [exit 0]
 ```
 
@@ -1453,6 +1453,45 @@ there.
 ```console
 $ cd ../release-notes
 ```
+
+## Add a column to the flow
+
+A flow you start from a template, or from `dinah init`, is rarely the flow you
+end up with. `dinah column new` adds a station without your opening
+`workbench.md` and the column files by hand. It takes the title, and optionally
+the kind, a capacity, a slug of your own, and the column to stand in front of.
+The workbench built from the template a moment ago has no review station, so
+here is one, holding at most three cards, placed immediately ahead of the done
+column:
+
+```console
+$ cd ../release-0.3
+$ dinah column new "Review" --kind work --capacity 3 --before done
+review  Review  [work]  capacity 3
+[exit 0]
+$ dinah columns
+  Slug    Name    Kind    Cards  Work        Owner
+  ------  ------  ------  -----  ----------  -----
+  intake  Intake  intake  0      none taken  agent
+  doing   Doing   work    0/1    taken       agent
+  review  Review  work    0/3    taken       agent
+  done    Done    done    0      none taken  agent
+[exit 0]
+$ cd ../release-notes
+```
+
+Leave `--before` out and the new column goes on the end of the flow. Leave
+`--kind` out and it is a work column, which is what a new station usually is.
+Leave `--capacity` out and it holds as many cards as you put there.
+
+A placement is refused when it would change where a pull carries a card that is
+already standing somewhere. Slotting a station in front of the done column moves
+the card the column before it would be carried into, so Dinah refuses that
+placement while a card stands there and tells you which column it means. An
+empty flow, and a placement nothing has reached yet, are unaffected.
+
+`operator_owned` and `awaiting_outside` are not set at creation. Write them into
+the column's own file afterwards, the way the section above shows.
 
 ## The guides that ship inside Dinah
 

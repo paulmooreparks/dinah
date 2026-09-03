@@ -269,7 +269,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists forty-one commands, and every command the binary
+	// The block lists forty-two commands, and every command the binary
 	// offers is either one of them or `help`, which the block's own last
 	// line names.
 	listed := 0
@@ -285,8 +285,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 41 {
-		t.Errorf("wanted forty-one listed commands, got %d", listed)
+	if listed != 42 {
+		t.Errorf("wanted forty-two listed commands, got %d", listed)
 	}
 }
 
@@ -6771,9 +6771,9 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "card", "column", "depth", "description", "expires",
-		"format", "from", "group-by", "kind", "lang", "max-depth",
-		"operator", "priority", "remint", "root",
+		"actor", "before", "capacity", "card", "column", "depth",
+		"description", "expires", "format", "from", "group-by", "kind",
+		"lang", "max-depth", "operator", "priority", "remint", "root",
 		"severity", "since", "slug", "workbench",
 	}
 	wantMarkers := []string{
@@ -8045,5 +8045,69 @@ func TestLangPastTheEndOfOptionsMarkerIsLiteralText(t *testing.T) {
 	}
 	if strings.Contains(got.errw, german.T("slot.title")) {
 		t.Errorf("a --lang past the marker set the language anyway: %q", got.errw)
+	}
+}
+
+// TestColumnNewCreatesAColumnFromTheTerminal is the terminal half of dinah-204
+// AC-6, and the terminal half of AC-12. It drives the same library call the
+// new_column tool drives, and asserts the same answers: a plain creation by an
+// owner who is not the operator succeeds, and a slug a live column carries is
+// refused by name. The MCP half is TestTheColumnToolAnswersTheWayTheTerminalDoes
+// in internal/mcp.
+//
+// The workbench `init` writes carries no card, so every placement here is one
+// the safety check allows; the occupied cases are the verb layer's own tests.
+func TestColumnNewCreatesAColumnFromTheTerminal(t *testing.T) {
+	root := newBench(t)
+
+	bare := runCLI(t, root, "column", "new", "Doing Later")
+	if bare.code != 0 {
+		t.Fatalf("column new: %d %s", bare.code, bare.errw)
+	}
+	if want := "doing-later  Doing Later  [work]  unlimited\n"; bare.out != want {
+		t.Errorf("the line printed reads %q, wanted %q", bare.out, want)
+	}
+
+	placed := runCLI(t, root, "column", "new", "Review", "--kind", "work", "--capacity", "3", "--before", "done")
+	if placed.code != 0 {
+		t.Fatalf("column new with every argument: %d %s", placed.code, placed.errw)
+	}
+	if want := "review  Review  [work]  capacity 3\n"; placed.out != want {
+		t.Errorf("the line printed reads %q, wanted %q", placed.out, want)
+	}
+
+	listed := runCLI(t, root, "columns")
+	if listed.code != 0 {
+		t.Fatalf("columns: %d %s", listed.code, listed.errw)
+	}
+	order := []string{"intake", "doing", "review", "done", "doing-later"}
+	at := -1
+	for _, slug := range order {
+		found := strings.Index(listed.out, "  "+slug+" ")
+		if found < 0 {
+			t.Fatalf("the flow carries no row for %s:\n%s", slug, listed.out)
+		}
+		if found < at {
+			t.Errorf("%s stands out of order in the flow:\n%s", slug, listed.out)
+		}
+		at = found
+	}
+
+	taken := runCLI(t, root, "column", "new", "Another", "--slug", "review")
+	if taken.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a slug a live column carries: wanted the refused exit code, got %d\n%s", taken.code, taken.out)
+	}
+	if !strings.HasPrefix(taken.errw, contract.ColumnSlugTaken+" ") {
+		t.Errorf("the refusal leads with %q, wanted %s", taken.errw, contract.ColumnSlugTaken)
+	}
+
+	bogus := runCLI(t, root, "column", "new", "Another", "--kind", "bogus")
+	if bogus.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Fatalf("a kind outside the grammar: wanted the refused exit code, got %d\n%s", bogus.code, bogus.out)
+	}
+
+	unknown := runCLI(t, root, "column", "list")
+	if unknown.code != contract.ExitCode(contract.OutcomeRefused) {
+		t.Errorf("an action this build does not carry: wanted the refused exit code, got %d\n%s", unknown.code, unknown.out)
 	}
 }

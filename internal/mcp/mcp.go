@@ -827,6 +827,12 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Reason = value
 	case "kind":
 		req.Kind = value
+	case "capacity":
+		req.Capacity = value
+	case "slug":
+		req.Slug = value
+	case "before":
+		req.Before = value
 	case "file":
 		req.File = value
 	case "remint":

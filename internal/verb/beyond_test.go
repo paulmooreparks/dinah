@@ -2585,3 +2585,425 @@ func TestACheckReportSaysWhetherItFoundAnything(t *testing.T) {
 		t.Errorf("wanted the migration branch to be the only source of findings, got %+v", migrated.Findings)
 	}
 }
+
+// newColumn is the request every column-authoring test below builds on, with
+// the caller filling in the arguments its own case is about.
+func newColumn(title string) *Request {
+	return &Request{Verb: "column", Action: "new", Actor: "alka", Column: title}
+}
+
+// columnDirs is the number of column directories standing on disk, which is
+// how a test asserts that a refusal claimed no identifier. It counts the
+// directory rather than reading the workbench back, because a claimed
+// identifier the columns sequence never names would be invisible to a reader
+// of the anchor and is exactly the leak the criteria ask about.
+func (h *harness) columnDirs() int {
+	h.t.Helper()
+	return len(bench.ListIDs(filepath.Join(h.root, bench.ColumnsDir)))
+}
+
+// columnSequence is the workbench's own ordered columns list as it stands on
+// disk, which is the single authority for the flow's order.
+func (h *harness) columnSequence() []string {
+	h.t.Helper()
+	opened, err := bench.Open(h.root)
+	if err != nil {
+		h.t.Fatalf("open: %v", err)
+	}
+	return opened.FM.Seq("columns")
+}
+
+// columnAnchorText reads a column's anchor as bytes, so a test can assert a
+// key is absent from the file rather than merely zero in the parsed value.
+func (h *harness) columnAnchorText(id string) string {
+	h.t.Helper()
+	text, err := bench.ReadText(filepath.Join(h.root, bench.ColumnsDir, id, bench.ColumnAnchor))
+	if err != nil {
+		h.t.Fatalf("read the anchor of %s: %v", id, err)
+	}
+	return text
+}
+
+// TestABareColumnNewAppendsAWorkColumn is dinah-204 AC-12. A title and nothing
+// else is the base case of the whole verb: the column is a work column, its
+// slug is derived from its title, it holds as many cards as anybody puts
+// there, and it stands last in the flow.
+//
+// The workbench is reopened before the assertions rather than read off the
+// response, because a column written to disk and never spliced into the
+// workbench's own columns sequence would answer every question the response
+// carries and be invisible to every reader afterwards.
+func TestABareColumnNewAppendsAWorkColumn(t *testing.T) {
+	h := newHarness(t)
+	was := len(h.library.Bench.Columns)
+	response := h.library.NewColumn(newColumn("Doing Later"))
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("column new: wanted ok, got %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	columns := h.library.Bench.Columns
+	if len(columns) != was+1 {
+		t.Fatalf("wanted %d columns after the creation, got %d", was+1, len(columns))
+	}
+	created := columns[len(columns)-1]
+	if created.ID != response.Detail {
+		t.Errorf("the last column is %s and the response named %s", created.ID, response.Detail)
+	}
+	if created.Title != "Doing Later" {
+		t.Errorf("title: wanted %q, got %q", "Doing Later", created.Title)
+	}
+	if created.Kind != contract.KindWork {
+		t.Errorf("kind: wanted %q, got %q", contract.KindWork, created.Kind)
+	}
+	if want := bench.SlugifyDashed("Doing Later"); created.Slug != want {
+		t.Errorf("slug: wanted %q, got %q", want, created.Slug)
+	}
+	if created.Capacity != 0 {
+		t.Errorf("capacity: wanted unlimited, got %d", created.Capacity)
+	}
+	if created.Position != len(columns)-1 {
+		t.Errorf("position: wanted %d, got %d", len(columns)-1, created.Position)
+	}
+	sequence := h.columnSequence()
+	if len(sequence) == 0 || sequence[len(sequence)-1] != created.ID {
+		t.Errorf("the workbench's columns sequence ends %v and the new column is %s", sequence, created.ID)
+	}
+}
+
+// TestColumnNewStoresTheKindItIsGiven is dinah-204 AC-2. Every kind the
+// grammar admits is stored as written, and a bare fourth word is refused
+// naming the argument that carried it, with no directory left behind.
+func TestColumnNewStoresTheKindItIsGiven(t *testing.T) {
+	for _, kind := range []string{contract.KindIntake, contract.KindWork, contract.KindDone, contract.KindBuffer} {
+		t.Run(kind, func(t *testing.T) {
+			h := newHarness(t)
+			req := newColumn("A Station")
+			req.Kind = kind
+			response := h.library.NewColumn(req)
+			if response.Outcome != contract.OutcomeOK {
+				t.Fatalf("column new with the kind %s: wanted ok, got %s %s", kind, response.Outcome, response.Refusal)
+			}
+			h.reopen()
+			created := h.library.Bench.Column(response.Detail)
+			if created == nil {
+				t.Fatalf("the workbench carries no column %s after the creation", response.Detail)
+			}
+			if created.Kind != kind {
+				t.Errorf("kind: wanted %q, got %q", kind, created.Kind)
+			}
+		})
+	}
+	t.Run("bogus", func(t *testing.T) {
+		h := newHarness(t)
+		was := h.columnDirs()
+		req := newColumn("A Station")
+		req.Kind = "bogus"
+		response := h.library.NewColumn(req)
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.Malformed {
+			t.Fatalf("a kind outside the grammar: wanted %s, got %s %s", contract.Malformed, response.Outcome, response.Refusal)
+		}
+		if response.Detail != "kind" {
+			t.Errorf("the refusal names %q rather than the argument that carried the value", response.Detail)
+		}
+		if now := h.columnDirs(); now != was {
+			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+	})
+}
+
+// TestColumnNewStoresTheCapacityItIsGiven is dinah-204 AC-3. A positive number
+// is stored, an absent argument writes no wip_limit key at all, and zero, a
+// negative number and a word are each refused with nothing on disk.
+//
+// The absent case reads the anchor's own bytes rather than the parsed
+// capacity, because a wrongly written wip_limit of 0 parses back to the same
+// zero an absent key does and would pass an assertion on the struct.
+func TestColumnNewStoresTheCapacityItIsGiven(t *testing.T) {
+	t.Run("a positive number", func(t *testing.T) {
+		h := newHarness(t)
+		req := newColumn("A Station")
+		req.Capacity = "3"
+		response := h.library.NewColumn(req)
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("a capacity of 3: wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+		h.reopen()
+		created := h.library.Bench.Column(response.Detail)
+		if created == nil {
+			t.Fatalf("the workbench carries no column %s after the creation", response.Detail)
+		}
+		if created.Capacity != 3 {
+			t.Errorf("capacity: wanted 3, got %d", created.Capacity)
+		}
+		if text := h.columnAnchorText(created.ID); !strings.Contains(text, "wip_limit: 3") {
+			t.Errorf("the anchor carries no wip_limit of 3:\n%s", text)
+		}
+	})
+	t.Run("no argument at all", func(t *testing.T) {
+		h := newHarness(t)
+		response := h.library.NewColumn(newColumn("A Station"))
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("no capacity at all: wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+		if text := h.columnAnchorText(response.Detail); strings.Contains(text, "wip_limit") {
+			t.Errorf("an unlimited column's anchor carries a wip_limit key:\n%s", text)
+		}
+	})
+	for _, value := range []string{"0", "-1", "abc"} {
+		t.Run(value, func(t *testing.T) {
+			h := newHarness(t)
+			was := h.columnDirs()
+			req := newColumn("A Station")
+			req.Capacity = value
+			response := h.library.NewColumn(req)
+			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.Malformed {
+				t.Fatalf("a capacity of %s: wanted %s, got %s %s", value, contract.Malformed, response.Outcome, response.Refusal)
+			}
+			if response.Detail != "capacity" {
+				t.Errorf("the refusal names %q rather than the argument that carried the value", response.Detail)
+			}
+			if now := h.columnDirs(); now != was {
+				t.Errorf("the refusal left %d column directories where there were %d", now, was)
+			}
+		})
+	}
+}
+
+// TestColumnNewRefusesASlugItCannotHonour is dinah-204 AC-4. A slug outside the
+// grammar and a slug another column already carries are both refused with
+// nothing written, and the collision is refused rather than resolved with a
+// counting suffix, so the same call made twice refuses the second time.
+func TestColumnNewRefusesASlugItCannotHonour(t *testing.T) {
+	t.Run("outside the grammar", func(t *testing.T) {
+		h := newHarness(t)
+		was := h.columnDirs()
+		req := newColumn("A Station")
+		req.Slug = "Not A Slug"
+		response := h.library.NewColumn(req)
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.Malformed {
+			t.Fatalf("wanted %s, got %s %s", contract.Malformed, response.Outcome, response.Refusal)
+		}
+		if response.Detail != bench.SlugField {
+			t.Errorf("the refusal names %q rather than the argument that carried the value", response.Detail)
+		}
+		if now := h.columnDirs(); now != was {
+			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+	})
+	t.Run("already carried by a live column", func(t *testing.T) {
+		h := newHarness(t)
+		was, sequence := h.columnDirs(), h.columnSequence()
+		req := newColumn("A Station")
+		req.Slug = aftercareSlug
+		response := h.library.NewColumn(req)
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.ColumnSlugTaken {
+			t.Fatalf("wanted %s, got %s %s", contract.ColumnSlugTaken, response.Outcome, response.Refusal)
+		}
+		if response.Detail != aftercareSlug {
+			t.Errorf("the refusal names %q rather than the slug the caller asked for", response.Detail)
+		}
+		if now := h.columnDirs(); now != was {
+			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+		if now := h.columnSequence(); len(now) != len(sequence) {
+			t.Errorf("the refusal left %d entries in the columns sequence where there were %d", len(now), len(sequence))
+		}
+	})
+	t.Run("a title no slug can be derived from", func(t *testing.T) {
+		h := newHarness(t)
+		was := h.columnDirs()
+		response := h.library.NewColumn(newColumn("!!!"))
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.Malformed {
+			t.Fatalf("wanted %s, got %s %s", contract.Malformed, response.Outcome, response.Refusal)
+		}
+		if response.Detail != "title" {
+			t.Errorf("the refusal names %q rather than the value the caller would have to change", response.Detail)
+		}
+		if now := h.columnDirs(); now != was {
+			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+	})
+	t.Run("the same call twice", func(t *testing.T) {
+		h := newHarness(t)
+		first := newColumn("A Station")
+		first.Slug = "sign-off"
+		if response := h.library.NewColumn(first); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the first call: wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+		h.reopen()
+		second := newColumn("A Station")
+		second.Slug = "sign-off"
+		response := h.library.NewColumn(second)
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.ColumnSlugTaken {
+			t.Fatalf("the second call: wanted %s, got %s %s", contract.ColumnSlugTaken, response.Outcome, response.Refusal)
+		}
+	})
+}
+
+// TestColumnNewPlacesTheColumnBeforeTheOneItNames is dinah-204 AC-5. The new
+// column's identifier lands immediately ahead of the named column's, every
+// pre-existing pair keeps the order it had, and a reference naming no column
+// is refused before any identifier is claimed.
+//
+// The fixture's aftercare station stands immediately upstream of its first
+// done column and carries no card here, which is what makes this placement one
+// the safety check allows. The occupied half of the same placement is
+// TestColumnNewRefusesAPlacementAnOccupiedColumnWouldFeel.
+func TestColumnNewPlacesTheColumnBeforeTheOneItNames(t *testing.T) {
+	h := newHarness(t)
+	was := h.columnSequence()
+	req := newColumn("Sign-off")
+	req.Before = finished
+	response := h.library.NewColumn(req)
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("a placement ahead of the done column: wanted ok, got %s %s", response.Outcome, response.Refusal)
+	}
+	now := h.columnSequence()
+	if len(now) != len(was)+1 {
+		t.Fatalf("wanted %d entries in the columns sequence, got %d", len(was)+1, len(now))
+	}
+	at := -1
+	for i, id := range now {
+		if id == response.Detail {
+			at = i
+		}
+	}
+	if at < 0 {
+		t.Fatalf("the columns sequence %v does not carry the new column %s", now, response.Detail)
+	}
+	if now[at+1] != finished {
+		t.Errorf("the new column stands ahead of %s rather than of %s", now[at+1], finished)
+	}
+	var kept []string
+	for _, id := range now {
+		if id != response.Detail {
+			kept = append(kept, id)
+		}
+	}
+	if strings.Join(kept, " ") != strings.Join(was, " ") {
+		t.Errorf("the pre-existing columns now read %v and read %v before the insertion", kept, was)
+	}
+}
+
+// TestColumnNewRefusesABeforeThatNamesNoColumn is the second half of dinah-204
+// AC-5: an unresolvable placement is refused by name, and nothing is claimed.
+func TestColumnNewRefusesABeforeThatNamesNoColumn(t *testing.T) {
+	h := newHarness(t)
+	was := h.columnDirs()
+	req := newColumn("Sign-off")
+	req.Before = "no-such-column"
+	response := h.library.NewColumn(req)
+	if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.UnknownColumn {
+		t.Fatalf("wanted %s, got %s %s", contract.UnknownColumn, response.Outcome, response.Refusal)
+	}
+	if response.Detail != "no-such-column" {
+		t.Errorf("the refusal names %q rather than the reference the caller typed", response.Detail)
+	}
+	if now := h.columnDirs(); now != was {
+		t.Errorf("the refusal left %d column directories where there were %d", now, was)
+	}
+}
+
+// TestColumnNewIsOpenToAnOwnerWhoIsNotTheOperator is part of dinah-204 AC-6.
+// Creation asks for an owner and for a workbench that designates an operator,
+// and it never compares the two, which is what separates it from every Set
+// verb this build carries.
+func TestColumnNewIsOpenToAnOwnerWhoIsNotTheOperator(t *testing.T) {
+	h := newHarness(t)
+	if h.library.Bench.Operator != "alka" {
+		t.Fatalf("the fixture designates %q as its operator, so this test is not asking what it says it asks", h.library.Bench.Operator)
+	}
+	req := newColumn("A Station")
+	req.Actor = "brin"
+	if response := h.library.NewColumn(req); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("an owner who is not the operator: wanted ok, got %s %s", response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	nameless := newColumn("A Station")
+	nameless.Actor = ""
+	if response := h.library.NewColumn(nameless); response.Refusal != contract.NoOwner {
+		t.Errorf("a request naming no owner: wanted %s, got %s %s", contract.NoOwner, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	h.library.Bench.Operator = ""
+	if response := h.library.NewColumn(newColumn("A Station")); response.Refusal != contract.NoOperator {
+		t.Errorf("a workbench designating no operator: wanted %s, got %s %s", contract.NoOperator, response.Outcome, response.Refusal)
+	}
+}
+
+// TestColumnNewRefusesAPlacementAnOccupiedColumnWouldFeel is dinah-204 AC-11.
+// The fixture's aftercare station is a work column standing immediately
+// upstream of a done column, so nothing carries a card up from it today.
+// Slotting a work column between the two gives aftercare a successor that does
+// take work up, which changes where a pull would carry a card standing there.
+// The placement is refused while a card stands at aftercare, allowed once
+// nothing does, and refused even when the card arrives after the call has
+// already read the flow once.
+func TestColumnNewRefusesAPlacementAnOccupiedColumnWouldFeel(t *testing.T) {
+	t.Run("a card is standing there", func(t *testing.T) {
+		h := newHarness(t)
+		h.ready("in flight")
+		was := h.columnDirs()
+		req := newColumn("Sign-off")
+		req.Before = finished
+		response := h.library.NewColumn(req)
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.ColumnRoutingDisrupted {
+			t.Fatalf("wanted %s, got %s %s", contract.ColumnRoutingDisrupted, response.Outcome, response.Refusal)
+		}
+		if response.Detail != aftercareSlug {
+			t.Errorf("the refusal names %q rather than the column whose routing would change", response.Detail)
+		}
+		if now := h.columnDirs(); now != was {
+			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+	})
+	t.Run("nothing is standing there", func(t *testing.T) {
+		h := newHarness(t)
+		req := newColumn("Sign-off")
+		req.Before = finished
+		if response := h.library.NewColumn(req); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the same placement with the column empty: wanted ok, got %s %s", response.Outcome, response.Refusal)
+		}
+	})
+	// The third case is what the operator's ruling on this card is about. The
+	// library has already read the flow and the cards once, when it was
+	// opened, and the placement was safe then. The card arrives inside the
+	// lock, through a second view of the workbench, which is what a process
+	// racing this one would do. A check reading the state it took before the
+	// lock would see an empty column and write, changing that card's routing
+	// underneath it with nothing said. The check reads again under the lock,
+	// so it meets the arrival and refuses.
+	t.Run("the card arrives after the first read", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("in flight")
+		if standing := h.card(ref).Column; standing == aftercare {
+			t.Fatalf("the card starts at %s, so it cannot arrive there later and this case proves nothing", aftercare)
+		}
+		other := h.second()
+		was := h.columnDirs()
+		var arrival *Response
+		h.library.Interleave = func() {
+			arrival = other.Do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare})
+		}
+		req := newColumn("Sign-off")
+		req.Before = finished
+		response := h.library.NewColumn(req)
+		h.library.Interleave = nil
+		if arrival == nil {
+			t.Fatal("the interleaved move never ran, so this test proves nothing")
+		}
+		if arrival.Outcome != contract.OutcomeOK {
+			t.Fatalf("the interleaved move: wanted ok, got %s %s", arrival.Outcome, arrival.Refusal)
+		}
+		if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.ColumnRoutingDisrupted {
+			t.Fatalf("the placement racing that arrival: wanted %s, got %s %s",
+				contract.ColumnRoutingDisrupted, response.Outcome, response.Refusal)
+		}
+		if response.Detail != aftercareSlug {
+			t.Errorf("the refusal names %q rather than the column the card arrived at", response.Detail)
+		}
+		if now := h.columnDirs(); now != was {
+			t.Errorf("the refusal left %d column directories where there were %d", now, was)
+		}
+	})
+}

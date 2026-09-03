@@ -72,9 +72,22 @@ type Request struct {
 	Holder string
 	// Expires is the duration a claim's lease runs for.
 	Expires time.Duration
-	// Reason and Kind are a block's prose reason and its optional class.
+	// Reason and Kind are a block's prose reason and its optional class, or
+	// the kind a column creation names.
 	Reason string
 	Kind   string
+	// Slug is the slug a creation call supplies, empty meaning derive one
+	// from the title, which is what creation always did before a caller
+	// could name one.
+	Slug string
+	// Capacity is the wip_limit a column creation names, as the caller wrote
+	// it, empty for unlimited. It is a string for the reason MaxDepth is:
+	// the verb that reads it parses it, so the request builder never has to
+	// know what any one verb's arguments mean.
+	Capacity string
+	// Before is the column a column creation places the new column
+	// immediately ahead of, empty to append at the end of the flow.
+	Before string
 	// Override is the marker CORE-MOVE-9 admits and CORE-MOVE-11 reserves.
 	Override bool
 	// NoClaim is the marker a pull carries to move a card without claiming
@@ -265,6 +278,9 @@ type Response struct {
 	// Workstream is the workstream as it now stands, on the responses of the
 	// two acts whose subject is a workstream rather than a card.
 	Workstream *WorkstreamView `json:"workstream,omitempty"`
+	// Column is the column as it now stands, on the one act whose subject is
+	// a column rather than a card or a workstream.
+	Column *ColumnView `json:"column,omitempty"`
 	// Basis is the revision the request was evaluated against.
 	Basis string `json:"basis,omitempty"`
 	// Instructions are the served layers, on a claim or a move that
