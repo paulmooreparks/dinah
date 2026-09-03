@@ -1964,6 +1964,16 @@
       "context": "Spliced onto refusal.dinah.unknown-workstream as the next step.",
       "source": "79e1c9e88254d8df"
     },
+    "refusal.dinah.damaged-workbench": {
+      "text": "{detail} एक वर्कबेंच का अपना पता है, लेकिन उसकी workbench.md अब Dinah लंगर के रूप में नहीं पढ़ी जाती",
+      "context": "The sentence printed after the refusal name dinah.damaged-workbench. {detail} is the .dinah container's own child directory, named the way ListWorkbenchIDs already admits it, whose workbench.md exists, reads fine, and carries none of profile, format, or columns. It is the directory --workbench takes, not the workbench.md file inside it, because the .next fragment below tells the reader to pass it there.",
+      "source": "5d8ff286f2ae7e8e"
+    },
+    "refusal.dinah.damaged-workbench.next": {
+      "text": "; उसे सीधे खोलकर देखने के लिए कि वास्तव में क्या गड़बड़ है, --workbench {detail} दें, या workbench.md को किसी बैकअप से या git से बहाल करें और फिर पुष्टि के लिए `dinah check` चलाएँ",
+      "context": "Spliced onto refusal.dinah.damaged-workbench as the next step. Naming --workbench {detail} is what lets the reader reach Open's own, more specific per-field refusal (missing title, missing profile, and so on) despite the discovery walk itself being unable to say more than damaged; --workbench bypasses recognition entirely and tests only that the file exists, which it does.",
+      "source": "78159c3092a046a6"
+    },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} मौजूद है और पढ़ी नहीं जा सकी",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open.",
@@ -3458,6 +3468,16 @@
       "text": "{count} वर्कबेंच कंटेनर में चली गई और उसके बाद माइग्रेशन रुक गया, इसलिए वह अब वहाँ नहीं है जहाँ थी।",
       "source": "97a44864c6552984"
     },
+    "check.container-damaged.one": {
+      "text": "{count} वर्कबेंच वहीं है जहाँ नियम उसे रखता है, और अब Dinah लंगर के रूप में नहीं पढ़ी जाती; उसे छुआ नहीं गया।",
+      "context": "The heading over the damaged workbenches a container sweep found, for exactly one. Each row names the directory. The sweep reports them and repairs none of them, because the repair is content rather than position.",
+      "source": "2e9b4ae4a687d1aa"
+    },
+    "check.container-damaged.other": {
+      "text": "{count} वर्कबेंच वहीं हैं जहाँ नियम उन्हें रखता है, और अब Dinah लंगर के रूप में नहीं पढ़ी जातीं; उनमें से किसी को छुआ नहीं गया।",
+      "context": "The heading over the damaged workbenches a container sweep found, for any other number.",
+      "source": "efad29e0a242c855"
+    },
     "check.container-duplicate.other": {
       "text": "{count} वर्कबेंच पहचानकर्ताओं पर एक से अधिक निर्देशिकाएँ दावा करती हैं, और उनमें से किसी को छुआ नहीं गया।",
       "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number.",
@@ -3507,6 +3527,11 @@
       "text": "{count} वर्कबेंच को कंटेनर में ले जाया जाएगा।",
       "context": "The heading over what a preview of the container migration would move, for exactly one workbench.",
       "source": "a487de1b4c762fe3"
+    },
+    "check.damaged-workbench": {
+      "text": "{detail} पर रखी workbench.md वहीं है जहाँ कंटेनमेंट नियम वर्कबेंच रखता है, और अब Dinah लंगर के रूप में नहीं पढ़ी जाती, इसलिए कोई खोज उसे नहीं पाती; dinah check --migrate-container वर्कबेंच की स्थिति सुधारता है, उसकी सामग्री नहीं, इसलिए workbench.md को किसी बैकअप से या git से बहाल करें",
+      "context": "A check finding: a directory carrying a workbench.md that sits where the containment rule puts a workbench and whose content this tool no longer recognises as a Dinah anchor. {detail} carries that directory. It is distinct from check.bare-workbench, which is a recognised anchor in the wrong place.",
+      "source": "d32fc009bfe3ec0e"
     },
     "check.duplicate-workbench-id": {
       "text": "एक ही वर्कबेंच पहचानकर्ता पर एक से अधिक निर्देशिकाएँ दावा करती हैं ({detail}); dinah check --remint <path> उनमें से एक को नया पहचानकर्ता देता है",

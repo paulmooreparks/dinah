@@ -1143,6 +1143,7 @@ func (s *session) renderContainer(report *verb.TreeContainerReport) {
 	}
 	s.vocabularySection("check.container-already", report.AlreadyContained)
 	s.vocabularySection("check.container-duplicate", s.findingRows(report.DuplicateFindings()))
+	s.vocabularySection("check.container-damaged", s.findingRows(report.DamagedWorkbenchFindings()))
 	unfinished := make([]string, 0, len(report.Failed))
 	failed := make([]string, 0, len(report.Failed))
 	for _, entry := range report.Failed {

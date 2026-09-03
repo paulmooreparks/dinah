@@ -796,3 +796,111 @@ func TestOneSweepRefusesEveryHeldWorkbenchItMeets(t *testing.T) {
 		t.Error("the refused lift created the container anyway")
 	}
 }
+
+// damagedContainedWorkbench writes a workbench.md that reads and carries none
+// of the keys recognition tests, at the one address the containment rule
+// gives a workbench: immediately inside a .dinah container, under a name that
+// container's own listing admits. It answers that directory.
+//
+// The identifier is written out rather than minted so that a failure names
+// the same path twice running. Its thirteenth character is the version nibble
+// and its seventeenth carries the variant bits, which is what IsWorkbenchID
+// admits.
+func damagedContainedWorkbench(t *testing.T, project string) string {
+	t.Helper()
+	workbench := filepath.Join(project, bench.UserBaseName, "0199a1b2c3d47abc8000000000000002")
+	if err := os.MkdirAll(workbench, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	anchor := filepath.Join(workbench, bench.WorkbenchAnchor)
+	if err := os.WriteFile(anchor, []byte("---\ntitle: Fixture\nslug: fx\n"), 0o644); err != nil {
+		t.Fatalf("write the damaged anchor: %v", err)
+	}
+	return workbench
+}
+
+// TestTheSweepReportsADamagedWorkbenchAndTouchesNothing asserts the rendering
+// half of AC-6. A tree-wide container check names every workbench it found
+// sitting where the rule puts one and unable to say so itself, on the preview
+// and on the applied run alike, and it changes nothing about any of them.
+//
+// The sweep repairs position and this damage is content, so there is nothing
+// for it to do here. The finding exists because a sweep that walked a tree
+// and said nothing about a workbench it met would be lying about the tree,
+// which is the same reason check.ignored-anchor exists.
+func TestTheSweepReportsADamagedWorkbenchAndTouchesNothing(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
+	damaged := damagedContainedWorkbench(t, filepath.Join(tree, "brokenproject"))
+	anchor := filepath.Join(damaged, bench.WorkbenchAnchor)
+	before, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the damaged anchor: %v", err)
+	}
+
+	preview := runCLI(t, tree, "check", "--root", ".", "--migrate-container")
+	if preview.code != 5 {
+		t.Fatalf("the preview exited %d, wanted the findings code 5: %s%s", preview.code, preview.out, preview.errw)
+	}
+	if !strings.Contains(preview.out, damaged) {
+		t.Errorf("the preview walked over the damaged workbench without naming it:\n%s", preview.out)
+	}
+
+	applied := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
+	if applied.code != 0 {
+		t.Fatalf("the migration exited %d: %s%s", applied.code, applied.out, applied.errw)
+	}
+	if !strings.Contains(applied.out, damaged) {
+		t.Errorf("the applied run reports the damaged workbench on the preview and not on the run:\n%s", applied.out)
+	}
+
+	// The sweep kept walking, so the workbench it could repair was repaired.
+	ids := bench.ListWorkbenchIDs(filepath.Join(project, bench.UserBaseName))
+	if len(ids) != 1 {
+		t.Errorf("the container inside the project holds %v, so one damaged workbench cost the sweep the one it could move", ids)
+	}
+
+	// And the one it could not repair is exactly where it was, byte for byte.
+	after, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("the damaged workbench moved or was removed: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Errorf("the sweep rewrote the damaged anchor, wanted %q, got %q", before, after)
+	}
+	if entries := bench.ListWorkbenchIDs(filepath.Dir(damaged)); len(entries) != 1 || entries[0] != filepath.Base(damaged) {
+		t.Errorf("the damaged workbench's container holds %v, wanted only %q", entries, filepath.Base(damaged))
+	}
+}
+
+// TestTheRefusalNamesADamagedWorkbenchInsteadOfReportingNone asserts the
+// defect this card exists for, end to end and through the head that a person
+// actually reads. Standing inside a workbench whose anchor is damaged, the
+// tool used to answer that no workbench was found, which is the opposite of
+// what is true and sends the reader looking for a workbench to create rather
+// than a file to restore.
+func TestTheRefusalNamesADamagedWorkbenchInsteadOfReportingNone(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	damaged := damagedContainedWorkbench(t, filepath.Join(tree, "brokenproject"))
+
+	got := runCLI(t, filepath.Join(tree, "brokenproject"), "status")
+	if got.code == 0 {
+		t.Fatalf("status resolved a workbench whose anchor is damaged: %s", got.out)
+	}
+	said := got.out + got.errw
+	if !strings.Contains(said, damaged) {
+		t.Errorf("the refusal does not name the damaged workbench %q:\n%s", damaged, said)
+	}
+	if strings.Contains(said, "no-workbench-found") {
+		t.Errorf("the refusal still reports that no workbench was found:\n%s", said)
+	}
+	if !strings.Contains(said, "damaged-workbench") {
+		t.Errorf("the refusal does not carry the damaged-workbench name:\n%s", said)
+	}
+	// The next step has to be actionable, because the whole point of naming
+	// the directory is that --workbench takes it and gets the reader past
+	// discovery to what Open can say about the content.
+	if !strings.Contains(said, "--workbench") {
+		t.Errorf("the refusal names no way forward:\n%s", said)
+	}
+}

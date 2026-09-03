@@ -593,11 +593,10 @@ func (s *search) fallbackTo(home string) (bool, error) {
 		return false, nil
 	}
 	s.userBase = filepath.Join(home, UserBaseName)
-	found, ambiguous, passed, err := soleBench(s.userBase)
+	found, ambiguous, err := soleBench(s.userBase)
 	if err != nil {
 		return false, err
 	}
-	s.passed = append(s.passed, passed...)
 	if found != "" {
 		s.sole = found
 		return true, nil
@@ -616,7 +615,13 @@ func (s *search) fallbackTo(home string) (bool, error) {
 // because they are somebody else's document. The fourth carries the ones met
 // and not claimed because they are recognisably Dinah's own and sit outside
 // any container. The error is a workbench.md that exists and could not be
-// read.
+// read, or one inside the .dinah that reads and no longer names itself as a
+// workbench.
+//
+// Only the anchor sitting directly in dir can reach the third value. An
+// unrecognised anchor inside the .dinah is refused rather than passed over,
+// because the name it sits under is one nobody but Dinah mints (dinah-367),
+// so soleBench raises it as an error and this function propagates it.
 //
 // A bare recognized anchor used to be returned as found, and that is the test
 // the containment rule removed: a workbench.md sitting directly in a project
@@ -649,11 +654,11 @@ func benchIn(dir string, skipBase bool) (found string, ambiguous, passed, bare [
 	if skipBase {
 		return "", nil, passed, bare, nil
 	}
-	baseFound, baseAmbiguous, basePassed, err := soleBench(filepath.Join(dir, UserBaseName))
+	baseFound, baseAmbiguous, err := soleBench(filepath.Join(dir, UserBaseName))
 	if err != nil {
 		return "", nil, nil, nil, err
 	}
-	return baseFound, baseAmbiguous, append(passed, basePassed...), bare, nil
+	return baseFound, baseAmbiguous, passed, bare, nil
 }
 
 // inContainer reports whether a workbench directory sits immediately inside a
@@ -1093,35 +1098,54 @@ func PathUnderRoot(root, candidate string) (bool, error) {
 
 // soleBench returns the one bench a base directory holds. A base holding
 // several is ambiguous, so it returns no bench and the candidates instead,
-// and the walk continues rather than picking one. The third value carries
-// the workbench.md files met and not claimed, each one a container id
-// directory holding somebody else's document. The error is a workbench.md
-// that exists and could not be read.
-func soleBench(base string) (found string, ambiguous, passed []string, err error) {
-	var candidates []string
+// and the walk continues rather than picking one. The error is a workbench.md
+// that exists and could not be read, or one that reads and no longer names
+// itself as a workbench.
+//
+// It reads every admitted entry before it decides anything, because every
+// candidate it considers already carries a name ListWorkbenchIDs admitted, so
+// a workbench.md it finds unreadable-as-recognized is never foreign
+// (dinah-285); it is damaged, exactly like a workbench.md this function could
+// not open at all. But unlike an open error, a damaged entry's own directory
+// might not be what decides this base's outcome: a base with one healthy,
+// unambiguous candidate has already answered the question regardless of what
+// else sits beside it, and refusing on a damaged sibling that never got to
+// matter is a false negative dinah-367's own review found live (a workbench
+// otherwise reachable and unambiguous became unreachable the moment a
+// half-migrated or hand-damaged sibling landed in the same container). So the
+// refusal is what soleBench returns only once the whole base has been read
+// and nothing else already resolved it.
+//
+// ListWorkbenchIDs reads through os.ReadDir, which sorts by filename, so the
+// damaged entry this names on a base holding several of them is the
+// alphabetically first rather than an arbitrary pick, and two runs over one
+// tree report the same directory.
+func soleBench(base string) (found string, ambiguous []string, err error) {
+	var candidates, damaged []string
 	for _, id := range ListWorkbenchIDs(base) {
 		candidate := filepath.Join(base, id)
 		anchorPath := filepath.Join(candidate, WorkbenchAnchor)
 		recognition, rerr := readAnchor(anchorPath)
 		if rerr != nil {
-			return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
+			return "", nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 		}
-		if recognition == anchorForeign {
-			passed = append(passed, anchorPath)
-			continue
+		switch recognition {
+		case anchorOurs:
+			candidates = append(candidates, candidate)
+		case anchorForeign:
+			damaged = append(damaged, candidate)
 		}
-		if recognition != anchorOurs {
-			continue
-		}
-		candidates = append(candidates, candidate)
 	}
 	if len(candidates) == 1 {
-		return candidates[0], nil, passed, nil
+		return candidates[0], nil, nil
 	}
 	if len(candidates) > 1 {
-		return "", candidates, passed, nil
+		return "", candidates, nil
 	}
-	return "", nil, passed, nil
+	if len(damaged) > 0 {
+		return "", nil, contract.Refuse(contract.DamagedBench, damaged[0])
+	}
+	return "", nil, nil
 }
 
 // SoleBeneath reports the one workbench store directory sitting immediately
@@ -1134,16 +1158,19 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 // It reports found=false on zero stores, on more than one, and on an anchor it
 // could not read, because none of those name a single answer worth offering.
 // A directory whose one entry carries a workbench.md that claims none of
-// Dinah's own keys counts as zero here, since soleBench passes such an anchor
-// over rather than admitting it as a candidate, so no path belonging to
-// somebody else is ever offered back.
+// Dinah's own keys counts as zero here too. soleBench refuses over such an
+// entry rather than admitting it as a candidate (dinah-367), so the answer
+// arrives as an error and lands in the same undecided branch, and this
+// function withholds the "did you mean" path rather than offering one that
+// would not open. Nothing is lost by the silence: a reader who passes
+// --workbench at that same directory gets the damage named directly.
 //
 // The probe is one non-recursive read of dir's .dinah and one anchor read per
 // hex-named entry in it, which is what soleBench already costs at every rung
 // of an ordinary climb. Nothing here recurses, so a caller-supplied path
 // cannot turn this into a walk.
 func SoleBeneath(dir string) (path string, found bool) {
-	sole, ambiguous, _, err := soleBench(filepath.Join(dir, UserBaseName))
+	sole, ambiguous, err := soleBench(filepath.Join(dir, UserBaseName))
 	if err != nil || sole == "" || len(ambiguous) > 0 {
 		return "", false
 	}

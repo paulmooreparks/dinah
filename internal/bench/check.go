@@ -50,6 +50,16 @@ const (
 	// different sentences: a foreign anchor was never Dinah's, where this one
 	// is a workbench somebody has been using that stopped being found.
 	FindingBareWorkbench = "check.bare-workbench"
+	// FindingDamagedWorkbench names a directory carrying a workbench.md this
+	// tool cannot recognise, sitting exactly where the containment rule says
+	// a workbench belongs. It is distinct from FindingBareWorkbench, which is
+	// a recognised anchor in the wrong place, and from FindingIgnoredAnchor,
+	// which is an anchor the discovery walk met and was never entitled to
+	// claim: this one is a workbench that already claimed its place by
+	// position and cannot speak for itself by content. Nothing
+	// --migrate-container does repairs it, since the repair here is content
+	// rather than position.
+	FindingDamagedWorkbench = "check.damaged-workbench"
 	// FindingDuplicateWorkbenchID names two or more directories sharing one
 	// workbench identifier, with every path in Detail. It is never repaired
 	// by the sweep, because a git clone of one workbench and a copy somebody
