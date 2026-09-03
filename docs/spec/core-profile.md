@@ -1442,7 +1442,7 @@ themselves carry meaning.
 | CORE-LINK-6 | must not | tool | A card another card's link names carries no link the tool added. |
 | CORE-ITEM-1 | may | tool | A card offered with a structured item is accepted. |
 | CORE-ITEM-2 | must | tool | For a structured item the tool reports, the tool answers whether that item is resolved. |
-| CORE-ITEM-3 | must not | tool | A refusal of a claim or a move on the ground that a card carries an unresolved structured item carries a refusal name other than `unresolved-item`. |
+| CORE-ITEM-3 | must not | tool | A refusal of a claim or a move on the ground that a card carries an unresolved structured item carries no refusal name other than `unresolved-item`. |
 | CORE-OUT-1 | must | tool | Every verb response carries exactly one of the four outcome tokens. |
 | CORE-OUT-2 | must | tool | Every response of `refused` carries exactly one refusal name. |
 | CORE-OUT-3 | must | tool | Every refusal name reported is one section 6.1 declares or one containing a full stop. |
