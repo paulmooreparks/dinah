@@ -1234,3 +1234,27 @@ func (s *session) findingRows(findings []bench.Finding) []string {
 func (s *session) renderRemint(report *verb.RemintReport) {
 	s.line(s.r.T("check.reminted", "from", report.From, "to", report.To))
 }
+
+// renderSearch prints what a search found: one row per hit, ranked, with a
+// snippet showing why the hit surfaced.
+//
+// The score itself is not a column. A person reads rank by reading down the
+// page, the way they read `dinah query`'s own table, and a number beside every
+// row would only invite them to compare two hits by arithmetic the table has
+// already done for them.
+//
+// This site sits at the foot of the file on purpose: three fixtures in this
+// package address a table by its own source line, so a block added above one
+// of them moves it.
+func (s *session) renderSearch(results *verb.SearchResults) {
+	if len(results.Hits) == 0 {
+		s.line(s.r.T("search.empty"))
+		return
+	}
+	t := table{indent: 2, columns: s.columns("search", "kind", "reference", "title", "matched", "snippet")}
+	for _, hit := range results.Hits {
+		fields := []string{s.token(hit.Kind), hit.Ref, hit.Title, s.token(hit.MatchedIn), hit.Snippet}
+		t.rows = append(t.rows, tableRow{fields: fields})
+	}
+	s.table(t)
+}

@@ -64,6 +64,7 @@ func init() {
 		{name: "ls", group: groupRead, run: runList, bounded: 1},
 		{name: "next", group: groupRead, run: runNext, bounded: 1},
 		{name: "query", group: groupRead, run: runQuery, openTail: true},
+		{name: "search", group: groupRead, run: runSearch, openTail: true},
 		{name: "tree", group: groupRead, run: runTree, openTail: true},
 		{name: "contents", group: groupRead, run: runContents, bounded: 1},
 		{name: "attachments", group: groupRead, run: runAttachments, bounded: 1},
@@ -493,6 +494,44 @@ func runQuery(s *session, parsed *arguments) int {
 			return s.emitMachine(matches)
 		}
 		s.renderMatches(matches)
+		return 0
+	})
+}
+
+// runSearch reports every place a phrase occurs in the workbench.
+//
+// The phrase is the command's free-text slot, so a caller who types several
+// words unquoted meets the refusal that rebuilds the line for them quoted,
+// which is what every other open-tail command already gives. The filter is a
+// flag rather than a second free-text zone, because the parser has one such
+// zone per command and it is already spent on the phrase.
+func runSearch(s *session, parsed *arguments) int {
+	req := s.request("search", parsed)
+	text, refusal := s.freeText([]string{"search"}, parsed.rest(), "slot.search")
+	if refusal != nil {
+		return s.reportError(refusal)
+	}
+	req.SearchText = text
+	req.Query = parsed.value("query")
+	req.Archived = parsed.has("archived")
+	walk, scopeRefusal := s.rootWalkFor(parsed, parsed.value("root"))
+	if scopeRefusal != nil {
+		return s.reportError(scopeRefusal)
+	}
+	if walk != nil {
+		return emitForest(s,
+			func() (*verb.RootSearch, error) { return verb.SearchForest(walk.Root, s.home, req, walk.Depth) },
+			s.renderRootSearch)
+	}
+	return s.withBench(func(l *verb.Library) int {
+		results, err := l.Search(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(results)
+		}
+		s.renderSearch(results)
 		return 0
 	})
 }

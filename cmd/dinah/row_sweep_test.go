@@ -180,6 +180,13 @@ type sweptWorkbenches struct {
 	// ambiguous holds two workbenches under one base, which is the search
 	// that resolves to a choice rather than to a workbench.
 	ambiguous string
+	// search holds the tree the search block draws from, which is a tree of
+	// its own because the healthy corpus plants no one phrase in a card's
+	// title, a column's instructions and the workbench's own body at once,
+	// and those three are what make the block draw more than one kind of row.
+	// Nothing the block runs writes to it, so one tree serves every language
+	// and every pass.
+	search string
 	// card is a reference the healthy tree carries.
 	card string
 	// held is the reference of the card claimed in the healthy tree.
@@ -1401,6 +1408,24 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: "render.go:1259", label: "dinah search",
+			keys: []string{"column.search.kind", "column.search.reference", "column.search.title",
+				"column.search.matched", "column.search.snippet"},
+			// The title column is what varies rather than the column in front
+			// of the last one. The block's last column is the snippet, so the
+			// column in front of it says where the phrase was found, and that
+			// cell draws one of two words whose widths agree in some languages
+			// and not others. The title column varies in every language,
+			// because the three cards the fixture files carry the sweep's own
+			// three scripts and the two other rows carry a column's title and
+			// the workbench's.
+			varies: 2,
+			expect: expectSearch,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.search, tag, "search", sweptSearchPhrase)
+			},
+		},
+		{
 			site: "render.go:322", label: "dinah tree",
 			keys:   []string{"column.tree.reference", "column.tree.entity", "column.tree.title", "column.tree.count"},
 			expect: expectTree,
@@ -1622,7 +1647,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:770", label: "the guide topics",
+			site: "commands.go:809", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -1913,6 +1938,8 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 		{title: sweptFinishedTitle, slug: sweptFinishedSlug, status: sweptFinishedStatus},
 	}
 	benches.record.strippedWorkstreams = sweptStrippedWorkstreams()
+
+	benches.search = sweptSearchTree(t, base, benches.record)
 
 	rooms := populateBase(t, filepath.Join(benches.ambiguous, bench.UserBaseName), "one", "twoandthree")
 	sweptRetitle(t, rooms[0], wideTitle)
@@ -2572,4 +2599,85 @@ func TestTheSweepsEditorRowIgnoresTheEnvironment(t *testing.T) {
 	}
 	t.Fatalf("the editor row answered at a rung the fixture did not write: wanted %q at %s, got %q at %s",
 		benches.record.editor, bench.SourceConfig, editor.Value, editor.Source)
+}
+
+// The phrase the search block plants and the three kinds of text it plants it
+// in. The phrase is a word no other fixture text carries, so what the block
+// draws is what the fixture put in rather than whatever else the tree happens
+// to say, and every planted text is short because the block draws five columns
+// and the sweep's narrowest full pass is eighty columns wide.
+//
+// The phrase goes in a card's framing rather than in its title. A title hit
+// carries the title as its own snippet, which would draw the widest column of
+// the block twice and take the block past the window it has to hold its shape
+// in.
+const (
+	sweptSearchPhrase      = "hay"
+	sweptSearchColumnNote  = "hay column"
+	sweptSearchBenchNote   = "hay bench"
+	sweptSearchColumnID    = "f00000000001"
+	sweptSearchColumnTitle = "Needles"
+	sweptSearchColumnSlug  = "needles"
+	sweptSearchSlug        = "sk"
+)
+
+// sweptSearchBodies are the framings the fixture writes onto its three cards,
+// one each, in the order the cards are filed.
+var sweptSearchBodies = []string{"hay one", "hay two", "hay three"}
+
+// sweptSearchTree builds the tree the search block draws from and records what
+// it planted, which is what the block's expectation is built from.
+//
+// Five hits come out of it: one per card framing, under the sweep's own three
+// scripts, then one for a column's instructions and one for the workbench's
+// own body. That spread is the point. It draws three kinds in the kind column
+// and two references beside the cards' own, and no phrase the healthy corpus
+// carries reaches a column or the workbench at all.
+func sweptSearchTree(t *testing.T, base string, record *sweptRecord) string {
+	t.Helper()
+	dir := filepath.Join(base, "search")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sweptDo(t, dir, "init", "--slug", sweptSearchSlug, "--operator", "alka")
+	root := sweptRoot(t, dir)
+	sweptAddColumn(t, dir, sweptSearchColumnID, sweptSearchColumnTitle, "work", "slug: "+sweptSearchColumnSlug+"\n")
+	sweptRewrite(t, filepath.Join(root, bench.ColumnsDir, sweptSearchColumnID, bench.ColumnAnchor),
+		func(source string) string { return source + sweptSearchColumnNote + "\n" })
+	sweptRewrite(t, filepath.Join(root, bench.WorkbenchAnchor),
+		func(source string) string { return source + "\n" + sweptSearchBenchNote + "\n" })
+	for i, body := range sweptSearchBodies {
+		title := sweptTitles[i]
+		ref := sweptSearchSlug + "-" + strconv.Itoa(i+1)
+		sweptDo(t, dir, "add", title)
+		sweptWriteFraming(t, dir, ref, body)
+		record.searchHits = append(record.searchHits, sweptSearchRecord{
+			kind: "card", ref: ref, title: title, matchedIn: "framing", snippet: body,
+		})
+	}
+	record.searchHits = append(record.searchHits,
+		sweptSearchRecord{
+			kind: "column", ref: sweptSearchColumnSlug, title: sweptSearchColumnTitle,
+			matchedIn: "framing", snippet: sweptSearchColumnNote,
+		},
+		sweptSearchRecord{
+			kind: "workbench", ref: sweptSearchSlug, title: filepath.Base(dir),
+			matchedIn: "framing", snippet: sweptSearchBenchNote,
+		})
+	return dir
+}
+
+// sweptWriteFraming puts framing prose on a card by writing its anchor, since
+// no command writes a card's body. It appends under the frontmatter the way a
+// person editing the file would, and handWrite is the sibling that writes a
+// frontmatter line the same way.
+func sweptWriteFraming(t *testing.T, dir, ref, body string) {
+	t.Helper()
+	got := runCLI(t, dir, "path", ref)
+	if got.code != 0 {
+		t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
+	}
+	sweptRewrite(t, strings.TrimSpace(got.out), func(source string) string {
+		return source + body + "\n"
+	})
 }

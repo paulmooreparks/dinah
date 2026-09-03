@@ -361,6 +361,14 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// A search with nothing to search for. It carries no value of its own:
+		// the phrase the caller wrote is empty, which is the whole of what the
+		// sentence says, so there is nothing to name back to them.
+		Name:      EmptySearch,
+		Fragments: []Fragment{{Key: "refusal.dinah.empty-search.next"}},
+		NextStep:  []string{"refusal.dinah.empty-search.next"},
+	},
+	{
 		Name:      NoConfiguredWorkbench,
 		Fragments: []Fragment{{Key: "refusal.dinah.no-configured-workbench.next"}},
 		NextStep:  []string{"refusal.dinah.no-configured-workbench.next"},

@@ -2864,6 +2864,94 @@
     "status.workbench.unsourced": {
       "text": "{title}  ({root})",
       "context": "The first line of status under a root-scoped read: the workbench and where it was discovered, with no rung named. It stands in for status.workbench, which also names the rung that resolved the workbench, because a root-scoped read resolves no single workbench by any rung and an empty bracket reads as a value that failed to render."
+    },
+    "cmd.search.summary": {
+      "text": "Every place a phrase occurs in this workbench",
+      "context": "The one-line summary of the search command, shown beside its syntax in the help block."
+    },
+    "search.empty": {
+      "text": "No card, column, workstream or workbench text matches that search.",
+      "context": "Printed when a search phrase matched nothing at all. The phrase itself was legal, so this is an answer rather than a refusal."
+    },
+    "refusal.dinah.empty-search": {
+      "text": "the search phrase is empty",
+      "context": "The sentence printed after the refusal name dinah.empty-search."
+    },
+    "refusal.dinah.empty-search.next": {
+      "text": "; write the phrase to look for, in quotation marks if it has a space in it",
+      "context": "Spliced onto refusal.dinah.empty-search as the next step."
+    },
+    "param.search.phrase.summary": {
+      "text": "the phrase to look for, in one shell word or in quotation marks",
+      "context": "The meaning of the phrase argument of `dinah search`, printed in that command's arguments table."
+    },
+    "param.search.query.summary": {
+      "text": "narrows the cards searched, in the terms `dinah query` takes, in quotation marks",
+      "context": "The meaning of the --query flag of `dinah search`, printed in that command's arguments table."
+    },
+    "param.search.archived.summary": {
+      "text": "search the archived cards as well as the live ones",
+      "context": "The meaning of the --archived flag of `dinah search`, printed in that command's arguments table."
+    },
+    "slot.search": {
+      "text": "the phrase",
+      "context": "Names search's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}."
+    },
+    "column.search.kind": {
+      "text": "Kind",
+      "context": "Heading over what sort of thing matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.search.reference": {
+      "text": "Reference",
+      "context": "Heading over the reference a person types to name what matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.search.title": {
+      "text": "Title",
+      "context": "Heading over the title of what matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.search.matched": {
+      "text": "Matched in",
+      "context": "Heading over the field the phrase was found in, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.search.snippet": {
+      "text": "Snippet",
+      "context": "Heading over an excerpt of the matched text, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "token.card": {
+      "text": "card",
+      "context": "Names a card, in the kind column of the table `dinah search` prints."
+    },
+    "token.workbench": {
+      "text": "workbench",
+      "context": "Names the workbench itself, in the kind column of the table `dinah search` prints."
+    },
+    "token.column": {
+      "text": "column",
+      "context": "Names a column, in the kind column of the table `dinah search` prints."
+    },
+    "token.workstream": {
+      "text": "workstream",
+      "context": "Names a workstream, in the kind column of the table `dinah search` prints."
+    },
+    "token.reference": {
+      "text": "reference",
+      "context": "Names a card's own human reference, in the matched-in column of the table `dinah search` prints."
+    },
+    "token.title": {
+      "text": "title",
+      "context": "Names a title, in the matched-in column of the table `dinah search` prints."
+    },
+    "token.framing": {
+      "text": "framing",
+      "context": "Names framing prose, which is a card's body, the workbench's own body, a column's instructions or a workstream's notes, in the matched-in column of the table `dinah search` prints."
+    },
+    "token.comment": {
+      "text": "comment",
+      "context": "Names a comment, in the matched-in column of the table `dinah search` prints."
+    },
+    "token.attachment": {
+      "text": "attachment",
+      "context": "Names the text of an attachment, in the matched-in column of the table `dinah search` prints."
     }
   }
 }

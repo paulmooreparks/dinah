@@ -3590,6 +3590,116 @@
       "context": "The first line of status under a root-scoped read: the workbench and where it was discovered, with no rung named. It stands in for status.workbench, which also names the rung that resolved the workbench, because a root-scoped read resolves no single workbench by any rung and an empty bracket reads as a value that failed to render.",
       "source": "b0ce7a703cdbb8ec",
       "verbatim": true
+    },
+    "cmd.search.summary": {
+      "text": "इस वर्कबेंच में हर वह जगह जहाँ कोई वाक्यांश आता है",
+      "context": "The one-line summary of the search command, shown beside its syntax in the help block.",
+      "source": "a9942f0ea9beee72"
+    },
+    "search.empty": {
+      "text": "किसी कार्ड, कॉलम, वर्कस्ट्रीम या वर्कबेंच के पाठ से उस खोज का मेल नहीं है।",
+      "context": "Printed when a search phrase matched nothing at all. The phrase itself was legal, so this is an answer rather than a refusal.",
+      "source": "920ffa837c5fba80"
+    },
+    "refusal.dinah.empty-search": {
+      "text": "खोज वाक्यांश खाली है",
+      "context": "The sentence printed after the refusal name dinah.empty-search.",
+      "source": "7c7c78a79c7d9692"
+    },
+    "refusal.dinah.empty-search.next": {
+      "text": "; जिसे खोजना है वह वाक्यांश लिखें, और यदि उसमें रिक्ति हो तो उद्धरण चिह्नों के भीतर",
+      "context": "Spliced onto refusal.dinah.empty-search as the next step.",
+      "source": "68acfea9db763aca"
+    },
+    "param.search.phrase.summary": {
+      "text": "जिसे खोजना है वह वाक्यांश, एक ही शब्द में या उद्धरण चिह्नों के भीतर",
+      "context": "The meaning of the phrase argument of `dinah search`, printed in that command's arguments table.",
+      "source": "bbb6077050910f75"
+    },
+    "param.search.query.summary": {
+      "text": "खोजे जाने वाले कार्ड सीमित करता है, उन्हीं पदों में जो `dinah query` लेता है, उद्धरण चिह्नों के भीतर",
+      "context": "The meaning of the --query flag of `dinah search`, printed in that command's arguments table.",
+      "source": "485afd78f9e03882"
+    },
+    "param.search.archived.summary": {
+      "text": "जीवित कार्डों के साथ संग्रहीत कार्ड भी खोजें",
+      "context": "The meaning of the --archived flag of `dinah search`, printed in that command's arguments table.",
+      "source": "5f726ce74c171ded"
+    },
+    "slot.search": {
+      "text": "वाक्यांश",
+      "context": "Names search's free-text slot inside refusal.dinah.multiple-words, which reads it as {label}.",
+      "source": "1ef3279a1ac3ba09"
+    },
+    "column.search.kind": {
+      "text": "प्रकार",
+      "context": "Heading over what sort of thing matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "70af97de3ad8fb23"
+    },
+    "column.search.reference": {
+      "text": "संदर्भ",
+      "context": "Heading over the reference a person types to name what matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "fe88d270aa3e71da"
+    },
+    "column.search.title": {
+      "text": "शीर्षक",
+      "context": "Heading over the title of what matched, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "99f110d27e30b289"
+    },
+    "column.search.matched": {
+      "text": "कहाँ मिला",
+      "context": "Heading over the field the phrase was found in, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "401d7d74f7b76c8e"
+    },
+    "column.search.snippet": {
+      "text": "अंश",
+      "context": "Heading over an excerpt of the matched text, in the table `dinah search` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "ebef8e2d3f2fcfe"
+    },
+    "token.card": {
+      "text": "कार्ड",
+      "context": "Names a card, in the kind column of the table `dinah search` prints.",
+      "source": "b5614e90e87b455f"
+    },
+    "token.workbench": {
+      "text": "वर्कबेंच",
+      "context": "Names the workbench itself, in the kind column of the table `dinah search` prints.",
+      "source": "302be2b037ca1f9e"
+    },
+    "token.column": {
+      "text": "कॉलम",
+      "context": "Names a column, in the kind column of the table `dinah search` prints.",
+      "source": "5f531287628bf287"
+    },
+    "token.workstream": {
+      "text": "वर्कस्ट्रीम",
+      "context": "Names a workstream, in the kind column of the table `dinah search` prints.",
+      "source": "b489804a833b5a0"
+    },
+    "token.reference": {
+      "text": "संदर्भ",
+      "context": "Names a card's own human reference, in the matched-in column of the table `dinah search` prints.",
+      "source": "9a7b103262a7ba7a"
+    },
+    "token.title": {
+      "text": "शीर्षक",
+      "context": "Names a title, in the matched-in column of the table `dinah search` prints.",
+      "source": "da31296c0c1b6029"
+    },
+    "token.framing": {
+      "text": "प्रसंग पाठ",
+      "context": "Names framing prose, which is a card's body, the workbench's own body, a column's instructions or a workstream's notes, in the matched-in column of the table `dinah search` prints.",
+      "source": "1c7e534a66bf01b1"
+    },
+    "token.comment": {
+      "text": "टिप्पणी",
+      "context": "Names a comment, in the matched-in column of the table `dinah search` prints.",
+      "source": "8a0021ca40aeac3e"
+    },
+    "token.attachment": {
+      "text": "संलग्नक",
+      "context": "Names the text of an attachment, in the matched-in column of the table `dinah search` prints.",
+      "source": "2073f89ac8d3f248"
     }
   }
 }

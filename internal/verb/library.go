@@ -101,6 +101,14 @@ type Request struct {
 	// byte as the caller wrote it, since Matches echoes what it was given
 	// rather than what the parser made of it.
 	Query string
+	// SearchText is the phrase dinah search matches against every field it
+	// reads. It is distinct from Query, which narrows the card set the phrase
+	// is run over rather than naming what it is run against.
+	SearchText string
+	// Archived asks search to include the archived half of the cards
+	// collection in its scan, which is otherwise left out on the format's own
+	// rule that the archive is read on demand.
+	Archived bool
 	// GroupBy is the axis chain a tree nests along, as the caller wrote it:
 	// one comma-separated word, empty for the default chain.
 	GroupBy string
