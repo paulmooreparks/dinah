@@ -423,6 +423,146 @@ func TestTheBoundaryTallyCountsTheRowsTheTableCarries(t *testing.T) {
 	}
 }
 
+// indexTally matches the sentence section 11 carries beneath its index,
+// stating how many rows the index holds. It is a hand-written derived figure
+// of the same class as the boundary tally above, and it had already gone
+// stale in the same way: at profile 0.9 it read 127 while the index carried
+// 130, and nothing in the document or the tool read it, so the three-row gap
+// stood through every pass over the file.
+var indexTally = regexp.MustCompile(`^The index carries (\d+) rows, `)
+
+// TestTheIndexCountCountsTheStatementsTheDocumentPublishes holds section 11's
+// own count of its rows against the statements the extraction returns.
+//
+// TestIndexMatchesTheExtraction holds the index TABLE to the extraction and
+// never reads this sentence, so a statement published with its index row in
+// the right place leaves that check green and the sentence beneath the table
+// false. That is how the 127 survived.
+func TestTheIndexCountCountsTheStatementsTheDocumentPublishes(t *testing.T) {
+	text := readProfile(t)
+	doc := extractProfile(t)
+	if len(doc.Statements) == 0 {
+		t.Fatal("the extraction returned no statements")
+	}
+
+	var found int
+	for i, line := range strings.Split(text, "\n") {
+		m := indexTally.FindStringSubmatch(strings.TrimRight(line, "\r"))
+		if m == nil {
+			continue
+		}
+		found++
+		if found > 1 {
+			t.Errorf("line %d: the document states its index count a second time, so two sentences now go stale independently", i+1)
+			continue
+		}
+		got, err := strconv.Atoi(m[1])
+		if err != nil {
+			t.Fatalf("line %d: reading the index count: %v", i+1, err)
+		}
+		if got != len(doc.Statements) {
+			t.Errorf("line %d: the sentence counts the index at %d rows, the extraction returns %d statements", i+1, got, len(doc.Statements))
+		}
+	}
+	if found == 0 {
+		t.Fatal("section 11 states no row count, so either the sentence was removed or its wording drifted out of the shape this guard reads")
+	}
+}
+
+// numberWords spells the counts the profile writes out in prose. A small
+// count is written as a word rather than as a numeral throughout the
+// document, so a guard reading such a sentence has to spell the count it
+// computed before it can compare the two.
+var numberWords = []string{
+	"zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+	"nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+	"sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+	"twenty-one", "twenty-two", "twenty-three", "twenty-four", "twenty-five",
+	"twenty-six", "twenty-seven", "twenty-eight", "twenty-nine", "thirty",
+}
+
+// refusalNamesLead is the sentence section 6.1 puts ahead of the block of
+// refusal names it declares. The block is located from this sentence rather
+// than by taking the section's first fence, because the section carries a
+// second fenced block after it.
+const refusalNamesLead = "The refusal names this profile declares are these"
+
+// refusalNameTally matches the sentence beneath that block, which states how many
+// names the block holds. Same class as the two tallies above: written by
+// hand, falsified by declaring a name, and read by nothing until now.
+var refusalNameTally = regexp.MustCompile(`^One of the ([a-z-]+) is general where the others are particular\.`)
+
+// TestTheRefusalTallyCountsTheNamesTheBlockDeclares holds section 6.1's count
+// of the refusal names it declares against the names the block itself
+// carries.
+func TestTheRefusalTallyCountsTheNamesTheBlockDeclares(t *testing.T) {
+	body := section(readProfile(t), "### 6.1 Outcomes and refusals")
+	if body == "" {
+		t.Fatal("section 6.1 not found")
+	}
+	lines := strings.Split(body, "\n")
+
+	lead := -1
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), refusalNamesLead) {
+			lead = i
+			break
+		}
+	}
+	if lead < 0 {
+		t.Fatalf("section 6.1 carries no sentence opening %q, so the block of refusal names can no longer be located", refusalNamesLead)
+	}
+
+	open, close := -1, -1
+	for i := lead; i < len(lines); i++ {
+		if !strings.HasPrefix(strings.TrimSpace(lines[i]), "```") {
+			continue
+		}
+		if open < 0 {
+			open = i
+			continue
+		}
+		close = i
+		break
+	}
+	if open < 0 || close < 0 {
+		t.Fatal("section 6.1 carries no fenced block of refusal names after the sentence that introduces it")
+	}
+
+	var names []string
+	for _, field := range strings.Split(strings.Join(lines[open+1:close], " "), ",") {
+		if name := strings.TrimSpace(field); name != "" {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		t.Fatal("the block of refusal names is empty")
+	}
+	if len(names) >= len(numberWords) {
+		t.Fatalf("the block declares %d refusal names, which numberWords cannot spell, so extend that table", len(names))
+	}
+	want := numberWords[len(names)]
+
+	var found int
+	for i, line := range lines {
+		m := refusalNameTally.FindStringSubmatch(strings.TrimRight(line, "\r"))
+		if m == nil {
+			continue
+		}
+		found++
+		if found > 1 {
+			t.Errorf("section 6.1 line %d: the section states its refusal count a second time, so two sentences now go stale independently", i+1)
+			continue
+		}
+		if m[1] != want {
+			t.Errorf("section 6.1 line %d: the sentence counts the declared refusal names as %q, the block carries %d of them (%s)", i+1, m[1], len(names), want)
+		}
+	}
+	if found == 0 {
+		t.Fatal("section 6.1 states no count of its refusal names, so either the sentence was removed or its wording drifted out of the shape this guard reads")
+	}
+}
+
 // TestHouseStyle asserts the typographic rules the profile's style section
 // states, which a reviewer should never have to check by eye.
 //
