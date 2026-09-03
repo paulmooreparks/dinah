@@ -1685,6 +1685,14 @@
       "text": " Give init the target directory as a plain argument instead.",
       "context": "Spliced onto refusal.dinah.workbench-not-applicable as the next step, carrying the sentence that base entry used to end with."
     },
+    "refusal.dinah.workstream-slug-taken": {
+      "text": "another workstream of this workbench already carries the slug {detail}",
+      "context": "The sentence printed after the refusal name dinah.workstream-slug-taken. {detail} carries the slug the caller supplied at creation."
+    },
+    "refusal.dinah.workstream-slug-taken.next": {
+      "text": "; name a different slug, or leave --slug out and let creation derive one from the title",
+      "context": "Spliced onto refusal.dinah.workstream-slug-taken as the next step."
+    },
     "refusal.dinah.repair-would-empty-columns": {
       "text": "{detail} names every column left in the workbench, and each one's directory is missing. Removing them would leave the workbench with no column at all, so dinah check --migrate-columns refuses.",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-columns. {detail} is the comma-joined ids of every column the raw columns list still names, all of them stranded, which RemoveStrandedColumns would otherwise have dropped down to an empty list."
@@ -2400,6 +2408,10 @@
     "param.workstream.field.summary": {
       "text": "which field you are reading or writing",
       "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table."
+    },
+    "param.workstream.slug.summary": {
+      "text": "which slug to create the workstream with, in place of one derived from its title",
+      "context": "The meaning of the slug argument of `dinah workstream`, printed in that command's arguments table."
     },
     "param.workstream.summary": {
       "text": "the workstream you are naming, written as its slug or its identifier",

@@ -2001,6 +2001,11 @@
       "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.workstream.slug.summary": {
+      "text": "which slug to create the workstream with, in place of one derived from its title",
+      "context": "The meaning of the slug argument of `dinah workstream`, printed in that command's arguments table.",
+      "skeleton": true
+    },
     "param.workstream.summary": {
       "text": "the workstream you are naming, written as its slug or its identifier",
       "context": "The meaning of the workstream argument, shared by the commands that name one.",
@@ -2573,6 +2578,16 @@
     "refusal.dinah.workbench-not-applicable.next": {
       "text": " Give init the target directory as a plain argument instead.",
       "context": "Spliced onto refusal.dinah.workbench-not-applicable as the next step, carrying the sentence that base entry used to end with.",
+      "skeleton": true
+    },
+    "refusal.dinah.workstream-slug-taken": {
+      "text": "another workstream of this workbench already carries the slug {detail}",
+      "context": "The sentence printed after the refusal name dinah.workstream-slug-taken. {detail} carries the slug the caller supplied at creation.",
+      "skeleton": true
+    },
+    "refusal.dinah.workstream-slug-taken.next": {
+      "text": "; name a different slug, or leave --slug out and let creation derive one from the title",
+      "context": "Spliced onto refusal.dinah.workstream-slug-taken as the next step.",
       "skeleton": true
     },
     "refusal.held": {

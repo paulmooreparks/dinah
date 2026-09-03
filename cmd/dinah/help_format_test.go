@@ -86,7 +86,7 @@ WORKBENCH
                                                            the operator
   workbench [get|set] [field] [value] [--yes]            Read this workbench's own fields, or write one
   workstream [new|get|set] [workstream|title] [field]    Read this workbench's workstreams, create one, or
-    [value] [--yes]                                        write one's fields
+    [value] [--slug <slug>] [--yes]                        write one's fields
   workbenches [path] [--max-depth <n>]                   The workbenches beneath a directory, or the ones
                                                            reachable from here
   version [--catalogs]                                   What Dinah is and what it conforms to
@@ -162,7 +162,7 @@ WORKBENCH
     [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                           The actor your actions carry, and whether it is the operator
   workbench [get|set] [field] [value] [--yes]                                                      Read this workbench's own fields, or write one
-  workstream [new|get|set] [workstream|title] [field] [value] [--yes]                              Read this workbench's workstreams, create one, or write one's fields
+  workstream [new|get|set] [workstream|title] [field] [value] [--slug <slug>] [--yes]              Read this workbench's workstreams, create one, or write one's fields
   workbenches [path] [--max-depth <n>]                                                             The workbenches beneath a directory, or the ones reachable from here
   version [--catalogs]                                                                             What Dinah is and what it conforms to
 
