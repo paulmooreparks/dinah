@@ -16,6 +16,7 @@ import {
 	blockCard,
 	claimCard,
 	contextFor,
+	copyCardRef,
 	moveCard,
 	movePick,
 	openAttachment,
@@ -33,6 +34,10 @@ interface Recorder {
 	readonly calls: string[][];
 	readonly errors: string[];
 	readonly checkpoints: string[];
+	/** The messages the host was asked to show as plain information. */
+	readonly infos: string[];
+	/** Every string the host was asked to put on the clipboard, in order. */
+	readonly copied: string[];
 	readonly opened: string[];
 	/** The files handed to the host's file opener, in call order. */
 	readonly files: string[];
@@ -61,6 +66,8 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	const calls: string[][] = [];
 	const errors: string[] = [];
 	const checkpoints: string[] = [];
+	const infos: string[] = [];
+	const copied: string[] = [];
 	const opened: string[] = [];
 	const files: string[] = [];
 	const logged: string[] = [];
@@ -69,6 +76,8 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 		calls,
 		errors,
 		checkpoints,
+		infos,
+		copied,
 		opened,
 		files,
 		logged,
@@ -88,6 +97,10 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 
 	const host: CommandHost = {
 		showError: (message) => errors.push(message),
+		showInfo: (message) => infos.push(message),
+		copyToClipboard: async (text) => {
+			copied.push(text);
+		},
 		pick: async (items) => {
 			offered.push(...items);
 			return state.picked;
@@ -119,6 +132,46 @@ function recorder(answers: Record<string, SpawnOutcome> = {}): Recorder {
 	(state as { host: CommandHost }).host = host;
 	return state;
 }
+
+// ---------------------------------------------------------------------------
+// dinah-337 AC-3: the reference reaches the clipboard, and nothing else runs
+// ---------------------------------------------------------------------------
+
+test("copying a card's reference puts the reference itself on the clipboard", async () => {
+	// The reference rather than the title, because the reference is the argument
+	// every dinah verb takes and the title is not accepted anywhere. A handler
+	// reaching for the wrong field would still copy something, so the assertion
+	// names the value rather than counting the calls.
+	const r = recorder();
+	await copyCardRef(r.context);
+	assert.deepEqual(r.copied, ["tr-4"]);
+});
+
+test("copying a card's reference tells the reader which reference it copied", async () => {
+	// A clipboard write leaves no trace on screen, so the message is the only
+	// confirmation. It names the reference so that a reader who clicked the
+	// wrong row finds out before pasting.
+	const r = recorder();
+	await copyCardRef(r.context);
+	assert.equal(r.infos.length, 1);
+	assert.ok(
+		r.infos[0].includes("tr-4"),
+		`the message did not name the reference: ${r.infos[0]}`,
+	);
+	assert.deepEqual(r.errors, []);
+});
+
+test("copying a card's reference spawns no dinah and runs no checkpoint", async () => {
+	// dinah-337 D-2. A copy reads only what the row already holds, so a spawn
+	// would cost a process for nothing and a checkpoint would repaint a tree
+	// that cannot have moved. Both are asserted empty rather than one of them,
+	// because runVerb would produce both together and either alone is a
+	// half-finished mistake this catches.
+	const r = recorder();
+	await copyCardRef(r.context);
+	assert.deepEqual(r.calls, []);
+	assert.deepEqual(r.checkpoints, []);
+});
 
 // ---------------------------------------------------------------------------
 // AC-11: a refusal is surfaced, and a checkpoint follows it
@@ -390,6 +443,8 @@ test("an attachment with no path opens nothing, calls nothing on the host, and s
 /** A host whose calls are recorded nowhere, since contextFor makes none. */
 const silentHost: CommandHost = {
 	showError: () => undefined,
+	showInfo: () => undefined,
+	copyToClipboard: async () => undefined,
 	pick: async () => undefined,
 	input: async () => undefined,
 	openDocument: async () => undefined,
