@@ -1410,7 +1410,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:1259", label: "dinah search",
+			site: "render.go:1286", label: "dinah search",
 			keys: []string{"column.search.kind", "column.search.reference", "column.search.title",
 				"column.search.matched", "column.search.snippet"},
 			// The title column is what varies rather than the column in front
@@ -1649,7 +1649,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "commands.go:809", label: "the guide topics",
+			site: "commands.go:816", label: "the guide topics",
 			keys: []string{"column.guide.topic", "column.guide.title"}, varies: lastCell,
 			opensAt: "guide.reading", expect: expectGuides,
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {

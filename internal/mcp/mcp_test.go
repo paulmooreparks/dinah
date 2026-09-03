@@ -1943,3 +1943,136 @@ func TestTheWorkstreamToolTakesASlugAndRefusesItTheWayTheTerminalDoes(t *testing
 		t.Errorf("the workbench carries %v after two refusals, wanted the one workstream the accepted call created", listing["workstreams"])
 	}
 }
+
+// TestTheColumnToolAnswersTheWayTheTerminalDoes is part of dinah-204 AC-6. The
+// new_column tool reaches the same library call `dinah column new` reaches, so
+// the two surfaces accept and refuse the same things: a plain creation by an
+// owner who is not the operator succeeds on both, and a slug a live column
+// already carries is refused by name on both. The terminal half of the same
+// pair is TestColumnNewCreatesAColumnFromTheTerminal in cmd/dinah.
+//
+// The tool fills in the action itself and its schema withholds the argument,
+// so a conforming call names no action at all. The other half of that decision
+// is TestTheColumnToolRefusesTheActionItsSchemaWithholds below, which asserts
+// that a call sending one is turned away rather than answered. Both of this
+// fixture's columns carry a card, and its flow ends at a work station, so the
+// one placement that changes nowhere a card is standing is a done column on
+// the end: nothing takes work up at a done column, so the station before it
+// goes on carrying into nothing. Every other placement here changes somebody's
+// routing, which is the refusing subtest below.
+func TestTheColumnToolAnswersTheWayTheTerminalDoes(t *testing.T) {
+	library := newLibrary(t)
+	root := library.Bench.Root
+
+	created := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"actor":"brin","column":"Signed off","kind":"done","slug":"signed-off"}}}`))
+	if created["outcome"] != contract.OutcomeOK {
+		t.Fatalf("creating a column as an owner who is not the operator: %v", created)
+	}
+	made, ok := created["column"].(map[string]any)
+	if !ok {
+		t.Fatalf("the answer carries no column member: %v", created)
+	}
+	if made["slug"] != "signed-off" || made["kind"] != contract.KindDone || made["title"] != "Signed off" {
+		t.Errorf("the created column reads %v", made)
+	}
+	if made["takes_work_up"] != false {
+		t.Errorf("a done column reads takes_work_up %v", made["takes_work_up"])
+	}
+
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"columns","arguments":{"actor":"alka"}}}`))
+	rows, ok := listed["columns"].([]any)
+	if !ok || len(rows) != 3 {
+		t.Fatalf("the flow now reads %v, wanted the three columns the creation leaves", listed["columns"])
+	}
+	if rows[2].(map[string]any)["slug"] != "signed-off" {
+		t.Errorf("the new column stands at %v rather than last in the flow", rows[2])
+	}
+
+	taken := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"actor":"brin","column":"Another","kind":"done","slug":"signed-off"}}}`))
+	if taken["outcome"] != contract.OutcomeRefused || taken["refusal"] != contract.ColumnSlugTaken {
+		t.Errorf("a slug a live column carries: wanted %s, got %v", contract.ColumnSlugTaken, taken)
+	}
+	if taken["detail"] != "signed-off" {
+		t.Errorf("the refusal names %v rather than the slug the caller asked for", taken["detail"])
+	}
+
+	// A work column placed ahead of the done column would give the card
+	// standing at doing an automatic forward pull it does not have today, so
+	// the check refuses the placement and names that station.
+	between := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"actor":"brin","column":"Aftercare","before":"signed-off"}}}`))
+	if between["outcome"] != contract.OutcomeRefused || between["refusal"] != contract.ColumnRoutingDisrupted {
+		t.Errorf("a work column ahead of the done column: wanted %s, got %v", contract.ColumnRoutingDisrupted, between)
+	}
+	if between["detail"] != "doing" {
+		t.Errorf("the refusal names %v rather than the column whose routing would change", between["detail"])
+	}
+
+	nameless := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"column":"Nameless","kind":"done"}}}`))
+	if nameless["outcome"] != contract.OutcomeRefused || nameless["refusal"] != contract.NoOwner {
+		t.Errorf("a call naming no owner: wanted %s, got %v", contract.NoOwner, nameless)
+	}
+}
+
+// TestTheColumnToolRefusesTheActionItsSchemaWithholds is part of dinah-204
+// AC-6. new_column is a single-purpose tool over a command whose only action
+// is new, so argumentExemptions holds the action argument back and the run
+// closure fills the field in. This asserts both halves of that at once: the
+// published schema offers no action property and requires none, and a call
+// sending one is refused rather than quietly obeyed.
+//
+// The refusal is the half worth having. The schema previously published action
+// as a required argument and the closure overwrote whatever arrived, so a call
+// naming the get action created a column and answered ok while the terminal
+// refused the same word under Usage. Two published surfaces disagreed on a
+// caller-supplied value, which is the parity AC-6 is about, and no check could
+// see it: the value did reach Request.Action, one frame before it was thrown
+// away.
+func TestTheColumnToolRefusesTheActionItsSchemaWithholds(t *testing.T) {
+	library := newLibrary(t)
+	root := library.Bench.Root
+
+	properties := schemaProperties(t, "new_column")
+	if _, published := properties["action"]; published {
+		t.Errorf("the schema of new_column advertises action, which this head fills in itself")
+	}
+	if required, listed := schemaFor(toolNamed(t, "new_column"))["required"].([]string); listed {
+		for _, name := range required {
+			if name == "action" {
+				t.Errorf("the schema of new_column requires action, which it does not publish")
+			}
+		}
+	}
+	if _, published := properties["column"]; !published {
+		t.Fatal("the schema of new_column publishes no column property either, so the absence above proves nothing")
+	}
+
+	asked := map[string]any{"actor": "brin", "action": "get", "column": "Signed off", "kind": "done"}
+	answer := ask(t, library, callLine(t, 1, "new_column", asked))
+	if answer.Error == nil {
+		t.Fatalf("new_column accepted an action argument: %+v", answer)
+	}
+	if answer.Error.Code != codeInvalidParams {
+		t.Errorf("the refusal came back on code %d, want %d", answer.Error.Code, codeInvalidParams)
+	}
+	for _, want := range []string{`"new_column"`, `"action"`, "capacity", "slug", "before", "actor"} {
+		if !strings.Contains(answer.Error.Message, want) {
+			t.Errorf("the message %q does not carry %s, which an agent correcting its own call needs", answer.Error.Message, want)
+		}
+	}
+
+	listed := payload(t, ask(t, newLibraryAt(t, root), callLine(t, 2, "columns", map[string]any{"actor": "alka"})))
+	rows, ok := listed["columns"].([]any)
+	if !ok || len(rows) != 2 {
+		t.Fatalf("the refused call left the flow reading %v, wanted the two columns the fixture ships", listed["columns"])
+	}
+
+	delete(asked, "action")
+	control := ask(t, newLibraryAt(t, root), callLine(t, 3, "new_column", asked))
+	if control.Error != nil {
+		t.Fatalf("the same call without the action was refused too, so the refusal above proves nothing: %+v", control.Error)
+	}
+	made := payload(t, control)
+	if made["outcome"] != contract.OutcomeOK {
+		t.Fatalf("the same call without the action did not create a column, so the refusal above proves nothing: %v", made)
+	}
+}
