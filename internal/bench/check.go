@@ -106,6 +106,15 @@ const (
 	// its own outcome, which is the ruling dinah-207 records as D-5. See the
 	// column.md reject_to section of docs/design/format.md for the reasoning.
 	FindingRejectTargetForward = "check.reject-target-forward"
+	// FindingAtLoopLimit names a card whose regressive-departure count from
+	// the column it stands in has reached that column's own declared
+	// loop_limit. The next regressive move out of that column is refused, so
+	// the card is waiting on the operator whether or not anybody has noticed,
+	// and this is where a board says so before somebody meets the refusal.
+	// The count keeps rising past the limit, because an override carries one
+	// move rather than lifting the cap, so the finding stands for the rest of
+	// the card's life at that column.
+	FindingAtLoopLimit = "check.at-loop-limit"
 	// FindingUnknownKind names a column carrying a layer's kind this build
 	// does not implement. CORE-STATE-12 says such a column is read as though
 	// its kind were work, and the sentence says so, because a reader
@@ -396,7 +405,50 @@ func (b *Bench) checkCard(card *Card) []Finding {
 	if position := ReplayPosition(events); position != "" && position != card.Column {
 		findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
 	}
+	// The count is read off the events this function has already read, so a
+	// card standing at a column declaring no limit costs nothing and one
+	// standing at a declaring column costs a walk of a slice already in hand.
+	if column != nil && column.LoopLimit > 0 {
+		if count := b.RegressiveDepartures(events, column.ID); count >= column.LoopLimit {
+			findings = append(findings, Finding{Path: anchor, Key: FindingAtLoopLimit, Detail: column.Ref()})
+		}
+	}
 	return findings
+}
+
+// RegressiveDepartures counts how many times a card has left one column by a
+// regressive move: a moved event whose from is columnID and whose to names a
+// column this workbench still declares, standing earlier than columnID and not
+// of kind done.
+//
+// A manual_correction is never counted. ReplayPosition treats one as a
+// position update, because the witness records where the anchor already
+// stands, but nobody chose that transition and a limit on what agents and the
+// operator do has nothing to say about a repair.
+//
+// The count is derived from the events against the workbench's current column
+// order, the same basis ReplayPosition reads against, so a column reordered or
+// repositioned changes this answer exactly as it changes that one. A departure
+// whose to no longer resolves to a live column is not counted, because there
+// is no current position left to compare it against: an unresolvable reference
+// reads as nothing to say here, the way Bench.RejectTarget and
+// checkRejectTargets already read one.
+func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
+	count := 0
+	for _, ev := range events {
+		if ev.Event != contract.EventMoved || ev.From != columnID {
+			continue
+		}
+		from := b.Column(ev.From)
+		to := b.Column(ev.To)
+		if from == nil || to == nil || to.Terminal() {
+			continue
+		}
+		if to.Position < from.Position {
+			count++
+		}
+	}
+	return count
 }
 
 // checkOrdinals applies the creation-ordinal invariants to every collection

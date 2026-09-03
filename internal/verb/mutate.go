@@ -243,6 +243,11 @@ func (l *Library) claim(req *Request, card *bench.Card) *Response {
 	}
 	response.Instructions = l.serve(card)
 	response.LegalMoves = l.legalMoves(card)
+	loop, err := l.cardLoop(card)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	response.Loop = loop
 	return response
 }
 
@@ -312,11 +317,19 @@ func (l *Library) canRoute(req *Request, card *bench.Card) (*bench.Column, *benc
 // canLand runs the rows of CORE-MOVE's list that read the card and the
 // destination, in that list's order: the card is not blocked, the card is
 // not held by somebody else, the move is not a forward move out of a done
-// column, the destination stands below its capacity, the destination does not
+// column, the destination stands below its capacity, the departure has not
+// reached its own declared loop_limit for this card, the destination does not
 // wait on somebody outside the workbench, the destination does not reserve
 // to the operator the claim an arriving act would take there, and the
-// destination is not being retired. It reports whether the capacity limit was
+// destination is not being retired. It reports whether either limit was
 // reached and overridden, which is the flag the moved event carries.
+//
+// The loop row is Dinah's own, appended after the profile's own eight rather
+// than inserted among them, and it runs where it is printed. dinah help move
+// heads its table Order and promises the rows in the order each is checked,
+// so a move failing both the capacity row and the loop row answers
+// at-capacity, and the published numbering decides the evaluation order
+// rather than the other way round.
 //
 // takesUp says whether the act this list is running for takes the card up
 // where it lands, which a pull does and a move does not. The waiting row and
@@ -340,6 +353,22 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	}
 	if reached && !req.Override {
 		return false, l.refuse(req, card, contract.AtCapacity, columnRef(destination)), nil
+	}
+	// The cap is absolute, on the operator's own ruling: an override carries
+	// the one move it is passed on, the count goes on rising underneath it,
+	// and the next regressive move out of the column is refused again for the
+	// life of the card. Nothing here resets a count and nothing stores a
+	// standing exemption.
+	loopReached := false
+	if departure != nil && departure.LoopLimit > 0 && !destination.Terminal() && destination.Position < departure.Position {
+		events, _, err := bench.ReadJournal(card.JournalPath())
+		if err != nil {
+			return false, nil, err
+		}
+		loopReached = l.Bench.RegressiveDepartures(events, departure.ID) >= departure.LoopLimit
+		if loopReached && !req.Override {
+			return false, l.refuse(req, card, contract.AtLoopLimit, columnRef(departure)), nil
+		}
 	}
 	// A column where no owner takes work up receives a card that arrives
 	// unheld, which is the ordinary handoff, and refuses one that arrives
@@ -373,7 +402,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	if holder, retiring := l.retiring(destination.ID); retiring {
 		return false, l.refuse(req, card, contract.Locked, holder), nil
 	}
-	return reached && req.Override, nil, nil
+	return (reached || loopReached) && req.Override, nil, nil
 }
 
 // move carries a card from one column to another. The list is CORE-MOVE's, in
@@ -408,6 +437,11 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	}
 	response.Instructions = l.serve(card)
 	response.LegalMoves = l.legalMoves(card)
+	loop, err := l.cardLoop(card)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	response.Loop = loop
 	return response
 }
 

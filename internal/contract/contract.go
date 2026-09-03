@@ -224,6 +224,16 @@ const (
 	// AddNeedsAColumn is Add declining to file a card into a workbench whose
 	// columns list has no live entries left for the card to land in.
 	AddNeedsAColumn = LayerPrefix + "add-needs-a-column"
+	// AtLoopLimit is a regressive move out of a column whose declared
+	// loop_limit this card has already reached. It is a separate name from
+	// AtCapacity because the two limits are declared on opposite ends of the
+	// move: capacity is a property of the destination and counts the cards
+	// standing there, where this one is a property of the departure and
+	// counts how often this card has left it backwards. The operator carries
+	// a card past either with the same --override marker, and the cap stays
+	// absolute, so the count goes on rising and the next regressive move is
+	// refused again.
+	AtLoopLimit = LayerPrefix + "at-loop-limit"
 	// UnknownField is a query naming a field this tool does not have, or
 	// naming one with an operator it does not take. One name covers both
 	// because to a reader `Priority>=next` and `at:` are the same mistake:
