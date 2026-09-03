@@ -899,9 +899,7 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 	// The liveness figure and the corpus have to agree exactly. Every word the
 	// corpus titled on its own must be found by its own mistyping, and no word
 	// it did not title can be, so a shortfall here is the sweep quietly missing
-	// phrases rather than the corpus happening not to carry the word. This is
-	// the assertion that would have caught the guard that dropped every
-	// four-rune word while the run went on reporting a clean result.
+	// phrases rather than the corpus happening not to carry the word.
 	if intended != reachable {
 		t.Errorf("the sweep found the word actually meant %d times, but %d of the %d swept phrases are mistypings of a word the corpus gave a title of its own; every one of those must be found",
 			intended, reachable, swept)
@@ -915,6 +913,11 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 			short++
 		}
 	}
+	// This, not the intended/reachable check above, is the assertion that
+	// caught the guard that dropped every four-rune word: under that guard,
+	// reachable dropped in step with swept and intended stayed equal to
+	// reachable, so that check stayed green. Only the count here disagreed
+	// with the vocabulary's own arithmetic against the floor.
 	if swept != len(noiseVocabulary)-short {
 		t.Errorf("the sweep built %d phrases from %d vocabulary words of which %d sit at or below the floor of %d, so it should have built %d",
 			swept, len(noiseVocabulary), short, fuzzyFloor, len(noiseVocabulary)-short)
