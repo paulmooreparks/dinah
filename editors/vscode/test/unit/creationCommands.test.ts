@@ -49,6 +49,16 @@ const ROOT = "C:\\work\\bench";
 const FOLDER = "C:\\work\\bench\\editors";
 
 /**
+ * The binary the call is asked to run, spelled apart from both paths above.
+ *
+ * A context carries three values the spawn is decided by, and the executable
+ * is one of them. It is a third distinct string here so that handing the
+ * workbench root, or the workspace folder, where the binary path belongs
+ * reddens rather than reading as the same value twice.
+ */
+const EXE = "C:\\tools\\dinah.exe";
+
+/**
  * The card's ref as each of the two joined answers carries it.
  *
  * The listing and the tree name the same card, so on a real read these hold
@@ -67,13 +77,45 @@ function refused(refusal: string, detail?: string): SpawnOutcome {
 	return { code: 2, stdout: JSON.stringify({ refusal, detail }), stderr: "" };
 }
 
+/**
+ * One spawn, as the double saw it: every parameter the Spawner contract
+ * carries rather than only the one the argv assertions happen to want.
+ *
+ * A double that drops a parameter cannot arm a check on it, however carefully
+ * the fixture spells its values apart, because the blindness sits in the
+ * observer rather than in the input. Both commands here decide all three, so
+ * the double records all three and each is asserted at least once. The form
+ * is workbench.test.ts's own spawner stub, which already records the working
+ * directory beside the argv.
+ */
+interface Invocation {
+	readonly exe: string;
+	readonly argv: string[];
+	readonly cwd?: string;
+}
+
 interface Recorder {
 	readonly spawner: Spawner;
 	readonly host: CommandHost;
-	/** Every argv the spawner was handed, in call order. */
-	readonly calls: string[][];
+	/** Every spawn the spawner was handed, in call order. */
+	readonly calls: Invocation[];
 	readonly errors: string[];
 	readonly checkpoints: string[];
+	/**
+	 * Every host method neither command is supposed to touch, named as it was
+	 * called.
+	 *
+	 * A double that answers a method with undefined and records nothing cannot
+	 * notice the command starting to call it, which is the same blindness the
+	 * spawner had: the observer drops the value rather than the fixture hiding
+	 * it. Decision 5 is the reason it matters here. Neither command reveals,
+	 * selects or opens what it created, and nothing else in this file would go
+	 * red if one of them began to.
+	 *
+	 * log is left out on purpose. A diagnostic line is not something the
+	 * operator sees, so it is not part of what Decision 5 rules on.
+	 */
+	readonly unused: string[];
 	/** Every prompt the input box was opened with, in call order. */
 	readonly prompts: string[];
 	/** What each successive input box answers, consumed from the front. */
@@ -92,38 +134,58 @@ interface Recorder {
  * undefined once the queue is empty.
  */
 function recorder(typed: (string | undefined)[] = []): Recorder {
-	const calls: string[][] = [];
+	const calls: Invocation[] = [];
 	const errors: string[] = [];
 	const checkpoints: string[] = [];
 	const prompts: string[] = [];
+	const unused: string[] = [];
 	const state: Recorder = {
 		calls,
 		errors,
 		checkpoints,
 		prompts,
+		unused,
 		typed: [...typed],
 		answer: ok({}),
-		spawner: async (_exe, argv) => {
-			calls.push([...argv]);
+		spawner: async (exe, argv, options) => {
+			calls.push({ exe, argv: [...argv], cwd: options.cwd });
 			return state.answer;
 		},
 		host: {
 			showError: (message) => {
 				errors.push(message);
 			},
-			// Neither creation command reports anything on success and neither
-			// copies anything, so these two answer nothing. dinah-337 put them
-			// on the host for Copy Reference, which is a card-row act.
-			showInfo: () => undefined,
-			copyToClipboard: async () => undefined,
-			pick: async () => undefined,
+			// Neither creation command reports anything on success, copies
+			// anything, or opens anything, so each of these answers nothing and
+			// says it was reached. dinah-337 put the first two on the host for
+			// Copy Reference, which is a card-row act.
+			showInfo: () => {
+				unused.push("showInfo");
+			},
+			copyToClipboard: async () => {
+				unused.push("copyToClipboard");
+			},
+			pick: async () => {
+				unused.push("pick");
+				return undefined;
+			},
 			input: async (prompt) => {
 				prompts.push(prompt);
 				return state.typed.shift();
 			},
-			openDocument: async () => undefined,
-			openFile: async () => undefined,
-			pickFile: async () => undefined,
+			openDocument: async () => {
+				unused.push("openDocument");
+			},
+			openFile: async () => {
+				unused.push("openFile");
+			},
+			// attachFile takes its picker as a parameter rather than off the
+			// host, so a reach for this field is a real change of shape and
+			// this is what notices it.
+			pickFile: async () => {
+				unused.push("pickFile");
+				return undefined;
+			},
 			checkpoint: async (folder) => {
 				checkpoints.push(folder);
 			},
@@ -220,7 +282,7 @@ test("New Card resolves a context from a column row and from nothing else", () =
 	for (const [name, element] of notAColumn()) {
 		const r = recorder();
 		assert.equal(
-			contextForColumn(element, "dinah", r.host, r.spawner),
+			contextForColumn(element, EXE, r.host, r.spawner),
 			undefined,
 			name,
 		);
@@ -234,7 +296,7 @@ test("a column row whose workbench path is missing names no context either", () 
 	const r = recorder();
 	const row = rowFixture({ data: undefined });
 	assert.equal(
-		contextForColumn(columnRow({}, row), "dinah", r.host, r.spawner),
+		contextForColumn(columnRow({}, row), EXE, r.host, r.spawner),
 		undefined,
 	);
 });
@@ -243,7 +305,7 @@ test("a column row carries its own ref and title into the context", () => {
 	// dinah-331 AC-4's positive half. The ref is the slug where a slug was
 	// published, which is what columnRef composes and what `--column` takes.
 	const r = recorder();
-	const context = contextForColumn(columnRow({}), "dinah", r.host, r.spawner);
+	const context = contextForColumn(columnRow({}), EXE, r.host, r.spawner);
 	assert.notEqual(context, undefined);
 	assert.equal(context?.column, "intake");
 	assert.equal(context?.label, "Intake");
@@ -255,7 +317,7 @@ test("a column published with no slug is named by its id", () => {
 	const r = recorder();
 	const context = contextForColumn(
 		columnRow({ slug: undefined }),
-		"dinah",
+		EXE,
 		r.host,
 		r.spawner,
 	);
@@ -268,7 +330,7 @@ test("a column published with no slug is named by its id", () => {
 
 /** The context every newCard test drives, over the recorder given. */
 function columnContext(r: Recorder) {
-	const context = contextForColumn(columnRow({}), "dinah", r.host, r.spawner);
+	const context = contextForColumn(columnRow({}), EXE, r.host, r.spawner);
 	assert.notEqual(context, undefined);
 	return context as NonNullable<typeof context>;
 }
@@ -301,7 +363,7 @@ test("a title files one card, trimmed, with the column behind its flag", async (
 	const r = recorder(["  Fix the thing  "]);
 	await newCard(columnContext(r));
 	assert.equal(r.calls.length, 1);
-	assert.deepEqual(r.calls[0], [
+	assert.deepEqual(r.calls[0].argv, [
 		// runDinah composes --json itself, so the machine surface is pinned
 		// here too; the spec's own argv list names the tail pinnedArgv builds.
 		"--json",
@@ -314,6 +376,20 @@ test("a title files one card, trimmed, with the column behind its flag", async (
 	]);
 	assert.deepEqual(r.checkpoints, [FOLDER]);
 	assert.deepEqual(r.errors, []);
+});
+
+test("the filing runs the binary it was handed, in the workbench it is pinned to", async () => {
+	// dinah-331 AC-5. The argv is one of three things this call decides, and
+	// the executable and the working directory are the other two. They are
+	// asserted here because the recorder now sees them: a double that took
+	// only the argv left both free to be swapped for any other string the
+	// context carries, and EXE, ROOT and FOLDER are three distinct values so
+	// that any such swap reddens this row.
+	const r = recorder(["Fix the thing"]);
+	await newCard(columnContext(r));
+	assert.equal(r.calls.length, 1);
+	assert.equal(r.calls[0].exe, EXE);
+	assert.equal(r.calls[0].cwd, ROOT);
 });
 
 test("the title prompt names the column the card is being filed into", async () => {
@@ -382,7 +458,7 @@ test("Attach File names no context for a row that receives no attachment", () =>
 	];
 	const r = recorder();
 	for (const [name, element] of cases) {
-		assert.equal(contextForAttach(element, "dinah", r.host, r.spawner), undefined, name);
+		assert.equal(contextForAttach(element, EXE, r.host, r.spawner), undefined, name);
 	}
 });
 
@@ -396,7 +472,7 @@ test("Attach File aims at each of the three levels the format carries one on", (
 		["a card", cardRow({}), LISTING_REF],
 	];
 	for (const [name, element, ref] of cases) {
-		const context = contextForAttach(element, "dinah", r.host, r.spawner);
+		const context = contextForAttach(element, EXE, r.host, r.spawner);
 		assert.notEqual(context, undefined, name);
 		assert.equal(context?.ref, ref, name);
 		assert.equal(context?.root, ROOT, name);
@@ -408,7 +484,7 @@ test("a card row falls back to the tree's own ref when the listing missed the ca
 	// card's ref is read from the view first and from the tree node behind it.
 	// This row drives the fallback: no view at all, so only the node can answer.
 	const r = recorder();
-	const context = contextForAttach(cardRow(undefined), "dinah", r.host, r.spawner);
+	const context = contextForAttach(cardRow(undefined), EXE, r.host, r.spawner);
 	assert.equal(context?.ref, TREE_REF);
 });
 
@@ -420,7 +496,7 @@ test("a card row prefers the listing's ref to the tree's own when the two disagr
 	const r = recorder();
 	const element = cardRow({ ref: LISTING_REF }, { ref: TREE_REF });
 	assert.notEqual(LISTING_REF, TREE_REF, "the fixture has to disagree with itself here");
-	const context = contextForAttach(element, "dinah", r.host, r.spawner);
+	const context = contextForAttach(element, EXE, r.host, r.spawner);
 	assert.equal(context?.ref, LISTING_REF);
 });
 
@@ -434,7 +510,7 @@ test("an expanded candidate attaches to the workbench it resolved to, not to the
 		rowKind: "workbenchCandidate",
 		candidate: { path: "C:\\work", title: "Work" },
 	});
-	const context = contextForAttach({ kind: "root", row }, "dinah", r.host, r.spawner);
+	const context = contextForAttach({ kind: "root", row }, EXE, r.host, r.spawner);
 	assert.equal(context?.root, ROOT);
 });
 
@@ -445,7 +521,7 @@ test("a candidate row that has not been expanded attaches to its candidate path"
 		data: undefined,
 		candidate: { path: "C:\\work\\other", title: "Other" },
 	});
-	const context = contextForAttach({ kind: "root", row }, "dinah", r.host, r.spawner);
+	const context = contextForAttach({ kind: "root", row }, EXE, r.host, r.spawner);
 	assert.equal(context?.root, "C:\\work\\other");
 	assert.equal(context?.ref, "");
 });
@@ -456,7 +532,7 @@ test("a candidate row that has not been expanded attaches to its candidate path"
 
 /** The context every attachFile test drives, over the recorder and row given. */
 function attachContext(r: Recorder, element: TreeElement = cardRow({})) {
-	const context = contextForAttach(element, "dinah", r.host, r.spawner);
+	const context = contextForAttach(element, EXE, r.host, r.spawner);
 	assert.notEqual(context, undefined);
 	return context as NonNullable<typeof context>;
 }
@@ -494,7 +570,7 @@ test("an empty description is an answer, and the attach goes through without the
 	const r = recorder([""]);
 	await attachFile(attachContext(r), async () => "/tmp/x.png");
 	assert.equal(r.calls.length, 1);
-	assert.deepEqual(r.calls[0], [
+	assert.deepEqual(r.calls[0].argv, [
 		"--json",
 		"--workbench",
 		ROOT,
@@ -503,8 +579,8 @@ test("an empty description is an answer, and the attach goes through without the
 		"/tmp/x.png",
 	]);
 	assert.ok(
-		!r.calls[0].some((word) => word.includes("--description")),
-		`a description flag was sent for an empty description: ${r.calls[0].join(" ")}`,
+		!r.calls[0].argv.some((word) => word.includes("--description")),
+		`a description flag was sent for an empty description: ${r.calls[0].argv.join(" ")}`,
 	);
 	assert.deepEqual(r.checkpoints, [FOLDER]);
 });
@@ -514,7 +590,7 @@ test("a typed description rides in one --description word, trimmed", async () =>
 	// a space would otherwise arrive as a description and a stray positional.
 	const r = recorder(["  a screenshot  "]);
 	await attachFile(attachContext(r), async () => "/tmp/x.png");
-	assert.deepEqual(r.calls[0], [
+	assert.deepEqual(r.calls[0].argv, [
 		"--json",
 		"--workbench",
 		ROOT,
@@ -523,7 +599,19 @@ test("a typed description rides in one --description word, trimmed", async () =>
 		"/tmp/x.png",
 		"--description=a screenshot",
 	]);
-	assert.equal(r.calls[0][r.calls[0].length - 1], "--description=a screenshot");
+	assert.equal(r.calls[0].argv[r.calls[0].argv.length - 1], "--description=a screenshot");
+});
+
+test("the attach runs the binary it was handed, in the workbench it is pinned to", async () => {
+	// dinah-331 AC-7, on the same terms as the filing above. Both commands
+	// compose these two values from the context rather than from the argv, so
+	// each needs its own row; one assertion covering only newCard would leave
+	// attachFile's pair unexercised.
+	const r = recorder([""]);
+	await attachFile(attachContext(r), async () => "/tmp/x.png");
+	assert.equal(r.calls.length, 1);
+	assert.equal(r.calls[0].exe, EXE);
+	assert.equal(r.calls[0].cwd, ROOT);
 });
 
 test("the workbench's own attach sends the empty ref as a word rather than omitting it", async () => {
@@ -536,13 +624,20 @@ test("the workbench's own attach sends the empty ref as a word rather than omitt
 	const context = attachContext(r, { kind: "root", row: rowFixture() });
 	assert.equal(context.ref, "");
 	await attachFile(context, async () => "/tmp/x.png");
-	assert.deepEqual(r.calls[0], ["--json", "--workbench", ROOT, "attach", "", "/tmp/x.png"]);
+	assert.deepEqual(r.calls[0].argv, ["--json", "--workbench", ROOT, "attach", "", "/tmp/x.png"]);
 	// Spelled again as a position, because the deep-equal above would go on
 	// passing if the empty word vanished and the file path shifted into it
 	// only on some other fixture.
-	const verb = r.calls[0].indexOf("attach");
-	assert.equal(r.calls[0][verb + 1], "");
-	assert.equal(r.calls[0][verb + 2], "/tmp/x.png");
+	const verb = r.calls[0].argv.indexOf("attach");
+	assert.equal(r.calls[0].argv[verb + 1], "");
+	assert.equal(r.calls[0].argv[verb + 2], "/tmp/x.png");
+	// The root branch composes its folder and its root separately, as the
+	// column and card branches do, and this is the only test that drives it.
+	// Until dinah-331's fourth round the test read the argv alone, so the
+	// branch could hand the workbench root where the workspace folder belongs
+	// and repaint the wrong row with nothing to say so.
+	assert.equal(r.calls[0].cwd, ROOT);
+	assert.deepEqual(r.checkpoints, [FOLDER]);
 });
 
 test("a refused attach is reported and the row is repainted anyway", async () => {
@@ -556,6 +651,35 @@ test("a refused attach is reported and the row is repainted anyway", async () =>
 	assert.ok(r.errors[0].includes("dinah.locked"));
 	assert.ok(r.errors[0].includes("bob"));
 	assert.deepEqual(r.checkpoints, [FOLDER]);
+});
+
+// ---------------------------------------------------------------------------
+// Decision 5: what neither command does once it has succeeded
+// ---------------------------------------------------------------------------
+
+test("neither creation command reveals, selects or opens what it made", async () => {
+	// Decision 5. Both acts end at the checkpoint and let the next tree read
+	// repaint the row, on the same terms Claim, Move, Release, Block and
+	// Unblock already follow. An operator who wants to see the new card clicks
+	// it.
+	//
+	// This is the one row that can fail if that changes. Every other test here
+	// asserts what the commands do send; the host double used to answer the
+	// rest of its methods with undefined and record nothing, so a command that
+	// began opening its own creation would have passed the whole file.
+	const filing = recorder(["Fix the thing"]);
+	await newCard(columnContext(filing));
+	assert.deepEqual(filing.checkpoints, [FOLDER]);
+	assert.deepEqual(filing.unused, []);
+	assert.deepEqual(filing.errors, []);
+
+	const attaching = recorder([""]);
+	await attachFile(attachContext(attaching), async () => "/tmp/x.png");
+	assert.deepEqual(attaching.checkpoints, [FOLDER]);
+	// The picker rides in as a parameter, so the host's own field stays
+	// untouched; a command reading it instead would name it here.
+	assert.deepEqual(attaching.unused, []);
+	assert.deepEqual(attaching.errors, []);
 });
 
 // ---------------------------------------------------------------------------
