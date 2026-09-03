@@ -30,6 +30,7 @@ import {
 	DinahTreeProvider,
 	actionsFor,
 	cardDescription,
+	cardLabel,
 	cardIcon,
 	columnDescription,
 	columnRef,
@@ -286,7 +287,7 @@ test("a column whose answer carries no state groups draws its cards with no grou
 	);
 	assert.deepEqual(
 		children.map((element) => treeItemFor(element).label),
-		["Confirm the pricing page", "Confirm the launch date"],
+		["tr-4: Confirm the pricing page", "tr-5: Confirm the launch date"],
 	);
 });
 
@@ -340,7 +341,7 @@ test("cards inside a group come back in the fixture's own arrival order", async 
 	const cards = await view.getChildren(ready);
 	assert.deepEqual(
 		cards.map((element) => treeItemFor(element).label),
-		["Draw the guides", "Translate the headings"],
+		["tr-1: Draw the guides", "tr-2: Translate the headings"],
 	);
 });
 
@@ -355,6 +356,55 @@ test("a card's description is its two levels joined, or nothing", async () => {
 	const cards = await view.getChildren(ready);
 	assert.equal(treeItemFor(cards[0]).description, "major · now");
 	assert.equal(treeItemFor(cards[1]).description, "");
+});
+
+// ---------------------------------------------------------------------------
+// dinah-337 AC-1: the reference leads the label
+// ---------------------------------------------------------------------------
+
+test("a card row's label is its reference, then its title", () => {
+	// The order is the whole point. VS Code truncates a label from its end, so
+	// the reference has to come first to survive a narrow sidebar, and the
+	// operator ruled on that placement (dinah-337 OQ-1). Asserting the string
+	// whole is what catches a separator or an order somebody swapped.
+	assert.equal(
+		cardLabel("dinah-337", "A card row does not say what to type"),
+		"dinah-337: A card row does not say what to type",
+	);
+});
+
+test("a card with no title renders its reference alone, and never a bare separator", () => {
+	// The ls join can miss a card, and a tree node can carry a reference with
+	// no title beside it. A naive template would draw "dinah-337: " with a
+	// separator hanging off the end of it.
+	assert.equal(cardLabel("dinah-337", undefined), "dinah-337");
+	assert.equal(cardLabel("dinah-337", ""), "dinah-337");
+});
+
+test("a card with no reference renders its title alone, which is what the row drew before", () => {
+	// This is the fallback the label already had, kept rather than replaced: a
+	// node publishing no reference still names its card to a reader. The empty
+	// case is the row that has neither, which draws nothing at all rather than
+	// a separator.
+	assert.equal(cardLabel("", "Draw the guides"), "Draw the guides");
+	assert.equal(cardLabel("", undefined), "");
+	assert.equal(cardLabel("", ""), "");
+});
+
+test("the card branch draws the new label and leaves description and tooltip alone", async () => {
+	// AC-1's other half. The label changed and the two fields beside it did
+	// not, so both are asserted here: a change that moved the reference into
+	// the description strip instead would pass the helper tests above.
+	const view = await loadedBench();
+	const [intake] = await view.getChildren((await view.getChildren())[0]);
+	const [ready] = await view.getChildren(intake);
+	const cards = await view.getChildren(ready);
+	const item = treeItemFor(cards[0]);
+	assert.equal(item.label, "tr-1: Draw the guides");
+	assert.equal(item.description, "major · now");
+	// The tooltip already led with the reference before this card, and it still
+	// does; the row is not where the reference was added twice.
+	assert.equal(item.tooltip?.split("\n")[0], "tr-1");
 });
 
 test("only one level set shows that level alone", () => {
@@ -379,7 +429,9 @@ test("a card the ls join missed renders undecorated rather than throwing", async
 	const cards = await view.getChildren(ready);
 	const item = treeItemFor(cards[0]);
 	assert.equal(item.description, "");
-	assert.equal(item.label, "Draw the guides");
+	// The reference still leads the label, because tree publishes it on the
+	// node and the join that missed only carries the levels (dinah-337 AC-1).
+	assert.equal(item.label, "aaa: Draw the guides");
 });
 
 // ---------------------------------------------------------------------------
