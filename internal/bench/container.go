@@ -147,29 +147,41 @@ var afterContainerVerify func(source, target string) error
 // migration that moves directories cannot proceed over a workbench it could
 // not identify, since the file it could not read might be the one anchor
 // telling it that two directories are the same workbench.
-func ScanContainers(root string) ([]ContainerCandidate, error) {
+//
+// The second return carries every workbench directory whose anchor reads and
+// carries none of Dinah's own keys while sitting where the containment rule
+// puts a workbench, which is a damaged workbench rather than somebody else's
+// document (dinah-367). It is accumulated rather than refused over, because
+// this sweep answers for a whole tree instead of picking one workbench out of
+// one container, so a damaged directory has no healthy answer to crowd out
+// and one of them must not cost an operator the sweep of every workbench
+// after it in the walk order.
+func ScanContainers(root string) (found []ContainerCandidate, damaged []string, err error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	var found []ContainerCandidate
-	if err := scanContainersIn(abs, &found); err != nil {
-		return nil, err
+	if err := scanContainersIn(abs, &found, &damaged); err != nil {
+		return nil, nil, err
 	}
 	sort.Slice(found, func(i, j int) bool { return found[i].Path < found[j].Path })
-	return found, nil
+	sort.Strings(damaged)
+	return found, damaged, nil
 }
 
 // scanContainersIn tests one directory and then descends into the entries it
 // is entitled to walk.
-func scanContainersIn(dir string, found *[]ContainerCandidate) error {
+func scanContainersIn(dir string, found *[]ContainerCandidate, damaged *[]string) error {
 	anchorPath := filepath.Join(dir, WorkbenchAnchor)
 	recognition, err := readAnchor(anchorPath)
 	if err != nil {
 		return contract.Refuse(contract.UnreadableBench, anchorPath)
 	}
-	if recognition == anchorOurs {
-		*found = append(*found, ContainerCandidate{Path: dir, Shape: shapeOf(dir)})
+	switch shape := shapeOf(dir); {
+	case recognition == anchorOurs:
+		*found = append(*found, ContainerCandidate{Path: dir, Shape: shape})
+	case recognition == anchorForeign && (shape == ShapeContained || shape == ShapeLegacy):
+		*damaged = append(*damaged, dir)
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -184,7 +196,7 @@ func scanContainersIn(dir string, found *[]ContainerCandidate) error {
 		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 			continue
 		}
-		if err := scanContainersIn(filepath.Join(dir, name), found); err != nil {
+		if err := scanContainersIn(filepath.Join(dir, name), found, damaged); err != nil {
 			return err
 		}
 	}

@@ -1157,11 +1157,19 @@ func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
 //
 // An anchor whose frontmatter no longer parses carries none of profile, format
 // and columns, so Frontmatter.Recognized answers false, the climb declines to
-// claim the directory at all, and the discovery this branch rests on has no
-// root to hand back. The same reference answers as soon as the caller names
-// the root, because naming it skips the recognition the climb has to perform.
-// The remedy for the climb lives in discovery rather than in path, and
-// dinah-272 records the limit as D-8 rather than closing it.
+// claim the directory, and the discovery this branch rests on has no root to
+// hand back. The same reference answers as soon as the caller names the root,
+// because naming it skips the recognition the climb has to perform. The remedy
+// for the climb lives in discovery rather than in path, and dinah-272 records
+// the limit as D-8 rather than closing it.
+//
+// What the climb says about that directory is discovery's to decide, and
+// dinah-367 changed it. A directory sitting where the containment rule puts a
+// workbench, under a name only Dinah mints, is Dinah's by position however
+// unreadable its content, so the climb now refuses by naming the damage
+// instead of reporting that no workbench was found. The limit this test
+// records is unmoved: path still cannot recover the anchor through the climb,
+// and it still can through --workbench.
 func TestPathRecoversTheAnchorOnlyWhereDiscoveryStillClaimsTheDirectory(t *testing.T) {
 	container := newBench(t)
 	root := resolvedDir(t, benchDir(t, container))
@@ -1177,8 +1185,11 @@ func TestPathRecoversTheAnchorOnlyWhereDiscoveryStillClaimsTheDirectory(t *testi
 	if err := json.Unmarshal([]byte(climbed.out), &report); err != nil {
 		t.Fatalf("path workbench --json did not answer JSON: %v, got %q", err, climbed.out)
 	}
-	if report.Refusal != contract.NoWorkbenchFound {
-		t.Errorf("the climb refused %s, wanted %s", report.Refusal, contract.NoWorkbenchFound)
+	if report.Refusal != contract.DamagedBench {
+		t.Errorf("the climb refused %s, wanted %s", report.Refusal, contract.DamagedBench)
+	}
+	if report.Detail != root {
+		t.Errorf("the refusal names %q, wanted the workbench directory %q, which is what --workbench takes", report.Detail, root)
 	}
 
 	named := runCLI(t, container, "--workbench", root, "path", "workbench", "--json")

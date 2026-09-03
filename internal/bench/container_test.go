@@ -281,15 +281,15 @@ func TestAStrayContainerEntryIsInvisibleToDiscoveryAndFoundByTheSweep(t *testing
 	if listed := ListWorkbenchIDs(base); len(listed) != 0 {
 		t.Errorf("the container listing sees %v, and neither width admits my-notes", listed)
 	}
-	found, ambiguous, passed, err := soleBench(base)
+	found, ambiguous, _, err := soleBench(base)
 	if err != nil {
 		t.Fatalf("the sole-workbench probe: %v", err)
 	}
-	if found != "" || len(ambiguous) != 0 || len(passed) != 0 {
-		t.Errorf("the sole-workbench probe reported found=%q ambiguous=%v passed=%v over a stray entry it cannot see", found, ambiguous, passed)
+	if found != "" || len(ambiguous) != 0 {
+		t.Errorf("the sole-workbench probe reported found=%q ambiguous=%v over a stray entry it cannot see", found, ambiguous)
 	}
 
-	candidates, err := ScanContainers(tree)
+	candidates, _, err := ScanContainers(tree)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
@@ -312,7 +312,7 @@ func TestTheContainerSweepNamesEachShape(t *testing.T) {
 		plantBench(t, filepath.Join(tree, "c", UserBaseName, "notes"), benchDefinition):        ShapeStray,
 		plantBench(t, containedPath(filepath.Join(tree, "d")), currentBenchDefinition):         ShapeContained,
 	}
-	candidates, err := ScanContainers(tree)
+	candidates, _, err := ScanContainers(tree)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}

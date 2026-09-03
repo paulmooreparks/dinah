@@ -196,7 +196,7 @@ func treeShape(t *testing.T, root string) []string {
 // the command does, and answers where each one went.
 func migrateTree(t *testing.T, root string) map[string]string {
 	t.Helper()
-	candidates, err := ScanContainers(root)
+	candidates, _, err := ScanContainers(root)
 	if err != nil {
 		t.Fatalf("scan %s: %v", root, err)
 	}
@@ -426,7 +426,7 @@ func TestADuplicateIdentifierIsReportedAndNeverRepaired(t *testing.T) {
 	second := populatedBench(t, filepath.Join(tree, "two", UserBaseName, fixtureWorkbenchID), currentBenchDefinition)
 	untouched := contents(t, second)
 
-	candidates, err := ScanContainers(tree)
+	candidates, _, err := ScanContainers(tree)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
@@ -640,7 +640,7 @@ func TestTwoCopiesOfALegacyWorkbenchShareOneIdentifier(t *testing.T) {
 	populatedBench(t, filepath.Join(tree, "three", UserBaseName, "notes"), benchDefinition)
 	populatedBench(t, filepath.Join(tree, "four", UserBaseName, "notes"), benchDefinition)
 
-	candidates, err := ScanContainers(tree)
+	candidates, _, err := ScanContainers(tree)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}

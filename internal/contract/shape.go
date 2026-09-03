@@ -686,6 +686,15 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unreadable-workbench.next"},
 	},
 	{
+		// One sentence and one next step, matching UnreadableBench's own
+		// shape, because the two refusals answer the same question about a
+		// workbench.md the walk could not use and neither has an alternation
+		// to resolve.
+		Name:      DamagedBench,
+		Fragments: []Fragment{{Key: "refusal.dinah.damaged-workbench.next"}},
+		NextStep:  []string{"refusal.dinah.damaged-workbench.next"},
+	},
+	{
 		// The clause split out of the base entry sat ahead of the dash hint
 		// inside the sentence, so its fragment is declared ahead of it here
 		// and a reader sees the three pieces in the order they were written.

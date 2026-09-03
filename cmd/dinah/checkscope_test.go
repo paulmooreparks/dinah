@@ -373,3 +373,79 @@ func adviceInvocation(sentence string) ([]string, bool) {
 	}
 	return words[1:], true
 }
+
+// TestTheDamagedWorkbenchAdviceIsACommandThatWorks follows the next step
+// dinah.damaged-workbench prints, the whole way, on the tree it prints over.
+//
+// The sentence offers a reader two things and this test takes both. Passing
+// --workbench at the directory the refusal named gets past discovery, which
+// runs no recognition test on an explicit pointer, and reaches the per-field
+// refusal that says which part of the file is wrong. Restoring the anchor and
+// running the invocation the sentence names then answers cleanly, which is
+// what the reader was promised when he was told to confirm.
+func TestTheDamagedWorkbenchAdviceIsACommandThatWorks(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := filepath.Join(tree, "myproject")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, project, "init", project, "--slug", "fx", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init: %d %s", got.code, got.errw)
+	}
+	workbench := benchDir(t, project)
+	anchor := filepath.Join(workbench, bench.WorkbenchAnchor)
+	backup, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor this test restores from: %v", err)
+	}
+	// A hand edit that took the three keys recognition reads and left the
+	// fence standing, which is the shape nobody had produced before this card.
+	if err := os.WriteFile(anchor, []byte("---\ntitle: Fixture\nslug: fx\n---\nStanding text.\n"), 0o644); err != nil {
+		t.Fatalf("damage the anchor: %v", err)
+	}
+
+	refused := runCLI(t, project, "status")
+	if !strings.Contains(refused.errw, contract.DamagedBench) {
+		t.Fatalf("standing in a damaged workbench does not refuse %s: %d %s%s", contract.DamagedBench, refused.code, refused.out, refused.errw)
+	}
+	advice := msg.For(msg.Base).T("refusal.dinah.damaged-workbench.next", "detail", workbench)
+
+	// The first half of the advice: the pointer reaches the file, and what
+	// comes back names the field rather than repeating that something is
+	// damaged. That is the whole reason the refusal names a directory and not
+	// the workbench.md inside it.
+	if !strings.Contains(advice, "--workbench") {
+		t.Fatalf("the advice no longer offers the pointer this half follows: %q", advice)
+	}
+	pointed := runCLI(t, project, "--workbench", workbench, "status")
+	if pointed.code == 0 {
+		t.Fatalf("an explicit pointer at a damaged workbench opened it: %s", pointed.out)
+	}
+	if strings.Contains(pointed.errw, contract.DamagedBench) || strings.Contains(pointed.errw, contract.NoWorkbenchFound) {
+		t.Errorf("the pointer got no further than discovery did, so it says nothing new:\n%s", pointed.errw)
+	}
+	if !strings.Contains(pointed.errw, contract.Malformed) {
+		t.Errorf("the pointer does not reach the per-field refusal the advice promises:\n%s", pointed.errw)
+	}
+	// The name alone is a substring of dinah.malformed-depth, so the field
+	// this fixture's damage actually removed is named beside it. A refusal
+	// from anywhere else in the malformed family satisfies the check above
+	// and cannot satisfy this one.
+	if !strings.Contains(pointed.errw, "profile") {
+		t.Errorf("the refusal does not name the field the damage removed:\n%s", pointed.errw)
+	}
+
+	// The second half: restore the file the way the sentence says, then run
+	// the invocation it names and read what it answers.
+	argv, found := adviceInvocation(advice)
+	if !found {
+		t.Fatalf("no `dinah ...` invocation was found in the advice %q, so this test would assert nothing", advice)
+	}
+	if err := os.WriteFile(anchor, backup, 0o644); err != nil {
+		t.Fatalf("restore the anchor: %v", err)
+	}
+	took := runCLI(t, project, argv...)
+	if took.code != 0 {
+		t.Fatalf("taking the refusal's own advice, dinah %v, exited %d: %s%s", argv, took.code, took.out, took.errw)
+	}
+}

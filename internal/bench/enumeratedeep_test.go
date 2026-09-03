@@ -305,3 +305,98 @@ func TestEnumerateDeepReadsTheDiskEveryCall(t *testing.T) {
 		t.Errorf("Enumerate found %d workbenches, and its cache is what keeps it at one; this walk is no longer the one that differs", len(cached))
 	}
 }
+
+// TestADamagedAnchorIsAReportedRowRatherThanAFailedWalk asserts AC-5. It is
+// the sibling of TestABadAnchorIsAReportedRowRatherThanAFailedWalk above, and
+// the two differ only in why the anchor is unusable: that one cannot be read
+// at all, and this one reads and no longer names itself as a workbench.
+//
+// The deep walk degrades per row, so the damaged workbench arrives as a row
+// carrying the refusal name and nothing else, and every other workbench in
+// the tree is still listed. The shallow listing fails its whole call on the
+// same tree, which is its own documented contract for an unusable anchor and
+// needs no code change to hold (D-4).
+func TestADamagedAnchorIsAReportedRowRatherThanAFailedWalk(t *testing.T) {
+	root := deepTree(t, "alpha", "broken", "omega")
+	write(t, filepath.Join(deepPlace(root, "broken"), WorkbenchAnchor), damageShapes[2].text)
+
+	found, err := EnumerateDeep(root, 0)
+	if err != nil {
+		t.Fatalf("one damaged anchor failed the whole walk: %v", err)
+	}
+	got := paths(t, root, found)
+	if strings.Join(got, " ") != "alpha broken omega" {
+		t.Errorf("the walk found %v, wanted the two good workbenches and the damaged directory", got)
+	}
+	var row Candidate
+	for _, candidate := range found {
+		// The refused row names the directory whose container held the
+		// damage rather than the workbench inside it, because benchIn is
+		// what refused and it was asked about the directory.
+		if candidate.Path == filepath.Join(root, "broken") {
+			row = candidate
+		}
+	}
+	if row.Refused != contract.DamagedBench {
+		t.Errorf("the damaged row carries the refusal %q, wanted %s", row.Refused, contract.DamagedBench)
+	}
+	if row.Title != "" || row.Slug != "" {
+		t.Errorf("the damaged row carries the title %q and the slug %q, and nothing read them", row.Title, row.Slug)
+	}
+	// Enumerate's own whole-call-fails contract is what this walk was written
+	// beside rather than on top of, so the same tree is asserted to still
+	// fail it.
+	if _, err := enumerate(root); err == nil {
+		t.Error("Enumerate now survives a damaged anchor, so this walk is no longer the one that differs")
+	}
+}
+
+// TestTheSweepReportsADamagedWorkbenchAndKeepsWalking asserts the bench half
+// of AC-6. ScanContainers is a second, independent tree walk that never went
+// through soleBench, so it carried the same recognition gap: a damaged,
+// positioned workbench was skipped in silence by the one tool an operator
+// reaches for to repair a container.
+//
+// It accumulates rather than refusing, which is the difference between this
+// walk and the climb. A climb picks one workbench out of one container and
+// has a healthy answer to protect; this sweep reports a whole tree, so a
+// damaged directory has nothing to crowd out and must not cost the operator
+// every workbench after it in the walk order.
+func TestTheSweepReportsADamagedWorkbenchAndKeepsWalking(t *testing.T) {
+	root := deepTree(t, "alpha", "broken", "omega")
+	damaged := deepPlace(root, "broken")
+	write(t, filepath.Join(damaged, WorkbenchAnchor), damageShapes[3].text)
+
+	found, reported, err := ScanContainers(root)
+	if err != nil {
+		t.Fatalf("one damaged workbench ended the sweep: %v", err)
+	}
+	var healthy []string
+	for _, candidate := range found {
+		healthy = append(healthy, candidate.Path)
+	}
+	if len(healthy) != 2 {
+		t.Errorf("the sweep found %v, wanted the two workbenches either side of the damaged one", healthy)
+	}
+	for _, path := range healthy {
+		if path == damaged {
+			t.Errorf("the damaged workbench %q was reported as a healthy candidate", damaged)
+		}
+	}
+	if len(reported) != 1 || reported[0] != damaged {
+		t.Errorf("the sweep reported the damaged workbenches %v, wanted [%q]", reported, damaged)
+	}
+
+	// A bare anchor and a stray-named container entry stay outside this,
+	// because the position test is the whole of what makes a damaged
+	// workbench distinguishable from somebody else's document (D-1).
+	write(t, filepath.Join(root, "notes", WorkbenchAnchor), damageShapes[1].text)
+	write(t, filepath.Join(root, "stray", UserBaseName, "my-notes", WorkbenchAnchor), damageShapes[1].text)
+	_, reported, err = ScanContainers(root)
+	if err != nil {
+		t.Fatalf("the second sweep: %v", err)
+	}
+	if len(reported) != 1 || reported[0] != damaged {
+		t.Errorf("the sweep reported %v, and neither a bare anchor nor an unminted name is a damaged workbench", reported)
+	}
+}
