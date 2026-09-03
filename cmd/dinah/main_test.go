@@ -925,18 +925,20 @@ func TestHindiRendersDevanagari(t *testing.T) {
 }
 
 // TestPathCarriesThePlumbingGuarantee asserts that path writes the resolved
-// absolute path alone to stdout, one line, whatever the language setting and
-// whatever --json says, and that on refusal stdout is empty while the refusal
-// name leads stderr.
+// absolute path alone to stdout, one line, whatever the language setting, and
+// that on refusal stdout is empty while the refusal name leads stderr.
+//
+// The guarantee stops at the default rendering. dinah-272 gave --json its own
+// machine form, so the two cases that once asserted the bare line under --json
+// have left this table and TestPathAnswersJSONWithTheResolvedRungToo covers
+// them instead.
 func TestPathCarriesThePlumbingGuarantee(t *testing.T) {
 	root := newBench(t)
 	runCLI(t, root, "add", "A card")
 
 	for _, argv := range [][]string{
 		{"path", "fx-1"},
-		{"path", "fx-1", "--json"},
 		{"path", "fx-1", "--lang", "hi"},
-		{"path", "fx-1", "--json", "--lang", "hi"},
 	} {
 		got := runCLI(t, root, argv...)
 		if got.code != 0 {
@@ -973,6 +975,154 @@ func TestPathCarriesThePlumbingGuarantee(t *testing.T) {
 	deeper := runCLI(t, root, "path", "fx-1/journal")
 	if deeper.code != 0 || !strings.HasSuffix(strings.TrimSpace(deeper.out), "journal.ndjson") {
 		t.Errorf("a composed path should resolve, got %d %q %q", deeper.code, deeper.out, deeper.errw)
+	}
+}
+
+// TestPathAnswersJSONWithTheResolvedRungToo asserts that path under --json
+// answers with PathAnswer rather than the bare line, and that the rung it
+// reports is the rung that actually resolved the workbench rather than a
+// constant. Two discovery rungs drive it for that reason: an ancestor climb
+// from inside the bench, and an explicit --workbench from outside it.
+//
+// The refusal case below them holds the other half still. A refusal under
+// --json went through reportError before this test existed and still does, so
+// the shape a script parses on the unhappy path is unchanged.
+func TestPathAnswersJSONWithTheResolvedRungToo(t *testing.T) {
+	root := newBench(t)
+	runCLI(t, root, "add", "A card")
+
+	found := runCLI(t, root, "path", "fx-1", "--json")
+	if found.code != 0 {
+		t.Fatalf("path --json: exit %d %s", found.code, found.errw)
+	}
+	var climbed PathAnswer
+	if err := json.Unmarshal([]byte(found.out), &climbed); err != nil {
+		t.Fatalf("path --json did not answer JSON: %v, got %q", err, found.out)
+	}
+	if !filepath.IsAbs(climbed.Path) {
+		t.Errorf("wanted an absolute path, got %q", climbed.Path)
+	}
+	if !strings.HasSuffix(climbed.Path, "card.md") {
+		t.Errorf("wanted the card's anchor, got %q", climbed.Path)
+	}
+	if climbed.WorkbenchSource != bench.SourceSearch {
+		t.Errorf("workbench_source: wanted %q, got %q", bench.SourceSearch, climbed.WorkbenchSource)
+	}
+
+	outside := t.TempDir()
+	named := runCLI(t, outside, "path", "fx-1", "--json", "--workbench", resolvedDir(t, benchDir(t, root)))
+	if named.code != 0 {
+		t.Fatalf("path --json --workbench: exit %d %s", named.code, named.errw)
+	}
+	var flagged PathAnswer
+	if err := json.Unmarshal([]byte(named.out), &flagged); err != nil {
+		t.Fatalf("path --json --workbench did not answer JSON: %v, got %q", err, named.out)
+	}
+	if flagged.Path != climbed.Path {
+		t.Errorf("the named workbench resolved elsewhere: %q against %q", flagged.Path, climbed.Path)
+	}
+	if flagged.WorkbenchSource != bench.SourceFlag {
+		t.Errorf("workbench_source: wanted %q, got %q", bench.SourceFlag, flagged.WorkbenchSource)
+	}
+
+	refused := runCLI(t, root, "path", "fx-99", "--json")
+	var report refusalReport
+	if err := json.Unmarshal([]byte(refused.out), &report); err != nil {
+		t.Fatalf("a refusal under --json did not answer JSON: %v, got %q", err, refused.out)
+	}
+	if report.Outcome != contract.OutcomeRefused {
+		t.Errorf("outcome: wanted %q, got %q", contract.OutcomeRefused, report.Outcome)
+	}
+	if report.Refusal != contract.UnknownCard {
+		t.Errorf("refusal: wanted %q, got %q", contract.UnknownCard, report.Refusal)
+	}
+}
+
+// TestPathAnswersTheWorkbenchFromDiscoveryAlone asserts that the bare
+// workbench reference resolves from the discovered root without opening the
+// bench, and that nothing else does.
+//
+// The operator reaches for this exactly when his workbench will not open,
+// because a hand-edited column anchor takes the whole open down and the file
+// he has to repair is the one no other verb will name for him. So the fixture
+// is a bench whose column anchor has been emptied, and the direct call to
+// bench.Open below proves the corruption bites before the CLI is asked
+// anything.
+//
+// The second half is the scope check. A descent below the bare form and a
+// column reference both still travel through ResolvePath inside an opened
+// bench, so both still carry the workbench's own refusal, which is what keeps
+// this fast path from masking a corruption everywhere else.
+func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
+	container := newBench(t)
+	root := resolvedDir(t, benchDir(t, container))
+
+	healthy, err := bench.Open(root)
+	if err != nil {
+		t.Fatalf("the fixture bench should open before it is corrupted: %v", err)
+	}
+	if len(healthy.Columns) == 0 {
+		t.Fatalf("the fixture bench declares no columns")
+	}
+	column := healthy.Columns[0]
+	if column.Slug == "" {
+		t.Fatalf("the fixture's first column carries no slug to reference it by")
+	}
+	if err := os.WriteFile(healthy.ColumnAnchorPath(column.ID), nil, 0o644); err != nil {
+		t.Fatalf("corrupting the column anchor: %v", err)
+	}
+
+	_, err = bench.Open(root)
+	if err == nil {
+		t.Fatalf("bench.Open should refuse a bench whose column anchor is empty")
+	}
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("bench.Open refused with something other than a refusal: %v", err)
+	}
+
+	wanted := filepath.Join(root, bench.WorkbenchAnchor)
+	for _, ref := range []string{"workbench", "."} {
+		got := runCLI(t, container, "path", ref, "--json")
+		if got.code != 0 {
+			t.Fatalf("path %s --json: exit %d %s", ref, got.code, got.errw)
+		}
+		var answer PathAnswer
+		if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
+			t.Fatalf("path %s --json did not answer JSON: %v, got %q", ref, err, got.out)
+		}
+		if answer.Path != wanted {
+			t.Errorf("path %s --json: wanted %q, got %q", ref, wanted, answer.Path)
+		}
+		if answer.WorkbenchSource != bench.SourceSearch {
+			t.Errorf("path %s --json: workbench_source wanted %q, got %q", ref, bench.SourceSearch, answer.WorkbenchSource)
+		}
+	}
+
+	plain := runCLI(t, container, "path", "workbench")
+	if plain.code != 0 {
+		t.Fatalf("path workbench: exit %d %s", plain.code, plain.errw)
+	}
+	if strings.TrimSuffix(plain.out, "\n") != wanted {
+		t.Errorf("path workbench: wanted the bare line %q, got %q", wanted, plain.out)
+	}
+
+	for _, ref := range []string{"workbench/attachments", column.Slug} {
+		got := runCLI(t, container, "path", ref, "--json")
+		if got.code == 0 {
+			t.Errorf("path %s --json should refuse against a corrupted bench, got %q", ref, got.out)
+			continue
+		}
+		var report refusalReport
+		if err := json.Unmarshal([]byte(got.out), &report); err != nil {
+			t.Fatalf("path %s --json did not answer JSON: %v, got %q", ref, err, got.out)
+		}
+		if report.Refusal != refusal.Name {
+			t.Errorf("path %s --json: wanted the refusal bench.Open raises, %q, got %q", ref, refusal.Name, report.Refusal)
+		}
+		if report.Detail != refusal.Detail {
+			t.Errorf("path %s --json: wanted the detail bench.Open raises, %q, got %q", ref, refusal.Detail, report.Detail)
+		}
 	}
 }
 
