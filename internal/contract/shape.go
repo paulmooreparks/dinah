@@ -696,6 +696,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.unknown-workstream.next"},
 	},
 	{
+		// The next step names the two ways past an explicit collision: choose
+		// a different slug, or drop --slug and let creation derive one the
+		// way it already does for a title alone, counting suffix and all.
+		Name:      WorkstreamSlugTaken,
+		Fragments: []Fragment{{Key: "refusal.dinah.workstream-slug-taken.next"}},
+		NextStep:  []string{"refusal.dinah.workstream-slug-taken.next"},
+	},
+	{
 		Name:      WorkbenchNotApplicable,
 		Values:    []string{"source"},
 		Fragments: []Fragment{{Key: "refusal.dinah.workbench-not-applicable.next"}},

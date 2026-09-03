@@ -811,6 +811,8 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Field = value
 	case "workstream":
 		req.Workstream = value
+	case "slug":
+		req.Slug = value
 	case "value":
 		req.Value = value
 	case "name":
