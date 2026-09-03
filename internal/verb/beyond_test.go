@@ -2585,3 +2585,192 @@ func TestACheckReportSaysWhetherItFoundAnything(t *testing.T) {
 		t.Errorf("wanted the migration branch to be the only source of findings, got %+v", migrated.Findings)
 	}
 }
+
+// newWorkstreamNamingItsSlug files a workstream through the library with the
+// slug the caller names, and fails the test unless it was created. It sits
+// beside newWorkstream rather than replacing it, because the title-only helper
+// is what the two title-derived-path tests drive and this card leaves that path
+// exactly where it found it.
+func (h *harness) newWorkstreamNamingItsSlug(title, slug string) *WorkstreamView {
+	h.t.Helper()
+	response := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: title, Slug: slug})
+	if response.Outcome != contract.OutcomeOK {
+		h.t.Fatalf("workstream new %q with the slug %q: %s %s", title, slug, response.Outcome, response.Refusal)
+	}
+	h.reopen()
+	return response.Workstream
+}
+
+// workstreamDirs is the collection's own directory listing, which is what
+// answers whether a refused creation wrote anything at all. It reads the
+// filesystem rather than the opened workbench, because a directory a refusal
+// left behind without an anchor is one Workstreams would not carry, and that is
+// the leftover these assertions have to be able to see.
+func (h *harness) workstreamDirs() []string {
+	h.t.Helper()
+	entries, err := os.ReadDir(h.library.Bench.WorkstreamsRoot())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		h.t.Fatalf("read the workstreams collection: %v", err)
+	}
+	names := []string{}
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names
+}
+
+// TestAWorkstreamCreatedWithASlugStoresThatSlug asserts the row this card adds
+// to creation: the slug the caller named is what the anchor carries, rather
+// than the one SlugifyDashed would have derived from the title.
+//
+// The stored anchor is read back through bench.LoadWorkstream rather than off
+// the response, because a parameter accepted, echoed and never written would
+// satisfy a response-only assertion.
+func TestAWorkstreamCreatedWithASlugStoresThatSlug(t *testing.T) {
+	h := newHarness(t)
+	if derived := bench.SlugifyDashed("Autumn release"); derived == "autumn" {
+		t.Fatalf("the title derives %q on its own, so this test cannot tell a written slug from a derived one", derived)
+	}
+	view := h.newWorkstreamNamingItsSlug("Autumn release", "autumn")
+	if view.Slug != "autumn" {
+		t.Errorf("the response carries the slug %q, wanted the autumn the caller named", view.Slug)
+	}
+	stored, err := bench.LoadWorkstream(h.library.Bench.WorkstreamsRoot(), view.ID)
+	if err != nil {
+		t.Fatalf("load the stored workstream: %v", err)
+	}
+	if stored.Slug != "autumn" {
+		t.Errorf("the anchor carries the slug %q, wanted autumn", stored.Slug)
+	}
+	if stored.Title != "Autumn release" || stored.Status != bench.StatusActive {
+		t.Errorf("the anchor reads title %q and status %q, wanted the title and the active status the slug row did not disturb", stored.Title, stored.Status)
+	}
+	if found := h.library.Bench.WorkstreamByRef("autumn"); found == nil || found.ID != view.ID {
+		t.Errorf("the slug autumn resolves to %v, wanted the workstream it was written on", found)
+	}
+}
+
+// TestAMalformedSlugAtCreationIsRefusedBeforeAnythingIsWritten asserts the
+// grammar row, the argument its detail names, and that the refusal leaves the
+// collection as empty as it found it.
+//
+// The detail is the field name rather than the value the caller typed, which is
+// the convention SetWorkstream's own malformed rows already keep: the field is
+// what a caller can act on.
+func TestAMalformedSlugAtCreationIsRefusedBeforeAnythingIsWritten(t *testing.T) {
+	for _, slug := range []string{"Autumn", "autumn release", "-autumn", "autumn--release", "autumn/release"} {
+		t.Run(slug, func(t *testing.T) {
+			if bench.ValidColumnSlug(slug) {
+				t.Fatalf("%q is a slug the grammar admits, so this case asserts nothing about a malformed one", slug)
+			}
+			h := newHarness(t)
+			before := h.workstreamDirs()
+			response := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: "Autumn release", Slug: slug})
+			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.Malformed {
+				t.Fatalf("creation with the slug %q: %s %s, wanted a refusal of %s", slug, response.Outcome, response.Refusal, contract.Malformed)
+			}
+			if response.Detail != bench.SlugField {
+				t.Errorf("the refusal names %q, wanted the argument %q", response.Detail, bench.SlugField)
+			}
+			h.reopen()
+			if after := h.workstreamDirs(); len(after) != len(before) {
+				t.Errorf("the refused creation left the collection reading %v, wanted the %v it found", after, before)
+			}
+			if got := h.library.Bench.Workstreams(); len(got) != 0 {
+				t.Errorf("the workbench carries %d workstreams, wanted none", len(got))
+			}
+		})
+	}
+}
+
+// TestASecondCreationOnATakenSlugIsRefusedAndWritesNothing asserts the column
+// the explicit path does not share with the derived one. A title-derived slug
+// that collides counts upward, because nobody typed it; an explicit slug that
+// collides is refused, because somebody did.
+//
+// Three things are asserted not to have happened, and each is a different way
+// the refusal could still have cost something: no second directory in the
+// collection, no second event on the surviving journal, and no creation ordinal
+// consumed, which the next creation's own ordinal is what reads.
+func TestASecondCreationOnATakenSlugIsRefusedAndWritesNothing(t *testing.T) {
+	h := newHarness(t)
+	first := h.newWorkstreamNamingItsSlug("Autumn release", "autumn")
+	before := h.workstreamDirs()
+
+	response := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: "Autumn release", Slug: "autumn"})
+	if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.WorkstreamSlugTaken {
+		t.Fatalf("the repeated creation: %s %s, wanted a refusal of %s rather than a counting suffix", response.Outcome, response.Refusal, contract.WorkstreamSlugTaken)
+	}
+	if response.Detail != "autumn" {
+		t.Errorf("the refusal names %q, wanted the slug the caller supplied", response.Detail)
+	}
+	h.reopen()
+	if after := h.workstreamDirs(); len(after) != len(before) {
+		t.Errorf("the refused creation left the collection reading %v, wanted the %v it found", after, before)
+	}
+	live := h.library.Bench.Workstreams()
+	if len(live) != 1 || live[0].ID != first.ID || live[0].Slug != "autumn" {
+		t.Fatalf("the workbench carries %d workstreams, wanted the one born under autumn alone", len(live))
+	}
+	if events := h.workstreamEvents(first.ID); len(events) != 1 {
+		t.Errorf("the surviving workstream's journal carries %d events, wanted the one created event the refusal did not add to", len(events))
+	}
+	next := h.newWorkstreamNamingItsSlug("Winter release", "winter")
+	stored := h.library.Bench.Workstream(next.ID)
+	if stored.Ordinal != 2 {
+		t.Errorf("the next workstream created carries the ordinal %d, wanted 2, so the refused creation consumed one", stored.Ordinal)
+	}
+}
+
+// TestCreatingAWorkstreamDoesNotLetTheCreatorWriteItsFields asserts the
+// boundary this card leaves exactly where it found it. Field writes on a
+// workstream are the operator's, and having created one moments earlier buys
+// the creator nothing, on any of the three fields the entity carries.
+//
+// The creator is the interesting actor rather than an arbitrary stranger. The
+// gap this card was filed over is that a non-operator can create a workstream
+// and then cannot finish setting it up, and the fix widens creation's inputs
+// rather than widening who may write, so a change that closed the gap the other
+// way turns this test red.
+func TestCreatingAWorkstreamDoesNotLetTheCreatorWriteItsFields(t *testing.T) {
+	h := newHarness(t)
+	if h.library.Bench.Operator != "alka" {
+		t.Fatalf("the harness operator is %q, and bob below is a non-operator only while it is alka", h.library.Bench.Operator)
+	}
+	created := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "bob", Workstream: "Autumn release", Slug: "autumn"})
+	if created.Outcome != contract.OutcomeOK {
+		t.Fatalf("bob creating a workstream: %s %s, wanted it accepted, since creation asks for an owner rather than for the operator", created.Outcome, created.Refusal)
+	}
+	h.reopen()
+	stored := h.library.Bench.Workstream(created.Workstream.ID)
+	before, err := bench.ReadText(stored.AnchorPath())
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	for _, c := range []struct{ field, value string }{
+		{"title", "Autumn 2025 release"},
+		{bench.SlugField, "autumn-2025"},
+		{"status", "finished"},
+	} {
+		t.Run(c.field, func(t *testing.T) {
+			response := h.library.SetWorkstream(&Request{Verb: "workstream", Action: "set", Actor: "bob", Workstream: "autumn", Field: c.field, Value: c.value, Confirm: true})
+			h.reopen()
+			if response.Outcome != contract.OutcomeRefused || response.Refusal != contract.NotOperator {
+				t.Fatalf("bob writing %s on the workstream he created: %s %s, wanted a refusal of %s", c.field, response.Outcome, response.Refusal, contract.NotOperator)
+			}
+			if response.Detail != "bob" {
+				t.Errorf("the refusal names %q, wanted the actor it turned away", response.Detail)
+			}
+			after, err := bench.ReadText(stored.AnchorPath())
+			if err != nil {
+				t.Fatalf("read the anchor again: %v", err)
+			}
+			if after != before {
+				t.Errorf("the refused write on %s rewrote the anchor:\n%q\n%q", c.field, before, after)
+			}
+		})
+	}
+}
