@@ -51,6 +51,11 @@ var outOfReach = map[string]string{
 	"CORE-OWNER-1": "every act names its owner by construction, since the journal writer takes the actor from a request the ladder resolved",
 	"CORE-TEXT-1":  "every text the tool writes is UTF-8 by construction, since Go strings are and nothing transcodes",
 	"CORE-HIST-3":  "the journal is append-only by construction: nothing in the tool opens one for rewriting",
+	"CORE-ITEM-1":  "a permission, and v0 stores no structured item on a card, so there is nothing for a card to be offered carrying",
+	"CORE-ITEM-2":  "the tool reports no structured item, so it is never asked whether one is resolved",
+	"CORE-ITEM-3":  "no verb consults a structured item, so no refusal can follow from one and no refusal name can be reported for one",
+	"CORE-GATE-1":  "marking a column as requiring an item resolved is a definition surface v0 neither writes nor validates",
+	"CORE-GATE-2":  "the same surface, read from the other side: v0 declares no such column, so no move can be refused for entering one",
 }
 
 // TestConformanceReport maps every CORE statement the v0 surface reaches to

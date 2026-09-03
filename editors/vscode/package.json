@@ -126,6 +126,14 @@
       {
         "command": "dinah.tree.openAttachment",
         "title": "Dinah: Open Attachment"
+      },
+      {
+        "command": "dinah.tree.newCard",
+        "title": "New Card..."
+      },
+      {
+        "command": "dinah.tree.attachFile",
+        "title": "Attach File..."
       }
     ],
     "menus": {
@@ -176,6 +184,14 @@
         },
         {
           "command": "dinah.tree.openAttachment",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.newCard",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.attachFile",
           "when": "false"
         }
       ],
@@ -233,9 +249,29 @@
           "group": "1_workbench@3"
         },
         {
+          "command": "dinah.tree.attachFile",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.workbench(Root|Candidate|Forest)$/",
+          "group": "1_workbench@4"
+        },
+        {
           "command": "dinah.tree.editColumnInstructions",
-          "when": "view == dinah.workbenchView && viewItem == dinah.column",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column(\\.open|\\.full)?$/",
           "group": "1_column@1"
+        },
+        {
+          "command": "dinah.tree.newCard",
+          "when": "view == dinah.workbenchView && viewItem == dinah.column.open",
+          "group": "1_column@2"
+        },
+        {
+          "command": "dinah.tree.attachFile",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\./",
+          "group": "1_column@3"
+        },
+        {
+          "command": "dinah.tree.attachFile",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "group": "2_attachment@1"
         }
       ]
     },

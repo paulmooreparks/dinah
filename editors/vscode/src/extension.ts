@@ -24,13 +24,31 @@ import {
 import type { CheckpointEntry, Watcher } from "./changes";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
+// Two modules export a function named contextForColumn. dinah-331 and
+// dinah-332 each gave the column row an act, and each act composes its own
+// context: the creation one declines a row whose ColumnView the status join
+// missed, and the editing one falls back to the node's own ref and answers
+// anyway. Both are aliased here so that each registration below names the act
+// it serves rather than the row the act stands on.
 import type {
 	ColumnCommandContext,
 	ColumnCommandHost,
 } from "./columnCommands";
-import { contextForColumn, editColumnInstructions } from "./columnCommands";
+import {
+	contextForColumn as contextForInstructions,
+	editColumnInstructions,
+} from "./columnCommands";
+import {
+	ATTACH_DIALOG_OPTIONS,
+	attachFile,
+	contextForAttach,
+	contextForColumn as contextForNewCard,
+	newCard,
+	pickedFilePath,
+} from "./creationCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
+	COMMAND_ATTACH_FILE,
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
@@ -39,6 +57,7 @@ import {
 	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_MOVE,
+	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
 	COMMAND_REFRESH,
@@ -168,6 +187,12 @@ function commandHost(
 		openFile: async (path) => {
 			await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(path));
 		},
+		// The options and the read of what came back both live in
+		// creationCommands.ts, where a unit test drives them. What is left
+		// here is the call itself, which no test in this layer can reach
+		// (dinah-331 AC-12).
+		pickFile: async () =>
+			pickedFilePath(await vscode.window.showOpenDialog(ATTACH_DIALOG_OPTIONS)),
 		checkpoint,
 		log: (line) => channel.appendLine(line),
 	};
@@ -442,7 +467,7 @@ export async function activate(
 		vscode.commands.registerCommand(
 			COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 			async (element: TreeElement | undefined) => {
-				const target: ColumnCommandContext | undefined = contextForColumn(
+				const target: ColumnCommandContext | undefined = contextForInstructions(
 					element,
 					binary.state === "ok" ? binary.path : "",
 					columnHost,
@@ -466,6 +491,51 @@ export async function activate(
 			COMMAND_OPEN_ATTACHMENT,
 			async (element: TreeElement | undefined) => {
 				await openAttachment(element, host, (line) => channel.appendLine(line));
+			},
+		),
+	);
+	// The two creation commands are registered on their own for the reason the
+	// loops above are separate from each other: New Card takes a column context
+	// and Attach File takes an entity context, and neither fits CommandContext,
+	// which names a card. Both need the checkpoint the flow host carries, so
+	// both take that host rather than the workbench one.
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			COMMAND_NEW_CARD,
+			async (element: TreeElement | undefined) => {
+				const target = contextForNewCard(
+					element,
+					binary.state === "ok" ? binary.path : "",
+					host,
+					nodeSpawner,
+				);
+				if (target === undefined) {
+					channel.appendLine(
+						`${COMMAND_NEW_CARD} was invoked on a row that names no column`,
+					);
+					return;
+				}
+				await newCard(target);
+			},
+		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			COMMAND_ATTACH_FILE,
+			async (element: TreeElement | undefined) => {
+				const target = contextForAttach(
+					element,
+					binary.state === "ok" ? binary.path : "",
+					host,
+					nodeSpawner,
+				);
+				if (target === undefined) {
+					channel.appendLine(
+						`${COMMAND_ATTACH_FILE} was invoked on a row that names no attachable entity`,
+					);
+					return;
+				}
+				await attachFile(target, host.pickFile);
 			},
 		),
 	);
