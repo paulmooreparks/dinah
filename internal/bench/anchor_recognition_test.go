@@ -472,8 +472,10 @@ func TestAnExplicitPointerAtADamagedWorkbenchStillResolves(t *testing.T) {
 	// The ambient climb over the same directory refuses, which is what makes
 	// the override's silence a difference between two call shapes rather
 	// than a fixture that was never damaged.
-	if _, _, err := Discover(workbench, "", "", ""); err == nil {
-		t.Fatal("the ambient climb should refuse over this fixture, so the override case below proves nothing")
+	climbed, _, err := Discover(workbench, "", "", "")
+	refusal, ok := err.(*contract.Refusal)
+	if !ok || refusal.Name != contract.DamagedBench {
+		t.Fatalf("the ambient climb over this fixture answered %q and %v rather than refusing %s, so the override case below proves nothing", climbed, err, contract.DamagedBench)
 	}
 
 	found, source, passed, err := DiscoverSource(workbench, workbench, SourceFlag, "", "", "")
