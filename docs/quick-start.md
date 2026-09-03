@@ -841,25 +841,24 @@ handle called a slug, a status, and a body you write your own notes in. It does
 not change how a card moves: nothing Dinah refuses, orders, or counts depends
 on which workstream a card belongs to.
 
-You create one with `dinah workstream new`, and Dinah derives the slug from the
-title. Quote a title of more than one word, the way you quote a card title:
+You create one with `dinah workstream new`. Name the slug you want it to answer
+to and creation writes that slug, so the workstream is set up in the one call
+that makes it. Quote a title of more than one word, the way you quote a card
+title:
 
 ```console
-$ dinah workstream new "Autumn release"
-autumn-release  Autumn release  [active]
-[exit 0]
-```
-
-The derived slug is the whole title, so this workstream answers to
-`autumn-release`. If you want a shorter handle, write one. A slug change needs
-`--yes`, because every reference to the workstream you have written down
-elsewhere names the old one:
-
-```console
-$ dinah workstream set autumn-release slug autumn --yes
+$ dinah workstream new "Autumn release" --slug autumn
 autumn  Autumn release  [active]
 [exit 0]
 ```
+
+Leave `--slug` out and Dinah derives the slug from the whole title instead, so
+this workstream would have been born `autumn-release`, and a second workstream
+of the same title would take a counting suffix. A slug you write yourself is
+held to the grammar a column slug is held to, and Dinah refuses it outright
+when another live workstream already carries it, so a provisioning script you
+run twice hears about the collision rather than quietly gaining a numbered
+duplicate.
 
 You add a card to a workstream with `dinah join`, and you take it out again
 with `dinah leave`. The card is what you name first, because the card's own
@@ -923,10 +922,21 @@ autumn  Autumn release  [finished]
 [exit 0]
 ```
 
+A workstream that already exists can still be renamed, and that write belongs
+to the operator rather than to whoever created it. Changing the slug needs
+`--yes`, because every reference to the workstream you have written down
+elsewhere names the old one:
+
+```console
+$ dinah workstream set autumn slug autumn-2025 --yes
+autumn-2025  Autumn release  [finished]
+[exit 0]
+```
+
 If you want the workstream out of your listings when the effort is over, run
-`dinah archive workstream/autumn`. That works while cards still belong to it,
-and those cards keep the membership. `dinah delete workstream/autumn --yes`
-destroys it instead, and Dinah refuses that while a live card still belongs to
+`dinah archive workstream/autumn-2025`. That works while cards still belong to
+it, and those cards keep the membership. `dinah delete workstream/autumn-2025
+--yes` destroys it instead, and Dinah refuses that while a live card still belongs to
 it. A workstream names its kind in both of those commands, and nothing else
 does, so a workstream and a column may share a name without either one hiding
 the other.
@@ -1214,14 +1224,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        716/716
-  af        0/716
-  cs        0/716
-  de        716/716
-  es        0/716
-  fil       0/716
-  hi        716/716
-  id        0/716
+  en        719/719
+  af        0/719
+  cs        0/719
+  de        719/719
+  es        0/719
+  fil       0/719
+  hi        719/719
+  id        0/719
 [exit 0]
 ```
 
