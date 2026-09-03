@@ -166,8 +166,10 @@ const sweptGutter = 2
 // every site that draws from an ordinary workbench draws from it. Each of the
 // remaining sites draws only in a state a healthy workbench never reaches, so
 // each of those gets a tree built for that one state. Read against the tree
-// this comment sits in, eighteen of the twenty-two call sites draw from the
-// healthy corpus and the other four from a tree built for one state each.
+// this comment sits in, twenty-six of the thirty-three call sites draw from
+// the healthy corpus, five from a tree built for one state each, one from the
+// pair of workbenches an ambiguous search resolves to, and one from the tree
+// the search block plants its phrase in.
 type sweptWorkbenches struct {
 	// healthy holds three cards under three scripts, one held, one blocked,
 	// one carrying a link and a comment, with an operator-owned column and a
@@ -1354,8 +1356,8 @@ const (
 // covers is the condition len(block.keys) < 2 rather than a list of names: an
 // entry declaring one column is exempt because it has no second label for a
 // value to sit under, and every other entry carries an expectation. Read
-// against the tree this comment sits in, the inventory holds thirty-one
-// entries at twenty-eight call sites.
+// against the tree this comment sits in, the inventory holds thirty-seven
+// entries at thirty-three call sites.
 func sweptBlocks() []sweptBlock {
 	return []sweptBlock{
 		{
