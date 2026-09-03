@@ -24,6 +24,11 @@ import {
 import type { CheckpointEntry, Watcher } from "./changes";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
+import type {
+	ColumnCommandContext,
+	ColumnCommandHost,
+} from "./columnCommands";
+import { contextForColumn, editColumnInstructions } from "./columnCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
 	COMMAND_BLOCK,
@@ -31,6 +36,8 @@ import {
 	COMMAND_CLAIM,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_MOVE,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
@@ -62,6 +69,7 @@ import {
 	checkWorkbench,
 	contextForWorkbench,
 	copyWorkbenchPath,
+	editWorkbenchDefinition,
 } from "./workbenchCommands";
 
 let statusItem: vscode.StatusBarItem | undefined;
@@ -182,6 +190,33 @@ function workbenchCommandHost(
 		},
 		revealOutput: () => channel.show(),
 		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
+		openDocument: async (path) => {
+			const document = await vscode.workspace.openTextDocument(
+				vscode.Uri.file(path),
+			);
+			await vscode.window.showTextDocument(document);
+		},
+		log: (line) => channel.appendLine(line),
+	};
+}
+
+/** The window calls the column-row command makes, bound to the real window. */
+function columnCommandHost(channel: vscode.OutputChannel): ColumnCommandHost {
+	return {
+		showWarning: async (message, actions) =>
+			vscode.window.showWarningMessage(message, ...actions),
+		appendLines: (lines) => {
+			for (const line of lines) {
+				channel.appendLine(line);
+			}
+		},
+		revealOutput: () => channel.show(),
+		openDocument: async (path) => {
+			const document = await vscode.workspace.openTextDocument(
+				vscode.Uri.file(path),
+			);
+			await vscode.window.showTextDocument(document);
+		},
 		log: (line) => channel.appendLine(line),
 	};
 }
@@ -369,6 +404,7 @@ export async function activate(
 	][] = [
 		[COMMAND_CHECK_WORKBENCH, checkWorkbench],
 		[COMMAND_COPY_WORKBENCH_PATH, copyWorkbenchPath],
+		[COMMAND_EDIT_WORKBENCH_DEFINITION, editWorkbenchDefinition],
 	];
 	for (const [id, run] of workbenchCommands) {
 		context.subscriptions.push(
@@ -398,6 +434,30 @@ export async function activate(
 			),
 		);
 	}
+	// The column row's one command gets its own registration rather than a
+	// third loop. A loop over a single pair reads as though more were coming,
+	// and this command takes a context and a host neither family above shares.
+	const columnHost = columnCommandHost(channel);
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+			async (element: TreeElement | undefined) => {
+				const target: ColumnCommandContext | undefined = contextForColumn(
+					element,
+					binary.state === "ok" ? binary.path : "",
+					columnHost,
+					nodeSpawner,
+				);
+				if (target === undefined) {
+					channel.appendLine(
+						`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} was invoked on a row that names no column`,
+					);
+					return;
+				}
+				await editColumnInstructions(target);
+			},
+		),
+	);
 	// An attachment row is registered on its own rather than through the loop
 	// above, because it is not a card and carries no CommandContext: the path
 	// it was drawn from is the whole of what opening it needs.

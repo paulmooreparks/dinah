@@ -3,6 +3,8 @@ package bench
 import (
 	"path/filepath"
 	"strconv"
+
+	"dinah/internal/contract"
 )
 
 // SlugField is the frontmatter key carrying a column's slug: the short handle a
@@ -168,4 +170,81 @@ func stampSlug(path, slug string) error {
 	fm, body := ParseAnchor(text)
 	fm.SetAfter(SlugField, slug, "title")
 	return WriteText(path, fm.Render(body))
+}
+
+// NewColumn creates a column: the directory, the anchor carrying title, slug,
+// kind and (when given) a capacity, and the column's identifier spliced into
+// the workbench's own columns sequence, either at the end or immediately
+// ahead of an existing column named by before.
+//
+// An empty kind defaults to contract.KindWork, which is what a new place to
+// do work means, and a capacity of zero means unlimited, exactly as an absent
+// wip_limit already means for every other column.
+//
+// The caller holds the workbench's lock, which is what makes the identifier
+// claim, the slug collision scan and the columns-sequence write race-free,
+// the same invariant NewWorkstream documents for its own operations. Whether
+// the placement would change an occupied column's pull routing is the verb
+// layer's question, asked under that same lock before this function is
+// called; see internal/verb/columns.go. This function does not repeat it,
+// matching the division of labour NewWorkstream already keeps with its own
+// caller.
+func (b *Bench) NewColumn(title, kind, slug string, capacity int, before string) (*Column, error) {
+	if kind == "" {
+		kind = DefaultColumnKind
+	}
+	insertAt := len(b.Columns)
+	if before != "" {
+		target := b.ColumnByRef(before)
+		if target == nil {
+			return nil, contract.Refuse(contract.UnknownColumn, before)
+		}
+		insertAt = target.Position
+	}
+	taken := map[string]bool{}
+	for _, existing := range b.Columns {
+		if existing.Slug != "" {
+			taken[existing.Slug] = true
+		}
+	}
+	resolved := slug
+	if resolved == "" {
+		resolved = FreeSlug(SlugifyDashed(title), taken)
+	} else if taken[resolved] {
+		return nil, contract.Refuse(contract.ColumnSlugTaken, resolved)
+	}
+	collection := filepath.Join(b.Root, ColumnsDir)
+	id, err := ClaimID(collection, func(candidate string) bool { return b.Column(candidate) != nil })
+	if err != nil {
+		return nil, err
+	}
+	fm := NewFrontmatter()
+	fm.Set("title", title)
+	fm.SetAfter(SlugField, resolved, "title")
+	fm.Set("kind", kind)
+	if capacity > 0 {
+		fm.Set("wip_limit", strconv.Itoa(capacity))
+	}
+	if err := WriteText(filepath.Join(collection, id, ColumnAnchor), fm.Render("")); err != nil {
+		return nil, err
+	}
+	ids := b.FM.Seq("columns")
+	next := make([]string, 0, len(ids)+1)
+	next = append(next, ids[:insertAt]...)
+	next = append(next, id)
+	next = append(next, ids[insertAt:]...)
+	b.FM.SetSeq("columns", next)
+	if err := WriteText(filepath.Join(b.Root, WorkbenchAnchor), b.FM.Render(b.Standing)); err != nil {
+		return nil, err
+	}
+	column := &Column{ID: id, Title: title, Slug: resolved, Kind: kind, Capacity: capacity, Position: insertAt, FM: fm}
+	columns := make([]*Column, 0, len(b.Columns)+1)
+	columns = append(columns, b.Columns[:insertAt]...)
+	columns = append(columns, column)
+	columns = append(columns, b.Columns[insertAt:]...)
+	b.Columns = columns
+	for i := insertAt + 1; i < len(b.Columns); i++ {
+		b.Columns[i].Position = i
+	}
+	return column, nil
 }

@@ -2876,6 +2876,62 @@
     "status.workbench.unsourced": {
       "text": "{title}  ({root})",
       "context": "The first line of status under a root-scoped read: the workbench and where it was discovered, with no rung named. It stands in for status.workbench, which also names the rung that resolved the workbench, because a root-scoped read resolves no single workbench by any rung and an empty bracket reads as a value that failed to render."
+    },
+    "cmd.column.summary": {
+      "text": "Create a column in this workbench's flow",
+      "context": "The one-line summary of the column command, shown beside its syntax in the help block."
+    },
+    "param.column.action.summary": {
+      "text": "create a column; new is the only action this build carries",
+      "context": "The meaning of the action argument of `dinah column`, printed in that command's arguments table."
+    },
+    "param.column.column.summary": {
+      "text": "the title of the column you are creating",
+      "context": "The meaning of the title argument of `dinah column`, printed in that command's arguments table."
+    },
+    "param.column.kind.summary": {
+      "text": "which kind the new column carries: intake, work, done, or dinah.buffer; work when you say nothing",
+      "context": "The meaning of the kind argument of `dinah column`, printed in that command's arguments table."
+    },
+    "param.column.capacity.summary": {
+      "text": "the most cards the new column holds at once, unlimited when you say nothing",
+      "context": "The meaning of the capacity argument of `dinah column`, printed in that command's arguments table."
+    },
+    "param.column.slug.summary": {
+      "text": "the short handle you type instead of quoting the title, derived from the title when you say nothing",
+      "context": "The meaning of the slug argument of `dinah column`, printed in that command's arguments table."
+    },
+    "param.column.before.summary": {
+      "text": "the column the new one is placed immediately ahead of, appended to the end of the flow when you say nothing",
+      "context": "The meaning of the before argument of `dinah column`, printed in that command's arguments table."
+    },
+    "refusal.dinah.column-slug-taken": {
+      "text": "another column of this workbench already carries the slug {detail}",
+      "context": "The sentence printed after the refusal name dinah.column-slug-taken. {detail} carries the slug the caller asked for."
+    },
+    "refusal.dinah.column-slug-taken.next": {
+      "text": "; choose a slug no column carries, or leave the argument out and take the one derived from the title",
+      "context": "Spliced onto refusal.dinah.column-slug-taken as the next step."
+    },
+    "refusal.dinah.column-routing-disrupted": {
+      "text": "a card stands at {detail}, and placing a column here would change which column a pull carries that card into",
+      "context": "The sentence printed after the refusal name dinah.column-routing-disrupted. {detail} names the column whose routing the placement would change."
+    },
+    "refusal.dinah.column-routing-disrupted.next": {
+      "text": "; place the new column where the change reaches nobody, or wait until no card stands at {detail}",
+      "context": "Spliced onto refusal.dinah.column-routing-disrupted as the next step."
+    },
+    "columns.new.line": {
+      "text": "{ref}  {title}  [{kind}]  {capacity}",
+      "context": "The one line printed about a column after it is created. {ref} is what a person types to reach it, {kind} is the kind it carries, and {capacity} is the limit sentence built from columns.new.capacity or columns.new.unlimited."
+    },
+    "columns.new.capacity": {
+      "text": "capacity {count}",
+      "context": "The capacity field of columns.new.line for a column carrying a limit. {count} is the most cards it holds at once."
+    },
+    "columns.new.unlimited": {
+      "text": "unlimited",
+      "context": "The capacity field of columns.new.line for a column carrying no limit at all."
     }
   }
 }

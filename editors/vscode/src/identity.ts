@@ -55,6 +55,12 @@ export const COMMAND_COPY_CARD_REF = "dinah.tree.copyCardRef";
 export const COMMAND_CHECK_WORKBENCH = "dinah.tree.checkWorkbench";
 export const COMMAND_COPY_WORKBENCH_PATH = "dinah.tree.copyWorkbenchPath";
 
+/** The workbench row's third act: opens workbench.md for editing (dinah-332). */
+export const COMMAND_EDIT_WORKBENCH_DEFINITION = "dinah.tree.editWorkbenchDefinition";
+
+/** The column row's first act: opens that column's own column.md for editing (dinah-332). */
+export const COMMAND_EDIT_COLUMN_INSTRUCTIONS = "dinah.tree.editColumnInstructions";
+
 /** The command an attachment row runs on a plain click, when its file can open. */
 export const COMMAND_OPEN_ATTACHMENT = "dinah.tree.openAttachment";
 
@@ -74,6 +80,8 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_COPY_CARD_REF,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_EDIT_WORKBENCH_DEFINITION,
+	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_OPEN_ATTACHMENT,
 ];
 
@@ -96,6 +104,8 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_COPY_CARD_REF,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_EDIT_WORKBENCH_DEFINITION,
+	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
 	COMMAND_OPEN_ATTACHMENT,
 ];
 
