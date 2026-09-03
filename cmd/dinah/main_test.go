@@ -983,6 +983,15 @@ func TestPathCarriesThePlumbingGuarantee(t *testing.T) {
 // The comparison is against the ordered lists extracted from
 // docs/spec/core-profile.md, so a reordering there that the code does not
 // follow fails the build, which is what DOC-ORDER-1 asks of a tool.
+//
+// A verb may carry rows the profile does not declare, which dinah-364's
+// loop_limit row is the first of. Those rows are held to two conditions
+// rather than admitted freely: they come after every row the profile
+// declares, so the profile's own numbering is untouched, and each carries a
+// refusal name in Dinah's own layer, so nothing can smuggle in a profile-named
+// refusal as an extra row. Every failure this guard could see before it can
+// still see: a reordered list, a dropped row, and a sentence that drifted from
+// the profile's wording all fail exactly as they did.
 func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 	text, err := os.ReadFile(filepath.Join("..", "..", "docs", "spec", "core-profile.md"))
 	if err != nil {
@@ -997,16 +1006,22 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 	for _, name := range verb.ContractVerbs {
 		wanted := append(append([]profile.Precondition{}, workbench...), lists[name]...)
 		got := verb.Checks(name)
-		if len(got) != len(wanted) {
-			t.Errorf("%s: wanted %d rows, got %d", name, len(wanted), len(got))
+		if len(got) < len(wanted) {
+			t.Errorf("%s: wanted at least the profile's %d rows, got %d", name, len(wanted), len(got))
 			continue
 		}
-		for i, check := range got {
+		for i, check := range got[:len(wanted)] {
 			if check.Refusal != wanted[i].Refusal {
 				t.Errorf("%s row %d: wanted %s, got %s", name, i+1, wanted[i].Refusal, check.Refusal)
 			}
 			if rendered := catalog.T(check.Key); rendered != wanted[i].Check {
 				t.Errorf("%s row %d: wanted %q, got %q", name, i+1, wanted[i].Check, rendered)
+			}
+		}
+		for i, extra := range got[len(wanted):] {
+			if !strings.HasPrefix(extra.Refusal, contract.LayerPrefix) {
+				t.Errorf("%s row %d: a row past the profile's list refuses %s, which is not a name in Dinah's own layer",
+					name, len(wanted)+i+1, extra.Refusal)
 			}
 		}
 	}
@@ -1024,8 +1039,16 @@ func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 			rows++
 		}
 	}
-	if rows != 10 {
-		t.Errorf("wanted move's eight checks behind the two workbench-level ones, got %d rows", rows)
+	// The two workbench-level rows, then the profile's own move rows, then
+	// Dinah's one appended row for the departure column's loop_limit. The
+	// count is composed from the profile document rather than written down,
+	// so a row added or removed there moves this expectation with it.
+	wantedRows := len(workbench) + len(lists[verb.Move]) + 1
+	if rows != wantedRows {
+		t.Errorf("wanted %d rows, got %d", wantedRows, rows)
+	}
+	if !strings.Contains(got.out, contract.AtLoopLimit) {
+		t.Error("the rendered help should carry Dinah's own appended row")
 	}
 	if !strings.Contains(got.out, contract.AtCapacity) {
 		t.Error("the rendered help should carry each check's refusal name")

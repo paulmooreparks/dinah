@@ -223,6 +223,27 @@ type Instructions struct {
 	Column string `json:"column,omitempty"`
 }
 
+// Loop reports one card's regressive-departure count against the declared
+// loop_limit of the column it is standing in. It is served only where that
+// column declares one, so an agent holding a card in a bounded review loop
+// reads how far round it has been without replaying a journal, and an agent
+// anywhere else reads nothing extra.
+type Loop struct {
+	// Column is what a person types to reach the declaring column, which is
+	// the departure the limit is counted at rather than any destination.
+	Column string `json:"column"`
+	// Limit is the column's own declared loop_limit.
+	Limit int `json:"limit"`
+	// Count is how many times this card has already left that column by a
+	// regressive move.
+	Count int `json:"count"`
+	// AtLimit says the count has reached the limit, so the next regressive
+	// move out of the column is refused and only the operator's --override
+	// carries it. It stays true once reached: an override carries one move
+	// and does not reset the count.
+	AtLimit bool `json:"at_limit"`
+}
+
 // LegalMove is one departure the workbench allows a card at this moment.
 type LegalMove struct {
 	// Column is the destination's identifier.
@@ -272,6 +293,9 @@ type Response struct {
 	Instructions *Instructions `json:"instructions,omitempty"`
 	// LegalMoves are the moves legal for the card at this moment.
 	LegalMoves []LegalMove `json:"legal_moves,omitempty"`
+	// Loop is the card's standing against its column's declared loop_limit,
+	// absent where the column declares none.
+	Loop *Loop `json:"loop,omitempty"`
 	// Affordances name what the caller may do next with the entity the
 	// response concerns, on every response whatever its outcome.
 	Affordances []string `json:"affordances"`
@@ -365,6 +389,32 @@ func (l *Library) legalMoves(card *bench.Card) []LegalMove {
 		})
 	}
 	return moves
+}
+
+// cardLoop composes the loop block for a card, and answers nil where the card
+// stands at a column no longer declared or at one declaring no loop_limit.
+//
+// The journal read is the cost of the block, and it is paid only at a
+// declaring column. The error is returned rather than swallowed, because a
+// journal this call could not read would otherwise serve a count of zero,
+// which reads as a card at the start of a loop rather than as an unanswered
+// question.
+func (l *Library) cardLoop(card *bench.Card) (*Loop, error) {
+	column := l.Bench.Column(card.Column)
+	if column == nil || column.LoopLimit <= 0 {
+		return nil, nil
+	}
+	events, _, err := bench.ReadJournal(card.JournalPath())
+	if err != nil {
+		return nil, err
+	}
+	count := l.Bench.RegressiveDepartures(events, column.ID)
+	return &Loop{
+		Column:  columnRef(column),
+		Limit:   column.LoopLimit,
+		Count:   count,
+		AtLimit: count >= column.LoopLimit,
+	}, nil
 }
 
 // columnRef is what a person types to reach a column. Thin wrapper over

@@ -72,6 +72,14 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.Held, Key: "check.move.6"},
 		{Refusal: contract.Terminal, Key: "check.move.7"},
 		{Refusal: contract.AtCapacity, Key: "check.move.8"},
+		// The ninth row is Dinah's own: the profile's section 6.4 list ends
+		// at the eighth, so the loop limit is appended rather than inserted
+		// among the eight, which would renumber rows the profile numbers. Its
+		// key names where it sits in this list. Where it sits in canLand is
+		// ahead of the capacity row, because it reads the departure and
+		// capacity reads the destination, so a move failing both is refused
+		// dinah.at-loop-limit.
+		{Refusal: contract.AtLoopLimit, Key: "check.move.9"},
 	},
 	Release: {
 		{Refusal: contract.UnknownCard, Key: "check.release.1"},

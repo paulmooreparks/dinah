@@ -611,6 +611,11 @@ type Served struct {
 	Instructions Instructions `json:"instructions"`
 	// LegalMoves are the departures legal for the card at this moment.
 	LegalMoves []LegalMove `json:"legal_moves,omitempty"`
+	// Loop is the card's standing against its column's declared loop_limit,
+	// absent where the column declares none and absent whenever the chain was
+	// served for a column rather than for a card, since a count belongs to a
+	// card and a column named on its own carries no card to count for.
+	Loop *Loop `json:"loop,omitempty"`
 	// Column is the column the instructions were served for.
 	Column string `json:"column"`
 }
@@ -641,10 +646,15 @@ func (l *Library) Instructions(req *Request) (*Served, error) {
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, req.Card)
 	}
+	loop, err := l.cardLoop(found.Card)
+	if err != nil {
+		return nil, err
+	}
 	served := &Served{
 		Column:       found.Card.Column,
 		Instructions: *l.serve(found.Card),
 		LegalMoves:   l.legalMoves(found.Card),
+		Loop:         loop,
 	}
 	return served, nil
 }

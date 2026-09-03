@@ -391,6 +391,11 @@
       "context": "A check finding: a card whose header holds half of each vocabulary. The checker reports what the reader refuses under dinah.vocabulary-mixed, so a card whose anchor file is plainly there is not reported as having none.",
       "skeleton": true
     },
+    "check.at-loop-limit": {
+      "text": "column {detail} declares a loop_limit this card has already reached, so its next regressive move is refused",
+      "context": "A check finding: the card standing at this column has left it backwards as often as the column's loop_limit allows. {detail} carries the declaring column.",
+      "skeleton": true
+    },
     "check.card-vocabulary-retired": {
       "text": "card {detail} is written in the vocabulary this format retired, and this workbench declares the current one, so its standing cannot be read",
       "context": "A check finding: a card the rename never carried across, inside a workbench whose own anchor says it was. The checker reports what the reader refuses under dinah.vocabulary-retired, so a card whose anchor file is plainly there is not reported as having none.",
@@ -434,6 +439,11 @@
     "check.move.8": {
       "text": "the destination is below its capacity limit",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
+    "check.move.9": {
+      "text": "the card has not reached the departure column's loop limit",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.8.",
       "skeleton": true
     },
     "check.next.1": {
@@ -1631,6 +1641,11 @@
       "context": "The label above the column's own instructions.",
       "skeleton": true
     },
+    "instructions.loop": {
+      "text": "{count} of {limit} regressive departures from {column}",
+      "context": "The line served with the instructions where the card's column declares a loop_limit. {count} is how often this card has already left that column backwards, {limit} is what the column declares, and {column} names the column.",
+      "skeleton": true
+    },
     "log.attachment-renamed": {
       "text": "{from} to {to}",
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
@@ -2019,6 +2034,16 @@
     "refusal.at-capacity.next": {
       "text": "; move a card out of {detail} first, or raise that column's wip_limit",
       "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit.",
+      "skeleton": true
+    },
+    "refusal.dinah.at-loop-limit": {
+      "text": "this card has reached the loop limit of column {detail}",
+      "context": "The sentence printed after the refusal name dinah.at-loop-limit. {detail} carries the column the card was leaving, which is where the loop_limit is declared and where the departures are counted.",
+      "skeleton": true
+    },
+    "refusal.dinah.at-loop-limit.next": {
+      "text": "; ask the operator to carry this one move through with --override, or raise that column's loop_limit",
+      "context": "Spliced onto refusal.dinah.at-loop-limit as the next step. An override carries the single move it is passed on and does not reset the count, so a later regressive move out of the same column is refused again.",
       "skeleton": true
     },
     "refusal.blocked": {

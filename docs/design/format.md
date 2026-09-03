@@ -587,6 +587,57 @@ flagged for the profile's boundary table as a candidate for the core, since
 it passes the wedding-planning test and is the most load-bearing mechanism
 of the discipline.
 
+A column may declare `loop_limit: <n>`; absent, zero or negative means
+unbounded, following `wip_limit` above rather than imposing a floor of its own.
+The limit bounds how many times one card may leave this column by a regressive
+move, which is a `moved` event, never a `manual_correction`, whose `to` names a
+column this workbench still declares, standing earlier than the declaring
+column and not of kind `done`. A departure whose `to` no longer resolves to a
+live column is not counted, because there is no current position left to
+compare it against. The count is per card and per declaring column rather than
+per edge, so every regressive departure from the column counts toward that
+column's limit whichever earlier column it landed in.
+
+Nothing stores the count. It is derived from the card's own journal at read
+time, against the column order the workbench declares now, on the same basis
+`dinah check` already replays a card's position, so reordering the flow changes
+the answer exactly as it changes that one and a hand-edited journal changes it
+the way it changes every other replay.
+
+Three surfaces read the declaration. A claim, a move and `dinah instructions`
+each serve a `loop` member carrying the declaring column, the limit, the count
+and whether the count has reached the limit, so an agent holding the card knows
+where it stands without replaying anything. `dinah check` reports a card whose
+count has reached the limit under `check.at-loop-limit`. A regressive move out
+of the column is refused `dinah.at-loop-limit` once the count has reached the
+limit, and the operator carries it through with the same `--override` marker
+that already carries a card into a full column, witnessed on the `moved` event
+the same way.
+
+The cap is absolute. An override carries the one move it is passed on and
+neither resets the count nor stores an exemption, so the count goes on rising
+and the next regressive move out of that column is refused again for the life
+of the card. That is the operator's own ruling rather than a consequence
+nobody weighed: he was shown that it costs him a decision every round, and two
+shapes that would have cost him less, and took this one.
+
+A `loop_limit` on an `intake` or a `done` column parses and never binds. No
+owner takes work up at either, so no card is ever held there to depart from,
+which is the same way a `wip_limit` declared on an intake column is already
+inert.
+
+`loop_limit` travels through interchange by the route `reject_to` takes rather
+than the one `awaiting_outside` takes: it is not listed in `knownColumnKeys`,
+so the generic pass `exportColumn` makes over the rest of a column's
+frontmatter carries it, and an import writes it back unchanged. CORE-JSON-9
+lists the column members the profile blesses and does not list this one, which
+is correct rather than a defect: to another tool it is an unrecognized member,
+and CORE-JSON-7 obliges that tool to preserve it. The concept's boundary-table
+row in section 10 of the profile is ruled out, and its reopen condition is that
+backward edges become modelled in the core. Deriving "regressive" at read time
+from the ordered column list does not model them, so the row stays out and no
+profile revision moves for this.
+
 Flow is linear for now. Real branching, such as lanes or a shortcut jump, is
 deliberately deferred until building the CLI forces the question; the format
 can absorb it later as an additive change (per-column transitions or a lane
@@ -758,7 +809,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 |---|---|---|
 | `created` | | `title`, on a card's line and on a new workstream's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column |
 | `claimed` | | `expires`, when the claim carried a duration |
-| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only under a CORE-MOVE-9 override; `reject`, true only when the destination is the departure column's own `reject_to` target |
+| `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit was reached and the operator carried the move past it, which is a CORE-MOVE-9 capacity override or the departure column's own `loop_limit`; `reject`, true only when the destination is the departure column's own `reject_to` target |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
 | `unblocked` | | |

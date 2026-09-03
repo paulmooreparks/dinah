@@ -404,6 +404,11 @@
       "context": "A check finding: a card whose header holds half of each vocabulary. The checker reports what the reader refuses under dinah.vocabulary-mixed, so a card whose anchor file is plainly there is not reported as having none.",
       "source": "2864a2f89dda59d2"
     },
+    "check.at-loop-limit": {
+      "text": "Spalte {detail} deklariert ein loop_limit, das diese Karte bereits erreicht hat, daher wird ihr nächster rückwärtiger Zug verweigert",
+      "context": "A check finding: the card standing at this column has left it backwards as often as the column's loop_limit allows. {detail} carries the declaring column.",
+      "source": "ed9969569a759d99"
+    },
     "check.card-vocabulary-retired": {
       "text": "Karte {detail} ist in dem Vokabular geschrieben, das dieses Format ausgemustert hat, und diese Werkbank deklariert das aktuelle, daher lässt sich nicht lesen, wo sie steht",
       "context": "A check finding: a card the rename never carried across, inside a workbench whose own anchor says it was. The checker reports what the reader refuses under dinah.vocabulary-retired, so a card whose anchor file is plainly there is not reported as having none.",
@@ -448,6 +453,11 @@
       "text": "das Ziel liegt unter seiner Kapazitätsgrenze",
       "context": "One row of the ordered precondition list of move, quoted from section 6 of the core profile.",
       "source": "9d61260048317b7e"
+    },
+    "check.move.9": {
+      "text": "die Karte hat die Schleifengrenze der Ausgangsspalte nicht erreicht",
+      "context": "One row of the ordered precondition list of move. This row is Dinah's own addition; the core profile's own section 6.4 list ends at check.move.8.",
+      "source": "193dcb5974ead6b"
     },
     "check.next.1": {
       "text": "die Werkbank deklariert die genannte Spalte",
@@ -1655,6 +1665,11 @@
       "context": "The label above the column's own instructions.",
       "source": "1225923c7f625234"
     },
+    "instructions.loop": {
+      "text": "{count} von {limit} rückwärtigen Abgängen aus {column}",
+      "context": "The line served with the instructions where the card's column declares a loop_limit. {count} is how often this card has already left that column backwards, {limit} is what the column declares, and {column} names the column.",
+      "source": "7e830fb10e40b872"
+    },
     "log.attachment-renamed": {
       "text": "{from} nach {to}",
       "context": "The detail of a recorded attachment_renamed, carrying the old filename as {from} and the new filename as {to}.",
@@ -2074,6 +2089,16 @@
       "text": "; nehmen Sie zuerst eine Karte aus {detail} heraus, oder erhöhen Sie das wip_limit dieser Spalte",
       "context": "Spliced onto refusal.at-capacity as the next step. {detail} is the column that has reached its limit.",
       "source": "2267f61902fe1be2"
+    },
+    "refusal.dinah.at-loop-limit": {
+      "text": "diese Karte hat die Schleifengrenze der Spalte {detail} erreicht",
+      "context": "The sentence printed after the refusal name dinah.at-loop-limit. {detail} carries the column the card was leaving, which is where the loop_limit is declared and where the departures are counted.",
+      "source": "aeea8c118a1f886b"
+    },
+    "refusal.dinah.at-loop-limit.next": {
+      "text": "; bitten Sie den Operator, diesen einen Zug mit --override durchzusetzen, oder erhöhen Sie das loop_limit dieser Spalte",
+      "context": "Spliced onto refusal.dinah.at-loop-limit as the next step. An override carries the single move it is passed on and does not reset the count, so a later regressive move out of the same column is refused again.",
+      "source": "ecc0f18489a0d05c"
     },
     "refusal.blocked": {
       "text": "diese Karte ist blockiert: {detail}",
