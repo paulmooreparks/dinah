@@ -928,8 +928,22 @@ type PathAnswer struct {
 // /-descent below workbench, still goes through the ordinary withBench path
 // below and still requires a fully opened bench, exactly as resolveBelow's
 // own grammar requires it.
+//
+// Both branches answer through the same closure rather than through a method
+// of their own, so the two renderings cannot drift and the one function this
+// verb is allowed to name a stream in stays the one function that does.
 func runPath(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
+	answer := func(resolved string) int {
+		if s.format != formatHuman {
+			return s.emitMachine(&PathAnswer{
+				Path:            resolved,
+				WorkbenchSource: s.workbenchSource,
+			})
+		}
+		io.WriteString(s.out, resolved+"\n")
+		return 0
+	}
 	if head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/"); rest == "" && bench.IsWorkbenchRef(head) {
 		root, _, err := s.discoverRoot()
 		if err != nil {
@@ -939,29 +953,15 @@ func runPath(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		return s.writePathAnswer(resolved)
+		return answer(resolved)
 	}
 	return s.withBench(func(l *verb.Library) int {
 		resolved, err := l.Bench.ResolvePath(ref)
 		if err != nil {
 			return s.reportError(err)
 		}
-		return s.writePathAnswer(resolved)
+		return answer(resolved)
 	})
-}
-
-// writePathAnswer is runPath's shared write-out: the bare line by default, and
-// PathAnswer under --json or --format json. Both of runPath's branches call
-// it, so the fast path and the ordinary path answer identically.
-func (s *session) writePathAnswer(resolved string) int {
-	if s.format != formatHuman {
-		return s.emitMachine(&PathAnswer{
-			Path:            resolved,
-			WorkbenchSource: s.workbenchSource,
-		})
-	}
-	io.WriteString(s.out, resolved+"\n")
-	return 0
 }
 
 // editCmd builds the command runEdit executes, without running it. Stdout

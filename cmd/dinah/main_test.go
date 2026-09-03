@@ -1059,10 +1059,10 @@ func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
 
 	healthy, err := bench.Open(root)
 	if err != nil {
-		t.Fatalf("the fixture bench should open before it is corrupted: %v", err)
+		t.Fatalf("the fixture workbench should open before it is corrupted: %v", err)
 	}
 	if len(healthy.Columns) == 0 {
-		t.Fatalf("the fixture bench declares no columns")
+		t.Fatalf("the fixture workbench declares no columns")
 	}
 	column := healthy.Columns[0]
 	if column.Slug == "" {
@@ -1074,11 +1074,11 @@ func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
 
 	_, err = bench.Open(root)
 	if err == nil {
-		t.Fatalf("bench.Open should refuse a bench whose column anchor is empty")
+		t.Fatalf("opening the workbench should refuse while a column anchor is empty")
 	}
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
-		t.Fatalf("bench.Open refused with something other than a refusal: %v", err)
+		t.Fatalf("opening the workbench failed with something other than a refusal: %v", err)
 	}
 
 	wanted := filepath.Join(root, bench.WorkbenchAnchor)
@@ -1110,7 +1110,7 @@ func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
 	for _, ref := range []string{"workbench/attachments", column.Slug} {
 		got := runCLI(t, container, "path", ref, "--json")
 		if got.code == 0 {
-			t.Errorf("path %s --json should refuse against a corrupted bench, got %q", ref, got.out)
+			t.Errorf("path %s --json should refuse against a corrupted workbench, got %q", ref, got.out)
 			continue
 		}
 		var report refusalReport
@@ -1118,10 +1118,10 @@ func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
 			t.Fatalf("path %s --json did not answer JSON: %v, got %q", ref, err, got.out)
 		}
 		if report.Refusal != refusal.Name {
-			t.Errorf("path %s --json: wanted the refusal bench.Open raises, %q, got %q", ref, refusal.Name, report.Refusal)
+			t.Errorf("path %s --json: wanted the refusal the open itself raises, %q, got %q", ref, refusal.Name, report.Refusal)
 		}
 		if report.Detail != refusal.Detail {
-			t.Errorf("path %s --json: wanted the detail bench.Open raises, %q, got %q", ref, refusal.Detail, report.Detail)
+			t.Errorf("path %s --json: wanted the detail the open itself raises, %q, got %q", ref, refusal.Detail, report.Detail)
 		}
 	}
 }
