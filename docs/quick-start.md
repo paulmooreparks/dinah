@@ -1490,15 +1490,16 @@ $ dinah columns
 $ cd ../release-notes
 ```
 
-Leave `--before` out and the new column goes on the end of the flow. Leave
-`--kind` out and it is a work column, which is what a new station usually is.
-Leave `--capacity` out and it holds as many cards as you put there.
+All three optional flags have defaults. A column created without `--before`
+goes on the end of the flow, `--kind` defaults to `work` because that is what a
+new station usually is, and a column given no capacity holds as many cards as
+you put there.
 
 A placement is refused when it would change where a pull carries a card that is
-already standing somewhere. Slotting a station in front of the done column moves
-the card the column before it would be carried into, so Dinah refuses that
-placement while a card stands there and tells you which column it means. An
-empty flow, and a placement nothing has reached yet, are unaffected.
+already standing somewhere. Slotting a station in front of the done column
+changes where a pull would carry a card standing at the station before it, so
+Dinah refuses that placement while a card stands there and names the column it
+means. An empty flow, and a placement nothing has reached yet, are unaffected.
 
 `operator_owned` and `awaiting_outside` are not set at creation. Write them into
 the column's own file afterwards, the way the section above shows.

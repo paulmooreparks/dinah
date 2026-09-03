@@ -1951,7 +1951,10 @@ func TestTheWorkstreamToolTakesASlugAndRefusesItTheWayTheTerminalDoes(t *testing
 // already carries is refused by name on both. The terminal half of the same
 // pair is TestColumnNewCreatesAColumnFromTheTerminal in cmd/dinah.
 //
-// The tool fills in the action itself, so the call names none. Both of this
+// The tool fills in the action itself and its schema withholds the argument,
+// so a conforming call names no action at all. The other half of that decision
+// is TestTheColumnToolRefusesTheActionItsSchemaWithholds below, which asserts
+// that a call sending one is turned away rather than answered. Both of this
 // fixture's columns carry a card, and its flow ends at a work station, so the
 // one placement that changes nowhere a card is standing is a done column on
 // the end: nothing takes work up at a done column, so the station before it
@@ -2007,5 +2010,69 @@ func TestTheColumnToolAnswersTheWayTheTerminalDoes(t *testing.T) {
 	nameless := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"new_column","arguments":{"column":"Nameless","kind":"done"}}}`))
 	if nameless["outcome"] != contract.OutcomeRefused || nameless["refusal"] != contract.NoOwner {
 		t.Errorf("a call naming no owner: wanted %s, got %v", contract.NoOwner, nameless)
+	}
+}
+
+// TestTheColumnToolRefusesTheActionItsSchemaWithholds is part of dinah-204
+// AC-6. new_column is a single-purpose tool over a command whose only action
+// is new, so argumentExemptions holds the action argument back and the run
+// closure fills the field in. This asserts both halves of that at once: the
+// published schema offers no action property and requires none, and a call
+// sending one is refused rather than quietly obeyed.
+//
+// The refusal is the half worth having. The schema previously published action
+// as a required argument and the closure overwrote whatever arrived, so a call
+// naming the get action created a column and answered ok while the terminal
+// refused the same word under Usage. Two published surfaces disagreed on a
+// caller-supplied value, which is the parity AC-6 is about, and no check could
+// see it: the value did reach Request.Action, one frame before it was thrown
+// away.
+func TestTheColumnToolRefusesTheActionItsSchemaWithholds(t *testing.T) {
+	library := newLibrary(t)
+	root := library.Bench.Root
+
+	properties := schemaProperties(t, "new_column")
+	if _, published := properties["action"]; published {
+		t.Errorf("the schema of new_column advertises action, which this head fills in itself")
+	}
+	if required, listed := schemaFor(toolNamed(t, "new_column"))["required"].([]string); listed {
+		for _, name := range required {
+			if name == "action" {
+				t.Errorf("the schema of new_column requires action, which it does not publish")
+			}
+		}
+	}
+	if _, published := properties["column"]; !published {
+		t.Fatal("the schema of new_column publishes no column property either, so the absence above proves nothing")
+	}
+
+	asked := map[string]any{"actor": "brin", "action": "get", "column": "Signed off", "kind": "done"}
+	answer := ask(t, library, callLine(t, 1, "new_column", asked))
+	if answer.Error == nil {
+		t.Fatalf("new_column accepted an action argument: %+v", answer)
+	}
+	if answer.Error.Code != codeInvalidParams {
+		t.Errorf("the refusal came back on code %d, want %d", answer.Error.Code, codeInvalidParams)
+	}
+	for _, want := range []string{`"new_column"`, `"action"`, "capacity", "slug", "before", "actor"} {
+		if !strings.Contains(answer.Error.Message, want) {
+			t.Errorf("the message %q does not carry %s, which an agent correcting its own call needs", answer.Error.Message, want)
+		}
+	}
+
+	listed := payload(t, ask(t, newLibraryAt(t, root), callLine(t, 2, "columns", map[string]any{"actor": "alka"})))
+	rows, ok := listed["columns"].([]any)
+	if !ok || len(rows) != 2 {
+		t.Fatalf("the refused call left the flow reading %v, wanted the two columns the fixture ships", listed["columns"])
+	}
+
+	delete(asked, "action")
+	control := ask(t, newLibraryAt(t, root), callLine(t, 3, "new_column", asked))
+	if control.Error != nil {
+		t.Fatalf("the same call without the action was refused too, so the refusal above proves nothing: %+v", control.Error)
+	}
+	made := payload(t, control)
+	if made["outcome"] != contract.OutcomeOK {
+		t.Fatalf("the same call without the action did not create a column, so the refusal above proves nothing: %v", made)
 	}
 }

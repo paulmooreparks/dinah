@@ -94,10 +94,12 @@ var tools = []tool{
 	{name: "card", command: "card", run: doCard},
 	{name: "workbench", command: "workbench", run: doWorkbench},
 	{name: "workstream", command: "workstream", run: doWorkstream},
-	// The tool sets the action itself, since column carries exactly one. A
-	// later card adding get and set can keep this tool single-purpose beside
-	// its siblings or fold the three into one the way workstream does;
-	// nothing downstream depends on which yet.
+	// The tool sets the action itself, since column carries exactly one, and
+	// argumentExemptions holds that argument back so the schema never asks a
+	// caller for a value this closure has already decided. A later card adding
+	// get and set has two ways out of the single-purpose shape, and either one
+	// deletes the exemption: dispatch on the action here the way workstream
+	// does, or publish the other two acts as tools of their own.
 	{name: "new_column", command: "column", run: func(l *verb.Library, r *verb.Request) any { r.Action = "new"; return l.NewColumn(r) }},
 	{name: "version", command: "version", run: readVersion},
 	{name: "export", command: "export", run: readExport},
@@ -132,10 +134,23 @@ var toolExemptions = map[string]string{
 // found. Publishing them would offer an agent an argument that changes nothing
 // about the answer it gets back, which is the silent drop dinah-362 exists to
 // close, arriving on the other head.
+// new_column is the second case, and it arrives from the other direction.
+// Its command's action is the first word of `dinah column new`, and new is the
+// only word that command takes, so the tool is that one action and fills the
+// field in itself. Publishing the argument anyway would ask a caller to send a
+// value the run closure overwrites one frame later, so a call naming any other
+// action would be answered ok by a head that had quietly done something else,
+// where the terminal refuses the same word under Usage. Held back, the two
+// surfaces agree again: neither creates a column for a caller who asked for
+// something other than a creation, because checkArguments reads this table and
+// refuses the name outright.
 var argumentExemptions = map[string]map[string]string{
 	"check": {
 		"root":      "aims the terminal's two repair sweeps at a tree, and this head runs neither sweep",
 		"max-depth": "bounds the walk root names, and this head takes no root for check",
+	},
+	"new_column": {
+		"action": "names the first word of `dinah column new`, and this tool is that one action, so the head fills the field in and a published argument would be a value it overwrites",
 	},
 }
 

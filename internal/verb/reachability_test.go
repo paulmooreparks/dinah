@@ -30,8 +30,8 @@ type PinnedCallSite struct {
 // call sites Agent Code Review found on dinah-245.
 var declaredPinnedCallSites = []PinnedCallSite{
 	{File: "internal/mcp/mcp.go", Line: 202, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/mcp/tools.go", Line: 200, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/mcp/tools.go", Line: 269, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/mcp/tools.go", Line: 215, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/mcp/tools.go", Line: 284, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
 }
 
 // scanDirs are the directories this guard parses, named relative to this
