@@ -87,6 +87,11 @@ function recorder(typed: (string | undefined)[] = []): Recorder {
 			showError: (message) => {
 				errors.push(message);
 			},
+			// Neither creation command reports anything on success and neither
+			// copies anything, so these two answer nothing. dinah-337 put them
+			// on the host for Copy Reference, which is a card-row act.
+			showInfo: () => undefined,
+			copyToClipboard: async () => undefined,
 			pick: async () => undefined,
 			input: async (prompt) => {
 				prompts.push(prompt);
