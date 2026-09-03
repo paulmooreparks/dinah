@@ -884,7 +884,6 @@ waiting.
 6  the card is unheld or held by whoever asks           held
 7  the move is not a forward move out of a `done` column terminal
 8  the destination is below its capacity limit          at-capacity
-9  the destination requires no structured item that is not resolved   unresolved-item
 ```
 
 Effect: the card's column becomes the destination.
