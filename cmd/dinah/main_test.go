@@ -1009,6 +1009,29 @@ func TestPathAnswersJSONWithTheResolvedRungToo(t *testing.T) {
 		t.Errorf("workbench_source: wanted %q, got %q", bench.SourceSearch, climbed.WorkbenchSource)
 	}
 
+	// The two key spellings are the wire contract this verb mints, and the VS
+	// Code extension names both of them as literals. Decoding into PathAnswer
+	// cannot hold them, because json.Unmarshal reads the same tags the struct
+	// declares, so a rename moves the expectation along with the code and the
+	// assertion stays green. These three checks read the answer as bare keys
+	// instead, the way TestBareShowStillRefusesWhereThereIsNoChoice reads the
+	// refusal's own key out of stdout, and they cover the fast path as well,
+	// since both of runPath's branches render one PathAnswer through one
+	// closure.
+	var spelled map[string]any
+	if err := json.Unmarshal([]byte(found.out), &spelled); err != nil {
+		t.Fatalf("path --json did not answer a JSON object: %v, got %q", err, found.out)
+	}
+	if got, ok := spelled["path"].(string); !ok || got != climbed.Path {
+		t.Errorf("the key path: wanted %q, got %v", climbed.Path, spelled)
+	}
+	if got, ok := spelled["workbench_source"].(string); !ok || got != bench.SourceSearch {
+		t.Errorf("the key workbench_source: wanted %q, got %v", bench.SourceSearch, spelled)
+	}
+	if len(spelled) != 2 {
+		t.Errorf("path --json answered %d keys, wanted the two the machine form declares: %v", len(spelled), spelled)
+	}
+
 	outside := t.TempDir()
 	named := runCLI(t, outside, "path", "fx-1", "--json", "--workbench", resolvedDir(t, benchDir(t, root)))
 	if named.code != 0 {
@@ -1122,6 +1145,116 @@ func TestPathAnswersTheWorkbenchFromDiscoveryAlone(t *testing.T) {
 		}
 		if report.Detail != refusal.Detail {
 			t.Errorf("path %s --json: wanted the detail the open itself raises, %q, got %q", ref, refusal.Detail, report.Detail)
+		}
+	}
+}
+
+// TestPathRecoversTheAnchorOnlyWhereDiscoveryStillClaimsTheDirectory records
+// the half of the recovery that does not ship, so that the limit is held by a
+// test rather than by prose. The fixture corrupts the workbench anchor itself,
+// which is why it does not extend the test above, whose fixture corrupts a
+// column.
+//
+// An anchor whose frontmatter no longer parses carries none of profile, format
+// and columns, so Frontmatter.Recognized answers false, the climb declines to
+// claim the directory at all, and the discovery this branch rests on has no
+// root to hand back. The same reference answers as soon as the caller names
+// the root, because naming it skips the recognition the climb has to perform.
+// The remedy for the climb lives in discovery rather than in path, and
+// dinah-272 records the limit as D-8 rather than closing it.
+func TestPathRecoversTheAnchorOnlyWhereDiscoveryStillClaimsTheDirectory(t *testing.T) {
+	container := newBench(t)
+	root := resolvedDir(t, benchDir(t, container))
+	if err := os.WriteFile(filepath.Join(root, bench.WorkbenchAnchor), nil, 0o644); err != nil {
+		t.Fatalf("emptying the anchor: %v", err)
+	}
+
+	climbed := runCLI(t, container, "path", "workbench", "--json")
+	if climbed.code == 0 {
+		t.Errorf("the climb should not claim a directory whose anchor carries no recognised key, got %q", climbed.out)
+	}
+	var report refusalReport
+	if err := json.Unmarshal([]byte(climbed.out), &report); err != nil {
+		t.Fatalf("path workbench --json did not answer JSON: %v, got %q", err, climbed.out)
+	}
+	if report.Refusal != contract.NoWorkbenchFound {
+		t.Errorf("the climb refused %s, wanted %s", report.Refusal, contract.NoWorkbenchFound)
+	}
+
+	named := runCLI(t, container, "--workbench", root, "path", "workbench", "--json")
+	if named.code != 0 {
+		t.Fatalf("naming the root should still reach the anchor: exit %d %s", named.code, named.errw)
+	}
+	var answer PathAnswer
+	if err := json.Unmarshal([]byte(named.out), &answer); err != nil {
+		t.Fatalf("path workbench --json did not answer JSON: %v, got %q", err, named.out)
+	}
+	if wanted := filepath.Join(root, bench.WorkbenchAnchor); answer.Path != wanted {
+		t.Errorf("path workbench --json: wanted %q, got %q", wanted, answer.Path)
+	}
+}
+
+// TestPathAnswersTheWorkbenchWhereTheOpenDemandsMigrationFirst holds the one
+// refusal the fast path steps over that is raised about the workbench's own
+// location rather than about anything inside it. A workbench outside a
+// container is refused by the open with dinah.needs-container-migration, and
+// the bare reference answers its anchor's path all the same.
+//
+// That is deliberate, and the reasoning is recorded on dinah-272 as D-9. The
+// answer is composed from the discovered root and a filename, so it is true
+// whatever the open would go on to say; the refusal is reachable only by
+// naming the workbench, so its reader already knows the directory and learns
+// nothing false from the path; and consulting the migration rule would mean
+// parsing the anchor's declared format, which is the parse this branch exists
+// not to need. Every other reference against the same root still refuses with
+// the migration refusal, which is the second half asserted below, because a
+// short circuit proven only where it fires is not proven at all.
+func TestPathAnswersTheWorkbenchWhereTheOpenDemandsMigrationFirst(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := bareWorkbench(t, filepath.Join(tree, "myproject"))
+
+	_, err := bench.Open(project)
+	if err == nil {
+		t.Fatalf("opening a workbench outside a container should refuse")
+	}
+	refusal, ok := err.(*contract.Refusal)
+	if !ok {
+		t.Fatalf("opening the workbench failed with something other than a refusal: %v", err)
+	}
+	if refusal.Name != contract.NeedsContainerMigration {
+		t.Fatalf("wanted the migration refusal %s, got %s", contract.NeedsContainerMigration, refusal.Name)
+	}
+
+	wanted := filepath.Join(project, bench.WorkbenchAnchor)
+	for _, ref := range []string{"workbench", "."} {
+		got := runCLI(t, tree, "--workbench", project, "path", ref, "--json")
+		if got.code != 0 {
+			t.Fatalf("path %s --json: exit %d %s", ref, got.code, got.errw)
+		}
+		var answer PathAnswer
+		if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
+			t.Fatalf("path %s --json did not answer JSON: %v, got %q", ref, err, got.out)
+		}
+		if answer.Path != wanted {
+			t.Errorf("path %s --json: wanted %q, got %q", ref, wanted, answer.Path)
+		}
+		if answer.WorkbenchSource != bench.SourceFlag {
+			t.Errorf("path %s --json: workbench_source wanted %q, got %q", ref, bench.SourceFlag, answer.WorkbenchSource)
+		}
+	}
+
+	for _, ref := range []string{"workbench/attachments", "br-1"} {
+		got := runCLI(t, tree, "--workbench", project, "path", ref, "--json")
+		if got.code == 0 {
+			t.Errorf("path %s --json should still demand the migration, got %q", ref, got.out)
+			continue
+		}
+		var report refusalReport
+		if err := json.Unmarshal([]byte(got.out), &report); err != nil {
+			t.Fatalf("path %s --json did not answer JSON: %v, got %q", ref, err, got.out)
+		}
+		if report.Refusal != contract.NeedsContainerMigration {
+			t.Errorf("path %s --json: wanted %s, got %s", ref, contract.NeedsContainerMigration, report.Refusal)
 		}
 	}
 }
