@@ -188,6 +188,16 @@ func (b *Bench) Check() ([]Finding, error) {
 	for _, path := range b.Passed {
 		findings = append(findings, Finding{Path: path, Key: FindingIgnoredAnchor})
 	}
+	// A damaged workbench the walk met and resolved without is named here
+	// because nothing else on the default path names it. The search answered
+	// with a healthy sibling and is silent about the rest by design, and the
+	// tree sweep that also reports it is an invocation a reader has to already
+	// suspect something to run. Detail carries the directory rather than the
+	// workbench.md inside it, matching the refusal for the same condition, so
+	// that what the sentence prints is what a reader pastes after --workbench.
+	for _, dir := range b.Damaged {
+		findings = append(findings, Finding{Path: dir, Key: FindingDamagedWorkbench, Detail: dir})
+	}
 	for _, id := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), id)
 		// A card a structural act is in the middle of belongs to the

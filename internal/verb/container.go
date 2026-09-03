@@ -188,9 +188,11 @@ func migrateOneContainer(report *TreeContainerReport, candidate bench.ContainerC
 // Clean reports whether the run needs a person, which is the question the
 // command's exit code answers. A workbench the sweep failed on needs one, and
 // so does a duplicated identifier, which this command deliberately does not
-// repair and which therefore stays true after the run. So does a preview that
-// found a workbench still to carry forward, because the migration has not
-// happened and the confirmation that would perform it is a person's to give.
+// repair and which therefore stays true after the run. A damaged workbench is
+// the same case, since the sweep names it and repairs nothing about it, so the
+// tree still needs a person once the run ends. So does a preview that found a
+// workbench still to carry forward, because the migration has not happened and
+// the confirmation that would perform it is a person's to give.
 //
 // A run that migrated nothing is clean, on the terms TreeVocabularyReport.Clean
 // already sets out: an unattended sweep over a tree already carried forward is
@@ -199,7 +201,7 @@ func (r *TreeContainerReport) Clean() bool {
 	if r.Preview && len(r.Migrated) > 0 {
 		return false
 	}
-	return len(r.Failed) == 0 && len(r.Duplicates) == 0
+	return len(r.Failed) == 0 && len(r.Duplicates) == 0 && len(r.Damaged) == 0
 }
 
 // BareWorkbenchFindings renders the bare workbenches a sweep found as check

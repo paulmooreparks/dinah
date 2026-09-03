@@ -242,7 +242,7 @@ func TestSoleBenchStillFindsBothWidths(t *testing.T) {
 	// Two workbenches in one container is the ordinary ambiguity, and it is
 	// asserted here so that neither width is silently dropped: a listing that
 	// saw only one of them would resolve rather than report a tie.
-	found, ambiguous, err := soleBench(base)
+	found, ambiguous, _, err := soleBench(base)
 	if err != nil {
 		t.Fatalf("the sole-workbench probe: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestAStrayContainerEntryIsInvisibleToDiscoveryAndFoundByTheSweep(t *testing
 	if listed := ListWorkbenchIDs(base); len(listed) != 0 {
 		t.Errorf("the container listing sees %v, and neither width admits my-notes", listed)
 	}
-	found, ambiguous, err := soleBench(base)
+	found, ambiguous, _, err := soleBench(base)
 	if err != nil {
 		t.Fatalf("the sole-workbench probe: %v", err)
 	}

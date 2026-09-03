@@ -179,7 +179,7 @@ func TestReadAnchorContentOnlyRunsWhereExistsFoundAFile(t *testing.T) {
 	// Nothing anywhere in this tree carries a workbench.md, so the walk
 	// exhausts and refuses; the read must never have run.
 	root := filepath.VolumeName(deep) + string(filepath.Separator)
-	if found, ambiguous, _, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
+	if found, ambiguous, _, _, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	if _, _, err := Discover(deep, "", "", root); err == nil {
@@ -395,7 +395,7 @@ func TestSoleBenchStillResolvesAHealthySiblingBesideDamage(t *testing.T) {
 			writeWorkbench(t, healthy, "The real one")
 			write(t, filepath.Join(damaged, WorkbenchAnchor), damageShapes[3].text)
 
-			found, ambiguous, err := soleBench(base)
+			found, ambiguous, _, err := soleBench(base)
 			if err != nil {
 				t.Fatalf("a damaged sibling should not discard a healthy answer, got %v", err)
 			}
@@ -442,7 +442,7 @@ func TestSoleBenchNamesTheFirstDamagedEntryDeterministically(t *testing.T) {
 	write(t, filepath.Join(later, WorkbenchAnchor), damageShapes[1].text)
 	write(t, filepath.Join(earlier, WorkbenchAnchor), damageShapes[2].text)
 
-	found, ambiguous, err := soleBench(base)
+	found, ambiguous, _, err := soleBench(base)
 	if found != "" || len(ambiguous) != 0 {
 		t.Fatalf("a base holding only damaged entries has no candidate, got found %q and ambiguous %v", found, ambiguous)
 	}
@@ -478,7 +478,7 @@ func TestAnExplicitPointerAtADamagedWorkbenchStillResolves(t *testing.T) {
 		t.Fatalf("the ambient climb over this fixture answered %q and %v rather than refusing %s, so the override case below proves nothing", climbed, err, contract.DamagedBench)
 	}
 
-	found, source, passed, err := DiscoverSource(workbench, workbench, SourceFlag, "", "", "")
+	found, source, passed, _, err := DiscoverSource(workbench, workbench, SourceFlag, "", "", "")
 	if err != nil {
 		t.Fatalf("an explicit pointer at a damaged workbench should resolve, got %v", err)
 	}

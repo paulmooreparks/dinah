@@ -1702,7 +1702,7 @@ func (s *session) sweepRoot(walk *rootWalk) (string, error) {
 	if walk != nil {
 		return walk.Root, nil
 	}
-	root, source, _, err := bench.DiscoverSource(
+	root, source, _, _, err := bench.DiscoverSource(
 		s.cwd,
 		s.benchFlag,
 		s.benchFlagSource,

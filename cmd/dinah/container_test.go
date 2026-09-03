@@ -846,12 +846,25 @@ func TestTheSweepReportsADamagedWorkbenchAndTouchesNothing(t *testing.T) {
 		t.Errorf("the preview walked over the damaged workbench without naming it:\n%s", preview.out)
 	}
 
+	// The directory is a prefix of the anchor path inside it, so an assertion
+	// that only requires the directory to be present is satisfied by a
+	// sentence naming the anchor instead, which is neither what AC-6 states
+	// nor a value --workbench accepts. Requiring the anchor to be absent is
+	// what turns the assertion above into an identity rather than a
+	// containment.
+	if strings.Contains(preview.out, anchor) {
+		t.Errorf("the preview names the workbench.md rather than the directory --workbench takes:\n%s", preview.out)
+	}
+
 	applied := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
-	if applied.code != 0 {
-		t.Fatalf("the migration exited %d: %s%s", applied.code, applied.out, applied.errw)
+	if applied.code != 5 {
+		t.Fatalf("the applied run exited %d, wanted the findings code 5 for damage it named and did not repair: %s%s", applied.code, applied.out, applied.errw)
 	}
 	if !strings.Contains(applied.out, damaged) {
 		t.Errorf("the applied run reports the damaged workbench on the preview and not on the run:\n%s", applied.out)
+	}
+	if strings.Contains(applied.out, anchor) {
+		t.Errorf("the applied run names the workbench.md rather than the directory --workbench takes:\n%s", applied.out)
 	}
 
 	// The sweep kept walking, so the workbench it could repair was repaired.
@@ -873,6 +886,75 @@ func TestTheSweepReportsADamagedWorkbenchAndTouchesNothing(t *testing.T) {
 	}
 }
 
+// TestCheckReportsADamagedWorkbenchBesideTheHealthyOneItResolved asserts that
+// the plain check command still names a damaged workbench standing beside the
+// healthy sibling that answered discovery. That case is the one this card's own
+// subject turned against it. Discovery resolves the healthy sibling and is
+// silent about the rest by design, so if check were silent too, the tool would
+// report a container holding a damaged workbench as having no structural
+// defects, which is the shape of answer this card exists to abolish. The
+// tree-wide sweep names it as well, but that is an invocation a reader has to
+// already suspect something to run.
+func TestCheckReportsADamagedWorkbenchBesideTheHealthyOneItResolved(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	project := filepath.Join(tree, "project")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := runCLI(t, project, "init", project, "--slug", "hp", "--operator", "alka"); got.code != 0 {
+		t.Fatalf("init at %s: %d %s", project, got.code, got.errw)
+	}
+	healthy := benchDir(t, project)
+	damaged := damagedContainedWorkbench(t, project)
+
+	// Discovery is untouched by this guard: the healthy sibling still answers.
+	shown := runCLI(t, project, "status")
+	if shown.code != 0 {
+		t.Fatalf("status did not resolve the healthy sibling: %d %s%s", shown.code, shown.out, shown.errw)
+	}
+
+	got := runCLI(t, project, "check")
+	if got.code == 0 {
+		t.Fatalf("check reported a container holding a damaged workbench as clean:\n%s", got.out)
+	}
+	if !strings.Contains(got.out, damaged) {
+		t.Errorf("check does not name the damaged workbench %q:\n%s", damaged, got.out)
+	}
+	// The directory is a prefix of its own workbench.md, so presence alone
+	// cannot tell the finding that names the directory from one that names the
+	// file, and only the directory is a --workbench argument.
+	if strings.Contains(got.out, filepath.Join(damaged, bench.WorkbenchAnchor)) {
+		t.Errorf("check names the workbench.md rather than the directory --workbench takes:\n%s", got.out)
+	}
+	if strings.Contains(got.out, healthy) {
+		t.Errorf("check reports the healthy workbench as a defect:\n%s", got.out)
+	}
+}
+
+// TestASweepWhoseOnlyFindingIsDamageExitsFailing asserts that the tree sweep
+// answers its own exit code the way it answers every other finding it names and
+// will not repair. A duplicated identifier makes the run unclean, and a damaged
+// workbench is the same kind of thing: the sweep names it, changes nothing about
+// it, and leaves a tree that still needs a person. An operator scripting the
+// sweep to detect an unhealthy tree reads the exit code rather than the prose.
+func TestASweepWhoseOnlyFindingIsDamageExitsFailing(t *testing.T) {
+	tree := resolvedDir(t, emptyTree(t))
+	damaged := damagedContainedWorkbench(t, filepath.Join(tree, "brokenproject"))
+
+	for _, args := range [][]string{
+		{"check", "--root", ".", "--migrate-container"},
+		{"check", "--root", ".", "--migrate-container", "--yes"},
+	} {
+		got := runCLI(t, tree, args...)
+		if got.code != 5 {
+			t.Errorf("%v over a tree whose only finding is damage exited %d, wanted the findings code 5:\n%s%s", args, got.code, got.out, got.errw)
+		}
+		if !strings.Contains(got.out, damaged) {
+			t.Errorf("%v does not name the damaged workbench:\n%s", args, got.out)
+		}
+	}
+}
+
 // TestTheRefusalNamesADamagedWorkbenchInsteadOfReportingNone asserts the
 // defect this card exists for, end to end and through the head that a person
 // actually reads. Standing inside a workbench whose anchor is damaged, the
@@ -890,6 +972,12 @@ func TestTheRefusalNamesADamagedWorkbenchInsteadOfReportingNone(t *testing.T) {
 	said := got.out + got.errw
 	if !strings.Contains(said, damaged) {
 		t.Errorf("the refusal does not name the damaged workbench %q:\n%s", damaged, said)
+	}
+	// Same containment trap as the sweep guard above. The directory is a
+	// prefix of its own workbench.md, so the presence check alone cannot tell
+	// the two apart, and only the directory is a --workbench argument.
+	if strings.Contains(said, filepath.Join(damaged, bench.WorkbenchAnchor)) {
+		t.Errorf("the refusal names the workbench.md rather than the directory --workbench takes:\n%s", said)
 	}
 	if strings.Contains(said, "no-workbench-found") {
 		t.Errorf("the refusal still reports that no workbench was found:\n%s", said)

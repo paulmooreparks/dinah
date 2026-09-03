@@ -421,7 +421,7 @@ func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
 
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
-	root, source, passed, err := bench.DiscoverSource(
+	root, source, passed, damaged, err := bench.DiscoverSource(
 		s.cwd,
 		s.benchFlag,
 		s.benchFlagSource,
@@ -439,6 +439,7 @@ func (s *session) open() (*verb.Library, error) {
 		return nil, err
 	}
 	opened.Passed = passed
+	opened.Damaged = damaged
 	library := verb.New(opened, s.home)
 	s.library = library
 	return library, nil

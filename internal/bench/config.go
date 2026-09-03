@@ -204,7 +204,7 @@ func ResolveWorkbenchSource(start, flag, env, home, nativeHome, configured strin
 		Layer{Source: SourceFlag, Value: flag},
 		Layer{Source: SourceEnvironment, Value: env},
 	)
-	root, source, _, err := DiscoverSource(
+	root, source, _, _, err := DiscoverSource(
 		start,
 		override,
 		overrideSource,
