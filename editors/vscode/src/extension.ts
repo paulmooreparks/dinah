@@ -14,6 +14,7 @@ import {
 	blockCard,
 	claimCard,
 	contextFor,
+	copyCardRef,
 	moveCard,
 	openAttachment,
 	openCard,
@@ -28,6 +29,7 @@ import {
 	COMMAND_BLOCK,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_CLAIM,
+	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_MOVE,
 	COMMAND_OPEN_ATTACHMENT,
@@ -134,6 +136,10 @@ function commandHost(
 		showError: (message) => {
 			void vscode.window.showErrorMessage(message);
 		},
+		showInfo: (message) => {
+			void vscode.window.showInformationMessage(message);
+		},
+		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
 		pick: async (items, placeholder) => {
 			const chosen = await vscode.window.showQuickPick(
 				items.map((item) => ({ ...item })),
@@ -330,6 +336,7 @@ export async function activate(
 		[COMMAND_RELEASE, releaseCard],
 		[COMMAND_BLOCK, blockCard],
 		[COMMAND_UNBLOCK, unblockCard],
+		[COMMAND_COPY_CARD_REF, copyCardRef],
 		[COMMAND_OPEN_CARD, openCard],
 	];
 	for (const [id, run] of flowCommands) {
