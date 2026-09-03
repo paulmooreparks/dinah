@@ -104,6 +104,10 @@
         "title": "Unblock"
       },
       {
+        "command": "dinah.tree.copyCardRef",
+        "title": "Copy Reference"
+      },
+      {
         "command": "dinah.tree.checkWorkbench",
         "title": "Check"
       },
@@ -140,6 +144,10 @@
         },
         {
           "command": "dinah.tree.unblock",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.copyCardRef",
           "when": "false"
         },
         {
@@ -187,6 +195,11 @@
           "command": "dinah.tree.unblock",
           "when": "view == dinah.workbenchView && viewItem == dinah.card.blocked",
           "group": "1_flow@1"
+        },
+        {
+          "command": "dinah.tree.copyCardRef",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.card\\./",
+          "group": "2_copy@1"
         },
         {
           "command": "dinah.tree.checkWorkbench",
