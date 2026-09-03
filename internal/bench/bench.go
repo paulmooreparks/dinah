@@ -183,6 +183,14 @@ type Column struct {
 	RejectTo string
 	// Capacity is the column's declared limit, or zero for unlimited.
 	Capacity int
+	// LoopLimit is how many times one card may leave this column by a
+	// regressive move, as the column's own loop_limit declaration carries
+	// it, or zero for unbounded. Nothing counts the departures for it: the
+	// count is derived from a card's journal at read time by
+	// Bench.RegressiveDepartures, so no card stores how far round a loop it
+	// has been and a workbench edited by hand answers the way every other
+	// replay answers.
+	LoopLimit int
 	// Instructions is the column's own body, the last layer of the chain.
 	Instructions string
 	// Position is the column's zero-based index in the flow.
@@ -1661,6 +1669,18 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 			return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 		}
 		column.Capacity = n
+	}
+	// The reading follows wip_limit above rather than awaiting_outside
+	// below: a value strconv.Atoi will not take is malformed, and a value it
+	// takes is stored as it stands. No floor is imposed, so a zero or a
+	// negative declaration reads as unbounded, which is what Capacity <= 0
+	// already means one field up.
+	if limit := fm.Value("loop_limit"); limit != "" {
+		n, err := strconv.Atoi(limit)
+		if err != nil {
+			return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
+		}
+		column.LoopLimit = n
 	}
 	// The value is exactly true or false, which is wip_limit's discipline
 	// above and deliberately not operator_owned's == "true" leniency, under

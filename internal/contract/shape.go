@@ -289,6 +289,16 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// The shape mirrors AtCapacity's, because the two are one mechanism
+		// read from opposite ends of the move: one sentence naming the
+		// column and one next step naming the way past it. The detail is the
+		// departure rather than the destination, since the limit is declared
+		// and counted at the column the card is leaving.
+		Name:      AtLoopLimit,
+		Fragments: []Fragment{{Key: "refusal.dinah.at-loop-limit.next"}},
+		NextStep:  []string{"refusal.dinah.at-loop-limit.next"},
+	},
+	{
 		Name:      AmbiguousWorkbench,
 		Values:    []string{"base"},
 		Listing:   "workbenches",

@@ -141,6 +141,16 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 // cannot reach, and it is narrowed away for the same reason the source is.
 // The destination is not being retired.
 //
+// One canLand row is deliberately absent here. canLand refuses a regressive
+// departure out of a column that has reached its own declared loop_limit, and
+// this predicate does not reproduce it, because pullSources only ever offers
+// a destination standing ahead of the source, so a pull never lands a card
+// backward and the row can never hold for one. A pull shape that does land a
+// card backward makes this predicate wrong, and the fix then is to read the
+// source card's regressive-departure count here rather than to leave the
+// divergence to be found through a pull that predicts a destination the lock
+// refuses.
+//
 // The predicate reads the workbench without holding any lock, so the set it
 // returns is a prediction about what a pull would do. The authoritative
 // sequence runs under the card's lock once the destination is fixed, and when
