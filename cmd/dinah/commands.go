@@ -896,21 +896,78 @@ func runExtract(s *session, parsed *arguments) int {
 	})
 }
 
-// runPath writes the resolved absolute path alone to stdout.
+// PathAnswer is path's machine form: the resolved absolute path, and which
+// rung of workbench discovery answered for this invocation, the same rung
+// Status's own WorkbenchSource names.
 //
-// This is the plumbing guarantee: one line, no prefix, no quoting, no
-// commentary, whatever the language setting and whatever --json says. On
-// refusal stdout stays empty, the refusal name leads stderr, and the exit
-// code carries the outcome.
+// The default rendering never carries this. It stays the bare unquoted line
+// the plumbing guarantee has always written, because that line composes
+// directly with the shell and its caller already knows how they named the
+// workbench. --json serves a generic client, such as the VS Code extension,
+// which has no other way to tell a caller-supplied root from one an ancestor
+// climb found for it.
+type PathAnswer struct {
+	// Path is the resolved absolute path.
+	Path string `json:"path"`
+	// WorkbenchSource names which rung resolved the active workbench for
+	// this invocation: flag, environment, search, or config. It carries no
+	// omitempty, because an answer reaches this shape only after discovery
+	// has succeeded, so the rung that answered is always known.
+	WorkbenchSource string `json:"workbench_source"`
+}
+
+// runPath writes the resolved path, in whichever form the invocation asked
+// for.
+//
+// The default rendering is the plumbing guarantee: one line, no prefix, no
+// quoting, no commentary, whatever the language setting, composing directly
+// with the shell. --json and --format json turn that guarantee off and answer
+// with PathAnswer instead (dinah-272). Before that, the plain line was written
+// whatever --json said, which is why no generic client parsing every verb's
+// stdout as JSON could call path at all. On refusal stdout carries the
+// ordinary machine refusal exactly as every other verb does, because
+// reportError already branches on s.format, so only the ok path is new here.
+//
+// A bare `workbench` or `.` reference, with no /-descent, is answered from
+// discovery alone rather than through l.Bench.ResolvePath, so a malformed
+// column or profile elsewhere in the workbench cannot refuse the one answer
+// that depends on none of that state. Every other reference, including any
+// /-descent below workbench, still goes through the ordinary withBench path
+// below and still requires a fully opened bench, exactly as resolveBelow's
+// own grammar requires it.
+//
+// Both branches answer through the same closure rather than through a method
+// of their own, so the two renderings cannot drift and the one function this
+// verb is allowed to name a stream in stays the one function that does.
 func runPath(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
+	answer := func(resolved string) int {
+		if s.format != formatHuman {
+			return s.emitMachine(&PathAnswer{
+				Path:            resolved,
+				WorkbenchSource: s.workbenchSource,
+			})
+		}
+		io.WriteString(s.out, resolved+"\n")
+		return 0
+	}
+	if head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/"); rest == "" && bench.IsWorkbenchRef(head) {
+		root, _, err := s.discoverRoot()
+		if err != nil {
+			return s.reportError(err)
+		}
+		resolved, err := filepath.Abs(filepath.Join(root, bench.WorkbenchAnchor))
+		if err != nil {
+			return s.reportError(err)
+		}
+		return answer(resolved)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		resolved, err := l.Bench.ResolvePath(ref)
 		if err != nil {
 			return s.reportError(err)
 		}
-		io.WriteString(s.out, resolved+"\n")
-		return 0
+		return answer(resolved)
 	})
 }
 
