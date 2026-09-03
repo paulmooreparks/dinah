@@ -37,6 +37,12 @@ type TreeContainerReport struct {
 	// the identifier and carrying the paths claiming it. Nothing is done to
 	// any of them.
 	Duplicates map[string][]string `json:"duplicates,omitempty"`
+	// Damaged is every workbench directory the sweep found positioned
+	// correctly and could not read as recognised. Each one is the same fact
+	// --migrate-container exists to repair for a bare or misnamed workbench
+	// and cannot repair here: moving the directory changes nothing about
+	// content it cannot parse. Nothing is done to any of them.
+	Damaged []string `json:"damaged,omitempty"`
 	// Failed is every workbench the sweep could not carry forward, and why.
 	Failed []TreeContainerFailure `json:"failed,omitempty"`
 }
@@ -99,10 +105,11 @@ type RemintReport struct {
 // does and writes nothing.
 func MigrateContainerTree(root string, apply bool) (*TreeContainerReport, error) {
 	report := &TreeContainerReport{Preview: !apply, Migrated: []ContainerEntry{}}
-	candidates, err := bench.ScanContainers(root)
+	candidates, damaged, err := bench.ScanContainers(root)
 	if err != nil {
 		return report, err
 	}
+	report.Damaged = damaged
 	duplicates := bench.DuplicateWorkbenchIDs(candidates)
 	if len(duplicates) > 0 {
 		report.Duplicates = duplicates
@@ -181,9 +188,11 @@ func migrateOneContainer(report *TreeContainerReport, candidate bench.ContainerC
 // Clean reports whether the run needs a person, which is the question the
 // command's exit code answers. A workbench the sweep failed on needs one, and
 // so does a duplicated identifier, which this command deliberately does not
-// repair and which therefore stays true after the run. So does a preview that
-// found a workbench still to carry forward, because the migration has not
-// happened and the confirmation that would perform it is a person's to give.
+// repair and which therefore stays true after the run. A damaged workbench is
+// the same case, since the sweep names it and repairs nothing about it, so the
+// tree still needs a person once the run ends. So does a preview that found a
+// workbench still to carry forward, because the migration has not happened and
+// the confirmation that would perform it is a person's to give.
 //
 // A run that migrated nothing is clean, on the terms TreeVocabularyReport.Clean
 // already sets out: an unattended sweep over a tree already carried forward is
@@ -192,7 +201,7 @@ func (r *TreeContainerReport) Clean() bool {
 	if r.Preview && len(r.Migrated) > 0 {
 		return false
 	}
-	return len(r.Failed) == 0 && len(r.Duplicates) == 0
+	return len(r.Failed) == 0 && len(r.Duplicates) == 0 && len(r.Damaged) == 0
 }
 
 // BareWorkbenchFindings renders the bare workbenches a sweep found as check
@@ -205,6 +214,21 @@ func (r *TreeContainerReport) BareWorkbenchFindings() []bench.Finding {
 		}
 		path := filepath.Join(entry.Path, bench.WorkbenchAnchor)
 		findings = append(findings, bench.Finding{Path: path, Key: bench.FindingBareWorkbench, Detail: entry.Path})
+	}
+	return findings
+}
+
+// DamagedWorkbenchFindings renders the damaged workbenches a sweep found as
+// check findings, so the one rendering path dinah check already has covers
+// them, which is the reason BareWorkbenchFindings exists too.
+//
+// Detail carries the directory rather than the workbench.md inside it,
+// matching what the refusal for the same condition names, and for the same
+// reason: it is what a reader pastes after --workbench.
+func (r *TreeContainerReport) DamagedWorkbenchFindings() []bench.Finding {
+	findings := make([]bench.Finding, 0, len(r.Damaged))
+	for _, path := range r.Damaged {
+		findings = append(findings, bench.Finding{Path: path, Key: bench.FindingDamagedWorkbench, Detail: path})
 	}
 	return findings
 }

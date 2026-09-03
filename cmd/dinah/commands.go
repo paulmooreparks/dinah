@@ -952,7 +952,7 @@ func runPath(s *session, parsed *arguments) int {
 		return 0
 	}
 	if head, rest, _ := strings.Cut(strings.TrimSpace(ref), "/"); rest == "" && bench.IsWorkbenchRef(head) {
-		root, _, err := s.discoverRoot()
+		root, _, _, err := s.discoverRoot()
 		if err != nil {
 			return s.reportError(err)
 		}
@@ -1810,7 +1810,7 @@ func (s *session) sweepRoot(walk *rootWalk) (string, error) {
 	if walk != nil {
 		return walk.Root, nil
 	}
-	root, source, _, err := bench.DiscoverSource(
+	root, source, _, _, err := bench.DiscoverSource(
 		s.cwd,
 		s.benchFlag,
 		s.benchFlagSource,

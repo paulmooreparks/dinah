@@ -50,6 +50,16 @@ const (
 	// different sentences: a foreign anchor was never Dinah's, where this one
 	// is a workbench somebody has been using that stopped being found.
 	FindingBareWorkbench = "check.bare-workbench"
+	// FindingDamagedWorkbench names a directory carrying a workbench.md this
+	// tool cannot recognise, sitting exactly where the containment rule says
+	// a workbench belongs. It is distinct from FindingBareWorkbench, which is
+	// a recognised anchor in the wrong place, and from FindingIgnoredAnchor,
+	// which is an anchor the discovery walk met and was never entitled to
+	// claim: this one is a workbench that already claimed its place by
+	// position and cannot speak for itself by content. Nothing
+	// --migrate-container does repairs it, since the repair here is content
+	// rather than position.
+	FindingDamagedWorkbench = "check.damaged-workbench"
 	// FindingDuplicateWorkbenchID names two or more directories sharing one
 	// workbench identifier, with every path in Detail. It is never repaired
 	// by the sweep, because a git clone of one workbench and a copy somebody
@@ -186,6 +196,16 @@ func (b *Bench) Check() ([]Finding, error) {
 	var findings []Finding
 	for _, path := range b.Passed {
 		findings = append(findings, Finding{Path: path, Key: FindingIgnoredAnchor})
+	}
+	// A damaged workbench the walk met and resolved without is named here
+	// because nothing else on the default path names it. The search answered
+	// with a healthy sibling and is silent about the rest by design, and the
+	// tree sweep that also reports it is an invocation a reader has to already
+	// suspect something to run. Detail carries the directory rather than the
+	// workbench.md inside it, matching the refusal for the same condition, so
+	// that what the sentence prints is what a reader pastes after --workbench.
+	for _, dir := range b.Damaged {
+		findings = append(findings, Finding{Path: dir, Key: FindingDamagedWorkbench, Detail: dir})
 	}
 	for _, id := range ListIDs(b.CardsRoot()) {
 		dir := filepath.Join(b.CardsRoot(), id)

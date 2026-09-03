@@ -98,7 +98,7 @@ func MigrateVocabularyTree(root string, apply bool) (*TreeVocabularyReport, erro
 // so the root's own .dinah cannot go unopened while every other directory's is
 // opened (dinah-312).
 func vocabularyCandidates(root string) ([]string, error) {
-	listed, err := bench.ScanContainers(root)
+	listed, _, err := bench.ScanContainers(root)
 	if err != nil {
 		return nil, err
 	}

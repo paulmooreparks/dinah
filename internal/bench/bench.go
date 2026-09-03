@@ -400,6 +400,14 @@ type Bench struct {
 	// on a bench Open reads directly by path (extraction, the interchange
 	// import path, every test that skips discovery).
 	Passed []string
+	// Damaged is the workbench directories the discovery walk met inside a
+	// .dinah container, under a name that container's own listing admits,
+	// whose workbench.md no longer reads as a Dinah anchor. It is set on the
+	// same terms as Passed and stays nil on the same paths. Check reports one
+	// finding for each, which is how a damaged workbench a healthy sibling
+	// outranked still reaches the reader: the search resolved without it, so
+	// nothing else on the default path would ever name it.
+	Damaged []string
 }
 
 // Discover finds the bench to serve. An override, from the --workbench flag
@@ -428,13 +436,15 @@ type Bench struct {
 // default to fall back to, kept at its own four-argument signature so every
 // existing call site and test is untouched.
 func Discover(start, override, home, nativeHome string) (string, []string, error) {
-	root, _, passed, err := DiscoverSource(start, override, "", home, nativeHome, "")
+	root, _, passed, _, err := DiscoverSource(start, override, "", home, nativeHome, "")
 	return root, passed, err
 }
 
-// DiscoverSource is Discover with two things added: the rung that answered,
-// named alongside the root, and a configured default consulted as the last
-// rung before a refusal.
+// DiscoverSource is Discover with three things added: the rung that answered,
+// named alongside the root, a configured default consulted as the last rung
+// before a refusal, and the damaged workbench directories the walk met and
+// resolved without. That last one is what a caller sets on Bench.Damaged, and
+// Discover drops it because its own callers have no bench to hang it on.
 //
 // override is the value --workbench or DINAH_WORKBENCH already resolved to,
 // and overrideSource names which of the two produced it (SourceFlag or
@@ -451,46 +461,55 @@ func Discover(start, override, home, nativeHome string) (string, []string, error
 // through to dinah.no-workbench-found: falling through would silently run
 // the command against no workbench at all, or against whatever the caller's
 // own working directory happens to be.
-func DiscoverSource(start, override, overrideSource, home, nativeHome, configured string) (string, string, []string, error) {
+//
+// That configured rung returns search.damaged for symmetry with search.passed
+// beside it, and not because it can carry anything. Reaching it needs the walk
+// to have resolved neither a sole workbench nor an ambiguous base, and a base
+// holding a damaged entry and no healthy candidate refuses out of soleBench
+// before the walk ever gets that far, so the slice is empty on every route
+// that arrives here. A reader looking for the route that populates it will not
+// find one, which is why the fact is written down rather than left to be
+// rediscovered.
+func DiscoverSource(start, override, overrideSource, home, nativeHome, configured string) (string, string, []string, []string, error) {
 	if override != "" {
 		abs, err := filepath.Abs(override)
 		if err != nil {
-			return "", "", nil, err
+			return "", "", nil, nil, err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
 			if beneath, ok := SoleBeneath(abs); ok {
-				return "", "", nil, contract.RefuseWith(contract.NoWorkbench, abs, map[string]string{"found": beneath})
+				return "", "", nil, nil, contract.RefuseWith(contract.NoWorkbench, abs, map[string]string{"found": beneath})
 			}
-			return "", "", nil, contract.Refuse(contract.NoWorkbench, abs)
+			return "", "", nil, nil, contract.Refuse(contract.NoWorkbench, abs)
 		}
-		return abs, overrideSource, nil, nil
+		return abs, overrideSource, nil, nil, nil
 	}
 	search, err := walk(start, home, nativeHome)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, nil, err
 	}
 	if search.sole != "" {
-		return search.sole, SourceSearch, search.passed, nil
+		return search.sole, SourceSearch, search.passed, search.damaged, nil
 	}
 	if search.base != "" {
 		extra := map[string]string{"base": search.base}
-		return "", "", nil, contract.RefuseWith(contract.AmbiguousWorkbench, "", extra)
+		return "", "", nil, nil, contract.RefuseWith(contract.AmbiguousWorkbench, "", extra)
 	}
 	if configured != "" {
 		abs, err := filepath.Abs(configured)
 		if err != nil {
-			return "", "", nil, err
+			return "", "", nil, nil, err
 		}
 		if !Exists(filepath.Join(abs, WorkbenchAnchor)) {
-			return "", "", nil, contract.Refuse(contract.NoConfiguredWorkbench, abs)
+			return "", "", nil, nil, contract.Refuse(contract.NoConfiguredWorkbench, abs)
 		}
-		return abs, SourceConfig, search.passed, nil
+		return abs, SourceConfig, search.passed, search.damaged, nil
 	}
 	extra := map[string]string{"home": search.userBase}
 	if len(search.bare) > 0 {
 		extra["bare"] = strings.Join(search.bare, ", ")
 	}
-	return "", "", nil, contract.RefuseWith(contract.NoWorkbenchFound, start, extra)
+	return "", "", nil, nil, contract.RefuseWith(contract.NoWorkbenchFound, start, extra)
 }
 
 // Reachable reports what Discover's walk finds right now, without turning
@@ -546,6 +565,13 @@ type search struct {
 	// workbench stopped being found needs to be told which of the two
 	// happened to it.
 	bare []string
+	// damaged is the workbench directories the walk met inside a .dinah,
+	// under a name that container's own listing admits, whose workbench.md no
+	// longer reads as a Dinah anchor. It is separate from passed because such
+	// a directory is Dinah's own by position and the walk was entitled to
+	// claim it, where a passed anchor is somebody else's file the walk never
+	// had a claim on.
+	damaged []string
 }
 
 // walk runs the ancestor search and the fallback to the user base, and reports
@@ -581,12 +607,13 @@ func walk(start, home, nativeHome string) (search, error) {
 	consulted := false
 	for {
 		atNativeHome := samePath(dir, boundary)
-		found, ambiguous, passed, bare, err := benchIn(dir, atNativeHome)
+		found, ambiguous, passed, bare, damaged, err := benchIn(dir, atNativeHome)
+		result.passed = append(result.passed, passed...)
+		result.bare = append(result.bare, bare...)
+		result.damaged = append(result.damaged, damaged...)
 		if err != nil {
 			return search{}, err
 		}
-		result.passed = append(result.passed, passed...)
-		result.bare = append(result.bare, bare...)
 		if found != "" {
 			result.sole = found
 			return result, nil
@@ -626,11 +653,11 @@ func (s *search) fallbackTo(home string) (bool, error) {
 		return false, nil
 	}
 	s.userBase = filepath.Join(home, UserBaseName)
-	found, ambiguous, passed, err := soleBench(s.userBase)
+	found, ambiguous, damaged, err := soleBench(s.userBase)
+	s.damaged = append(s.damaged, damaged...)
 	if err != nil {
 		return false, err
 	}
-	s.passed = append(s.passed, passed...)
 	if found != "" {
 		s.sole = found
 		return true, nil
@@ -648,8 +675,17 @@ func (s *search) fallbackTo(home string) (bool, error) {
 // value carries the workbench.md files met at this rung and not claimed
 // because they are somebody else's document. The fourth carries the ones met
 // and not claimed because they are recognisably Dinah's own and sit outside
-// any container. The error is a workbench.md that exists and could not be
-// read.
+// any container. The fifth carries the directories inside this rung's .dinah
+// whose workbench.md no longer reads as a Dinah anchor, which travel whether
+// or not they decided this rung, so that a workbench a healthy sibling
+// outranked still reaches dinah check. The error is a workbench.md that
+// exists and could not be read, or one inside the .dinah that reads and no
+// longer names itself as a workbench.
+//
+// Only the anchor sitting directly in dir can reach the third value. An
+// unrecognised anchor inside the .dinah is refused rather than passed over,
+// because the name it sits under is one nobody but Dinah mints (dinah-367),
+// so soleBench raises it as an error and this function propagates it.
 //
 // A bare recognized anchor used to be returned as found, and that is the test
 // the containment rule removed: a workbench.md sitting directly in a project
@@ -664,29 +700,29 @@ func (s *search) fallbackTo(home string) (bool, error) {
 // skipBase drops the .dinah half, and the walk sets it at the one directory
 // that is the machine's native home. The anchor half still runs there, so a
 // bare anchor in the home directory is still reported as bare.
-func benchIn(dir string, skipBase bool) (found string, ambiguous, passed, bare []string, err error) {
+func benchIn(dir string, skipBase bool) (found string, ambiguous, passed, bare, damaged []string, err error) {
 	anchorPath := filepath.Join(dir, WorkbenchAnchor)
 	recognition, err := readAnchor(anchorPath)
 	if err != nil {
-		return "", nil, nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
+		return "", nil, nil, nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 	}
 	switch recognition {
 	case anchorOurs:
 		if inContainer(dir) {
-			return dir, nil, nil, nil, nil
+			return dir, nil, nil, nil, nil, nil
 		}
 		bare = append(bare, dir)
 	case anchorForeign:
 		passed = append(passed, anchorPath)
 	}
 	if skipBase {
-		return "", nil, passed, bare, nil
+		return "", nil, passed, bare, nil, nil
 	}
-	baseFound, baseAmbiguous, basePassed, err := soleBench(filepath.Join(dir, UserBaseName))
+	baseFound, baseAmbiguous, baseDamaged, err := soleBench(filepath.Join(dir, UserBaseName))
 	if err != nil {
-		return "", nil, nil, nil, err
+		return "", nil, passed, bare, baseDamaged, err
 	}
-	return baseFound, baseAmbiguous, append(passed, basePassed...), bare, nil
+	return baseFound, baseAmbiguous, passed, bare, baseDamaged, nil
 }
 
 // inContainer reports whether a workbench directory sits immediately inside a
@@ -777,7 +813,7 @@ func enumerate(root string) ([]Candidate, error) {
 	// (dinah-312). The third return, the foreign anchors met and not claimed,
 	// is discarded here exactly as walkFor already discards it, because
 	// Enumerate's answer carries no field for it.
-	found, ambiguous, _, _, err := benchIn(root, false)
+	found, ambiguous, _, _, _, err := benchIn(root, false)
 	if err != nil {
 		return nil, err
 	}
@@ -813,11 +849,11 @@ func walkFor(dir string, collected *[]Candidate, seen map[string]bool) error {
 		if !walkable {
 			continue
 		}
-		found, ambiguous, passed, bare, err := benchIn(full, false)
+		found, ambiguous, passed, bare, damaged, err := benchIn(full, false)
 		if err != nil {
 			return err
 		}
-		_, _ = passed, bare
+		_, _, _ = passed, bare, damaged
 		if found != "" {
 			addDescribed(collected, seen, found)
 		}
@@ -972,7 +1008,7 @@ func walkDeep(dir string, collected *[]Candidate, seen map[string]bool, depth, m
 		if !walkable {
 			continue
 		}
-		found, ambiguous, _, _, err := benchIn(full, false)
+		found, ambiguous, _, _, _, err := benchIn(full, false)
 		if err != nil {
 			addRefused(collected, seen, full, refusalNameOf(err))
 			continue
@@ -995,6 +1031,15 @@ func walkDeep(dir string, collected *[]Candidate, seen map[string]bool, depth, m
 // walk described and then could not descend into keeps its described row: the
 // workbench itself read, and what failed was the search for one nested inside
 // it, which is not a fact about the workbench the row names.
+//
+// The path a refused row carries is always the directory the walk stood in,
+// including for dinah.damaged-workbench, whose own advice is to pass
+// --workbench at the damaged workbench directory further down. That directory
+// is deliberately not what the row shows. A listing whose Path column meant
+// the walked directory on every row except one would be a listing nothing
+// could sort or compare, and the repair path for damage is dinah check, which
+// names the workbench directory itself. The row's job here is to say which
+// project holds something the reader has to go and look at.
 func addRefused(collected *[]Candidate, seen map[string]bool, path, name string) {
 	if seen[path] {
 		return
@@ -1126,11 +1171,37 @@ func PathUnderRoot(root, candidate string) (bool, error) {
 
 // soleBench returns the one bench a base directory holds. A base holding
 // several is ambiguous, so it returns no bench and the candidates instead,
-// and the walk continues rather than picking one. The third value carries
-// the workbench.md files met and not claimed, each one a container id
-// directory holding somebody else's document. The error is a workbench.md
-// that exists and could not be read.
-func soleBench(base string) (found string, ambiguous, passed []string, err error) {
+// and the walk continues rather than picking one. The error is a workbench.md
+// that exists and could not be read, or one that reads and no longer names
+// itself as a workbench.
+//
+// It reads every admitted entry before it decides anything, because every
+// candidate it considers already carries a name ListWorkbenchIDs admitted, so
+// a workbench.md it finds unreadable-as-recognized is never foreign
+// (dinah-285); it is damaged, exactly like a workbench.md this function could
+// not open at all. But unlike an open error, a damaged entry's own directory
+// might not be what decides this base's outcome: a base with one healthy,
+// unambiguous candidate has already answered the question regardless of what
+// else sits beside it, and refusing on a damaged sibling that never got to
+// matter is a false negative dinah-367's own review found live (a workbench
+// otherwise reachable and unambiguous became unreachable the moment a
+// half-migrated or hand-damaged sibling landed in the same container). So the
+// refusal is what soleBench returns only once the whole base has been read
+// and nothing else already resolved it.
+//
+// ListWorkbenchIDs reads through os.ReadDir, which sorts by filename, so the
+// damaged entry this names on a base holding several of them is the
+// alphabetically first rather than an arbitrary pick, and two runs over one
+// tree report the same directory.
+//
+// The damaged directories are returned alongside the answer as well as
+// deciding it, because a damaged entry a healthy sibling outranked is still a
+// defect somebody has to repair, and dinah check is where a reader hears about
+// a defect the tool will not repair for them. Dropping them once the base had
+// resolved is how the first round of dinah-367 made that case silent on the
+// one command an operator runs out of habit. They travel whether or not the
+// base refused, so the refusal branch fills this return too.
+func soleBench(base string) (found string, ambiguous, damaged []string, err error) {
 	var candidates []string
 	for _, id := range ListWorkbenchIDs(base) {
 		candidate := filepath.Join(base, id)
@@ -1139,22 +1210,23 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 		if rerr != nil {
 			return "", nil, nil, contract.Refuse(contract.UnreadableBench, anchorPath)
 		}
-		if recognition == anchorForeign {
-			passed = append(passed, anchorPath)
-			continue
+		switch recognition {
+		case anchorOurs:
+			candidates = append(candidates, candidate)
+		case anchorForeign:
+			damaged = append(damaged, candidate)
 		}
-		if recognition != anchorOurs {
-			continue
-		}
-		candidates = append(candidates, candidate)
 	}
 	if len(candidates) == 1 {
-		return candidates[0], nil, passed, nil
+		return candidates[0], nil, damaged, nil
 	}
 	if len(candidates) > 1 {
-		return "", candidates, passed, nil
+		return "", candidates, damaged, nil
 	}
-	return "", nil, passed, nil
+	if len(damaged) > 0 {
+		return "", nil, damaged, contract.Refuse(contract.DamagedBench, damaged[0])
+	}
+	return "", nil, nil, nil
 }
 
 // SoleBeneath reports the one workbench store directory sitting immediately
@@ -1167,9 +1239,12 @@ func soleBench(base string) (found string, ambiguous, passed []string, err error
 // It reports found=false on zero stores, on more than one, and on an anchor it
 // could not read, because none of those name a single answer worth offering.
 // A directory whose one entry carries a workbench.md that claims none of
-// Dinah's own keys counts as zero here, since soleBench passes such an anchor
-// over rather than admitting it as a candidate, so no path belonging to
-// somebody else is ever offered back.
+// Dinah's own keys counts as zero here too. soleBench refuses over such an
+// entry rather than admitting it as a candidate (dinah-367), so the answer
+// arrives as an error and lands in the same undecided branch, and this
+// function withholds the "did you mean" path rather than offering one that
+// would not open. Nothing is lost by the silence: a reader who passes
+// --workbench at that same directory gets the damage named directly.
 //
 // The probe is one non-recursive read of dir's .dinah and one anchor read per
 // hex-named entry in it, which is what soleBench already costs at every rung

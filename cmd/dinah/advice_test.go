@@ -702,6 +702,7 @@ var checkAdviceProvenByRunning = map[string]string{
 	"refusal.no-operator.next-named":                      "TestTheNoOperatorAdviceIsACommandThatWorks",
 	"refusal.dinah.add-needs-a-column.next-named":         "TestTheAddNeedsAColumnAdviceIsACommandThatWorks",
 	"refusal.malformed.fix-named":                         "TestTheMalformedAnchorAdviceIsACommandThatWorks",
+	"refusal.dinah.damaged-workbench.next":                "TestTheDamagedWorkbenchAdviceIsACommandThatWorks",
 	"refusal.dinah.interrupted.next-named":                "TestTheInterruptedActAdviceIsACommandThatWorks",
 	"refusal.dinah.locked.next-named":                     "TestTheLockedEntityAdviceIsACommandThatWorks",
 }
@@ -759,6 +760,7 @@ var checkAdviceProvenByRunning = map[string]string{
 // to this map.
 var checkAdviceNeedingNoScope = map[string]string{
 	"check.bare-workbench":                          "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
+	"check.damaged-workbench":                       "a finding row printed by a sweep the caller has already scoped, describing what that sweep does not repair rather than naming a fresh invocation",
 	"check.stranded-column":                         "a finding row printed by a check the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
 	"check.duplicate-workbench-id":                  "a finding row printed by a check the caller has already scoped, describing what --remint would do rather than naming a fresh invocation",
 	"refusal.dinah.repair-would-empty-columns":      "the sentence names the command that just refused, which is the reader's own invocation carrying whatever scope he gave it",

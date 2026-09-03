@@ -425,8 +425,13 @@ func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
 // workbench-reference fast path, calls this instead of open, so a malformed
 // column or profile elsewhere in the workbench cannot refuse an answer that
 // depends on none of that state (dinah-272).
-func (s *session) discoverRoot() (root string, passed []string, err error) {
-	root, source, passed, err := bench.DiscoverSource(
+//
+// The damaged workbench directories the walk met and resolved without travel
+// out beside the passed anchors, because open is the only caller with a bench
+// to hang them on and discovery is the only place they are known. A caller
+// that wants the root alone discards them the way it already discards passed.
+func (s *session) discoverRoot() (root string, passed, damaged []string, err error) {
+	root, source, passed, damaged, err := bench.DiscoverSource(
 		s.cwd,
 		s.benchFlag,
 		s.benchFlagSource,
@@ -435,16 +440,16 @@ func (s *session) discoverRoot() (root string, passed []string, err error) {
 		s.cfg.Get("workbench"),
 	)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	s.workbenchSource = source
 	s.workbenchRoot = root
-	return root, passed, nil
+	return root, passed, damaged, nil
 }
 
 // open discovers and opens the bench this invocation serves.
 func (s *session) open() (*verb.Library, error) {
-	root, passed, err := s.discoverRoot()
+	root, passed, damaged, err := s.discoverRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -453,6 +458,7 @@ func (s *session) open() (*verb.Library, error) {
 		return nil, err
 	}
 	opened.Passed = passed
+	opened.Damaged = damaged
 	library := verb.New(opened, s.home)
 	s.library = library
 	return library, nil

@@ -1629,6 +1629,14 @@
       "text": "; run `dinah workstream` to see the workstreams this workbench carries",
       "context": "Spliced onto refusal.dinah.unknown-workstream as the next step."
     },
+    "refusal.dinah.damaged-workbench": {
+      "text": "{detail} is a workbench's own address, but its workbench.md no longer reads as a Dinah anchor",
+      "context": "The sentence printed after the refusal name dinah.damaged-workbench. {detail} is the .dinah container's own child directory, named the way ListWorkbenchIDs already admits it, whose workbench.md exists, reads fine, and carries none of profile, format, or columns. It is the directory --workbench takes, not the workbench.md file inside it, because the .next fragment below tells the reader to pass it there."
+    },
+    "refusal.dinah.damaged-workbench.next": {
+      "text": "; pass --workbench {detail} to open it directly and see exactly what is wrong, or restore workbench.md from a backup or from git, then run `dinah check` to confirm",
+      "context": "Spliced onto refusal.dinah.damaged-workbench as the next step. Naming --workbench {detail} is what lets the reader reach Open's own, more specific per-field refusal (missing title, missing profile, and so on) despite the discovery walk itself being unable to say more than damaged; --workbench bypasses recognition entirely and tests only that the file exists, which it does."
+    },
     "refusal.dinah.unreadable-workbench": {
       "text": "{detail} exists and could not be read",
       "context": "The sentence printed after the refusal name dinah.unreadable-workbench. {detail} is the workbench.md the search found and could not open."
@@ -2781,6 +2789,14 @@
       "text": "{count} workbench moved into a container and the migration then stopped, so it is no longer where it was.",
       "context": "The heading over the workbenches that moved and whose migration then stopped, for exactly one. Each row names the directory it sat in, the directory it now sits in, and the reason the run stopped."
     },
+    "check.container-damaged.one": {
+      "text": "{count} workbench sits where the rule puts one and no longer reads as a Dinah anchor; it was not touched.",
+      "context": "The heading over the damaged workbenches a container sweep found, for exactly one. Each row names the directory. The sweep reports them and repairs none of them, because the repair is content rather than position."
+    },
+    "check.container-damaged.other": {
+      "text": "{count} workbenches sit where the rule puts one and no longer read as a Dinah anchor; none of them was touched.",
+      "context": "The heading over the damaged workbenches a container sweep found, for any other number."
+    },
     "check.container-duplicate.other": {
       "text": "{count} workbench identifiers are claimed by more than one directory, and none of them was touched.",
       "context": "The heading over the duplicated workbench identifiers a sweep found, for any other number."
@@ -2820,6 +2836,10 @@
     "check.container-would-migrate.one": {
       "text": "{count} workbench would be carried into a container.",
       "context": "The heading over what a preview of the container migration would move, for exactly one workbench."
+    },
+    "check.damaged-workbench": {
+      "text": "the workbench.md at {detail} sits where the containment rule puts a workbench and no longer reads as a Dinah anchor, so no search finds it; dinah check --migrate-container repairs a workbench's position rather than its content, so restore workbench.md from a backup or from git",
+      "context": "A check finding: a directory carrying a workbench.md that sits where the containment rule puts a workbench and whose content this tool no longer recognises as a Dinah anchor. {detail} carries that directory. It is distinct from check.bare-workbench, which is a recognised anchor in the wrong place."
     },
     "check.duplicate-workbench-id": {
       "text": "one workbench identifier is claimed by more than one directory ({detail}); dinah check --remint <path> gives one of them a fresh identifier",

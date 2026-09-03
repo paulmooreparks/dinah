@@ -156,6 +156,20 @@ const (
 	// reporting it as absent, because a file it could not open might be the
 	// real workbench.
 	UnreadableBench = LayerPrefix + "unreadable-workbench"
+	// DamagedBench is a workbench.md sitting at the one address the
+	// containment rule gives a workbench, immediately inside a .dinah
+	// container under a name that container's own listing already admitted,
+	// whose content readAnchor cannot recognise as a Dinah workbench's claim
+	// to its directory. Per dinah-285 every such name is Dinah's to mint, so
+	// this can never be somebody else's document the way a stray
+	// unrecognised file elsewhere in the tree can be: it is this workbench's
+	// own anchor damaged past the point the content test reads it. soleBench
+	// raises it once it has read every entry in the base and none of them,
+	// healthy or damaged, produced a better answer, so the walk refuses over
+	// it exactly where UnreadableBench already refuses over a file it could
+	// not open, rather than climbing past it and answering as though the
+	// workbench it names were not there at all.
+	DamagedBench = LayerPrefix + "damaged-workbench"
 	// NoConfiguredWorkbench is the workbench setting naming a path that no
 	// longer carries a workbench.md, consulted only once the search has
 	// found nothing local to answer with. It is a distinct name from
@@ -378,7 +392,7 @@ const (
 var Introduced = []string{
 	Unconfirmed, UnknownGuide, UnknownKey, Occupied, Locked, Exists,
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
-	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, NoConfiguredWorkbench,
+	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
 	AddNeedsAColumn, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,

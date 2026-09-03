@@ -1416,7 +1416,7 @@ func TestDiscoveryOffersTheStoreBeneathTheDirectoryNamed(t *testing.T) {
 			t.Fatalf("abs %s: %v", store, err)
 		}
 
-		_, _, _, err = DiscoverSource(t.TempDir(), dir, SourceFlag, "", "", "")
+		_, _, _, _, err = DiscoverSource(t.TempDir(), dir, SourceFlag, "", "", "")
 		refusal, ok := err.(*contract.Refusal)
 		if !ok {
 			t.Fatalf("wanted a refusal, got %v", err)
@@ -1449,7 +1449,7 @@ func TestDiscoveryOffersTheStoreBeneathTheDirectoryNamed(t *testing.T) {
 			dir := t.TempDir()
 			c.build(t, dir)
 
-			_, _, _, err := DiscoverSource(t.TempDir(), dir, SourceFlag, "", "", "")
+			_, _, _, _, err := DiscoverSource(t.TempDir(), dir, SourceFlag, "", "", "")
 			refusal, ok := err.(*contract.Refusal)
 			if !ok {
 				t.Fatalf("wanted a refusal, got %v", err)
@@ -1477,7 +1477,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 		nowhere := t.TempDir()
 		configured := t.TempDir()
 		writeWorkbench(t, configured, "Configured one")
-		root, source, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		root, source, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		if err != nil {
 			t.Fatalf("wanted the configured default to answer, got %v", err)
 		}
@@ -1495,7 +1495,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 		writeWorkbench(t, local, "Local one")
 		configured := t.TempDir()
 		writeWorkbench(t, configured, "Elsewhere")
-		root, source, _, err := DiscoverSource(here, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		root, source, _, _, err := DiscoverSource(here, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		if err != nil {
 			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
 		}
@@ -1512,7 +1512,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 		local := containedPath(here)
 		writeWorkbench(t, local, "Local one")
 		configured := filepath.Join(t.TempDir(), "does-not-exist")
-		root, source, _, err := DiscoverSource(here, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		root, source, _, _, err := DiscoverSource(here, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		if err != nil {
 			t.Fatalf("a local workbench should resolve without consulting the configured default, got %v", err)
 		}
@@ -1530,7 +1530,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 		writeWorkbench(t, filepath.Join(base, UserBaseName, "d00000000007"), "Two")
 		configured := t.TempDir()
 		writeWorkbench(t, configured, "Configured one")
-		_, _, _, err := DiscoverSource(base, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		_, _, _, _, err := DiscoverSource(base, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		refusal, ok := err.(*contract.Refusal)
 		if !ok {
 			t.Fatalf("wanted a refusal, got %v", err)
@@ -1543,7 +1543,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 	t.Run("a configured path with no workbench.md refuses by its own name and does not fall through", func(t *testing.T) {
 		nowhere := t.TempDir()
 		configured := t.TempDir() // exists, but writeWorkbench was never called here
-		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		_, _, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		refusal, ok := err.(*contract.Refusal)
 		if !ok {
 			t.Fatalf("wanted a refusal, got %v", err)
@@ -1559,7 +1559,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 	t.Run("a configured path that does not exist at all refuses the same way", func(t *testing.T) {
 		nowhere := t.TempDir()
 		configured := filepath.Join(t.TempDir(), "gone")
-		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
+		_, _, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", configured)
 		refusal, ok := err.(*contract.Refusal)
 		if !ok {
 			t.Fatalf("wanted a refusal, got %v", err)
@@ -1571,7 +1571,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 
 	t.Run("nothing local and nothing configured still refuses no-workbench-found", func(t *testing.T) {
 		nowhere := t.TempDir()
-		_, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", "")
+		_, _, _, _, err := DiscoverSource(nowhere, "", "", filepath.Join(t.TempDir(), "home"), "", "")
 		refusal, ok := err.(*contract.Refusal)
 		if !ok {
 			t.Fatalf("wanted a refusal, got %v", err)
@@ -1586,7 +1586,7 @@ func TestConfiguredWorkbenchAnswersOnlyWhenSearchFindsNothing(t *testing.T) {
 		writeWorkbench(t, override, "Overridden")
 		configured := t.TempDir()
 		writeWorkbench(t, configured, "Configured one")
-		root, source, _, err := DiscoverSource(t.TempDir(), override, SourceFlag, filepath.Join(t.TempDir(), "home"), "", configured)
+		root, source, _, _, err := DiscoverSource(t.TempDir(), override, SourceFlag, filepath.Join(t.TempDir(), "home"), "", configured)
 		if err != nil {
 			t.Fatalf("an override should resolve without consulting the configured default, got %v", err)
 		}
@@ -1718,7 +1718,7 @@ func writeWorkbench(t *testing.T, root, title string) {
 func TestDiscoveryReportsAnExhaustedWalk(t *testing.T) {
 	tree := t.TempDir()
 	root := filepath.VolumeName(tree) + string(filepath.Separator)
-	if found, ambiguous, _, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
+	if found, ambiguous, _, _, _, err := benchIn(root, false); found != "" || len(ambiguous) > 0 || err != nil {
 		t.Skip("the volume root carries a workbench of its own")
 	}
 	home := filepath.Join(tree, "home")
