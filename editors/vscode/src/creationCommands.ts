@@ -196,6 +196,56 @@ export function contextForAttach(
 }
 
 /**
+ * The dialog Attach File opens, spelled here rather than inside extension.ts.
+ *
+ * extension.ts is the one module that imports vscode, and nothing in this
+ * layer can stub that import, so anything spelled inside it is reachable by a
+ * test only as source text. These options and the selection read below are the
+ * two parts of the picker that carry a decision, so they live here, where a
+ * test drives them directly, and extension.ts is left holding the call to
+ * vscode.window.showOpenDialog and nothing else (dinah-331 AC-12).
+ *
+ * One file rather than many, because `dinah attach` takes one payload path. A
+ * file rather than a folder, because the verb refuses a directory. The label
+ * names the act rather than the dialog's default "Open", which would say the
+ * wrong verb for what the button does.
+ */
+export const ATTACH_DIALOG_OPTIONS = {
+	canSelectMany: false,
+	canSelectFiles: true,
+	canSelectFolders: false,
+	openLabel: "Attach",
+} as const;
+
+/** One entry of a file dialog's answer, as far as the read below needs it. */
+export interface PickedFile {
+	/** The selection as a filesystem path, which is what `attach` takes. */
+	readonly fsPath: string;
+}
+
+/**
+ * The path the operator chose, or undefined when the operator chose nothing.
+ *
+ * Three answers reach here and each means something different. Undefined is a
+ * cancelled dialog, which VS Code documents. An empty array is not documented
+ * either way, so it is read as a cancellation rather than trusted not to
+ * arrive. One or more entries is a selection, and the first is the only one
+ * this command can use, since `attach` takes a single payload.
+ *
+ * fsPath rather than path: the latter answers a URI path, which carries a
+ * leading slash before a Windows drive letter, and `attach` would refuse that
+ * on Windows and nowhere else.
+ */
+export function pickedFilePath(
+	picked: readonly PickedFile[] | undefined,
+): string | undefined {
+	if (picked === undefined || picked.length === 0) {
+		return undefined;
+	}
+	return picked[0].fsPath;
+}
+
+/**
  * Attaches a file to the entity, after asking which file and, once one is
  * picked, an optional description.
  *

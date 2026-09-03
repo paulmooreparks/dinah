@@ -21,9 +21,11 @@ import { test } from "node:test";
 import type { CommandHost } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
 import {
+	ATTACH_DIALOG_OPTIONS,
 	attachFile,
 	contextForAttach,
 	contextForColumn,
+	pickedFilePath,
 } from "../../src/creationCommands";
 import { newCard } from "../../src/creationCommands";
 import type { RootRow, TreeElement } from "../../src/tree";
@@ -322,7 +324,20 @@ test("Attach File names no context for a row that receives no attachment", () =>
 		["no element at all, which is what the Command Palette passes", undefined],
 		[
 			"a dead-end row, which resolved to no workbench",
-			{ kind: "root", row: rowFixture({ rowKind: "deadEnd", data: undefined }) },
+			// The candidate path is set so that the path guard on the next two
+			// lines of contextForAttach cannot be what refuses this row. A real
+			// dead-end row carries neither a data path nor a candidate one, so
+			// this fixture is impossible on purpose: it leaves the rowKind check
+			// as the only thing that can answer, which is the check this row is
+			// named for.
+			{
+				kind: "root",
+				row: rowFixture({
+					rowKind: "deadEnd",
+					data: undefined,
+					candidate: { title: "Other", path: "C:\\work\\other" },
+				}),
+			},
 		],
 		[
 			"a root row carrying neither a resolved path nor a candidate one",
@@ -483,57 +498,73 @@ test("a refused attach is reported and the row is repainted anyway", async () =>
 });
 
 // ---------------------------------------------------------------------------
-// AC-12: the one half of this card the unit layer cannot drive
+// AC-12: the dialog's own settings, and the read of what it answered
 // ---------------------------------------------------------------------------
 
 /**
- * What follows reads extension.ts as text, which is weaker than driving it and
- * is deliberate.
+ * The two parts of the file picker that carry a decision are driven here.
  *
- * Every other command on this card is a pure function over an injected host,
- * so the tests above drive them. `pickFile` is the seam itself: it is the field
- * that binds a prompt to the real VS Code window, and there is no stub of
- * vscode.window anywhere in this layer to drive it against. cardCommands.ts's
- * own header names that boundary, and openFile sits on the far side of it
- * unverified for the same reason.
- *
- * So this pins what can be pinned. It does not prove that VS Code answers the
- * dialog as documented, and it does not prove the field is reached at run time.
- * It proves that the field composes the dialog this card asked for and reads
- * the chosen file back out of it, which is where a silent regression would
- * otherwise sit: an option flipped so the picker offers folders, or a read of
- * `path` in place of `fsPath`, which yields a leading-slash URI path that
- * `attach` would refuse on Windows and nowhere else.
+ * `pickFile` binds a prompt to the real VS Code window, and nothing in this
+ * layer stubs vscode.window, so the call itself is out of reach. The options
+ * the call is given and the read of what it answered are not: both live in
+ * creationCommands.ts, which imports no vscode, so both are ordinary values a
+ * test drives. What remains unprovable anywhere in this repository is whether
+ * VS Code honours those options, which is a promise of the editor rather than
+ * a property of this code.
  */
 const EXTENSION_SOURCE = readFileSync(
 	join(__dirname, "..", "..", "..", "src", "extension.ts"),
 	"utf8",
 ).replace(/\s+/g, " ");
 
-test("the file picker is bound to a single-file dialog that answers a filesystem path", () => {
-	// dinah-331 AC-12, as far as this layer reaches. Each option is asserted
-	// on its own rather than as one blob, so a failure names which one moved.
-	assert.ok(
-		EXTENSION_SOURCE.includes("pickFile: async () => {"),
-		"extension.ts no longer binds a pickFile field on the command host",
+test("the attach dialog asks for one file and never for a folder", () => {
+	// dinah-331 AC-12. Each option is asserted on its own rather than as one
+	// object, so a failure names which setting moved.
+	assert.equal(ATTACH_DIALOG_OPTIONS.canSelectMany, false);
+	assert.equal(ATTACH_DIALOG_OPTIONS.canSelectFiles, true);
+	assert.equal(ATTACH_DIALOG_OPTIONS.canSelectFolders, false);
+	assert.equal(ATTACH_DIALOG_OPTIONS.openLabel, "Attach");
+});
+
+test("the selection read answers a path only when something was chosen", () => {
+	// dinah-331 AC-12's other half, and all three answers the dialog can give.
+	// The empty array is the one the showOpenDialog documentation does not
+	// promise either way, which is why the read defends against it and why
+	// this row exists.
+	assert.equal(pickedFilePath(undefined), undefined, "a cancelled dialog");
+	assert.equal(pickedFilePath([]), undefined, "an empty answer");
+	assert.equal(
+		pickedFilePath([{ fsPath: "C:\\work\\shot.png" }]),
+		"C:\\work\\shot.png",
+		"one file",
 	);
-	assert.ok(
-		EXTENSION_SOURCE.includes("vscode.window.showOpenDialog({"),
-		"the file picker no longer opens the native dialog",
+});
+
+test("the selection read takes the first file when the dialog answers several", () => {
+	// canSelectMany is false, so this cannot arise from the dialog above. It
+	// is pinned anyway because the read is exported and the option could be
+	// flipped without anyone revisiting the read.
+	assert.equal(
+		pickedFilePath([{ fsPath: "C:\\work\\first.png" }, { fsPath: "C:\\work\\second.png" }]),
+		"C:\\work\\first.png",
 	);
-	for (const option of [
-		"canSelectMany: false",
-		"canSelectFiles: true",
-		"canSelectFolders: false",
-	]) {
+});
+
+test("extension.ts opens the dialog through that seam rather than around it", () => {
+	// The one thing left that no value can prove: that the field the editor
+	// actually calls is wired to the two names above. This reads source text,
+	// which is weak, so it reads only the two identifiers rather than the
+	// shape of the code around them, and a reformat cannot break it.
+	for (const name of ["ATTACH_DIALOG_OPTIONS", "pickedFilePath"]) {
 		assert.ok(
-			EXTENSION_SOURCE.includes(option),
-			`the file picker no longer sets ${option}`,
+			EXTENSION_SOURCE.includes(`showOpenDialog(${name})`) ||
+				EXTENSION_SOURCE.includes(`${name}(await vscode.window.showOpenDialog`),
+			`extension.ts no longer reaches the file picker through ${name}`,
 		);
 	}
 	assert.ok(
-		EXTENSION_SOURCE.includes("return picked?.[0]?.fsPath;"),
-		"the file picker no longer answers the first selection's filesystem path",
+		!EXTENSION_SOURCE.includes("canSelectFolders"),
+		"extension.ts spells the dialog options itself again, so the tested copy is not the one in use",
 	);
 });
 

@@ -34,16 +34,20 @@ suite("the sidebar tree against a real workbench", () => {
 		for (const element of columns) {
 			const row = reported.tree.getTreeItem(element) as Row;
 			// Since dinah-331 a column row's contextValue says whether the
-			// column will take another card, so the value depends on the
-			// fixture's own capacities and this asserts the pair rather than
-			// one member. The bare "dinah.column" is deliberately excluded:
-			// that is what a row carries when the status and tree answers
-			// disagreed about which columns exist, so refusing it here proves
-			// the join this suite exists to check actually delivered a view.
-			assert.ok(
-				row.contextValue === "dinah.column.open" ||
-					row.contextValue === "dinah.column.full",
-				`a column row carries no capacity-bearing contextValue: ${String(row.contextValue)}`,
+			// column will take another card. This fixture's workbench is the
+			// one `dinah init` scaffolds, whose three columns declare no
+			// wip_limit at all, so every column here is open and the exact
+			// value is what gets asserted. A disjunction over open and full
+			// would let the full half go unexercised while reading as though
+			// it were covered. The bare "dinah.column" fails this assertion,
+			// which is the point: that is what a row carries when the status
+			// and tree answers disagreed about which columns exist, so
+			// refusing it proves the join this suite exists to check actually
+			// delivered a view.
+			assert.equal(
+				row.contextValue,
+				"dinah.column.open",
+				`a column of the uncapped fixture bench does not read as open: ${String(row.contextValue)}`,
 			);
 			// The Work word leads and the occupancy follows, which is the whole
 			// of what this row teaches a reader at a glance.

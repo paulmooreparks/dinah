@@ -25,10 +25,12 @@ import type { CheckpointEntry, Watcher } from "./changes";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
 import {
+	ATTACH_DIALOG_OPTIONS,
 	attachFile,
 	contextForAttach,
 	contextForColumn,
 	newCard,
+	pickedFilePath,
 } from "./creationCommands";
 import { PAIRED_RELEASE } from "./generated/pairing";
 import {
@@ -168,18 +170,12 @@ function commandHost(
 		openFile: async (path) => {
 			await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(path));
 		},
-		// One file, and a file rather than a folder, because `dinah attach`
-		// takes one payload path. The label names the act rather than the
-		// dialog's default "Open", which would say the wrong verb.
-		pickFile: async () => {
-			const picked = await vscode.window.showOpenDialog({
-				canSelectMany: false,
-				canSelectFiles: true,
-				canSelectFolders: false,
-				openLabel: "Attach",
-			});
-			return picked?.[0]?.fsPath;
-		},
+		// The options and the read of what came back both live in
+		// creationCommands.ts, where a unit test drives them. What is left
+		// here is the call itself, which no test in this layer can reach
+		// (dinah-331 AC-12).
+		pickFile: async () =>
+			pickedFilePath(await vscode.window.showOpenDialog(ATTACH_DIALOG_OPTIONS)),
 		checkpoint,
 		log: (line) => channel.appendLine(line),
 	};
