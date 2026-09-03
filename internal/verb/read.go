@@ -34,6 +34,21 @@ type ColumnView struct {
 	// wants the fact reads it here rather than deriving it from Kind, which is
 	// the whole point of publishing it.
 	TakesWorkUp bool `json:"takes_work_up"`
+	// PullDestination is the column a pull standing at this column would
+	// carry a card into, absent where no pull could carry it anywhere: a
+	// done column, a column waiting on somebody outside, a work column whose
+	// immediate downstream does not itself take work up, or a run of queues
+	// meeting any of those before it reaches a column that does. It answers
+	// the other half of the question TakesWorkUp exists for, which is why it
+	// stands beside it.
+	//
+	// It is carriesInto's own answer rendered as a reference rather than a
+	// second copy of the rule, so a reader that draws the act and a pull
+	// that performs it can never disagree about where the card lands. A
+	// reader could walk the flow itself from the fields above, and a reader
+	// that does holds a copy of this rule that goes stale the next time the
+	// walk changes.
+	PullDestination string `json:"pull_destination,omitempty"`
 	// Capacity is the declared limit, zero for unlimited.
 	Capacity int `json:"capacity,omitempty"`
 	// RejectTo is the column a card goes to when the work at this column is
@@ -146,6 +161,9 @@ func (l *Library) columnViews(counts map[string]int) []ColumnView {
 			RejectTo:        column.RejectTo,
 			Count:           counts[column.ID],
 			AttachmentCount: bench.CountAttachments(l.Bench.ColumnDir(column.ID)),
+		}
+		if destination := carriesInto(column, l.Bench.Columns); destination != nil {
+			view.PullDestination = columnRef(destination)
 		}
 		views = append(views, view)
 	}
