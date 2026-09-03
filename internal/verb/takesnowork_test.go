@@ -1,8 +1,10 @@
 package verb
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -501,6 +503,57 @@ func TestTheColumnsListingSaysWhereWorkIsTakenUp(t *testing.T) {
 	for _, view := range views {
 		if view.Slug == "doing" && !view.TakesWorkUp {
 			t.Error("a plain work column reads takes_work_up false")
+		}
+	}
+}
+
+// TestTheColumnsListingSaysWhereAPullWouldLand is dinah-280 AC-1 and AC-3. The
+// buffered flow carries all four answers the field has: a queue looked through
+// to the station beyond, a queue standing next to that station, a station whose
+// downstream takes no work up, and a done column.
+func TestTheColumnsListingSaysWhereAPullWouldLand(t *testing.T) {
+	h := newBufferHarness(t)
+	views, err := h.library.Columns()
+	if err != nil {
+		t.Fatalf("columns: %v", err)
+	}
+	wanted := map[string]string{
+		bufferIntakeSlug: bufferDoingSlug,
+		bufferQueueSlug:  bufferDoingSlug,
+		bufferDoingSlug:  "",
+		bufferDoneSlug:   "",
+	}
+	seen := map[string]bool{}
+	for _, view := range views {
+		want, ok := wanted[view.Slug]
+		if !ok {
+			t.Fatalf("the listing carries an unexpected column %q", view.Slug)
+		}
+		seen[view.Slug] = true
+		if view.PullDestination != want {
+			t.Errorf("%s reads pull_destination %q, wanted %q", view.Slug, view.PullDestination, want)
+		}
+	}
+	for slug := range wanted {
+		if !seen[slug] {
+			t.Errorf("the listing never carried %s, so its answer went unasserted", slug)
+		}
+	}
+
+	// The key is absent from the object rather than present and empty, which
+	// is a different fact from the empty string asserted above: a field
+	// serialized without omitempty reads the same way in Go and writes
+	// "pull_destination":"" onto the wire, where a reader offering the act
+	// whenever the key is present would offer a pull into nowhere.
+	for _, view := range views {
+		marshaled, err := json.Marshal(view)
+		if err != nil {
+			t.Fatalf("marshal %s: %v", view.Slug, err)
+		}
+		carries := strings.Contains(string(marshaled), "pull_destination")
+		if carries != (wanted[view.Slug] != "") {
+			t.Errorf("%s marshals as %s, and the key should be %s",
+				view.Slug, marshaled, map[bool]string{true: "present", false: "absent"}[wanted[view.Slug] != ""])
 		}
 	}
 }

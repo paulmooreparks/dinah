@@ -1583,6 +1583,7 @@ func runWorkstream(s *session, parsed *arguments) int {
 		return s.withBench(func(l *verb.Library) int {
 			req := s.request("workstream", parsed)
 			req.Action, req.Workstream = first, title
+			req.Slug = parsed.value("slug")
 			return s.emitWorkstream(l.NewWorkstream(req))
 		})
 	case "get":
