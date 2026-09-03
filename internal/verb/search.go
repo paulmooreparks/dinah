@@ -45,6 +45,13 @@ const (
 	searchTiers = tierAttachment
 )
 
+// fuzzyFloor is the phrase length at or below which layer 2 does not run at
+// all, counted in runes after case-folding. The budget below already floors at
+// one edit, and one edit of tolerance against a two- or three-rune phrase
+// matches nearly anything typed near it, which is noise this search has no
+// reason to pay for.
+const fuzzyFloor = 3
+
 // attachmentCap is how much of an attachment's payload a search reads and
 // matches against. The scan is bounded rather than partial and silent: a hit
 // inside the prefix is reported like any other, and nothing is reported for a
@@ -196,7 +203,7 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 	}
 	if at, length, ok := substringIn(phrase, card.Title); ok {
 		results.add(hit, tierTitle, MatchedInTitle, card.Title, at, length)
-	} else if quality, ok := subsequenceIn(phrase, card.Title); ok {
+	} else if quality, ok := withinTypoBudget(phrase, card.Title); ok {
 		results.addScored(hit, tierTitle, MatchedInTitle, snippetOf(card.Title, 0, len(card.Title)), quality)
 	}
 	if at, length, ok := substringIn(phrase, card.Body); ok {
@@ -316,50 +323,101 @@ func substringIn(phrase, field string) (at, length int, ok bool) {
 	return at, len(phrase), true
 }
 
-// subsequenceIn is layer 2: every rune of the phrase occurs in the field, in
-// order, compared without regard to case, which finds a title typed with a
-// letter left out. It runs only where layer 1 found no substring in that same
-// field, and only against a card's title, because scoring a scattered
-// subsequence against a paragraph of prose produces matches nobody meant.
+// withinTypoBudget is layer 2: a title the phrase was very nearly typed as,
+// found by edit distance rather than by containment, which is what catches a
+// caller who swapped two letters or dropped one. It runs only where layer 1
+// found no substring in that same title, and only against a card's title,
+// because measuring a short phrase against a paragraph of prose produces
+// matches nobody meant.
 //
-// The quality it answers with is bounded to (0, 1] by three factors, each in
-// that range and each 1 exactly when the match is perfect on its own terms:
-// how densely the matched runes sit together, how near the start of the field
-// the match begins, and how much of the field it covers. A phrase that is the
-// whole of a short title scores 1, and a scattered late subsequence in a long
-// one scores near 0.
-func subsequenceIn(phrase, field string) (float64, bool) {
-	if phrase == "" || field == "" {
-		return 0, false
-	}
+// The distance is restricted Damerau-Levenshtein, also called optimal string
+// alignment, so one swap of adjacent letters costs one edit rather than the
+// two a plain Levenshtein distance would charge it. Phrase and title are
+// compared whole, case-folded, and a title qualifies when the distance sits
+// inside typoBudget of the phrase's own length.
+//
+// The quality it answers with is 1 - distance/n, on the same coverage-ratio
+// scale layer 1's own quality uses. Since a qualifying distance is at least 1
+// and at most n/4, that quality lands in [0.75, 1): high enough to sit beside
+// a substring hit on the same title tier, and bounded below 1 so an exact hit
+// always wins. A distance of 0 cannot arrive here, because two equal strings
+// are a substring match and layer 1 already answered them.
+func withinTypoBudget(phrase, title string) (float64, bool) {
 	wanted := []rune(asciiFold(phrase))
-	haystack := []rune(asciiFold(field))
-	first, last, matched := -1, -1, 0
-	for at, r := range haystack {
-		if matched == len(wanted) {
-			break
-		}
-		if r != wanted[matched] {
-			continue
-		}
-		if first < 0 {
-			first = at
-		}
-		last = at
-		matched++
-	}
-	if matched < len(wanted) {
+	haystack := []rune(asciiFold(title))
+	length := len(wanted)
+	if length <= fuzzyFloor || len(haystack) == 0 {
 		return 0, false
 	}
-	span := last - first + 1
-	density := float64(matched) / float64(span)
-	earliness := 1 - float64(first)/float64(len(haystack))
-	covered := float64(matched) / float64(len(haystack))
-	quality := density * earliness * covered
-	if quality <= 0 {
+	distance := alignmentDistance(wanted, haystack)
+	if distance > typoBudget(length) {
 		return 0, false
 	}
-	return quality, true
+	return 1 - float64(distance)/float64(length), true
+}
+
+// typoBudget is how many edits layer 2 forgives in a phrase of n runes. It
+// scales with the phrase rather than with the title, because it is the phrase
+// a caller might have mistyped, and it floors at one so even a short phrase
+// catches a single slip.
+//
+// Nothing else has to reject a title of wildly different length from the
+// phrase. An alignment distance is never smaller than the difference between
+// the two lengths, so a title much longer or shorter than the phrase fails
+// this budget on that ground alone.
+func typoBudget(length int) int {
+	if scaled := length / 4; scaled > 1 {
+		return scaled
+	}
+	return 1
+}
+
+// alignmentDistance is the restricted Damerau-Levenshtein distance between two
+// rune slices: an insertion, a deletion, a substitution and a transposition of
+// two adjacent runes each cost one edit, under the restriction that no pair of
+// runes is edited twice. That restriction is what makes it cheap, and it costs
+// this search nothing, since the case it exists to price at one edit is a
+// caller swapping one pair of letters.
+//
+// Three rows are carried rather than the whole table, because a transposition
+// reads the row before the previous one and nothing reads further back.
+func alignmentDistance(from, to []rune) int {
+	if len(from) == 0 {
+		return len(to)
+	}
+	if len(to) == 0 {
+		return len(from)
+	}
+	before := make([]int, len(to)+1)
+	previous := make([]int, len(to)+1)
+	current := make([]int, len(to)+1)
+	for at := range previous {
+		previous[at] = at
+	}
+	for row := 1; row <= len(from); row++ {
+		current[0] = row
+		for column := 1; column <= len(to); column++ {
+			substitution := 1
+			if from[row-1] == to[column-1] {
+				substitution = 0
+			}
+			least := previous[column] + 1
+			if insertion := current[column-1] + 1; insertion < least {
+				least = insertion
+			}
+			if replaced := previous[column-1] + substitution; replaced < least {
+				least = replaced
+			}
+			if row > 1 && column > 1 && from[row-1] == to[column-2] && from[row-2] == to[column-1] {
+				if swapped := before[column-2] + 1; swapped < least {
+					least = swapped
+				}
+			}
+			current[column] = least
+		}
+		before, previous, current = previous, current, before
+	}
+	return previous[len(to)]
 }
 
 // asciiFold lowercases the ASCII letters of a string and leaves every other

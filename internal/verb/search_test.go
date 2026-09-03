@@ -1,6 +1,8 @@
 package verb
 
 import (
+	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sort"
@@ -250,13 +252,11 @@ func TestAReferenceMatchOutranksEverything(t *testing.T) {
 // where no substring of the title carries it, which is the shape a caller
 // typing from memory produces.
 //
-// It is not dinah-268 AC-5, and cannot be. AC-5 asks for a title carrying a
-// transposition of the phrase, and a transposition is the one shape a
-// subsequence matcher can never find: swapping two adjacent characters leaves
-// a string of the phrase's own length that is not the phrase, and a string is
-// a subsequence of another string of equal length only when the two are
-// equal. That criterion is left pending with the contradiction recorded on the
-// card rather than met by a fixture built to look as though it were.
+// It is not dinah-268 AC-5, which asks for a title carrying a transposition
+// and has a case of its own below. The two shapes are worth separate fixtures
+// because they were not always both findable: the matcher this layer began as
+// found a dropped letter and could never have found a swap, and this case is
+// what proves the widening kept the shape it already had.
 func TestLayerTwoFindsATitleThePhraseIsMissingALetterOf(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("Coelacanth")
@@ -276,16 +276,16 @@ func TestLayerTwoFindsATitleThePhraseIsMissingALetterOf(t *testing.T) {
 // scoped to titles, so a comment carrying the phrase only as a subsequence
 // answers nothing.
 //
-// The criterion's own fixture says the comment carries a transposition. A
-// transposition is found by no matcher this card ships, so a fixture built on
-// one would pass whether or not layer 2 reached comments, and would prove
-// nothing. The fixture here plants the shape layer 2 does find, so a build
-// that let the fuzzy layer reach comments fails this test by answering a hit.
+// The comment carries the transposition the criterion names, which is a shape
+// layer 2 does now find when it sits in a title. So the fixture is armed: a
+// build that let the fuzzy layer reach comments answers a hit here and fails,
+// where a fixture carrying a shape no matcher finds would have passed whatever
+// the layer reached.
 func TestLayerTwoDoesNotReachAComment(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("A card with no planted word in its title")
-	h.comment(ref, "Coelacanth")
-	results := found(h, &Request{SearchText: "colacanth"})
+	h.comment(ref, "Coelacnath")
+	results := found(h, &Request{SearchText: planted})
 	if len(results.Hits) != 0 {
 		t.Errorf("wanted no hit, got %+v", results.Hits)
 	}
@@ -521,5 +521,341 @@ func TestASnippetIsBoundedAndMarksWhatItLeftOut(t *testing.T) {
 	short := found(h, &Request{SearchText: "long framing"})
 	if len(short.Hits) != 1 || strings.Contains(short.Hits[0].Snippet, "...") {
 		t.Errorf("a field inside the cap came back marked as cut: %+v", short.Hits)
+	}
+}
+
+// swapped is the phrase of TestLayerTwoFindsATitleWithTwoLettersSwapped and
+// the fixtures built on it: the planted word with one adjacent pair of letters
+// exchanged, which is the shape dinah-268 AC-5 names.
+//
+// Its length is deliberate and dinah-268 OQ-4 is what makes it so. Layer 2
+// does not run at all for a phrase of fuzzyFloor runes or fewer, so a fixture
+// built on a two- or three-letter word would answer nothing here whatever the
+// matcher did, and the case would look like a broken matcher rather than a
+// phrase below the floor. Ten runes sits well clear of that floor, and it is
+// the length precedent already uses.
+const swapped = "coelacnath"
+
+// TestLayerTwoFindsATitleWithTwoLettersSwapped asserts dinah-268 AC-5: a title
+// carrying the phrase with one adjacent pair of letters exchanged is answered,
+// under the title, by layer 2, where no substring of any field carries the
+// phrase at all.
+//
+// This is the case the matcher was widened for. A transposition leaves a
+// string of the phrase's own length that is not the phrase, so containment
+// finds it never and an ordered subsequence finds it never either, since a
+// string is a subsequence of another of equal length only when the two are
+// equal. An alignment distance prices the swap at one edit and finds it.
+func TestLayerTwoFindsATitleWithTwoLettersSwapped(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("Coelacnath")
+	results := found(h, &Request{SearchText: planted})
+	if len(results.Hits) != 1 {
+		t.Fatalf("wanted the one fuzzy hit, got %+v", results.Hits)
+	}
+	if results.Hits[0].Ref != ref || results.Hits[0].MatchedIn != MatchedInTitle {
+		t.Errorf("the hit is %s/%s, wanted the title of %s",
+			results.Hits[0].Ref, results.Hits[0].MatchedIn, ref)
+	}
+}
+
+// TestAFuzzyTitleHitScoresInsideItsBand asserts dinah-268 AC-18: the hit the
+// case above answers scores inside [searchTiers-tierTitle+0.75,
+// searchTiers-tierTitle+1), which is the band a quality of 1 - distance/n
+// produces once the budget bounds the distance at a quarter of the phrase.
+//
+// The band's two ends are what the criterion is about. The floor keeps a
+// fuzzy title hit above every score the next tier down can reach, and the
+// ceiling keeps it below an exact hit on the same tier, so a mistyped match
+// never crosses a tier boundary in either direction.
+func TestAFuzzyTitleHitScoresInsideItsBand(t *testing.T) {
+	h := newHarness(t)
+	h.add("Coelacnath")
+	results := found(h, &Request{SearchText: planted})
+	if len(results.Hits) != 1 {
+		t.Fatalf("wanted the one fuzzy hit, got %+v", results.Hits)
+	}
+	floor := float64(searchTiers-tierTitle) + 0.75
+	ceiling := float64(searchTiers-tierTitle) + 1
+	if score := results.Hits[0].Score; score < floor || score >= ceiling {
+		t.Errorf("the fuzzy title hit scored %g, wanted it inside [%g, %g)", score, floor, ceiling)
+	}
+}
+
+// TestTheAlignmentDistancePricesOneSwapAsOneEdit asserts what dinah-268 D-9
+// chose the algorithm for, and it is what arms the fixtures above and below:
+// every distance those fixtures rest on is stated here and checked against the
+// matcher's own arithmetic rather than counted by hand in a comment.
+//
+// The first row is the whole reason the matcher is an alignment distance and
+// not a plain Levenshtein one. A plain Levenshtein distance prices an adjacent
+// swap at 2, a deletion and an insertion, so a build that dropped the
+// transposition arm of alignmentDistance answers 2 here and fails.
+func TestTheAlignmentDistancePricesOneSwapAsOneEdit(t *testing.T) {
+	for _, c := range []struct {
+		what     string
+		from, to string
+		want     int
+	}{
+		{"one adjacent swap", planted, swapped, 1},
+		{"one letter dropped", planted, "colacanth", 1},
+		{"one letter changed", planted, "coelacantz", 1},
+		{"two letters changed", planted, "xoelacantz", 2},
+		{"three letters changed", planted, "xoelycantz", 3},
+		{"the same word", planted, planted, 0},
+		{"nothing in common", planted, "qz", 10},
+	} {
+		t.Run(c.what, func(t *testing.T) {
+			got := alignmentDistance([]rune(c.from), []rune(c.to))
+			if got != c.want {
+				t.Errorf("%q to %q is %d edits, wanted %d", c.from, c.to, got, c.want)
+			}
+		})
+	}
+}
+
+// TestLayerTwoStopsAtTheTypoBudget asserts dinah-268 AC-17: a title one edit
+// further from the phrase than the budget allows is not answered, and the same
+// title at exactly the budget is.
+//
+// Both halves are needed. The far title alone would pass against a matcher
+// that had stopped working, and the near title alone would pass against one
+// that forgave everything, so the pair is what pins the threshold to the
+// budget rather than to any other number. The distances themselves are
+// asserted in the case above.
+func TestLayerTwoStopsAtTheTypoBudget(t *testing.T) {
+	for _, c := range []struct {
+		what  string
+		title string
+		want  int
+	}{
+		{"at the budget", "xoelacantz", 1},
+		{"one edit past the budget", "xoelycantz", 0},
+	} {
+		t.Run(c.what, func(t *testing.T) {
+			h := newHarness(t)
+			h.add(c.title)
+			results := found(h, &Request{SearchText: planted})
+			if len(results.Hits) != c.want {
+				t.Errorf("a title %s answered %d hits, wanted %d: %+v",
+					c.what, len(results.Hits), c.want, results.Hits)
+			}
+		})
+	}
+}
+
+// TestLayerTwoDoesNotFireBelowItsFloor asserts dinah-268 AC-19: a phrase of
+// fuzzyFloor runes or fewer answers no fuzzy hit at all, however near a title
+// sits to it.
+//
+// Each phrase here is one adjacent swap from its own card's title, which is
+// the closest a title can sit without being the phrase, so the only thing
+// separating the answers is the phrase's length. The four-rune row is what
+// arms the other two: it is built the same way and it does answer, so a build
+// with no floor at all fails the short rows while the long one goes on
+// passing. The letters are nonsense on purpose, since a real word would risk
+// a substring hit somewhere in the fixture's own prose and the count would
+// stop meaning what it says here.
+func TestLayerTwoDoesNotFireBelowItsFloor(t *testing.T) {
+	for _, c := range []struct {
+		what   string
+		phrase string
+		title  string
+		want   int
+	}{
+		{"two runes", "qz", "Zq", 0},
+		{"three runes", "qzx", "Qxz", 0},
+		{"four runes, above the floor", "qzxv", "Qxzv", 1},
+	} {
+		t.Run(c.what, func(t *testing.T) {
+			h := newHarness(t)
+			h.add(c.title)
+			results := found(h, &Request{SearchText: c.phrase})
+			if len(results.Hits) != c.want {
+				t.Errorf("a phrase of %s answered %d hits, wanted %d: %+v",
+					c.what, len(results.Hits), c.want, results.Hits)
+			}
+		})
+	}
+}
+
+// noiseVocabulary is the word list the corpus below is generated from: words
+// this workbench's own card titles are written out of. It is the source of the
+// corpus's realism, and it is chosen before the phrase rather than around it.
+// The one word it deliberately excludes is the phrase's own correct spelling,
+// so that every title the search answers besides the planted target is noise
+// by construction rather than a real match somebody would have wanted.
+var noiseVocabulary = []string{
+	"workbench", "column", "card", "search", "agent", "operator", "attachment",
+	"comment", "workstream", "journal", "refusal", "locale", "catalog", "guide",
+	"profile", "contract", "verb", "pull", "claim", "sweep", "rename", "archive",
+	"capacity", "station", "lane", "ready", "blocked", "level", "severity",
+	"priority", "reference", "snippet", "tree", "status", "history", "identifier",
+	"discovery", "container", "anchor", "definition", "frontmatter", "listing",
+	"quick", "start", "answer", "question", "decision", "criterion", "fixture",
+	"boundary", "phrase", "title", "body", "text", "field", "hit", "score",
+}
+
+// noiseLengths is how many words a generated title carries, drawn from at
+// random. Half the list is one or two words, because a title of about the
+// phrase's own length is the only kind that can collide with it at all and a
+// corpus of long ones would measure nothing.
+var noiseLengths = []int{1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6, 8}
+
+// noiseCorpus generates count distinct card titles from noiseVocabulary and a
+// fixed seed, so the corpus is the same on every run and on every machine and
+// nobody had to choose which titles went into it one at a time.
+//
+// Word counts come from noiseLengths, which leans hard on the short end. That
+// lean matters more than it looks, and it leans the way it does deliberately.
+// An alignment distance is never smaller than the difference between two
+// lengths, so a corpus of long sentences could not collide with a ten-rune
+// phrase whatever its words were, and a measurement taken against one would
+// report a zero it had arranged for itself. Every title short enough to
+// collide is a title that might, so weighting the corpus toward short ones can
+// only raise the count this case reports, never lower it.
+func noiseCorpus(count int) []string {
+	random := rand.New(rand.NewSource(268))
+	seen := map[string]bool{}
+	var titles []string
+	for len(titles) < count {
+		words := make([]string, noiseLengths[random.Intn(len(noiseLengths))])
+		for at := range words {
+			words[at] = noiseVocabulary[random.Intn(len(noiseVocabulary))]
+		}
+		title := strings.Join(words, " ")
+		if seen[title] {
+			continue
+		}
+		seen[title] = true
+		titles = append(titles, title)
+	}
+	return titles
+}
+
+// mistype exchanges the two letters either side of a word's midpoint, which is
+// the shape of slip the widened matcher exists to catch. It answers the empty
+// string for a word too short for layer 2 to look at, since a phrase at or
+// below the floor is not a measurement of anything.
+func mistype(word string) string {
+	letters := []rune(word)
+	if len(letters) <= fuzzyFloor+1 {
+		return ""
+	}
+	at := len(letters) / 2
+	letters[at-1], letters[at] = letters[at], letters[at-1]
+	return string(letters)
+}
+
+// TestTheNoiseAgainstAGeneratedCorpus asserts dinah-268 AC-20, which is a
+// measurement rather than a bound: it runs a mistyped phrase against a
+// generated corpus of unrelated titles and reports how many of them the widened
+// matcher answers by coincidence. The count is logged so the run itself states
+// it, since the criterion asks for the number to be recorded rather than
+// assumed.
+//
+// Three things make the number worth reading. The corpus is generated from a
+// seed rather than picked, so nobody removed a title that would have collided.
+// The nearest distance any corpus title reached is logged beside the count,
+// which says how much room the budget had left rather than only that it was
+// not exceeded. And one phrase is a thin measurement, so the case goes on to
+// sweep every word in the corpus's own vocabulary, mistyped the same way,
+// against every title, and reports what that whole sweep answered.
+//
+// The sweep is where the real figure is. It is what proves the zero above is a
+// property of the matcher rather than of one lucky phrase, and it is what would
+// catch a budget loose enough to answer a board's worth of titles for an
+// ordinary mistyped word.
+//
+//	go test ./internal/verb/ -run TestTheNoiseAgainstAGeneratedCorpus -v
+func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
+	const corpusSize = 300
+	h := newHarness(t)
+	titles := noiseCorpus(corpusSize)
+	budget := typoBudget(len([]rune(swapped)))
+	nearest, candidates := len(swapped)+1, 0
+	for _, title := range titles {
+		distance := alignmentDistance([]rune(asciiFold(swapped)), []rune(asciiFold(title)))
+		if distance < nearest {
+			nearest = distance
+		}
+		// A title can only collide when its own length is within the budget
+		// of the phrase's, so this is how many of the corpus ever had the
+		// chance to.
+		if difference := len([]rune(title)) - len([]rune(swapped)); difference <= budget && -difference <= budget {
+			candidates++
+		}
+		h.add(title)
+	}
+	target := h.add("Coelacanth")
+	results := found(h, &Request{SearchText: swapped})
+
+	var noise []string
+	sawTarget := false
+	for _, hit := range results.Hits {
+		if hit.Ref == target {
+			sawTarget = true
+			continue
+		}
+		noise = append(noise, hit.Ref+" "+hit.Title)
+	}
+	t.Logf("dinah-268 AC-20: a corpus of %d generated titles, %d of them within the %d-edit budget's own length window, answered %d unrelated hits for the phrase %q; the nearest unrelated title sat %d edits away",
+		len(titles), candidates, budget, len(noise), swapped, nearest)
+	for _, one := range noise {
+		t.Logf("dinah-268 AC-20: unrelated hit: %s", one)
+	}
+	if !sawTarget {
+		t.Errorf("the intended target was not answered at all, so the count above measures nothing")
+	}
+
+	// One phrase against one corpus is a thin measurement, so the same corpus
+	// is swept with every mistyping the vocabulary itself yields. Each sweep
+	// phrase is a real word with two of its letters exchanged, which is the
+	// mistake this widening exists to catch, and every title the matcher
+	// answers that is not that word itself is noise.
+	intended, noisy, worst, worstPhrase := 0, 0, 0, ""
+	for _, word := range noiseVocabulary {
+		phrase := mistype(word)
+		if phrase == "" {
+			continue
+		}
+		here := 0
+		for _, title := range titles {
+			if _, ok := withinTypoBudget(phrase, title); !ok {
+				continue
+			}
+			if asciiFold(title) == word {
+				intended++
+				continue
+			}
+			here++
+			if here <= 3 {
+				t.Logf("dinah-268 AC-20: %q answered the unrelated title %q", phrase, title)
+			}
+		}
+		noisy += here
+		if here > worst {
+			worst, worstPhrase = here, phrase
+		}
+	}
+	loudest := "no single phrase answered any"
+	if worst > 0 {
+		loudest = fmt.Sprintf("the loudest single phrase was %q with %d", worstPhrase, worst)
+	}
+	t.Logf("dinah-268 AC-20: sweeping %d mistyped vocabulary words across the same %d titles answered %d unrelated titles in total, %s, and found the word actually meant %d times",
+		len(noiseVocabulary), len(titles), noisy, loudest, intended)
+	if intended == 0 {
+		t.Errorf("the sweep never found a word it was a mistyping of, so it measured nothing")
+	}
+	if candidates < 20 {
+		t.Errorf("only %d of %d corpus titles were close enough in length to collide with the phrase, which is too few for its own count to mean anything",
+			candidates, len(titles))
+	}
+	// The criterion asks for a count that is small relative to the corpus,
+	// single digits, and says plainly that it is not a proof of zero. This is
+	// that bound and nothing more: a build whose matcher went loose enough to
+	// answer a tenth of a board fails here.
+	if len(noise) > 9 {
+		t.Errorf("the search answered %d unrelated titles out of %d, wanted single digits", len(noise), len(titles))
 	}
 }
