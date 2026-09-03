@@ -44,6 +44,8 @@ export interface CommandHost {
 	readonly openDocument: (path: string) => Promise<void>;
 	/** Opens a file for the editor to render, which decides how itself. */
 	readonly openFile: (path: string) => Promise<void>;
+	/** Opens a native file picker and answers the chosen file's absolute path. */
+	readonly pickFile: () => Promise<string | undefined>;
 	/** Runs one off-cycle checkpoint for the folder the card stands in. */
 	readonly checkpoint: (folder: string) => Promise<void>;
 	readonly log: (line: string) => void;
