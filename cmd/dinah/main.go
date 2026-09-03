@@ -419,8 +419,13 @@ func (s *session) nameTheWorkbench(r *contract.Refusal) *contract.Refusal {
 	return named
 }
 
-// open discovers and opens the bench this invocation serves.
-func (s *session) open() (*verb.Library, error) {
+// discoverRoot runs workbench discovery alone, without opening the bench, and
+// records the same s.workbenchSource and s.workbenchRoot fields open records.
+// A caller that needs only the discovered root, such as runPath's
+// workbench-reference fast path, calls this instead of open, so a malformed
+// column or profile elsewhere in the workbench cannot refuse an answer that
+// depends on none of that state (dinah-272).
+func (s *session) discoverRoot() (root string, passed []string, err error) {
 	root, source, passed, err := bench.DiscoverSource(
 		s.cwd,
 		s.benchFlag,
@@ -430,10 +435,19 @@ func (s *session) open() (*verb.Library, error) {
 		s.cfg.Get("workbench"),
 	)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	s.workbenchSource = source
 	s.workbenchRoot = root
+	return root, passed, nil
+}
+
+// open discovers and opens the bench this invocation serves.
+func (s *session) open() (*verb.Library, error) {
+	root, passed, err := s.discoverRoot()
+	if err != nil {
+		return nil, err
+	}
 	opened, err := bench.Open(root)
 	if err != nil {
 		return nil, err
