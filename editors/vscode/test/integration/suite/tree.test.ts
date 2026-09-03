@@ -33,7 +33,18 @@ suite("the sidebar tree against a real workbench", () => {
 		assert.ok(columns.length > 0, "the workbench drew no columns at all");
 		for (const element of columns) {
 			const row = reported.tree.getTreeItem(element) as Row;
-			assert.equal(row.contextValue, "dinah.column");
+			// Since dinah-331 a column row's contextValue says whether the
+			// column will take another card, so the value depends on the
+			// fixture's own capacities and this asserts the pair rather than
+			// one member. The bare "dinah.column" is deliberately excluded:
+			// that is what a row carries when the status and tree answers
+			// disagreed about which columns exist, so refusing it here proves
+			// the join this suite exists to check actually delivered a view.
+			assert.ok(
+				row.contextValue === "dinah.column.open" ||
+					row.contextValue === "dinah.column.full",
+				`a column row carries no capacity-bearing contextValue: ${String(row.contextValue)}`,
+			);
 			// The Work word leads and the occupancy follows, which is the whole
 			// of what this row teaches a reader at a glance.
 			assert.match(
