@@ -989,9 +989,20 @@ func TestPathCarriesThePlumbingGuarantee(t *testing.T) {
 // rather than admitted freely: they come after every row the profile
 // declares, so the profile's own numbering is untouched, and each carries a
 // refusal name in Dinah's own layer, so nothing can smuggle in a profile-named
-// refusal as an extra row. Every failure this guard could see before it can
-// still see: a reordered list, a dropped row, and a sentence that drifted from
-// the profile's wording all fail exactly as they did.
+// refusal as an extra row. A reordered list, a dropped row, a sentence that
+// drifted from the profile's wording, and a profile row replaced by a
+// Dinah-named one all fail exactly as they did, because each of them lands
+// inside the window compared positionally.
+//
+// Something was traded to get there, and it is narrower than the shape
+// suggests but it is real. The guard this replaced refused any extra row on
+// any verb, and this one admits appended Dinah-layer rows on every verb. Only
+// move is still bounded, because its rendered row count is composed as
+// len(workbench) + len(lists[Move]) + 1 and pins the number. So a second
+// dinah-prefixed row appended to claim, pull, release or block would now pass
+// unremarked where it used to fail the build. That is surplus over what
+// dinah-364 needed, and it is the cost of making the loop row expressible at
+// all.
 func TestPerCommandHelpFollowsTheProfile(t *testing.T) {
 	text, err := os.ReadFile(filepath.Join("..", "..", "docs", "spec", "core-profile.md"))
 	if err != nil {

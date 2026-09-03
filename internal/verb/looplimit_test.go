@@ -244,11 +244,13 @@ func TestALoopLimitOnAColumnTakingNoWorkUpNeverBinds(t *testing.T) {
 	}
 }
 
-// TestTheLoopLimitIsReportedAheadOfCapacity is dinah-364 AC-6. The two rows
-// can both hold on one move, and the order is not arbitrary: the loop row
-// reads the departure and the capacity row reads the destination, which is the
-// order canRoute already runs its own rows in.
-func TestTheLoopLimitIsReportedAheadOfCapacity(t *testing.T) {
+// TestCapacityIsReportedAheadOfTheLoopLimit is dinah-364 AC-6. Both rows can
+// hold on one move, and the operator ruled on 2026-09-03 which one answers.
+// dinah help move heads its precondition table Order and promises the rows in
+// the order each is checked, so the loop row runs where it is printed, which
+// is after capacity. A user with a card at its limit moving into a full column
+// reads the page, predicts at-capacity, and gets at-capacity.
+func TestCapacityIsReportedAheadOfTheLoopLimit(t *testing.T) {
 	h := newHarness(t)
 	h.declare(aftercare, "loop_limit", "1")
 	ref := h.ready("looping")
@@ -262,11 +264,20 @@ func TestTheLoopLimitIsReportedAheadOfCapacity(t *testing.T) {
 	if response.Outcome != contract.OutcomeRefused {
 		t.Fatalf("wanted refused, got %s", response.Outcome)
 	}
-	if response.Refusal != contract.AtLoopLimit {
-		t.Errorf("wanted %s ahead of %s, got %s", contract.AtLoopLimit, contract.AtCapacity, response.Refusal)
+	if response.Refusal != contract.AtCapacity {
+		t.Errorf("wanted %s ahead of %s, got %s", contract.AtCapacity, contract.AtLoopLimit, response.Refusal)
 	}
-	// The capacity row is still live on the same fixture, which is what says
-	// the case above really did have both conditions to choose between.
+	// The loop row is still live on the same fixture and the same card, which
+	// is what says the case above really did have two conditions to choose
+	// between rather than one. Review stands earlier than aftercare, declares
+	// no capacity and is not a done column, so the only row that can refuse
+	// this move is the loop row.
+	loopOnly := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: review})
+	if loopOnly.Refusal != contract.AtLoopLimit {
+		t.Errorf("wanted the loop row still reachable, got %s %s", loopOnly.Outcome, loopOnly.Refusal)
+	}
+	// The capacity row is reachable on its own too, on a card carrying no
+	// regressive departure at all, so neither row is answering for the other.
 	other := h.ready("other")
 	full := h.do(&Request{Verb: Move, Card: other, Actor: "alka", Column: doing})
 	if full.Refusal != contract.AtCapacity {

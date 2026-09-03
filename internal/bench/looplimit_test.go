@@ -166,7 +166,9 @@ func TestRegressiveDeparturesCountsOnlyTheDeparturesTheLimitIsAbout(t *testing.T
 				{Event: contract.EventMoved, From: declaring, To: "b00000000003"},
 			},
 			want: 0,
-			why:  "a card finishing is not a card coming back",
+			why: "this fixture's only column standing ahead is also its done " +
+				"column, so the case that isolates the direction from the " +
+				"kind is TestRegressiveDeparturesExcludesAForwardDestinationThatIsNotDone",
 		},
 		{
 			name: "a move into a done column does not count",
@@ -227,6 +229,32 @@ func TestRegressiveDeparturesExcludesADoneColumnStandingEarlier(t *testing.T) {
 	events := []Event{{Event: contract.EventMoved, From: "b00000000002", To: "b00000000001"}}
 	if got := opened.RegressiveDepartures(events, "b00000000002"); got != 0 {
 		t.Errorf("wanted a done destination excluded on its kind, got %d", got)
+	}
+}
+
+// TestRegressiveDeparturesExcludesAForwardDestinationThatIsNotDone is the
+// other half of the forward exclusion, and it is the half a fixture whose only
+// column standing ahead is its done column cannot reach. The column here
+// stands after the declaring one and is of kind work, so the kind exclusion has
+// nothing to say and only the position comparison stops the departure counting.
+func TestRegressiveDeparturesExcludesAForwardDestinationThatIsNotDone(t *testing.T) {
+	root := loopFixture(t, "loop_limit: 2\n")
+	write(t, filepath.Join(root, ColumnsDir, "b00000000003", ColumnAnchor),
+		"---\ntitle: Finished\nslug: finished\nkind: work\n---\nFinished text.\n")
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	ahead := opened.Column("b00000000003")
+	if ahead.Terminal() {
+		t.Fatal("the fixture rewrite did not take: the destination is still a done column")
+	}
+	if ahead.Position <= opened.Column("b00000000002").Position {
+		t.Fatal("the destination does not stand ahead of the declaring column")
+	}
+	events := []Event{{Event: contract.EventMoved, From: "b00000000002", To: "b00000000003"}}
+	if got := opened.RegressiveDepartures(events, "b00000000002"); got != 0 {
+		t.Errorf("wanted a forward destination excluded on its position, got %d", got)
 	}
 }
 
