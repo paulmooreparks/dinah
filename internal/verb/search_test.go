@@ -754,11 +754,16 @@ func noiseCorpus(count int) []string {
 
 // mistype exchanges the two letters either side of a word's midpoint, which is
 // the shape of slip the widened matcher exists to catch. It answers the empty
-// string for a word too short for layer 2 to look at, since a phrase at or
-// below the floor is not a measurement of anything.
+// string for a word too short for layer 2 to look at, and that is exactly the
+// words at or below fuzzyFloor, since withinTypoBudget refuses a phrase whose
+// length is at or below the floor and admits every longer one. A four-rune
+// word is therefore swept rather than skipped, and it is the one this sweep
+// can least afford to miss: a budget of one forgiven edit against four runes
+// is the largest ratio of tolerance to phrase the design ever allows, so it is
+// the loudest regime the matcher has.
 func mistype(word string) string {
 	letters := []rune(word)
-	if len(letters) <= fuzzyFloor+1 {
+	if len(letters) <= fuzzyFloor {
 		return ""
 	}
 	at := len(letters) / 2
@@ -832,11 +837,34 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 	// phrase is a real word with two of its letters exchanged, which is the
 	// mistake this widening exists to catch, and every title the matcher
 	// answers that is not that word itself is noise.
+	// Which vocabulary words the corpus put on a card of their own, since a
+	// mistyping can only find the word it was a mistyping of where a title
+	// carrying that word alone exists. This is what makes the liveness figure
+	// below readable rather than a bare number to be compared against the
+	// vocabulary's size and found short.
+	standalone := make(map[string]bool, len(titles))
+	for _, title := range titles {
+		standalone[asciiFold(title)] = true
+	}
+
 	intended, noisy, worst, worstPhrase := 0, 0, 0, ""
+	// swept is how many phrases the loop actually built, which is not the size
+	// of the vocabulary: a word at or below the floor yields no phrase. The log
+	// below reports this rather than len(noiseVocabulary), because the whole
+	// product of this criterion is an honest count and a sweep that reports the
+	// length of what it ranged over can overstate what it did.
+	swept, reachable := 0, 0
+	var unreachable []string
 	for _, word := range noiseVocabulary {
 		phrase := mistype(word)
 		if phrase == "" {
 			continue
+		}
+		swept++
+		if standalone[word] {
+			reachable++
+		} else {
+			unreachable = append(unreachable, word)
 		}
 		here := 0
 		for _, title := range titles {
@@ -861,10 +889,35 @@ func TestTheNoiseAgainstAGeneratedCorpus(t *testing.T) {
 	if worst > 0 {
 		loudest = fmt.Sprintf("the loudest single phrase was %q with %d", worstPhrase, worst)
 	}
-	t.Logf("dinah-268 AC-20: sweeping %d mistyped vocabulary words across the same %d titles answered %d unrelated titles in total, %s, and found the word actually meant %d times",
-		len(noiseVocabulary), len(titles), noisy, loudest, intended)
+	t.Logf("dinah-268 AC-20: sweeping %d mistyped phrases, built from a vocabulary of %d words of which %d are too short for layer 2 to look at, across the same %d titles answered %d unrelated titles in total, %s, and found the word actually meant %d times",
+		swept, len(noiseVocabulary), len(noiseVocabulary)-swept, len(titles), noisy, loudest, intended)
+	t.Logf("dinah-268 AC-20: of those %d phrases, %d are mistypings of a word the corpus gave a title of its own and %d are not, so the second group had nothing to find: %s",
+		swept, reachable, len(unreachable), strings.Join(unreachable, ", "))
 	if intended == 0 {
 		t.Errorf("the sweep never found a word it was a mistyping of, so it measured nothing")
+	}
+	// The liveness figure and the corpus have to agree exactly. Every word the
+	// corpus titled on its own must be found by its own mistyping, and no word
+	// it did not title can be, so a shortfall here is the sweep quietly missing
+	// phrases rather than the corpus happening not to carry the word. This is
+	// the assertion that would have caught the guard that dropped every
+	// four-rune word while the run went on reporting a clean result.
+	if intended != reachable {
+		t.Errorf("the sweep found the word actually meant %d times, but %d of the %d swept phrases are mistypings of a word the corpus gave a title of its own; every one of those must be found",
+			intended, reachable, swept)
+	}
+	// The floor is the only reason a vocabulary word yields no phrase, so the
+	// arithmetic between the vocabulary and the sweep has to close against the
+	// floor itself rather than against a number written down here.
+	short := 0
+	for _, word := range noiseVocabulary {
+		if len([]rune(word)) <= fuzzyFloor {
+			short++
+		}
+	}
+	if swept != len(noiseVocabulary)-short {
+		t.Errorf("the sweep built %d phrases from %d vocabulary words of which %d sit at or below the floor of %d, so it should have built %d",
+			swept, len(noiseVocabulary), short, fuzzyFloor, len(noiseVocabulary)-short)
 	}
 	if candidates < 20 {
 		t.Errorf("only %d of %d corpus titles were close enough in length to collide with the phrase, which is too few for its own count to mean anything",
