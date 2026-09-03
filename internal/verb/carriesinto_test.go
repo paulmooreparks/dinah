@@ -35,16 +35,22 @@ func flowOf(descriptions ...string) []*bench.Column {
 	return columns
 }
 
-// TestCarriesIntoAnswersWhereAPullWouldPutACard is dinah-273 AC-32. The walk is
-// the one place the reach of a pull through a flow is written, so this table is
-// where the five cases that end it without an answer are held.
-func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
-	cases := []struct {
-		name  string
-		flow  []*bench.Column
-		from  int
-		wants int
-	}{
+// carriesIntoCase is one flow the walk is tested over: the shape, the column a
+// card stands at, and the index of the column a pull would carry it into, or a
+// negative index where no pull could carry it anywhere.
+type carriesIntoCase struct {
+	name  string
+	flow  []*bench.Column
+	from  int
+	wants int
+}
+
+// carriesIntoCases is the table the walk is tested over. It stands outside the
+// test that grew it because dinah-280 published the walk's answer as a field,
+// and the test holding the field against the function asks these same shapes.
+// A second list kept in step by hand is the drift both tests exist to prevent.
+func carriesIntoCases() []carriesIntoCase {
+	return []carriesIntoCase{
 		{
 			name:  "a station's card goes to the station beyond it",
 			flow:  flowOf(contract.KindWork, contract.KindWork),
@@ -94,7 +100,13 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 			wants: -1,
 		},
 	}
-	for _, c := range cases {
+}
+
+// TestCarriesIntoAnswersWhereAPullWouldPutACard is dinah-273 AC-32. The walk is
+// the one place the reach of a pull through a flow is written, so the table
+// above is where the five cases that end it without an answer are held.
+func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
+	for _, c := range carriesIntoCases() {
 		t.Run(c.name, func(t *testing.T) {
 			got := carriesInto(c.flow[c.from], c.flow)
 			if c.wants < 0 {
@@ -119,6 +131,50 @@ func TestCarriesIntoAnswersWhereAPullWouldPutACard(t *testing.T) {
 		}
 		if got := carriesInto(flow[1], flow); got != flow[2] {
 			t.Fatalf("a card standing at the operator-owned queue is carried on, got %+v", got)
+		}
+	})
+}
+
+// TestTheColumnViewPublishesCarriesIntosOwnAnswer is dinah-280 AC-2 and AC-4.
+// It asserts no expectation of its own. For every flow shape the walk is
+// tested over, and for every column of each, the published field is held
+// against what carriesInto answers for that same column, so the field cannot
+// come to read differently from the pull it describes.
+func TestTheColumnViewPublishesCarriesIntosOwnAnswer(t *testing.T) {
+	for _, c := range carriesIntoCases() {
+		t.Run(c.name, func(t *testing.T) {
+			flow := c.flow
+			library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
+			views := library.columnViews(nil)
+			if len(views) != len(flow) {
+				t.Fatalf("the flow has %d columns and the listing carries %d", len(flow), len(views))
+			}
+			for at, column := range flow {
+				want := ""
+				if destination := carriesInto(column, flow); destination != nil {
+					want = columnRef(destination)
+				}
+				if views[at].PullDestination != want {
+					t.Errorf("%s publishes pull_destination %q and carriesInto answers %q",
+						column.ID, views[at].PullDestination, want)
+				}
+			}
+		})
+	}
+
+	// The loop above holds the field against the function whatever the
+	// function says, so a shape that answers nothing everywhere would satisfy
+	// it. Two stations standing together is the branch a buffered flow never
+	// reaches, so it is named here with the answer written out.
+	t.Run("a station carries a card into the station beyond it", func(t *testing.T) {
+		flow := flowOf(contract.KindWork, contract.KindWork)
+		library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
+		views := library.columnViews(nil)
+		if views[0].PullDestination != flow[1].ID {
+			t.Errorf("the first station publishes pull_destination %q, wanted %q", views[0].PullDestination, flow[1].ID)
+		}
+		if views[1].PullDestination != "" {
+			t.Errorf("the last station publishes pull_destination %q and nothing stands beyond it", views[1].PullDestination)
 		}
 	})
 }
