@@ -1179,18 +1179,42 @@ const fillersPerTemplate = 20
 // hundred titles of ninety-odd runes, ten templates of twenty siblings each,
 // where a sibling differs from its neighbours in one word and nowhere else.
 //
-// The measurement is a sweep of one mistyped phrase per title, each built by
-// exchanging an adjacent pair of letters inside that title's own filler. Every
-// phrase must still find the title it was a mistyping of, and the criterion
-// sets two ceilings the run enforces rather than reports: fewer than ten
-// unrelated titles across the whole sweep, and no single phrase reaching more
-// than three.
+// The sweep is one mistyped phrase per title, each built by exchanging an
+// adjacent pair of letters inside that title's own filler, and every phrase
+// goes through the library's own Search rather than through the matcher
+// underneath it. Three gates read what comes back, and the criterion needs all
+// three, because any two of them can be satisfied without the matcher being
+// any better.
 //
-// The sweep measures withinTypoBudget rather than running two hundred searches
-// through the library. That is the function layer 2 is, and a phrase of ninety
-// runes with two of its letters exchanged is a substring of nothing, so layer
-// 1 has no answer to give and the two would agree. One end-to-end search runs
-// beside it so the corpus is known to be reachable through the verb itself.
+// Completeness is the one that cannot be satisfied by answering with less. For
+// each phrase the case works out for itself which titles lie within the
+// shipped budget, calling alignmentDistance and typoBudget directly rather
+// than asking Search what it found, and every title in that set must appear
+// among the Hits the search answered with. A Search that caps or thins its
+// Hits array drops titles this set still names, and the corpus is measured to
+// carry a phrase with ten titles inside the budget's reach, so no fixed cap
+// below that survives here. The set cannot be satisfied by answering with more
+// either, since it is computed in the test and nothing the implementation does
+// can move it.
+//
+// Ranking is second. The title a phrase was a mistyping of must be present,
+// and its score must be strictly greater than every other hit's, so nothing
+// ties it for first place. The construction guarantees that only for the
+// chain-adjacent sibling each phrase is deliberately given, whose distance
+// from the phrase is greater than the intended title's distance of one; a
+// coincidental collision from some other template is not ruled out and fails
+// here if it happens.
+//
+// Reduction is third. The same sweep is counted again under the budget this
+// card replaced, max(1, n/4), written out in the test rather than reached
+// through the shipped code, and the shipped budget's own unrelated-title total
+// must be no more than a third of it. Both counts are taken in this run, so a
+// change to the corpus or the filler list moves them together and the ratio is
+// recomputed rather than compared against a figure written down once.
+//
+// What this costs, stated before it runs: 200 phrases against 200 titles is
+// 40,000 alignment distances measured directly, and 200 searches through the
+// library over a workbench of 200 cards.
 //
 //	go test ./internal/verb/ -run TestTheNoiseAgainstATemplatedCorpus -v
 func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
@@ -1198,10 +1222,18 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 	if len(titles) < 200 {
 		t.Fatalf("the corpus carries %d titles, wanted at least 200", len(titles))
 	}
+	// The titles have to be distinct, because every gate below attributes a
+	// hit to a title by the string itself. Two equal titles would make one
+	// phrase's own title indistinguishable from an unrelated one.
+	distinct := map[string]int{}
 	for at, title := range titles {
 		if length := len([]rune(title)); length < 90 {
 			t.Fatalf("title %d is %d runes, wanted at least 90: %q", at, length, title)
 		}
+		if first, ok := distinct[title]; ok {
+			t.Fatalf("titles %d and %d are the same string, so no hit can be attributed to either: %q", first, at, title)
+		}
+		distinct[title] = at
 	}
 	// Every filler must have a near-miss partner on its own template, which is
 	// the property that makes this corpus adversarial rather than comfortable.
@@ -1237,49 +1269,125 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 		}
 	}
 
-	budget := typoBudget(len([]rune(phrases[0])))
-	lost, noisy, worst, worstAt := 0, 0, 0, 0
+	// One pass over the 40,000 pairs answers two questions at once: which
+	// titles each phrase genuinely reaches under the shipped budget, which is
+	// the floor completeness holds the Hits array to, and how many unrelated
+	// titles the retired budget would have answered, which is the reference
+	// reduction measures against. Neither number comes from Search.
+	folded := make([][]rune, len(titles))
+	for at, title := range titles {
+		folded[at] = []rune(asciiFold(title))
+	}
+	inRange := make([]map[string]bool, len(phrases))
+	oldNoise, largest, largestAt := 0, 0, 0
 	for at, phrase := range phrases {
-		if _, ok := withinTypoBudget(phrase, titles[at]); !ok {
-			lost++
-			continue
+		wanted := []rune(asciiFold(phrase))
+		length := len(wanted)
+		if length <= fuzzyFloor {
+			t.Fatalf("phrase %d is %d runes, at or below layer 2's floor of %d, so it measures nothing", at, length, fuzzyFloor)
 		}
-		here := 0
-		for other, title := range titles {
-			if other == at {
-				continue
+		shipped, first := typoBudget(length), firstVersionTypoBudget(length)
+		reach := map[string]bool{}
+		for other := range titles {
+			distance := alignmentDistance(wanted, folded[other])
+			if distance <= shipped {
+				reach[titles[other]] = true
 			}
-			if _, ok := withinTypoBudget(phrase, title); ok {
-				here++
+			if other != at && distance <= first {
+				oldNoise++
 			}
 		}
-		noisy += here
-		if here > worst {
-			worst, worstAt = here, at
+		inRange[at] = reach
+		if len(reach) > largest {
+			largest, largestAt = len(reach), at
 		}
 	}
-	t.Logf("dinah-268 AC-20: %d templated titles of %d runes, a budget of %d edits, swept with %d mistyped phrases: %d phrases lost their own title, %d unrelated titles answered in total, the loudest single phrase answered %d (the filler %q on template %d)",
-		len(titles), len([]rune(titles[0])), budget, len(phrases), lost, noisy, worst, fillers[worstAt], worstAt/fillersPerTemplate)
 
-	// One search through the library, so the corpus is known to be reachable
-	// through the verb and not only through the matcher the sweep calls.
 	h := newHarness(t)
 	for _, title := range titles {
 		h.add(title)
 	}
-	results := found(h, &Request{SearchText: phrases[0]})
-	if len(results.Hits) == 0 {
-		t.Errorf("the search answered nothing for the first phrase, so the sweep above measures a corpus the verb cannot reach")
+
+	missing, unranked, tied, shippedNoise := 0, 0, 0, 0
+	for at, phrase := range phrases {
+		results := found(h, &Request{SearchText: phrase})
+		answered := make(map[string]bool, len(results.Hits))
+		intended, present := 0.0, false
+		for _, hit := range results.Hits {
+			if hit.Kind != SearchKindCard || hit.MatchedIn != MatchedInTitle {
+				continue
+			}
+			answered[hit.Title] = true
+			if hit.Title == titles[at] {
+				intended, present = hit.Score, true
+			}
+		}
+		if !present {
+			unranked++
+			if unranked <= 3 {
+				t.Errorf("phrase %d answered no title hit for the title it was a mistyping of: %q", at, titles[at])
+			}
+		} else {
+			for _, hit := range results.Hits {
+				if hit.Kind == SearchKindCard && hit.MatchedIn == MatchedInTitle && hit.Title == titles[at] {
+					continue
+				}
+				if hit.Score >= intended {
+					tied++
+					if tied <= 3 {
+						t.Errorf("phrase %d ranks the hit %q (%s in %s, score %g) at or above its own title (score %g)",
+							at, hit.Title, hit.Kind, hit.MatchedIn, hit.Score, intended)
+					}
+				}
+			}
+		}
+		// Completeness. The independently computed set is the floor, so a
+		// title inside the budget and absent from the Hits array is a thinned
+		// view of what the matcher found, whatever the other two gates report.
+		for title := range inRange[at] {
+			if !answered[title] {
+				missing++
+				if missing <= 3 {
+					t.Errorf("phrase %d reaches %q within the shipped budget, but the search did not answer it, so its Hits array is a capped or filtered view of what the matcher found",
+						at, title)
+				}
+			}
+		}
+		for title := range answered {
+			if title != titles[at] {
+				shippedNoise++
+			}
+		}
 	}
 
-	if lost > 0 {
+	t.Logf("dinah-268 AC-20: %d templated titles of %d runes swept with %d mistyped phrases through the library's own Search, at a shipped budget of %d edits. Completeness: the widest independently computed within-budget set holds %d titles (phrase %d), and %d titles across the sweep were inside a budget and absent from the Hits. Ranking: %d phrases lost their own title and %d hits tied with or beat one. Reduction: %d unrelated title hits under the shipped budget against %d under the retired max(1, n/4), a ratio of %.4f against a ceiling of one third.",
+		len(titles), len([]rune(titles[0])), len(phrases), typoBudget(len([]rune(phrases[0]))),
+		largest, largestAt, missing, unranked, tied, shippedNoise, oldNoise,
+		float64(shippedNoise)/float64(oldNoise))
+
+	// The corpus has to stay adversarial enough for completeness to bite. A
+	// fixture whose widest within-budget set fell to a handful would let a
+	// Search capping its Hits array at ten pass this case, which is exactly
+	// the pass the criterion exists to stop.
+	if largest < 10 {
+		t.Errorf("the widest within-budget set holds only %d titles, so a Search capping its Hits array at ten would still pass completeness; the corpus needs a phrase reaching at least 10",
+			largest)
+	}
+	if missing > 0 {
+		t.Errorf("%d titles across the sweep lie inside the shipped budget and are absent from the Hits the search answered", missing)
+	}
+	if unranked > 0 {
 		t.Errorf("%d of %d phrases no longer find the title they were a mistyping of, so the transposition-catching behaviour is lost",
-			lost, len(phrases))
+			unranked, len(phrases))
 	}
-	if noisy > 9 {
-		t.Errorf("the sweep answered %d unrelated titles across %d, wanted fewer than 10", noisy, len(titles))
+	if tied > 0 {
+		t.Errorf("%d hits across the sweep tie with or outrank the phrase's own title, so the intended card does not stand alone at the top", tied)
 	}
-	if worst > 3 {
-		t.Errorf("one phrase answered %d unrelated titles, wanted no more than 3", worst)
+	if oldNoise == 0 {
+		t.Fatalf("the retired budget answered no unrelated title at all, so the reduction gate has no reference left to measure against")
+	}
+	if 3*shippedNoise > oldNoise {
+		t.Errorf("the shipped budget answered %d unrelated titles against the retired budget's %d over the same corpus, wanted no more than a third of it (%d)",
+			shippedNoise, oldNoise, oldNoise/3)
 	}
 }

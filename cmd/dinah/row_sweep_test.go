@@ -1410,7 +1410,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: "render.go:1297", label: "dinah search",
+			site: "render.go:1298", label: "dinah search",
 			keys: []string{"column.search.kind", "column.search.reference", "column.search.title",
 				"column.search.matched", "column.search.snippet"},
 			// The title column is what varies rather than the column in front
