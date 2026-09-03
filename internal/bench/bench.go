@@ -202,6 +202,31 @@ func (s *Column) Ref() string {
 	return s.ID
 }
 
+// DefaultColumnKind is the kind a column created without one named is born
+// with. A new station is an ordinary place to do work far more often than it
+// is anything else, and it is also what CORE-STATE-12 reads a kind this build
+// does not implement as, so the default and the fallback agree.
+const DefaultColumnKind = contract.KindWork
+
+// ValidColumnKind reports whether a kind is one CORE-STATE-11 admits: one of
+// the three the profile declares, or one carrying a layer's dotted prefix, and
+// nothing else, so a bare fourth word is malformed where a dotted one is read.
+// A kind this build does not implement reads as a work column under
+// CORE-STATE-12, which is what TakesWorkUp answers for it.
+//
+// readColumnIn and NewColumn both call this rather than repeating the switch,
+// so a column this build can read is a column this build can also create.
+func ValidColumnKind(kind string) bool {
+	switch {
+	case kind == contract.KindIntake, kind == contract.KindWork, kind == contract.KindDone:
+		return true
+	case strings.Contains(kind, "."):
+		return true
+	default:
+		return false
+	}
+}
+
 // TakesWorkUp reports whether an owner takes work up at this column. A card
 // standing where no work is taken up waits there and is carried on by a
 // pull, so no claim is taken and no card is held.
@@ -1684,15 +1709,7 @@ func readColumnIn(root string, vocab columnVocabulary, id string, position int) 
 	if column.Title == "" {
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
-	// CORE-STATE-11 admits a kind the profile declares and a kind carrying a
-	// layer's prefix, and nothing else, so a bare fourth word is malformed
-	// where a dotted one is read. A kind this build does not implement reads
-	// as a work column under CORE-STATE-12, which is what TakesWorkUp answers
-	// for it.
-	switch {
-	case column.Kind == contract.KindIntake, column.Kind == contract.KindWork, column.Kind == contract.KindDone:
-	case strings.Contains(column.Kind, "."):
-	default:
+	if !ValidColumnKind(column.Kind) {
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
 	if limit := fm.Value("wip_limit"); limit != "" {

@@ -1318,9 +1318,12 @@ func testBodiesDeclaredHere(t *testing.T) map[string]string {
 	return declared
 }
 
-// TestWorkbenchRootHasOneWriter holds that session.open is the only thing
-// that writes workbenchRoot, so a refusal that names a workbench names the one
-// the open just resolved rather than one some earlier path left behind.
+// TestWorkbenchRootHasOneWriter holds that session.discoverRoot is the only
+// thing that writes workbenchRoot, so a refusal that names a workbench names
+// the one discovery just resolved rather than one some earlier path left
+// behind. session.open records the field through that one method too, and
+// runPath's workbench-reference fast path calls it directly (dinah-272), so
+// the two entry points still share a single write.
 //
 // That is the whole of what this guard holds, and the distinction cost a
 // review round. A second writer sets the field, and a field that is set makes
@@ -1390,8 +1393,8 @@ func TestWorkbenchRootHasOneWriter(t *testing.T) {
 		t.Fatalf("workbenchRoot is written in %d places and this guard rests on there being one: %v", len(writers), writers)
 	}
 	for where := range writers {
-		if where != "main.go (*session).open" {
-			t.Errorf("workbenchRoot's one writer is %s rather than session.open in main.go, so the dispositions in this file need rereading", where)
+		if where != "main.go (*session).discoverRoot" {
+			t.Errorf("workbenchRoot's one writer is %s rather than session.discoverRoot in main.go, so the dispositions in this file need rereading", where)
 		}
 	}
 }

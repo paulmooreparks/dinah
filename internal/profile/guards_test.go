@@ -1842,11 +1842,11 @@ const theOneTable = "cmd/dinah/table.go"
 // and reportError are the writers themselves, and composeRefusal is not among
 // them: it returns lines rather than writing them, which is what lets the text
 // path and the machine path share one composition. The rest hand a stream to
-// something outside the head. runPath writes the value config <key> reads back,
-// editCmd gives the child process an editor runs in its stdio, and runMCP
-// serves the MCP server on stdio. editCmd holds the naming runEdit used to do
-// itself, so runEdit is off this list: it builds no command of its own since
-// dinah-199 and names no stream.
+// something outside the head. runPath writes the path it resolved, editCmd
+// gives the child process an editor runs in its stdio, and runMCP serves the
+// MCP server on stdio. editCmd holds the naming runEdit used to do itself, so
+// runEdit is off this list: it builds no command of its own since dinah-199
+// and names no stream.
 //
 // The guard asserts every name here still resolves to a function in the
 // rendering head, so a renamed writer fails rather than leaving a stale name
@@ -1883,10 +1883,15 @@ var processStreamHolders = []string{"main", "windowWidth"}
 // status.workbench.unsourced is status.workbench with its last field removed,
 // chosen by the same caller for the one read that resolves no workbench by any
 // rung, so it is exempt for that entry's own reason.
+// columns.new.line is the same shape again for an act on a column, and is
+// exempt for workstream.line's own reason: one line about one thing, printed
+// after the act that made it, where there is no second row for a column to
+// align against.
 var columnarCatalogKeys = []string{
 	"card.line",
 	"card.line.workstreams",
 	"workstream.line",
+	"columns.new.line",
 	"status.workbench",
 	"status.workbench.unsourced",
 }
