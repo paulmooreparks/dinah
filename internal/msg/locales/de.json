@@ -3620,6 +3620,77 @@
       "context": "The first line of status under a root-scoped read: the workbench and where it was discovered, with no rung named. It stands in for status.workbench, which also names the rung that resolved the workbench, because a root-scoped read resolves no single workbench by any rung and an empty bracket reads as a value that failed to render.",
       "source": "b0ce7a703cdbb8ec",
       "verbatim": true
+    },
+    "cmd.column.summary": {
+      "text": "Eine Spalte im Ablauf dieser Werkbank anlegen",
+      "context": "The one-line summary of the column command, shown beside its syntax in the help block.",
+      "source": "2d3010f41c85f2d2"
+    },
+    "param.column.action.summary": {
+      "text": "eine Spalte anlegen; new ist die einzige Aktion, die dieser Build trägt",
+      "context": "The meaning of the action argument of `dinah column`, printed in that command's arguments table.",
+      "source": "b046c584ec7a6191"
+    },
+    "param.column.column.summary": {
+      "text": "der Titel der Spalte, die Sie anlegen",
+      "context": "The meaning of the title argument of `dinah column`, printed in that command's arguments table.",
+      "source": "b854c0b74283b86e"
+    },
+    "param.column.kind.summary": {
+      "text": "welche Art die neue Spalte trägt: intake, work, done oder dinah.buffer; work, wenn Sie nichts sagen",
+      "context": "The meaning of the kind argument of `dinah column`, printed in that command's arguments table.",
+      "source": "fc6e5d0232821219"
+    },
+    "param.column.capacity.summary": {
+      "text": "wie viele Karten die neue Spalte höchstens gleichzeitig hält, unbegrenzt, wenn Sie nichts sagen",
+      "context": "The meaning of the capacity argument of `dinah column`, printed in that command's arguments table.",
+      "source": "ec9bce418b2ea391"
+    },
+    "param.column.slug.summary": {
+      "text": "das kurze Kürzel, das Sie statt des Titels in Anführungszeichen tippen, aus dem Titel abgeleitet, wenn Sie nichts sagen",
+      "context": "The meaning of the slug argument of `dinah column`, printed in that command's arguments table.",
+      "source": "472f76485394f5a5"
+    },
+    "param.column.before.summary": {
+      "text": "die Spalte, unmittelbar vor die die neue gestellt wird, ans Ende des Ablaufs angehängt, wenn Sie nichts sagen",
+      "context": "The meaning of the before argument of `dinah column`, printed in that command's arguments table.",
+      "source": "546cddfe314027f5"
+    },
+    "refusal.dinah.column-slug-taken": {
+      "text": "eine andere Spalte dieser Werkbank trägt bereits das Kürzel {detail}",
+      "context": "The sentence printed after the refusal name dinah.column-slug-taken. {detail} carries the slug the caller asked for.",
+      "source": "47de4acae59c1c5e"
+    },
+    "refusal.dinah.column-slug-taken.next": {
+      "text": "; wählen Sie ein Kürzel, das keine Spalte trägt, oder lassen Sie das Argument weg und nehmen Sie das aus dem Titel abgeleitete",
+      "context": "Spliced onto refusal.dinah.column-slug-taken as the next step.",
+      "source": "3f827bf4cba8b78a"
+    },
+    "refusal.dinah.column-routing-disrupted": {
+      "text": "in {detail} steht eine Karte, und hier eine Spalte einzufügen würde ändern, in welche Spalte ein Zug diese Karte trägt",
+      "context": "The sentence printed after the refusal name dinah.column-routing-disrupted. {detail} names the column whose routing the placement would change.",
+      "source": "cd3fdbcedafa3945"
+    },
+    "refusal.dinah.column-routing-disrupted.next": {
+      "text": "; stellen Sie die neue Spalte dorthin, wo die Änderung niemanden trifft, oder warten Sie, bis in {detail} keine Karte mehr steht",
+      "context": "Spliced onto refusal.dinah.column-routing-disrupted as the next step.",
+      "source": "6773ae504ff51b2a"
+    },
+    "columns.new.line": {
+      "text": "{ref}  {title}  [{kind}]  {capacity}",
+      "context": "The one line printed about a column after it is created. {ref} is what a person types to reach it, {kind} is the kind it carries, and {capacity} is the limit sentence built from columns.new.capacity or columns.new.unlimited.",
+      "source": "5d63310c8a46d248",
+      "verbatim": true
+    },
+    "columns.new.capacity": {
+      "text": "Kapazität {count}",
+      "context": "The capacity field of columns.new.line for a column carrying a limit. {count} is the most cards it holds at once.",
+      "source": "d54c11f319abada6"
+    },
+    "columns.new.unlimited": {
+      "text": "unbegrenzt",
+      "context": "The capacity field of columns.new.line for a column carrying no limit at all.",
+      "source": "f1856e19ec8a2da0"
     }
   }
 }

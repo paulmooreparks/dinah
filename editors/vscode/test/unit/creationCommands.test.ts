@@ -773,7 +773,10 @@ test("both creation commands are registered against the identifiers identity.ts 
 		);
 	}
 	// Each handler resolves a context before it acts, which is what keeps a
-	// palette invocation carrying no row from throwing (dinah-342).
-	assert.ok(EXTENSION_SOURCE.includes("contextForColumn("));
+	// palette invocation carrying no row from throwing (dinah-342). The column
+	// resolver is named here under the alias extension.ts imports it as, because
+	// dinah-332's columnCommands exports a contextForColumn of its own and the
+	// two cannot both be called by their module's name in one file.
+	assert.ok(EXTENSION_SOURCE.includes("contextForNewCard("));
 	assert.ok(EXTENSION_SOURCE.includes("contextForAttach("));
 });

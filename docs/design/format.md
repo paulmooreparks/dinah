@@ -432,6 +432,23 @@ of `intake`, `work`, `done`, and `dinah.buffer`. A column marked
 operator-owned is one an agent never moves a card out of; only the operator
 does.
 
+`dinah column new "<title>"` creates a column the same way a hand-authored
+`columns/<id>/column.md` plus a line in `workbench.md`'s own `columns:`
+sequence would. It derives a slug from the title, or takes one explicitly with
+`--slug` and refuses a collision rather than silently suffixing it, which is
+the rule `dinah workstream new` follows for a slug somebody typed. It writes
+`kind: work` unless `--kind` names one of the four. It appends the new
+identifier to the end of the sequence unless `--before <column>` names the
+column to stand in front of. A placement that would change an existing
+column's automatic pull routing, meaning which column a pull would carry a
+card standing there into, is refused under `dinah.column-routing-disrupted`
+while that column carries a live card; an empty flow, and a placement nothing
+has reached yet, are unaffected. The check is evaluated against a read taken
+under the workbench lock, immediately before the column is written, so a card
+arriving while the call is being evaluated is one the check meets rather than
+misses. `operator_owned` and `awaiting_outside` are not settable at creation;
+write them into the column's own file by hand, as before.
+
 Two words run through the rest of this section. A **station** is a column where
 an owner takes work up: a card there is claimed, worked, and moved on. A
 **queue column** is a column where no owner takes work up: a card there waits,

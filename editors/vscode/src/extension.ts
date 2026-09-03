@@ -24,11 +24,25 @@ import {
 import type { CheckpointEntry, Watcher } from "./changes";
 import { CheckpointLoop, systemClock } from "./changes";
 import { runDinah } from "./cli";
+// Two modules export a function named contextForColumn. dinah-331 and
+// dinah-332 each gave the column row an act, and each act composes its own
+// context: the creation one declines a row whose ColumnView the status join
+// missed, and the editing one falls back to the node's own ref and answers
+// anyway. Both are aliased here so that each registration below names the act
+// it serves rather than the row the act stands on.
+import type {
+	ColumnCommandContext,
+	ColumnCommandHost,
+} from "./columnCommands";
+import {
+	contextForColumn as contextForInstructions,
+	editColumnInstructions,
+} from "./columnCommands";
 import {
 	ATTACH_DIALOG_OPTIONS,
 	attachFile,
 	contextForAttach,
-	contextForColumn,
+	contextForColumn as contextForNewCard,
 	newCard,
 	pickedFilePath,
 } from "./creationCommands";
@@ -40,6 +54,8 @@ import {
 	COMMAND_CLAIM,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_MOVE,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
@@ -72,6 +88,7 @@ import {
 	checkWorkbench,
 	contextForWorkbench,
 	copyWorkbenchPath,
+	editWorkbenchDefinition,
 } from "./workbenchCommands";
 
 let statusItem: vscode.StatusBarItem | undefined;
@@ -198,6 +215,33 @@ function workbenchCommandHost(
 		},
 		revealOutput: () => channel.show(),
 		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
+		openDocument: async (path) => {
+			const document = await vscode.workspace.openTextDocument(
+				vscode.Uri.file(path),
+			);
+			await vscode.window.showTextDocument(document);
+		},
+		log: (line) => channel.appendLine(line),
+	};
+}
+
+/** The window calls the column-row command makes, bound to the real window. */
+function columnCommandHost(channel: vscode.OutputChannel): ColumnCommandHost {
+	return {
+		showWarning: async (message, actions) =>
+			vscode.window.showWarningMessage(message, ...actions),
+		appendLines: (lines) => {
+			for (const line of lines) {
+				channel.appendLine(line);
+			}
+		},
+		revealOutput: () => channel.show(),
+		openDocument: async (path) => {
+			const document = await vscode.workspace.openTextDocument(
+				vscode.Uri.file(path),
+			);
+			await vscode.window.showTextDocument(document);
+		},
 		log: (line) => channel.appendLine(line),
 	};
 }
@@ -385,6 +429,7 @@ export async function activate(
 	][] = [
 		[COMMAND_CHECK_WORKBENCH, checkWorkbench],
 		[COMMAND_COPY_WORKBENCH_PATH, copyWorkbenchPath],
+		[COMMAND_EDIT_WORKBENCH_DEFINITION, editWorkbenchDefinition],
 	];
 	for (const [id, run] of workbenchCommands) {
 		context.subscriptions.push(
@@ -414,6 +459,30 @@ export async function activate(
 			),
 		);
 	}
+	// The column row's one command gets its own registration rather than a
+	// third loop. A loop over a single pair reads as though more were coming,
+	// and this command takes a context and a host neither family above shares.
+	const columnHost = columnCommandHost(channel);
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+			async (element: TreeElement | undefined) => {
+				const target: ColumnCommandContext | undefined = contextForInstructions(
+					element,
+					binary.state === "ok" ? binary.path : "",
+					columnHost,
+					nodeSpawner,
+				);
+				if (target === undefined) {
+					channel.appendLine(
+						`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} was invoked on a row that names no column`,
+					);
+					return;
+				}
+				await editColumnInstructions(target);
+			},
+		),
+	);
 	// An attachment row is registered on its own rather than through the loop
 	// above, because it is not a card and carries no CommandContext: the path
 	// it was drawn from is the whole of what opening it needs.
@@ -434,7 +503,7 @@ export async function activate(
 		vscode.commands.registerCommand(
 			COMMAND_NEW_CARD,
 			async (element: TreeElement | undefined) => {
-				const target = contextForColumn(
+				const target = contextForNewCard(
 					element,
 					binary.state === "ok" ? binary.path : "",
 					host,
