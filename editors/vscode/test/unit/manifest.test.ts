@@ -13,6 +13,7 @@ import { test } from "node:test";
 
 import {
 	COMMAND_CHECK_WORKBENCH,
+	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
@@ -573,6 +574,62 @@ test("no workbench menu item is offered on a column row or a state group", () =>
 		!clauses.includes(CONTEXT_STATE_GROUP),
 		`a context menu is registered against a state group row: ${clauses}`,
 	);
+});
+
+/** The contextValues a card row's copy item is offered on, as one regex. */
+const CARD_ROW_PATTERN = /^dinah\.card\./;
+
+/** The one `when` clause the copy item is registered under. */
+const CARD_ROW_CLAUSE = `view == dinah.workbenchView && viewItem =~ /${CARD_ROW_PATTERN.source}/`;
+
+test("the card copy command is declared with a bare title", () => {
+	// dinah-337 AC-2. Bare rather than prefixed, matching Claim, Release and
+	// the workbench-row items: this is a row command the palette never shows,
+	// so a "Dinah: " prefix would be read by nobody and would make the context
+	// menu say the product name twice.
+	const commands = contributes.commands as { command: string; title: string }[];
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	assert.equal(titles.get(COMMAND_COPY_CARD_REF), "Copy Reference");
+});
+
+test("the card copy item is offered on every card row, whatever state it stands in", () => {
+	// dinah-337 AC-2. A reference is copyable from a ready, an active and a
+	// blocked card alike, unlike Claim and Release, which are state-gated. The
+	// clause is asserted whole rather than by substring, because the prefix
+	// anchor is what keeps the item off a contextValue a later card composes.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string }[]
+	>;
+	const matched = menus["view/item/context"].filter(
+		(entry) => entry.command === COMMAND_COPY_CARD_REF,
+	);
+	assert.equal(
+		matched.length,
+		1,
+		`${COMMAND_COPY_CARD_REF} has ${String(matched.length)} menu entries, wanted 1`,
+	);
+	assert.equal(matched[0].when, CARD_ROW_CLAUSE);
+	// The clause and the four contextValues actionsFor composes are two
+	// spellings of one set, so each is held to the pattern rather than the
+	// pattern being trusted to cover them.
+	for (const value of [
+		CONTEXT_CARD_READY_CLAIM,
+		CONTEXT_CARD_READY_NONE,
+		CONTEXT_CARD_ACTIVE,
+		CONTEXT_CARD_BLOCKED,
+	]) {
+		assert.match(value, CARD_ROW_PATTERN);
+	}
+	// A row that is not a card must not reach the item, which is the half the
+	// prefix anchor does the work for.
+	for (const value of [
+		CONTEXT_COLUMN,
+		CONTEXT_STATE_GROUP,
+		CONTEXT_WORKBENCH_ROOT,
+	]) {
+		assert.doesNotMatch(value, CARD_ROW_PATTERN);
+	}
 });
 
 test("the extension version is major.minor.patch, which is all the marketplace accepts", () => {
