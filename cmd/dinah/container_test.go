@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 )
 
 // legacyContainerBench builds a workbench through the tool and then renames its
@@ -940,6 +941,7 @@ func TestCheckReportsADamagedWorkbenchBesideTheHealthyOneItResolved(t *testing.T
 func TestASweepWhoseOnlyFindingIsDamageExitsFailing(t *testing.T) {
 	tree := resolvedDir(t, emptyTree(t))
 	damaged := damagedContainedWorkbench(t, filepath.Join(tree, "brokenproject"))
+	anchor := filepath.Join(damaged, bench.WorkbenchAnchor)
 
 	for _, args := range [][]string{
 		{"check", "--root", ".", "--migrate-container"},
@@ -951,6 +953,13 @@ func TestASweepWhoseOnlyFindingIsDamageExitsFailing(t *testing.T) {
 		}
 		if !strings.Contains(got.out, damaged) {
 			t.Errorf("%v does not name the damaged workbench:\n%s", args, got.out)
+		}
+		// The same containment trap the other guards on this finding carry.
+		// The directory is a prefix of its own workbench.md, so the presence
+		// check above passes on either value, and only the directory is a
+		// --workbench argument.
+		if strings.Contains(got.out, anchor) {
+			t.Errorf("%v names the workbench.md rather than the directory --workbench takes:\n%s", args, got.out)
 		}
 	}
 }
@@ -982,8 +991,10 @@ func TestTheRefusalNamesADamagedWorkbenchInsteadOfReportingNone(t *testing.T) {
 	if strings.Contains(said, "no-workbench-found") {
 		t.Errorf("the refusal still reports that no workbench was found:\n%s", said)
 	}
-	if !strings.Contains(said, "damaged-workbench") {
-		t.Errorf("the refusal does not carry the damaged-workbench name:\n%s", said)
+	// The whole minted name rather than its tail, because check.damaged-workbench
+	// ends in the same word and the tail alone cannot tell the two apart.
+	if !strings.Contains(said, contract.DamagedBench) {
+		t.Errorf("the refusal does not carry the %s name:\n%s", contract.DamagedBench, said)
 	}
 	// The next step has to be actionable, because the whole point of naming
 	// the directory is that --workbench takes it and gets the reader past

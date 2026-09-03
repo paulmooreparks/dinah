@@ -453,6 +453,15 @@ func Discover(start, override, home, nativeHome string) (string, []string, error
 // through to dinah.no-workbench-found: falling through would silently run
 // the command against no workbench at all, or against whatever the caller's
 // own working directory happens to be.
+//
+// That configured rung returns search.damaged for symmetry with search.passed
+// beside it, and not because it can carry anything. Reaching it needs the walk
+// to have resolved neither a sole workbench nor an ambiguous base, and a base
+// holding a damaged entry and no healthy candidate refuses out of soleBench
+// before the walk ever gets that far, so the slice is empty on every route
+// that arrives here. A reader looking for the route that populates it will not
+// find one, which is why the fact is written down rather than left to be
+// rediscovered.
 func DiscoverSource(start, override, overrideSource, home, nativeHome, configured string) (string, string, []string, []string, error) {
 	if override != "" {
 		abs, err := filepath.Abs(override)
@@ -1014,6 +1023,15 @@ func walkDeep(dir string, collected *[]Candidate, seen map[string]bool, depth, m
 // walk described and then could not descend into keeps its described row: the
 // workbench itself read, and what failed was the search for one nested inside
 // it, which is not a fact about the workbench the row names.
+//
+// The path a refused row carries is always the directory the walk stood in,
+// including for dinah.damaged-workbench, whose own advice is to pass
+// --workbench at the damaged workbench directory further down. That directory
+// is deliberately not what the row shows. A listing whose Path column meant
+// the walked directory on every row except one would be a listing nothing
+// could sort or compare, and the repair path for damage is dinah check, which
+// names the workbench directory itself. The row's job here is to say which
+// project holds something the reader has to go and look at.
 func addRefused(collected *[]Candidate, seen map[string]bool, path, name string) {
 	if seen[path] {
 		return
