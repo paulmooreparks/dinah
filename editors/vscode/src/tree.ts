@@ -299,6 +299,23 @@ export function columnDescription(
 	return `${workWord(view)}, ${occupancy}`;
 }
 
+/**
+ * A card row's label: the reference the operator types, then the title.
+ *
+ * The reference leads because VS Code truncates a label from its end, so a
+ * narrow sidebar cuts the title and keeps the handle a reader acts on. The
+ * operator ruled on that placement after seeing both renderings (dinah-337
+ * OQ-1). Either half alone still reads, which is what the two fallbacks are
+ * for: a card the ls join missed carries no title, and a node with no
+ * reference at all leaves the title standing on its own.
+ */
+export function cardLabel(ref: string, title: string | undefined): string {
+	if (title === undefined || title === "") {
+		return ref;
+	}
+	return ref === "" ? title : `${ref}: ${title}`;
+}
+
 /** A card row's description: its two levels, joined, or nothing at all. */
 export function cardDescription(view: CardView | undefined): string {
 	const parts = [view?.severity, view?.priority].filter(
@@ -559,7 +576,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			const state = cardState(element.view, element.groupValue);
 			const ref = element.view?.ref ?? element.node.ref ?? "";
 			return {
-				label: element.node.title ?? element.view?.title ?? ref,
+				label: cardLabel(ref, element.node.title ?? element.view?.title),
 				description: cardDescription(element.view),
 				tooltip: cardTooltip(element.node, element.view, element.column, state),
 				contextValue: actionsFor({ state, column: element.column }),

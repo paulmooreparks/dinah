@@ -1,5 +1,5 @@
-// The eight commands the tree contributes, as pure argv composition and pure
-// outcome handling.
+// The card and attachment commands the tree contributes, as pure argv
+// composition and pure outcome handling.
 //
 // Nothing here imports vscode. Each handler is a function over an injected
 // host, so the unit layer asserts on the argv a command composes and on the
@@ -7,7 +7,8 @@
 // the host to the real window.
 //
 // Every mutating call is followed by one off-cycle checkpoint, whatever the
-// outcome. The receipt is not read back into the tree: the next checkpoint
+// outcome. A command that mutates nothing runs neither, which is why
+// copyCardRef below reaches for the host directly instead of runVerb. The receipt is not read back into the tree: the next checkpoint
 // repaints it from a fresh read, which is one rule rather than two and cannot
 // drift from what the board actually says.
 
@@ -31,6 +32,10 @@ export interface PickItem {
 /** The window calls these commands make, injected so tests can watch them. */
 export interface CommandHost {
 	readonly showError: (message: string) => void;
+	/** Reports an act that succeeded and shows nothing else, such as a copy. */
+	readonly showInfo: (message: string) => void;
+	/** Puts text on the system clipboard. */
+	readonly copyToClipboard: (text: string) => Promise<void>;
 	readonly pick: (
 		items: readonly PickItem[],
 		placeholder: string,
@@ -185,6 +190,21 @@ export async function unblockCard(
 	context: CommandContext,
 ): Promise<CliOutcome> {
 	return runVerb(context, ["unblock", context.ref]);
+}
+
+/**
+ * Copies the card's own reference to the clipboard.
+ *
+ * The reference rather than the title, because the reference is what every
+ * dinah verb takes as an argument and what the operator writes when he names
+ * a card to somebody else. No dinah invocation and no checkpoint follow, for
+ * the reason copyWorkbenchPath makes neither (dinah-330 D-8): a copy reads
+ * only what the row already holds and changes nothing on the board, so a
+ * checkpoint would repaint a tree that cannot have moved.
+ */
+export async function copyCardRef(context: CommandContext): Promise<void> {
+	await context.host.copyToClipboard(context.ref);
+	context.host.showInfo(`Copied ${context.ref}`);
 }
 
 /**

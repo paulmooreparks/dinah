@@ -48,6 +48,9 @@ export const COMMAND_RELEASE = "dinah.tree.release";
 export const COMMAND_BLOCK = "dinah.tree.block";
 export const COMMAND_UNBLOCK = "dinah.tree.unblock";
 
+/** Puts a card's own reference on the clipboard, touching no board state. */
+export const COMMAND_COPY_CARD_REF = "dinah.tree.copyCardRef";
+
 /** The two acts a workbench row offers, neither of which touches the board. */
 export const COMMAND_CHECK_WORKBENCH = "dinah.tree.checkWorkbench";
 export const COMMAND_COPY_WORKBENCH_PATH = "dinah.tree.copyWorkbenchPath";
@@ -74,6 +77,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_RELEASE,
 	COMMAND_BLOCK,
 	COMMAND_UNBLOCK,
+	COMMAND_COPY_CARD_REF,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
@@ -99,6 +103,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_RELEASE,
 	COMMAND_BLOCK,
 	COMMAND_UNBLOCK,
+	COMMAND_COPY_CARD_REF,
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_WORKBENCH_PATH,
 	COMMAND_OPEN_ATTACHMENT,
