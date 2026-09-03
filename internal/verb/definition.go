@@ -403,6 +403,7 @@ var params = map[string][]Param{
 		{Name: "workstream", Display: "workstream|title", Field: "Workstream"},
 		{Name: "field", Field: "Field"},
 		{Name: "value", Field: "Value"},
+		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
 		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	// Three of the four slots are required, which is where card departs from

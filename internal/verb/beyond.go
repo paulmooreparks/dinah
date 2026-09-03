@@ -1017,14 +1017,30 @@ func (l *Library) membersOf(id string) ([]CardView, error) {
 	return views, nil
 }
 
-// NewWorkstream creates a workstream from a title and opens its journal with
-// the created event.
+// NewWorkstream creates a workstream from a title, and from the slug the
+// caller may name alongside it, and opens its journal with the created event.
 //
 // The title is required and nothing else is, which is Add's own list: filing a
 // grouping is filing work, so it asks for an owner rather than for the
 // operator. The workbench's own lock covers the write, because the identifier,
 // the creation ordinal and the slug collision scan are all read against the
 // collection as a whole.
+//
+// The slug is optional and is what lets a caller finish provisioning the
+// entity it is creating. Field writes on a workstream are the operator's
+// alone, so a caller that is not the operator cannot correct a derived slug
+// afterwards, and before this row existed it was left holding a
+// half-provisioned entity it was not permitted to finish. Naming the slug at
+// creation closes that without moving SetWorkstream's authorization, which
+// stays exactly where the operator ratified it.
+//
+// The grammar check sits between the title and the owner, which is where
+// SetWorkbench and SetWorkstream both put "the value is present and well
+// formed" relative to the entity they name. It refuses a malformed slug
+// naming the field rather than the offending value, because the field is what
+// a caller can act on. A slug a live workstream already carries is
+// NewWorkstream's own row, raised there because the collection scan that
+// answers it is that function's.
 func (l *Library) NewWorkstream(req *Request) *Response {
 	if l.Bench.Operator == "" {
 		return l.refuse(req, nil, contract.NoOperator, "")
@@ -1032,6 +1048,10 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	title := strings.TrimSpace(req.Workstream)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
+	}
+	slug := strings.TrimSpace(req.Slug)
+	if slug != "" && !bench.ValidColumnSlug(slug) {
+		return l.refuse(req, nil, contract.Malformed, bench.SlugField)
 	}
 	if req.Actor == "" {
 		return l.refuse(req, nil, contract.NoOwner, "")
@@ -1045,7 +1065,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	if l.Interleave != nil {
 		l.Interleave()
 	}
-	workstream, err := l.Bench.NewWorkstream(title)
+	workstream, err := l.Bench.NewWorkstream(title, slug)
 	if err != nil {
 		return l.FromError(req, err)
 	}
