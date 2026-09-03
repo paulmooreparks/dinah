@@ -97,6 +97,24 @@ export interface DetailAnswer {
 }
 
 /**
+ * verb.PathAnswer, what `dinah --json path <ref>` emits (dinah-272).
+ *
+ * `path` is the resolved absolute path, and it is the one field either of
+ * dinah-332's two edit commands reads. `workbench_source` names which rung of
+ * discovery answered for the invocation, the same rung `status` reports;
+ * nothing here reads it, and it is declared so that a later caller finds the
+ * field already spelled rather than inventing a second name for it.
+ *
+ * Both members are optional on this side although the Go struct writes both
+ * unconditionally, because a client that trusts an older binary to have
+ * carried a field is a client that throws when it did not.
+ */
+export interface PathAnswer {
+	readonly path?: string;
+	readonly workbench_source?: string;
+}
+
+/**
  * verb.AttachmentView, one attachment as a read reports it.
  *
  * `path` is what lets this extension open the file without a second call, and
