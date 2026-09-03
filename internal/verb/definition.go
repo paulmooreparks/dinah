@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 )
 
 // Param is one argument of a command. The list of them is the single
@@ -143,10 +144,11 @@ type Vocabulary struct {
 // the sets the commands themselves check against, so neither can drift from
 // what a command accepts, and two name a set only a head can resolve.
 var vocabularies = map[string]Vocabulary{
-	"key":    {Values: bench.ConfigKeys},
-	"field":  {Values: bench.WorkbenchFields},
-	"topic":  {Source: "guides"},
-	"column": {Source: "columns"},
+	"key":         {Values: bench.ConfigKeys},
+	"field":       {Values: bench.WorkbenchFields},
+	"column-kind": {Values: contract.Kinds},
+	"topic":       {Source: "guides"},
+	"column":      {Source: "columns"},
 }
 
 // VocabularyFor returns the set one argument accepts, and whether it declares
@@ -381,6 +383,19 @@ var params = map[string][]Param{
 	// the command refuses over rather than the syntax line. The workstream
 	// slot carries a reference on get and set and the title on new, which is
 	// what its two-word display says.
+	// The bare invocation is not offered: dinah columns already lists the
+	// flow, and a bare dinah column would either duplicate that listing or
+	// read as a typo for it. new is the only action this build implements,
+	// so the action is required, and get and set are left for the cards that
+	// need them.
+	"column": {
+		{Name: "action", Display: "new", Required: true, Field: "Action"},
+		{Name: "column", Display: "title", Required: true, Field: "Column"},
+		{Name: "kind", Flag: true, Value: "kind", Vocabulary: "column-kind", Field: "Kind"},
+		{Name: "capacity", Flag: true, Value: "n", Field: "Capacity"},
+		{Name: "slug", Flag: true, Value: "slug", Field: "Slug"},
+		{Name: "before", Flag: true, Value: "column", Field: "Before"},
+	},
 	"workstream": {
 		{Name: "action", Display: "new|get|set", Field: "Action"},
 		{Name: "workstream", Display: "workstream|title", Field: "Workstream"},

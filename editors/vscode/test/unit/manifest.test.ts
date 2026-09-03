@@ -15,6 +15,8 @@ import {
 	COMMAND_CHECK_WORKBENCH,
 	COMMAND_COPY_CARD_REF,
 	COMMAND_COPY_WORKBENCH_PATH,
+	COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_OPEN_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
@@ -559,21 +561,159 @@ test("the workbench menu items match every resolved workbench row and nothing el
 	}
 });
 
-test("no workbench menu item is offered on a column row or a state group", () => {
-	// AC-2's exclusion, and the recorded cut it protects. A column row's one
-	// plausible act is the queue pull dinah-280 has not published, so the row
-	// carries no menu at all; an item that matched CONTEXT_COLUMN would offer
-	// a workbench act on a row that names no workbench of its own.
-	const menus = contributes.menus as Record<string, { when: string }[]>;
-	const clauses = menus["view/item/context"].map((entry) => entry.when).join(" ");
-	assert.ok(
-		!clauses.includes(CONTEXT_COLUMN),
-		`a context menu is registered against a column row: ${clauses}`,
+test("no workbench menu item is offered on a column row, and no item at all on a state group", () => {
+	// AC-2's exclusion. The column half is now narrower than it was: dinah-332
+	// gives the column row its own Edit Instructions item, so a blanket search
+	// for CONTEXT_COLUMN across every clause would fail on the very item that
+	// card added. What must still hold is that no WORKBENCH act is offered
+	// there, because a column row names no workbench of its own.
+	//
+	// The state group keeps the blanket form, because it still has no item of
+	// any kind and its one plausible act is the queue pull dinah-280 has not
+	// published.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string }[]
+	>;
+	const items = menus["view/item/context"];
+	const workbenchClauses = items
+		.filter((entry) =>
+			[
+				COMMAND_CHECK_WORKBENCH,
+				COMMAND_COPY_WORKBENCH_PATH,
+				COMMAND_EDIT_WORKBENCH_DEFINITION,
+			].includes(entry.command),
+		)
+		.map((entry) => entry.when);
+	// Three items are expected, and reading the count is what stops a filter
+	// that matched nothing from satisfying the loop beneath it.
+	assert.equal(
+		workbenchClauses.length,
+		3,
+		`the three workbench-row items produced ${String(workbenchClauses.length)} clauses`,
 	);
+	for (const clause of workbenchClauses) {
+		assert.ok(
+			!clause.includes(CONTEXT_COLUMN),
+			`a workbench act is registered against a column row: ${clause}`,
+		);
+	}
+	const allClauses = items.map((entry) => entry.when).join(" ");
 	assert.ok(
-		!clauses.includes(CONTEXT_STATE_GROUP),
-		`a context menu is registered against a state group row: ${clauses}`,
+		!allClauses.includes(CONTEXT_STATE_GROUP),
+		`a context menu is registered against a state group row: ${allClauses}`,
 	);
+});
+
+/** The one `when` clause the column row's own item is registered under. */
+const COLUMN_ROW_CLAUSE = `view == dinah.workbenchView && viewItem == ${CONTEXT_COLUMN}`;
+
+/** Every contextValue neither new item may be offered on. */
+const FORBIDDEN_FOR_EDIT_ITEMS = [
+	CONTEXT_STATE_GROUP,
+	CONTEXT_CARD_READY_CLAIM,
+	CONTEXT_CARD_READY_NONE,
+	CONTEXT_CARD_ACTIVE,
+	CONTEXT_CARD_BLOCKED,
+];
+
+test("the two edit commands are declared with bare titles", () => {
+	// dinah-332 AC-3. Bare rather than prefixed, matching Check, Copy Path,
+	// Claim and Release: both are row commands the palette never shows, so a
+	// "Dinah: " prefix would be read by nobody and would make the context menu
+	// say the product name twice.
+	const commands = contributes.commands as { command: string; title: string }[];
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	assert.equal(titles.get(COMMAND_EDIT_WORKBENCH_DEFINITION), "Edit Definition");
+	assert.equal(titles.get(COMMAND_EDIT_COLUMN_INSTRUCTIONS), "Edit Instructions");
+});
+
+test("both edit commands are classified as row-scoped and never as global", () => {
+	// dinah-332 AC-1. The partition test above catches a command in neither
+	// array; this catches one put in the wrong one, which would leave a palette
+	// entry that throws on an argument VS Code never passes.
+	for (const command of [
+		COMMAND_EDIT_WORKBENCH_DEFINITION,
+		COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+	]) {
+		assert.ok(ROW_COMMANDS.includes(command), `${command} is not a row command`);
+		assert.ok(
+			!GLOBAL_COMMANDS.includes(command),
+			`${command} is classified as global, and it cannot act without a row`,
+		);
+	}
+});
+
+test("the definition item matches every resolved workbench row and nothing else", () => {
+	// dinah-332 AC-2, the workbench half. The clause is asserted whole rather
+	// than by substring, because the anchors are what keep the item off a
+	// contextValue a later card composes with the same prefix, and the group
+	// pins it after Check and Copy Path rather than among them.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group?: string }[]
+	>;
+	const matched = menus["view/item/context"].filter(
+		(entry) => entry.command === COMMAND_EDIT_WORKBENCH_DEFINITION,
+	);
+	assert.equal(
+		matched.length,
+		1,
+		`${COMMAND_EDIT_WORKBENCH_DEFINITION} has ${String(matched.length)} menu entries, wanted 1`,
+	);
+	assert.equal(matched[0].when, WORKBENCH_ROW_CLAUSE);
+	assert.equal(matched[0].group, "1_workbench@3");
+	// The three row kinds the clause is meant to reach, held to the pattern
+	// rather than the pattern being trusted to cover them.
+	for (const value of [
+		CONTEXT_WORKBENCH_ROOT,
+		CONTEXT_WORKBENCH_CANDIDATE,
+		CONTEXT_WORKBENCH_FOREST,
+	]) {
+		assert.match(value, WORKBENCH_ROW_PATTERN);
+	}
+	// A column row, a state group and every card state must not reach it.
+	for (const value of [CONTEXT_COLUMN, ...FORBIDDEN_FOR_EDIT_ITEMS]) {
+		assert.doesNotMatch(value, WORKBENCH_ROW_PATTERN);
+	}
+});
+
+test("the instructions item matches a column row and nothing else", () => {
+	// dinah-332 AC-2, the column half. The clause is composed from
+	// CONTEXT_COLUMN rather than spelled a second time, so a rename that misses
+	// the manifest goes red here instead of shipping a menu that never opens.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group?: string }[]
+	>;
+	const matched = menus["view/item/context"].filter(
+		(entry) => entry.command === COMMAND_EDIT_COLUMN_INSTRUCTIONS,
+	);
+	assert.equal(
+		matched.length,
+		1,
+		`${COMMAND_EDIT_COLUMN_INSTRUCTIONS} has ${String(matched.length)} menu entries, wanted 1`,
+	);
+	assert.equal(matched[0].when, COLUMN_ROW_CLAUSE);
+	assert.equal(matched[0].group, "1_column@1");
+	// The clause is an equality against one literal, so what it excludes is
+	// every other contextValue the tree composes. A state group and every card
+	// state are named here because AC-2 names them.
+	for (const value of FORBIDDEN_FOR_EDIT_ITEMS) {
+		assert.notEqual(
+			value,
+			CONTEXT_COLUMN,
+			`${value} is the same string as the column contextValue, so the clause reaches it`,
+		);
+	}
+	// And the three workbench row kinds, which the equality also excludes.
+	for (const value of [
+		CONTEXT_WORKBENCH_ROOT,
+		CONTEXT_WORKBENCH_CANDIDATE,
+		CONTEXT_WORKBENCH_FOREST,
+	]) {
+		assert.notEqual(value, CONTEXT_COLUMN);
+	}
 });
 
 /** The contextValues a card row's copy item is offered on, as one regex. */

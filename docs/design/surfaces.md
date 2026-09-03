@@ -41,6 +41,21 @@ exit codes and payloads). That JSON contract is the frozen surface. The MCP
 tools and HTTP routes are thin mappings of it, and the human-facing CLI
 output is a rendering of it through the locale catalogs.
 
+A verb with nothing to report on success, because it hands control to an
+interactive subprocess (`edit`) or answers with documentation text about the
+tool itself rather than data about a workbench (`guide`, `help`), still
+answers a refusal in the shared machine form and carries no JSON payload on
+success because there is nothing to carry. `export`'s payload is already the
+interchange document, itself the frozen JSON form, so wrapping it in a second
+envelope would add nothing. `config get <key>` and `workbench get <field>`
+still write a bare scalar line under `--json`, unlike every other read verb,
+because each has a sibling verb with no subcommand, `config` and `workbench`,
+whose own JSON form already carries that same field among every other field a
+caller might ask for. `config set <key> <value>` answers `--json` with no
+payload at all on success; that gap is recorded here rather than closed,
+because no caller today depends on it and there is no sibling shape to give
+it one.
+
 One verb definition generates four projections: CLI flags and help, MCP tool
 schema, HTTP route, and the human rendering. Surfaces cannot drift from one
 another because none of them is hand-maintained against the others. Nobody

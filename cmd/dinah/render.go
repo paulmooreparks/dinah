@@ -1245,3 +1245,30 @@ func (s *session) findingRows(findings []bench.Finding) []string {
 func (s *session) renderRemint(report *verb.RemintReport) {
 	s.line(s.r.T("check.reminted", "from", report.From, "to", report.To))
 }
+
+// renderColumnLine prints the one line a person needs after creating a column,
+// which reads the way the workstream line reads after an act on a workstream.
+//
+// The capacity cell is a sentence of its own rather than a value spliced into
+// the line, because a column with no limit has no number to print and a bare
+// blank there would leave a reader wondering what was missing.
+//
+// The reference printed is the slug rather than Column.Ref's own fallback to
+// the identifier, because a column this command created always carries one:
+// creation refuses a title no slug can be derived from rather than writing a
+// column reachable only by its identifier.
+func (s *session) renderColumnLine(column *verb.ColumnView) {
+	if column == nil {
+		return
+	}
+	capacity := s.r.T("columns.new.unlimited")
+	if column.Capacity > 0 {
+		capacity = s.r.T("columns.new.capacity", "count", strconv.Itoa(column.Capacity))
+	}
+	s.line(s.r.T("columns.new.line",
+		"ref", column.Slug,
+		"title", column.Title,
+		"kind", s.token(column.Kind),
+		"capacity", capacity,
+	))
+}

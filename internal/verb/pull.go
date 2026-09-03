@@ -492,6 +492,72 @@ func pullSources(destination *bench.Column, columns []*bench.Column) []*bench.Co
 	return sources
 }
 
+// placementDisrupts returns the first existing column, in flow order, whose
+// carriesInto answer a column-new placement would change while that column
+// still carries a live card, or nil when no changed answer lands on an
+// occupied column.
+//
+// columns is the flow as it stands, read under the workbench lock by the
+// caller. insertAt is where the new column would land, which is len(columns)
+// for a bare append and an existing column's Position for --before. kind is
+// the new column's own kind, already defaulted by the caller exactly as
+// bench.NewColumn defaults it, because an unresolved default would make this
+// answer disagree with what is about to be written. cards is every live card
+// in the workbench, read once by the caller and passed in.
+//
+// The comparison never mutates columns. It builds a second slice carrying
+// every column the placement leaves undisturbed at its old Position, a
+// placeholder at insertAt standing in for the column to be, and a clone,
+// never the original pointer, of every column the placement pushes later,
+// each clone's Position advanced by one to match its new index. downstreamOf
+// indexes the slice by each column's own Position, so a shifted column
+// compared against a slice still carrying its old Position would silently
+// ask the wrong question, and the clone is what keeps the comparison honest.
+// placementID stands for the column a placement would create, in the
+// comparison placementDisrupts runs before that column exists. A column's own
+// identifier is twelve hexadecimal characters, so this value can never name a
+// column the workbench carries, and an answer of nil has to be told apart from
+// an answer of the column-to-be rather than sharing an empty identifier with
+// it.
+const placementID = "the placement"
+
+func placementDisrupts(columns []*bench.Column, insertAt int, kind string, cards []*bench.Card) *bench.Column {
+	placeholder := &bench.Column{ID: placementID, Kind: kind, Position: insertAt}
+	after := make([]*bench.Column, 0, len(columns)+1)
+	after = append(after, columns[:insertAt]...)
+	after = append(after, placeholder)
+	for i := insertAt; i < len(columns); i++ {
+		clone := *columns[i]
+		clone.Position = i + 1
+		after = append(after, &clone)
+	}
+	moved := make(map[string]*bench.Column, len(after))
+	for _, column := range after {
+		moved[column.ID] = column
+	}
+	occupied := make(map[string]bool, len(cards))
+	for _, card := range cards {
+		occupied[card.Column] = true
+	}
+	for _, existing := range columns {
+		if !occupied[existing.ID] {
+			continue
+		}
+		want, got := carriesInto(existing, columns), carriesInto(moved[existing.ID], after)
+		wantID, gotID := "", ""
+		if want != nil {
+			wantID = want.ID
+		}
+		if got != nil {
+			gotID = got.ID
+		}
+		if wantID != gotID {
+			return existing
+		}
+	}
+	return nil
+}
+
 // upstreamTitle names the upstream column for the sentence the named form's
 // empty answer prints, and is empty when the column stands first in the flow.
 func upstreamTitle(destination *bench.Column, columns []*bench.Column) string {

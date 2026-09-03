@@ -30,5 +30,6 @@ render.go:882.23,884.3  a composition splicing no fragment at all, which needs a
 render.go:910.2,910.11  the alternation answering with nothing, which needs a last member carrying a condition, and the guard fails a shape whose last member does.
 render.go:1036.23,1038.3  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
 render.go:1068.22,1070.3  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
+render.go:1261.19,1263.3  renderColumnLine handed no column, which emitColumn cannot produce: it draws the line only on an ok outcome, and every ok outcome of column new carries the column it wrote.
 help.go:264.9,266.3  vocabularyValues giving up on a vocabulary source no listing answers to, which TestEveryVocabularySourceHasAListingThatAnswersIt refuses, so no declared source reaches it.
 table.go:249.30,251.3  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
