@@ -1490,10 +1490,11 @@ $ dinah columns
 $ cd ../release-notes
 ```
 
-All three optional flags have defaults. A column created without `--before`
-goes on the end of the flow, `--kind` defaults to `work` because that is what a
-new station usually is, and a column given no capacity holds as many cards as
-you put there.
+All four optional flags have defaults, so the command needs nothing but a
+title. A column created without `--before` goes on the end of the flow, `--kind`
+defaults to `work` because that is what a new station usually is, and `--slug`
+is derived from the title, which is where the `review` handle above came from. A
+column given no capacity holds as many cards as you put there.
 
 A placement is refused when it would change where a pull carries a card that is
 already standing somewhere. Slotting a station in front of the done column
