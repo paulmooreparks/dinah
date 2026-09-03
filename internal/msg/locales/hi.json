@@ -2034,6 +2034,16 @@
       "context": "Spliced onto refusal.dinah.workbench-not-applicable as the next step, carrying the sentence that base entry used to end with.",
       "source": "61c5cc85814def37"
     },
+    "refusal.dinah.workstream-slug-taken": {
+      "text": "इस वर्कबेंच की किसी और वर्कस्ट्रीम पर पहले से ही उपनाम {detail} है",
+      "context": "The sentence printed after the refusal name dinah.workstream-slug-taken. {detail} carries the slug the caller supplied at creation.",
+      "source": "62b3d15879ff9f3d"
+    },
+    "refusal.dinah.workstream-slug-taken.next": {
+      "text": "; कोई दूसरा उपनाम दें, या --slug छोड़ दें और बनाते समय उसे शीर्षक से निकलने दें",
+      "context": "Spliced onto refusal.dinah.workstream-slug-taken as the next step.",
+      "source": "8737ff38eb1dfc4e"
+    },
     "refusal.dinah.repair-would-empty-columns": {
       "text": "{detail} वर्कबेंच में बचे हर कॉलम के नाम हैं, और हर एक की डायरेक्टरी गायब है। इन्हें हटाने से वर्कबेंच में कोई कॉलम नहीं बचेगा, इसलिए dinah check --migrate-columns मना करता है।",
       "context": "The sentence printed after the refusal name dinah.repair-would-empty-columns. {detail} is the comma-joined ids of every column the raw columns list still names, all of them stranded, which RemoveStrandedColumns would otherwise have dropped down to an empty list.",
@@ -2923,6 +2933,11 @@
       "text": "आप कौन-सा फ़ील्ड पढ़ या लिख रहे हैं",
       "context": "The meaning of the field argument of `dinah workstream`, printed in that command's arguments table.",
       "source": "38f99b89450cab4c"
+    },
+    "param.workstream.slug.summary": {
+      "text": "वर्कस्ट्रीम किस उपनाम के साथ बनानी है, शीर्षक से निकाले गए उपनाम के बजाय",
+      "context": "The meaning of the slug argument of `dinah workstream`, printed in that command's arguments table.",
+      "source": "5b716c838dbd0efe"
     },
     "param.workstream.summary": {
       "text": "जिस वर्कस्ट्रीम का नाम आप ले रहे हैं, उसके slug या उसकी पहचान के रूप में",

@@ -82,7 +82,7 @@ WORKBENCH
     [--yes]                                   write one
   workstream [new|get|set]                  Read this workbench's workstreams,
     [workstream|title] [field] [value]        create one, or write one's fields
-    [--yes]
+    [--slug <slug>] [--yes]
   column <new> <title> [--kind <kind>]      Create a column in this workbench's
     [--capacity <n>] [--slug <slug>]          flow
     [--before <column>]

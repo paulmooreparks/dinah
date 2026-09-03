@@ -258,6 +258,14 @@ const (
 	// a column, because a card belongs to a workstream and stands in a
 	// column, and one sentence cannot honestly say both.
 	Referenced = LayerPrefix + "referenced"
+	// WorkstreamSlugTaken is an explicit slug `workstream new` was given
+	// already carrying a live workstream. It is separate from the collision
+	// NewWorkstream resolves for a title-derived slug, because that collision
+	// is resolved silently by construction (nobody typed the slug, so nobody
+	// can be told their input was rejected), while a caller who typed a slug
+	// and had it silently replaced with something else would have no way to
+	// notice.
+	WorkstreamSlugTaken = LayerPrefix + "workstream-slug-taken"
 	// ColumnSlugTaken is an explicit slug column new was given already
 	// carrying a live column. A caller who typed nothing has nothing to be
 	// surprised by when the tool derives one, and a caller who typed a
@@ -364,7 +372,7 @@ var Introduced = []string{
 	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
 	AddNeedsAColumn, MultipleWords,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
-	UnknownDepth, UnknownWorkstream, Referenced,
+	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	AmbiguousName, NotRenamable,

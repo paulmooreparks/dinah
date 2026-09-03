@@ -59,6 +59,11 @@ type Request struct {
 	// the title `workstream new` files, which is the one slot the parameter
 	// list spells workstream|title.
 	Workstream string
+	// Slug is the slug a creation call supplies (`workstream new`, `column
+	// new`), so a caller may finish provisioning what it just made without a
+	// later write it is not permitted to make. Empty means derive one from
+	// the title, exactly as creation has always done.
+	Slug string
 	// Value is what a write puts in that field.
 	Value string
 	// Severity and Priority are the levels a filing names, empty when the
@@ -76,10 +81,6 @@ type Request struct {
 	// the kind a column creation names.
 	Reason string
 	Kind   string
-	// Slug is the slug a creation call supplies, empty meaning derive one
-	// from the title, which is what creation always did before a caller
-	// could name one.
-	Slug string
 	// Capacity is the wip_limit a column creation names, as the caller wrote
 	// it, empty for unlimited. It is a string for the reason MaxDepth is:
 	// the verb that reads it parses it, so the request builder never has to

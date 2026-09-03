@@ -297,38 +297,61 @@ func (b *Bench) WorkstreamReferenced(id, ref string) error {
 	return nil
 }
 
-// NewWorkstream creates a workstream from a title: the directory, the anchor
-// carrying the four fields, and nothing else. The journal's opening event is
-// the caller's to append, the way AddComment leaves the card's event to the
-// verb that wrote the comment.
+// NewWorkstream creates a workstream from a title and the slug the caller
+// asked for: the directory, the anchor carrying the four fields, and nothing
+// else. The journal's opening event is the caller's to append, the way
+// AddComment leaves the card's event to the verb that wrote the comment.
 //
-// The slug is derived from the whole title through SlugifyDashed rather than
-// through Slugify. Slugify strips exactly the trailing dash and digits a
+// An empty slug is derived from the whole title through SlugifyDashed rather
+// than through Slugify. Slugify strips exactly the trailing dash and digits a
 // workstream slug is allowed to carry, so a workstream titled "Sprint 2" would
 // be born sprint2 and could never be born sprint-2, and the collision
 // resolver's own -2 suffix would be a slug no creation could write. A title
 // yielding no usable slug leaves the field empty, which the slug findings name
 // and the slug migration repairs.
 //
+// A slug the caller supplied is written as given, and a live workstream
+// already carrying it is refused under WorkstreamSlugTaken instead of being
+// resolved by FreeSlug's counting suffix. Nobody typed a derived slug, so
+// nobody can be told their input was rejected and the suffix is the only
+// answer; a caller who typed one and silently received a different one has no
+// way to notice short of comparing the answer against its own request. The
+// grammar of a supplied slug is the calling verb's row to check, which is
+// where every other value this package stores has its shape checked.
+//
+// The refusal is raised before ClaimID rather than after, because ClaimID
+// creates the entity's directory: refusing later would leave an anchorless
+// directory behind that checkWorkstreams then reports for the rest of the
+// workbench's life.
+//
+// The taken set is the live half of the collection alone, which is the set the
+// derived path has always been resolved against. An archived workstream's slug
+// is consulted by neither path.
+//
 // The caller holds the workbench's lock, which is what makes the ordinal scan
 // and the collision scan race-free.
-func (b *Bench) NewWorkstream(title string) (*Workstream, error) {
+func (b *Bench) NewWorkstream(title, slug string) (*Workstream, error) {
 	collection := b.WorkstreamsRoot()
-	id, err := ClaimID(collection, b.HasWorkstream)
-	if err != nil {
-		return nil, err
-	}
 	taken := map[string]bool{}
 	for _, existing := range b.Workstreams() {
 		if existing.Slug != "" {
 			taken[existing.Slug] = true
 		}
 	}
+	if slug == "" {
+		slug = FreeSlug(SlugifyDashed(title), taken)
+	} else if taken[slug] {
+		return nil, contract.Refuse(contract.WorkstreamSlugTaken, slug)
+	}
+	id, err := ClaimID(collection, b.HasWorkstream)
+	if err != nil {
+		return nil, err
+	}
 	workstream := &Workstream{
 		ID:      id,
 		Dir:     filepath.Join(collection, id),
 		Title:   title,
-		Slug:    FreeSlug(SlugifyDashed(title), taken),
+		Slug:    slug,
 		Status:  StatusActive,
 		Ordinal: nextOrdinal(collection, WorkstreamAnchor),
 		FM:      NewFrontmatter(),

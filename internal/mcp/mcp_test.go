@@ -1865,6 +1865,85 @@ func TestTheSchemaPublishesExactlyTheDeclaredArgumentNames(t *testing.T) {
 	}
 }
 
+// TestTheWorkstreamToolTakesASlugAndRefusesItTheWayTheTerminalDoes asserts the
+// creation-time slug on the machine head, and asserts it against the library
+// the terminal runs rather than against a second copy of the expected answer.
+//
+// The parity claim is what needs the second half. Both heads call straight into
+// verb.NewWorkstream, so a refusal reachable from one is reachable from the
+// other by construction, and what could still drift is the wiring in between:
+// the parameter has to be published on the tool's schema and assignValue has to
+// land it on Request.Slug, and a gap in either would leave the tool creating a
+// title-derived workstream while the terminal creates the one it was asked for.
+// So each act below is driven through the tool and through the library, and the
+// two answers are compared to each other.
+func TestTheWorkstreamToolTakesASlugAndRefusesItTheWayTheTerminalDoes(t *testing.T) {
+	tool := newLibrary(t)
+	root := tool.Bench.Root
+	terminal := newLibrary(t)
+
+	call := func(arguments string) map[string]any {
+		t.Helper()
+		return payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":`+arguments+`}}`))
+	}
+	outcome := func(answer map[string]any) (string, string, string) {
+		t.Helper()
+		refusal, _ := answer["refusal"].(string)
+		detail, _ := answer["detail"].(string)
+		return answer["outcome"].(string), refusal, detail
+	}
+	byHand := func(slug string) (string, string, string) {
+		t.Helper()
+		response := terminal.NewWorkstream(&verb.Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: "Autumn release", Slug: slug})
+		terminal = newLibraryAt(t, terminal.Bench.Root)
+		return response.Outcome, response.Refusal, response.Detail
+	}
+
+	created := call(`{"actor":"alka","action":"new","workstream":"Autumn release","slug":"autumn"}`)
+	if created["outcome"] != contract.OutcomeOK {
+		t.Fatalf("creating a workstream with a slug: %v", created)
+	}
+	made, ok := created["workstream"].(map[string]any)
+	if !ok {
+		t.Fatalf("the answer carries no workstream member: %v", created)
+	}
+	if made["slug"] != "autumn" {
+		t.Errorf("the tool created the slug %v, wanted the autumn it was given rather than a slug derived from the title", made["slug"])
+	}
+	if wantOutcome, wantRefusal, _ := byHand("autumn"); wantOutcome != contract.OutcomeOK || wantRefusal != "" {
+		t.Errorf("the terminal creating the same workstream answered %s %s, so the two heads disagree about the first call", wantOutcome, wantRefusal)
+	}
+
+	repeated := call(`{"actor":"alka","action":"new","workstream":"Autumn release","slug":"autumn"}`)
+	gotOutcome, gotRefusal, gotDetail := outcome(repeated)
+	if gotOutcome != contract.OutcomeRefused || gotRefusal != contract.WorkstreamSlugTaken {
+		t.Errorf("the tool repeating the creation answered %s %s, wanted a refusal of %s", gotOutcome, gotRefusal, contract.WorkstreamSlugTaken)
+	}
+	wantOutcome, wantRefusal, wantDetail := byHand("autumn")
+	if gotOutcome != wantOutcome || gotRefusal != wantRefusal || gotDetail != wantDetail {
+		t.Errorf("the tool answered %s/%s/%s and the terminal answered %s/%s/%s for the same taken slug", gotOutcome, gotRefusal, gotDetail, wantOutcome, wantRefusal, wantDetail)
+	}
+
+	malformed := call(`{"actor":"alka","action":"new","workstream":"Autumn release","slug":"Autumn Release"}`)
+	gotOutcome, gotRefusal, gotDetail = outcome(malformed)
+	if gotOutcome != contract.OutcomeRefused || gotRefusal != contract.Malformed {
+		t.Errorf("the tool given a malformed slug answered %s %s, wanted a refusal of %s", gotOutcome, gotRefusal, contract.Malformed)
+	}
+	wantOutcome, wantRefusal, wantDetail = byHand("Autumn Release")
+	if gotOutcome != wantOutcome || gotRefusal != wantRefusal || gotDetail != wantDetail {
+		t.Errorf("the tool answered %s/%s/%s and the terminal answered %s/%s/%s for the same malformed slug", gotOutcome, gotRefusal, gotDetail, wantOutcome, wantRefusal, wantDetail)
+	}
+
+	listed := payload(t, ask(t, newLibraryAt(t, root), `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"workstream","arguments":{"actor":"alka"}}}`))
+	listing, ok := listed["listing"].(map[string]any)
+	if !ok {
+		t.Fatalf("the listing carries no listing member: %v", listed)
+	}
+	if rows, ok := listing["workstreams"].([]any); !ok || len(rows) != 1 {
+		t.Errorf("the workbench carries %v after two refusals, wanted the one workstream the accepted call created", listing["workstreams"])
+	}
+}
+
 // TestTheColumnToolAnswersTheWayTheTerminalDoes is part of dinah-204 AC-6. The
 // new_column tool reaches the same library call `dinah column new` reaches, so
 // the two surfaces accept and refuse the same things: a plain creation by an
