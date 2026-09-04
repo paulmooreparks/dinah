@@ -195,8 +195,16 @@ func TestDepthReportsAtTheBoundaryAndNowhereElse(t *testing.T) {
 	if column.Count != 4 {
 		t.Errorf("the column counts %d cards and holds 4", column.Count)
 	}
+	// The failure names the kinds rather than the group values, because the
+	// leak this assertion is here to catch is a card leaf reaching a groups-level
+	// read and a report of the group values says nothing at all about one.
 	if len(column.Children) != 0 {
-		t.Errorf("the column draws %v and the depth left it nothing to draw", groupValues(column))
+		var kinds []string
+		for _, child := range column.Children {
+			kinds = append(kinds, child.Kind)
+		}
+		t.Errorf("the column draws %d children of the kinds %v and the depth left it nothing to draw",
+			len(column.Children), kinds)
 	}
 	if column.Hidden == nil {
 		t.Fatalf("the column reports nothing and the depth cut its cards off")

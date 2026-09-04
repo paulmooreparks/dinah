@@ -1785,10 +1785,12 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 // Delegating costs this sweep one thing, and a reader has to know exactly
 // which, because the loss is narrower than "this test covers less now" and
 // wider than nothing. The sweep can no longer catch a verb.StatesDrawn that
-// draws the wrong states. Both the expectation and the head under test call
-// that one function, so a rule broken inside it moves both sides together and
-// the rows still agree. Reversing the order StatesDrawn emits its vocabulary
-// in leaves this sweep green, which was checked rather than assumed.
+// heads the wrong states, and the same holds for verb.StatesShown since
+// expectTree delegates to it on the identical terms. Both the expectation and
+// the head under test call those two functions, so a rule broken inside either
+// moves both sides together and the rows still agree. Reversing the order
+// StatesDrawn emits its vocabulary in leaves this sweep green, which was checked
+// rather than assumed.
 //
 // One class of break does still redden here, and it reddens for a reason worth
 // naming so that a green run is not read as more than it is. A break that
