@@ -762,16 +762,19 @@ test("extension.ts opens the dialog through that seam rather than around it", ()
 	);
 });
 
-test("both creation commands are registered against the identifiers identity.ts names", () => {
-	// The registration is the other half extension.ts owns. A command declared
-	// in the manifest and registered nowhere shows up as "command not found"
-	// on the first click and in no test, which is what this notices.
-	for (const constant of ["COMMAND_NEW_CARD", "COMMAND_ATTACH_FILE"]) {
-		assert.ok(
-			EXTENSION_SOURCE.includes(`vscode.commands.registerCommand( ${constant},`),
-			`${constant} is declared in the manifest and registered nowhere`,
-		);
-	}
+test("both creation handlers resolve a context before they act", () => {
+	// This row used to assert that the two commands were registered, by looking
+	// for their constants in extension.ts's source text. dinah-369 deleted that
+	// half. assertCommandsFullyRegistered now compares the ids activate() really
+	// collected against the roster identity.ts declares, so a dropped
+	// registration fails activation for all fifteen commands rather than being
+	// noticed here for two of them.
+	//
+	// One guarantee went with the deletion and nothing replaces it. Nothing now
+	// checks that these two commands are registered under identity.ts's exported
+	// constants rather than under a copied string literal, because the guard
+	// compares values and a literal of the same value satisfies it.
+	//
 	// Each handler resolves a context before it acts, which is what keeps a
 	// palette invocation carrying no row from throwing (dinah-342). The column
 	// resolver is named here under the alias extension.ts imports it as, because

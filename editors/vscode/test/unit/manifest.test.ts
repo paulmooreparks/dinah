@@ -20,6 +20,7 @@ import {
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_REFRESH,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
 	CONTEXT_CARD_READY_CLAIM,
@@ -44,6 +45,7 @@ import {
 	VIEW_CONTAINER_ID,
 	VIEW_ID,
 } from "../../src/identity";
+import { assertCommandsFullyRegistered } from "../../src/registrationGuard";
 import { BINARY_KEY_VALUES, WORKBENCH_KEY_VALUES } from "../../src/status";
 
 // This file is compiled to out/test/unit/, so the extension root is three up.
@@ -1069,4 +1071,111 @@ test("the card clause for Attach File reaches every state a card row can stand i
 	for (const value of [CONTEXT_COLUMN_OPEN, CONTEXT_WORKBENCH_ROOT, CONTEXT_STATE_GROUP]) {
 		assert.equal(opensOn(clause, value), false, value);
 	}
+});
+
+// The registration guard's own comparison, driven directly (dinah-369).
+//
+// These four rows call assertCommandsFullyRegistered with lists this file
+// builds, which is the only way any unit test can reach it. The one place the
+// function runs against a real registration set is activate(), and no unit
+// test may import extension.ts, so these prove that the comparison is correct
+// and prove nothing about activate() calling it.
+//
+// Nothing standing proves that half either, and a reader should not hand the
+// job to the integration suite. That suite activates the extension in a real
+// editor host, but activation succeeds just as readily with activate()'s call
+// to the guard deleted, so the suite reddens only when a registration is
+// genuinely missing at the same time. Nothing has yet dropped a registration
+// and watched that suite go red. The arming pass is staged at this card's Test
+// stage (dinah-369 AC-6). Until it runs, no standing check reddens if the call
+// is removed. registrationGuard.ts's header carries the same account.
+//
+// They sit here rather than in a file of their own because the sibling rows
+// above hold identity.ts's roster against the manifest, and this holds the
+// same roster against what activation did with it.
+
+test("assertCommandsFullyRegistered does not throw when every declared command is registered, in any order", () => {
+	assert.ok(
+		TREE_COMMANDS.length > 0,
+		"identity.ts declares no commands, so every row below would pass on an empty roster",
+	);
+	assert.doesNotThrow(() =>
+		assertCommandsFullyRegistered(TREE_COMMANDS, [...TREE_COMMANDS]),
+	);
+	// Which order registeredIds arrives in depends on which of activate()'s
+	// two loops and five single calls ran first, and that is incidental to the
+	// guarantee, so the reversal has to pass as well.
+	assert.doesNotThrow(() =>
+		assertCommandsFullyRegistered(TREE_COMMANDS, [...TREE_COMMANDS].reverse()),
+	);
+});
+
+test("assertCommandsFullyRegistered throws naming a command dropped from registration", () => {
+	// The defect the guard exists to catch: one register() call site deleted
+	// from activate() while every other check stays green.
+	const registered = TREE_COMMANDS.filter((id) => id !== COMMAND_NEW_CARD);
+	assert.equal(
+		registered.length,
+		TREE_COMMANDS.length - 1,
+		"the filter dropped no command, so the throw below would be about something else",
+	);
+	assert.throws(
+		() => assertCommandsFullyRegistered(TREE_COMMANDS, registered),
+		(error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.ok(
+				error.message.includes(COMMAND_NEW_CARD),
+				`the message does not name the dropped command: ${error.message}`,
+			);
+			assert.ok(
+				error.message.includes("missing"),
+				`the message does not report the command as missing: ${error.message}`,
+			);
+			return true;
+		},
+	);
+});
+
+test("assertCommandsFullyRegistered throws naming a command registered that identity.ts does not declare", () => {
+	// The other direction, which is a command registered in activate() and
+	// declared in neither identity.ts nor the manifest. Nothing draws it in
+	// the tree, so it reaches a reader only through the Command Palette.
+	const stray = "dinah.tree.notReal";
+	assert.ok(
+		!TREE_COMMANDS.includes(stray),
+		"identity.ts now declares the id this row uses as its undeclared one",
+	);
+	assert.throws(
+		() => assertCommandsFullyRegistered(TREE_COMMANDS, [...TREE_COMMANDS, stray]),
+		(error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.ok(
+				error.message.includes(stray),
+				`the message does not name the undeclared command: ${error.message}`,
+			);
+			assert.ok(
+				error.message.includes("unexpected"),
+				`the message does not report the command as unexpected: ${error.message}`,
+			);
+			return true;
+		},
+	);
+});
+
+test("assertCommandsFullyRegistered does not report a duplicate registration as unexpected", () => {
+	// A repeated id does not make the roster incomplete, since every declared
+	// command is still covered. Pinning the count or the positions would fail
+	// activation over a duplicate or over a legitimate reordering, so the
+	// comparison reads both sides as sets (dinah-369 D-3). What VS Code does
+	// with a second registration of the same id is the editor's business, and
+	// nothing here rests on it.
+	const registered = [...TREE_COMMANDS, COMMAND_REFRESH];
+	assert.equal(
+		registered.length,
+		TREE_COMMANDS.length + 1,
+		"the duplicate was not appended, so this row proves nothing about duplicates",
+	);
+	assert.doesNotThrow(() =>
+		assertCommandsFullyRegistered(TREE_COMMANDS, registered),
+	);
 });
