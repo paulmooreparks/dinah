@@ -1079,8 +1079,15 @@ test("the card clause for Attach File reaches every state a card row can stand i
 // builds, which is the only way any unit test can reach it. The one place the
 // function runs against a real registration set is activate(), and no unit
 // test may import extension.ts, so these prove that the comparison is correct
-// and prove nothing about activate() calling it. Only the integration suite,
-// which activates the extension in a real editor host, proves that half.
+// and prove nothing about activate() calling it.
+//
+// Nothing standing proves that half either, and a reader should not hand the
+// job to the integration suite. That suite activates the extension in a real
+// editor host, but activation succeeds just as readily with activate()'s call
+// to the guard deleted, so the suite reddens only when a registration is
+// genuinely missing at the same time. The wiring was established once, by
+// dropping a registration deliberately and watching the suite fail (dinah-369).
+// registrationGuard.ts's header carries the same account.
 //
 // They sit here rather than in a file of their own because the sibling rows
 // above hold identity.ts's roster against the manifest, and this holds the

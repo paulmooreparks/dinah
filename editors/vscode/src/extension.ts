@@ -396,6 +396,27 @@ export async function activate(
 	// did rather than a second hand-maintained roster. The completeness check
 	// below reads it, and a registration that went around the helper would be
 	// invisible to that check (dinah-369).
+	//
+	// The id is recorded before the registration call rather than after it, and
+	// swapping the two would buy nothing. Neither statement depends on the
+	// other, so stopping the helper from registering leaves the push running in
+	// either order and the check below still reads a full roster. That was
+	// watched rather than assumed: a helper that records every id and registers
+	// nothing leaves the unit suite green at all 299 rows. Deleting the
+	// registration line by itself does break the build, because it leaves the
+	// handler parameter unread, but one further token restores the build with
+	// the commands still unregistered, so the compiler is not standing in for
+	// the check that is missing here.
+	//
+	// Recording the id from the call's own result is not available either,
+	// because registerCommand returns a Disposable and a Disposable names no
+	// command. What would actually close the gap is asking the editor through
+	// vscode.commands.getCommands, which resolves to the ids the editor knows
+	// about. That is a different guard rather than a reordering of this one,
+	// because it is asynchronous, it answers only inside a running editor, and
+	// it puts the comparison back inside the module no unit test can import.
+	// The order therefore stays, and registrationGuard.ts's header says plainly
+	// that the check reads this list rather than the registration itself.
 	const registeredIds: string[] = [];
 	function register(
 		id: string,

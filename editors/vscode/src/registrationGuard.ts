@@ -6,12 +6,18 @@
 // dropped registration fails the whole extension's activation and names the
 // id rather than letting the extension load with a menu item nobody wired up.
 //
-// The guard proves that activate() attempted a vscode.commands.registerCommand
-// call for every id identity.ts declares. It proves nothing about what the
-// editor did with that attempt. Whether VS Code accepted the registration,
-// whether the command reaches the menu a person right-clicks, and whether
-// invoking it does the right thing are promises of the editor, and no test in
-// this repository can settle any of them.
+// The guard proves that activate() called its register() helper once for every
+// id identity.ts declares, which is narrower than it may read. That helper
+// records the id in its own list and then calls vscode.commands.registerCommand
+// with it, so what this function compares is the helper's bookkeeping rather
+// than the registration. Stop the helper from registering and every id is still
+// recorded, so this function still returns quietly.
+// extension.ts carries the argument for leaving the helper written that way.
+//
+// The guard proves nothing at all about what the editor did with the call.
+// Whether VS Code accepted the registration, whether the command reaches the
+// menu a person right-clicks, and whether invoking it does the right thing are
+// promises of the editor, and no test in this repository can settle any of them.
 //
 // This module imports nothing, which is what lets a unit test call it. Those
 // unit tests live in test/unit/manifest.test.ts and they call it with lists
