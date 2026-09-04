@@ -600,6 +600,80 @@ func TestAFuzzyTitleHitScoresInsideItsBand(t *testing.T) {
 	}
 }
 
+// TestAFuzzyHitScoreMovesWithDistance asserts the second half of dinah-268
+// AC-18: a fuzzy title hit's Score carries the distance that produced it, so
+// two hits on the same phrase at different distances cannot score the same.
+//
+// The case above pins one hit inside a band, and a band is a range rather
+// than a value, so an implementation that answered one hardcoded Score on
+// every fuzzy hit could sit anywhere inside it and pass. Nothing else catches
+// that. AC-20's ranking clause allows an exact tie, so a flat Score never
+// loses a ranking; completeness and reduction bound which titles come back
+// but say nothing about what any of them scores.
+//
+// Sixty-four runes is where the case is set because that is the first length
+// at which typoBudget answers 2, so one phrase can reach a title one edit
+// away and a title two edits away at once. Quality is 1 - distance/length by
+// construction, which fixes both scores exactly: 3 + 63/64 for the near title
+// and 3 + 62/64 for the far one. Both numbers are exact in binary floating
+// point, so they are compared for equality rather than within a tolerance,
+// and both sit inside the same [3.75, 4) band the case above already checks.
+//
+// Both titles are the phrase with adjacent letters exchanged, one exchange
+// for the near title and two well separated exchanges for the far one, so
+// neither is a substring of the phrase and layer 1 answers neither.
+//
+//	go test ./internal/verb/ -run TestAFuzzyHitScoreMovesWithDistance -v
+func TestAFuzzyHitScoreMovesWithDistance(t *testing.T) {
+	const (
+		phrase   = "the coelacanth swims below the reef where no daylight ever falls"
+		oneEdit  = "the coelacanth wsims below the reef where no daylight ever falls"
+		twoEdits = "the coelacanth wsims below the reef where no daylight ever flals"
+	)
+	length := len([]rune(phrase))
+	if length != 64 {
+		t.Fatalf("the phrase is %d runes, and the case is built on 64", length)
+	}
+	if budget := typoBudget(length); budget != 2 {
+		t.Fatalf("the budget at %d runes is %d, and the case needs the 2 that lets both titles qualify", length, budget)
+	}
+	// The distances are the whole point, so they are measured rather than
+	// asserted in a comment. A fixture that drifted to two equal distances
+	// would make the inequality below unfalsifiable.
+	near := alignmentDistance([]rune(phrase), []rune(oneEdit))
+	far := alignmentDistance([]rune(phrase), []rune(twoEdits))
+	if near != 1 || far != 2 {
+		t.Fatalf("the fixture titles sit %d and %d edits from the phrase, wanted 1 and 2", near, far)
+	}
+
+	h := newHarness(t)
+	h.add(oneEdit)
+	h.add(twoEdits)
+	results := found(h, &Request{SearchText: phrase})
+
+	scores := map[string]float64{}
+	for _, hit := range results.Hits {
+		if hit.Kind == SearchKindCard && hit.MatchedIn == MatchedInTitle {
+			scores[hit.Title] = hit.Score
+		}
+	}
+	if len(scores) != 2 {
+		t.Fatalf("wanted a title hit on each of the two fixture cards, got %+v", results.Hits)
+	}
+
+	base := float64(searchTiers - tierTitle)
+	if want := base + 63.0/64.0; scores[oneEdit] != want {
+		t.Errorf("the one-edit title scored %g, wanted exactly %g", scores[oneEdit], want)
+	}
+	if want := base + 62.0/64.0; scores[twoEdits] != want {
+		t.Errorf("the two-edit title scored %g, wanted exactly %g", scores[twoEdits], want)
+	}
+	if scores[oneEdit] <= scores[twoEdits] {
+		t.Errorf("the one-edit title scored %g and the two-edit title %g, wanted the nearer title strictly higher; a Score that does not move with distance ties them here",
+			scores[oneEdit], scores[twoEdits])
+	}
+}
+
 // TestTheAlignmentDistancePricesOneSwapAsOneEdit asserts what dinah-268 D-9
 // chose the algorithm for, and it is what arms the fixtures above and below:
 // every distance those fixtures rest on is stated here and checked against the
@@ -1198,12 +1272,24 @@ const fillersPerTemplate = 20
 // can move it.
 //
 // Ranking is second. The title a phrase was a mistyping of must be present,
-// and its score must be strictly greater than every other hit's, so nothing
-// ties it for first place. The construction guarantees that only for the
-// chain-adjacent sibling each phrase is deliberately given, whose distance
-// from the phrase is greater than the intended title's distance of one; a
-// coincidental collision from some other template is not ruled out and fails
-// here if it happens.
+// and no other hit may score strictly higher than it, so the intended title
+// ranks first or ties for first. An exact tie is allowed, on the operator's
+// 2026-09-04 ruling, because the corpus produces ties by construction: a
+// one-letter swap inside a filler can land one edit from the chain-adjacent
+// sibling filler as well as one edit from its own title, and layer 2 gives
+// equal distance an identical score with nothing left to separate them. The
+// worked case is "hopping", whose swap "hpoping" sits one transposition from
+// "hopping" and one deletion from the sibling "hoping". The case counts those
+// ties and reports the count on every run rather than gating on it, since the
+// number is a property of the fixed filler chain and not something a correct
+// matcher could reduce.
+//
+// Allowing a tie costs something worth naming here. Once nothing scoring
+// strictly higher is the whole ranking bar, a matcher answering one flat
+// Score on every hit can never lose a ranking, and completeness and reduction
+// bound only which titles come back rather than what any of them scores.
+// TestAFuzzyHitScoreMovesWithDistance is what closes that, and it is the only
+// case that does.
 //
 // Reduction is third. The same sweep is counted again under the budget this
 // card replaced, max(1, n/4), written out in the test rather than reached
@@ -1308,8 +1394,9 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 		h.add(title)
 	}
 
-	missing, unranked, tied, shippedNoise := 0, 0, 0, 0
+	missing, unranked, outranked, tiedHits, tiedPhrases, shippedNoise := 0, 0, 0, 0, 0, 0
 	for at, phrase := range phrases {
+		tiedHere := false
 		results := found(h, &Request{SearchText: phrase})
 		answered := make(map[string]bool, len(results.Hits))
 		intended, present := 0.0, false
@@ -1332,14 +1419,20 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 				if hit.Kind == SearchKindCard && hit.MatchedIn == MatchedInTitle && hit.Title == titles[at] {
 					continue
 				}
-				if hit.Score >= intended {
-					tied++
-					if tied <= 3 {
-						t.Errorf("phrase %d ranks the hit %q (%s in %s, score %g) at or above its own title (score %g)",
+				if hit.Score > intended {
+					outranked++
+					if outranked <= 3 {
+						t.Errorf("phrase %d ranks the hit %q (%s in %s, score %g) strictly above its own title (score %g)",
 							at, hit.Title, hit.Kind, hit.MatchedIn, hit.Score, intended)
 					}
+				} else if hit.Score == intended {
+					tiedHits++
+					tiedHere = true
 				}
 			}
+		}
+		if tiedHere {
+			tiedPhrases++
 		}
 		// Completeness. The independently computed set is the floor, so a
 		// title inside the budget and absent from the Hits array is a thinned
@@ -1360,9 +1453,9 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 		}
 	}
 
-	t.Logf("dinah-268 AC-20: %d templated titles of %d runes swept with %d mistyped phrases through the library's own Search, at a shipped budget of %d edits. Completeness: the widest independently computed within-budget set holds %d titles (phrase %d), and %d titles across the sweep were inside a budget and absent from the Hits. Ranking: %d phrases lost their own title and %d hits tied with or beat one. Reduction: %d unrelated title hits under the shipped budget against %d under the retired max(1, n/4), a ratio of %.4f against a ceiling of one third.",
+	t.Logf("dinah-268 AC-20: %d templated titles of %d runes swept with %d mistyped phrases through the library's own Search, at a shipped budget of %d edits. Completeness: the widest independently computed within-budget set holds %d titles (phrase %d), and %d titles across the sweep were inside a budget and absent from the Hits. Ranking: %d phrases lost their own title and %d hits outranked one. Ties: %d phrases tie rather than win outright, over %d tying hits, which the 2026-09-04 ruling allows and this case reports rather than gates. Reduction: %d unrelated title hits under the shipped budget against %d under the retired max(1, n/4), a ratio of %.4f against a ceiling of one third.",
 		len(titles), len([]rune(titles[0])), len(phrases), typoBudget(len([]rune(phrases[0]))),
-		largest, largestAt, missing, unranked, tied, shippedNoise, oldNoise,
+		largest, largestAt, missing, unranked, outranked, tiedPhrases, tiedHits, shippedNoise, oldNoise,
 		float64(shippedNoise)/float64(oldNoise))
 
 	// The corpus has to stay adversarial enough for completeness to bite. A
@@ -1380,8 +1473,8 @@ func TestTheNoiseAgainstATemplatedCorpus(t *testing.T) {
 		t.Errorf("%d of %d phrases no longer find the title they were a mistyping of, so the transposition-catching behaviour is lost",
 			unranked, len(phrases))
 	}
-	if tied > 0 {
-		t.Errorf("%d hits across the sweep tie with or outrank the phrase's own title, so the intended card does not stand alone at the top", tied)
+	if outranked > 0 {
+		t.Errorf("%d hits across the sweep score strictly above the phrase's own title, so the intended card is not at the top", outranked)
 	}
 	if oldNoise == 0 {
 		t.Fatalf("the retired budget answered no unrelated title at all, so the reduction gate has no reference left to measure against")
