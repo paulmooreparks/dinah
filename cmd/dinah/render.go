@@ -857,11 +857,18 @@ func (s *session) composeRefusal(r *contract.Refusal) []string {
 		if carried != "" {
 			// The raise site joins references that are never empty, so
 			// every field of the split is a row and none is skipped.
-			t := table{indent: 2, columns: listColumn()}
+			//
+			// The local is named for the branch it belongs to rather than
+			// t, which the listing branch above already binds to a table
+			// of the same columns. Two same-named, same-columned calls in
+			// one function are indistinguishable to the registry that
+			// names call sites, so the two would trade entries silently
+			// if the branches were ever reordered.
+			carriedTable := table{indent: 2, columns: listColumn()}
 			for _, member := range strings.Split(carried, "\n") {
-				t.rows = append(t.rows, tableRow{fields: []string{member}})
+				carriedTable.rows = append(carriedTable.rows, tableRow{fields: []string{member}})
 			}
-			rows = s.tableLines(t)
+			rows = s.tableLines(carriedTable)
 		}
 	}
 	lines = append(lines, rows...)
