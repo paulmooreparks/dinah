@@ -62,6 +62,7 @@ var checkLists = map[string][]Check{
 		{Refusal: contract.Blocked, Key: "check.claim.4"},
 		{Refusal: contract.Held, Key: "check.claim.5"},
 		{Refusal: contract.NotOperator, Key: "check.claim.6"},
+		{Refusal: contract.UnresolvedItem, Key: "check.claim.7"},
 	},
 	Move: {
 		{Refusal: contract.UnknownCard, Key: "check.move.1"},
@@ -128,6 +129,7 @@ var pullChecks = []Check{
 	{Refusal: contract.AtCapacity, Key: "check.pull.10"},
 	{Refusal: contract.NotOperator, Key: "check.pull.11"},
 	{Refusal: contract.Locked, Key: "check.pull.12"},
+	{Refusal: contract.UnresolvedItem, Key: "check.pull.13"},
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs

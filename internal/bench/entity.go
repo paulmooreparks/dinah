@@ -830,3 +830,84 @@ func (b *Bench) refBelowHead(headKind, headRef, headDir, dir string) string {
 	}
 	return ref
 }
+
+// Item is one checklist item: a card's own recorded judgement, per
+// docs/design/format.md's "Checklist items" section. Nothing in Dinah writes
+// one yet, so the fields read here are the two CORE-CLAIM-9 needs and no
+// more, and a field a later card wants is added when that card arrives.
+type Item struct {
+	// ID is the item's 12-hex identifier.
+	ID string
+	// Dir is the item's directory.
+	Dir string
+	// Kind is one of acceptance_criterion, open_question and decision.
+	Kind string
+	// State is one of pending, resolved, verified and failed, and it is
+	// whatever the file says rather than a value read into the closed set,
+	// so a caller decides for itself what an unrecognized one means.
+	State string
+}
+
+// LoadItem reads one checklist item from its directory.
+func LoadItem(dir string) (*Item, error) {
+	text, err := ReadText(filepath.Join(dir, ItemAnchor))
+	if err != nil {
+		return nil, contract.Refuse(contract.UnknownPath, dir)
+	}
+	fm, _ := ParseAnchor(text)
+	return &Item{
+		ID:    filepath.Base(dir),
+		Dir:   dir,
+		Kind:  fm.Value("kind"),
+		State: fm.Value("state"),
+	}, nil
+}
+
+// ItemBlocksClaim reports whether an item is one CORE-CLAIM-9 refuses a claim
+// over.
+//
+// Two rulings live here rather than in the profile, because the core asks a
+// tool whether an item is resolved and leaves the answer to the layer holding
+// the items. An acceptance criterion never blocks: it is verified after the
+// work rather than before it, so blocking a claim on one would refuse the
+// card the very work that lets anybody verify it. And a blocking-kind item
+// whose state is absent, empty or outside the closed set is read as pending,
+// because reading a damaged file as resolved lets through exactly the
+// unanswered question the refusal exists to catch, where reading it as
+// pending costs a claim until somebody repairs the file.
+func ItemBlocksClaim(item *Item) bool {
+	if item.Kind != "open_question" && item.Kind != "decision" {
+		return false
+	}
+	switch item.State {
+	case "resolved", "verified", "failed":
+		return false
+	default:
+		return true
+	}
+}
+
+// BlockingItems reads the checklist items of a card that would refuse a claim
+// right now, in identifier order. It opens each item's anchor, where
+// CountAttachments counts a directory listing, because the answer depends on
+// what the anchor says rather than on the item existing. An item whose anchor
+// will not open is skipped, on the same terms Attachments already reads past
+// one, since an unreadable file is a defect dinah check reports rather than
+// one a claim discovers.
+func BlockingItems(cardDir string) []*Item {
+	collection := filepath.Join(cardDir, ChecklistDir)
+	var blocking []*Item
+	for _, id := range ListIDs(collection) {
+		item, err := LoadItem(filepath.Join(collection, id))
+		if err == nil && ItemBlocksClaim(item) {
+			blocking = append(blocking, item)
+		}
+	}
+	return blocking
+}
+
+// CountBlockingItems reports how many of a card's checklist items would refuse
+// a claim right now, for a reader that wants the number rather than the items.
+func CountBlockingItems(cardDir string) int {
+	return len(BlockingItems(cardDir))
+}

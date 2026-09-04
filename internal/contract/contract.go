@@ -86,7 +86,7 @@ func ExitCodeForRead(outcome string) int {
 	return 1
 }
 
-// The sixteen refusal names section 6.1 of the profile declares. A refusal
+// The seventeen refusal names section 6.1 of the profile declares. A refusal
 // Dinah reports that is not one of these carries the layer prefix of
 // LayerPrefix, which CORE-OUT-3 admits and DOC-LAYER-1 keeps collision-free.
 const (
@@ -106,14 +106,16 @@ const (
 	Terminal          = "terminal"
 	Malformed         = "malformed"
 	LayerCollisionErr = "layer-collision"
+	UnresolvedItem    = "unresolved-item"
 )
 
-// Declared lists the profile's sixteen refusal names in the order section 6.1
+// Declared lists the profile's seventeen refusal names in the order section 6.1
 // prints them.
 var Declared = []string{
 	UnknownCard, UnknownColumn, UnsupportedVer, Held, NotRequester,
 	Blocked, NotBlocked, NotHolder, AtCapacity, NotOperator,
 	NoOperator, NoOwner, NoReason, Terminal, Malformed, LayerCollisionErr,
+	UnresolvedItem,
 }
 
 // LayerPrefix is the prefix every refusal name Dinah introduces carries. The
@@ -532,7 +534,7 @@ var Events = []string{
 // Refusal is the error a verb returns when a rule says no. It carries the one
 // refusal name CORE-OUT-2 requires and a detail the head renders for a person.
 type Refusal struct {
-	// Name is the refusal name, from the profile's sixteen or dotted.
+	// Name is the refusal name, from the profile's seventeen or dotted.
 	Name string
 	// Detail names what the refusal was about: the column asked for, the
 	// owner holding the card, the version wanted. It is not a sentence and

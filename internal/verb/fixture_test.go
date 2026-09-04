@@ -193,6 +193,23 @@ func (h *harness) attach(ref, name, body string) {
 	h.reopen()
 }
 
+// item writes a checklist item onto a card by hand, which is the only way one
+// is written today: no verb creates or resolves an item, and the format is a
+// tree of plain files a person is meant to be able to edit. The frontmatter
+// is written as text rather than through Frontmatter so that a test can plant
+// a key that is absent or malformed, which is what CORE-CLAIM-9's own
+// fail-closed reading needs exercised.
+func (h *harness) item(ref, id, frontmatter, text string) string {
+	h.t.Helper()
+	dir := filepath.Join(h.card(ref).Dir, bench.ChecklistDir, id)
+	body := "---\n" + frontmatter + "---\n" + text + "\n"
+	if err := bench.WriteText(filepath.Join(dir, bench.ItemAnchor), body); err != nil {
+		h.t.Fatalf("write the item %s: %v", id, err)
+	}
+	h.reopen()
+	return dir
+}
+
 // do runs one contract verb and returns its response, reopening the bench
 // afterwards so the next act reads what this one wrote.
 func (h *harness) do(req *Request) *Response {

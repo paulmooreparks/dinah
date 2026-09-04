@@ -1224,14 +1224,14 @@ storage format 2
 Catalogs:
   Language  Translated
   --------  ----------
-  en        765/765
-  af        0/765
-  cs        0/765
-  de        765/765
-  es        0/765
-  fil       0/765
-  hi        765/765
-  id        0/765
+  en        769/769
+  af        0/769
+  cs        0/769
+  de        769/769
+  es        0/769
+  fil       0/769
+  hi        769/769
+  id        0/769
 [exit 0]
 ```
 
@@ -1586,6 +1586,7 @@ What can go wrong, in the order each is checked:
   6      the card's state is not `blocked`                             blocked
   7      the card's state is not `active`                              held
   8      taking the card up is legal for whoever asks                  not-operator
+  9      the card carries no structured item that is not resolved      unresolved-item
 
 Exit codes: 0 ok, 2 refused, 3 stale, 4 unreachable.
 [exit 0]

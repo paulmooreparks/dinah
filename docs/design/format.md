@@ -909,10 +909,10 @@ stays readable by every build after it.
 ## Checklist items
 
 A checklist item is a card-scoped entity recording a structured judgment:
-`checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `citations`,
-timestamps, and a creation ordinal in frontmatter, the item's text as the
-body, a resolution note required to leave pending, and attachments for
-evidence per the universal rule. Kinds are a closed set of three
+`checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `state`,
+`citations`, timestamps, and a creation ordinal in frontmatter, the item's
+text as the body, a resolution note required to leave pending, and
+attachments for evidence per the universal rule. Kinds are a closed set of three
 (acceptance_criterion, open_question, decision) and states a closed set
 (pending, resolved, verified, failed), closed because method text travels
 between boards and "file it with owner operator" must mean the same thing
@@ -928,9 +928,15 @@ occupies a slot on every card whether the method wants it or not, while a
 collection under absence-means-empty is invisible until used. A board
 whose method never files a criterion carries no checklist anywhere. What
 is fixed is only the shape when used, which is what lets shared method
-packs speak one vocabulary. Whether contract behavior ever attaches to
-items (gating a move on unresolved items) is a boundary-table ruling, not
-assumed here.
+packs speak one vocabulary. Contract behaviour now attaches to one case:
+CORE-CLAIM-9 refuses a claim on a card carrying a pending `open_question`
+or `decision` item, reporting `unresolved-item`. An `acceptance_criterion`
+item never triggers this refusal, whatever its state; its own resolution
+belongs to a citation check at Move into Done that no card has built yet.
+Nothing today creates or resolves an item, so exercising this refusal, or
+clearing it, means hand-editing an item's `state` key directly, which the
+format's own plain-text, git-friendly shape makes an ordinary act rather
+than a workaround.
 
 ### Citations
 

@@ -792,15 +792,15 @@ func TestEveryRefusalNameIsLegal(t *testing.T) {
 			t.Errorf("DOC-LAYER-1: the profile's own name %s carries a full stop", name)
 		}
 	}
-	if len(contract.Declared) != 16 {
-		t.Errorf("wanted the profile's sixteen declared names, got %d", len(contract.Declared))
+	if len(contract.Declared) != 17 {
+		t.Errorf("wanted the profile's seventeen declared names, got %d", len(contract.Declared))
 	}
 	for _, name := range contract.Introduced {
 		if declared[name] {
 			t.Errorf("%s is both declared by the profile and introduced by this layer", name)
 		}
 		if !strings.HasPrefix(name, contract.LayerPrefix) {
-			t.Errorf("%s is not one of the profile's sixteen and carries no layer prefix", name)
+			t.Errorf("%s is not one of the profile's seventeen and carries no layer prefix", name)
 		}
 	}
 	// Every name reachable from the code is one of the two sets, which is
