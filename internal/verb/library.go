@@ -232,6 +232,10 @@ type CardView struct {
 	// attachments themselves are one read away for the one card somebody
 	// asked about.
 	AttachmentCount int `json:"attachment_count,omitempty"`
+	// BlockingItems is how many of the card's checklist items are, right
+	// now, ones CORE-CLAIM-9 would refuse a claim over. A reader sees the
+	// refusal coming rather than meeting it and being told afterwards.
+	BlockingItems int `json:"blocking_items,omitempty"`
 }
 
 // Instructions are the three layers of the served chain, carried separately
@@ -364,6 +368,7 @@ func (l *Library) view(card *bench.Card) *CardView {
 		Revision:    card.Revision,
 
 		AttachmentCount: bench.CountAttachments(card.Dir),
+		BlockingItems:   bench.CountBlockingItems(card.Dir),
 	}
 	if column := l.Bench.Column(card.Column); column != nil {
 		v.ColumnTitle = column.Title

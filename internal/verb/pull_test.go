@@ -745,11 +745,11 @@ const reservedAmbiguousDefinition = `{
   ]
 }`
 
-// TestPullChecksAgainstTheFullFourteenRowTable asserts that the ordered
+// TestPullChecksAgainstTheFullFifteenRowTable asserts that the ordered
 // precondition list Pull's help is generated from is the workbench pair
-// followed by the twelve pull rows the spec owns, in the order the spec
+// followed by the thirteen pull rows the spec owns, in the order the spec
 // names them. This is the test the help renders against.
-func TestPullChecksAgainstTheFullFourteenRowTable(t *testing.T) {
+func TestPullChecksAgainstTheFullFifteenRowTable(t *testing.T) {
 	checks := Checks(Pull)
 	want := []Check{
 		{Refusal: contract.UnsupportedVer, Key: "check.workbench.1"},
@@ -766,6 +766,7 @@ func TestPullChecksAgainstTheFullFourteenRowTable(t *testing.T) {
 		{Refusal: contract.AtCapacity, Key: "check.pull.10"},
 		{Refusal: contract.NotOperator, Key: "check.pull.11"},
 		{Refusal: contract.Locked, Key: "check.pull.12"},
+		{Refusal: contract.UnresolvedItem, Key: "check.pull.13"},
 	}
 	if len(checks) != len(want) {
 		t.Fatalf("wanted %d rows, got %d", len(want), len(checks))
@@ -777,11 +778,12 @@ func TestPullChecksAgainstTheFullFourteenRowTable(t *testing.T) {
 	}
 }
 
-// TestClaimChecksAgainstTheFullSixRowTable is the claim's half of the same
-// assertion, and it is what pins the new row's position: the claim's own list
-// ends with the operator-owned reservation, behind the workbench pair every
-// contract verb carries in front of its own rows.
-func TestClaimChecksAgainstTheFullSixRowTable(t *testing.T) {
+// TestClaimChecksAgainstTheFullSevenRowTable is the claim's half of the same
+// assertion, and it is what pins each new row's position: the claim's own list
+// ends with the unresolved-item row behind the operator-owned reservation,
+// behind the workbench pair every contract verb carries in front of its own
+// rows.
+func TestClaimChecksAgainstTheFullSevenRowTable(t *testing.T) {
 	own, found := ownChecks(Claim)
 	if !found {
 		t.Fatal("the claim declares no precondition list")
@@ -793,6 +795,7 @@ func TestClaimChecksAgainstTheFullSixRowTable(t *testing.T) {
 		{Refusal: contract.Blocked, Key: "check.claim.4"},
 		{Refusal: contract.Held, Key: "check.claim.5"},
 		{Refusal: contract.NotOperator, Key: "check.claim.6"},
+		{Refusal: contract.UnresolvedItem, Key: "check.claim.7"},
 	}
 	if len(own) != len(wantOwn) {
 		t.Fatalf("wanted %d own rows, got %d", len(wantOwn), len(own))

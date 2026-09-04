@@ -214,6 +214,11 @@
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "source": "62a48e4b2f8032fd"
     },
+    "check.claim.7": {
+      "text": "die Karte trägt keinen strukturierten Eintrag, der nicht aufgelöst ist",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
+      "source": "50228523d584f48"
+    },
     "check.clean": {
       "text": "Keine strukturellen Mängel gefunden.",
       "context": "Printed when check finds nothing.",
@@ -523,6 +528,11 @@
       "text": "das Ziel wird nicht gerade stillgelegt",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
       "source": "64b7abf44b69542b"
+    },
+    "check.pull.13": {
+      "text": "die Karte trägt keinen strukturierten Eintrag, der nicht aufgelöst ist",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
+      "source": "50228523d584f48"
     },
     "check.ordinal-duplicate": {
       "text": "{detail} trägt eine Erstellungs-Ordnungszahl, die ein anderes Mitglied seiner Sammlung bereits trägt, sodass eine Position zwei von ihnen benennt",
@@ -2857,6 +2867,16 @@
       "text": "führen Sie `dinah {command}` mit einem davon aus",
       "context": "Printed under the columns refusal.unknown-column lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next.",
       "source": "464b1380b274754"
+    },
+    "refusal.unresolved-item": {
+      "text": "diese Karte trägt den Eintrag {detail}, der nicht aufgelöst ist",
+      "context": "The sentence printed after the refusal name unresolved-item. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "d0c5d88e34acb80f"
+    },
+    "refusal.unresolved-item.next": {
+      "text": "; beantworten Sie ihn und markieren Sie diesen Eintrag in checklist/{detail}/item.md als aufgelöst",
+      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
+      "source": "42e653b228b5e733"
     },
     "refusal.unsupported-version": {
       "text": "Dinah implementiert {detail} nicht",

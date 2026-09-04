@@ -137,7 +137,27 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 	if refusal := l.claimableState(req, card); refusal != nil {
 		return refusal
 	}
-	return l.claimableColumn(req, card)
+	if refusal := l.claimableColumn(req, card); refusal != nil {
+		return refusal
+	}
+	return l.claimableItems(req, card)
+}
+
+// claimableItems carries the last row of the claim's list, CORE-CLAIM-9. It
+// stands after claimableColumn because every row ahead of it asks about the
+// card's state or the column the card stands in, where this one reads the
+// card's own checklist, which neither of those touches.
+//
+// No column declares this and no workbench opts into it. An unanswered
+// question is a property of the card carrying it rather than of wherever the
+// card happens to be standing when somebody reaches for it, so the refusal
+// binds every claim on every workbench.
+func (l *Library) claimableItems(req *Request, card *bench.Card) *Response {
+	blocking := bench.BlockingItems(card.Dir)
+	if len(blocking) == 0 {
+		return nil
+	}
+	return l.refuse(req, card, contract.UnresolvedItem, blocking[0].ID)
 }
 
 // claimableColumn carries the last two rows of the claim's list, which are the

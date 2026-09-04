@@ -25,19 +25,19 @@ import (
 const (
 	// declaredVersion is the version sentence of section 2, in full, so a
 	// bump cannot slip through as a one-character diff.
-	declaredVersion = "This document is version 0.10 of the profile whose identity string is\n`dinah-core`."
+	declaredVersion = "This document is version 0.11 of the profile whose identity string is\n`dinah-core`."
 	// publishedStatements is how many statements the document publishes.
-	publishedStatements = 135
+	publishedStatements = 136
 	// publishedChangelogEntries is how many entries section 12 carries. The
 	// changelog is append-only under DOC-CHG-1, so this number never falls.
-	publishedChangelogEntries = 10
+	publishedChangelogEntries = 11
 	// declaredCurrentRevision is the sentence dinah-203 put at the head of
 	// section 12, where a reader scanning the changelog meets 1.0, 2.0 and 3.0
 	// before meeting anything that says which revision is live. It states the
 	// revision a second time in this document, and an unread second copy is
 	// how the header at line 3 went stale in the first place, so it is read
 	// here.
-	declaredCurrentRevision = "The current revision is `dinah-core 0.10`."
+	declaredCurrentRevision = "The current revision is `dinah-core 0.11`."
 )
 
 // changelogEntry matches an entry heading of section 12, which carries the

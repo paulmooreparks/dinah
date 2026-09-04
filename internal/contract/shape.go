@@ -261,6 +261,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.unknown-column.next"},
 	},
 	{
+		// The detail names the item rather than the card, because a card
+		// carrying several unresolved items sends its reader to a file to
+		// edit and one card reference would not say which.
+		Name:      UnresolvedItem,
+		Fragments: []Fragment{{Key: "refusal.unresolved-item.next"}},
+		NextStep:  []string{"refusal.unresolved-item.next"},
+	},
+	{
 		// The window clause says what this build reads, so the next step
 		// follows it rather than preceding it.
 		Name:   UnsupportedVer,

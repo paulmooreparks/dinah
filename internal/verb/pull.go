@@ -306,6 +306,14 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
+	// A pull that takes the card up is a claim, so it answers CORE-CLAIM-9
+	// as a plain claim does. A --no-claim pull leaves the card ready and
+	// takes nothing up, so nothing about an unresolved item refuses it.
+	if !req.NoClaim {
+		if refusal := l.claimableItems(req, card); refusal != nil {
+			return refusal
+		}
+	}
 	now := l.Now()
 	stamp := bench.Stamp(now)
 	events := make([]bench.Event, 0, 2)

@@ -211,6 +211,11 @@
       "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
       "skeleton": true
     },
+    "check.claim.7": {
+      "text": "the card carries no structured item that is not resolved",
+      "context": "One row of the ordered precondition list of claim, quoted from section 6 of the core profile.",
+      "skeleton": true
+    },
     "check.clean": {
       "text": "No structural defects found.",
       "context": "Printed when check finds nothing.",
@@ -509,6 +514,11 @@
     "check.pull.12": {
       "text": "the destination is not being retired",
       "context": "One row of the ordered precondition list of pull: a destination whose retirement is in flight refuses, in the words move refuses it.",
+      "skeleton": true
+    },
+    "check.pull.13": {
+      "text": "the card carries no structured item that is not resolved",
+      "context": "One row of the ordered precondition list of pull: a pull that takes the card up answers claim's own last row, in the words claim refuses it.",
       "skeleton": true
     },
     "check.ordinal-duplicate": {
@@ -2778,6 +2788,16 @@
     "refusal.unknown-column.next": {
       "text": "run `dinah {command}` with one of them",
       "context": "Printed under the columns refusal.unknown-column lists, on its own line and with no leading punctuation. {command} is the command the reader typed, because this refusal answers ls, move, add and next.",
+      "skeleton": true
+    },
+    "refusal.unresolved-item": {
+      "text": "this card carries the item {detail}, which is not resolved",
+      "context": "The sentence printed after the refusal name unresolved-item. {detail} carries the identifier, owner or column the refusal is about.",
+      "skeleton": true
+    },
+    "refusal.unresolved-item.next": {
+      "text": "; answer it, then mark that item resolved in checklist/{detail}/item.md",
+      "context": "Spliced onto refusal.unresolved-item as the next step. {detail} is the item that is not resolved, and it names no command, because nothing in Dinah writes a checklist item yet and the edit is made in the file.",
       "skeleton": true
     },
     "refusal.unsupported-version": {
