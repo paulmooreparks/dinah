@@ -372,17 +372,21 @@ var rootScoped = map[string]func(root, home string, req *verb.Request) (any, err
 	"changes": func(root, home string, req *verb.Request) (any, error) {
 		return verb.ChangesForest(root, home, req, walkDepth(req))
 	},
+	"search_cards": func(root, home string, req *verb.Request) (any, error) {
+		return verb.SearchForest(root, home, req, walkDepth(req))
+	},
 }
 
 // forestMember is the payload key each root-scoped answer is published under.
 // One distinct key per verb, so a client dispatching on the response shape
 // never has to guess which root-scoped answer the envelope carried.
 var forestMember = map[string]string{
-	"tree":       "forest",
-	"status":     "root_status",
-	"list_cards": "root_listing",
-	"next_card":  "root_offers",
-	"changes":    "root_changes",
+	"tree":         "forest",
+	"status":       "root_status",
+	"list_cards":   "root_listing",
+	"next_card":    "root_offers",
+	"changes":      "root_changes",
+	"search_cards": "root_search",
 }
 
 // walkDepth reads the depth bound off a request, falling back to the surface's
@@ -825,6 +829,8 @@ func assignValue(req *verb.Request, name, value string) {
 		req.Title = value
 	case "text":
 		req.Text = value
+	case "phrase":
+		req.SearchText = value
 	case "reason":
 		req.Reason = value
 	case "kind":
@@ -873,6 +879,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateWitness = value
 	case "no-claim":
 		req.NoClaim = value
+	case "archived":
+		req.Archived = value
 	case "catalogs":
 		// The version tool always reports catalog coverage, so the marker
 		// carries nothing here.

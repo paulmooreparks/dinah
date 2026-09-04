@@ -188,3 +188,20 @@ func (s *session) renderRootChanges(answer *verb.RootChangeSet) {
 	s.line("")
 	s.line(s.r.T("changes.cursor", "cursor", answer.Cursor))
 }
+
+// renderRootSearch prints what each workbench beneath the root found.
+func (s *session) renderRootSearch(answer *verb.RootSearch) {
+	if len(answer.Workbenches) == 0 {
+		s.rootEmpty(answer.Root)
+		return
+	}
+	for i, member := range answer.Workbenches {
+		if i > 0 {
+			s.line("")
+		}
+		if s.rootHeading(member.Candidate, member.Unanswered) {
+			continue
+		}
+		s.renderSearch(member.Results)
+	}
+}

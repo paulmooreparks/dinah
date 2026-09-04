@@ -58,6 +58,9 @@ type sweptRecord struct {
 	// benches are the workbenches populateBase created, with the titles
 	// sweptRetitle wrote and the slugs they were given.
 	benches []sweptBenchRecord
+	// searchHits are the hits the search fixture planted, which is what the
+	// search block's own expectation is built from.
+	searchHits []sweptSearchRecord
 	// workbench is the healthy tree's own fields, as init wrote them.
 	workbench sweptWorkbenchRecord
 	// workstreams are the workstreams the healthy tree holds, in creation
@@ -1078,6 +1081,29 @@ func expectMatches(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 		rows = append(rows, sweptTexts(card.ref, column.title, sweptToken(tag, card.standing), card.title))
 	}
 	return sweptExpectation{rows: rows, source: "the record's cards, since the entry runs query with no argument"}
+}
+
+// sweptSearchRecord is one hit the search fixture planted: what it planted it
+// on, and where in that entity the phrase sits.
+type sweptSearchRecord struct {
+	kind      string
+	ref       string
+	title     string
+	matchedIn string
+	snippet   string
+}
+
+// expectSearch is dinah search for the one phrase the search fixture planted,
+// which finds it in every card's title, in one column's instructions and in
+// the workbench's own body.
+func expectSearch(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, hit := range r.searchHits {
+		rows = append(rows, sweptTexts(sweptToken(tag, hit.kind), hit.ref, hit.title,
+			sweptToken(tag, hit.matchedIn), hit.snippet))
+	}
+	return sweptExpectation{rows: rows, source: "the hits the search fixture planted"}
 }
 
 // expectSettings is dinah config: one row per key the tool knows, with the

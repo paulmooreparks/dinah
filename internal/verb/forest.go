@@ -1,6 +1,8 @@
 package verb
 
 import (
+	"strings"
+
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
@@ -295,6 +297,62 @@ func NextForest(root, home string, req *Request, maxDepth int) (*RootOffers, err
 				member.Unanswered = refusalNameOf(err)
 			} else {
 				member.Offers = offers
+			}
+		}
+		answer.Workbenches = append(answer.Workbenches, member)
+	}
+	return answer, nil
+}
+
+// RootSearch is one dinah search --root answer.
+type RootSearch struct {
+	// Root is the directory the walk started from, as the caller named it.
+	Root string `json:"root"`
+	// Workbenches are the walk's rows in its own order, never nil.
+	Workbenches []WorkbenchSearch `json:"workbenches"`
+}
+
+// WorkbenchSearch is one workbench's row of a RootSearch.
+type WorkbenchSearch struct {
+	bench.Candidate
+	// Unanswered is the refusal name this workbench's own Search call raised,
+	// empty on a row that answered and on a row that never opened. It is
+	// separate from the embedded Candidate.Refused, which says the workbench
+	// would not read: a row carrying Unanswered read perfectly well, carries
+	// its title and its slug, and declined the question. A client drawing a
+	// workbench it could not read differently from one that declined a read
+	// asks which field is set, rather than inspecting how a refusal name is
+	// spelled.
+	Unanswered string `json:"unanswered,omitempty"`
+	// Results are this workbench's own hits, absent on a row that would not
+	// read and on a row that read and did not answer.
+	Results *SearchResults `json:"results,omitempty"`
+}
+
+// SearchForest asks every workbench beneath root the same Search question,
+// with the one phrase, the one filter and the one archive choice.
+//
+// An empty phrase is refused once, ahead of the walk, the way TreeForest
+// refuses an unknown axis: a caller who typed no phrase made one mistake
+// rather than twenty-five, and the refusal belongs to what they typed rather
+// than to any workbench that would have answered it.
+func SearchForest(root, home string, req *Request, maxDepth int) (*RootSearch, error) {
+	if strings.TrimSpace(req.SearchText) == "" {
+		return nil, contract.Refuse(contract.EmptySearch, "")
+	}
+	rows, err := forestCandidates(root, home, maxDepth)
+	if err != nil {
+		return nil, err
+	}
+	answer := &RootSearch{Root: root, Workbenches: make([]WorkbenchSearch, 0, len(rows))}
+	for _, row := range rows {
+		member := WorkbenchSearch{Candidate: row.Candidate}
+		if row.Library != nil {
+			results, err := row.Library.Search(req)
+			if err != nil {
+				member.Unanswered = refusalNameOf(err)
+			} else {
+				member.Results = results
 			}
 		}
 		answer.Workbenches = append(answer.Workbenches, member)

@@ -202,6 +202,7 @@ var guides = map[string][]string{
 	"contents":     {"references"},
 	"attachments":  {"references"},
 	"query":        {"query"},
+	"search":       {"query"},
 }
 
 // Guides lists the guide topics a command's help points at: the command's own,
@@ -312,6 +313,22 @@ var params = map[string][]Param{
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
 	},
 	"query": {{Name: "query", Rest: true, Field: "Query"}},
+	// The bare positional is named phrase rather than text because the mcp
+	// head's assignValue is one flat switch on parameter name, shared across
+	// every command and carrying no way to tell which one originated a call,
+	// and comment's own text parameter has already claimed that name there.
+	// Every Rest command picks a name the switch has not already taken, for
+	// the same reason. The name is never typed by a caller at a terminal,
+	// where a Rest positional is resolved by position, so what it changes is
+	// the syntax line and the mcp schema's own key, both generated from this
+	// one table.
+	"search": {
+		{Name: "phrase", Required: true, Rest: true, Field: "SearchText"},
+		{Name: "query", Flag: true, Value: "terms", Field: "Query"},
+		{Name: "archived", Flag: true, Marker: true, Field: "Archived"},
+		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root"},
+		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth"},
+	},
 	"tree": {
 		{Name: "query", Rest: true, Field: "Query"},
 		{Name: "group-by", Flag: true, Value: "axes", Field: "GroupBy"},

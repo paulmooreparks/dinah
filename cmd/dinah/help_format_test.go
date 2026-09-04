@@ -56,6 +56,8 @@ READ
     [--max-depth <n>]
   next [column] [--root <path>] [--max-depth <n>]        The card a column offers next
   query [query]                                          The cards of the workbench that match a query
+  search <phrase> [--query <terms>] [--archived]         Every place a phrase occurs in this workbench
+    [--root <path>] [--max-depth <n>]
   tree [query] [--group-by <axes>] [--depth <level>]     The workbench's cards nested along a chain of axes
     [--root <path>] [--max-depth <n>]
   contents <ref> [--depth <level>]                       What an entity of the workbench contains
@@ -143,6 +145,7 @@ READ
   ls [column] [--ready] [--root <path>] [--max-depth <n>]                                          The cards of a column, in queue order
   next [column] [--root <path>] [--max-depth <n>]                                                  The card a column offers next
   query [query]                                                                                    The cards of the workbench that match a query
+  search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                 Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]             The workbench's cards nested along a chain of axes
   contents <ref> [--depth <level>]                                                                 What an entity of the workbench contains
   attachments [ref]                                                                                What is attached to an entity of the workbench

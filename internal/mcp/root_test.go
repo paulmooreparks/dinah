@@ -82,10 +82,35 @@ func rootScopedTools(t *testing.T) map[string]string {
 			t.Errorf("a member name is declared for %s and nothing dispatches a root-scoped read to it", name)
 		}
 	}
-	if len(paired) != 5 {
-		t.Fatalf("the surface declares %d root-scoped tools, wanted the five a refresh needs", len(paired))
+	if len(paired) != 6 {
+		t.Fatalf("the surface declares %d root-scoped tools, wanted the five a sidebar refresh needs and the search dinah-268 added", len(paired))
 	}
 	return paired
+}
+
+// rootScopedArguments are the arguments one root-scoped tool needs beyond the
+// actor and the root, which is a required parameter the tool would refuse
+// without. search_cards is the only entry: its phrase is required, and a call
+// carrying none is refused before any walk begins, which is the right answer
+// to that call and no answer at all to what these cases ask.
+func rootScopedArguments(tool string) map[string]any {
+	if tool == "search_cards" {
+		return map[string]any{"phrase": "card"}
+	}
+	return nil
+}
+
+// withRootScopedArguments builds one call's arguments: what the case itself
+// names, plus whatever the tool requires beyond it.
+func withRootScopedArguments(tool string, arguments map[string]any) map[string]any {
+	built := map[string]any{}
+	for name, value := range arguments {
+		built[name] = value
+	}
+	for name, value := range rootScopedArguments(tool) {
+		built[name] = value
+	}
+	return built
 }
 
 // toolNamed answers the surface entry a tool name stands for, and fails the
@@ -187,7 +212,7 @@ func TestEveryRootScopedToolAnswersForEveryWorkbenchBeneathTheRoot(t *testing.T)
 	root, library := mcpForest(t, "alpha", "customer/beta", "customer/deep/gamma")
 	for tool, member := range rootScopedTools(t) {
 		t.Run(tool, func(t *testing.T) {
-			answer := callWithArguments(t, root, library, tool, map[string]any{"actor": "alka", "root": root})
+			answer := callWithArguments(t, root, library, tool, withRootScopedArguments(tool, map[string]any{"actor": "alka", "root": root}))
 			body, ok := answer[member].(map[string]any)
 			if !ok {
 				t.Fatalf("the answer carries no %s member: %v", member, answer)
@@ -238,7 +263,7 @@ func TestARootArgumentOutsideTheServersRootIsRefused(t *testing.T) {
 
 	for tool := range rootScopedTools(t) {
 		t.Run(tool, func(t *testing.T) {
-			answer := callWithArguments(t, root, library, tool, map[string]any{"actor": "alka", "root": outside})
+			answer := callWithArguments(t, root, library, tool, withRootScopedArguments(tool, map[string]any{"actor": "alka", "root": outside}))
 			if got, _ := answer["refusal"].(string); got != wanted {
 				t.Errorf("the root argument's escape answered %q, wanted the same %s the workbench argument gives", got, wanted)
 			}
@@ -305,7 +330,7 @@ func TestADepthWithNoRootIsRefusedOnEveryRootScopedTool(t *testing.T) {
 	for tool := range rootScopedTools(t) {
 		t.Run(tool, func(t *testing.T) {
 			answer := callWithArguments(t, root, library, tool,
-				map[string]any{"actor": "alka", "max-depth": "2"})
+				withRootScopedArguments(tool, map[string]any{"actor": "alka", "max-depth": "2"}))
 			if got, _ := answer["refusal"].(string); got != contract.DepthWithoutRoot {
 				t.Errorf("refusal %q, wanted %s", got, contract.DepthWithoutRoot)
 			}

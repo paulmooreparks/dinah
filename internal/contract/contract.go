@@ -271,6 +271,12 @@ const (
 	// command line with the free text quoted, since that is the whole cost
 	// of the rule and the fix a reader needs to see.
 	MultipleWords = LayerPrefix + "multiple-words"
+	// EmptySearch is dinah search given no phrase to search for, either
+	// because nothing was typed or because what was typed was an empty
+	// quotation. It is a refusal rather than an answer: a caller who wrote no
+	// phrase made a mistake, and reading the empty phrase as a request for
+	// every card would hand them a whole workbench they never asked for.
+	EmptySearch = LayerPrefix + "empty-search"
 	// UnknownWorkstream is a reference naming no workstream of this
 	// workbench, in either half of the collection. It is separate from
 	// unknown-column because a workstream is not a station of the flow, and
@@ -394,7 +400,7 @@ var Introduced = []string{
 	UnknownPath, NoEditor, NoWorkbench, UnknownVerb, Usage, Interrupted,
 	NoWorkbenchFound, AmbiguousWorkbench, LastColumn, UnreadableBench, DamagedBench, NoConfiguredWorkbench,
 	WorkbenchNotApplicable, RepairWouldEmptyColumns, NeedsVocabularyMigration,
-	AddNeedsAColumn, MultipleWords,
+	AddNeedsAColumn, MultipleWords, EmptySearch,
 	UnknownField, UnknownValue, UnknownAxis, RepeatedAxis, ChainTooLong,
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,

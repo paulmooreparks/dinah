@@ -37,6 +37,9 @@ READ
     [--max-depth <n>]
   query [query]                             The cards of the workbench that
                                               match a query
+  search <phrase> [--query <terms>]         Every place a phrase occurs in this
+    [--archived] [--root <path>]              workbench
+    [--max-depth <n>]
   tree [query] [--group-by <axes>]          The workbench's cards nested along a
     [--depth <level>] [--root <path>]         chain of axes
     [--max-depth <n>]

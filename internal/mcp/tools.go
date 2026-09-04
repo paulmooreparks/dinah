@@ -83,6 +83,7 @@ var tools = []tool{
 	{name: "next_card", command: "next", run: readNext},
 	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
 	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
+	{name: "search_cards", command: "search", run: readSearch, wrapper: "results"},
 	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
 	{name: "contents", command: "contents", run: readContents},
 	{name: "attachments", command: "attachments", run: readAttachments},
@@ -379,6 +380,17 @@ func readQuery(l *verb.Library, r *verb.Request) any {
 		return l.FromError(r, err)
 	}
 	return wrap(map[string]any{"matches": matches}, readAffordances)
+}
+
+// readSearch answers the search_cards tool, which is what puts a duplicate
+// check in front of every agent that reaches this workbench over the protocol
+// and has no filesystem to grep.
+func readSearch(l *verb.Library, r *verb.Request) any {
+	results, err := l.Search(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	return wrap(map[string]any{"results": results}, readAffordances)
 }
 
 // readTree answers the tree tool. It carries the same Tree object the cli head
