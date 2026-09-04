@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dinah-372: sidebar mask and marketplace icon candidates</title>
+<style>
+  /*
+    Measured, not assumed. Every colour and size a constant below stands for
+    is a value dinah-372 requires Implement to read off a running VS Code
+    window rather than guess, because VS Code documents what a theme colour
+    is FOR (see code.visualstudio.com/api/references/theme-color) without
+    promising a fixed hex value for it, and the Extensions-view row icon size
+    is not documented at all. Replace every placeholder below with the
+    recorded measurement and record the VS Code version and the theme used
+    in a card comment, per dinah-372 AC-7 and AC-9.
+  */
+  :root {
+    /* Measure from Default Dark+: activityBar.background */
+    --activity-bar-bg: #333333; /* PLACEHOLDER: confirm against a running window */
+    /* Measure from Default Dark+: activityBar.foreground (active icon tint) */
+    --activity-bar-fg: #ffffff; /* PLACEHOLDER: confirm against a running window */
+    /* Measure from Default Dark+: activityBar.inactiveForeground */
+    --activity-bar-inactive-fg: rgba(255, 255, 255, 0.4); /* PLACEHOLDER: confirm */
+    /* Measure the Extensions view row icon's on-screen pixel size (AC-7) */
+    --extensions-row-icon-size: 32px; /* PLACEHOLDER: confirm against a running window */
+    /* Per VS Code's Extension Manifest Reference, the icon field: 128x128 (see dinah-372 AC-8) */
+    --marketplace-tile-size: 128px;
+  }
+
+  body {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    background: #f3f3f3;
+    color: #1e1e1e;
+    margin: 0;
+    padding: 24px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  h2 {
+    font-size: 15px;
+    margin-top: 40px;
+  }
+
+  p.note {
+    color: #616161;
+    max-width: 60em;
+  }
+
+  section.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .candidate {
+    border: 1px solid #d0d0d0;
+    background: #ffffff;
+    padding: 8px;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .candidate .label {
+    margin-top: 6px;
+  }
+
+  /* --- Activity bar simulation, mask candidates at true 16x16 size --- */
+
+  .activity-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    width: 48px;
+    padding: 12px 0;
+    background: var(--activity-bar-bg);
+  }
+
+  .mask-icon {
+    width: 16px;
+    height: 16px;
+    background-color: var(--icon-tint, var(--activity-bar-fg));
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  .mask-icon.inactive {
+    --icon-tint: var(--activity-bar-inactive-fg);
+  }
+
+  /* --- Marketplace tile simulation --- */
+
+  .marketplace-tile img {
+    width: var(--marketplace-tile-size);
+    height: var(--marketplace-tile-size);
+    display: block;
+  }
+
+  /* --- Extensions list row simulation --- */
+
+  .extensions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    width: 320px;
+    text-align: left;
+    font-size: 13px;
+  }
+
+  .extensions-row.dark {
+    background: #252526;
+    color: #cccccc;
+  }
+
+  .extensions-row.light {
+    background: #ffffff;
+    color: #1e1e1e;
+    border: 1px solid #e0e0e0;
+  }
+
+  .extensions-row img {
+    width: var(--extensions-row-icon-size);
+    height: var(--extensions-row-icon-size);
+    flex: 0 0 auto;
+  }
+
+  .extensions-row .meta .name {
+    font-weight: 600;
+  }
+
+  .extensions-row .meta .publisher {
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+
+<h1>dinah-372 candidate review</h1>
+<p class="note">
+  This page has no build step and no server. Open it directly from a
+  checkout, from <code>file://</code>. Every image below is loaded by its own
+  relative path from this directory, so the page always shows the files
+  actually committed on this branch rather than a copy of them.
+</p>
+<p class="note">
+  The four placeholder measurements at the top of this file's
+  <code>&lt;style&gt;</code> block (the activity bar's background and two
+  foreground tints, and the Extensions-list row icon size) must be replaced
+  with values read off a running VS Code window before this page is treated
+  as a faithful simulation. See dinah-372 AC-7 and AC-9.
+</p>
+
+<h2>Sidebar mask candidates, at the size the activity bar actually gives them (16&times;16)</h2>
+<p class="note">
+  Each candidate rendered twice: the tint VS Code paints a selected
+  view's icon, and the tint it paints an unselected one.
+</p>
+<section class="grid" id="mask-grid">
+  <!-- Populated per candidate. One block per mask-N.svg Implement adds. -->
+  <div class="candidate">
+    <div class="activity-bar">
+      <div class="mask-icon" style="-webkit-mask-image:url('mask-1.svg');mask-image:url('mask-1.svg');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-1.svg');mask-image:url('mask-1.svg');"></div>
+    </div>
+    <div class="label">mask-1</div>
+  </div>
+  <div class="candidate">
+    <div class="activity-bar">
+      <div class="mask-icon" style="-webkit-mask-image:url('mask-2.svg');mask-image:url('mask-2.svg');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-2.svg');mask-image:url('mask-2.svg');"></div>
+    </div>
+    <div class="label">mask-2</div>
+  </div>
+  <div class="candidate">
+    <div class="activity-bar">
+      <div class="mask-icon" style="-webkit-mask-image:url('mask-3.svg');mask-image:url('mask-3.svg');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-3.svg');mask-image:url('mask-3.svg');"></div>
+    </div>
+    <div class="label">mask-3</div>
+  </div>
+  <div class="candidate">
+    <div class="activity-bar">
+      <div class="mask-icon" style="-webkit-mask-image:url('mask-4.svg');mask-image:url('mask-4.svg');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-4.svg');mask-image:url('mask-4.svg');"></div>
+    </div>
+    <div class="label">mask-4</div>
+  </div>
+</section>
+
+<h2>Colour icon candidates, at the marketplace tile size (128&times;128)</h2>
+<section class="grid" id="marketplace-grid">
+  <div class="candidate marketplace-tile">
+    <img src="color-1.png" alt="color-1 at marketplace tile size">
+    <div class="label">color-1</div>
+  </div>
+  <div class="candidate marketplace-tile">
+    <img src="color-2.png" alt="color-2 at marketplace tile size">
+    <div class="label">color-2</div>
+  </div>
+  <div class="candidate marketplace-tile">
+    <img src="color-3.png" alt="color-3 at marketplace tile size">
+    <div class="label">color-3</div>
+  </div>
+  <div class="candidate marketplace-tile">
+    <img src="color-4.png" alt="color-4 at marketplace tile size">
+    <div class="label">color-4</div>
+  </div>
+</section>
+
+<h2>Colour icon candidates, at the Extensions list row size, on both themes</h2>
+<section class="grid" id="extensions-list-grid">
+  <div class="candidate">
+    <div class="extensions-row dark">
+      <img src="color-1.png" alt="color-1 at Extensions list row size, dark theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="extensions-row light">
+      <img src="color-1.png" alt="color-1 at Extensions list row size, light theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="label">color-1</div>
+  </div>
+  <div class="candidate">
+    <div class="extensions-row dark">
+      <img src="color-2.png" alt="color-2 at Extensions list row size, dark theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="extensions-row light">
+      <img src="color-2.png" alt="color-2 at Extensions list row size, light theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="label">color-2</div>
+  </div>
+  <div class="candidate">
+    <div class="extensions-row dark">
+      <img src="color-3.png" alt="color-3 at Extensions list row size, dark theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="extensions-row light">
+      <img src="color-3.png" alt="color-3 at Extensions list row size, light theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="label">color-3</div>
+  </div>
+  <div class="candidate">
+    <div class="extensions-row dark">
+      <img src="color-4.png" alt="color-4 at Extensions list row size, dark theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="extensions-row light">
+      <img src="color-4.png" alt="color-4 at Extensions list row size, light theme">
+      <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
+    </div>
+    <div class="label">color-4</div>
+  </div>
+</section>
+
+</body>
+</html>
