@@ -1179,3 +1179,35 @@ test("assertCommandsFullyRegistered does not report a duplicate registration as 
 		assertCommandsFullyRegistered(TREE_COMMANDS, registered),
 	);
 });
+
+// The licence the extension declares, and the licence text it carries.
+//
+// A manifest field is what the marketplace displays and what a consumer reads
+// to decide what they may do with the code, so it is a statement about terms
+// rather than a note. It shipped as "MIT" on an Apache-2.0 project until
+// dinah-371, and nothing read it back. The repository root is the authority
+// for both halves: LICENSE holds the text, and these rows hold the extension
+// to it.
+
+const repoRoot = join(extensionRoot, "..", "..");
+
+test("the manifest declares the licence the project is under", () => {
+	assert.equal(
+		manifest.license,
+		"Apache-2.0",
+		"the extension manifest declares a licence the project is not under",
+	);
+});
+
+test("the extension carries the repository's own licence text", () => {
+	// Copied rather than linked, because a symbolic link needs privilege on
+	// Windows, which is where this is built. A copy can drift, so the bytes
+	// are compared instead of the file merely being required to exist.
+	const carried = readFileSync(join(extensionRoot, "LICENSE"), "utf8");
+	const authority = readFileSync(join(repoRoot, "LICENSE"), "utf8");
+	assert.equal(
+		carried,
+		authority,
+		"editors/vscode/LICENSE has drifted from the repository root LICENSE",
+	);
+});

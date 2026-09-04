@@ -1,11 +1,12 @@
 // Reads the packaged archives and asserts each one carries exactly the binary
-// it is supposed to.
+// it is supposed to and carries the licence text.
 //
-// Two failures this catches, both of which have no other witness: a
-// .vscodeignore change that ships all six binaries in every artifact, and a
-// staging step that leaves the previous target's binary behind. Neither shows
-// up in a build log, and a user on the wrong platform is the one who finds
-// out.
+// Three failures this catches, and none of them has another witness. A
+// .vscodeignore change can ship all six binaries in every artifact. A staging
+// step can leave the previous target's binary behind. An archive can ship with
+// no statement of the terms it is distributed under, which is what dinah-371
+// found. None of the three shows up in a build log, and the person who finds
+// out is a user on the wrong platform or a user with no licence.
 
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,6 +19,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outDir = join(here, "..", "vsix");
 
 const problems = [];
+
+// Where the licence text lands inside the archive.
+//
+// The source file is editors/vscode/LICENSE, with no extension, and this entry
+// carries one because vsce's LicenseProcessor appends .txt to an extensionless
+// licence file as it packages it. Checking for "extension/LICENSE" would
+// therefore fail on every correct archive.
+const LICENSE_ENTRY = "extension/LICENSE.txt";
 
 /** Every entry under `extension/bin/`, which is where a carried binary lands. */
 function carriedIn(vsix) {
@@ -45,6 +54,11 @@ function check(label, vsix, expected) {
 	if (!existsSync(vsix)) {
 		problems.push(`${label}: ${vsix} was not produced`);
 		return;
+	}
+	if (!listZipEntries(vsix).includes(LICENSE_ENTRY)) {
+		problems.push(
+			`${label}: does not carry ${LICENSE_ENTRY}, so whoever downloads it gets no statement of the terms`,
+		);
 	}
 	const stray = strayIn(vsix);
 	if (stray.length > 0) {
