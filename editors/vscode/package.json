@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "publisher": "paulmooreparks",
   "license": "Apache-2.0",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/paulmooreparks/dinah.git"

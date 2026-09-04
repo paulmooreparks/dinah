@@ -1,0 +1,9 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d" fill="currentColor" stroke="currentColor">
+  <title id="t">Dinah</title>
+  <desc id="d">A tall railroad switch lantern seen from three quarters, a guard bar across its near lens and its far lens turned nearly edge on, under a low vented cap and a bail whose arc leans right.</desc>
+  <path fill-rule="evenodd" stroke="none" d="M6.6 11.0 L11.9 9.3 L17.2 10.5 L17.2 19.2 L12.4 21.0 L6.6 19.7 Z M12.0 12.1 L12.85 12.25 L12.85 20.95 L12.0 20.8 Z M7.2 15.6 a2.45 2.45 0 1 0 4.9 0 a2.45 2.45 0 1 0 -4.9 0 Z M7.4 15.3 L11.9 15.3 L11.9 15.95 L7.4 15.95 Z M14.0 14.9 a0.8 1.75 0 1 0 1.6 0 a0.8 1.75 0 1 0 -1.6 0 Z"/>
+  <path fill-rule="evenodd" stroke="none" d="M9.3 9.6 L9.7 7.1 L14.1 7.1 L14.5 9.5 Z M10.1 8.0 L13.7 8.0 L13.7 8.6 L10.1 8.6 Z"/>
+  <path stroke="none" d="M8.7 6.2 L15.1 6.2 L15.1 7.2 L8.7 7.2 Z"/>
+  <path stroke="none" d="M5.5 19.4 L12.4 20.9 L18.3 18.7 L18.3 20.4 L12.4 22.6 L5.5 21.1 Z"/>
+  <path fill="none" stroke-width="1.45" stroke-linecap="round" d="M7.9 11.2 C7.3 2.2, 17.8 1.2, 16.1 10.5"/>
+</svg>
