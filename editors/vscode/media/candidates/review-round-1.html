@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>dinah-372: sidebar mask and marketplace icon candidates</title>
+<title>dinah-372: sidebar mask and marketplace icon candidates, round 1</title>
 <style>
   /*
     Measured, not assumed. Every colour and size a constant below stands for
@@ -47,6 +47,12 @@
   p.note {
     color: #616161;
     max-width: 60em;
+  }
+
+  p.scaffold-warning {
+    color: #a1260d;
+    max-width: 60em;
+    font-weight: 600;
   }
 
   section.grid {
@@ -144,19 +150,42 @@
 </head>
 <body>
 
-<h1>dinah-372 candidate review</h1>
+<h1>dinah-372 candidate review, round 1</h1>
 <p class="note">
-  This page has no build step and no server. Open it directly from a
-  checkout, from <code>file://</code>. Every image below is loaded by its own
-  relative path from this directory, so the page always shows the files
-  actually committed on this branch rather than a copy of them.
+  This page is one self-contained document. Every mask and every colour
+  candidate below is embedded directly in this file as a base64
+  <code>data:</code> URI; nothing here is loaded from a sibling file, a
+  server, or the network. Copy this file by itself into an otherwise empty
+  directory and open it from <code>file://</code>: every candidate below
+  must render exactly as it does in the checked-out copy, because that
+  isolated-directory open is the check (dinah-372 AC-10). This file and the
+  <code>editors/vscode/media/candidates/mask-N.svg</code> /
+  <code>color-N.png</code> source files committed beside it carry the same
+  content: the base64 payload embedded for each candidate below decodes back
+  to a byte-identical copy of that candidate's own source file, verified by
+  cmp (dinah-372 AC-12). This is deliberate, not incidental: the file handed
+  to the operator for review is this file, unmodified, so what he opens and
+  what is under review in the diff are never two different things.
+</p>
+<p class="scaffold-warning">
+  SCAFFOLD STATE, not yet complete. No candidate artwork exists on this
+  branch yet: every <code>data:</code> URI below is a placeholder string,
+  not an encoded image, so every mask and every colour tile currently
+  renders as empty or broken. That is expected at Spec time and is not a
+  defect in this file. It becomes complete, and reviewable, only once
+  Implement has drawn the eight candidates, replaced every placeholder
+  below with the real base64 payload of the matching source file, and
+  confirmed by opening the result from an empty directory that every
+  candidate actually renders (AC-1, AC-2, AC-6, AC-10, AC-12). Do not read
+  the markup below as evidence that a grid renders; look at the rendered
+  page.
 </p>
 <p class="note">
   The four placeholder measurements at the top of this file's
   <code>&lt;style&gt;</code> block (the activity bar's background and two
-  foreground tints, and the Extensions-list row icon size) must be replaced
-  with values read off a running VS Code window before this page is treated
-  as a faithful simulation. See dinah-372 AC-7 and AC-9.
+  foreground tints, and the Extensions-list row icon size) must also be
+  replaced with values read off a running VS Code window before this page
+  is treated as a faithful simulation. See dinah-372 AC-7 and AC-9.
 </p>
 
 <h2>Sidebar mask candidates, at the size the activity bar actually gives them (16&times;16)</h2>
@@ -165,53 +194,65 @@
   view's icon, and the tint it paints an unselected one.
 </p>
 <section class="grid" id="mask-grid">
-  <!-- Populated per candidate. One block per mask-N.svg Implement adds. -->
+  <!--
+    IMPLEMENT: for each mask-N, replace PLACEHOLDER_MASK_N below with
+    "data:image/svg+xml;base64," followed by the base64 encoding of the
+    exact bytes of editors/vscode/media/candidates/mask-N.svg. Do not
+    hand-author different markup here; this is an export of the real file,
+    verified byte-identical by AC-12.
+  -->
   <div class="candidate">
     <div class="activity-bar">
-      <div class="mask-icon" style="-webkit-mask-image:url('mask-1.svg');mask-image:url('mask-1.svg');"></div>
-      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-1.svg');mask-image:url('mask-1.svg');"></div>
+      <div class="mask-icon" style="-webkit-mask-image:url('PLACEHOLDER_MASK_1');mask-image:url('PLACEHOLDER_MASK_1');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('PLACEHOLDER_MASK_1');mask-image:url('PLACEHOLDER_MASK_1');"></div>
     </div>
     <div class="label">mask-1</div>
   </div>
   <div class="candidate">
     <div class="activity-bar">
-      <div class="mask-icon" style="-webkit-mask-image:url('mask-2.svg');mask-image:url('mask-2.svg');"></div>
-      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-2.svg');mask-image:url('mask-2.svg');"></div>
+      <div class="mask-icon" style="-webkit-mask-image:url('PLACEHOLDER_MASK_2');mask-image:url('PLACEHOLDER_MASK_2');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('PLACEHOLDER_MASK_2');mask-image:url('PLACEHOLDER_MASK_2');"></div>
     </div>
     <div class="label">mask-2</div>
   </div>
   <div class="candidate">
     <div class="activity-bar">
-      <div class="mask-icon" style="-webkit-mask-image:url('mask-3.svg');mask-image:url('mask-3.svg');"></div>
-      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-3.svg');mask-image:url('mask-3.svg');"></div>
+      <div class="mask-icon" style="-webkit-mask-image:url('PLACEHOLDER_MASK_3');mask-image:url('PLACEHOLDER_MASK_3');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('PLACEHOLDER_MASK_3');mask-image:url('PLACEHOLDER_MASK_3');"></div>
     </div>
     <div class="label">mask-3</div>
   </div>
   <div class="candidate">
     <div class="activity-bar">
-      <div class="mask-icon" style="-webkit-mask-image:url('mask-4.svg');mask-image:url('mask-4.svg');"></div>
-      <div class="mask-icon inactive" style="-webkit-mask-image:url('mask-4.svg');mask-image:url('mask-4.svg');"></div>
+      <div class="mask-icon" style="-webkit-mask-image:url('PLACEHOLDER_MASK_4');mask-image:url('PLACEHOLDER_MASK_4');"></div>
+      <div class="mask-icon inactive" style="-webkit-mask-image:url('PLACEHOLDER_MASK_4');mask-image:url('PLACEHOLDER_MASK_4');"></div>
     </div>
     <div class="label">mask-4</div>
   </div>
 </section>
 
 <h2>Colour icon candidates, at the marketplace tile size (128&times;128)</h2>
+<!--
+  IMPLEMENT: for each color-N, replace PLACEHOLDER_COLOR_N_DATA_URI below
+  with "data:image/png;base64," followed by the base64 encoding of the
+  exact bytes of editors/vscode/media/candidates/color-N.png. Verified
+  byte-identical by AC-12.
+-->
 <section class="grid" id="marketplace-grid">
   <div class="candidate marketplace-tile">
-    <img src="color-1.png" alt="color-1 at marketplace tile size">
+    <img src="PLACEHOLDER_COLOR_1_DATA_URI" alt="color-1 at marketplace tile size">
     <div class="label">color-1</div>
   </div>
   <div class="candidate marketplace-tile">
-    <img src="color-2.png" alt="color-2 at marketplace tile size">
+    <img src="PLACEHOLDER_COLOR_2_DATA_URI" alt="color-2 at marketplace tile size">
     <div class="label">color-2</div>
   </div>
   <div class="candidate marketplace-tile">
-    <img src="color-3.png" alt="color-3 at marketplace tile size">
+    <img src="PLACEHOLDER_COLOR_3_DATA_URI" alt="color-3 at marketplace tile size">
     <div class="label">color-3</div>
   </div>
   <div class="candidate marketplace-tile">
-    <img src="color-4.png" alt="color-4 at marketplace tile size">
+    <img src="PLACEHOLDER_COLOR_4_DATA_URI" alt="color-4 at marketplace tile size">
     <div class="label">color-4</div>
   </div>
 </section>
@@ -220,44 +261,44 @@
 <section class="grid" id="extensions-list-grid">
   <div class="candidate">
     <div class="extensions-row dark">
-      <img src="color-1.png" alt="color-1 at Extensions list row size, dark theme">
+      <img src="PLACEHOLDER_COLOR_1_DATA_URI" alt="color-1 at Extensions list row size, dark theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="extensions-row light">
-      <img src="color-1.png" alt="color-1 at Extensions list row size, light theme">
+      <img src="PLACEHOLDER_COLOR_1_DATA_URI" alt="color-1 at Extensions list row size, light theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="label">color-1</div>
   </div>
   <div class="candidate">
     <div class="extensions-row dark">
-      <img src="color-2.png" alt="color-2 at Extensions list row size, dark theme">
+      <img src="PLACEHOLDER_COLOR_2_DATA_URI" alt="color-2 at Extensions list row size, dark theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="extensions-row light">
-      <img src="color-2.png" alt="color-2 at Extensions list row size, light theme">
+      <img src="PLACEHOLDER_COLOR_2_DATA_URI" alt="color-2 at Extensions list row size, light theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="label">color-2</div>
   </div>
   <div class="candidate">
     <div class="extensions-row dark">
-      <img src="color-3.png" alt="color-3 at Extensions list row size, dark theme">
+      <img src="PLACEHOLDER_COLOR_3_DATA_URI" alt="color-3 at Extensions list row size, dark theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="extensions-row light">
-      <img src="color-3.png" alt="color-3 at Extensions list row size, light theme">
+      <img src="PLACEHOLDER_COLOR_3_DATA_URI" alt="color-3 at Extensions list row size, light theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="label">color-3</div>
   </div>
   <div class="candidate">
     <div class="extensions-row dark">
-      <img src="color-4.png" alt="color-4 at Extensions list row size, dark theme">
+      <img src="PLACEHOLDER_COLOR_4_DATA_URI" alt="color-4 at Extensions list row size, dark theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="extensions-row light">
-      <img src="color-4.png" alt="color-4 at Extensions list row size, light theme">
+      <img src="PLACEHOLDER_COLOR_4_DATA_URI" alt="color-4 at Extensions list row size, light theme">
       <div class="meta"><div class="name">Dinah</div><div class="publisher">paulmooreparks</div></div>
     </div>
     <div class="label">color-4</div>
