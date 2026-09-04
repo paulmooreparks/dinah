@@ -331,6 +331,13 @@ export function cardDescription(view: CardView | undefined): string {
  * state group the card renders beneath is the fallback for a card the ls join
  * missed, and ready is the fallback for a card standing under no group at
  * all, which is the shape a queue column produces.
+ *
+ * That last fallback carries more than it used to. A queue column now inlines
+ * its ready and its active cards rather than heading either, so an active card
+ * standing at one has no group value for the second fallback to read and reads
+ * as ready when the ls join misses it. Only a hand edit puts a card in active
+ * at such a column, and the ls join is the path every card reached by the tool
+ * takes, so this is recorded here rather than worked around.
  */
 export function cardState(
 	view: CardView | undefined,

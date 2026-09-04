@@ -1765,28 +1765,32 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 	return rows
 }
 
-// sweptStates are the states the grouped producer draws under one column,
+// sweptStates are the states the grouped producer heads under one column,
 // in the order it draws them, which is the order the contract declares them in
 // rather than an order this fixture chose.
 //
 // The set is not the same under every column, and the expected side asks the
 // head's own rule rather than restating it. verb.StatesDrawn is that rule and
 // is where its three cases are written down: a state the column declares is
-// drawn whether or not a card stands in it, blocked is drawn only where a card
-// actually stands blocked, and a state the column declares none of is drawn
-// only where a card actually stands in it. A column where nobody with access to
-// the workbench takes work up declares nothing, so only the last case reaches
-// it, and this fixture's Intake column is one of those with a card standing
-// ready in it. Restating any of that here would put the rule in a second place
-// and let the expected side drift away from the tree it predicts.
+// headed whether or not a card stands in it, blocked is headed only where a
+// card actually stands blocked, and ready or active at a column declaring
+// neither is never headed however many cards stand there. A column where nobody
+// with access to the workbench takes work up declares nothing, so only the last
+// case reaches it, and this fixture's Intake column is one of those with a card
+// standing ready in it. That card is drawn as a bare leaf of the column, which
+// sweptStatesShown below is how expectTree finds it. Restating any of that here
+// would put the rule in a second place and let the expected side drift away
+// from the tree it predicts.
 //
 // Delegating costs this sweep one thing, and a reader has to know exactly
 // which, because the loss is narrower than "this test covers less now" and
 // wider than nothing. The sweep can no longer catch a verb.StatesDrawn that
-// draws the wrong states. Both the expectation and the head under test call
-// that one function, so a rule broken inside it moves both sides together and
-// the rows still agree. Reversing the order StatesDrawn emits its vocabulary
-// in leaves this sweep green, which was checked rather than assumed.
+// heads the wrong states, and the same holds for verb.StatesShown since
+// expectTree delegates to it on the identical terms. Both the expectation and
+// the head under test call those two functions, so a rule broken inside either
+// moves both sides together and the rows still agree. Reversing the order
+// StatesDrawn emits its vocabulary in leaves this sweep green, which was checked
+// rather than assumed.
 //
 // One class of break does still redden here, and it reddens for a reason worth
 // naming so that a green run is not read as more than it is. A break that
@@ -1800,12 +1804,23 @@ func sweptTreeRows(nodes []sweptTreeNode, ancestors string) [][]sweptCell {
 // card filed under the wrong group, a row that starts its columns at the wrong
 // display column. StatesDrawn's own answer is pinned against literal expected
 // values elsewhere, by TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty
-// and TestABlockedCardAtAQueueColumnStillDrawsItsGroup in
+// and TestAQueueColumnHeadsBlockedAndInlinesReady in
 // internal/verb/tree_test.go. Those two name the states they want instead of
 // asking the rule for them, and the order break above reddens both by name.
 // Change the rule and read those two, not this.
 func sweptStates(column sweptColumnRecord, held []sweptCardRecord) []string {
 	return verb.StatesDrawn(column.column().States(), func(state string) bool {
+		return sweptAnyStanding(held, state)
+	})
+}
+
+// sweptStatesShown is every state the tree puts on screen beneath one column,
+// headed or not, and it delegates for the same reason sweptStates does. The
+// states this returns that sweptStates does not are the ones whose cards hang
+// straight off the column with no group node between, which is what a column
+// where nobody takes work up does with the cards standing ready in it.
+func sweptStatesShown(column sweptColumnRecord, held []sweptCardRecord) []string {
+	return verb.StatesShown(column.column().States(), func(state string) bool {
 		return sweptAnyStanding(held, state)
 	})
 }
@@ -1821,8 +1836,15 @@ func sweptAnyStanding(held []sweptCardRecord, state string) bool {
 }
 
 // expectTree is dinah tree with no arguments: a group per declared column in
-// flow order, the states that column draws under each one whether or not a
+// flow order, the states that column heads under each one whether or not a
 // card stands in them, and the cards themselves at the third level.
+//
+// A state the column shows without heading it has no group node, so its cards
+// join the column's own children where its heading would have stood. That is
+// the whole of what a column where nobody takes work up draws for the cards
+// standing ready there, and predicting it here rather than dropping those cards
+// from the expectation is what keeps the sweep able to catch a regression in
+// them.
 //
 // A group carries its value under Reference, its axis under Entity, nothing
 // under Title, and its own card count under Count. A card carries no count at
@@ -1838,13 +1860,21 @@ func expectTree(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	for at, column := range r.columns {
 		held := sweptCardsIn(r, at)
 		node := sweptTreeNode{ref: column.ref(), entity: bench.KindColumn, count: strconv.Itoa(len(held))}
+		headed := map[string]bool{}
 		for _, state := range sweptStates(column, held) {
+			headed[state] = true
+		}
+		for _, state := range sweptStatesShown(column, held) {
 			var cards []sweptTreeNode
 			for _, card := range held {
 				if card.standing != state {
 					continue
 				}
 				cards = append(cards, sweptTreeNode{ref: card.ref, entity: bench.KindCard, title: card.title})
+			}
+			if !headed[state] {
+				node.children = append(node.children, cards...)
+				continue
 			}
 			group := sweptTreeNode{
 				ref:      state,

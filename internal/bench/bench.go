@@ -288,10 +288,13 @@ func (s *Column) PullCanTakeFrom() bool {
 // and takes no work up on it.
 //
 // Declaring nothing never drops a card out of a view. A card standing at such
-// a column and genuinely carrying one of the three, ready by the default every
-// new card starts with, or blocked because a block may land wherever a card
-// stands, is still drawn where a grouped view groups it, through the carried
-// half of the rule StatesDrawn in internal/verb states.
+// a column and genuinely carrying one of the three is still drawn where a
+// grouped view groups it, under the rule StatesDrawn in internal/verb states. A
+// blocked card keeps a heading of its own there, because a block may land
+// wherever a card stands and is the one thing worth flagging. A ready card, the
+// default every new card starts with, is drawn as a bare leaf of the column
+// itself, since every card standing at such a column is ready and a heading
+// saying so tells the reader nothing.
 //
 // The slice is fresh on each call, so a caller may sort or trim it without
 // reaching the next caller.
