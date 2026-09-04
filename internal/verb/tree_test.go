@@ -44,13 +44,38 @@ func groupAt(t *testing.T, node TreeNode, value string) TreeNode {
 	return TreeNode{}
 }
 
-// groupValues names every group a node draws, for a failure message.
+// groupValues names every group a node draws, for a failure message and for the
+// tests that pin which states a column heads.
+//
+// A node's children are a mix of group nodes and card leaves wherever a state is
+// shown without a heading, and a card leaf carries no Value at all, so reading
+// every child's Value would report an empty string for each inlined card and
+// make "the states drawn" mean something wider than it says. Only group nodes
+// are counted here.
 func groupValues(node TreeNode) []string {
 	var values []string
 	for _, child := range node.Children {
+		if child.Kind != NodeGroup {
+			continue
+		}
 		values = append(values, child.Value)
 	}
 	return values
+}
+
+// leafChildRefs collects the reference of every card node attached directly to
+// one node, which is where a state shown without a heading puts its cards. It
+// does not descend, so a card sitting under a group node of its own is not one
+// of these.
+func leafChildRefs(node TreeNode) []string {
+	var refs []string
+	for _, child := range node.Children {
+		if child.Kind != bench.KindCard {
+			continue
+		}
+		refs = append(refs, child.Ref)
+	}
+	return refs
 }
 
 // leafRefs collects the reference of every card node in a tree.
@@ -150,6 +175,15 @@ func TestTheNoValueGroupComesLast(t *testing.T) {
 // TestDepthReportsAtTheBoundaryAndNowhereElse asserts that a node reports the
 // children the depth cut off directly beneath it and says nothing about a cut
 // further down, and that its count is unchanged by the cut.
+//
+// The four cards stand at the intake column, which takes no work up and so
+// declares no state. Their state draws no heading, so there is no group node
+// between them and the column and nothing at that level to carry the depth
+// report. The column becomes the boundary instead. Its cards belong to the rank
+// the state axis would have occupied rather than to the rank their position in
+// its child list suggests, so a groups-level read holds them back exactly as it
+// holds back the cards under a heading, and the column accounts for them in its
+// own Hidden.
 func TestDepthReportsAtTheBoundaryAndNowhereElse(t *testing.T) {
 	h := newHarness(t)
 	for range 4 {
@@ -161,19 +195,18 @@ func TestDepthReportsAtTheBoundaryAndNowhereElse(t *testing.T) {
 	if column.Count != 4 {
 		t.Errorf("the column counts %d cards and holds 4", column.Count)
 	}
-	if column.Hidden != nil {
-		t.Errorf("the column reports %v and every child it has is drawn", column.Hidden)
+	if len(column.Children) != 0 {
+		t.Errorf("the column draws %v and the depth left it nothing to draw", groupValues(column))
 	}
-	ready := groupAt(t, column, contract.StateReady)
-	if ready.Hidden == nil {
-		t.Fatalf("the ready group reports nothing and the depth cut its cards off")
+	if column.Hidden == nil {
+		t.Fatalf("the column reports nothing and the depth cut its cards off")
 	}
-	if got := strings.Join(ready.Hidden.Reason, ","); got != ReasonDepth {
-		t.Errorf("the ready group reports the reasons %q, want %q", got, ReasonDepth)
+	if got := strings.Join(column.Hidden.Reason, ","); got != ReasonDepth {
+		t.Errorf("the column reports the reasons %q, want %q", got, ReasonDepth)
 	}
-	if ready.Count != 4 || ready.Hidden.Children != 4 || ready.Hidden.Subjects != 4 {
-		t.Errorf("the ready group reports count %d, %d children and %d subjects, want 4, 4 and 4",
-			ready.Count, ready.Hidden.Children, ready.Hidden.Subjects)
+	if column.Hidden.Children != 4 || column.Hidden.Subjects != 4 {
+		t.Errorf("the column reports %d children and %d subjects, want 4 and 4",
+			column.Hidden.Children, column.Hidden.Subjects)
 	}
 	walkTree(built.Root, func(node TreeNode) {
 		if node.Kind == bench.KindCard {
@@ -509,18 +542,19 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	}
 	// The two closed axes enumerate differently, and the state axis does
 	// not enumerate the same set under every column. Intake takes no work up,
-	// so it declares no state at all, and its ready group is drawn because two
-	// cards actually stand there rather than because the column promises one.
-	// Doing takes work up and is what discriminates here: it declares ready
-	// and active and draws both, so a rule that dropped the declared-group
-	// promise from every column on the board would redden the doing half while
-	// leaving the intake half alone.
+	// so it declares no state at all and heads no state group whatever stands
+	// there. Its two cards hang off the column as bare leaves, which is why the
+	// loop below wants nothing from the intake half and the leaf check further
+	// down still finds both cards. Doing takes work up and is what
+	// discriminates here: it declares ready and active and heads both, so a
+	// rule that dropped the declared-group promise from every column on the
+	// board would redden the doing half while leaving the intake half alone.
 	intakeGroup := groupAt(t, built.Root, "intake")
 	for _, c := range []struct {
 		group TreeNode
 		want  []string
 	}{
-		{group: intakeGroup, want: []string{contract.StateReady}},
+		{group: intakeGroup, want: nil},
 		{
 			group: groupAt(t, built.Root, "doing"),
 			want:  []string{contract.StateReady, contract.StateActive},
@@ -543,6 +577,9 @@ func TestTheDefaultChainDrawsTheStatusTree(t *testing.T) {
 	drawn := leafRefs(intakeGroup)
 	if strings.Join(listed, ",") != strings.Join(drawn, ",") {
 		t.Errorf("the tree draws the cards as %v and ls orders them %v", drawn, listed)
+	}
+	if inline := leafChildRefs(intakeGroup); strings.Join(inline, ",") != strings.Join(listed, ",") {
+		t.Errorf("the column attaches %v directly and every card standing at it is %v", inline, listed)
 	}
 }
 
@@ -1164,12 +1201,15 @@ const nobodyWorksHereDefinition = `{
 // Grouping partitions a card set and never merges two of them back together,
 // so every card below an intake group stands at the intake column however many
 // axes intervene, and the state enumeration there is the intake column's own.
-// That column declares nothing, so both groups drawn under it are drawn by
-// occupancy. The fixture blocks one of its two cards so that the expected set,
-// ready and blocked, differs from the union across the whole workbench in both
-// members: a tree that lost the column would fall back to that union and draw
-// active, and a tree that suppressed blocked wherever it appeared would drop
-// blocked.
+// That column declares nothing, so it heads no ready group and the ready card
+// hangs off the entered group as a bare leaf. The fixture blocks one of its two
+// cards so that the one heading left, blocked, discriminates two ways at once: a
+// tree that lost the column would fall back to the union across the whole
+// workbench and head ready and active as well, and a tree that suppressed
+// blocked wherever it appeared would head nothing.
+//
+// The leaf comes before the heading, because an un-headed state keeps the place
+// in the order its heading would have taken and ready precedes blocked.
 //
 // The same tree taken with the column axis dropped out of the chain is the
 // control. Without it the state groups draw active as well, which is what
@@ -1177,15 +1217,28 @@ const nobodyWorksHereDefinition = `{
 // rather than about a workbench that never draws active at all.
 func TestStateResolvesTheColumnAboveItWhateverAxisComesBetween(t *testing.T) {
 	h := newHarness(t)
-	h.add("a card standing ready where it was filed")
+	standing := h.add("a card standing ready where it was filed")
 	stopped := h.add("a card stopped where it was filed")
 	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
 
 	built := treeOf(t, h, "", []string{FieldColumn, FieldEntered, FieldState}, LevelCards)
 	entered := groupAt(t, groupAt(t, built.Root, "intake"), "intake")
-	want := []string{contract.StateReady, contract.StateBlocked}
+	want := []string{contract.StateBlocked}
 	if drawn := groupValues(entered); strings.Join(drawn, ",") != strings.Join(want, ",") {
-		t.Errorf("the states under the entered group draw as %v, and the intake column holds %v", drawn, want)
+		t.Errorf("the states under the entered group draw as %v, and the intake column heads %v", drawn, want)
+	}
+	if inline := leafChildRefs(entered); strings.Join(inline, ",") != standing {
+		t.Errorf("the entered group attaches %v directly, and the card standing ready there is %s", inline, standing)
+	}
+	if len(entered.Children) != 2 {
+		t.Fatalf("the entered group draws %d children and holds one ready leaf and one blocked group", len(entered.Children))
+	}
+	if entered.Children[0].Kind != bench.KindCard || entered.Children[1].Kind != NodeGroup {
+		t.Errorf("the entered group draws a %s then a %s, and ready precedes blocked on the state axis",
+			entered.Children[0].Kind, entered.Children[1].Kind)
+	}
+	if refs := leafRefs(groupAt(t, entered, contract.StateBlocked)); strings.Join(refs, ",") != stopped {
+		t.Errorf("the blocked group draws %v and the card stopped there is %s", refs, stopped)
 	}
 
 	control := treeOf(t, h, "", []string{FieldEntered, FieldState}, LevelCards)
@@ -1201,35 +1254,44 @@ func TestStateResolvesTheColumnAboveItWhateverAxisComesBetween(t *testing.T) {
 //
 // The fixture is a flow where nobody takes work up at any column, so every
 // column declares nothing, the union is empty, and no card on the workbench can
-// ever stand active. Both halves below therefore draw through occupancy rather
-// than through a declaration. A tree drawing an active group here is drawing a
-// group nothing can occupy, which is the defect this card fixes, and the
-// standard fixture cannot show it: its columns union to all three and pass
-// under either rule.
+// ever stand active. Nothing here is headed by a declaration, and the root is
+// the enclosing node the un-headed rule names when the chain groups by state
+// alone. A tree drawing an active group here is drawing a group nothing can
+// occupy, which is the defect the first instalment of this ruling fixed, and the
+// standard fixture cannot show it: its columns union to all three and pass under
+// either rule.
 //
-// The second half is the control for the first. Blocking a card draws the
-// blocked group, so the assertion that only ready is drawn while nothing is
-// blocked reads as the occupancy rule rather than as a tree that lost the
-// blocked group entirely. Active is absent from both halves, and the assertion
-// still discriminates: a stateUnion that wrongly returned the contract's three
-// whatever the columns declare would draw active beside ready and redden the
-// first half.
+// The second half is the control for the first. Blocking a card heads the
+// blocked group, so the assertion that the root heads nothing at all while
+// nothing is blocked reads as the un-headed rule rather than as a tree that lost
+// its groups entirely. Both halves check that the ready card is still drawn, as
+// a leaf of the root, because a rule that removed the heading and the card with
+// it would be worse than the heading. Active is absent from both halves, and the
+// assertion still discriminates: a stateUnion that wrongly returned the
+// contract's three whatever the columns declare would head active beside the
+// rest and redden the first half.
 func TestStandaloneStateUnionsAcrossColumns(t *testing.T) {
 	h := harnessFromDefinition(t, "nw", nobodyWorksHereDefinition)
-	h.add("a card standing ready")
+	standing := h.add("a card standing ready")
 	stopped := h.add("a card that will be stopped")
 
 	built := treeOf(t, h, "", []string{FieldState}, LevelCards)
-	want := []string{contract.StateReady}
-	if drawn := groupValues(built.Root); strings.Join(drawn, ",") != strings.Join(want, ",") {
-		t.Errorf("the state axis draws %v, and no column on this workbench takes work up or holds a blocked card, so it holds %v", drawn, want)
+	if drawn := groupValues(built.Root); len(drawn) != 0 {
+		t.Errorf("the state axis heads %v, and no column on this workbench takes work up or holds a blocked card, so it heads nothing", drawn)
+	}
+	wantLeaves := []string{standing, stopped}
+	if inline := leafChildRefs(built.Root); strings.Join(inline, ",") != strings.Join(wantLeaves, ",") {
+		t.Errorf("the root attaches %v directly, and the cards standing ready are %v", inline, wantLeaves)
 	}
 
 	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
 	blocked := treeOf(t, h, "", []string{FieldState}, LevelCards)
-	wantBlocked := []string{contract.StateReady, contract.StateBlocked}
+	wantBlocked := []string{contract.StateBlocked}
 	if drawn := groupValues(blocked.Root); strings.Join(drawn, ",") != strings.Join(wantBlocked, ",") {
-		t.Errorf("the state axis draws %v once a card is blocked, and the union of this workbench's columns holds %v", drawn, wantBlocked)
+		t.Errorf("the state axis heads %v once a card is blocked, and the only state this workbench heads is %v", drawn, wantBlocked)
+	}
+	if inline := leafChildRefs(blocked.Root); strings.Join(inline, ",") != standing {
+		t.Errorf("the root attaches %v directly once the other card is blocked, and the card still standing ready is %s", inline, standing)
 	}
 }
 
@@ -1385,6 +1447,12 @@ func TestADrawnBlockedGroupKeepsItsDeclaredPlaceAheadOfAHandWrittenState(t *test
 // and active whether or not a card stands in either, which is what stops this
 // test passing on an implementation that dropped the declared-group promise
 // everywhere rather than only where no work is taken up.
+//
+// The two subtests differ in what stands at the un-worked column. The first
+// moves its one card away and leaves those columns empty, which is the case
+// dinah-322 closed. The second leaves a card standing at the intake column and
+// pins the case dinah-329 closed: the column heads nothing there either, and the
+// card hangs off it as a bare leaf instead.
 func TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty(t *testing.T) {
 	t.Run("an intake column, a buffer and a done column", func(t *testing.T) {
 		h := newBufferHarness(t)
@@ -1419,28 +1487,38 @@ func TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty(t *testing.T) {
 				groupValues(waiting))
 		}
 		standing := groupAt(t, built.Root, bufferIntakeSlug)
-		want := []string{contract.StateReady}
-		if got := groupValues(standing); strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Errorf("the intake column holds %s and draws the state groups %v rather than %v",
-				ref, got, want)
+		if got := groupValues(standing); len(got) != 0 {
+			t.Errorf("the intake column holds %s and heads the state groups %v rather than none",
+				ref, got)
+		}
+		if len(standing.Children) != 1 {
+			t.Fatalf("the intake column draws %d children and holds the one card %s", len(standing.Children), ref)
+		}
+		if inline := leafChildRefs(standing); strings.Join(inline, ",") != ref {
+			t.Errorf("the intake column attaches %v directly and holds the one card %s", inline, ref)
 		}
 	})
 }
 
-// TestABlockedCardAtAQueueColumnStillDrawsItsGroup is dinah-322 AC-5. A column
-// where no work is taken up declares no state at all, so the groups the cards
-// standing there draw come from StatesDrawn's carried case rather than from a
-// declaration. Without this test an implementation could satisfy the test above
-// by refusing to draw any state group beneath such a column at all, which would
-// drop a card out of a tree whose root count still includes it.
+// TestAQueueColumnHeadsBlockedAndInlinesReady is dinah-322 AC-5 as dinah-329
+// corrects it. A column where no work is taken up declares no state at all, and
+// the two states a card can carry there part company. Blocked keeps a heading,
+// because a block is the rare case and it is the one thing a reader most needs
+// flagged. Ready gets none, because every card standing at such a column is
+// ready and a heading saying so reports the hundred percent case.
 //
-// Two cards stand at the column, one ready and one blocked, and the order the
-// groups come in is asserted along with their presence. One card alone would
-// not hold the carried case to account, because axisValueOrder's own carried
-// loop would draw a lone group whatever StatesDrawn answered. That loop sorts
-// what it draws by the value's bytes, so it puts blocked before ready, and the
-// state axis has one order wherever a reader meets it.
-func TestABlockedCardAtAQueueColumnStillDrawsItsGroup(t *testing.T) {
+// The card the heading was removed from is still drawn. It attaches to the
+// column as a bare leaf, and this test is what stops an implementation
+// satisfying the rule by dropping the card out of a tree whose root count still
+// includes it.
+//
+// Two cards stand at the column, one ready and one blocked, and the order they
+// come in is asserted along with their presence. The ready leaf comes first,
+// because an un-headed state keeps the place in the state axis its heading would
+// have taken, and ready precedes blocked there. Byte order would put blocked
+// first, so the assertion discriminates between the axis order and the sort that
+// governs a value the axis never heard of.
+func TestAQueueColumnHeadsBlockedAndInlinesReady(t *testing.T) {
 	h := newBufferHarness(t)
 	stopped := h.add("blocked while waiting")
 	h.at(stopped, bufferQueue)
@@ -1450,16 +1528,131 @@ func TestABlockedCardAtAQueueColumnStillDrawsItsGroup(t *testing.T) {
 
 	built := treeOf(t, h, "", []string{FieldColumn, FieldState}, LevelCards)
 	group := groupAt(t, built.Root, bufferQueueSlug)
-	want := []string{contract.StateReady, contract.StateBlocked}
+	want := []string{contract.StateBlocked}
 	if got := groupValues(group); strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("the waiting column draws the state groups %v and two cards stand there at %v",
+		t.Errorf("the waiting column heads the state groups %v and two cards stand there, of which only %v earns a heading",
 			got, want)
 	}
-	for state, ref := range map[string]string{contract.StateReady: waiting, contract.StateBlocked: stopped} {
-		refs := leafRefs(groupAt(t, group, state))
-		if len(refs) != 1 || refs[0] != ref {
-			t.Errorf("the %s group of the waiting column draws the cards %v and %s stands there",
-				state, refs, ref)
+	if inline := leafChildRefs(group); strings.Join(inline, ",") != waiting {
+		t.Errorf("the waiting column attaches %v directly and the card standing ready there is %s", inline, waiting)
+	}
+	if len(group.Children) != 2 {
+		t.Fatalf("the waiting column draws %d children and holds one ready leaf and one blocked group", len(group.Children))
+	}
+	if group.Children[0].Kind != bench.KindCard || group.Children[1].Kind != NodeGroup {
+		t.Errorf("the waiting column draws a %s then a %s, and ready precedes blocked on the state axis",
+			group.Children[0].Kind, group.Children[1].Kind)
+	}
+	if refs := leafRefs(groupAt(t, group, contract.StateBlocked)); len(refs) != 1 || refs[0] != stopped {
+		t.Errorf("the blocked group of the waiting column draws the cards %v and %s stands there", refs, stopped)
+	}
+}
+
+// TestStatesDrawnHeadsOnlyDeclaredStatesAndOccupiedBlocked calls the shared
+// predicate directly, without a tree around it, so the three cases of the rule
+// are pinned where the rule is written rather than only through what the tree
+// does with them.
+//
+// Occupancy is held constant at true throughout, which is what makes the answers
+// differ by declaration alone. A column declaring nothing heads neither ready
+// nor active however many cards stand in them, heads blocked when a card stands
+// blocked, and a column declaring ready heads ready exactly as it did before,
+// which is the half that must not move.
+func TestStatesDrawnHeadsOnlyDeclaredStatesAndOccupiedBlocked(t *testing.T) {
+	standingIn := func(states ...string) func(string) bool {
+		occupied := map[string]bool{}
+		for _, state := range states {
+			occupied[state] = true
 		}
+		return func(state string) bool { return occupied[state] }
+	}
+	for _, c := range []struct {
+		name     string
+		declared []string
+		standing func(string) bool
+		want     []string
+	}{
+		{
+			name:     "a column declaring nothing with a card standing ready",
+			standing: standingIn(contract.StateReady),
+		},
+		{
+			name:     "a column declaring nothing with a card standing active",
+			standing: standingIn(contract.StateActive),
+		},
+		{
+			name:     "a column declaring nothing with a card standing blocked",
+			standing: standingIn(contract.StateBlocked),
+			want:     []string{contract.StateBlocked},
+		},
+		{
+			name:     "a column declaring ready with a card standing ready",
+			declared: []string{contract.StateReady},
+			standing: standingIn(contract.StateReady),
+			want:     []string{contract.StateReady},
+		},
+		{
+			name:     "a column declaring ready with nothing standing anywhere",
+			declared: []string{contract.StateReady},
+			standing: standingIn(),
+			want:     []string{contract.StateReady},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := StatesDrawn(c.declared, c.standing)
+			if strings.Join(got, ",") != strings.Join(c.want, ",") {
+				t.Errorf("the rule heads %v and %s heads %v", got, c.name, c.want)
+			}
+		})
+	}
+}
+
+// TestStatesShownKeepsTheCardsAHeadingWasRemovedFrom asserts that narrowing the
+// headings did not narrow what the tree finds. A column declaring nothing with a
+// card standing ready heads nothing and still shows ready, which is the state
+// whose cards the caller attaches inline.
+func TestStatesShownKeepsTheCardsAHeadingWasRemovedFrom(t *testing.T) {
+	standing := func(state string) bool { return state == contract.StateReady }
+	if drawn := StatesDrawn(nil, standing); len(drawn) != 0 {
+		t.Errorf("the rule heads %v at a column declaring nothing", drawn)
+	}
+	shown := StatesShown(nil, standing)
+	want := []string{contract.StateReady}
+	if strings.Join(shown, ",") != strings.Join(want, ",") {
+		t.Errorf("the rule shows %v and the card standing there carries %v", shown, want)
+	}
+}
+
+// TestAQueueColumnHoldingOnlyReadyCardsHeadsNothing is dinah-329's own shape,
+// reproduced from the operator's sidebar: two cards standing at a column where
+// nobody takes work up, nothing blocked, the default chain, no query and no
+// other axis in play. That column heads no state at all and draws both cards as
+// bare leaves of itself.
+//
+// The test above covers the same rule with a blocked card present, which leaves
+// one heading standing. This one leaves none, and an implementation that headed
+// a state whenever it was the only one a column held would pass that test and
+// redden here.
+func TestAQueueColumnHoldingOnlyReadyCardsHeadsNothing(t *testing.T) {
+	h := newBufferHarness(t)
+	first := h.add("first in the queue")
+	h.at(first, bufferQueue)
+	second := h.add("second in the queue")
+	h.at(second, bufferQueue)
+
+	built := treeOf(t, h, "", nil, LevelCards)
+	group := groupAt(t, built.Root, bufferQueueSlug)
+	if got := groupValues(group); len(got) != 0 {
+		t.Errorf("the waiting column heads the state groups %v and every card standing there is ready", got)
+	}
+	if group.Count != 2 {
+		t.Errorf("the waiting column counts %d cards and holds 2", group.Count)
+	}
+	want := []string{first, second}
+	if inline := leafChildRefs(group); strings.Join(inline, ",") != strings.Join(want, ",") {
+		t.Errorf("the waiting column attaches %v directly and the cards standing there are %v", inline, want)
+	}
+	if len(group.Children) != 2 {
+		t.Errorf("the waiting column draws %d children and holds two cards and no group", len(group.Children))
 	}
 }

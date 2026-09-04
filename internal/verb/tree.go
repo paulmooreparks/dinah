@@ -373,6 +373,16 @@ func withheld(live, kept []*bench.Card) []*bench.Card {
 	return removed
 }
 
+// deferredLeaves is what a node's own depth limit held back from the level
+// below it: the card leaves an un-headed state would have attached inline, and
+// the cards those leaves stand for. A state drawn without a header has no group
+// node of its own to carry a depth report, so the enclosing node carries it
+// instead and these are the two numbers it needs.
+type deferredLeaves struct {
+	children int
+	subjects int
+}
+
 // fillGrouped gives one node of the grouped tree its children and its account
 // of what it is not showing.
 //
@@ -383,6 +393,15 @@ func withheld(live, kept []*bench.Card) []*bench.Card {
 // The filter reports cumulatively at every node at or above a removed card,
 // because a subject the filter removed may have no emitted node anywhere near
 // it and a group with no survivors would otherwise read as an idle station.
+//
+// One node can now show some children and hold others back, which it could not
+// before. A state drawn without a header attaches its cards directly here, and
+// those cards belong to the level the state axis would have occupied, so a
+// depth limit that stops short of that axis has to suppress them even though
+// they hang one rank higher than the cards under a header group. When that
+// happens this node becomes the depth boundary for them and reports them in its
+// own Hidden, which is what keeps a card the reader cannot see accounted for by
+// the nearest node the reader can.
 func (l *Library) fillGrouped(
 	node *TreeNode,
 	kept, cut []*bench.Card,
@@ -391,12 +410,17 @@ func (l *Library) fillGrouped(
 	columnCtx string,
 ) {
 	hidden := &Hidden{Filtered: len(cut)}
-	children := l.groupedChildren(kept, cut, chain, axisAt, rank, limit, columnCtx)
+	children, deferred := l.groupedChildren(kept, cut, chain, axisAt, rank, limit, columnCtx)
 	if rank < limit {
 		node.Children = children
-	} else if len(children) > 0 {
+		if deferred.children > 0 {
+			hidden.Reason = append(hidden.Reason, ReasonDepth)
+			hidden.Children = deferred.children
+			hidden.Subjects = deferred.subjects
+		}
+	} else if len(children) > 0 || deferred.children > 0 {
 		hidden.Reason = append(hidden.Reason, ReasonDepth)
-		hidden.Children = len(children)
+		hidden.Children = len(children) + deferred.children
 		hidden.Subjects = len(kept)
 	}
 	if len(cut) > 0 {
@@ -411,6 +435,15 @@ func (l *Library) fillGrouped(
 // It builds them whatever the depth allows, because a node at the boundary has
 // to count what it is holding back before it drops it.
 //
+// A group the axis draws without a header of its own contributes its cards
+// directly to this list instead of a group node wrapping them, which is how a
+// column that declares no state draws the cards standing ready there. Those
+// cards sit at the rank the axis would have occupied rather than at the rank
+// their position in the list suggests, so the depth check that governs them is
+// the one a group node here would have applied to its own children. Where the
+// depth holds them back, the count returned alongside the nodes tells the
+// calling node how many leaves and how many cards it is now answering for.
+//
 // columnCtx is the column every card below this node stands at, or empty where
 // no axis above the node has grouped by column. Grouping partitions a card set
 // and never merges two of them back together, so once an axis has grouped by
@@ -422,17 +455,29 @@ func (l *Library) groupedChildren(
 	chain []string,
 	axisAt, rank, limit int,
 	columnCtx string,
-) []TreeNode {
+) ([]TreeNode, deferredLeaves) {
 	if axisAt == len(chain) {
 		nodes := make([]TreeNode, 0, len(kept))
 		for _, card := range kept {
 			nodes = append(nodes, l.cardNode(card))
 		}
-		return nodes
+		return nodes, deferredLeaves{}
 	}
 	axis := chain[axisAt]
 	var nodes []TreeNode
+	var deferred deferredLeaves
 	for _, group := range l.groupsOn(axis, kept, cut, columnCtx) {
+		if !group.headed {
+			if rank+1 >= limit {
+				deferred.children += len(group.kept)
+				deferred.subjects += len(group.kept)
+				continue
+			}
+			for _, card := range group.kept {
+				nodes = append(nodes, l.cardNode(card))
+			}
+			continue
+		}
 		node := TreeNode{
 			Kind:  NodeGroup,
 			Axis:  axis,
@@ -446,7 +491,7 @@ func (l *Library) groupedChildren(
 		l.fillGrouped(&node, group.kept, group.cut, chain, axisAt+1, rank+1, limit, childCtx)
 		nodes = append(nodes, node)
 	}
-	return nodes
+	return nodes, deferred
 }
 
 // cardNode is one card as a leaf of the grouped tree. A card is a subject of
@@ -464,10 +509,16 @@ func (l *Library) cardNode(card *bench.Card) TreeNode {
 // group is one value of an axis together with the cards that carry it: the
 // survivors it draws and the cards the filter removed from it, which it still
 // has to account for.
+//
+// headed says whether the value earns a group node of its own. Every value of
+// every axis earns one except an undeclared ready or active state, whose cards
+// attach to the enclosing node directly, and StatesDrawn is where that one
+// exception is written down.
 type group struct {
-	value string
-	kept  []*bench.Card
-	cut   []*bench.Card
+	value  string
+	headed bool
+	kept   []*bench.Card
+	cut    []*bench.Card
 }
 
 // groupsOn nests a node's cards along one axis, in the order the axis fixes.
@@ -478,17 +529,25 @@ type group struct {
 // blocked state is the one member exempt from that, and StatesDrawn says why.
 // A column where nobody with access to the workbench takes work up declares no
 // member of the state axis at all, so this rule draws no state group beneath
-// one whether or not a card stands there. Such a card is still drawn, through
-// the open-valued carried rule below. An open-valued axis draws a group for
-// every value some card the producer considered carries, survivor or removed,
-// sorted by the value's bytes ascending. The group holding the cards that
-// carry no value on the axis comes last, whatever the axis.
+// one whether or not a card stands there. A card standing at such a column is
+// still drawn, as a bare card leaf attached to the column itself rather than
+// under a header, which is what the group's headed flag reports to the caller.
+// An open-valued axis draws a group for every value some card the producer
+// considered carries, survivor or removed, sorted by the value's bytes
+// ascending. The group holding the cards that carry no value on the axis comes
+// last, whatever the axis.
 func (l *Library) groupsOn(axis string, kept, cut []*bench.Card, columnCtx string) []group {
 	keptBy := l.gather(axis, kept)
 	cutBy := l.gather(axis, cut)
 	var groups []group
-	for _, value := range l.axisValueOrder(axis, keptBy, cutBy, columnCtx) {
-		groups = append(groups, group{value: value, kept: keptBy[value], cut: cutBy[value]})
+	order, unheaded := l.axisValueOrder(axis, keptBy, cutBy, columnCtx)
+	for _, value := range order {
+		groups = append(groups, group{
+			value:  value,
+			headed: !unheaded[value],
+			kept:   keptBy[value],
+			cut:    cutBy[value],
+		})
 	}
 	return groups
 }
@@ -507,7 +566,7 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 	return by
 }
 
-// StatesDrawn is the state groups a grouped view draws beneath one column, in
+// StatesDrawn is the state groups a grouped view heads beneath one column, in
 // the order the state axis declares its vocabulary. It takes the states that
 // column declares, which is Column.States, and a report of whether a card
 // actually stands in a state there.
@@ -523,20 +582,22 @@ func (l *Library) gather(axis string, cards []*bench.Card) map[string][]*bench.C
 // because it moves the expectation and the output together, so a green sweep
 // says nothing about the rule below. What holds this function honest is
 // TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty, which pins the
-// declared half, and TestABlockedCardAtAQueueColumnStillDrawsItsGroup, which
-// pins the carried half, both in tree_test.go and both naming the states they
-// want as literals. Change the rule here and read those two.
+// declared half, and TestAQueueColumnHeadsBlockedAndInlinesReady, which pins
+// the un-headed half, both in tree_test.go and both naming the states they want
+// as literals. Change the rule here and read those two.
 //
-// The vocabulary splits three ways. A state the column declares is drawn
+// The vocabulary splits three ways. A state the column declares is headed
 // whether or not a card stands in it, because an empty ready group tells a
 // reader work is waiting and nobody has taken it up. Blocked is the exception
-// and is drawn only where a card actually stands blocked, since a block is the
+// and is headed only where a card actually stands blocked, since a block is the
 // rare case and a blocked group reading zero under every column reports the
-// ordinary thing on every row. A state the column does not declare is drawn
-// only where a card actually stands in it, which is the carried-value rule any
-// value the axis does not declare already follows. That last case is the whole
-// of the answer at a column where nobody with access to the workbench takes
-// work up, since such a column declares no state at all, and it is what keeps
+// ordinary thing on every row. Ready and active at a column that declares
+// neither are never headed, whether or not a card stands in them. Such a column
+// is one where nobody with access to the workbench takes work up, so every card
+// standing there is ready and a ready heading reports the hundred percent case,
+// which is the thing the reader learns nothing from. Those cards are still
+// drawn: StatesShown returns them alongside the headed states, and the caller
+// attaches them to the enclosing node as bare card leaves, which is what keeps
 // a card standing there inside a tree whose root count already includes it.
 //
 // A state outside the axis's own vocabulary, which a hand edit can write into
@@ -555,11 +616,41 @@ func StatesDrawn(declared []string, standing func(state string) bool) []string {
 			}
 			continue
 		}
-		if holds[state] || standing(state) {
+		if holds[state] {
 			drawn = append(drawn, state)
 		}
 	}
 	return drawn
+}
+
+// StatesShown is every state a grouped view puts on screen beneath one column,
+// headed or not, in the order the state axis declares its vocabulary. It takes
+// the same two arguments StatesDrawn takes and answers the wider question: what
+// a reader ends up seeing, rather than what earns a heading.
+//
+// The two answers differ by exactly the un-headed case, so a caller that wants
+// the cards attached inline takes the states this returns that StatesDrawn does
+// not. Splitting the rule this way keeps both halves in one file and lets
+// cmd/dinah's row sweep predict the whole shape by asking rather than by
+// restating, which is the property the comment above exists to protect.
+func StatesShown(declared []string, standing func(state string) bool) []string {
+	holds := map[string]bool{}
+	for _, state := range declared {
+		holds[state] = true
+	}
+	var shown []string
+	for _, state := range closedValues(FieldState) {
+		if state == contract.StateBlocked {
+			if standing(state) {
+				shown = append(shown, state)
+			}
+			continue
+		}
+		if holds[state] || standing(state) {
+			shown = append(shown, state)
+		}
+	}
+	return shown
 }
 
 // axisValueOrder is the order the groups of one axis are drawn in: the values
@@ -587,17 +678,39 @@ func StatesDrawn(declared []string, standing func(state string) bool) []string {
 //
 // The promise the paragraph above makes holds for a column whose States
 // declares the value. A column that declares no state at all makes no such
-// promise, and a card standing there is drawn only where it actually stands,
-// the same as any value the axis does not declare.
-func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.Card, columnCtx string) []string {
+// promise, so a ready or active card standing there gets no heading of its own
+// and is drawn as a bare leaf of the enclosing node instead. This function
+// still returns those states, because their cards have to be found and placed;
+// what it says about them is carried in the second return value, which names
+// every state the caller must attach without a group node around it. Their
+// place in the order is the place their heading would have taken, so an
+// un-headed ready leaf precedes a blocked group under the same column, and the
+// byte-order sort that governs a value the axis never heard of does not reach
+// them.
+func (l *Library) axisValueOrder(
+	axis string,
+	keptBy, cutBy map[string][]*bench.Card,
+	columnCtx string,
+) ([]string, map[string]bool) {
 	seen := map[string]bool{}
+	unheaded := map[string]bool{}
 	var order []string
 	if closedAxis(axis) {
 		declared := l.declaredValues(axis, columnCtx)
 		if axis == FieldState {
-			declared = StatesDrawn(declared, func(state string) bool {
+			standing := func(state string) bool {
 				return len(keptBy[state]) > 0 || len(cutBy[state]) > 0
-			})
+			}
+			headed := map[string]bool{}
+			for _, state := range StatesDrawn(declared, standing) {
+				headed[state] = true
+			}
+			declared = StatesShown(declared, standing)
+			for _, state := range declared {
+				if !headed[state] {
+					unheaded[state] = true
+				}
+			}
 		}
 		for _, value := range declared {
 			if value == "" || seen[value] {
@@ -622,7 +735,7 @@ func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.
 	if len(keptBy[""]) > 0 || len(cutBy[""]) > 0 {
 		order = append(order, "")
 	}
-	return order
+	return order, unheaded
 }
 
 // declaredValues enumerates a closed axis completely, in the order the
@@ -632,9 +745,10 @@ func (l *Library) axisValueOrder(axis string, keptBy, cutBy map[string][]*bench.
 // The state axis answers for one column rather than for the whole workbench,
 // because which states a card may carry is a property of where it stands. A
 // column where nobody with access to the workbench takes work up declares none
-// of the three, so this function answers emptily for one, and every state group
-// beneath such a column is drawn by occupancy through StatesDrawn's carried
-// half rather than by a declaration. columnCtx is the value of the nearest
+// of the three, so this function answers emptily for one, and the only state
+// group beneath such a column is the blocked one StatesDrawn heads by
+// occupancy. Ready and active cards standing there attach to the column as bare
+// leaves. columnCtx is the value of the nearest
 // column group above this one and governs the enumeration through States.
 // Where it is empty, and where it names a column the workbench no longer
 // declares, the answer is stateUnion.
@@ -673,7 +787,8 @@ func (l *Library) declaredValues(axis, columnCtx string) []string {
 // and the union is the widest answer that never offers a value no column on this
 // workbench can reach. On a workbench where nobody takes work up at any column,
 // every column declares nothing and so the union is empty, which leaves such a
-// tree drawing the states its cards actually stand in and no others. That is
+// tree heading only the blocked state its cards actually stand in and drawing
+// the rest of them as bare leaves of the node above. That is
 // the question this whole enumeration exists to answer correctly.
 func (l *Library) stateUnion() []string {
 	held := map[string]bool{}
