@@ -1085,9 +1085,10 @@ test("the card clause for Attach File reaches every state a card row can stand i
 // job to the integration suite. That suite activates the extension in a real
 // editor host, but activation succeeds just as readily with activate()'s call
 // to the guard deleted, so the suite reddens only when a registration is
-// genuinely missing at the same time. The wiring was established once, by
-// dropping a registration deliberately and watching the suite fail (dinah-369).
-// registrationGuard.ts's header carries the same account.
+// genuinely missing at the same time. Nothing has yet dropped a registration
+// and watched that suite go red. The arming pass is staged at this card's Test
+// stage (dinah-369 AC-6). Until it runs, no standing check reddens if the call
+// is removed. registrationGuard.ts's header carries the same account.
 //
 // They sit here rather than in a file of their own because the sibling rows
 // above hold identity.ts's roster against the manifest, and this holds the
@@ -1162,10 +1163,12 @@ test("assertCommandsFullyRegistered throws naming a command registered that iden
 });
 
 test("assertCommandsFullyRegistered does not report a duplicate registration as unexpected", () => {
-	// Registering one id twice is a mistake worth nothing to a reader, since
-	// VS Code answers the second call with its own error and the command still
-	// works. Reporting it here would fail activation over a duplicate while the
-	// roster is complete, so the comparison reads both sides as sets.
+	// A repeated id does not make the roster incomplete, since every declared
+	// command is still covered. Pinning the count or the positions would fail
+	// activation over a duplicate or over a legitimate reordering, so the
+	// comparison reads both sides as sets (dinah-369 D-3). What VS Code does
+	// with a second registration of the same id is the editor's business, and
+	// nothing here rests on it.
 	const registered = [...TREE_COMMANDS, COMMAND_REFRESH];
 	assert.equal(
 		registered.length,

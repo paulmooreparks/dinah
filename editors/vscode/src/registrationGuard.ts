@@ -32,10 +32,10 @@
 // That suite does not hold activate()'s call to this function in place, and a
 // later reader should not credit it with doing so. Activation succeeds just as
 // readily with that call deleted, so the suite goes red only when a
-// registration is genuinely missing at the same time. The wiring was
-// established once, by dropping a registration deliberately and watching the
-// suite fail (dinah-369). No standing check reddens if the call is removed
-// afterwards.
+// registration is genuinely missing at the same time. Nothing has yet dropped
+// a registration and watched that suite go red. The arming pass is staged at
+// this card's Test stage (dinah-369 AC-6). Until it runs, no standing check
+// reddens if the call is removed.
 
 /**
  * Refuses a registration set that does not match the declared roster.
