@@ -63,6 +63,22 @@ func groupValues(node TreeNode) []string {
 	return values
 }
 
+// childKinds names the kind of every child a node draws, in the order it draws
+// them, for the failure message of an assertion about the shape of that list.
+//
+// A node's children are a mix of group nodes and card leaves wherever a state
+// is shown without a heading. An assertion about how many children a node draws
+// is therefore an assertion about that mixture, and a message reporting only
+// the count leaves the reader to run the test a second time to find out what
+// the unexpected child was.
+func childKinds(node TreeNode) []string {
+	var kinds []string
+	for _, child := range node.Children {
+		kinds = append(kinds, child.Kind)
+	}
+	return kinds
+}
+
 // leafChildRefs collects the reference of every card node attached directly to
 // one node, which is where a state shown without a heading puts its cards. It
 // does not descend, so a card sitting under a group node of its own is not one
@@ -199,12 +215,8 @@ func TestDepthReportsAtTheBoundaryAndNowhereElse(t *testing.T) {
 	// leak this assertion is here to catch is a card leaf reaching a groups-level
 	// read and a report of the group values says nothing at all about one.
 	if len(column.Children) != 0 {
-		var kinds []string
-		for _, child := range column.Children {
-			kinds = append(kinds, child.Kind)
-		}
-		t.Errorf("the column draws %d children of the kinds %v and the depth left it nothing to draw",
-			len(column.Children), kinds)
+		t.Errorf("the column draws the children %v and the depth left it nothing to draw",
+			childKinds(column))
 	}
 	if column.Hidden == nil {
 		t.Fatalf("the column reports nothing and the depth cut its cards off")
@@ -213,7 +225,7 @@ func TestDepthReportsAtTheBoundaryAndNowhereElse(t *testing.T) {
 		t.Errorf("the column reports the reasons %q, want %q", got, ReasonDepth)
 	}
 	if column.Hidden.Children != 4 || column.Hidden.Subjects != 4 {
-		t.Errorf("the column reports %d children and %d subjects, want 4 and 4",
+		t.Errorf("the column gives the children it cut off as %d and the subjects as %d, want 4 and 4",
 			column.Hidden.Children, column.Hidden.Subjects)
 	}
 	walkTree(built.Root, func(node TreeNode) {
@@ -1239,7 +1251,8 @@ func TestStateResolvesTheColumnAboveItWhateverAxisComesBetween(t *testing.T) {
 		t.Errorf("the entered group attaches %v directly, and the card standing ready there is %s", inline, standing)
 	}
 	if len(entered.Children) != 2 {
-		t.Fatalf("the entered group draws %d children and holds one ready leaf and one blocked group", len(entered.Children))
+		t.Fatalf("the entered group draws the children %v and holds one ready leaf and one blocked group",
+			childKinds(entered))
 	}
 	if entered.Children[0].Kind != bench.KindCard || entered.Children[1].Kind != NodeGroup {
 		t.Errorf("the entered group draws a %s then a %s, and ready precedes blocked on the state axis",
@@ -1500,7 +1513,8 @@ func TestAColumnThatTakesNoWorkUpDrawsNoStateGroupWhenEmpty(t *testing.T) {
 				ref, got)
 		}
 		if len(standing.Children) != 1 {
-			t.Fatalf("the intake column draws %d children and holds the one card %s", len(standing.Children), ref)
+			t.Fatalf("the intake column draws the children %v and holds the one card %s as a bare leaf",
+				childKinds(standing), ref)
 		}
 		if inline := leafChildRefs(standing); strings.Join(inline, ",") != ref {
 			t.Errorf("the intake column attaches %v directly and holds the one card %s", inline, ref)
@@ -1545,7 +1559,8 @@ func TestAQueueColumnHeadsBlockedAndInlinesReady(t *testing.T) {
 		t.Errorf("the waiting column attaches %v directly and the card standing ready there is %s", inline, waiting)
 	}
 	if len(group.Children) != 2 {
-		t.Fatalf("the waiting column draws %d children and holds one ready leaf and one blocked group", len(group.Children))
+		t.Fatalf("the waiting column draws the children %v and holds one ready leaf and one blocked group",
+			childKinds(group))
 	}
 	if group.Children[0].Kind != bench.KindCard || group.Children[1].Kind != NodeGroup {
 		t.Errorf("the waiting column draws a %s then a %s, and ready precedes blocked on the state axis",
@@ -1631,6 +1646,83 @@ func TestStatesShownKeepsTheCardsAHeadingWasRemovedFrom(t *testing.T) {
 	}
 }
 
+// TestDepthHoldsBackTheLeavesBesideAHeadingItStillDraws is dinah-329 AC-9. One
+// node showing some children while holding others back is the state this card
+// newly enables, and it is reached only where a column heads a group and inlines
+// a leaf at the same time.
+//
+// Three cards stand at the waiting column. The blocked one earns a heading,
+// which a groups-level read still draws, and the two ready ones would attach as
+// bare leaves at the rank the state axis would have occupied, which the same
+// read holds back. So the column draws one child and reports two, and those two
+// numbers differ from every other number in the fixture: the cards standing at
+// the column are three, and the children it drew are one.
+//
+// That is what the older TestDepthReportsAtTheBoundaryAndNowhereElse cannot
+// pin. Its column heads nothing, so the leaves it holds back, the subjects it
+// holds back and the cards standing at it are all four, and an arithmetic that
+// counted any of the three would pass it.
+func TestDepthHoldsBackTheLeavesBesideAHeadingItStillDraws(t *testing.T) {
+	h := newBufferHarness(t)
+	stopped := h.add("stopped while it waited its turn")
+	h.at(stopped, bufferQueue)
+	h.mustDo(&Request{Verb: Block, Card: stopped, Actor: "alka", Reason: "waiting on a ruling"})
+	first := h.add("first in the queue")
+	h.at(first, bufferQueue)
+	second := h.add("second in the queue")
+	h.at(second, bufferQueue)
+
+	built := treeOf(t, h, "", nil, LevelGroups)
+	column := groupAt(t, built.Root, bufferQueueSlug)
+	if column.Count != 3 {
+		t.Errorf("the waiting column gives its count as %d and three cards stand there", column.Count)
+	}
+	want := []string{contract.StateBlocked}
+	if got := groupValues(column); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("the waiting column heads the state groups %v drawing the children %v, and the heading a groups-level read still draws is %v",
+			got, childKinds(column), want)
+	}
+	if len(column.Children) != 1 {
+		t.Errorf("the waiting column draws the children %v and the depth leaves it the one blocked heading",
+			childKinds(column))
+	}
+	if inline := leafChildRefs(column); len(inline) != 0 {
+		t.Errorf("the waiting column attaches %v directly and the depth holds every un-headed leaf back", inline)
+	}
+	if column.Hidden == nil {
+		t.Fatalf("the waiting column reports nothing and the depth held back the two cards standing ready there")
+	}
+	if got := strings.Join(column.Hidden.Reason, ","); got != ReasonDepth {
+		t.Errorf("the waiting column reports the reasons %q, want %q", got, ReasonDepth)
+	}
+	if column.Hidden.Children != 2 {
+		t.Errorf("the waiting column gives the children it held back as %d, and what it held back is the two ready leaves rather than the three cards standing there or the heading it drew",
+			column.Hidden.Children)
+	}
+	if column.Hidden.Subjects != 2 {
+		t.Errorf("the waiting column gives the subjects it held back as %d, and what it held back is the two ready cards rather than the three standing there",
+			column.Hidden.Subjects)
+	}
+	// The heading the column still draws reports its own cut one rank further
+	// down, which is what makes the column's own report above an account of the
+	// leaves beside that heading rather than of everything standing there.
+	blocked := groupAt(t, column, contract.StateBlocked)
+	if blocked.Count != 1 || len(blocked.Children) != 0 {
+		t.Errorf("the blocked group gives its count as %d and draws the children %v, and a groups-level read draws the heading and none of the cards under it",
+			blocked.Count, childKinds(blocked))
+	}
+
+	// The control, one level deeper on the same fixture. It attaches both ready
+	// cards to the column directly, which is what makes their absence above a
+	// statement about the depth rather than about a tree that never drew them.
+	shown := groupAt(t, treeOf(t, h, "", nil, LevelCards).Root, bufferQueueSlug)
+	wantInline := []string{first, second}
+	if inline := leafChildRefs(shown); strings.Join(inline, ",") != strings.Join(wantInline, ",") {
+		t.Fatalf("the same fixture attaches %v directly at %s, so the empty attachment above proves nothing about the depth",
+			inline, LevelCards)
+	}
+}
+
 // TestAQueueColumnHoldingOnlyReadyCardsHeadsNothing is dinah-329's own shape,
 // reproduced from the operator's sidebar: two cards standing at a column where
 // nobody takes work up, nothing blocked, the default chain, no query and no
@@ -1654,13 +1746,14 @@ func TestAQueueColumnHoldingOnlyReadyCardsHeadsNothing(t *testing.T) {
 		t.Errorf("the waiting column heads the state groups %v and every card standing there is ready", got)
 	}
 	if group.Count != 2 {
-		t.Errorf("the waiting column counts %d cards and holds 2", group.Count)
+		t.Errorf("the waiting column gives its count as %d and holds two cards", group.Count)
 	}
 	want := []string{first, second}
 	if inline := leafChildRefs(group); strings.Join(inline, ",") != strings.Join(want, ",") {
 		t.Errorf("the waiting column attaches %v directly and the cards standing there are %v", inline, want)
 	}
 	if len(group.Children) != 2 {
-		t.Errorf("the waiting column draws %d children and holds two cards and no group", len(group.Children))
+		t.Errorf("the waiting column draws the children %v and holds two cards and no group",
+			childKinds(group))
 	}
 }

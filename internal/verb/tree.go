@@ -41,8 +41,11 @@ type TreeNode struct {
 	Count int `json:"count"`
 	// Hidden is what this node does not show, absent when it hides nothing.
 	Hidden *Hidden `json:"hidden,omitempty"`
-	// Children are the nodes below, absent on a leaf and on a node whose
-	// children the depth cut off.
+	// Children are the nodes below. They are absent on a leaf, and absent on a
+	// node whose children the depth cut off entirely. A node standing at the
+	// depth boundary can carry both at once: it draws the children it still
+	// shows here and accounts for the ones it held back in Hidden, so a depth
+	// reason on a node does not mean the node drew nothing.
 	Children []TreeNode `json:"children,omitempty"`
 }
 
