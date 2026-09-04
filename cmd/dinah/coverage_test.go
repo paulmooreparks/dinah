@@ -79,7 +79,7 @@ func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the head's function spans: %v", err)
 	}
-	uncovered, err := uncoveredBlocks(profile, scope, spans)
+	read, err := uncoveredBlocks(profile, scope, spans)
 	if err != nil {
 		t.Fatalf("read the profile: %v", err)
 	}
@@ -87,15 +87,19 @@ func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", uncoveredAllowlist, err)
 	}
-	for _, site := range sortedStatementSites(uncovered) {
+	for _, site := range sortedStatementSites(read.uncovered) {
 		if _, ok := named[site]; !ok {
-			t.Errorf("%s (the profile spells it %s) is executed by no test in this package and the allowlist does not name it; cover it, or name it in %s with the reason it cannot be reached", site, uncovered[site], uncoveredAllowlist)
+			t.Errorf("%s (the profile spells it %s) is executed by no test in this package and the allowlist does not name it; cover it, or name it in %s with the reason it cannot be reached", site, read.uncovered[site], uncoveredAllowlist)
 		}
 	}
 	for _, site := range sortedStatementSites(named) {
-		span, held := uncovered[site]
+		span, held := read.uncovered[site]
 		if !held {
-			t.Errorf("%s is named in %s and the suite executes it, so the entry is stale and has to be pruned", site, uncoveredAllowlist)
+			if covered, exists := read.ranked[site]; exists {
+				t.Errorf("%s (the profile spells it %s) is named in %s and the suite executes it, so the entry is stale and has to be pruned", site, covered, uncoveredAllowlist)
+				continue
+			}
+			t.Errorf("%s is named in %s and the profile ranks no block of that function there, so the entry names nothing; take the identifier from this check's own report of the block you meant", site, uncoveredAllowlist)
 			continue
 		}
 		if strings.TrimSpace(named[site]) == "" {
@@ -244,6 +248,17 @@ func functionAt(spans []functionSpan, line int) (string, bool) {
 	return "", false
 }
 
+// profileSites is what one profile says about this package: every in-scope
+// statement block it reports, by the site each one is named under, and the
+// subset of those no test executed. Both halves are kept because a stale
+// allowlist entry has two different causes, and telling a reader which one it
+// is costs one map: the block exists and the suite now reaches it, or no block
+// of that function is ranked there at all.
+type profileSites struct {
+	ranked    map[statementSite]string
+	uncovered map[statementSite]string
+}
+
 // profileBlock is one statement block of a coverage profile: where the profile
 // says it sits, and how many times the suite ran it.
 type profileBlock struct {
@@ -263,10 +278,10 @@ type profileBlock struct {
 // over the uncovered blocks alone would move every entry below a block the day
 // a test started reaching that block, which is the churn this key exists to
 // remove.
-func uncoveredBlocks(profile string, scope func(file string, line int) bool, spans map[string][]functionSpan) (map[statementSite]string, error) {
+func uncoveredBlocks(profile string, scope func(file string, line int) bool, spans map[string][]functionSpan) (profileSites, error) {
 	source, err := os.ReadFile(profile)
 	if err != nil {
-		return nil, err
+		return profileSites{}, err
 	}
 	var blocks []profileBlock
 	for _, line := range strings.Split(string(source), "\n") {
@@ -304,7 +319,7 @@ func uncoveredBlocks(profile string, scope func(file string, line int) bool, spa
 		blocks = append(blocks, profileBlock{file: file, span: where, opens: opens, column: column, count: count})
 	}
 	if len(blocks) == 0 {
-		return nil, errors.New("the profile reported no statement block in scope at all, so it proves nothing")
+		return profileSites{}, errors.New("the profile reported no statement block in scope at all, so it proves nothing")
 	}
 	sort.Slice(blocks, func(i, j int) bool {
 		if blocks[i].file != blocks[j].file {
@@ -315,21 +330,22 @@ func uncoveredBlocks(profile string, scope func(file string, line int) bool, spa
 		}
 		return blocks[i].column < blocks[j].column
 	})
-	uncovered := map[statementSite]string{}
-	ranked := map[string]int{}
+	read := profileSites{uncovered: map[statementSite]string{}, ranked: map[statementSite]string{}}
+	ranks := map[string]int{}
 	for _, block := range blocks {
 		function, found := functionAt(spans[block.file], block.opens)
 		if !found {
-			return nil, fmt.Errorf("the profile reports %s and no function this package declares runs across that line, so the block cannot be named", block.span)
+			return profileSites{}, fmt.Errorf("the profile reports %s and no function this package declares runs across that line, so the block cannot be named", block.span)
 		}
 		key := block.file + ":" + function
-		ranked[key]++
-		if block.count > 0 {
-			continue
+		ranks[key]++
+		site := statementSite{File: block.file, Function: function, Ordinal: ranks[key]}
+		read.ranked[site] = block.span
+		if block.count == 0 {
+			read.uncovered[site] = block.span
 		}
-		uncovered[statementSite{File: block.file, Function: function, Ordinal: ranked[key]}] = block.span
 	}
-	return uncovered, nil
+	return read, nil
 }
 
 // theRenderingFiles are the files whose every statement is in scope, since
