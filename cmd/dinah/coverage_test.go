@@ -1,8 +1,9 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"os"
 	"os/exec"
@@ -74,7 +75,11 @@ func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the head's sources: %v", err)
 	}
-	uncovered, err := uncoveredBlocks(profile, scope)
+	spans, err := renderingHeadFunctionSpans()
+	if err != nil {
+		t.Fatalf("read the head's function spans: %v", err)
+	}
+	uncovered, err := uncoveredBlocks(profile, scope, spans)
 	if err != nil {
 		t.Fatalf("read the profile: %v", err)
 	}
@@ -82,34 +87,188 @@ func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", uncoveredAllowlist, err)
 	}
-	for _, block := range uncovered {
-		if _, ok := named[block]; !ok {
-			t.Errorf("%s is executed by no test in this package and the allowlist does not name it; cover it, or name it in %s with the reason it cannot be reached", block, uncoveredAllowlist)
+	for _, site := range sortedStatementSites(uncovered) {
+		if _, ok := named[site]; !ok {
+			t.Errorf("%s (the profile spells it %s) is executed by no test in this package and the allowlist does not name it; cover it, or name it in %s with the reason it cannot be reached", site, uncovered[site], uncoveredAllowlist)
 		}
 	}
-	held := map[string]bool{}
-	for _, block := range uncovered {
-		held[block] = true
-	}
-	for block, reason := range named {
-		if !held[block] {
-			t.Errorf("%s is named in %s and the suite executes it, so the entry is stale and has to be pruned", block, uncoveredAllowlist)
+	for _, site := range sortedStatementSites(named) {
+		span, held := uncovered[site]
+		if !held {
+			t.Errorf("%s is named in %s and the suite executes it, so the entry is stale and has to be pruned", site, uncoveredAllowlist)
+			continue
 		}
-		if strings.TrimSpace(reason) == "" {
-			t.Errorf("%s is named in %s with no reason, and an entry is a place the output check does not look rather than a line of configuration", block, uncoveredAllowlist)
+		if strings.TrimSpace(named[site]) == "" {
+			t.Errorf("%s (the profile spells it %s) is named in %s with no reason, and an entry is a place the output check does not look rather than a line of configuration", site, span, uncoveredAllowlist)
 		}
 	}
 }
 
+// sortedStatementSites orders a set of sites so that a run reports them the
+// same way twice, since a map hands them back in whatever order it likes.
+func sortedStatementSites(sites map[statementSite]string) []statementSite {
+	ordered := make([]statementSite, 0, len(sites))
+	for site := range sites {
+		ordered = append(ordered, site)
+	}
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].String() < ordered[j].String() })
+	return ordered
+}
+
+// statementSite is one statement block reported by a coverage profile, named
+// by the function it sits in and its rank among every block the profile
+// reports for that function (covered and uncovered alike), ordered by (start
+// line, start column) ascending. Ranking against every block rather than only
+// the uncovered ones is what keeps an entry's ordinal from moving the day a
+// sibling statement in the same function goes from uncovered to covered.
+//
+// statementSite carries no label the way renderSite does. A table call's
+// identity survives a reorder of two source lines because the call is bound to
+// a declared local that keeps its own name regardless of position; a coverage
+// statement's identity is its position, full stop, because moving one
+// uncovered statement above another is not a two-line swap of otherwise
+// identical calls, it is rewriting the function's control flow, which is
+// already a change a reviewer has to look at directly. The renderSite reorder
+// defect exploited two declarations that could trade positions with no
+// behavioural difference at all; two statement blocks cannot trade positions
+// without the compiler and every existing test already asking why, since a
+// statement's position is its behaviour.
+type statementSite struct {
+	File     string
+	Function string
+	Ordinal  int
+}
+
+// String renders a site the way the allowlist names one.
+func (s statementSite) String() string {
+	return fmt.Sprintf("%s:%s#%d", s.File, s.Function, s.Ordinal)
+}
+
+// parseStatementSite reads the identifier an allowlist line opens with, which
+// is the identifier a failing run prints for the block it is reporting.
+func parseStatementSite(text string) (statementSite, error) {
+	file, rest, found := strings.Cut(text, ":")
+	if !found || file == "" {
+		return statementSite{}, fmt.Errorf("%q names no file, and an entry opens file:function#ordinal", text)
+	}
+	function, ordinal, found := strings.Cut(rest, "#")
+	if !found || function == "" {
+		return statementSite{}, fmt.Errorf("%q names no function, and an entry opens file:function#ordinal", text)
+	}
+	rank, err := strconv.Atoi(ordinal)
+	if err != nil || rank < 1 {
+		return statementSite{}, fmt.Errorf("%q carries no ordinal, and an entry opens file:function#ordinal", text)
+	}
+	return statementSite{File: file, Function: function, Ordinal: rank}, nil
+}
+
+// functionSpan is one declared function and the lines it runs between, which is
+// what turns a profile block's start line into the function it sits in.
+type functionSpan struct {
+	Name   string
+	Opens  int
+	Closes int
+}
+
+// renderingHeadFunctionSpans reads every declaration this package writes
+// statements inside, by file. Every file is read rather than only the ones
+// outside theRenderingFiles, because the coverage scope needs spans only where
+// it narrows and the statement key needs them everywhere.
+//
+// A function declaration is the ordinary case. A package-level variable whose
+// value is built out of function literals is the other one, and refusalListings
+// and refusalBlocks in render.go are both of that shape: the profile reports
+// statements inside those literals, and no function declaration runs across
+// them. Such a variable is named by its own declared name, which is as stable
+// as a function's and reads the same way in an allowlist entry.
+func renderingHeadFunctionSpans() (map[string][]functionSpan, error) {
+	fset, files, err := parseTheRenderingHead()
+	if err != nil {
+		return nil, err
+	}
+	spans := map[string][]functionSpan{}
+	for name, file := range files {
+		for _, declared := range file.Decls {
+			switch declaration := declared.(type) {
+			case *ast.FuncDecl:
+				if declaration.Body == nil {
+					continue
+				}
+				spans[name] = append(spans[name], functionSpan{
+					Name:   declaration.Name.Name,
+					Opens:  fset.Position(declaration.Pos()).Line,
+					Closes: fset.Position(declaration.End()).Line,
+				})
+			case *ast.GenDecl:
+				if declaration.Tok != token.VAR && declaration.Tok != token.CONST {
+					continue
+				}
+				for _, spec := range declaration.Specs {
+					value, ok := spec.(*ast.ValueSpec)
+					if !ok || len(value.Names) == 0 || !carriesFunctionLiteral(value) {
+						continue
+					}
+					spans[name] = append(spans[name], functionSpan{
+						Name:   value.Names[0].Name,
+						Opens:  fset.Position(value.Pos()).Line,
+						Closes: fset.Position(value.End()).Line,
+					})
+				}
+			}
+		}
+	}
+	return spans, nil
+}
+
+// carriesFunctionLiteral reports whether a declared value is built out of
+// function literals, which is what makes it a place the profile reports
+// statements from.
+func carriesFunctionLiteral(value *ast.ValueSpec) bool {
+	found := false
+	ast.Inspect(value, func(node ast.Node) bool {
+		if _, ok := node.(*ast.FuncLit); ok {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// functionAt reports the declared function a line sits in.
+func functionAt(spans []functionSpan, line int) (string, bool) {
+	for _, span := range spans {
+		if line >= span.Opens && line <= span.Closes {
+			return span.Name, true
+		}
+	}
+	return "", false
+}
+
+// profileBlock is one statement block of a coverage profile: where the profile
+// says it sits, and how many times the suite ran it.
+type profileBlock struct {
+	file   string
+	span   string
+	opens  int
+	column int
+	count  int
+}
+
 // uncoveredBlocks reads a coverage profile and reports every statement block of
-// this package that no test executed, spelled file:start,end the way the
-// allowlist spells one.
-func uncoveredBlocks(profile string, scope func(file string, line int) bool) ([]string, error) {
+// this package that no test executed, keyed by the function it sits in and its
+// rank among that function's blocks, with the profile's own raw span kept
+// alongside for a failure message to print.
+//
+// Every in-scope block is ranked, not only the uncovered ones. A rank taken
+// over the uncovered blocks alone would move every entry below a block the day
+// a test started reaching that block, which is the churn this key exists to
+// remove.
+func uncoveredBlocks(profile string, scope func(file string, line int) bool, spans map[string][]functionSpan) (map[statementSite]string, error) {
 	source, err := os.ReadFile(profile)
 	if err != nil {
 		return nil, err
 	}
-	var blocks []string
+	var blocks []profileBlock
 	for _, line := range strings.Split(string(source), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "mode:") {
@@ -120,26 +279,57 @@ func uncoveredBlocks(profile string, scope func(file string, line int) bool) ([]
 			continue
 		}
 		count, err := strconv.Atoi(fields[2])
-		if err != nil || count > 0 {
+		if err != nil {
 			continue
 		}
 		where := fields[0]
-		at := strings.LastIndex(where, "/")
-		if at >= 0 {
+		if at := strings.LastIndex(where, "/"); at >= 0 {
 			where = where[at+1:]
 		}
 		file, span, found := strings.Cut(where, ":")
 		if !found {
 			continue
 		}
-		opens, err := strconv.Atoi(strings.SplitN(span, ".", 2)[0])
+		start := strings.SplitN(span, ",", 2)[0]
+		opens, err := strconv.Atoi(strings.SplitN(start, ".", 2)[0])
 		if err != nil || !scope(file, opens) {
 			continue
 		}
-		blocks = append(blocks, where)
+		column := 0
+		if _, after, found := strings.Cut(start, "."); found {
+			if read, err := strconv.Atoi(after); err == nil {
+				column = read
+			}
+		}
+		blocks = append(blocks, profileBlock{file: file, span: where, opens: opens, column: column, count: count})
 	}
-	sort.Strings(blocks)
-	return blocks, nil
+	if len(blocks) == 0 {
+		return nil, errors.New("the profile reported no statement block in scope at all, so it proves nothing")
+	}
+	sort.Slice(blocks, func(i, j int) bool {
+		if blocks[i].file != blocks[j].file {
+			return blocks[i].file < blocks[j].file
+		}
+		if blocks[i].opens != blocks[j].opens {
+			return blocks[i].opens < blocks[j].opens
+		}
+		return blocks[i].column < blocks[j].column
+	})
+	uncovered := map[statementSite]string{}
+	ranked := map[string]int{}
+	for _, block := range blocks {
+		function, found := functionAt(spans[block.file], block.opens)
+		if !found {
+			return nil, fmt.Errorf("the profile reports %s and no function this package declares runs across that line, so the block cannot be named", block.span)
+		}
+		key := block.file + ":" + function
+		ranked[key]++
+		if block.count > 0 {
+			continue
+		}
+		uncovered[statementSite{File: block.file, Function: function, Ordinal: ranked[key]}] = block.span
+	}
+	return uncovered, nil
 }
 
 // theRenderingFiles are the files whose every statement is in scope, since
@@ -160,22 +350,13 @@ func coverageScope() (func(file string, line int) bool, error) {
 		return nil, err
 	}
 	spans := map[string][][2]int{}
-	entries, err := os.ReadDir(theRenderingHeadDir)
+	fset, files, err := parseTheRenderingHead()
 	if err != nil {
 		return nil, err
 	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
+	for name, file := range files {
 		if theRenderingFiles[name] {
 			continue
-		}
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, filepath.Join(theRenderingHeadDir, name), nil, 0)
-		if err != nil {
-			return nil, err
 		}
 		for _, declared := range file.Decls {
 			function, ok := declared.(*ast.FuncDecl)
@@ -209,22 +390,31 @@ func coverageScope() (func(file string, line int) bool, error) {
 	}, nil
 }
 
-// readUncoveredAllowlist reads the allowlist into the block each entry names
-// and the reason it gives. A line is a block, whitespace, and the reason; a
-// blank line and a line opening with a hash are commentary.
-func readUncoveredAllowlist() (map[string]string, error) {
+// readUncoveredAllowlist reads the allowlist into the statement site each entry
+// names and the reason it gives. A line is a site, whitespace, and the reason;
+// a blank line and a line opening with a hash are commentary.
+//
+// A line whose identifier will not parse is an error rather than a skipped
+// line. An unreadable entry that was quietly dropped would read exactly like
+// an entry nobody had written, so the block it names would be reported as
+// unnamed and the reason it carries would be lost.
+func readUncoveredAllowlist() (map[statementSite]string, error) {
 	source, err := os.ReadFile(uncoveredAllowlist)
 	if err != nil {
 		return nil, err
 	}
-	named := map[string]string{}
+	named := map[statementSite]string{}
 	for _, line := range strings.Split(string(source), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		block, reason, _ := strings.Cut(line, " ")
-		named[block] = strings.TrimSpace(reason)
+		spelled, reason, _ := strings.Cut(line, " ")
+		site, err := parseStatementSite(spelled)
+		if err != nil {
+			return nil, err
+		}
+		named[site] = strings.TrimSpace(reason)
 	}
 	return named, nil
 }

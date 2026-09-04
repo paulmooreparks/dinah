@@ -873,7 +873,7 @@ var sweptCoverage = map[string]string{}
 // sweptTriple names one covered entry in one language on one pass, which is
 // the key the coverage counter is kept against and what a failure reports.
 func sweptTriple(block sweptBlock, tag, pass string) string {
-	return block.site + " (" + block.label + "), locale " + tag + ", pass " + pass
+	return block.site.String() + " (" + block.label + "), locale " + tag + ", pass " + pass
 }
 
 // assertEveryTripleWasCompared asserts the counter: every covered entry, in
@@ -1531,7 +1531,7 @@ func sweptControlRows() [][]string {
 // full pass and long enough to stack at the narrow one.
 func sweptControlBlock() sweptBlock {
 	return sweptBlock{
-		site:  "row_sweep_test.go",
+		site:  renderSite{File: "row_sweep_test.go"},
 		label: "the control block the pairing assertion arms itself with",
 		keys:  []string{"column.ls.card", "column.ls.standing", "column.ls.title"},
 	}

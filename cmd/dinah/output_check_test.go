@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -428,48 +430,378 @@ func (s tableSite) String() string {
 	return s.file + ":" + strconv.Itoa(s.line)
 }
 
+// parseTheRenderingHead parses every non-test Go source directly under this
+// package and returns the fileset it read them with alongside the parsed files
+// by base name. Three walks ask three different questions of the same sources
+// and each wants a different subset of them, so the parse is shared here and
+// the filtering stays with the caller that knows what its own question is
+// about.
+func parseTheRenderingHead() (*token.FileSet, map[string]*ast.File, error) {
+	entries, err := os.ReadDir(theRenderingHeadDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	fset := token.NewFileSet()
+	files := map[string]*ast.File{}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, filepath.Join(theRenderingHeadDir, name), nil, 0)
+		if err != nil {
+			return nil, nil, err
+		}
+		files[name] = file
+	}
+	if len(files) == 0 {
+		return nil, nil, errors.New("the walk scanned no source of the rendering head, so it proves nothing")
+	}
+	return fset, files, nil
+}
+
+// tableCallAt reports whether a node is a call to s.table or s.tableLines, and
+// hands the call back when it is.
+func tableCallAt(node ast.Node) (*ast.CallExpr, bool) {
+	call, ok := node.(*ast.CallExpr)
+	if !ok {
+		return nil, false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || (selector.Sel.Name != "table" && selector.Sel.Name != "tableLines") {
+		return nil, false
+	}
+	return call, true
+}
+
 // tableSitesInSource walks this package's non-test sources and reports every
 // call to s.table or s.tableLines, by file and line. table.go is left out: it
 // is where the two live, and its own call from table to tableLines is not a
 // site that draws a block.
+//
+// This is the positional half, and it stays positional on purpose. Both sides
+// of the comparison it feeds are computed fresh on every run, one by this walk
+// and one by the hook table.go arms, so no line number here is ever typed by
+// hand and none can go stale. What sweptBlocks names is renderSite below.
 func tableSitesInSource() (map[tableSite]bool, error) {
-	entries, err := os.ReadDir(theRenderingHeadDir)
+	fset, files, err := parseTheRenderingHead()
 	if err != nil {
 		return nil, err
 	}
 	sites := map[tableSite]bool{}
-	scanned := 0
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || name == "table.go" {
+	for name, file := range files {
+		if name == "table.go" {
 			continue
 		}
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, filepath.Join(theRenderingHeadDir, name), nil, 0)
-		if err != nil {
-			return nil, err
-		}
-		scanned++
 		ast.Inspect(file, func(node ast.Node) bool {
-			call, ok := node.(*ast.CallExpr)
+			call, ok := tableCallAt(node)
 			if !ok {
-				return true
-			}
-			selector, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || (selector.Sel.Name != "table" && selector.Sel.Name != "tableLines") {
 				return true
 			}
 			sites[tableSite{file: name, line: fset.Position(call.Pos()).Line}] = true
 			return true
 		})
 	}
-	if scanned == 0 {
-		return nil, errors.New("the walk scanned no source of the rendering head, so it proves nothing")
+	if len(sites) == 0 {
+		return nil, errors.New("the walk found no table call site at all, so it proves nothing")
+	}
+	return sites, nil
+}
+
+// renderSite is one call to s.table or s.tableLines, named by the function it
+// sits in and the name of the local identifier its argument resolves to (or,
+// for a call whose argument is itself a call expression, the name of the
+// function called). Two renderSites in the same function are distinguished by
+// Label whenever their calls bind different locals, which survives any reorder
+// of the calls; Ordinal exists only to give every site a total key and to let
+// the checker detect the one case Label cannot resolve on its own (two
+// same-function calls sharing both Label and declared columns), which
+// assertNoAmbiguousSiblingSites treats as a failure rather than as a silently
+// accepted collision. A renderSite survives any edit outside its own function;
+// an edit inside it that adds, removes or renames a call is the case a human
+// has to look at the entry again, which this key makes into a test failure
+// rather than a silent repoint.
+type renderSite struct {
+	// File is the source's base name, relative to cmd/dinah.
+	File string
+	// Function is the enclosing declaration's own name.
+	Function string
+	// Label is the argument's resolved identifier name, or the called
+	// function's name for the one-hop call-expression case. It is empty when
+	// the argument is an inline composite literal, which no site in the tree
+	// is today.
+	Label string
+	// Ordinal is the 1-based rank of this call among the calls sharing its
+	// (File, Function, Label), in source order. It is 1 for every site in the
+	// tree, since every one of them has a Label unique within its function.
+	Ordinal int
+}
+
+// String renders a site the way sweptBlocks names one.
+func (s renderSite) String() string {
+	if s.Label != "" {
+		return fmt.Sprintf("%s:%s.%s#%d", s.File, s.Function, s.Label, s.Ordinal)
+	}
+	return fmt.Sprintf("%s:%s#%d", s.File, s.Function, s.Ordinal)
+}
+
+// renderSiteInfo is what the walk reads about a site beyond its own identity:
+// where it sits, for a diagnostic, and which catalog keys its columns
+// declaration says its headings carry.
+type renderSiteInfo struct {
+	// Line is for a failure message and for nothing else. It is never typed
+	// into an entry and never compared.
+	Line int
+	// Keys are the catalog keys derived from the site's own columns
+	// declaration, in column order. They are nil for a listColumn site, which
+	// is the one-column shape sweptBlock spells as no keys at all, and nil
+	// when Derivable is false.
+	Keys []string
+	// Derivable says the columns declaration was one of the two shapes this
+	// walk reads. A false here fails the run rather than dropping the site
+	// out of the comparison.
+	Derivable bool
+	// Unresolved says what the walk found instead, and is empty when Derivable
+	// is true.
+	Unresolved string
+}
+
+// renderSitesInSource walks the same sources tableSitesInSource walks and
+// reports every table call site by the key sweptBlocks names one under,
+// together with the columns its own source declares.
+//
+// Calls within a function are sorted by position before ordinals are assigned.
+// ast.Inspect walks the tree's structure rather than the file's lines, and
+// while the two agree for every function in this package today, an ordinal
+// resting on that agreement would be a key resting on something no
+// documentation promises.
+func renderSitesInSource() (map[renderSite]renderSiteInfo, error) {
+	fset, files, err := parseTheRenderingHead()
+	if err != nil {
+		return nil, err
+	}
+	sites := map[renderSite]renderSiteInfo{}
+	for name, file := range files {
+		if name == "table.go" {
+			continue
+		}
+		for _, declared := range file.Decls {
+			function, ok := declared.(*ast.FuncDecl)
+			if !ok || function.Body == nil {
+				continue
+			}
+			var calls []*ast.CallExpr
+			ast.Inspect(function.Body, func(node ast.Node) bool {
+				if call, ok := tableCallAt(node); ok {
+					calls = append(calls, call)
+				}
+				return true
+			})
+			sort.Slice(calls, func(i, j int) bool { return calls[i].Pos() < calls[j].Pos() })
+			ranked := map[string]int{}
+			for _, call := range calls {
+				label, info := readRenderSite(fset, file, function, call)
+				ranked[label]++
+				sites[renderSite{File: name, Function: function.Name.Name, Label: label, Ordinal: ranked[label]}] = info
+			}
+		}
 	}
 	if len(sites) == 0 {
 		return nil, errors.New("the walk found no table call site at all, so it proves nothing")
 	}
 	return sites, nil
+}
+
+// readRenderSite resolves one call's label and the columns its argument
+// declares. Both answers come from one resolution of the argument, since the
+// declaration that names the label is the declaration that carries the
+// columns.
+func readRenderSite(fset *token.FileSet, file *ast.File, function *ast.FuncDecl, call *ast.CallExpr) (string, renderSiteInfo) {
+	info := renderSiteInfo{Line: fset.Position(call.Pos()).Line}
+	if len(call.Args) != 1 {
+		info.Unresolved = fmt.Sprintf("the call passes %d arguments, and a table call passes one", len(call.Args))
+		return "", info
+	}
+	switch argument := call.Args[0].(type) {
+	case *ast.Ident:
+		literal := tableLiteralBoundTo(function.Body, argument.Name, call.Pos())
+		if literal == nil {
+			info.Unresolved = "the argument is the identifier " + argument.Name + ", and no table literal is assigned to that name in this function before the call"
+			return argument.Name, info
+		}
+		return argument.Name, keysOfTableLiteral(literal, info)
+	case *ast.CallExpr:
+		name, callee := zeroArgumentCalleeInThisFile(file, argument)
+		if callee == nil {
+			info.Unresolved = "the argument is a call the walk resolves no declaration for, and it resolves one hop to a zero-argument function declared in the same file"
+			return name, info
+		}
+		literal := tableLiteralReturnedBy(callee)
+		if literal == nil {
+			info.Unresolved = "the argument is a call to " + name + ", which returns no table literal the walk can read"
+			return name, info
+		}
+		return name, keysOfTableLiteral(literal, info)
+	case *ast.CompositeLit:
+		return "", keysOfTableLiteral(argument, info)
+	default:
+		info.Unresolved = fmt.Sprintf("the argument is a %T, which is none of the shapes the walk reads", argument)
+		return "", info
+	}
+}
+
+// tableLiteralBoundTo finds the table literal assigned to a name in a function
+// body before a given position, taking the nearest such assignment. Two
+// branches of one function may each bind the same name to a table of their
+// own, and the nearest preceding assignment is the one the call at that
+// position is passing.
+func tableLiteralBoundTo(body *ast.BlockStmt, name string, before token.Pos) *ast.CompositeLit {
+	var found *ast.CompositeLit
+	ast.Inspect(body, func(node ast.Node) bool {
+		assign, ok := node.(*ast.AssignStmt)
+		if !ok || assign.Pos() >= before || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+			return true
+		}
+		target, ok := assign.Lhs[0].(*ast.Ident)
+		if !ok || target.Name != name {
+			return true
+		}
+		literal, ok := assign.Rhs[0].(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		if found == nil || literal.Pos() > found.Pos() {
+			found = literal
+		}
+		return true
+	})
+	return found
+}
+
+// zeroArgumentCalleeInThisFile resolves one hop from a call expression to the
+// zero-argument function declared in the same file, and reports the name it
+// resolved whether or not a declaration was found, since the name is the label
+// either way.
+func zeroArgumentCalleeInThisFile(file *ast.File, call *ast.CallExpr) (string, *ast.FuncDecl) {
+	var name string
+	switch fun := call.Fun.(type) {
+	case *ast.Ident:
+		name = fun.Name
+	case *ast.SelectorExpr:
+		name = fun.Sel.Name
+	default:
+		return "", nil
+	}
+	if len(call.Args) != 0 {
+		return name, nil
+	}
+	for _, declared := range file.Decls {
+		function, ok := declared.(*ast.FuncDecl)
+		if !ok || function.Name.Name != name || function.Body == nil {
+			continue
+		}
+		if function.Type.Params != nil && len(function.Type.Params.List) != 0 {
+			continue
+		}
+		return name, function
+	}
+	return name, nil
+}
+
+// tableLiteralReturnedBy finds the table literal a zero-argument function hands
+// back, whether it returns the literal itself or a local it built the literal
+// into.
+func tableLiteralReturnedBy(callee *ast.FuncDecl) *ast.CompositeLit {
+	var found *ast.CompositeLit
+	ast.Inspect(callee.Body, func(node ast.Node) bool {
+		returned, ok := node.(*ast.ReturnStmt)
+		if !ok || len(returned.Results) != 1 {
+			return true
+		}
+		switch result := returned.Results[0].(type) {
+		case *ast.CompositeLit:
+			found = result
+		case *ast.Ident:
+			if literal := tableLiteralBoundTo(callee.Body, result.Name, returned.Pos()); literal != nil {
+				found = literal
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// keysOfTableLiteral reads a table literal's columns field and derives the
+// catalog keys its headings carry. Two shapes are read, which is every shape
+// the tree declares: s.columns with string literals throughout, and
+// listColumn, which is the one-column block that takes no heading at all.
+func keysOfTableLiteral(literal *ast.CompositeLit, info renderSiteInfo) renderSiteInfo {
+	if name, ok := literal.Type.(*ast.Ident); !ok || name.Name != "table" {
+		info.Unresolved = "the argument resolves to a composite literal that is not a table"
+		return info
+	}
+	var columns ast.Expr
+	for _, element := range literal.Elts {
+		pair, ok := element.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "columns" {
+			columns = pair.Value
+		}
+	}
+	if columns == nil {
+		info.Unresolved = "the table literal declares no columns field"
+		return info
+	}
+	call, ok := columns.(*ast.CallExpr)
+	if !ok {
+		info.Unresolved = fmt.Sprintf("the columns field is a %T rather than a call to s.columns or to listColumn", columns)
+		return info
+	}
+	switch fun := call.Fun.(type) {
+	case *ast.Ident:
+		if fun.Name == "listColumn" && len(call.Args) == 0 {
+			info.Derivable = true
+			return info
+		}
+	case *ast.SelectorExpr:
+		if fun.Sel.Name == "columns" {
+			return keysOfColumnsCall(call, info)
+		}
+	}
+	info.Unresolved = "the columns field is a call the walk does not read, and it reads s.columns with string literals throughout and listColumn"
+	return info
+}
+
+// keysOfColumnsCall spells the keys s.columns would build from the same
+// arguments. It mirrors that helper's own construction, column.<block>.<name>,
+// so a site's declared headings and its derived keys cannot drift apart
+// without one of the two being edited.
+func keysOfColumnsCall(call *ast.CallExpr, info renderSiteInfo) renderSiteInfo {
+	if len(call.Args) < 2 {
+		info.Unresolved = "s.columns is called with fewer arguments than a block and one name"
+		return info
+	}
+	var spelled []string
+	for _, argument := range call.Args {
+		basic, ok := argument.(*ast.BasicLit)
+		if !ok || basic.Kind != token.STRING {
+			info.Unresolved = "s.columns carries an argument that is not a string literal, so its keys are not readable from the source"
+			return info
+		}
+		unquoted, err := strconv.Unquote(basic.Value)
+		if err != nil {
+			info.Unresolved = "s.columns carries a string literal the walk cannot unquote: " + basic.Value
+			return info
+		}
+		spelled = append(spelled, unquoted)
+	}
+	for _, name := range spelled[1:] {
+		info.Keys = append(info.Keys, "column."+spelled[0]+"."+name)
+	}
+	info.Derivable = true
+	return info
 }
 
 // TestEveryTableSiteIsRegistered pairs the sites the source draws tables at
@@ -483,29 +815,160 @@ func tableSitesInSource() (map[tableSite]bool, error) {
 // would make an implementer either delete those fixtures or never reach a
 // green build.
 func TestEveryTableSiteIsRegistered(t *testing.T) {
-	sites, err := tableSitesInSource()
+	sites, err := renderSitesInSource()
 	if err != nil {
 		t.Fatalf("walk the head's sources: %v", err)
 	}
-	named := map[string]bool{}
+	assertNoAmbiguousSiblingSites(t, sites)
+	named := map[renderSite]bool{}
 	for _, block := range sweptBlocks() {
 		named[block.site] = true
 	}
-	drawn := map[string]bool{}
 	for site := range sites {
-		drawn[site.String()] = true
-	}
-	for site := range drawn {
 		if !named[site] {
 			t.Errorf("%s draws a table and no entry of sweptBlocks names it, so nothing asserts what it renders", site)
 		}
 	}
 	for site := range named {
-		if !drawn[site] {
+		if _, drawn := sites[site]; !drawn {
 			t.Errorf("sweptBlocks names %s and the source draws no table there, so the entry is stale and may be covering the wrong block", site)
 		}
 	}
 	assertEveryCoveredEntryExpects(t)
+	assertEveryRegisteredSiteMatchesItsColumns(t, sites)
+}
+
+// assertNoAmbiguousSiblingSites refuses any pair of call sites in one function
+// that share a label and declare the same columns, which is the one shape the
+// key cannot tell apart on its own.
+//
+// A label belongs to a declaration rather than to a position, so two calls
+// binding different locals keep their own keys however the source is reordered
+// around them. Two calls binding the same name are the exception, and if they
+// also declare the same columns then nothing about either site distinguishes
+// it from the other: an entry written for one would sit just as plausibly on
+// the other, and a reorder would move both entries with nothing failing. The
+// fix, whenever this fires, is to rename one of the two locals, which is what
+// composeRefusal's carriedTable is.
+//
+// Two calls sharing a label and declaring different columns are left alone.
+// The difference in columns is itself a fact the source carries, so their
+// ordinals are honest rather than inferred from where the calls happen to sit,
+// and assertEveryRegisteredSiteMatchesItsColumns holds each entry to the
+// columns its own site declares.
+func assertNoAmbiguousSiblingSites(t *testing.T, sites map[renderSite]renderSiteInfo) {
+	t.Helper()
+	type sibling struct {
+		file     string
+		function string
+		label    string
+	}
+	groups := map[sibling][]renderSite{}
+	for site := range sites {
+		key := sibling{file: site.File, function: site.Function, label: site.Label}
+		groups[key] = append(groups[key], site)
+	}
+	shared := 0
+	for _, members := range groups {
+		if len(members) < 2 {
+			continue
+		}
+		shared++
+		sort.Slice(members, func(i, j int) bool { return members[i].Ordinal < members[j].Ordinal })
+		for i := range members {
+			for j := i + 1; j < len(members); j++ {
+				if !slices.Equal(sites[members[i]].Keys, sites[members[j]].Keys) {
+					continue
+				}
+				t.Errorf("%s and %s are two calls in %s:%s binding the name %q and declaring the same columns %v, so neither site is distinguishable from the other and an entry naming one would sit as plausibly on the other; rename one of the two locals, the way composeRefusal's carriedTable is named",
+					members[i], members[j], members[i].File, members[i].Function, members[i].Label, sites[members[i]].Keys)
+			}
+		}
+	}
+	t.Logf("%d call sites fall into %d (file, function, label) groups, %d of which hold more than one site", len(sites), len(groups), shared)
+}
+
+// assertEveryRegisteredSiteMatchesItsColumns holds every entry to the columns
+// its own call site declares, so an entry that has landed on a neighbouring
+// call in the same function is caught rather than read as valid.
+//
+// Membership alone never asked what an entry names. An entry could sit on a
+// site drawing something else entirely and satisfy both directions of the
+// pairing, which is the gap this closes: the keys an entry claims are compared
+// against the keys the site's own s.columns call builds.
+//
+// The comparison is containment in order rather than equality, and the reason
+// is withoutEmptyColumns in table.go: a column no row carries a value in is
+// dropped from the drawn block, heading and all. An entry names the headings
+// its own fixture draws, so a block whose declaration offers a column the
+// fixture never fills draws fewer columns than the call site declares, in the
+// declaration's own order. The two tree entries are that case today, since the
+// tree table offers a Not shown column that neither fixture fills. Requiring
+// equality would fail them for rendering correctly.
+//
+// Containment in order is weaker than equality and still closes the gap this
+// assertion exists for. A key an entry claims that the site does not declare
+// fails, so a stale entry that has landed on another call fails as soon as
+// that call declares any different block, which every differently-named block
+// in the tree does. What it cannot separate is two calls declaring the same
+// columns, and nothing derived from columns could; Label is what separates
+// those, and assertNoAmbiguousSiblingSites refuses the case where Label
+// cannot.
+//
+// A site whose columns the walk cannot read fails the run rather than dropping
+// out of the comparison. No site in the tree is shaped that way today, so this
+// changes nothing about the current build; what it refuses is a later site
+// quietly falling outside a check nobody would notice it had left. The way
+// forward from such a failure is to make the declaration readable, or to widen
+// what the walk reads, and either is a reviewed edit rather than a silence.
+func assertEveryRegisteredSiteMatchesItsColumns(t *testing.T, sites map[renderSite]renderSiteInfo) {
+	t.Helper()
+	unreadable := make([]renderSite, 0, len(sites))
+	for site, info := range sites {
+		if !info.Derivable {
+			unreadable = append(unreadable, site)
+		}
+	}
+	sort.Slice(unreadable, func(i, j int) bool { return unreadable[i].String() < unreadable[j].String() })
+	for _, site := range unreadable {
+		t.Errorf("%s (line %d) declares columns this walk cannot read, so nothing checks that the entry naming it still names the right block: %s",
+			site, sites[site].Line, sites[site].Unresolved)
+	}
+	for _, block := range sweptBlocks() {
+		info, drawn := sites[block.site]
+		if !drawn || !info.Derivable {
+			continue
+		}
+		if len(block.keys) == 0 {
+			if info.Keys != nil {
+				t.Errorf("%s (%s) declares no columns and its call site declares %v, so the entry has landed on a call it does not describe",
+					block.site, block.label, info.Keys)
+			}
+			continue
+		}
+		if !keysRunInOrderThrough(block.keys, info.Keys) {
+			t.Errorf("%s (%s) declares the keys %v and its call site's own source declares %v, so either the entry has landed on a call it does not describe or its keys are stale",
+				block.site, block.label, block.keys, info.Keys)
+		}
+	}
+}
+
+// keysRunInOrderThrough reports whether every key an entry declares appears
+// among the keys its call site declares, in the same order. A drawn block's
+// columns are its call site's columns with the ones no row filled taken out,
+// so the entry's list runs through the site's list rather than matching it.
+func keysRunInOrderThrough(declared, derived []string) bool {
+	at := 0
+	for _, key := range declared {
+		for at < len(derived) && derived[at] != key {
+			at++
+		}
+		if at == len(derived) {
+			return false
+		}
+		at++
+	}
+	return true
 }
 
 // assertEveryCoveredEntryExpects holds every entry declaring two or more
