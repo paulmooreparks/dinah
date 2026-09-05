@@ -326,13 +326,35 @@ test("the settings are contributed with the scopes their subjects need", () => {
 // wider than the wording that was in the tree: a guard armed only against the
 // sentence already fixed misses the next one, written a different way, in
 // exactly the way the phrase-by-phrase sweep that found the first one did.
-const POSSESSION =
-	/\b(carr(y|ies|ied|ying)|bundl(e|es|ed|ing)|includ(e|es|ed|ing)|ship(s|ped|ping)?|suppl(y|ies|ied|ying)|packag(e|es|ed|ing)|embed(s|ded|ding)?|provid(e|es|ed|ing)|built[- ]in|comes? with|came with|own copy)\b/gi;
+//
+// `has` and `contains` are here in their third-person singular forms only.
+// "The extension has a dinah binary" is the claim this guard exists to refuse,
+// while "set `dinah.path` to a binary you already have" is honest copy about
+// the reader's own machine, so `have` and `contain` stay out.
+const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has|contains|built[- ]in|comes? with|came with|own copy)`;
+const POSSESSION = new RegExp(String.raw`\b${POSSESSION_WORD}\b`, "gi");
+
+// Who is said to do the possessing, and what is said to be possessed. Frame
+// one below requires both to be named, because a possession word beside the
+// extension alone says nothing about dinah: "this extension provides a tree
+// view of your workbench" is true, honest, and none of this guard's business.
+const SUBJECT = /\b(?:extensions?|vsix)\b/i;
+const PAYLOAD = /\b(?:dinah|binar(?:y|ies)|cop(?:y|ies)|cli|executable)\b/i;
 
 // A possession word attached straight to the payload, which names no
 // extension at all: "the built-in dinah binary".
 const QUALIFIED_PAYLOAD =
 	/\b(built[- ]in|bundled|embedded|packaged|included|carried|shipped|supplied|provided)\s+(copy|dinah|binary|cli|executable)\b/gi;
+
+// The payload written as "the one", whose antecedent is a dinah binary earlier
+// in the same copy: "the one carried inside this extension". The bare word is
+// deliberately absent from PAYLOAD, since a sentence that counts things ("one
+// view per workbench") would then satisfy frame one; it counts here only where
+// a possession word governs it directly.
+const ANAPHORIC_PAYLOAD = new RegExp(
+	String.raw`\bthe one\b\s+(?:that\s+|which\s+)?(?:is\s+|was\s+)?${POSSESSION_WORD}\b`,
+	"gi",
+);
 
 // Negation is what separates the honest copy from the claim, and it sits on
 // either side of the word: "does not carry a copy", "carries no copy".
@@ -353,19 +375,37 @@ function negated(sentence: string, at: number, length: number): boolean {
 
 /**
  * The sentences in `text` that affirmatively say a dinah binary lives inside
- * the extension. Two frames, because the claim gets written both ways round:
- * a sentence naming the extension somewhere alongside a possession word, in
- * either order and at any distance within that sentence, and a possession
- * word attached straight to the payload.
+ * the extension. Three frames, because the claim gets written several ways
+ * round: a sentence naming both the extension and the payload with a
+ * possession word somewhere in it, in either order and at any distance; a
+ * possession word attached straight to the payload; and the payload written as
+ * "the one".
+ *
+ * What these three frames do not reach, written down so that the case list
+ * below is not read as an exhaustive one. A claim split across a sentence
+ * boundary escapes, because the sentence carrying it names neither party ("The
+ * extension is self-contained. It carries dinah."), and sentence-sized
+ * judgement is what makes the negation check trustworthy, so the two go
+ * together. A verb outside the set escapes, whether passive or indirect ("A
+ * dinah binary is distributed with this extension", "This extension installs
+ * dinah for you", "dinah is vendored into this extension"). So does the
+ * payload named as something other than a binary ("the bundled command-line
+ * tool"). A reviewer's own sweep, not this pattern, is the first line against
+ * all three.
  */
 function claimsToCarryDinah(text: string): string[] {
 	const found = new Set<string>();
 	for (const sentence of sentencesOf(text)) {
-		const namesExtension = /\bextensions?\b/i.test(sentence);
-		for (const pattern of [POSSESSION, QUALIFIED_PAYLOAD]) {
-			if (pattern === POSSESSION && !namesExtension) {
-				continue;
+		// Frame one needs both parties named; the other two carry the payload
+		// in the match itself, so QUALIFIED_PAYLOAD needs no subject at all.
+		const patterns = [QUALIFIED_PAYLOAD];
+		if (SUBJECT.test(sentence)) {
+			patterns.push(ANAPHORIC_PAYLOAD);
+			if (PAYLOAD.test(sentence)) {
+				patterns.push(POSSESSION);
 			}
+		}
+		for (const pattern of patterns) {
 			pattern.lastIndex = 0;
 			for (let m = pattern.exec(sentence); m !== null; m = pattern.exec(sentence)) {
 				if (!negated(sentence, m.index, m[0].length)) {
@@ -397,13 +437,22 @@ const CLAIMS_A_CARRIED_BINARY = [
 	"The extension provides a dinah binary for your platform.",
 	"A copy of dinah is embedded in the extension.",
 	"The extension supplies dinah when it is missing.",
+	"The extension has a dinah binary for every platform.",
+	"The .vsix contains a dinah binary.",
 ];
 
 // Copy that says the opposite, or says nothing about where dinah comes from,
 // and has to keep passing. The first four are live strings this extension
 // publishes today, two of them from `src/status.ts` rather than the manifest,
-// because a widened pattern is as likely to start refusing honest copy as it
-// is to start catching a claim.
+// and the first of the four is the welcome block without its trailing
+// settings-link line, which carries no possession vocabulary and is walked
+// whole by the corpus test below. A widened pattern is as likely to start
+// refusing honest copy as it is to start catching a claim, and the second
+// group is what proves it did not: seven ordinary sentences about the
+// extension's own features, all of them refused by the first widening and
+// measured at Operator Code Review, plus two that pin the two exclusions this
+// pattern makes on purpose (`have` as against `has`, and a counted "one" as
+// against an anaphoric one).
 const HONEST_COPY = [
 	"Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.",
 	"Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
@@ -414,6 +463,15 @@ const HONEST_COPY = [
 	"This extension has no built-in copy of dinah.",
 	"This text is replaced as soon as the extension has an answer.",
 	"Dinah has a binary for this window but no workbench to go with it.",
+	"This extension provides a tree view of your workbench.",
+	"The extension includes a status bar item showing which workbench this folder resolves to.",
+	"This extension ships with commands for claiming, moving and releasing cards.",
+	"This extension supplies the editor with a view of the cards in your workbench.",
+	"The extension comes with a settings page.",
+	"The extension bundles its own webview assets.",
+	"This extension includes telemetry: none.",
+	"This extension will use a binary you already have.",
+	"The extension provides one view per workbench.",
 ];
 
 test("the carried-binary guard catches the spellings a writer would reach for", () => {
