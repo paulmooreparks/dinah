@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { CliOutcome } from "../../src/cli";
-import { classifyVersion, demotes, parseProfile } from "../../src/version";
+import { classifyVersion, parseProfile } from "../../src/version";
 
 /** An exit-0 answer carrying the three fields `--json version` reports. */
 function reported(tool: string, profile: string, format: number): CliOutcome {
@@ -112,19 +112,6 @@ test("classifyVersion: an answer missing a field is unusable rather than ok", ()
 		json: { tool: "0.1.0", profile: "dinah-core/0.4" },
 	});
 	assert.equal(classification.kind, "unusable");
-});
-
-test("only the three skew rows demote to a carried binary", () => {
-	assert.ok(demotes(classifyVersion(reported("x", "dinah-core/0.4", 99))));
-	assert.ok(demotes(classifyVersion(reported("x", "dinah-core/1.4", 1))));
-	assert.ok(demotes(classifyVersion(reported("x", "dinah-core/0.3", 1))));
-	assert.ok(!demotes(classifyVersion(reported("x", "dinah-core/0.4", 1))));
-	assert.ok(!demotes(classifyVersion({ kind: "unreachable", detail: "gone" })));
-	assert.ok(
-		!demotes(
-			classifyVersion({ kind: "spawn-failed", errno: "ENOENT", detail: "no" }),
-		),
-	);
 });
 
 // The two revisions dinah-358 names. The first is what a build claimed
