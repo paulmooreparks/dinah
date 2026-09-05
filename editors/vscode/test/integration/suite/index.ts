@@ -32,10 +32,9 @@ export function run(): Promise<void> {
 				// runTest.ts would then be green while asserting nothing. The
 				// unit layer had this same hole and CI found it the expensive
 				// way, so the count is checked on both sides. A declared skip
-				// still counts as a test here, which is deliberate: the
-				// carried suite's one case is Linux-only and is pending on
-				// Windows, and a suite that says what it is not running is not
-				// the failure this catches.
+				// still counts as a test here, which is deliberate: a suite
+				// that says what it is not running is not the failure this
+				// catches.
 				const executed = runner?.stats?.tests ?? 0;
 				if (executed === 0) {
 					reject(

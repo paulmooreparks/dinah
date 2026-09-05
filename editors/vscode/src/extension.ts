@@ -71,12 +71,7 @@ import {
 	VIEW_ID,
 } from "./identity";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
-import {
-	ensureExecutable,
-	joinPath,
-	listDirectory,
-	nodeSpawner,
-} from "./spawn";
+import { joinPath, nodeSpawner } from "./spawn";
 import { composeContextKeys, composeStatus } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
@@ -254,13 +249,9 @@ export async function activate(
 	output = vscode.window.createOutputChannel("Dinah");
 	context.subscriptions.push(output);
 
-	const carriedDir = joinPath(context.extensionUri.fsPath, "bin");
 	const binary = await resolveBinary({
 		setting: setting(SETTING_PATH),
-		carriedDir,
-		listCarried: listDirectory,
 		join: joinPath,
-		ensureExecutable,
 		probe: async (exe) =>
 			classifyVersion(await runDinah(nodeSpawner, exe, ["version"])),
 	});
