@@ -1908,13 +1908,63 @@ the invisible lock (claim state is the display).
 The arbiter rule follows: the moment two or more writers coordinate on one
 workbench concurrently, claim state and WIP accounting need a single live
 arbiter. Turn-taking writers over git transport need none, which is why the
-remote story holds. The live arbiter for many writers is the hosted
-product; that is the product boundary restated. Andoneer never re-platforms
-its coordination storage onto this format, and this format never becomes a
-hosted product's disk layout; the two implementations meet at the contract,
-the conformance suite, and the interchange. A mirror or export carries
+remote story holds. The live arbiter for many writers is the hosted product,
+Dinah.Team, and that is the product boundary restated. Dinah.Team runs on
+Dinah's own library rather than on a second codebase written to the same
+contract, so the boundary between it and this format is a choice of storage
+backend inside one implementation. Both halves share the verbs, the states,
+the claim and WIP semantics, and the meaning of the journal, because they
+share the code that implements them. What they do not share is where that
+library keeps its state. The CLI keeps its state in the plain-text,
+directory-per-workbench format this document specifies, and Dinah.Team keeps
+its state in whatever a live arbiter for many concurrent writers requires,
+because concurrent multi-seat access is named above under "Storage is the
+filesystem, entirely" as state that text files cannot carry. This format
+therefore still never becomes the hosted product's disk layout, and the
+hosted product's storage is Dinah.Team's own concern rather than a second
+implementation of anything specified here. A mirror or export carries
 positions as facts as-of a moment, never as the live "is"; consumers of a
 mirror read history, consumers of the arbiter read the present.
+
+No question here is settled by consulting a peer implementation, because
+there is no peer. When this document and Dinah's code disagree about what
+the contract requires, the conformance suite is what surfaces the
+disagreement, and a person rules on which side is wrong. The suite holds
+Dinah's code to what this document and the profile that restates it say the
+contract requires, so a red run reports that the two have parted company
+without reporting which of them to change. Either the code has a defect
+against a contract it is meant to pass, or the document is wrong about what
+was decided and the document gets corrected, and somebody reads the two
+against each other to settle which it was. The suite could not make that
+ruling even if somebody wanted it to, because it is written from the same
+reading of this document as the code, which the paragraph below takes up.
+The contract and its suite hold Dinah's behaviour to what Dinah claims, and
+they keep the contract specific enough that somebody could build an
+independent implementation later and verify it against the same suite.
+
+Moving to one implementation gave something up, and the loss belongs on the
+record here. Two independently coded implementations disagreeing was itself
+evidence that the document was ambiguous, because neither could have been
+written out of the other's misreading. With one implementation the code and
+the conformance suite are written from the same reading of this document, so
+they can share a blind spot, and the case where the document meant one thing
+while both the code and the suite quietly assumed another has nothing
+catching it. Nothing in the project closes that gap today, so the project
+carries it as an accepted limit. The interchange form of section 5.7 of the
+profile would let somebody build a reader of a workbench independently of
+Dinah, and nobody has built one. A hand-written fixture literal in the test
+suite is typed independently of any generator, but the hand that types it is
+the hand that writes the code it tests, so it can carry the same misreading
+rather than catch it. The compatibility fixtures are captured by replaying
+input through the built binary, so they record the implementation's own
+reading of this document rather than a second one. The conformance report
+checks that every normative statement is either named by some test or listed
+as out of reach with a written reason, which finds a statement nobody
+covered but cannot find a test that misread the statement it names. Closing
+the gap would take a reader of the interchange form built independently of
+Dinah's code and of the people who write its tests, or a standing practice
+by which somebody with no hand in either the code or the tests periodically
+reads this document against what shipped.
 
 ## Verb outcomes and staleness
 
