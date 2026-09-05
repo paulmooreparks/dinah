@@ -74,3 +74,47 @@ export function unpublishedVersion({ env = process.env, repoRoot, count = commit
 export function isUnpublishedVersion(version) {
 	return /^0\.0\.\d+$/.test(version);
 }
+
+/** Where package-lock.json records the extension's own version. */
+const LOCKFILE_VERSION_SITES = [
+	{ where: "version", read: (lock) => lock.version },
+	{ where: 'packages[""].version', read: (lock) => lock.packages?.[""]?.version },
+];
+
+/**
+ * Reports every way package-lock.json's copy of the version fails to mirror
+ * package.json's.
+ *
+ * package.json is the authoritative number, for the reasons the header above
+ * gives. npm keeps its own copy in the lockfile and rewrites that copy from
+ * the manifest on any install, so a lockfile that disagrees hands whoever
+ * builds the extension a modified file they did not edit.
+ *
+ * A site the lockfile does not carry at all is reported rather than skipped,
+ * because a check that passes for having found nothing to compare would go on
+ * passing after npm moved where it keeps the number.
+ *
+ * @param {{version?: string}} manifest
+ * @param {{version?: string, packages?: Record<string, {version?: string}>}} lock
+ * @returns {string[]}
+ */
+export function lockfileVersionDrift(manifest, lock) {
+	const authoritative = manifest.version;
+	if (typeof authoritative !== "string" || authoritative === "") {
+		return ["package.json carries no version, so the lockfile has nothing to mirror"];
+	}
+	const problems = [];
+	for (const site of LOCKFILE_VERSION_SITES) {
+		const found = site.read(lock);
+		if (found === undefined) {
+			problems.push(
+				`package-lock.json has no ${site.where}, so nothing there mirrors package.json's ${authoritative}`,
+			);
+		} else if (found !== authoritative) {
+			problems.push(
+				`package-lock.json ${site.where} is ${found} and package.json is ${authoritative}, so the next npm install rewrites one of them`,
+			);
+		}
+	}
+	return problems;
+}
