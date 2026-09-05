@@ -18,7 +18,7 @@ trusting a sentence.
 
 ## The measurement of record
 
-The measurement ran at commit `f4450a5c685fee0571072d88daceb604633039c1`,
+The measurement ran at commit `b54159a250805ff66ae2d0e1d8d750964a2e522c`,
 against a binary built from that commit. This command reproduces it:
 
 ```
@@ -27,7 +27,7 @@ python scripts/measure_agentic_sequence.py \
     --dinah ./dinah \
     --root <a scratch directory the harness may create and remove> \
     --counter api \
-    --commit f4450a5c685fee0571072d88daceb604633039c1 \
+    --commit b54159a250805ff66ae2d0e1d8d750964a2e522c \
     --api-key-file <the file holding a console API key>
 ```
 
@@ -40,120 +40,120 @@ this workstream exists to reduce.
 
 ```
 measure_agentic_sequence: one agentic work sequence, over the verbs and over the files
-  commit                                                     f4450a5c685fee0571072d88daceb604633039c1
-  counter                                                    api, [counter=api model=claude-opus-5]
-  endpoint                                                   https://api.anthropic.com/v1/messages/count_tokens
-  cards in the sequence                                               2 cards [not a token count]
+  commit                                                       b54159a250805ff66ae2d0e1d8d750964a2e522c
+  counter                                                      api, [counter=api model=claude-opus-5]
+  endpoint                                                     https://api.anthropic.com/v1/messages/count_tokens
+  cards in the sequence                                                 2 cards [not a token count]
 
 layers, composed from committed workbench text with git show <commit>:<path>
-  global           CLAUDE.md                                 1182 bytes [bytes]
-  standing         .dinah/149f228d48c3/workbench.md          8845 bytes [bytes]
+  global           CLAUDE.md                                   1182 bytes [bytes]
+  standing         .dinah/149f228d48c3/workbench.md            8845 bytes [bytes]
   column:working   .dinah/149f228d48c3/columns/4fda9c9ca779/column.md 12981 bytes [bytes]
   column:next      .dinah/149f228d48c3/columns/4b38abe7ebd5/column.md 12668 bytes [bytes]
-  card body        README.md                                 6334 bytes [bytes], digest 835855b78f32
-  attachment       docs/design/surfaces.md                   23776 bytes [bytes], digest 67247634ecb8
-  card comments    docs/design/renaming-a-word.md            3 paragraphs [not a token count], 1065 bytes [bytes], digest 0d7d79e36e50
-  card links       each card links to the other              2 links [not a token count] of kinds relates, blocks
+  card body        README.md                                   6334 bytes [bytes], digest 835855b78f32
+  attachment       docs/design/surfaces.md                     23776 bytes [bytes], digest 67247634ecb8
+  card comments    docs/design/renaming-a-word.md              3 paragraphs [not a token count], 1065 bytes [bytes], digest 0d7d79e36e50
+  card links       each card links to the other                2 links [not a token count] of kinds relates, blocks
 
 coordination acts, pinned digests, which prove the two runs are one sequence
-  fx-1 pull                                                  verb 2a40755cfb09, file 2a40755cfb09, agree
-  fx-1 comment                                               verb 330dbc129d19, file 330dbc129d19, agree
-  fx-1 move                                                  verb 5bb7039e7631, file 5bb7039e7631, agree
-  fx-2 pull                                                  verb cf336e5a3e2c, file cf336e5a3e2c, agree
-  fx-2 comment                                               verb c818ea7a8776, file c818ea7a8776, agree
-  fx-2 move                                                  verb bf81d7ee717a, file bf81d7ee717a, agree
+  fx-1 pull                                                    verb 2a40755cfb09, file 2a40755cfb09, agree
+  fx-1 comment                                                 verb 330dbc129d19, file 330dbc129d19, agree
+  fx-1 move                                                    verb 5bb7039e7631, file 5bb7039e7631, agree
+  fx-2 pull                                                    verb cf336e5a3e2c, file cf336e5a3e2c, agree
+  fx-2 comment                                                 verb c818ea7a8776, file c818ea7a8776, agree
+  fx-2 move                                                    verb bf81d7ee717a, file bf81d7ee717a, agree
 
 headline totals, one line per run, with the caching assumption each rests on
-  verb run, context footprint                                     88341 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
-  verb run, cumulative billed input                              670167 tokens [counter=api model=claude-opus-5] (13 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
-  file run, context footprint                                     83625 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
-  file run, cumulative billed input                              890239 tokens [counter=api model=claude-opus-5] (19 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
+  verb run, context footprint                                       88341 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
+  verb run, cumulative billed input                                670167 tokens [counter=api model=claude-opus-5] (13 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
+  file run, context footprint                                       83625 tokens [counter=api model=claude-opus-5] (the final transcript, tool definitions included; invariant to caching)
+  file run, cumulative billed input                                890239 tokens [counter=api model=claude-opus-5] (19 requests, computed under no caching; an upper bound on what a caching session pays, not a bill)
 
-  footprint, file run as a share of the verb run                +94.662 %  [derived within one regime]
-  cumulative, file run as a share of the verb run              +132.838 %  [derived within one regime]
-  footprint, file run less verb run                               -4716 tokens [counter=api model=claude-opus-5]
-  cumulative, file run less verb run                            +220072 tokens [counter=api model=claude-opus-5]
+  footprint, file run as a share of the verb run's footprint       94.662 %  [derived within one regime] (below 100 %, smaller by 5.338 %)
+  cumulative, file run as a share of the verb run's cumulative    132.838 %  [derived within one regime] (above 100 %, larger by 32.838 %)
+  footprint, file run less verb run                                 -4716 tokens [counter=api model=claude-opus-5]
+  cumulative, file run less verb run                              +220072 tokens [counter=api model=claude-opus-5]
 
 what the file run read, each path under the throwaway root
-  read:card                                                  C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\card.md (6545 bytes [bytes])
-  read:global layer                                          C:\dinah-probe\run\home\.dinah\instructions.md (1182 bytes [bytes])
-  read:standing layer                                        C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\workbench.md (9007 bytes [bytes])
-  read:column layer                                          C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\columns\fa68cbea8361\column.md (13029 bytes [bytes])
-  read:attachment payload                                    C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\attachments\fa68cbea8361\payload\surfaces.md (23776 bytes [bytes])
-  read:card                                                  C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\card.md (6545 bytes [bytes])
-  read:global layer                                          C:\dinah-probe\run\home\.dinah\instructions.md (1182 bytes [bytes])
-  read:standing layer                                        C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\workbench.md (9007 bytes [bytes])
-  read:column layer                                          C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\columns\fa68cbea8361\column.md (13029 bytes [bytes])
-  read:attachment payload                                    C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\attachments\fa68cbea8361\payload\surfaces.md (23776 bytes [bytes])
-  MCP tools the file run reached                             comment, move, pull
+  read:card                                                    C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\card.md (6545 bytes [bytes])
+  read:global layer                                            C:\dinah-probe\run\home\.dinah\instructions.md (1182 bytes [bytes])
+  read:standing layer                                          C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\workbench.md (9007 bytes [bytes])
+  read:column layer                                            C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\columns\fa68cbea8361\column.md (13029 bytes [bytes])
+  read:attachment payload                                      C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\attachments\fa68cbea8361\payload\surfaces.md (23776 bytes [bytes])
+  read:card                                                    C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\card.md (6545 bytes [bytes])
+  read:global layer                                            C:\dinah-probe\run\home\.dinah\instructions.md (1182 bytes [bytes])
+  read:standing layer                                          C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\workbench.md (9007 bytes [bytes])
+  read:column layer                                            C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\columns\fa68cbea8361\column.md (13029 bytes [bytes])
+  read:attachment payload                                      C:\dinah-probe\run\.dinah\01a07306b3047c8d9d07e9ad0f60f3e0\cards\fa68cbea8361\attachments\fa68cbea8361\payload\surfaces.md (23776 bytes [bytes])
+  MCP tools the file run reached                               comment, move, pull
 
 requested content and envelope, member by member, per act
-  fx-1 pull                                                  content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
-  fx-1 show-card                                             content: detail.card, detail.body | envelope: affordances, detail.links, detail.attachments, detail.comments, detail.path | chain: (none)
-  fx-1 instructions                                          content: (none) | envelope: affordances, served.legal_moves, served.column | chain: served.instructions
-  fx-1 show-attachment                                       content: text | envelope: affordances | chain: (none)
-  fx-1 comment                                               content: (none) | envelope: outcome, verb, detail, card, basis, affordances | chain: (none)
-  fx-1 move                                                  content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
-  fx-2 pull                                                  content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
-  fx-2 show-card                                             content: detail.card, detail.body | envelope: affordances, detail.links, detail.attachments, detail.comments, detail.path | chain: (none)
-  fx-2 instructions                                          content: (none) | envelope: affordances, served.legal_moves, served.column | chain: served.instructions
-  fx-2 show-attachment                                       content: text | envelope: affordances | chain: (none)
-  fx-2 comment                                               content: (none) | envelope: outcome, verb, detail, card, basis, affordances | chain: (none)
-  fx-2 move                                                  content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
+  fx-1 pull                                                    content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
+  fx-1 show-card                                               content: detail.card, detail.body | envelope: affordances, detail.links, detail.attachments, detail.comments, detail.path | chain: (none)
+  fx-1 instructions                                            content: (none) | envelope: affordances, served.legal_moves, served.column | chain: served.instructions
+  fx-1 show-attachment                                         content: text | envelope: affordances | chain: (none)
+  fx-1 comment                                                 content: (none) | envelope: outcome, verb, detail, card, basis, affordances | chain: (none)
+  fx-1 move                                                    content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
+  fx-2 pull                                                    content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
+  fx-2 show-card                                               content: detail.card, detail.body | envelope: affordances, detail.links, detail.attachments, detail.comments, detail.path | chain: (none)
+  fx-2 instructions                                            content: (none) | envelope: affordances, served.legal_moves, served.column | chain: served.instructions
+  fx-2 show-attachment                                         content: text | envelope: affordances | chain: (none)
+  fx-2 comment                                                 content: (none) | envelope: outcome, verb, detail, card, basis, affordances | chain: (none)
+  fx-2 move                                                    content: card | envelope: outcome, verb, basis, legal_moves, affordances | chain: instructions
 
 served instruction chain, per layer, arrivals and repeats
-  global layer, arrival serves (1)                                  408 tokens [counter=api model=claude-opus-5]
-  global layer, repeats within one card's own acts (4)             1632 tokens [counter=api model=claude-opus-5]
-  global layer, repeats across a card boundary (1)                  408 tokens [counter=api model=claude-opus-5]
-  standing layer, arrival serves (1)                               2791 tokens [counter=api model=claude-opus-5]
-  standing layer, repeats within one card's own acts (4)          11164 tokens [counter=api model=claude-opus-5]
-  standing layer, repeats across a card boundary (1)               2791 tokens [counter=api model=claude-opus-5]
-  column layer, arrival serves (2)                                 8080 tokens [counter=api model=claude-opus-5]
-  column layer, repeats within one card's own acts (2)             8382 tokens [counter=api model=claude-opus-5]
-  column layer, repeats across a card boundary (2)                 8080 tokens [counter=api model=claude-opus-5]
-  chain, arrival serves, all layers                               11279 tokens [counter=api model=claude-opus-5]
-  chain, repeat serves, all layers                                32457 tokens [counter=api model=claude-opus-5]
+  global layer, arrival serves (1)                                    408 tokens [counter=api model=claude-opus-5]
+  global layer, repeats within one card's own acts (4)               1632 tokens [counter=api model=claude-opus-5]
+  global layer, repeats across a card boundary (1)                    408 tokens [counter=api model=claude-opus-5]
+  standing layer, arrival serves (1)                                 2791 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats within one card's own acts (4)            11164 tokens [counter=api model=claude-opus-5]
+  standing layer, repeats across a card boundary (1)                 2791 tokens [counter=api model=claude-opus-5]
+  column layer, arrival serves (2)                                   8080 tokens [counter=api model=claude-opus-5]
+  column layer, repeats within one card's own acts (2)               8382 tokens [counter=api model=claude-opus-5]
+  column layer, repeats across a card boundary (2)                   8080 tokens [counter=api model=claude-opus-5]
+  chain, arrival serves, all layers                                 11279 tokens [counter=api model=claude-opus-5]
+  chain, repeat serves, all layers                                  32457 tokens [counter=api model=claude-opus-5]
 
 the attributed figures, as counts rather than as shares
-  arrival serves of the instruction chain                         11279 tokens [counter=api model=claude-opus-5]
-  repeat serves of the instruction chain                          32457 tokens [counter=api model=claude-opus-5]
-  JSON re-encoding of the prose members                            5206 tokens [counter=api model=claude-opus-5]
-  response envelope, measured directly                             4474 tokens [counter=api model=claude-opus-5]
-  requested content                                               21012 tokens [counter=api model=claude-opus-5]
+  arrival serves of the instruction chain                           11279 tokens [counter=api model=claude-opus-5]
+  repeat serves of the instruction chain                            32457 tokens [counter=api model=claude-opus-5]
+  JSON re-encoding of the prose members                              5206 tokens [counter=api model=claude-opus-5]
+  response envelope, measured directly                               4474 tokens [counter=api model=claude-opus-5]
+  requested content                                                 21012 tokens [counter=api model=claude-opus-5]
 
 the tool-definition block, and the round trips it is paid on
-  tools the MCP head serves                                          36 tools [not a token count]
-  tool-definition block, once                                     12837 tokens [counter=api model=claude-opus-5]
-  verb run, tool-call rounds                                         12 rounds [not a token count]
-  file run, tool-call rounds                                         18 rounds [not a token count]
-  tool block over the verb run's rounds                          154044 tokens [counter=api model=claude-opus-5]
-  tool block over the file run's rounds                          231066 tokens [counter=api model=claude-opus-5]
-  round-trip component, file run less verb run                   +77022 tokens [counter=api model=claude-opus-5]
+  tools the MCP head serves                                            36 tools [not a token count]
+  tool-definition block, once                                       12837 tokens [counter=api model=claude-opus-5]
+  verb run, tool-call rounds                                           12 rounds [not a token count]
+  file run, tool-call rounds                                           18 rounds [not a token count]
+  tool block over the verb run's rounds                            154044 tokens [counter=api model=claude-opus-5]
+  tool block over the file run's rounds                            231066 tokens [counter=api model=claude-opus-5]
+  round-trip component, file run less verb run                     +77022 tokens [counter=api model=claude-opus-5]
 
 the reconciliation, against the verb run's context footprint
-  sum of the attributed figures plus the requested content        87265 tokens [counter=api model=claude-opus-5]
-  verb run, context footprint                                     88341 tokens [counter=api model=claude-opus-5]
-  residual                                                        +1076 tokens [counter=api model=claude-opus-5]
-  residual as a share of the footprint                           +1.218 %  [derived within one regime]
+  sum of the attributed figures and the tool block once             87265 tokens [counter=api model=claude-opus-5]
+  verb run, context footprint                                       88341 tokens [counter=api model=claude-opus-5]
+  residual                                                          +1076 tokens [counter=api model=claude-opus-5]
+  residual as a share of the footprint                             +1.218 %  [derived within one regime]
 
 per-act check, the payload against the figures attributed to it
-  fx-1 pull, payload less attributed                                 -3 tokens [counter=api model=claude-opus-5]
-  fx-1 show-card, payload less attributed                            -1 tokens [counter=api model=claude-opus-5]
-  fx-1 instructions, payload less attributed                         -3 tokens [counter=api model=claude-opus-5]
-  fx-1 show-attachment, payload less attributed                      -1 tokens [counter=api model=claude-opus-5]
-  fx-1 comment, payload less attributed                              +0 tokens [counter=api model=claude-opus-5]
-  fx-1 move, payload less attributed                                 -3 tokens [counter=api model=claude-opus-5]
-  fx-2 pull, payload less attributed                                 -3 tokens [counter=api model=claude-opus-5]
-  fx-2 show-card, payload less attributed                            -1 tokens [counter=api model=claude-opus-5]
-  fx-2 instructions, payload less attributed                         -3 tokens [counter=api model=claude-opus-5]
-  fx-2 show-attachment, payload less attributed                      -1 tokens [counter=api model=claude-opus-5]
-  fx-2 comment, payload less attributed                              +0 tokens [counter=api model=claude-opus-5]
-  fx-2 move, payload less attributed                                 -3 tokens [counter=api model=claude-opus-5]
+  fx-1 pull, payload less attributed                                   -3 tokens [counter=api model=claude-opus-5]
+  fx-1 show-card, payload less attributed                              -1 tokens [counter=api model=claude-opus-5]
+  fx-1 instructions, payload less attributed                           -3 tokens [counter=api model=claude-opus-5]
+  fx-1 show-attachment, payload less attributed                        -1 tokens [counter=api model=claude-opus-5]
+  fx-1 comment, payload less attributed                                +0 tokens [counter=api model=claude-opus-5]
+  fx-1 move, payload less attributed                                   -3 tokens [counter=api model=claude-opus-5]
+  fx-2 pull, payload less attributed                                   -3 tokens [counter=api model=claude-opus-5]
+  fx-2 show-card, payload less attributed                              -1 tokens [counter=api model=claude-opus-5]
+  fx-2 instructions, payload less attributed                           -3 tokens [counter=api model=claude-opus-5]
+  fx-2 show-attachment, payload less attributed                        -1 tokens [counter=api model=claude-opus-5]
+  fx-2 comment, payload less attributed                                +0 tokens [counter=api model=claude-opus-5]
+  fx-2 move, payload less attributed                                   -3 tokens [counter=api model=claude-opus-5]
 
 what this run does not measure
-  listing acts                                               none is in the sequence, so no figure here tracks how many cards a workbench holds
-  caching                                                    the api counter applies no prompt-caching logic, so every figure above is an uncached request size
-  the file run's own tools                                   Read and Bash belong to the agent harness rather than to this surface, so the tool block counted above is the MCP head's alone
+  listing acts                                                 none is in the sequence, so no figure here tracks how many cards a workbench holds
+  caching                                                      the api counter applies no prompt-caching logic, so every figure above is an uncached request size
+  the file run's own tools                                     Read and Bash belong to the agent harness rather than to this surface, so the tool block counted above is the MCP head's alone
 ```
 
 ## The sequence
