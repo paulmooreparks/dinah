@@ -98,12 +98,22 @@ jobs:
           # watched: this archive carries no binary, so the CLI's test and
           # gofmt results say nothing about whether this commit is safe to
           # ship as an extension.
+          #
+          # The read walks every page rather than asking for a fixed hundred.
+          # A commit carrying more than a page of check runs could otherwise
+          # hide both extension legs behind the boundary, and this loop would
+          # time out reporting nought of two rather than saying what happened.
+          # A commit does not carry a hundred checks today, which is the same
+          # kind of "true for now" the dev-release lookup above rested on.
+          # This filter only selects and maps, so gh applying it once per page
+          # concatenates into the whole collection and nothing more is needed.
+          set -o pipefail
           ATTEMPTS=180
           INTERVAL=10
           BUDGET=$(( ATTEMPTS * INTERVAL / 60 ))
           echo "Waiting up to $BUDGET minutes for the two extension check runs on $SHA"
           for attempt in $(seq 1 "$ATTEMPTS"); do
-            if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+            if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate \
               --jq '.check_runs[] | select(.name == "extension (ubuntu-latest)" or .name == "extension (windows-latest)") | .status + ":" + (.conclusion // "none")'); then
               echo "::error::could not read the check runs for $SHA; the API error is above"
               exit 1
@@ -149,14 +159,32 @@ jobs:
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
 
-      # The releases are sorted here on the created_at field the response
-      # already carries. The releases endpoint documents no ordering
+      # The newest dev release is found by sorting on the created_at field the
+      # response already carries. The releases endpoint documents no ordering
       # guarantee, so nothing leans on the order the list arrives in. Nothing
-      # downloads this release either, because the archive carries no
-      # binary. The tag is
-      # provenance, and it reaches the build through DINAH_PAIRED_RELEASE and
-      # ends up on the status bar's line saying which dinah release this build
-      # was tested against.
+      # downloads the release either, because the archive carries no binary.
+      # The tag is provenance: it reaches the build through
+      # DINAH_PAIRED_RELEASE and ends up on the status bar's line saying which
+      # dinah release this build was tested against.
+      #
+      # The sort runs on the far side of the pipe, and that placement is the
+      # point of the shape. `gh api --help` states that under --paginate
+      # "each page is a separate JSON array or object", so a --jq filter is
+      # applied once per page. A filter that reduces, as an earlier round of
+      # this step did with `[...] | sort_by(.created_at) | last`, therefore
+      # emits one tag per page instead of one tag, and the step then wrote all
+      # of them to $GITHUB_OUTPUT as an undelimited multi-line value the runner
+      # refuses. It answered correctly only because this repository's 92
+      # releases fit in one page, and release.yml cuts a dev release on most
+      # pushes to main, so that count is walking toward the boundary.
+      #
+      # The filter below only selects and maps, so applying it per page is
+      # harmless: the pages concatenate into one stream carrying every matching
+      # release, and `sort | tail -n 1` then picks over that whole stream.
+      # created_at is documented as ISO 8601 in UTC (YYYY-MM-DDTHH:MM:SSZ),
+      # which is fixed-width, so its lexical order is its chronological order
+      # and `sort` needs no key specification. Nothing here needs jq or gh's
+      # --slurp, so nothing here rests on either being present.
       - name: Find the newest dev release
         id: dev-release
         env:
@@ -164,10 +192,21 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -e
+          set -o pipefail
           TAG=$(gh api "repos/$REPO/releases" --paginate \
-            --jq '[.[] | select((.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-dev$")) or (.tag_name | test("^v[0-9]+\\.[0-9]+\\.0-dev\\.[0-9]+$")))] | sort_by(.created_at) | last | .tag_name')
+            --jq '.[] | select((.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-dev$")) or (.tag_name | test("^v[0-9]+\\.[0-9]+\\.0-dev\\.[0-9]+$"))) | .created_at + " " + .tag_name' \
+            | sort | tail -n 1 | cut -d " " -f 2)
           if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
             echo "::error::no dev release found on $REPO; there is nothing to pair this extension build's provenance with"
+            exit 1
+          fi
+          # A per-page answer is several tags rather than one, and writing a
+          # multi-line value to the output file with no delimiter kills the
+          # run several steps later with a message about the file's format
+          # rather than about this lookup. This refuses it here and names it.
+          if [ "$(printf '%s' "$TAG" | wc -l)" != "0" ]; then
+            echo "::error::the dev release lookup returned more than one tag, so it answered per page rather than over the whole collection"
+            printf '%s\n' "$TAG"
             exit 1
           fi
           echo "Newest dev release is $TAG"
@@ -197,8 +236,8 @@ jobs:
       # v0.1.0-beta, v0.1.0). The extension's version is decoupled from the
       # CLI's and runs on its own cadence, so the two numbers can meet, and a
       # shared tag namespace would collide on the day they do. The prefix
-      # keeps the two namespaces disjoint by construction rather than by the
-      # numbers happening not to have collided yet.
+      # keeps the two namespaces disjoint by construction, so nothing here
+      # depends on the two numbers staying apart.
       - name: Tag this extension version
         id: tag
         run: |

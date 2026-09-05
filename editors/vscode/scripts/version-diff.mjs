@@ -11,8 +11,8 @@
 //
 // The two readings arrive as file contents rather than as paths, so a unit
 // test drives every branch without a checkout, a temporary file or a process.
-// Reading the blobs out of git is the caller's job, and
-// scripts/check-version-change.mjs is that caller.
+// scripts/check-version-change.mjs reads the two blobs out of git and calls
+// this function with their contents.
 
 /**
  * The version a reading of package.json carries, or undefined when it carries

@@ -212,10 +212,71 @@ test("the release trigger compares the version field rather than the file", () =
 		step.includes("node scripts/check-version-change.mjs /tmp/after.json"),
 		"the version check no longer calls the tested comparison",
 	);
-	assert.ok(
-		vscodeRelease.includes("if: needs.check-version.outputs.changed == 'true'"),
-		"nothing downstream of the version check is gated on the version having changed",
+	const waitJob = vscodeRelease.slice(
+		vscodeRelease.indexOf("  wait-for-extension-ci:"),
+		vscodeRelease.indexOf("  package-and-release:"),
 	);
+	assert.ok(
+		waitJob.includes("if: needs.check-version.outputs.changed == 'true'"),
+		"the first job downstream of the version check is no longer gated on the version having changed",
+	);
+});
+
+// A --jq filter under --paginate may select and map, and may not reduce.
+//
+// `gh api --help` says that under --paginate "each page is a separate JSON
+// array or object", so the filter runs once per page. A filter that only
+// selects and maps is safe under that, because the pages concatenate into one
+// stream carrying every match. A filter that reduces to a single answer emits
+// one answer per page instead, which is invisible while the collection fits
+// in a page. That is how this workflow shipped its first round: 92 releases,
+// one page, one correct tag, and four tags the moment a smaller page size was
+// asked for, written to $GITHUB_OUTPUT as an undelimited multi-line value.
+//
+// The reducing spellings below are the ones a reader would reach for first
+// rather than the whole of jq's array vocabulary, so the per-step assertions
+// carry the weight and this one catches the class on the way past.
+const REDUCING_JQ = [
+	"sort_by(",
+	"group_by(",
+	"unique",
+	"max_by(",
+	"min_by(",
+	"| last",
+	"| first",
+	"| add",
+	"| length",
+];
+
+const ghCommands = vscodeRelease
+	.replace(/\\\n\s*/g, " ")
+	.split("\n")
+	.filter((line) => line.includes("gh api"));
+
+test("a paginated gh read filters per page with a filter that does not reduce", () => {
+	assert.ok(ghCommands.length > 0, "the workflow no longer calls gh api at all");
+	for (const command of ghCommands) {
+		if (!command.includes("--paginate") || !command.includes("--jq")) {
+			continue;
+		}
+		// The filter is the single-quoted argument after --jq, and it carries
+		// no single quote of its own, so the next one ends it. Bounding it
+		// here keeps the shell pipeline that follows out of the check, which
+		// is where the reduction is allowed to live.
+		const opened = command.indexOf("'", command.indexOf("--jq"));
+		const closed = command.indexOf("'", opened + 1);
+		assert.ok(
+			opened > 0 && closed > opened,
+			`a --paginate read's --jq argument is not a single-quoted filter: ${command.trim()}`,
+		);
+		const filter = command.slice(opened + 1, closed);
+		for (const spelling of REDUCING_JQ) {
+			assert.ok(
+				!filter.includes(spelling),
+				`a --paginate read reduces inside --jq with "${spelling}", so it answers once per page: ${command.trim()}`,
+			);
+		}
+	}
 });
 
 test("a first push to a ref is detected by the field GitHub documents", () => {
@@ -234,16 +295,28 @@ test("a first push to a ref is detected by the field GitHub documents", () => {
 	);
 });
 
-test("the newest dev release is chosen by sorting on created_at", () => {
+test("the newest dev release is chosen by sorting every page on created_at", () => {
 	// The releases endpoint documents no ordering guarantee, so taking the
-	// list's first element would rest on behaviour nobody promised.
+	// list's first element would rest on behaviour nobody promised. Sorting
+	// is only half of it: the sort has to run over every page at once, which
+	// the class guard above pins for every paginated read and which the two
+	// assertions here pin for this one by name.
 	const step = vscodeRelease.slice(
 		vscodeRelease.indexOf("- name: Find the newest dev release"),
 		vscodeRelease.indexOf("- name: Package the archive"),
 	);
 	assert.ok(
-		step.includes("sort_by(.created_at) | last"),
-		"the dev-release lookup no longer sorts the releases on created_at",
+		step.includes('.created_at + " " + .tag_name'),
+		"the dev-release lookup no longer emits created_at, so it cannot be sorting on it",
+	);
+	assert.ok(
+		step.includes("| sort | tail -n 1 | cut -d \" \" -f 2"),
+		"the dev-release lookup no longer sorts across the pages it fetched, so it answers once per page",
+	);
+	assert.ok(
+		step.includes("returned more than one tag") &&
+			step.includes(`printf '%s' "$TAG" | wc -l`),
+		"the dev-release lookup no longer refuses a multi-line answer, so a per-page answer would reach $GITHUB_OUTPUT undelimited",
 	);
 	assert.ok(
 		step.includes('test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-dev$")') &&
@@ -338,6 +411,11 @@ test("the extension release waits for this commit's own extension checks", () =>
 		vscodeRelease.includes("needs: [check-version, wait-for-extension-ci]"),
 		"the packaging job no longer waits for the extension checks",
 	);
+	assert.ok(
+		vscodeRelease.includes('commits/$SHA/check-runs" --paginate') &&
+			!vscodeRelease.includes("check-runs?per_page="),
+		"the wait step reads a fixed page of check runs again, so a commit carrying more than one page could hide both extension legs",
+	);
 });
 
 test("the marketplace publish is dormant until a token exists", () => {
@@ -362,8 +440,12 @@ test("the marketplace publish is dormant until a token exists", () => {
 		command[0].includes("--packagePath vsix/dinah-universal.vsix"),
 		"the publish command no longer names the archive it publishes",
 	);
+	// vsce spells this option two ways, -p and --pat, and a guard reading one
+	// spelling is satisfied by the other. The VSCE_PAT check beside it catches
+	// the reversal anybody would actually write; the character class catches
+	// the one nobody would.
 	assert.ok(
-		!/ -p[ =]/.test(command[0]) && !command[0].includes("VSCE_PAT"),
+		!/ (?:-p|--pat)[ =]/.test(command[0]) && !command[0].includes("VSCE_PAT"),
 		"the publish command puts the token in its arguments instead of leaving vsce to read VSCE_PAT",
 	);
 	assert.equal(
