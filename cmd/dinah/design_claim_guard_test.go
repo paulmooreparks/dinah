@@ -16,8 +16,15 @@ import (
 // This check holds the rewrite. It reads the wording each passage used and
 // fails when that wording returns, which catches the copy an editor restores
 // from an older draft and the sentence a later card writes back out of habit.
-// It is a backstop rather than proof: a document can state the retired claim in
-// words this file has never seen, and only a reader catches that.
+//
+// What it protects is narrow, and reading it wider than this is a mistake. It
+// catches the verbatim return of the wordings listed below, and it is robust
+// only to case, to line wrapping and to whitespace. A paraphrase of the same
+// claim in words this file has never seen walks straight past it, so the check
+// is a backstop and only a reader catches the general case. The list therefore
+// carries the spellings a writer would reach for rather than only the one that
+// stood in the tree, which is why the unhyphenated form and the founding
+// sentence's own wording are here beside the two retired passages.
 
 // retiredClaim is one wording the design documents used to carry, together with
 // the reason it may not come back.
@@ -42,6 +49,14 @@ var retiredSecondImplementationClaims = []retiredClaim{
 	{
 		wording: "no-shared-code rule",
 		why:     "no rule against sharing code exists, and the conformance suite pins Dinah's own behaviour against what the design documents and the profile say the contract requires",
+	},
+	{
+		wording: "no shared code rule",
+		why:     "the same retired rule spelled without its hyphens, which is how a writer reaching for it in ordinary prose spells it, and no rule against sharing code exists",
+	},
+	{
+		wording: "kept honest by a shared conformance suite",
+		why:     "this is the founding sentence's own wording, which still stands in the Dinah workbench's standing instructions and is therefore the likeliest text copied back into a design document; Dinah.Team shares Dinah's library, so the two are not two implementations kept honest against each other",
 	},
 }
 

@@ -1928,11 +1928,16 @@ mirror read history, consumers of the arbiter read the present.
 
 No question here is settled by consulting a peer implementation, because
 there is no peer. When this document and Dinah's code disagree about what
-the contract requires, the conformance suite decides, because the suite
-verifies Dinah's own code against what this document and the profile that
-restates it say the contract requires. Either the code has a defect against
-a contract it is meant to pass, and the suite is what catches it, or the
-document is wrong about what was decided and the document gets corrected.
+the contract requires, the conformance suite is what surfaces the
+disagreement, and a person rules on which side is wrong. The suite holds
+Dinah's code to what this document and the profile that restates it say the
+contract requires, so a red run reports that the two have parted company
+without reporting which of them to change. Either the code has a defect
+against a contract it is meant to pass, or the document is wrong about what
+was decided and the document gets corrected, and somebody reads the two
+against each other to settle which it was. The suite could not make that
+ruling even if somebody wanted it to, because it is written from the same
+reading of this document as the code, which the paragraph below takes up.
 The contract and its suite hold Dinah's behaviour to what Dinah claims, and
 they keep the contract specific enough that somebody could build an
 independent implementation later and verify it against the same suite.
@@ -1946,19 +1951,20 @@ they can share a blind spot, and the case where the document meant one thing
 while both the code and the suite quietly assumed another has nothing
 catching it. Nothing in the project closes that gap today, so the project
 carries it as an accepted limit. The interchange form of section 5.7 of the
-profile would let a reader of a workbench exist that was built independently
-of Dinah, and nobody has built one. A hand-written fixture literal in the
-test suite is typed independently of any generator, but the hand that types
-it is the hand that writes the code it tests, so it can carry the same
-misreading rather than catch it. The compatibility fixtures are captured by
-replaying input through the built binary, so they record the
-implementation's own reading of this document rather than a second one. The
-conformance report checks that every normative statement is named by some
-test, which finds a statement nobody covered but cannot find a test that
-misread the statement it names. Closing the gap would take a reader of the
-interchange form built independently of Dinah's code and of the people who
-write its tests, or a standing practice of someone with no hand in either
-reading this document periodically against what shipped.
+profile would let somebody build a reader of a workbench independently of
+Dinah, and nobody has built one. A hand-written fixture literal in the test
+suite is typed independently of any generator, but the hand that types it is
+the hand that writes the code it tests, so it can carry the same misreading
+rather than catch it. The compatibility fixtures are captured by replaying
+input through the built binary, so they record the implementation's own
+reading of this document rather than a second one. The conformance report
+checks that every normative statement is either named by some test or listed
+as out of reach with a written reason, which finds a statement nobody
+covered but cannot find a test that misread the statement it names. Closing
+the gap would take a reader of the interchange form built independently of
+Dinah's code and of the people who write its tests, or a standing practice
+by which somebody with no hand in either the code or the tests periodically
+reads this document against what shipped.
 
 ## Verb outcomes and staleness
 
