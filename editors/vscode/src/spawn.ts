@@ -7,7 +7,6 @@
 // goes past cli.ts, which composes --json itself.
 
 import { execFile } from "node:child_process";
-import { join } from "node:path";
 
 import type { SpawnOptions, SpawnOutcome, Spawner } from "./cli";
 
@@ -56,6 +55,3 @@ export const nodeSpawner: Spawner = (
 			},
 		);
 	});
-
-/** Joins a directory and a name the way the host platform spells paths. */
-export const joinPath = (dir: string, name: string): string => join(dir, name);

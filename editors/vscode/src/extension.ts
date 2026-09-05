@@ -76,7 +76,7 @@ import {
 } from "./identity";
 import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
-import { joinPath, nodeSpawner } from "./spawn";
+import { nodeSpawner } from "./spawn";
 import { composeContextKeys, composeStatus } from "./status";
 import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider } from "./tree";
@@ -256,7 +256,6 @@ export async function activate(
 
 	const binary = await resolveBinary({
 		setting: setting(SETTING_PATH),
-		join: joinPath,
 		probe: async (exe) =>
 			classifyVersion(await runDinah(nodeSpawner, exe, ["version"])),
 	});
