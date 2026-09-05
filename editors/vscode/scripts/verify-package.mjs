@@ -1,12 +1,14 @@
 // Reads the packaged archives and asserts each one carries exactly the binary
-// it is supposed to and carries the licence text.
+// it is supposed to, plus the licence text and the marketplace icon.
 //
-// Three failures this catches, and none of them has another witness. A
+// Four failures this catches, and none of them has another witness. A
 // .vscodeignore change can ship all six binaries in every artifact. A staging
 // step can leave the previous target's binary behind. An archive can ship with
 // no statement of the terms it is distributed under, which is what dinah-371
-// found. None of the three shows up in a build log, and the person who finds
-// out is a user on the wrong platform or a user with no licence.
+// found. An archive can ship without the icon its manifest promises, which
+// dinah-372 added. None of the four shows up in a build log, and the person who
+// finds out is a user on the wrong platform, a user with no licence, or every
+// visitor to the marketplace listing.
 
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -27,6 +29,17 @@ const problems = [];
 // licence file as it packages it. Checking for "extension/LICENSE" would
 // therefore fail on every correct archive.
 const LICENSE_ENTRY = "extension/LICENSE.txt";
+
+// Where the marketplace icon lands inside the archive.
+//
+// package.json's top-level icon field is what the marketplace listing and the
+// Extensions list both render, and it names a path inside the extension. An
+// icon present in the source tree and absent from the archive publishes a grey
+// placeholder, which is the same class of miss dinah-371 found for the licence.
+// Unlike the licence, this path already carries an extension, so vsce has no
+// reason to rename it; the assertion below reads the archive rather than the
+// tree so that assumption is checked rather than trusted.
+const ICON_ENTRY = "extension/media/icon.png";
 
 /** Every entry under `extension/bin/`, which is where a carried binary lands. */
 function carriedIn(vsix) {
@@ -58,6 +71,11 @@ function check(label, vsix, expected) {
 	if (!listZipEntries(vsix).includes(LICENSE_ENTRY)) {
 		problems.push(
 			`${label}: does not carry ${LICENSE_ENTRY}, so whoever downloads it gets no statement of the terms`,
+		);
+	}
+	if (!listZipEntries(vsix).includes(ICON_ENTRY)) {
+		problems.push(
+			`${label}: does not carry ${ICON_ENTRY}, so the marketplace listing and the Extensions list both show a placeholder`,
 		);
 	}
 	const stray = strayIn(vsix);
