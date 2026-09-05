@@ -890,9 +890,6 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.NoClaim = value
 	case "archived":
 		req.Archived = value
-	case "catalogs":
-		// The version tool always reports catalog coverage, so the marker
-		// carries nothing here.
 	}
 }
 

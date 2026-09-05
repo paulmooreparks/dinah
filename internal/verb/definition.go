@@ -583,13 +583,16 @@ type Command struct {
 	Args []string
 }
 
-// Line joins Verb and Args into one printable line, quoting any argument that
-// carries whitespace, a shell metacharacter, or nothing at all, so the result
-// is what a person would have had to type rather than what a naive join
-// prints. Line is for display only; re-running a command re-parses Args, not
-// this string. It carries no leading program name, because "dinah" is how the
-// displaying surface's own reader invokes the binary rather than something
-// this library asserts about itself.
+// Line joins Verb and Args into one printable line, quoting an argument that
+// is empty, that carries whitespace, or that carries one of the characters
+// shellSpecial names, so a reader can see where each argument begins and where
+// it ends. Line is for display and is not a shell-safe rendering: shellSpecial
+// records which characters it makes no claim about, and no one rendering can
+// be retyped unchanged into a POSIX shell, cmd.exe and PowerShell alike.
+// Re-running a command re-parses Args and never this string. It carries no
+// leading program name, because "dinah" is how the displaying surface's own
+// reader invokes the binary rather than something this library asserts about
+// itself.
 func (c Command) Line() string {
 	parts := make([]string, 0, len(c.Args)+1)
 	parts = append(parts, c.Verb)
@@ -599,16 +602,30 @@ func (c Command) Line() string {
 	return strings.Join(parts, " ")
 }
 
-// shellSpecial is the set of characters a POSIX-ish shell reads as something
-// other than part of a plain word. A token carrying any of them is quoted by
-// Line, since a reader who retyped the line unquoted would get a different
-// command from the one that ran. The backslash is in the set for the same
-// reason as the rest of it: a Windows path typed bare into such a shell loses
-// its separators.
-const shellSpecial = "\"'$`|&;<>()*?[]#~=%\\"
+// shellSpecial is the set of characters Line quotes a token for. Each one is
+// read as something other than part of a plain word by at least one shell, and
+// each one is left alone inside a double-quoted token by all of them, so
+// wrapping the token is a complete answer for the whole set. The double quote
+// is the exception a delimiter always is: it has to be escaped rather than
+// merely wrapped, and quoteArgument escapes it as \", which POSIX shells and
+// the Windows C runtime read back and PowerShell does not.
+//
+// Four characters a shell reads specially are deliberately outside the set,
+// because quoting does not render them inert and nothing this function could
+// do would. A POSIX shell expands $ and a backtick inside double quotes, and
+// cmd.exe expands %VAR% there, so quoting one of those yields a line that
+// looks handled and is not. A backslash is an escape inside POSIX double
+// quotes and an ordinary character inside cmd.exe's and PowerShell's, so
+// doubling it repairs the line for one shell and doubles every separator of a
+// Windows path for the two this tool is most often used from. A token carrying
+// any of the four is rendered as it stands and Line claims nothing about it;
+// a caller that wants to re-run the call uses Args.
+const shellSpecial = "\"'|&;<>()*?[]#~="
 
-// quoteArgument renders one token as a reader would have to type it. An empty
-// token has no bare spelling at all, so it becomes a pair of quotes.
+// quoteArgument renders one token so that a reader can tell where it begins
+// and where it ends. An empty token has no bare spelling at all, so it becomes
+// a pair of quotes. The double quote is escaped because it would otherwise
+// close the quoting, and nothing else is, for the reasons shellSpecial gives.
 func quoteArgument(arg string) string {
 	if arg == "" {
 		return `""`
@@ -617,9 +634,7 @@ func quoteArgument(arg string) string {
 	if plain && strings.IndexFunc(arg, unicode.IsSpace) < 0 {
 		return arg
 	}
-	escaped := strings.ReplaceAll(arg, `\`, `\\`)
-	escaped = strings.ReplaceAll(escaped, `"`, `\"`)
-	return `"` + escaped + `"`
+	return `"` + strings.ReplaceAll(arg, `"`, `\"`) + `"`
 }
 
 // durationType is the one non-string scalar a parameter's Request field is
@@ -705,6 +720,13 @@ func DeriveCommand(req *Request) (cmd Command, ok bool, reason string) {
 // does. Nothing in a Request distinguishes a flag given empty from a flag left
 // out, so a claim that named no lease would otherwise derive a line carrying
 // "--expires 0s", which reproduces the call and is not what anybody typed.
+//
+// The empty-value rule meets DeriveCommand's Required handling in one place
+// that has no case today. A Required duration field left at zero would be
+// typed as an empty word, and ParseDuration refuses that, so the derived line
+// would not reparse. No parameter declares one: expires is the only duration
+// in the table and it is Required on neither claim nor pull. The round trip in
+// cmd/dinah catches it the day one appears.
 //
 // Three types are known today: string, time.Duration (rendered as ParseDuration
 // accepts it straight back), and a slice whose element type is string. A

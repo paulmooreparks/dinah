@@ -147,6 +147,77 @@ func TestCommandLineQuotesWhatAReaderWouldHaveToType(t *testing.T) {
 	}
 }
 
+// TestLineQuotesOnlyTheCharactersQuotingActuallyHandles holds shellSpecial to
+// what quoteArgument can honestly do with it. Every character the set declares
+// has to survive a round trip through the quoting and back out again, and the
+// four characters a double-quoted token does not render inert have to stay
+// outside the set, since declaring one of them is how Line comes to present a
+// token as handled when retyping it would run something else.
+func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
+	excluded := []struct {
+		char rune
+		why  string
+	}{
+		{'$', "a POSIX shell expands it inside double quotes"},
+		{'`', "a POSIX shell runs a command substitution inside double quotes"},
+		{'%', "cmd.exe expands a variable inside double quotes"},
+		{'\\', "cmd.exe and PowerShell read it literally inside double quotes, so escaping it doubles every separator of a Windows path"},
+	}
+	for _, out := range excluded {
+		if strings.ContainsRune(shellSpecial, out.char) {
+			t.Errorf("shellSpecial declares %q special and quoting cannot render it inert: %s", out.char, out.why)
+		}
+	}
+
+	for _, special := range shellSpecial {
+		token := "a" + string(special) + "b"
+		rendered := quoteArgument(token)
+		if rendered == token {
+			t.Errorf("a token carrying %q rendered unquoted as %q", special, rendered)
+			continue
+		}
+		if got := readDoubleQuoted(rendered); got != token {
+			t.Errorf("a token carrying %q rendered as %q, which reads back as %q rather than %q", special, rendered, got, token)
+		}
+	}
+
+	// The two excluded characters that reach a real argument get their own
+	// assertion, because what the exclusion buys is visible in the rendering
+	// rather than in the constant.
+	if got := quoteArgument(`C:\Users\paul`); got != `C:\Users\paul` {
+		t.Errorf("a Windows path rendered as %q, so a reader retyping it into cmd.exe or PowerShell gets a different path", got)
+	}
+	if got := quoteArgument("$HOME"); got != "$HOME" {
+		t.Errorf("a token carrying $ rendered as %q, which quoting does not make inert and must not appear to", got)
+	}
+}
+
+// readDoubleQuoted reads back one token quoteArgument rendered: it strips the
+// wrapping quotes and undoes the one escape quoteArgument writes. It stops at
+// the first unescaped quote and returns what follows it unread, so a rendering
+// whose quoting ends early comes back as more than the token that went in.
+// The naive version, which stripped the outer characters and unescaped the
+// middle, healed exactly the defect this round trip exists to catch: it read
+// "a"b" back as a"b and reported the missing escape as correct.
+func readDoubleQuoted(rendered string) string {
+	if len(rendered) < 2 || rendered[0] != '"' {
+		return rendered
+	}
+	var token strings.Builder
+	for i := 1; i < len(rendered); i++ {
+		switch {
+		case rendered[i] == '\\' && i+1 < len(rendered) && rendered[i+1] == '"':
+			token.WriteByte('"')
+			i++
+		case rendered[i] == '"':
+			return token.String() + rendered[i+1:]
+		default:
+			token.WriteByte(rendered[i])
+		}
+	}
+	return token.String()
+}
+
 // shellWords counts the words a line reads as, taking a double quote as the
 // start and end of one word the way a shell does. strings.Fields cannot stand
 // in for it: it splits on whitespace whether or not the whitespace sits inside
@@ -299,7 +370,7 @@ func TestDeriveCommandRendersAFlagUnderItsDisplayedName(t *testing.T) {
 	for _, name := range Commands() {
 		for _, p := range Params(name) {
 			if p.Flag && p.Display != "" {
-				t.Fatalf("%s's %q flag now declares a Display, so this fixture is no longer the only case and the walk it replaced should come back", name, p.Name)
+				t.Fatalf("%s's %q flag now declares a Display, so this fixture is no longer the only case: the walk it replaced should come back, and reparse in cmd/dinah's TestDeriveCommandRoundTrips has to look a flag up by its displayed spelling rather than by p.Name", name, p.Name)
 			}
 		}
 	}
