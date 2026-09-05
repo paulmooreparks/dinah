@@ -40,7 +40,6 @@ function deps(options: Options): { deps: ResolveDeps; probed: string[] } {
 		probed,
 		deps: {
 			setting: options.setting ?? "",
-			join: (dir, name) => `${dir}/${name}`,
 			probe: async (exe) => {
 				probed.push(exe);
 				return options.answers?.[exe] ?? ENOENT;
