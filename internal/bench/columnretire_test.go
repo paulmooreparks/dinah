@@ -210,3 +210,129 @@ func TestCheckReportsStrandedColumnsAndTheMigrationRepairsThem(t *testing.T) {
 		}
 	})
 }
+
+// newOrphanedDirectoryFixture writes a workbench declaring one column backed
+// by a real directory, and plants a second directory under columns/ that the
+// definition never names. It is the mirror of newStrandedFixture, and the
+// shape a reshape interrupted between writing an added column and appending
+// its identifier leaves behind when the retry runs against an edited source
+// and derives a different identifier.
+//
+// carriesAnchor decides which of the two sub-cases the fixture is. A crash
+// before the anchor write leaves the directory empty; a crash after it leaves
+// a whole, valid anchor with nothing in the definition pointing at it. Neither
+// is reachable from the columns sequence, so neither is reachable at all.
+func newOrphanedDirectoryFixture(t *testing.T, carriesAnchor bool) (root, orphan string) {
+	t.Helper()
+	root = t.TempDir()
+	orphan = "b00000000003"
+	fm := NewFrontmatter()
+	fm.Set("format", "1")
+	fm.Set("profile", ProfileVersion)
+	fm.Set("title", "Fixture")
+	fm.Set("slug", "fx")
+	fm.Set("operator", "alka")
+	fm.SetSeq("columns", []string{"b00000000001"})
+	write(t, filepath.Join(root, WorkbenchAnchor), fm.Render("Standing text.\n"))
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnAnchor("One", "one", "intake"))
+	if carriesAnchor {
+		write(t, filepath.Join(root, ColumnsDir, orphan, ColumnAnchor), columnAnchor("Orphan", "orphan", "work"))
+		return root, orphan
+	}
+	if err := os.MkdirAll(filepath.Join(root, ColumnsDir, orphan), 0o755); err != nil {
+		t.Fatalf("plant the empty directory: %v", err)
+	}
+	return root, orphan
+}
+
+// TestCheckReportsADirectoryTheWorkbenchDoesNotName is dinah-316 AC-18. It is
+// the mirror of the stranded-column finding above, and the two never name one
+// identifier between them: a stranded identifier is in the sequence with no
+// directory, and an orphaned directory is on disk with no sequence entry, so
+// each walks a set the other cannot see.
+//
+// Both crash shapes are covered, because the empty directory and the one
+// already carrying a whole anchor are the two windows write-phase step one
+// leaves, and a guard that saw only one of them would miss half of what it
+// exists for. Neither is repaired: removing a directory that may hold
+// somebody's column is a destructive act nothing offers yet, and what an
+// operator needs first is to be told the directory is there.
+func TestCheckReportsADirectoryTheWorkbenchDoesNotName(t *testing.T) {
+	for _, shape := range []struct {
+		name          string
+		carriesAnchor bool
+	}{
+		{name: "an empty directory", carriesAnchor: false},
+		{name: "a directory already carrying its anchor", carriesAnchor: true},
+	} {
+		t.Run(shape.name, func(t *testing.T) {
+			root, orphan := newOrphanedDirectoryFixture(t, shape.carriesAnchor)
+			opened, err := Open(root)
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
+			findings, err := opened.Check()
+			if err != nil {
+				t.Fatalf("check: %v", err)
+			}
+			if len(findings) != 1 {
+				t.Fatalf("wanted one finding, got %+v", findings)
+			}
+			found := findings[0]
+			if found.Key != FindingOrphanedColumnDirectory {
+				t.Fatalf("wanted %s, got %s", FindingOrphanedColumnDirectory, found.Key)
+			}
+			if found.Detail != orphan {
+				t.Errorf("wanted the finding to name the directory %s, it names %q", orphan, found.Detail)
+			}
+			// The path names the directory itself rather than the workbench
+			// anchor, which is where this finding parts company with its
+			// mirror: an orphaned directory is something a reader can open.
+			if want := filepath.Join(root, ColumnsDir, orphan); found.Path != want {
+				t.Errorf("wanted the path %s, got %s", want, found.Path)
+			}
+		})
+	}
+}
+
+// TestTheTwoColumnDirectoryFindingsNeverNameEachOthersIdentifier is the second
+// half of dinah-316 AC-18, and it is what proves the asymmetry rather than
+// assuming it. One workbench carries both defects at once, and each finding
+// names its own identifier and only its own.
+func TestTheTwoColumnDirectoryFindingsNeverNameEachOthersIdentifier(t *testing.T) {
+	root := t.TempDir()
+	stranded := "b00000000002"
+	orphan := "b00000000003"
+	fm := NewFrontmatter()
+	fm.Set("format", "1")
+	fm.Set("profile", ProfileVersion)
+	fm.Set("title", "Fixture")
+	fm.Set("slug", "fx")
+	fm.Set("operator", "alka")
+	fm.SetSeq("columns", []string{"b00000000001", stranded})
+	write(t, filepath.Join(root, WorkbenchAnchor), fm.Render("Standing text.\n"))
+	write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), columnAnchor("One", "one", "intake"))
+	write(t, filepath.Join(root, ColumnsDir, orphan, ColumnAnchor), columnAnchor("Orphan", "orphan", "work"))
+
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	findings, err := opened.Check()
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	byKey := map[string][]string{}
+	for _, found := range findings {
+		byKey[found.Key] = append(byKey[found.Key], found.Detail)
+	}
+	if got := byKey[FindingStrandedColumn]; len(got) != 1 || got[0] != stranded {
+		t.Errorf("wanted exactly one stranded-column finding naming %s, got %v", stranded, got)
+	}
+	if got := byKey[FindingOrphanedColumnDirectory]; len(got) != 1 || got[0] != orphan {
+		t.Errorf("wanted exactly one orphaned-directory finding naming %s, got %v", orphan, got)
+	}
+	if len(findings) != 2 {
+		t.Errorf("wanted the two findings and nothing else, got %+v", findings)
+	}
+}

@@ -27,6 +27,16 @@ type Library struct {
 	// refuses it there, which is the window a lock taken only around the
 	// write would leave open.
 	Interleave func()
+	// Interpose, when set, is called between the steps of a write phase that
+	// composes several locked acts rather than running inside one, at the
+	// points where the run holds no lock at all. It is the complement of
+	// Interleave: that one drives a second process at a lock it must be
+	// refused by, this one drives a second process through a window where
+	// nothing refuses it, so a test can construct the interleaving a composed
+	// write phase really admits instead of reasoning about it. The step names
+	// which window the run is standing in, because the answer a test wants
+	// differs per step. Reshape is the only caller today.
+	Interpose func(step string)
 }
 
 // New returns a library over an opened bench, on the real clock.
@@ -188,6 +198,16 @@ type Request struct {
 	// head once discovery has run, since that is the earliest point the
 	// answer is known.
 	WorkbenchSource string
+	// From is the source a reshape reads its new column layout from, as the
+	// caller wrote it: an interchange file or another workbench's directory,
+	// which are the two shapes `dinah init --from` already accepts.
+	From string
+	// Map is the reshape destinations the caller named, each one written
+	// `<retired>=<destination>`, in the order they were written. It is a list
+	// rather than a single value because one run retires as many columns as
+	// the new definition drops, and a later entry for the same retirement
+	// wins over an earlier one.
+	Map []string
 }
 
 // CardView is the card as a response carries it.

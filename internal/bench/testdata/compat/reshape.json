@@ -1,0 +1,44 @@
+{
+  "profile": "dinah-core/0.7",
+  "title": "Sample workbench",
+  "instructions": "This workbench is a compatibility sample. Every command populate.txt replays runs against it.",
+  "levels": {
+    "severity": [
+      "trivial",
+      "minor",
+      "major",
+      "critical"
+    ],
+    "priority": [
+      "later",
+      "soon",
+      "next",
+      "now"
+    ]
+  },
+  "columns": [
+    {
+      "id": "004acda2c28a",
+      "title": "Intake",
+      "slug": "intake",
+      "kind": "intake",
+      "operator_owned": true
+    },
+    {
+      "id": "7b5cfe51cb3b",
+      "title": "Doing",
+      "slug": "doing",
+      "kind": "work",
+      "capacity": 2,
+      "instructions": "Work is taken up here.\n"
+    },
+    {
+      "id": "68091798ab26",
+      "title": "Done",
+      "slug": "done",
+      "kind": "done",
+      "operator_owned": true,
+      "capacity": 2
+    }
+  ]
+}

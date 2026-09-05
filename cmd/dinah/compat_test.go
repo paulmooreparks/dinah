@@ -34,6 +34,7 @@ const populateName = "populate.txt"
 // replay, because a file argument names a file rather than a path.
 var populateInputs = []string{
 	"definition.json",
+	"reshape.json",
 	"payload-one.txt",
 	"payload-two.txt",
 	"payload-three.txt",

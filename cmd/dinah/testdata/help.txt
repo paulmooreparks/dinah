@@ -64,6 +64,8 @@ WORKBENCH
                                               form to stdout
   extract <dir>                             Copy this workbench's definition out
                                               as a template
+  reshape --from <source>                   Carry this workbench to the column
+    [--map <retired=destination>] [--yes]     layout a new definition declares
   path <ref>                                Print the file path of this
                                               workbench, of a card, or of
                                               anything below a card

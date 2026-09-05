@@ -1,6 +1,66 @@
 {
   "tag": "af",
   "entries": {
+    "check.orphaned-column-directory": {
+      "text": "a directory under columns/ is not named by this workbench ({detail}), so nothing in the tool reaches the column inside it",
+      "context": "A check finding: a directory sitting under the workbench's columns directory whose name the columns sequence does not carry. It is the mirror of check.stranded-column, which names a sequence entry with no directory. The path carried is the directory itself, because unlike a stranded identifier this one names something a reader can open, and no repair flag offers to remove it.",
+      "skeleton": true
+    },
+    "check.reshape.1": {
+      "text": "the workbench designates an operator",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.10": {
+      "text": "no held card lands where no work is taken up",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.2": {
+      "text": "the request names an owner",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.3": {
+      "text": "--from names a source that exists",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.4": {
+      "text": "the source reads, and no replaces is claimed twice",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.5": {
+      "text": "each destination names at most one added column",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.6": {
+      "text": "each destination names a column",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.7": {
+      "text": "no destination is a column this run retires",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.8": {
+      "text": "each --map entry carries at least one card",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "check.reshape.9": {
+      "text": "every occupied retirement has a destination",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "skeleton": true
+    },
+    "cmd.reshape.summary": {
+      "text": "Carry this workbench to the column layout a new definition declares",
+      "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
     "param.attachments.ref.summary": {
       "text": "this workbench written as `workbench` or `.`, a column, a card, or a comment such as wb-1/comments/1; this workbench when you name none",
       "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
@@ -1961,6 +2021,16 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "skeleton": true
     },
+    "param.reshape.from.summary": {
+      "text": "the definition to take the new shape from: an interchange file, or another workbench's directory, which is what `dinah init --from` already accepts",
+      "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.reshape.map.summary": {
+      "text": "send the cards of one retiring column to another column, written retired=destination, repeated once per retiring column; the retired side may also be a column identifier a card still carries that this workbench no longer names, which `dinah check` reports as check.unknown-column",
+      "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
+      "skeleton": true
+    },
     "param.show.card.summary": {
       "text": "a card, or something below a card such as wb-1/comments/1; show does not take this workbench",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
@@ -2340,6 +2410,56 @@
       "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
+    "refusal.dinah.reshape-destination-ambiguous": {
+      "text": "the new shape adds more than one column titled {detail}, at positions {positions}, and none of them declares an identifier to tell them apart",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-ambiguous. {detail} is the title the caller wrote and {positions} names where each candidate sits in the new definition's columns array, which is the only handle an added column carries before it is written.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-destination-ambiguous.next": {
+      "text": "; give one of them an id in the definition and name that id instead",
+      "context": "Spliced onto refusal.dinah.reshape-destination-ambiguous as the next step.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-destination-retiring": {
+      "text": "{detail} names column {column}, which this same run retires, so the cards would be carried into a column that is about to go",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-retiring. {detail} is the reference the caller wrote and {column} is the retiring column it resolved to.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-destination-retiring.next": {
+      "text": "; name a column the new shape keeps or adds",
+      "context": "Spliced onto refusal.dinah.reshape-destination-retiring as the next step.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-held-card-in-queue": {
+      "text": "no owner takes work up at column {detail} once this shape is written, and these cards are held there: {cards}",
+      "context": "The sentence printed after the refusal name dinah.reshape-held-card-in-queue. {detail} names the column and {cards} carries the identifiers of the cards somebody is holding there.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-held-card-in-queue.next": {
+      "text": "; release them first, or leave the column taking work up",
+      "context": "Spliced onto refusal.dinah.reshape-held-card-in-queue as the next step, naming the two ways out.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-map-source-empty": {
+      "text": "no card this run would carry stands at {detail}",
+      "context": "The sentence printed after the refusal name dinah.reshape-map-source-empty. {detail} carries the reference the caller wrote on the left of a --map entry.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-map-source-empty.next": {
+      "text": "; name a column the new shape drops, or the column identifier a stranded card still carries, which `dinah check` reports as check.unknown-column",
+      "context": "Spliced onto refusal.dinah.reshape-map-source-empty as the next step. It names `dinah check` because that is the command that reports a stranded column identifier.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-needs-a-destination": {
+      "text": "the new shape drops column {detail}, and the live cards standing there, {cards} of them, have nowhere to go",
+      "context": "The sentence printed after the refusal name dinah.reshape-needs-a-destination. {detail} names the retiring column and {cards} is how many live cards stand in it.",
+      "skeleton": true
+    },
+    "refusal.dinah.reshape-needs-a-destination.next": {
+      "text": "; name one with `--map {detail}=<column>`, or declare replaces on the column that takes the work over",
+      "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
+      "skeleton": true
+    },
     "refusal.dinah.unconfirmed": {
       "text": "delete destroys history",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2640,6 +2760,11 @@
       "context": "Spliced onto refusal.malformed when the refusal carries a path: the file the missing or broken field belongs to.",
       "skeleton": true
     },
+    "refusal.malformed.claimed-twice": {
+      "text": ", and {claimants} both declare it for {retired}",
+      "context": "Spliced onto refusal.malformed when a reshape's new definition has two columns claiming one retirement through replaces. {claimants} names both declaring columns and {retired} is the identifier they both claim.",
+      "skeleton": true
+    },
     "refusal.malformed.fix": {
       "text": "; hand-edit the file and add it, then run `dinah check` to confirm",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
@@ -2813,6 +2938,96 @@
     "refusal.unsupported-version.window": {
       "text": "; this build reads {floor} through {ceiling}",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them.",
+      "skeleton": true
+    },
+    "reshape.applied": {
+      "text": "This workbench now carries the new shape.",
+      "context": "The first line of a reshape that applied, printed where a preview prints the line saying nothing was written.",
+      "skeleton": true
+    },
+    "reshape.blocked": {
+      "text": "Carried while blocked: {cards}.",
+      "context": "One row of a reshape report, naming the carried cards that arrived still blocked, since a reshape carries a block through untouched.",
+      "skeleton": true
+    },
+    "reshape.carry": {
+      "text": "{id} sends its cards to {destination}. Cards: {count}.",
+      "context": "One row of a reshape report: where a retiring column's cards go and how many there are. A preview reads it as what would be carried and an applied run as what was.",
+      "skeleton": true
+    },
+    "reshape.column.added": {
+      "text": "added {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition adds.",
+      "skeleton": true
+    },
+    "reshape.column.adopted": {
+      "text": "retired {id}, an identifier this workbench no longer names",
+      "context": "One row of a reshape report: an identifier a --map entry adopted, which names no live column and so carries no title.",
+      "skeleton": true
+    },
+    "reshape.column.kept": {
+      "text": "kept {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition keeps.",
+      "skeleton": true
+    },
+    "reshape.column.retired": {
+      "text": "retired {title} ({id})",
+      "context": "One row of a reshape report: a live column the new definition drops.",
+      "skeleton": true
+    },
+    "reshape.confirm": {
+      "text": "Run the same command again with --yes to apply it.",
+      "context": "The closing line of a reshape preview, naming the flag that carries the run out.",
+      "skeleton": true
+    },
+    "reshape.empty": {
+      "text": "{id} retires with no card standing in it.",
+      "context": "One row of a reshape report: a retiring column nothing had to be carried out of.",
+      "skeleton": true
+    },
+    "reshape.partial": {
+      "text": "This run had already begun writing when it stopped, so this workbench stands part way between its old shape and the new one. What follows is what it wrote.",
+      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one.",
+      "skeleton": true
+    },
+    "reshape.preview": {
+      "text": "Nothing was written. This is what a run carrying --yes would do.",
+      "context": "The first line of a reshape preview, which says at the top that none of the page below has happened.",
+      "skeleton": true
+    },
+    "reshape.retry": {
+      "text": "Clear what the refusal names and run the same command again with the same source. The steps above are skipped on the second run and the rest of the shape is written.",
+      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
+      "skeleton": true
+    },
+    "reshape.stranded": {
+      "text": "Cards standing in a column this run does not know about: {count}. Run `dinah check` to find their identifiers.",
+      "context": "The reshape report's line for cards standing in a column that is in neither the workbench's own sequence nor the new definition. The count is reported rather than the identifiers, because reshape diffs two column lists and `dinah check` is the command that walks every card.",
+      "skeleton": true
+    },
+    "reshape.updated": {
+      "text": "The new definition changed column {id}.",
+      "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
+      "skeleton": true
+    },
+    "reshape.wrote.added": {
+      "text": "Columns the new definition adds, now written and in the flow: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written.",
+      "skeleton": true
+    },
+    "reshape.wrote.archived": {
+      "text": "Retiring columns archived: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive.",
+      "skeleton": true
+    },
+    "reshape.wrote.carried": {
+      "text": "Cards carried out of a retiring column: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations.",
+      "skeleton": true
+    },
+    "reshape.wrote.updated": {
+      "text": "Kept columns rewritten from the new definition: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
       "skeleton": true
     },
     "schema.basis.description": {

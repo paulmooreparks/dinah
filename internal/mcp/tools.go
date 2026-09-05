@@ -118,6 +118,7 @@ var toolExemptions = map[string]string{
 	"edit":    "opens a file in the reader's own editor, which needs a terminal this head does not have",
 	"init":    "creates a workbench in a directory, which is a filesystem act rather than a workbench act",
 	"extract": "copies a workbench definition out to a directory, which is the same filesystem act",
+	"reshape": "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act init and extract are held out for",
 	"config":  "writes the user's own machine settings, which travel with the person rather than the workbench",
 	"mcp":     "starts this head, so a tool for it would be the server offering to start itself",
 	"guide":   "served as a resource rather than a tool, because a guide is read rather than run",

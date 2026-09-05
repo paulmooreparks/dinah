@@ -42,6 +42,19 @@ const (
 	FindingSlugMalformed      = "check.slug-malformed"
 	FindingSlugDuplicate      = "check.slug-duplicate"
 	FindingStrandedColumn     = "check.stranded-column"
+	// FindingOrphanedColumnDirectory names a directory under columns/ that
+	// the workbench's own columns sequence does not carry. It is the mirror
+	// of FindingStrandedColumn and never fires over the same identifier,
+	// since one names a sequence entry with no directory and the other a
+	// directory with no sequence entry.
+	//
+	// Path names the directory itself rather than the workbench anchor,
+	// which is where the two findings part company: a stranded identifier
+	// names nothing a reader can open, and this names something they can.
+	// No repair flag offers to remove it, because removing a directory that
+	// may hold somebody's column is a destructive act, and reading it is
+	// what an operator needs before deciding anything.
+	FindingOrphanedColumnDirectory = "check.orphaned-column-directory"
 	// FindingBareWorkbench names a directory carrying a workbench.md this tool
 	// recognises as its own and sitting outside any .dinah container, which
 	// the containment rule means is no longer a workbench. It is reported
@@ -234,6 +247,9 @@ func (b *Bench) Check() ([]Finding, error) {
 	findings = append(findings, b.checkWorkbenchSlug()...)
 	for _, id := range b.StrandedColumns {
 		findings = append(findings, Finding{Path: filepath.Join(b.Root, WorkbenchAnchor), Key: FindingStrandedColumn, Detail: id})
+	}
+	for _, id := range b.OrphanedColumnDirectories {
+		findings = append(findings, Finding{Path: filepath.Join(b.Root, ColumnsDir, id), Key: FindingOrphanedColumnDirectory, Detail: id})
 	}
 	for _, standing := range b.interruptions() {
 		findings = append(findings, standing.finding())

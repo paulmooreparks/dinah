@@ -373,7 +373,18 @@ var params = map[string][]Param{
 		{Name: "slug", Flag: true, Value: "slug"},
 		{Name: "operator", Flag: true, Value: "actor"},
 	},
-	"export":  {},
+	"export": {},
+	// reshape declares no positional at all, so a stray word anywhere in the
+	// invocation is refused rather than silently ignored, which is the shape
+	// changes already takes for the same reason. --map is the one repeatable
+	// argument the tool has: one run retires as many columns as the new
+	// definition drops, and each retirement needs its own destination, so a
+	// last-value-wins flag would silently discard every entry but the last.
+	"reshape": {
+		{Name: "from", Flag: true, Required: true, Value: "source", Field: "From"},
+		{Name: "map", Flag: true, Value: "retired=destination", Field: "Map"},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
+	},
 	"extract": {{Name: "dir", Required: true}},
 	"path":    {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
 	"edit":    {{Name: "card", Display: "ref", Required: true, Guide: "references"}},
