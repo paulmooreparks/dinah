@@ -335,11 +335,28 @@ test("the settings are contributed with the scopes their subjects need", () => {
 // while "set `dinah.path` to a binary you already have" is honest copy about
 // the reader's own machine, so `have` and `contain` stay out.
 //
-// `has` also has to shed its auxiliary use, which possesses nothing. "The
+// `has` also has to shed its auxiliary uses, which possess nothing. "The
 // extension has been tested against the dinah release it is paired with"
 // describes the pairing this card kept alive, and the lookahead is what keeps
 // the guard off it.
-const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
+//
+// `has had` is the delicate part of that list, because those two words carry
+// both readings. "The extension has had a dinah binary since version 2"
+// possesses the binary, and it is the claim this guard exists to refuse, so a
+// bare `had` cannot sit in the exclusion. "The extension has had to download
+// dinah separately on every platform" is the auxiliary reading and says the
+// opposite of the claim, so it cannot be refused either. `had to` separates
+// the two, because the auxiliary reading takes an infinitive after it and the
+// possessive reading takes a noun phrase.
+//
+// What that separation does not reach is a sentence possessing something
+// other than the payload, such as "The extension has had trouble locating your
+// dinah executable". Frame one refuses it because the sentence names both
+// parties at any distance, and it refuses the same sentence without `had`
+// too, so the refusal is older than this exclusion list. It is pinned in
+// KNOWN_FALSE_REFUSALS below rather than patched away with a second exclusion
+// that would fit one wording and no others.
+const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|already\s+been|had\s+to))|contains|built[- ]in|comes? with|came with|own copy)`;
 const POSSESSION = new RegExp(String.raw`\b${POSSESSION_WORD}\b`, "gi");
 
 // Who is said to do the possessing, and what is said to be possessed. Frame
@@ -468,6 +485,13 @@ const CLAIMS_A_CARRIED_BINARY = [
 // measured at Operator Code Review, plus three that pin the exclusions this
 // pattern makes on purpose (`have` as against `has`, a counted "one" as
 // against an anaphoric one, and `has been` as against `has`).
+//
+// The last four are the auxiliary reading of `has had`, which the widening
+// that closed the "has had a dinah binary" hole started refusing. They are
+// written as sentences a contributor would plausibly add next year rather
+// than as copies of what the extension publishes today, because a
+// must-keep-passing list built only from today's strings cannot catch the
+// next widening either.
 const HONEST_COPY = [
 	"Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.",
 	"Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
@@ -488,6 +512,10 @@ const HONEST_COPY = [
 	"This extension will use a binary you already have.",
 	"The extension provides one view per workbench.",
 	"The extension has been tested against the dinah release it is paired with.",
+	"The extension has had to download dinah separately on every platform.",
+	"The extension has had to ask you for the path to dinah more than once.",
+	"This extension has had to fall back to the dinah on your PATH.",
+	"The extension has had to be paired with a matching dinah release.",
 ];
 
 // Claims the three frames do not reach. They are pinned rather than merely
@@ -500,18 +528,41 @@ const KNOWN_ESCAPES = [
 	"Leave empty to use the one the extension supplies.",
 ];
 
+// Honest copy this guard refuses anyway, which is the mirror of the list
+// above and is here for the same reason: a limit nobody can fail is a limit
+// that drifts. Frame one asks only that the extension, the payload and a
+// possession word share a sentence, at any distance and in any order, so a
+// sentence possessing something other than the payload is refused whenever
+// dinah is named anywhere in it. Both entries are that one shape. The second
+// carries no `had` at all and was refused before this card touched the
+// exclusion list, which is what places the class before this card rather than
+// inside it.
+//
+// Narrowing frame one to reach these would mean requiring the possession word
+// to sit next to the payload, and the guard gives that distance up on purpose,
+// because the claim it exists to refuse gets written with the two ends far
+// apart. Whether that trade is still the right one is a question for the
+// operator rather than a line to patch here, and it is filed on dinah-386.
+const KNOWN_FALSE_REFUSALS = [
+	"The extension has had trouble locating your dinah executable.",
+	"The extension has trouble locating your dinah executable.",
+];
+
 // Where the lookahead inside `POSSESSION_WORD` sits is load-bearing, and the
 // corpus above cannot see it. The lookahead is scoped to the `has` alternative
 // alone. Written one group wider, closing over the whole alternation, it would
-// suppress every verb in the set whenever `been` or `already been` followed,
-// leaving a guard that refuses far less while still passing all 38 entries
-// above. The two placements are built here as separate constants and run
-// separately, because a single construction cannot be compared with itself.
+// suppress every verb in the set whenever the excluded phrases followed,
+// leaving a guard that refuses far less while still passing every entry in the
+// corpus above. The two placements are built here as separate constants and
+// run separately, because a single construction cannot be compared with
+// itself.
 //
 // `POSSESSION_WORD_WIDE_PLACEMENT` was never shipped and is not a second
 // supported form. It exists only so that the test below has something to fail
 // against. Both constants are written out in full rather than derived from one
-// another, so that a reader can diff them by eye.
+// another, so that a reader can diff them by eye, and both carry the same
+// exclusion phrases, so that where the lookahead sits is the only thing
+// separating them.
 //
 // `own copy` is the alternative doing the discriminating, and no verb in the
 // list could do it. `been` is a participle that follows an auxiliary, and none
@@ -522,8 +573,8 @@ const KNOWN_ESCAPES = [
 // lookahead tests and the narrow placement never reaches. An editor who
 // reorders or rewords these alternatives should know that dropping `own copy`
 // disarms this case without failing anything.
-const POSSESSION_WORD_NARROW_PLACEMENT = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
-const POSSESSION_WORD_WIDE_PLACEMENT = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has|contains|built[- ]in|comes? with|came with|own copy)(?!\s+(?:been|already\s+been))`;
+const POSSESSION_WORD_NARROW_PLACEMENT = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|already\s+been|had\s+to))|contains|built[- ]in|comes? with|came with|own copy)`;
+const POSSESSION_WORD_WIDE_PLACEMENT = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has|contains|built[- ]in|comes? with|came with|own copy)(?!\s+(?:been|already\s+been|had\s+to))`;
 
 // The sentence is missing a `has`, and that is deliberate. Restoring it makes
 // the sentence catch under both placements, which would leave the test below
@@ -591,6 +642,13 @@ test("the carried-binary guard catches the spellings a writer would reach for", 
 			claimsToCarryDinah(sentence),
 			[],
 			`the guard now catches a documented escape, so update the doc comment on claimsToCarryDinah: ${sentence}`,
+		);
+	}
+	for (const sentence of KNOWN_FALSE_REFUSALS) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[sentence],
+			`the guard has stopped refusing honest copy it used to refuse, which is welcome; move this entry into HONEST_COPY and update the comment above KNOWN_FALSE_REFUSALS: ${sentence}`,
 		);
 	}
 });
