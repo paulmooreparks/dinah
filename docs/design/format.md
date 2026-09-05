@@ -6,12 +6,13 @@ will restate the parts of this that are contract, in normative form, and leave
 the rest as implementation detail. Decisions recorded here are settled unless
 reopened. Open questions are collected at the end.
 
-A note for readers arriving fresh: Andoneer, cited throughout, is the hosted,
-multi-seat implementation of the same coordination contract, described in this
-repository's README under "Relationship to Andoneer". It is cited here as
-design history, because much of this format encodes lessons that
-implementation paid for first, and as the named boundary for concerns this
-format deliberately excludes.
+A note for readers arriving fresh: Dinah is the implementation this document
+specifies, and Dinah.Team is the hosted, multi-seat product that runs on
+Dinah's own library rather than on a second codebase written to the same
+contract. This format cites Dinah.Team as the named boundary for concerns it
+deliberately excludes. Andoneer, the separately-coded interface Dinah was spun
+out of, appears here as design history, because much of this format encodes
+lessons that earlier interface paid for first.
 
 Terminology note: "workbench" and "card" are working terms. Whether Dinah
 keeps them is an open question tracked on the board, and nothing below depends
@@ -24,7 +25,7 @@ settled and which this document's own prose now uses throughout.
 A workbench is a directory of plain-text files. There is no database. The
 state that genuinely cannot live in text files, which is concurrent multi-seat
 access, cross-workbench portfolio queries, and telemetry, is exactly the state
-that makes something Andoneer rather than Dinah. Dinah staying all-text is
+that makes something Dinah.Team rather than Dinah. Dinah staying all-text is
 the marker of where the upgrade path to the hosted product begins, not a
 limitation to be patched with SQLite later.
 
@@ -478,11 +479,12 @@ only the interstitial one for the category would claim a distinction it does
 not have. The token carries the `dinah.` prefix because the profile admits a
 kind this profile declares and a kind carrying a layer's prefix and nothing
 else, so a bare fourth word is a value every conforming tool refuses as
-malformed. Andoneer, the other implementation of the shared contract, spells
+malformed. Dinah.Team, the hosted product built on Dinah's own library, spells
 the same concept `pull_queue`, one of its eight column kinds, and the
 divergence is deliberate on the same ground the `external_wait` divergence
-below is: nothing obliges two implementations to agree on a name for a concept
-neither has promoted into the core.
+below is: the profile fixes no name for a concept it has not promoted into the
+core, so Dinah.Team's vocabulary is free to differ from Dinah's without either
+spelling being wrong.
 
 A card enters a buffer by a move and leaves it by a pull:
 
@@ -594,7 +596,7 @@ operator moves the card onward. Absent means false, and the value is exactly
 `true` or `false`, following `wip_limit` below rather than `operator_owned`,
 whose lenient reading takes anything else for false and says nothing about it.
 
-Andoneer, the other implementation of the shared contract, carries the same idea
+Dinah.Team, the hosted product built on Dinah's own library, carries the same idea
 as `external_wait`, one of its eight column kinds. The spellings differ on
 purpose: that one is a kind of station and this one is a property of one, so an
 identical name would claim an identity the two structures do not have. The
@@ -691,11 +693,12 @@ optional), then the workbench body, then the column body. The global layer
 carries what applies to every workbench on this machine, the workbench body
 the standing context of this workbench, the column body the station's own
 work. Nothing is ever written from one layer into another; composition
-happens at serve time. This chain is Andoneer's agent-context layering
-reproduced at file scale, and it is the socket that role-scoped method packs
-plug into later: a shared layer can be served ahead of the whole chain
-without any workbench storing a copy, and Andoneer paid for that same
-lesson.
+happens at serve time. This chain reproduces at file scale the agent-context
+layering of Andoneer's original, separately-coded interface, the one that
+predates Dinah.Team running on Dinah's own library, and it is the socket that
+role-scoped method packs plug into later: a shared layer can be served ahead
+of the whole chain without any workbench storing a copy, which that earlier
+interface had already paid to learn.
 
 Changes to the definition files themselves (columns edited, list reordered)
 get no journal; a workbench versioned by git has that history in git, and a

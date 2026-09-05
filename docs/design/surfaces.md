@@ -1,8 +1,9 @@
 # The Dinah surfaces
 
-A note for readers arriving fresh: Andoneer, cited throughout, is the hosted,
-multi-seat implementation of the same coordination contract, described in this
-repository's README under "Relationship to Andoneer".
+A note for readers arriving fresh: "the hosted product" cited throughout is
+Dinah.Team, which is multi-seat and runs on Dinah's own library rather than on
+a second codebase written to the same contract. Andoneer, cited later in this
+document, is the separately-coded interface Dinah was spun out of.
 
 This document captures the architecture of Dinah's implementation and the
 surfaces exposed over it, as agreed in discussion. It is the companion to
