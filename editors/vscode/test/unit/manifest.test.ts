@@ -322,6 +322,48 @@ test("the settings are contributed with the scopes their subjects need", () => {
 	assert.equal(watch.default, true);
 });
 
+test("no manifest string offers the extension itself as a place dinah comes from", () => {
+	// The extension is a companion to the CLI and installs nothing, so every
+	// user-facing string the manifest publishes has to agree with that. The
+	// dinah.path description was the one that did not: it survived the card that
+	// removed the carried binary because that sweep searched for the phrases the
+	// welcome view used, and this sentence shared no word with them.
+	//
+	// The pattern catches an affirmative claim that a binary lives in the
+	// extension. It cannot catch every possible rewording, and a reviewer still
+	// reads the copy; what it does catch is this sentence coming back.
+	const offersItself =
+		/\b(carr(y|ies|ied)|bundl(e|es|ed)|includ(e|es|ed)|ship(s|ped)?|suppl(y|ies|ied))\b[^.]{0,40}\b(in|inside|with|within)\b[^.]{0,24}\bextension\b/i;
+	const configuration = contributes.configuration as {
+		properties: Record<string, { markdownDescription?: string; description?: string }>;
+	};
+	const strings: { where: string; text: string }[] = [
+		{ where: "the manifest description", text: manifest.description as string },
+	];
+	for (const [key, property] of Object.entries(configuration.properties)) {
+		const text = property.markdownDescription ?? property.description;
+		if (text !== undefined) {
+			strings.push({ where: `the ${key} setting`, text });
+		}
+	}
+	for (const block of welcomeBlocks()) {
+		strings.push({ where: `the welcome block for ${block.when}`, text: block.contents });
+	}
+	// A vacuous pass is the failure mode here, so the corpus is asserted non-empty
+	// and the pattern is proved against the sentence this test exists to refuse.
+	assert.ok(strings.length >= 6);
+	assert.ok(
+		offersItself.test("Leave empty to use the one on your PATH, or the one carried inside this extension."),
+		"the pattern no longer matches the sentence this test was written against",
+	);
+	for (const { where, text } of strings) {
+		assert.ok(
+			!offersItself.test(text),
+			`${where} says a dinah binary lives inside the extension: ${text}`,
+		);
+	}
+});
+
 test("the manifest declares exactly the commands identity.ts names", () => {
 	const commands = contributes.commands as { command: string; title: string }[];
 	assert.deepEqual(

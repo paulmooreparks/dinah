@@ -75,7 +75,7 @@ test("rung 2: with no setting, PATH answers and reports source path", async () =
 	assert.equal(state.path, PATH_NAME);
 });
 
-test("rung 3: nothing on PATH is no-binary", async () => {
+test("neither rung answers, so nothing on PATH is no-binary", async () => {
 	const { deps: d } = deps({ answers: { [PATH_NAME]: ENOENT } });
 	const state = await resolveBinary(d);
 	assert.equal(state.state, "no-binary");

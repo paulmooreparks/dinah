@@ -283,7 +283,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH, or the one carried inside this extension. A binary path is a property of the machine, so this setting does not travel through settings sync."
+          "markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync."
         },
         "dinah.workbench": {
           "type": "string",
