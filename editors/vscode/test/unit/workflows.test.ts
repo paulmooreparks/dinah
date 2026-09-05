@@ -1,4 +1,4 @@
-// The two workflow files this card's safety sits in, read as text.
+// The workflow files whose safety sits in their text, read as text.
 //
 // Neither half of the manual checks these mirror can be automated: nobody can
 // plant a file in a dependency tree from a unit test, and nobody can push a
@@ -21,6 +21,10 @@ const release = readFileSync(
 );
 const promote = readFileSync(
 	join(repoRoot, ".github", "workflows", "promote.yml"),
+	"utf8",
+);
+const vscodeRelease = readFileSync(
+	join(repoRoot, ".github", "workflows", "vscode-release.yml"),
 	"utf8",
 );
 const gofmtAction = readFileSync(
@@ -169,4 +173,202 @@ test("no prose statement of the check-run count still says four", () => {
 	}
 	assert.ok(gate.includes("six check runs"));
 	assert.ok(gate.includes("of 6 checks"));
+});
+
+// The extension's own release workflow, read the same way.
+//
+// Nothing here can dispatch a workflow run, so these cover the half a file
+// read covers, which is where every one of that workflow's decisions is
+// written down. Each assertion below guards a decision whose reversal would
+// otherwise be silent: a trigger firing on the file rather than on the version
+// cuts a duplicate release on a lockfile bump, a release step attaching
+// everything in the output directory publishes an internal manifest, and a
+// publish step without its secret gate tries to publish on every run.
+
+test("the extension release fires on main and only for the extension manifest", () => {
+	assert.ok(
+		/^on:\n {2}push:\n {4}branches: \[main\]\n {4}paths:\n {6}- "editors\/vscode\/package\.json"$/m.test(
+			vscodeRelease,
+		),
+		"vscode-release.yml no longer triggers on pushes to main touching only editors/vscode/package.json",
+	);
+});
+
+test("the release trigger compares the version field rather than the file", () => {
+	// The paths filter says the file changed and says nothing about which
+	// field. Without this comparison a push that renamed a command or edited
+	// the npm scripts cuts a release the marketplace then refuses, because it
+	// already carries that version.
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Read the version before and after this push"),
+		vscodeRelease.indexOf("  wait-for-extension-ci:"),
+	);
+	assert.ok(
+		step.includes("BEFORE_SHA: ${{ github.event.before }}") &&
+			step.includes("AFTER_SHA: ${{ github.sha }}"),
+		"the version check no longer reads the manifest at both ends of the push",
+	);
+	assert.ok(
+		step.includes("node scripts/check-version-change.mjs /tmp/after.json"),
+		"the version check no longer calls the tested comparison",
+	);
+	assert.ok(
+		vscodeRelease.includes("if: needs.check-version.outputs.changed == 'true'"),
+		"nothing downstream of the version check is gated on the version having changed",
+	);
+});
+
+test("a first push to a ref is detected by the field GitHub documents", () => {
+	// The all-zero SHA appears in no GitHub documentation of the push
+	// payload, and the workbench refuses a branch point resting on an
+	// external system's undocumented behaviour. github.event.created answers
+	// the same question as a field GitHub commits to.
+	assert.ok(
+		vscodeRelease.includes("REF_CREATED: ${{ github.event.created }}") &&
+			vscodeRelease.includes('[ "$REF_CREATED" != "true" ]'),
+		"the workflow no longer decides a first push by the documented created field",
+	);
+	assert.ok(
+		!/0{20,}/.test(vscodeRelease),
+		"the workflow compares a SHA against an all-zero sentinel again",
+	);
+});
+
+test("the newest dev release is chosen by sorting on created_at", () => {
+	// The releases endpoint documents no ordering guarantee, so taking the
+	// list's first element would rest on behaviour nobody promised.
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Find the newest dev release"),
+		vscodeRelease.indexOf("- name: Package the archive"),
+	);
+	assert.ok(
+		step.includes("sort_by(.created_at) | last"),
+		"the dev-release lookup no longer sorts the releases on created_at",
+	);
+	assert.ok(
+		step.includes('test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-dev$")') &&
+			step.includes('test("^v[0-9]+\\\\.[0-9]+\\\\.0-dev\\\\.[0-9]+$")'),
+		"the dev-release lookup no longer reads both dev tag shapes, so it would find nothing on a line that predates the current shape",
+	);
+	assert.ok(
+		step.includes("::error::no dev release found"),
+		"a run finding no dev release no longer fails loudly",
+	);
+});
+
+test("the packaging step carries the paired release the status bar reports", () => {
+	// esbuild.mjs's pairedRelease() reads DINAH_PAIRED_RELEASE at compile
+	// time and npm run package runs that compile. Set it anywhere but on this
+	// step and the archive ships reporting its provenance as "source".
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Package the archive"),
+		vscodeRelease.indexOf("- name: Confirm exactly one archive was produced"),
+	);
+	assert.ok(
+		step.includes("DINAH_PAIRED_RELEASE: ${{ steps.dev-release.outputs.tag }}"),
+		"the packaging step no longer carries DINAH_PAIRED_RELEASE",
+	);
+	assert.ok(
+		step.includes("npm run package -- --published"),
+		"the packaging step no longer packages the published version",
+	);
+	assert.ok(
+		step.includes("npm run verify-package"),
+		"the packaging step no longer verifies what it packaged",
+	);
+});
+
+test("the run fails unless exactly one archive was produced", () => {
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Confirm exactly one archive was produced"),
+		vscodeRelease.indexOf("- name: Tag this extension version"),
+	);
+	assert.ok(
+		step.includes("[ ! -f vsix/dinah-universal.vsix ]") && step.includes('"$FOUND" != "1"'),
+		"the archive check no longer pins both the count and the name",
+	);
+	assert.ok(
+		step.includes("found $FOUND") && step.includes("ls -1 vsix/"),
+		"the archive check no longer reports the count it found and the directory listing",
+	);
+});
+
+test("the release is tagged out of the CLI's tag namespace and carries one file", () => {
+	// Every dinah CLI tag is "v" followed immediately by a digit. The
+	// extension's version runs on its own cadence and can reach a number the
+	// CLI reaches too, so the two namespaces are kept disjoint by the prefix
+	// rather than by the numbers not having collided yet.
+	assert.ok(
+		vscodeRelease.includes('echo "tag=vscode-v$VERSION" >> "$GITHUB_OUTPUT"'),
+		"the extension release no longer tags itself out of the CLI's tag namespace",
+	);
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Create the GitHub Release"),
+		vscodeRelease.indexOf("- name: Marketplace publish"),
+	);
+	assert.ok(
+		step.includes("files: editors/vscode/vsix/dinah-universal.vsix"),
+		"the release no longer attaches the one archive by name",
+	);
+	assert.ok(
+		!step.includes("*.vsix"),
+		"the release attaches the output directory rather than the one archive",
+	);
+	assert.ok(
+		!/^\s+.*manifest\.json/m.test(step),
+		"the release attaches vsix/manifest.json, which has no reader outside this repository",
+	);
+});
+
+test("the extension release waits for this commit's own extension checks", () => {
+	assert.ok(
+		vscodeRelease.includes('.name == "extension (ubuntu-latest)"') &&
+			vscodeRelease.includes('.name == "extension (windows-latest)"'),
+		"the wait step no longer selects the two check runs ci.yml's extension matrix produces",
+	);
+	assert.ok(
+		vscodeRelease.includes('"$GOOD" -ge 2') && vscodeRelease.includes("of 2 checks done"),
+		"the wait step's threshold and its progress line no longer agree on two checks",
+	);
+	assert.ok(
+		vscodeRelease.includes("::error::an extension CI check on $SHA finished without success"),
+		"a red extension check no longer fails the release run",
+	);
+	assert.ok(
+		vscodeRelease.includes("needs: [check-version, wait-for-extension-ci]"),
+		"the packaging job no longer waits for the extension checks",
+	);
+});
+
+test("the marketplace publish is dormant until a token exists", () => {
+	const step = vscodeRelease.slice(vscodeRelease.indexOf("- name: Marketplace publish"));
+	assert.ok(
+		step.includes("if: env.VSCE_PAT != ''"),
+		"the publish step is no longer skipped when the marketplace token is absent",
+	);
+	const command = step
+		.split("\n")
+		.filter((line) => line.includes("vsce publish"));
+	assert.equal(
+		command.length,
+		1,
+		"the publish step no longer runs vsce publish exactly once",
+	);
+	assert.ok(
+		command[0].includes("--skip-duplicate") && command[0].includes("--pre-release"),
+		"the publish command no longer republishes idempotently as a pre-release",
+	);
+	assert.ok(
+		command[0].includes("--packagePath vsix/dinah-universal.vsix"),
+		"the publish command no longer names the archive it publishes",
+	);
+	assert.ok(
+		!/ -p[ =]/.test(command[0]) && !command[0].includes("VSCE_PAT"),
+		"the publish command puts the token in its arguments instead of leaving vsce to read VSCE_PAT",
+	);
+	assert.equal(
+		vscodeRelease.split("vsce publish").length - 1,
+		1,
+		"the workflow publishes to the marketplace somewhere other than the one dormant step",
+	);
 });
