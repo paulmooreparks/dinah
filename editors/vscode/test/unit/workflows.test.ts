@@ -23,6 +23,10 @@ const promote = readFileSync(
 	join(repoRoot, ".github", "workflows", "promote.yml"),
 	"utf8",
 );
+const vscodeRelease = readFileSync(
+	join(repoRoot, ".github", "workflows", "vscode-release.yml"),
+	"utf8",
+);
 const gofmtAction = readFileSync(
 	join(repoRoot, ".github", "actions", "gofmt-check", "action.yml"),
 	"utf8",
@@ -181,4 +185,310 @@ test("ci.yml carries an extension job on both platforms this code is sensitive t
 	assert.ok(/^ {2}extension:$/m.test(ci), "ci.yml has no extension job");
 	assert.ok(ci.includes("ubuntu-latest"));
 	assert.ok(ci.includes("windows-latest"));
+});
+
+// The extension's own release workflow, read the same way.
+//
+// Nothing here can dispatch a workflow run, so these cover the half a file
+// read covers, which is where every one of that workflow's decisions is
+// written down. Each assertion below guards a decision whose reversal would
+// otherwise be silent: a trigger firing on the file rather than on the version
+// cuts a duplicate release on a lockfile bump, a release step attaching
+// everything in the output directory publishes an internal manifest, and a
+// publish step without its secret gate tries to publish on every run.
+
+test("the extension release fires on main and only for the extension manifest", () => {
+	assert.ok(
+		/^on:\n {2}push:\n {4}branches: \[main\]\n {4}paths:\n {6}- "editors\/vscode\/package\.json"$/m.test(
+			vscodeRelease,
+		),
+		"vscode-release.yml no longer triggers on pushes to main touching only editors/vscode/package.json",
+	);
+});
+
+test("the release trigger compares the version field rather than the file", () => {
+	// The paths filter says the file changed and says nothing about which
+	// field. Without this comparison a push that renamed a command or edited
+	// the npm scripts cuts a release the marketplace then refuses, because it
+	// already carries that version.
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Read the version before and after this push"),
+		vscodeRelease.indexOf("\n  ci:"),
+	);
+	assert.ok(
+		step.includes("BEFORE_SHA: ${{ github.event.before }}") &&
+			step.includes("AFTER_SHA: ${{ github.sha }}"),
+		"the version check no longer reads the manifest at both ends of the push",
+	);
+	assert.ok(
+		step.includes("node scripts/check-version-change.mjs /tmp/after.json"),
+		"the version check no longer calls the tested comparison",
+	);
+	const ciJob = vscodeRelease.slice(
+		vscodeRelease.indexOf("\n  ci:"),
+		vscodeRelease.indexOf("\n  package-and-release:"),
+	);
+	assert.ok(
+		ciJob.includes("if: needs.check-version.outputs.changed == 'true'"),
+		"the first job downstream of the version check is no longer gated on the version having changed",
+	);
+});
+
+// A gh read answers over the whole collection, and its --jq filter may select
+// and map but may not reduce.
+//
+// `gh api --help` says that under --paginate "each page is a separate JSON
+// array or object", so the filter runs once per page. A filter that only
+// selects and maps is safe under that, because the pages concatenate into one
+// stream carrying every match. A filter that reduces to a single answer emits
+// one answer per page instead, which is invisible while the collection fits
+// in a page. That is how this workflow shipped its first round: 92 releases,
+// one page, one correct tag, and four tags the moment a smaller page size was
+// asked for, written to $GITHUB_OUTPUT as an undelimited multi-line value.
+//
+// The sweep that found that instance found a second shape of the same class in
+// the same file: a read that never asked to paginate and pinned per_page
+// instead, which is page-scoped for the same reason and which a guard written
+// against the reducing filter cannot see. Both shapes are refused below.
+//
+// The reducing spellings below are the ones a reader would reach for first
+// rather than the whole of jq's array vocabulary, so the per-step assertions
+// carry the weight and this one catches the class on the way past.
+const REDUCING_JQ = [
+	"sort_by(",
+	"group_by(",
+	"unique",
+	"max_by(",
+	"min_by(",
+	"| last",
+	"| first",
+	"| add",
+	"| length",
+];
+
+const ghCommands = vscodeRelease
+	.replace(/\\\n\s*/g, " ")
+	.split("\n")
+	.filter((line) => line.includes("gh api") && !line.trim().startsWith("#"));
+
+test("every gh read asks over the whole collection rather than over one page", () => {
+	assert.ok(ghCommands.length > 0, "the workflow no longer calls gh api at all");
+	for (const command of ghCommands) {
+		// The sweep that produced this guard found the class in two shapes: a
+		// reducing --jq filter under --paginate, and a read that never asked
+		// to paginate at all and pinned per_page instead. A guard written
+		// against the first shape cannot see the second, so both are refused
+		// here. Requiring --paginate is what closes the second, because a
+		// fixed page is a page-scoped answer however few entries it asks for.
+		assert.ok(
+			command.includes("--paginate"),
+			`a gh api read fetches one page rather than the whole collection: ${command.trim()}`,
+		);
+		assert.ok(
+			!command.includes("per_page"),
+			`a gh api read pins per_page, which bounds the answer to a page: ${command.trim()}`,
+		);
+		if (!command.includes("--jq")) {
+			continue;
+		}
+		// The filter is the single-quoted argument after --jq, and it carries
+		// no single quote of its own, so the next one ends it. Bounding it
+		// here keeps the shell pipeline that follows out of the check, which
+		// is where the reduction is allowed to live.
+		const opened = command.indexOf("'", command.indexOf("--jq"));
+		const closed = command.indexOf("'", opened + 1);
+		assert.ok(
+			opened > 0 && closed > opened,
+			`a --paginate read's --jq argument is not a single-quoted filter: ${command.trim()}`,
+		);
+		const filter = command.slice(opened + 1, closed);
+		for (const spelling of REDUCING_JQ) {
+			assert.ok(
+				!filter.includes(spelling),
+				`a --paginate read reduces inside --jq with "${spelling}", so it answers once per page: ${command.trim()}`,
+			);
+		}
+	}
+});
+
+test("a first push to a ref is detected by the field GitHub documents", () => {
+	// The all-zero SHA appears in no GitHub documentation of the push
+	// payload, and the workbench refuses a branch point resting on an
+	// external system's undocumented behaviour. github.event.created answers
+	// the same question as a field GitHub commits to.
+	assert.ok(
+		vscodeRelease.includes("REF_CREATED: ${{ github.event.created }}") &&
+			vscodeRelease.includes('[ "$REF_CREATED" != "true" ]'),
+		"the workflow no longer decides a first push by the documented created field",
+	);
+	assert.ok(
+		!/0{20,}/.test(vscodeRelease),
+		"the workflow compares a SHA against an all-zero sentinel again",
+	);
+});
+
+test("the newest dev release is chosen by sorting every page on created_at", () => {
+	// The releases endpoint documents no ordering guarantee, so taking the
+	// list's first element would rest on behaviour nobody promised. Sorting
+	// is only half of it: the sort has to run over every page at once, which
+	// the class guard above pins for every paginated read and which the two
+	// assertions here pin for this one by name.
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Find the newest dev release"),
+		vscodeRelease.indexOf("- name: Package the archive"),
+	);
+	assert.ok(
+		step.includes('.created_at + " " + .tag_name'),
+		"the dev-release lookup no longer emits created_at, so it cannot be sorting on it",
+	);
+	assert.ok(
+		step.includes("| sort | tail -n 1 | cut -d \" \" -f 2"),
+		"the dev-release lookup no longer sorts across the pages it fetched, so it answers once per page",
+	);
+	assert.ok(
+		step.includes("returned more than one tag") &&
+			step.includes(`printf '%s' "$TAG" | wc -l`),
+		"the dev-release lookup no longer refuses a multi-line answer, so a per-page answer would reach $GITHUB_OUTPUT undelimited",
+	);
+	assert.ok(
+		step.includes('test("^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-dev$")') &&
+			step.includes('test("^v[0-9]+\\\\.[0-9]+\\\\.0-dev\\\\.[0-9]+$")'),
+		"the dev-release lookup no longer reads both dev tag shapes, so it would find nothing on a line that predates the current shape",
+	);
+	assert.ok(
+		step.includes("::error::no dev release found"),
+		"a run finding no dev release no longer fails loudly",
+	);
+});
+
+test("the packaging step carries the paired release the status bar reports", () => {
+	// esbuild.mjs's pairedRelease() reads DINAH_PAIRED_RELEASE at compile
+	// time and npm run package runs that compile. Set it anywhere but on this
+	// step and the archive ships reporting its provenance as "source".
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Package the archive"),
+		vscodeRelease.indexOf("- name: Confirm exactly one archive was produced"),
+	);
+	assert.ok(
+		step.includes("DINAH_PAIRED_RELEASE: ${{ steps.dev-release.outputs.tag }}"),
+		"the packaging step no longer carries DINAH_PAIRED_RELEASE",
+	);
+	assert.ok(
+		step.includes("npm run package -- --published"),
+		"the packaging step no longer packages the published version",
+	);
+	assert.ok(
+		step.includes("npm run verify-package"),
+		"the packaging step no longer verifies what it packaged",
+	);
+});
+
+test("the run fails unless exactly one archive was produced", () => {
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Confirm exactly one archive was produced"),
+		vscodeRelease.indexOf("- name: Tag this extension version"),
+	);
+	assert.ok(
+		step.includes("[ ! -f vsix/dinah-universal.vsix ]") && step.includes('"$FOUND" != "1"'),
+		"the archive check no longer pins both the count and the name",
+	);
+	assert.ok(
+		step.includes("found $FOUND") && step.includes("ls -1 vsix/"),
+		"the archive check no longer reports the count it found and the directory listing",
+	);
+});
+
+test("the release is tagged out of the CLI's tag namespace and carries one file", () => {
+	// Every dinah CLI tag is "v" followed immediately by a digit. The
+	// extension's version runs on its own cadence and can reach a number the
+	// CLI reaches too, so the two namespaces are kept disjoint by the prefix
+	// rather than by the numbers not having collided yet.
+	assert.ok(
+		vscodeRelease.includes('echo "tag=vscode-v$VERSION" >> "$GITHUB_OUTPUT"'),
+		"the extension release no longer tags itself out of the CLI's tag namespace",
+	);
+	const step = vscodeRelease.slice(
+		vscodeRelease.indexOf("- name: Create the GitHub Release"),
+		vscodeRelease.indexOf("- name: Marketplace publish"),
+	);
+	assert.ok(
+		step.includes("files: editors/vscode/vsix/dinah-universal.vsix"),
+		"the release no longer attaches the one archive by name",
+	);
+	assert.ok(
+		!step.includes("*.vsix"),
+		"the release attaches the output directory rather than the one archive",
+	);
+	assert.ok(
+		!/^\s+.*manifest\.json/m.test(step),
+		"the release attaches vsix/manifest.json, which has no reader outside this repository",
+	);
+});
+
+test("the extension release depends on this commit's CI rather than polling it", () => {
+	// D-7: dinah-363 retired polling check runs by SHA and name, and ci.yml's
+	// header now states that nothing reads its job names by string. Depending
+	// on the nested run keeps the property AC-7 was written for, which is that
+	// nothing is packaged or released until this commit's CI has passed.
+	assert.ok(
+		/\n {2}ci:\n(?: {4}[^\n]*\n)* {4}uses: \.\/\.github\/workflows\/ci\.yml\n/.test(
+			vscodeRelease,
+		),
+		"the extension release no longer calls ci.yml as a reusable workflow",
+	);
+	assert.ok(
+		vscodeRelease.includes("needs: [check-version, ci]"),
+		"the packaging job no longer waits for CI",
+	);
+	assert.ok(
+		vscodeRelease.includes(
+			"if: needs.check-version.result == 'success' && needs.ci.result == 'success'",
+		),
+		"the packaging job no longer refuses every CI result that is not the literal success",
+	);
+	assert.ok(
+		!vscodeRelease.includes("check-runs") && !vscodeRelease.includes("check_runs"),
+		"the extension release polls the check-runs API again",
+	);
+	assert.ok(
+		!/extension \((?:ubuntu|windows)-latest\)/.test(vscodeRelease),
+		"the extension release matches ci.yml's job names by string again",
+	);
+});
+
+test("the marketplace publish is dormant until a token exists", () => {
+	const step = vscodeRelease.slice(vscodeRelease.indexOf("- name: Marketplace publish"));
+	assert.ok(
+		step.includes("if: env.VSCE_PAT != ''"),
+		"the publish step is no longer skipped when the marketplace token is absent",
+	);
+	const command = step
+		.split("\n")
+		.filter((line) => line.includes("vsce publish"));
+	assert.equal(
+		command.length,
+		1,
+		"the publish step no longer runs vsce publish exactly once",
+	);
+	assert.ok(
+		command[0].includes("--skip-duplicate") && command[0].includes("--pre-release"),
+		"the publish command no longer republishes idempotently as a pre-release",
+	);
+	assert.ok(
+		command[0].includes("--packagePath vsix/dinah-universal.vsix"),
+		"the publish command no longer names the archive it publishes",
+	);
+	// vsce spells this option two ways, -p and --pat, and a guard reading one
+	// spelling is satisfied by the other. The VSCE_PAT check beside it catches
+	// the reversal anybody would actually write; the character class catches
+	// the one nobody would.
+	assert.ok(
+		!/ (?:-p|--pat)[ =]/.test(command[0]) && !command[0].includes("VSCE_PAT"),
+		"the publish command puts the token in its arguments instead of leaving vsce to read VSCE_PAT",
+	);
+	assert.equal(
+		vscodeRelease.split("vsce publish").length - 1,
+		1,
+		"the workflow publishes to the marketplace somewhere other than the one dormant step",
+	);
 });

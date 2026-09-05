@@ -1,0 +1,256 @@
+# Attach a marketplace-ready archive to a release of its own whenever the VS
+# Code extension's version changes, and publish it when the operator has said
+# it may be published.
+#
+# The archive has to carry the number editors/vscode/package.json commits to,
+# never a number derived from a dinah release tag. That derivation existed
+# once and it published a dev build as 0.1.42 and then the real release as
+# 0.1.0, which the marketplace read as older and never offered as an update.
+# editors/vscode/scripts/version.mjs carries that history in its header.
+#
+# The trigger is the version field moving rather than the file changing.
+# package.json also carries the command list, the configuration schema and the
+# npm scripts, so a run keyed to the path alone would cut a duplicate release
+# for a lockfile bump or a renamed command. The check-version job below reads
+# the field at both ends of the push and compares them.
+#
+# release.yml reserves its tag before CI runs and deletes it again on failure,
+# and this workflow deliberately does neither. That discipline exists because
+# release.yml's tag is a counter computed before anything is verified, so two
+# runs can compute the same number and a failed run leaves a tag pointing at
+# code that never passed. This workflow's tag is a pure function of the
+# committed version string, and the release is created only after this
+# commit's CI has already passed, so neither problem arises.
+
+name: VS Code extension release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "editors/vscode/package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+      version: ${{ steps.diff.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # The comparison is against github.event.before rather than against the
+      # commit's immediate parent. The two agree for the one squashed commit
+      # per card this board merges, and they part company the moment a single
+      # push carries several commits, where the last commit's parent is not
+      # the state the push started from. GitHub documents before as the SHA of
+      # the most recent commit on the ref before the push, which is the
+      # question the trigger is actually asking.
+      #
+      # Whether there is an earlier commit at all is read off
+      # github.event.created, which GitHub documents as whether this push
+      # created the ref. A push that created the ref has no earlier state to
+      # compare against, and the step below never inspects BEFORE_SHA's value
+      # in that case. The all-zero SHA some pushes carry in that field is not
+      # documented anywhere, so nothing here rests on it.
+      - name: Read the version before and after this push
+        id: diff
+        working-directory: editors/vscode
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          REF_CREATED: ${{ github.event.created }}
+        run: |
+          set -e
+          git show "$AFTER_SHA:editors/vscode/package.json" > /tmp/after.json
+          BEFORE_PATH=""
+          if [ "$REF_CREATED" != "true" ] && git cat-file -e "$BEFORE_SHA:editors/vscode/package.json" 2>/dev/null; then
+            git show "$BEFORE_SHA:editors/vscode/package.json" > /tmp/before.json
+            BEFORE_PATH=/tmp/before.json
+          fi
+          node scripts/check-version-change.mjs /tmp/after.json "$BEFORE_PATH"
+
+  # CI runs as a job of this workflow rather than being polled by SHA and by
+  # check-run name. release.yml moved to this shape in dinah-363, and ci.yml
+  # gained workflow_call in the same commit; ci.yml's own header now says that
+  # nothing reads its three job names by string, so a workflow that matched
+  # those names would be the one file holding a contract the rest of the
+  # repository has dropped. Depending on the nested run instead removes the
+  # name matching, the paged check-run read and the timeout ceiling in one
+  # go, because nothing is polling and nothing is timing.
+  #
+  # The cost, stated rather than minimised: this runs ci.yml's Go test matrix
+  # on a commit whose only artifact is an archive carrying no Go code, and it
+  # runs ci.yml a second time on top of that file's own push trigger. Both are
+  # redundant work. Both are bounded, because this workflow fires only when
+  # the extension's committed version changes, and release.yml already accepts
+  # the same doubling on every release candidate. A commit whose repository is
+  # broken is not one to publish an extension from. See D-7.
+  ci:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  # The gate names both dependencies' results and requires the literal string
+  # success, rather than leaving the job unconditioned and resting on the
+  # platform's own handling of a dependency that did not succeed. failure,
+  # cancelled and skipped are all refused by the same comparison, so nothing
+  # is packaged or released unless CI plainly passed. This is release.yml's
+  # own shape, and dinah-363 D-4 records why it is written out.
+  package-and-release:
+    needs: [check-version, ci]
+    if: needs.check-version.result == 'success' && needs.ci.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # creates the release and uploads its asset
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    defaults:
+      run:
+        working-directory: editors/vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      # The newest dev release is found by sorting on the created_at field the
+      # response already carries. The releases endpoint documents no ordering
+      # guarantee, so nothing leans on the order the list arrives in. Nothing
+      # downloads the release either, because the archive carries no binary.
+      # The tag is provenance: it reaches the build through
+      # DINAH_PAIRED_RELEASE and ends up on the status bar's line saying which
+      # dinah release this build was tested against.
+      #
+      # The sort runs on the far side of the pipe, and that placement is the
+      # point of the shape. `gh api --help` states that under --paginate
+      # "each page is a separate JSON array or object", so a --jq filter is
+      # applied once per page. A filter that reduces, as an earlier round of
+      # this step did with `[...] | sort_by(.created_at) | last`, therefore
+      # emits one tag per page instead of one tag, and the step then wrote all
+      # of them to $GITHUB_OUTPUT as an undelimited multi-line value the runner
+      # refuses. It answered correctly only because this repository's 92
+      # releases fit in one page, and release.yml cuts a dev release on most
+      # pushes to main, so that count is walking toward the boundary.
+      #
+      # The filter below only selects and maps, so applying it per page is
+      # harmless: the pages concatenate into one stream carrying every matching
+      # release, and `sort | tail -n 1` then picks over that whole stream.
+      # created_at is documented as ISO 8601 in UTC (YYYY-MM-DDTHH:MM:SSZ),
+      # which is fixed-width, so its lexical order is its chronological order
+      # and `sort` needs no key specification. Nothing here needs jq or gh's
+      # --slurp, so nothing here rests on either being present.
+      - name: Find the newest dev release
+        id: dev-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          set -o pipefail
+          TAG=$(gh api "repos/$REPO/releases" --paginate \
+            --jq '.[] | select((.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-dev$")) or (.tag_name | test("^v[0-9]+\\.[0-9]+\\.0-dev\\.[0-9]+$"))) | .created_at + " " + .tag_name' \
+            | sort | tail -n 1 | cut -d " " -f 2)
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::no dev release found on $REPO; there is nothing to pair this extension build's provenance with"
+            exit 1
+          fi
+          # A per-page answer is several tags rather than one, and writing a
+          # multi-line value to the output file with no delimiter kills the
+          # run several steps later with a message about the file's format
+          # rather than about this lookup. This refuses it here and names it.
+          if [ "$(printf '%s' "$TAG" | wc -l)" != "0" ]; then
+            echo "::error::the dev release lookup returned more than one tag, so it answered per page rather than over the whole collection"
+            printf '%s\n' "$TAG"
+            exit 1
+          fi
+          echo "Newest dev release is $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Package the archive
+        env:
+          DINAH_PAIRED_RELEASE: ${{ steps.dev-release.outputs.tag }}
+        run: |
+          npm ci
+          npm run package -- --published
+          npm run verify-package
+
+      - name: Confirm exactly one archive was produced
+        run: |
+          set -e
+          FOUND=$(ls -1 vsix/*.vsix 2>/dev/null | wc -l)
+          if [ "$FOUND" != "1" ] || [ ! -f vsix/dinah-universal.vsix ]; then
+            echo "::error::expected exactly one archive, vsix/dinah-universal.vsix; found $FOUND"
+            ls -1 vsix/ || true
+            exit 1
+          fi
+          echo "One archive, as expected."
+
+      # "vscode-v" rather than "v": every dinah CLI tag this repository mints
+      # starts with "v" followed immediately by a digit (v0.1.126-dev,
+      # v0.1.0-beta, v0.1.0). The extension's version is decoupled from the
+      # CLI's and runs on its own cadence, so the two numbers can meet, and a
+      # shared tag namespace would collide on the day they do. The prefix
+      # keeps the two namespaces disjoint by construction, so nothing here
+      # depends on the two numbers staying apart.
+      - name: Tag this extension version
+        id: tag
+        run: |
+          set -e
+          VERSION=$(node -p "require('./package.json').version")
+          echo "tag=vscode-v$VERSION" >> "$GITHUB_OUTPUT"
+
+      # The asset list names the one archive and nothing else. vsix/manifest.json
+      # is written beside it by package.mjs so that verify-package.mjs and a
+      # person reading the directory can correlate target to archive, and it
+      # has no reader outside this repository.
+      #
+      # The paths here are repository-relative rather than relative to the
+      # job's working directory, because this step is an action rather than a
+      # run step and the defaults.run setting above does not reach it.
+      - name: Create the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Dinah for VS Code ${{ needs.check-version.outputs.version }}"
+          body: |
+            Dinah for VS Code, version ${{ needs.check-version.outputs.version }}.
+
+            This extension is a companion to the dinah command-line tool and does not carry a copy of it. Install dinah yourself, then install this extension from the Extensions view ("Install from VSIX...") or with `code --install-extension`; the extension finds dinah on your PATH or at the location the `dinah.path` setting names, and tells you where to get it if it finds neither.
+          files: editors/vscode/vsix/dinah-universal.vsix
+
+      # This step stays dormant until the operator uploads a token. Whether a
+      # marketplace publisher credential may live in this repository's Actions
+      # secrets at all is his call and nobody else's, so the step is skipped
+      # whenever the secret is absent and the run still finishes having
+      # attached the archive to its release.
+      #
+      # The token reaches vsce through VSCE_PAT, which is where vsce looks by
+      # default, rather than through a -p flag that would put it on the
+      # command line. --skip-duplicate turns vsce's refusal to republish a
+      # version the marketplace already carries into a logged no-op, so a
+      # re-run of this workflow, or a re-run after the release step succeeded
+      # and this one was interrupted, does nothing instead of failing.
+      #
+      # vsce is named through its module path the way package.mjs names it.
+      # npm ci does not put node_modules/.bin on PATH for a workflow step, so
+      # a bare vsce would be found only on a machine that had installed it
+      # globally, and this step would fail the first time it ever ran for
+      # real.
+      - name: Marketplace publish
+        if: env.VSCE_PAT != ''
+        run: |
+          set -e
+          node node_modules/@vscode/vsce/vsce publish --pre-release --skip-duplicate --packagePath vsix/dinah-universal.vsix
