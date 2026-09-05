@@ -24,8 +24,6 @@ export const PATH_NAME = "dinah";
 export interface ResolveDeps {
 	/** The dinah.path setting, empty when unset. */
 	readonly setting: string;
-	/** Joins a directory and a file name the way the host platform spells paths. */
-	readonly join: (dir: string, name: string) => string;
 	/** Runs `--json version` against one candidate and classifies the answer. */
 	readonly probe: (exe: string) => Promise<Classification>;
 }
@@ -53,8 +51,6 @@ function toState(
 				detail: classification.detail,
 				version: classification.version,
 			};
-		case "no-binary":
-			return { state: "no-binary" };
 		case "refused":
 			return {
 				state: "unusable",

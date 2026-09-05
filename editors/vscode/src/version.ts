@@ -37,8 +37,6 @@ export const MINIMUM_PROFILE = { name: "dinah-core", major: 0, minor: 4 };
 /** Every outcome of asking a candidate binary what it is. */
 export type Classification =
 	| { readonly kind: "ok"; readonly version: VersionReport }
-	/** No candidate existed at this rung at all. */
-	| { readonly kind: "no-binary" }
 	/**
 	 * The spawn failed with ENOENT, which at the PATH rung means only that
 	 * this window's environment has no dinah on it. It is a fall-through
