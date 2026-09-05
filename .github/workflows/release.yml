@@ -38,8 +38,8 @@ on:
   workflow_dispatch: {}
 
 # Read-only by default, with each job asking for what it actually needs. Only
-# the two jobs that write to the repository get write access, and the job that
-# reads check runs asks for the checks scope its API call documents.
+# the jobs that write to the repository get write access: the two that create
+# or delete the tag, and the one that publishes the release.
 permissions:
   contents: read
 
@@ -107,72 +107,41 @@ jobs:
             -f ref="refs/tags/$TAG" \
             -f sha="$SHA"
 
-  # Publish nothing until CI has passed on this same commit. ci.yml produces
-  # six check runs: three legs of the test matrix, named test (ubuntu-latest)
-  # and its siblings, the single gofmt job, and two legs of the extension
-  # matrix, named extension (ubuntu-latest) and extension (windows-latest).
+  # ci.yml runs as a job of this workflow rather than being polled by SHA. A
+  # job that "needs" this one blocks on the native GitHub Actions dependency
+  # graph until every job inside ci.yml finishes, which is what removes the
+  # guess this card was filed over: there is no aggregate ceiling to raise as
+  # the suite grows, because nothing here is timing anything. See dinah-363.
   #
-  # The count is written in the jq select below, in the threshold, and in the
-  # three lines this job prints. All of them have to agree, and the unit test
-  # at editors/vscode/test/unit/workflows.test.ts is what notices when they
-  # stop agreeing. Without the extension legs named here, a release publishes
-  # on a commit whose extension build failed.
-  wait-for-ci:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: read # documented requirement of the check-runs endpoint below
-    steps:
-      - name: Wait for CI to pass on this commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          # The budget is written once, here, and every line below derives from
-          # it. Before dinah-363 the count and the interval were spelled into
-          # the loop, the progress line and the timeout message separately, and
-          # raising the budget meant finding all four.
-          ATTEMPTS=180
-          INTERVAL=10
-          BUDGET=$(( ATTEMPTS * INTERVAL / 60 ))
-          echo "Waiting up to $BUDGET minutes for ci.yml's six check runs on $SHA"
-          for attempt in $(seq 1 "$ATTEMPTS"); do
-            # A failing API call prints its own error and stops the run. Hiding
-            # it here would turn a 403 or a rate limit into the same timeout a
-            # commit with no CI produces, and those need different answers from
-            # whoever reads the log.
-            if ! RUNS=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
-              --jq '.check_runs[] | select(.name == "gofmt" or (.name | startswith("test")) or (.name | startswith("extension"))) | .status + ":" + (.conclusion // "none")'); then
-              echo "::error::could not read the check runs for $SHA; the API error is above"
-              exit 1
-            fi
-            BAD=$(printf '%s\n' "$RUNS" | grep '^completed:' | grep -vc ':success$' || true)
-            if [ "$BAD" -gt 0 ]; then
-              echo "::error::a CI check on $SHA finished without success; not publishing this commit"
-              printf '%s\n' "$RUNS"
-              exit 1
-            fi
-            GOOD=$(printf '%s\n' "$RUNS" | grep -c '^completed:success$' || true)
-            if [ "$GOOD" -ge 6 ]; then
-              echo "All six CI checks passed."
-              exit 0
-            fi
-            echo "  $GOOD of 6 checks done (attempt $attempt of $ATTEMPTS)"
-            sleep "$INTERVAL"
-          done
-          # The count reached is part of the message on purpose. A run that
-          # timed out at five of six was slow, and a run that timed out at zero
-          # never had CI at all, and those want different answers from whoever
-          # reads the log.
-          echo "::error::timed out after $BUDGET minutes waiting for ci.yml on $SHA; $GOOD of 6 checks had passed"
-          exit 1
+  # This does mean ci.yml's three jobs run twice on a push to main that also
+  # matches this file's own path filter below: once under ci.yml's own
+  # unfiltered push trigger, and once nested here. The alternative, removing
+  # ci.yml's own push trigger to avoid the duplication, was rejected because
+  # ci.yml's trigger has no path filter and this file's does (it does not
+  # include editors/vscode/**), so a push touching only extension code would
+  # then get no CI on main at all. Doubling a run whose slowest leg is a few
+  # minutes, only on the commits that are already release candidates, is the
+  # bounded cost; a silent coverage gap on trunk is not. The two runs can
+  # disagree on a flaky test or flaky extension leg, but the disagreement
+  # cannot reach a release decision: this file only ever depends on the ci
+  # job below, its own nested run, and never reads the standalone run's
+  # result by any means. See D-3.
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   # Every binary is cross-compiled from one Linux runner. dinah has no cgo
   # and no dependencies outside the standard library, so a native runner per
   # target buys nothing.
+  #
+  # The if: below reads the two dependencies' own results and requires the
+  # literal string success, rather than leaving this job unconditioned and
+  # resting on the platform's default handling of a dependency that did not
+  # succeed. failure, cancelled and skipped are all refused by the same
+  # comparison, because none of them equals success, so a release is withheld
+  # whenever CI did not plainly pass. See dinah-363 D-4.
   build:
-    needs: [compute-version, wait-for-ci]
+    needs: [compute-version, ci]
+    if: needs.compute-version.result == 'success' && needs.ci.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -224,8 +193,12 @@ jobs:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
 
+  # This job's own gate names build rather than ci, because build is what it
+  # depends on directly and build already refused to run unless ci succeeded.
+  # Each job's condition stays readable without tracing the whole chain.
   release:
     needs: [compute-version, build]
+    if: needs.compute-version.result == 'success' && needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write # creates the release and uploads its assets
@@ -320,7 +293,7 @@ jobs:
   # reserved, and it runs only when the reservation itself succeeded and
   # something after it did not.
   cleanup-tag:
-    needs: [compute-version, wait-for-ci, build, release]
+    needs: [compute-version, ci, build, release]
     if: always() && needs.compute-version.result == 'success' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-latest
     permissions:
