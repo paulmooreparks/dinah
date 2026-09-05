@@ -406,6 +406,29 @@ func (a *arguments) value(name string) string {
 	return a.flags[name]
 }
 
+// values returns everything a repeatable flag carried, in the order the caller
+// wrote the occurrences.
+//
+// flags keeps one value per name, because every other flag in the tool is
+// last-value-wins and a map is what that rule wants. A repeatable flag needs
+// the occurrences instead, and parseArgs already records every one of them as
+// a domain capture, so this reads that list rather than asking the parser for
+// a second shape it would only ever build for one command.
+//
+// An incomplete occurrence, meaning a valued flag written as the last word in
+// argv with nothing after it, is skipped here and refused elsewhere on the
+// path that decides whether a flag-shaped word belongs to a free-text zone.
+func (a *arguments) values(name string) []string {
+	var carried []string
+	for _, capture := range a.domainCaptures {
+		if capture.name != name || !capture.complete {
+			continue
+		}
+		carried = append(carried, capture.value)
+	}
+	return carried
+}
+
 // rest returns the words after the command name.
 func (a *arguments) rest() []string {
 	if len(a.positional) < 2 {

@@ -1,6 +1,66 @@
 {
   "tag": "hi",
   "entries": {
+    "check.orphaned-column-directory": {
+      "text": "columns/ के अंदर एक निर्देशिका का नाम यह वर्कबेंच नहीं बताता ({detail}), इसलिए उसके भीतर के कॉलम तक उपकरण में कुछ भी नहीं पहुँचता",
+      "context": "A check finding: a directory sitting under the workbench's columns directory whose name the columns sequence does not carry. It is the mirror of check.stranded-column, which names a sequence entry with no directory. The path carried is the directory itself, because unlike a stranded identifier this one names something a reader can open, and no repair flag offers to remove it.",
+      "source": "2058b1bc7d2266fd"
+    },
+    "check.reshape.1": {
+      "text": "वर्कबेंच एक ऑपरेटर नियुक्त करता है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "99ec845df4936041"
+    },
+    "check.reshape.10": {
+      "text": "कोई पकड़ा कार्ड वहाँ नहीं जाता जहाँ काम नहीं उठता",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "f3901da378e0cc48"
+    },
+    "check.reshape.2": {
+      "text": "अनुरोध एक स्वामी का नाम बताता है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.reshape.3": {
+      "text": "--from एक मौजूदा स्रोत बताता है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "7e02cd1315938ada"
+    },
+    "check.reshape.4": {
+      "text": "स्रोत पढ़ा जाता है, कोई replaces दो बार नहीं",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "2e566bd3d42eb5ea"
+    },
+    "check.reshape.5": {
+      "text": "हर गंतव्य अधिकतम एक नया कॉलम बताता है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "5884fe7088cca04"
+    },
+    "check.reshape.6": {
+      "text": "हर गंतव्य एक कॉलम बताता है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "f4afafb604b52fab"
+    },
+    "check.reshape.7": {
+      "text": "कोई गंतव्य ऐसा कॉलम नहीं जिसे यह चाल हटाती है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "fd6f78794bd308ca"
+    },
+    "check.reshape.8": {
+      "text": "हर --map प्रविष्टि कम से कम एक कार्ड रखती है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "fdf7a8edf7772691"
+    },
+    "check.reshape.9": {
+      "text": "हर भरी हुई सेवानिवृत्ति का एक गंतव्य है",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "a6c6bbabf4aa530c"
+    },
+    "cmd.reshape.summary": {
+      "text": "इस वर्कबेंच को उस कॉलम विन्यास पर ले जाएँ जो एक नई परिभाषा घोषित करती है",
+      "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
+      "source": "64de682cbf18a8ac"
+    },
     "param.attachments.ref.summary": {
       "text": "यह वर्कबेंच, `workbench` या `.` के रूप में लिखा गया, एक कॉलम, एक कार्ड, या एक टिप्पणी जैसे wb-1/comments/1; कुछ न लिखने पर यह वर्कबेंच",
       "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
@@ -1625,6 +1685,16 @@
       "context": "The meaning of the value argument of `dinah card`, printed in that command's arguments table.",
       "source": "e6f73845d9f81a66"
     },
+    "param.reshape.from.summary": {
+      "text": "वह परिभाषा जिससे नया आकार लिया जाए: एक इंटरचेंज फ़ाइल, या किसी दूसरे वर्कबेंच की निर्देशिका, यानी वही जो `dinah init --from` पहले से स्वीकार करता है",
+      "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
+      "source": "9c9dd584e19f2ca0"
+    },
+    "param.reshape.map.summary": {
+      "text": "एक हटाए जा रहे कॉलम के कार्ड दूसरे कॉलम में भेजें, retired=destination के रूप में लिखा और हर हटाए जा रहे कॉलम के लिए एक बार दोहराया; बाईं ओर वह कॉलम पहचानकर्ता भी हो सकता है जिसे कोई कार्ड अब भी रखता है और यह वर्कबेंच अब नहीं बताता, जिसे `dinah check` check.unknown-column के रूप में बताता है",
+      "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
+      "source": "be7a7c10a7313389"
+    },
     "query.empty": {
       "text": "उस क्वेरी से कोई कार्ड मेल नहीं खाता।",
       "context": "Printed when a query selected no card at all. The query itself was legal, so this is an answer rather than a refusal.",
@@ -1843,6 +1913,56 @@
       "text": "; पहले `dinah leave` से उन्हें बाहर करें, या वर्कस्ट्रीम को हटाने के बजाय पुरालेख में भेजें",
       "context": "Spliced onto refusal.dinah.referenced as the next step, naming the two ways past the refusal.",
       "source": "ade7e0e869d8e3c5"
+    },
+    "refusal.dinah.reshape-destination-ambiguous": {
+      "text": "नया आकार {detail} शीर्षक वाले एक से अधिक कॉलम जोड़ता है, स्थान {positions} पर, और उनमें से कोई भी उन्हें अलग बताने वाला पहचानकर्ता घोषित नहीं करता",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-ambiguous. {detail} is the title the caller wrote and {positions} names where each candidate sits in the new definition's columns array, which is the only handle an added column carries before it is written.",
+      "source": "b21120df2aa37a2c"
+    },
+    "refusal.dinah.reshape-destination-ambiguous.next": {
+      "text": "; उनमें से एक को परिभाषा में id दें और उसके बजाय वही id बताएँ",
+      "context": "Spliced onto refusal.dinah.reshape-destination-ambiguous as the next step.",
+      "source": "ed11e6a5636325c5"
+    },
+    "refusal.dinah.reshape-destination-retiring": {
+      "text": "{detail} कॉलम {column} को बताता है, जिसे यही चाल हटाती है, इसलिए कार्ड ऐसे कॉलम में ले जाए जाते जो अभी हटने वाला है",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-retiring. {detail} is the reference the caller wrote and {column} is the retiring column it resolved to.",
+      "source": "a8075e19e6962cc0"
+    },
+    "refusal.dinah.reshape-destination-retiring.next": {
+      "text": "; ऐसा कॉलम बताएँ जिसे नया आकार रखता है या जोड़ता है",
+      "context": "Spliced onto refusal.dinah.reshape-destination-retiring as the next step.",
+      "source": "35328f80b371d431"
+    },
+    "refusal.dinah.reshape-held-card-in-queue": {
+      "text": "यह आकार लिखे जाने पर कॉलम {detail} पर कोई स्वामी काम नहीं उठाता, और ये कार्ड वहाँ पकड़े हुए हैं: {cards}",
+      "context": "The sentence printed after the refusal name dinah.reshape-held-card-in-queue. {detail} names the column and {cards} carries the identifiers of the cards somebody is holding there.",
+      "source": "4ef573a1cbc261ab"
+    },
+    "refusal.dinah.reshape-held-card-in-queue.next": {
+      "text": "; पहले उन्हें छोड़ें, या कॉलम को काम उठाने वाला बना रहने दें",
+      "context": "Spliced onto refusal.dinah.reshape-held-card-in-queue as the next step, naming the two ways out.",
+      "source": "c3dfdfc8557cc5c4"
+    },
+    "refusal.dinah.reshape-map-source-empty": {
+      "text": "इस चाल में ले जाया जाने वाला कोई कार्ड {detail} पर खड़ा नहीं है",
+      "context": "The sentence printed after the refusal name dinah.reshape-map-source-empty. {detail} carries the reference the caller wrote on the left of a --map entry.",
+      "source": "5fd93f542d3e3f20"
+    },
+    "refusal.dinah.reshape-map-source-empty.next": {
+      "text": "; ऐसा कॉलम बताएँ जिसे नया आकार हटाता है, या वह कॉलम पहचानकर्ता जिसे कोई भटका हुआ कार्ड अब भी रखता है और जिसे `dinah check` check.unknown-column के रूप में बताता है",
+      "context": "Spliced onto refusal.dinah.reshape-map-source-empty as the next step. It names `dinah check` because that is the command that reports a stranded column identifier.",
+      "source": "5e8f3a719d8581c7"
+    },
+    "refusal.dinah.reshape-needs-a-destination": {
+      "text": "नया आकार कॉलम {detail} को हटा देता है, और वहाँ खड़े जीवित कार्ड, {cards} की संख्या में, कहीं नहीं जा सकते",
+      "context": "The sentence printed after the refusal name dinah.reshape-needs-a-destination. {detail} names the retiring column and {cards} is how many live cards stand in it.",
+      "source": "236df9db3b971c1a"
+    },
+    "refusal.dinah.reshape-needs-a-destination.next": {
+      "text": "; `--map {detail}=<column>` से एक गंतव्य बताएँ, या जो कॉलम काम संभालता है उस पर replaces घोषित करें",
+      "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
+      "source": "85d4e50e26e4c4be"
     },
     "refusal.dinah.unconfirmed": {
       "text": "delete इतिहास मिटाता है",
@@ -2179,6 +2299,11 @@
       "context": "The sentence printed after the refusal name malformed. {detail} names the field or argument that failed.",
       "source": "33cc09c42e3e6dd8"
     },
+    "refusal.malformed.claimed-twice": {
+      "text": ", और {claimants} दोनों इसे {retired} के लिए घोषित करते हैं",
+      "context": "Spliced onto refusal.malformed when a reshape's new definition has two columns claiming one retirement through replaces. {claimants} names both declaring columns and {retired} is the identifier they both claim.",
+      "source": "cd64a4362f1593ea"
+    },
     "refusal.malformed.in-file": {
       "text": ", {file} में",
       "context": "Spliced onto refusal.malformed when the refusal carries a file: the definition file the reader named, whose contents will not parse.",
@@ -2358,6 +2483,96 @@
       "text": "; यह बिल्ड {floor} से {ceiling} तक पढ़ती है",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them.",
       "source": "b5a194329eb77159"
+    },
+    "reshape.applied": {
+      "text": "यह वर्कबेंच अब नया आकार रखता है।",
+      "context": "The first line of a reshape that applied, printed where a preview prints the line saying nothing was written.",
+      "source": "700831486797af13"
+    },
+    "reshape.blocked": {
+      "text": "अवरुद्ध रहते हुए ले जाए गए: {cards}।",
+      "context": "One row of a reshape report, naming the carried cards that arrived still blocked, since a reshape carries a block through untouched.",
+      "source": "7c47d5d8cad54b8d"
+    },
+    "reshape.carry": {
+      "text": "{id} अपने कार्ड {destination} को भेजता है। कार्ड: {count}।",
+      "context": "One row of a reshape report: where a retiring column's cards go and how many there are. A preview reads it as what would be carried and an applied run as what was.",
+      "source": "85240e720c94b31d"
+    },
+    "reshape.column.added": {
+      "text": "जोड़ा गया {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition adds.",
+      "source": "5fa39f8f1f982b95"
+    },
+    "reshape.column.adopted": {
+      "text": "हटाया गया {id}, एक पहचानकर्ता जिसे यह वर्कबेंच अब नहीं बताता",
+      "context": "One row of a reshape report: an identifier a --map entry adopted, which names no live column and so carries no title.",
+      "source": "257a8d8f28296182"
+    },
+    "reshape.column.kept": {
+      "text": "रखा गया {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition keeps.",
+      "source": "98cc4236e6d825e9"
+    },
+    "reshape.column.retired": {
+      "text": "हटाया गया {title} ({id})",
+      "context": "One row of a reshape report: a live column the new definition drops.",
+      "source": "d60ab9a89eddc730"
+    },
+    "reshape.confirm": {
+      "text": "इसे लागू करने के लिए वही आदेश --yes के साथ फिर चलाएँ।",
+      "context": "The closing line of a reshape preview, naming the flag that carries the run out.",
+      "source": "d58f165d9534cfd3"
+    },
+    "reshape.empty": {
+      "text": "{id} हटाया जाता है, उसमें कोई कार्ड खड़ा नहीं है।",
+      "context": "One row of a reshape report: a retiring column nothing had to be carried out of.",
+      "source": "b21106442a0be2ab"
+    },
+    "reshape.partial": {
+      "text": "यह चाल रुकने से पहले लिखना शुरू कर चुकी थी, इसलिए यह वर्कबेंच अपने पुराने और नए आकार के बीच खड़ा है। आगे वही है जो उसने लिखा।",
+      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one.",
+      "source": "ae9fdb33e82336ba"
+    },
+    "reshape.preview": {
+      "text": "कुछ नहीं लिखा गया। --yes के साथ चलने पर यह होता।",
+      "context": "The first line of a reshape preview, which says at the top that none of the page below has happened.",
+      "source": "d930604dbdecd792"
+    },
+    "reshape.retry": {
+      "text": "अस्वीकृति जो बताती है उसे ठीक करें और वही आदेश उसी स्रोत के साथ फिर चलाएँ। ऊपर के चरण दूसरे चलने पर छोड़ दिए जाते हैं और शेष आकार लिख दिया जाता है।",
+      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
+      "source": "5ff52d499cdd5db9"
+    },
+    "reshape.stranded": {
+      "text": "ऐसे कॉलम में खड़े कार्ड जिसे यह चाल नहीं जानती: {count}। उनके पहचानकर्ता खोजने के लिए `dinah check` चलाएँ।",
+      "context": "The reshape report's line for cards standing in a column that is in neither the workbench's own sequence nor the new definition. The count is reported rather than the identifiers, because reshape diffs two column lists and `dinah check` is the command that walks every card.",
+      "source": "4d423d479fb37643"
+    },
+    "reshape.updated": {
+      "text": "नई परिभाषा ने कॉलम {id} को बदला।",
+      "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
+      "source": "21d7c7ccec3eea74"
+    },
+    "reshape.wrote.added": {
+      "text": "नई परिभाषा द्वारा जोड़े गए कॉलम, अब लिखे गए और प्रवाह में: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written.",
+      "source": "2552497602e0ea05"
+    },
+    "reshape.wrote.archived": {
+      "text": "संग्रहित किए गए हटाए जा रहे कॉलम: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive.",
+      "source": "79cb0ecdbbb92915"
+    },
+    "reshape.wrote.carried": {
+      "text": "हटाए जा रहे कॉलम से ले जाए गए कार्ड: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations.",
+      "source": "6e230ff4563ae377"
+    },
+    "reshape.wrote.updated": {
+      "text": "नई परिभाषा से फिर लिखे गए रखे हुए कॉलम: {count}।",
+      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
+      "source": "cd228857426eace1"
     },
     "show.attachments": {
       "text": "संलग्नक:",

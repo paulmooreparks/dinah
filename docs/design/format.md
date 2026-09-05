@@ -552,6 +552,20 @@ concept's boundary-table row in section 10 of the profile is ruled out, with
 the reason and the reopen condition that go with staying out, and no version of
 `dinah-core` moves to admit it.
 
+A column may also declare `replaces`, a list of the column identifiers this
+column took over from. It is the template author saying once what a new column
+inherits, so a workbench born of a revised template reshapes with no per-run
+flag, and `dinah reshape` reads it to decide where the cards of a retiring
+column go. It travels by the same route `reject_to` takes and for the same
+reason: it is absent from `knownColumnKeys`, so the generic passes carry it in
+both directions, and it is stored on the live column's own frontmatter rather
+than consulted only in flight. Storing it is what keeps `extract` faithful. A
+member that reached a column and was never written down would vanish on the
+round trip through `init` and `extract`, which is exactly the loss CORE-JSON-7
+forbids. `dinah reshape` still reads the incoming definition rather than the
+stored copy when it decides where cards go, because the definition is the one
+place carrying this run's intent for a column that has no frontmatter yet.
+
 No board becomes unopenable under any of this. A workbench whose kinds sit
 outside these positions opens, is read as it stands, and is reported by `dinah
 check` under `check.kind-out-of-position`. A card standing held at a column
@@ -779,8 +793,8 @@ and stores nothing.
 ### Journal event schema
 
 Every journal line names an event, and the core event names are a closed set
-of twenty-one, which `internal/contract` declares as constants.
-Twenty of them are written by some command in this build. The one that is
+of twenty-two, which `internal/contract` declares as constants.
+Twenty-one of them are written by some command in this build. The one that is
 not, `restored`, is declared and reserved, and `cmd/dinah/compat_test.go`'s
 `unwrittenEvents` table records the reason it stays unwritten. No verb is
 wired to `restored` yet, though the structural machinery a restore would use
@@ -788,18 +802,20 @@ already exists.
 
 A second count of nineteen sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
-out `workbench_updated` and `workstream_updated`, since each of those lands on
-the workbench's journal or on a workstream's and never on a card's.
+out `column_updated`, `workbench_updated` and `workstream_updated`, since each
+of those lands on the workbench's journal or on a workstream's and never on a
+card's.
 The two counts no longer agree, and neither set contains the other. `restored`
 is queryable over a card and written by nothing, so it sits in the nineteen and
-outside the twenty. `workbench_updated` and `workstream_updated` are written by
-commands but never land on a card's journal, so they sit in the twenty and
-outside the nineteen. Eighteen names sit in both counts. Seventeen of those land
+outside the twenty-one. `column_updated`, `workbench_updated` and
+`workstream_updated` are written by commands but never land on a card's
+journal, so they sit in the twenty-one and outside the nineteen. Eighteen names
+sit in both counts. Seventeen of those land
 on a card's own journal, and `deleted` is the exception, because deleting a card
 destroys the journal inside it and the record of the deletion goes to the
 workbench's.
 
-The set stays closed mechanically rather than by inspection. A twenty-second
+The set stays closed mechanically rather than by inspection. A twenty-third
 constant fails the build unless it reaches the sample fixture's journal or is
 named in `unwrittenEvents`, which is the coverage alarm the Versioning section
 describes.
@@ -843,6 +859,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `deleted` | `note` (the entity's own id) | `title`, present only when the deleted entity's kind carries one Dinah can resolve at that moment, which covers a card, a workstream, and a column, and leaves out a comment |
 | `workbench_updated` | `field` | `from` and `to`, each omitted on the side of the write where the value is empty |
 | `workstream_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
+| `column_updated` | `note` (the column's own id) | |
 | `workstream_joined` | `workstream` | |
 | `workstream_left` | `workstream` | |
 | `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |

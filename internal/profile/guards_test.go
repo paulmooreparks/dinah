@@ -1838,10 +1838,12 @@ const theOneTable = "cmd/dinah/table.go"
 // them, so a mention anywhere else is either a row being written outside the
 // renderer or a second way to write, and pattern 11 refuses both.
 //
-// write, line, errLine, fail, reportOutcome, emitCanonical, emitMachine, emit
-// and reportError are the writers themselves, and composeRefusal is not among
-// them: it returns lines rather than writing them, which is what lets the text
-// path and the machine path share one composition. The rest hand a stream to
+// write, line, errLine, fail, reportOutcome, emitCanonical, emitMachine, emit,
+// reportError and writeRefusal are the writers themselves, and composeRefusal
+// is not among them: it returns lines rather than writing them, which is what
+// lets the text path and the machine path share one composition. writeRefusal
+// is the stderr half of reportError, split out for the one caller whose
+// machine answer is its own report rather than a bare refusal. The rest hand a stream to
 // something outside the head. runPath writes the path it resolved, editCmd
 // gives the child process an editor runs in its stdio, and runMCP serves the
 // MCP server on stdio. editCmd holds the naming runEdit used to do itself, so
@@ -1861,6 +1863,7 @@ var streamWriters = []string{
 	"emitMachine",
 	"emit",
 	"reportError",
+	"writeRefusal",
 	"runPath",
 	"editCmd",
 	"runMCP",

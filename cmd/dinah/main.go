@@ -341,6 +341,19 @@ func (s *session) reportError(err error) int {
 		}
 		s.emitMachine(report)
 	}
+	return s.writeRefusal(refusal)
+}
+
+// writeRefusal puts a refusal's composed lines on stderr and answers the
+// refused exit code, leaving the machine form to the caller.
+//
+// reportError is the ordinary way in and emits that machine form itself. The
+// one caller reaching this directly is a reshape refused after it had already
+// written, whose machine answer is its own report: a bare refusal there would
+// be a document saying what stopped the run and nothing at all about what the
+// run had done to the workbench first. The refusal name still leads stderr on
+// both routes, which is what the plumbing guarantee rests on.
+func (s *session) writeRefusal(refusal *contract.Refusal) int {
 	for _, line := range s.composeRefusal(refusal) {
 		io.WriteString(s.errw, line+"\n")
 	}

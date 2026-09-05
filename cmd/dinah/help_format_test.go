@@ -74,6 +74,8 @@ WORKBENCH
     [--operator <actor>]                                   template
   export                                                 Write this workbench's interchange form to stdout
   extract <dir>                                          Copy this workbench's definition out as a template
+  reshape --from <source> [--map <retired=destination>]  Carry this workbench to the column layout a new
+    [--yes]                                                definition declares
   path <ref>                                             Print the file path of this workbench, of a card,
                                                            or of anything below a card
   edit <ref>                                             Open this workbench, a card, or anything below a
@@ -159,6 +161,7 @@ WORKBENCH
   init [dir] [--from <source>] [--slug <slug>] [--operator <actor>]                                Create a workbench here, optionally from a template
   export                                                                                           Write this workbench's interchange form to stdout
   extract <dir>                                                                                    Copy this workbench's definition out as a template
+  reshape --from <source> [--map <retired=destination>] [--yes]                                    Carry this workbench to the column layout a new definition declares
   path <ref>                                                                                       Print the file path of this workbench, of a card, or of anything below a card
   edit <ref>                                                                                       Open this workbench, a card, or anything below a card in your editor
   config [get|set] [key] [value]                                                                   List your user settings, or read or write one

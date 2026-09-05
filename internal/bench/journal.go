@@ -49,6 +49,13 @@ type Event struct {
 	// a defect in the board rather than a rejection anybody meant, and
 	// checkRejectTargets reports it under check.reject-target-forward.
 	Reject bool `json:"reject,omitempty"`
+	// Reshape marks a moved event a reshape wrote, which is a card carried
+	// out of a column the workbench no longer declares rather than a decision
+	// somebody took about the work. It sits beside Override and Reject on the
+	// same terms, and a reader that does not know the marker reads an
+	// ordinary move, which is what the line already is: state and holder are
+	// unchanged, and from, to and both titles carry what they always carry.
+	Reshape bool `json:"reshape,omitempty"`
 	// Reason is a block's prose reason.
 	Reason string `json:"reason,omitempty"`
 	// Kind is a block's optional class of obstacle.

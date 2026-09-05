@@ -80,6 +80,10 @@ func init() {
 		{name: "init", group: groupBench, run: runInit, bounded: 1},
 		{name: "export", group: groupBench, run: runExport},
 		{name: "extract", group: groupBench, run: runExtract, bounded: 1},
+		// reshape declares no bounded positional, so a stray word is refused
+		// rather than ignored. Every argument it reads is a flag, and --map
+		// is read occurrence by occurrence rather than by name alone.
+		{name: "reshape", group: groupBench, run: runReshape},
 		{name: "path", group: groupBench, run: runPath, bounded: 1},
 		{name: "edit", group: groupBench, run: runEdit, bounded: 1},
 		// config dispatches on its own first word and runs the same
@@ -931,6 +935,42 @@ func runExtract(s *session, parsed *arguments) int {
 			return s.reportError(err)
 		}
 		s.line(s.r.T("extract.done", "dir", target))
+		return 0
+	})
+}
+
+// runReshape carries the workbench from its current column layout to the one a
+// new definition declares, while cards stand in the flow.
+//
+// The two forms are check --migrate-vocabulary's, reused rather than invented:
+// without --yes the command validates everything, reports what it would do,
+// and writes nothing at all; with --yes it validates the same way and then
+// applies.
+//
+// A refusal raised during validation reads the same on either form, because
+// validation is the phase both forms run. A refusal raised once the write
+// phase has begun does not, and must not: it leaves the workbench part way
+// through the new shape, and an operator who is told only which refusal
+// stopped the run cannot tell that state from a preview that wrote nothing.
+// So the report comes back with the error on that path and is printed before
+// the refusal, naming what the run wrote and what finishes it. Only --yes can
+// reach it, since a preview stops before the write phase begins.
+func runReshape(s *session, parsed *arguments) int {
+	if parsed.value("from") == "" {
+		return s.fail(contract.Usage, "reshape")
+	}
+	req := s.request("reshape", parsed)
+	req.From = parsed.value("from")
+	req.Map = parsed.values("map")
+	return s.withBench(func(l *verb.Library) int {
+		report, err := l.Reshape(req)
+		if err != nil {
+			return s.reportReshapeRefusal(report, err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(report)
+		}
+		s.renderReshape(report)
 		return 0
 	})
 }

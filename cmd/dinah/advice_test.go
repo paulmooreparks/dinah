@@ -775,6 +775,9 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"refusal.dinah.add-needs-a-column.next":         "the alternation's unconditional last member, unrendered on the same evidence",
 	"refusal.no-operator.next":                      "the alternation's unconditional last member, unrendered on the same evidence",
 	"refusal.malformed.fix":                         "the alternation's member for a malformed file whose workbench nothing named, unrendered today because every raise site carrying a path attaches the workbench beside it",
+	"param.reshape.map.summary":                     "a help page describing what dinah check reports about a stranded column identifier, rather than asking the reader to type anything",
+	"refusal.dinah.reshape-map-source-empty.next":   "the reader has just been refused by a reshape they scoped themselves, and reshape takes neither --root nor a downward walk, so the bare dinah check they are told to run resolves the workbench the refused command resolved",
+	"reshape.stranded":                              "a report line printed inside a reshape the caller has already scoped, and reshape takes neither --root nor a downward walk, so the bare dinah check it names resolves the same workbench the report was written for",
 }
 
 // TestEveryCheckAdviceIsDispositioned holds the family of catalog sentences

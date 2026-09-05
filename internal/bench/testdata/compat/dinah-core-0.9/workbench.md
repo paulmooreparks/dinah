@@ -7,6 +7,7 @@ operator: sam
 columns:
   - 004acda2c28a
   - 7b5cfe51cb3b
+  - 68091798ab26
 levels:
   severity: [trivial, minor, major, critical]
   priority: [later, soon, next, now]

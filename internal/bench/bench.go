@@ -392,6 +392,23 @@ type Bench struct {
 	// hand. It plays no part in the flow; dinah check reports it and dinah
 	// check --migrate-columns removes it from the definition.
 	StrandedColumns []string
+	// OrphanedColumnDirectories is every directory under columns/ whose name
+	// the workbench's own columns sequence does not carry. It is the mirror
+	// of StrandedColumns, which walks the sequence looking for a directory
+	// that is not there, and it walks the directory looking for a sequence
+	// entry that is not there. Neither can see what the other sees.
+	//
+	// A reshape interrupted between writing an added column and appending its
+	// identifier to the sequence is the shape this exists for: a retry
+	// against the same source recomputes the same identifier and finishes the
+	// write, but a retry against an edited source derives a different one and
+	// never revisits the first attempt's directory. Nothing else in the tool
+	// would ever name it again, so dinah check names it here.
+	//
+	// It plays no part in the flow, no verb reads it, and no repair removes
+	// the directory: deleting one is a destructive act nothing offers yet,
+	// and what an operator needs first is to know the directory is there.
+	OrphanedColumnDirectories []string
 	// levels are the declared level sets, keyed by axis, read out of the
 	// levels block at Open. It is unexported because every reader wants one
 	// axis rather than the map, and Levels and Level are how they ask.
@@ -1548,6 +1565,17 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 			return nil, err
 		}
 		b.Columns = append(b.Columns, column)
+	}
+	// The mirror of the stranded walk above, run once the sequence has been
+	// read so that seen already carries every identifier the workbench names.
+	// ListIDs is what every other collection walk in this package reads a
+	// directory with, so a file, a stray name and anything that is not an
+	// identifier are passed over here exactly as they are there.
+	for _, id := range ListIDs(filepath.Join(root, vocab.Dir)) {
+		if seen[id] {
+			continue
+		}
+		b.OrphanedColumnDirectories = append(b.OrphanedColumnDirectories, id)
 	}
 	return b, nil
 }

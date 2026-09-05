@@ -17,12 +17,14 @@ import (
 // compute exit code 2 by hand, named by enclosing function rather than by line
 // so that an edit above one of them does not silently retarget the guard.
 //
-// reportError builds a refusal response from a genuine *contract.Refusal or an
-// unopenable workbench, and runMCP holds the mcp server's three startup gates,
-// each of which answers one question with one meaning. Every other hand-written
-// exit 2 is the defect dinah-346 removed, which is a command answering both
-// "the invocation was refused" and "the read found something" with one number.
-var exitTwoAllowed = map[string]bool{"reportError": true, "runMCP": true}
+// writeRefusal puts a genuine *contract.Refusal on stderr and answers its exit
+// code, which is where reportError's own hand-computed refusal moved when the
+// stderr half was split out for reshape's half-applied run. runMCP holds the
+// mcp server's three startup gates, each of which answers one question with
+// one meaning. Every other hand-written exit 2 is the defect dinah-346
+// removed, which is a command answering both "the invocation was refused" and
+// "the read found something" with one number.
+var exitTwoAllowed = map[string]bool{"writeRefusal": true, "runMCP": true}
 
 // exitTwoShapes are the two searches dinah-346 AC-7 names. The first is the
 // spelling this tree actually uses, and the second covers a bare literal

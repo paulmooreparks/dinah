@@ -1,6 +1,66 @@
 {
   "tag": "de",
   "entries": {
+    "check.orphaned-column-directory": {
+      "text": "ein Verzeichnis unter columns/ wird von dieser Werkbank nicht genannt ({detail}), daher erreicht nichts im Werkzeug die Spalte darin",
+      "context": "A check finding: a directory sitting under the workbench's columns directory whose name the columns sequence does not carry. It is the mirror of check.stranded-column, which names a sequence entry with no directory. The path carried is the directory itself, because unlike a stranded identifier this one names something a reader can open, and no repair flag offers to remove it.",
+      "source": "2058b1bc7d2266fd"
+    },
+    "check.reshape.1": {
+      "text": "die Werkbank benennt einen Operator",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "99ec845df4936041"
+    },
+    "check.reshape.10": {
+      "text": "keine gehaltene Karte landet dort, wo niemand arbeitet",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "f3901da378e0cc48"
+    },
+    "check.reshape.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.reshape.3": {
+      "text": "--from nennt eine vorhandene Quelle",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "7e02cd1315938ada"
+    },
+    "check.reshape.4": {
+      "text": "die Quelle liest sich, kein replaces doppelt",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "2e566bd3d42eb5ea"
+    },
+    "check.reshape.5": {
+      "text": "jedes Ziel nennt höchstens eine neue Spalte",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "5884fe7088cca04"
+    },
+    "check.reshape.6": {
+      "text": "jedes Ziel nennt eine Spalte",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "f4afafb604b52fab"
+    },
+    "check.reshape.7": {
+      "text": "kein Ziel ist eine Spalte, die dieser Lauf ausmustert",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "fd6f78794bd308ca"
+    },
+    "check.reshape.8": {
+      "text": "jeder --map-Eintrag trägt mindestens eine Karte",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "fdf7a8edf7772691"
+    },
+    "check.reshape.9": {
+      "text": "jede besetzte Ausmusterung hat ein Ziel",
+      "context": "One row of the ordered precondition list of reshape. Keep a translation at or under 52 display columns.",
+      "source": "a6c6bbabf4aa530c"
+    },
+    "cmd.reshape.summary": {
+      "text": "Diese Werkbank auf das Spaltenlayout bringen, das eine neue Definition erklärt",
+      "context": "The one-line summary of the reshape command, shown beside its syntax in the help block.",
+      "source": "64de682cbf18a8ac"
+    },
     "param.attachments.ref.summary": {
       "text": "diese Werkbank, geschrieben als `workbench` oder `.`, eine Spalte, eine Karte oder ein Kommentar wie wb-1/comments/1; diese Werkbank, wenn Sie keine nennen",
       "context": "The meaning of the ref argument of `dinah attachments`, printed in that command's arguments table. attachments writes its own sentence rather than taking the shared one, because the shared sentence ends \"not this workbench\" and the workbench is one of the entities this read is asked about.",
@@ -2015,6 +2075,16 @@
       "context": "The meaning of the ref argument of archive and delete, which take the same set of things.",
       "source": "3f739e20c1af8b82"
     },
+    "param.reshape.from.summary": {
+      "text": "die Definition, aus der die neue Form genommen wird: eine Austauschdatei oder das Verzeichnis einer anderen Werkbank, also genau das, was `dinah init --from` bereits annimmt",
+      "context": "The meaning of the from argument of `dinah reshape`, printed in that command's arguments table.",
+      "source": "9c9dd584e19f2ca0"
+    },
+    "param.reshape.map.summary": {
+      "text": "die Karten einer ausscheidenden Spalte in eine andere Spalte schicken, geschrieben als retired=destination und je ausscheidender Spalte einmal wiederholt; die linke Seite darf auch eine Spaltenkennung sein, die eine Karte noch trägt und diese Werkbank nicht mehr nennt, was `dinah check` als check.unknown-column meldet",
+      "context": "The meaning of the map argument of `dinah reshape`, printed in that command's arguments table. It names `dinah check` because that is the command an operator runs to find a stranded column identifier before writing this flag.",
+      "source": "be7a7c10a7313389"
+    },
     "param.show.card.summary": {
       "text": "ein Zustand, eine Karte oder etwas unterhalb einer Karte wie wb-1/comments/1; show nimmt diese Werkbank nicht",
       "context": "The meaning of the card argument of `dinah show`, printed in that command's arguments table.",
@@ -2404,6 +2474,56 @@
       "context": "The next step of refusal.dinah.repeated-axis. The command line inside it is syntax and stays as it is.",
       "source": "bf9ceea7dc013c6d"
     },
+    "refusal.dinah.reshape-destination-ambiguous": {
+      "text": "die neue Form fügt mehr als eine Spalte mit dem Titel {detail} hinzu, an den Positionen {positions}, und keine davon erklärt eine Kennung, die sie unterscheidet",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-ambiguous. {detail} is the title the caller wrote and {positions} names where each candidate sits in the new definition's columns array, which is the only handle an added column carries before it is written.",
+      "source": "b21120df2aa37a2c"
+    },
+    "refusal.dinah.reshape-destination-ambiguous.next": {
+      "text": "; geben Sie einer davon eine id in der Definition und nennen Sie diese id stattdessen",
+      "context": "Spliced onto refusal.dinah.reshape-destination-ambiguous as the next step.",
+      "source": "ed11e6a5636325c5"
+    },
+    "refusal.dinah.reshape-destination-retiring": {
+      "text": "{detail} nennt Spalte {column}, die derselbe Lauf ausmustert, sodass die Karten in eine Spalte getragen würden, die gleich verschwindet",
+      "context": "The sentence printed after the refusal name dinah.reshape-destination-retiring. {detail} is the reference the caller wrote and {column} is the retiring column it resolved to.",
+      "source": "a8075e19e6962cc0"
+    },
+    "refusal.dinah.reshape-destination-retiring.next": {
+      "text": "; nennen Sie eine Spalte, die die neue Form behält oder hinzufügt",
+      "context": "Spliced onto refusal.dinah.reshape-destination-retiring as the next step.",
+      "source": "35328f80b371d431"
+    },
+    "refusal.dinah.reshape-held-card-in-queue": {
+      "text": "kein Akteur nimmt an Spalte {detail} Arbeit auf, sobald diese Form geschrieben ist, und diese Karten werden dort gehalten: {cards}",
+      "context": "The sentence printed after the refusal name dinah.reshape-held-card-in-queue. {detail} names the column and {cards} carries the identifiers of the cards somebody is holding there.",
+      "source": "4ef573a1cbc261ab"
+    },
+    "refusal.dinah.reshape-held-card-in-queue.next": {
+      "text": "; geben Sie sie zuerst frei, oder lassen Sie die Spalte Arbeit aufnehmen",
+      "context": "Spliced onto refusal.dinah.reshape-held-card-in-queue as the next step, naming the two ways out.",
+      "source": "c3dfdfc8557cc5c4"
+    },
+    "refusal.dinah.reshape-map-source-empty": {
+      "text": "keine Karte, die dieser Lauf tragen würde, steht bei {detail}",
+      "context": "The sentence printed after the refusal name dinah.reshape-map-source-empty. {detail} carries the reference the caller wrote on the left of a --map entry.",
+      "source": "5fd93f542d3e3f20"
+    },
+    "refusal.dinah.reshape-map-source-empty.next": {
+      "text": "; nennen Sie eine Spalte, die die neue Form weglässt, oder die Spaltenkennung, die eine gestrandete Karte noch trägt und die `dinah check` als check.unknown-column meldet",
+      "context": "Spliced onto refusal.dinah.reshape-map-source-empty as the next step. It names `dinah check` because that is the command that reports a stranded column identifier.",
+      "source": "5e8f3a719d8581c7"
+    },
+    "refusal.dinah.reshape-needs-a-destination": {
+      "text": "die neue Form lässt Spalte {detail} weg, und die dort stehenden lebenden Karten, {cards} an der Zahl, haben kein Ziel",
+      "context": "The sentence printed after the refusal name dinah.reshape-needs-a-destination. {detail} names the retiring column and {cards} is how many live cards stand in it.",
+      "source": "236df9db3b971c1a"
+    },
+    "refusal.dinah.reshape-needs-a-destination.next": {
+      "text": "; nennen Sie eines mit `--map {detail}=<column>`, oder erklären Sie replaces auf der Spalte, die die Arbeit übernimmt",
+      "context": "Spliced onto refusal.dinah.reshape-needs-a-destination as the next step, naming the two ways a destination is supplied.",
+      "source": "85d4e50e26e4c4be"
+    },
     "refusal.dinah.unconfirmed": {
       "text": "delete vernichtet Geschichte",
       "context": "The sentence printed after the refusal name dinah.unconfirmed. {detail} carries the identifier, owner or column the refusal is about.",
@@ -2717,6 +2837,11 @@
       "source": "ef1414e25cbe0d27",
       "verbatim": true
     },
+    "refusal.malformed.claimed-twice": {
+      "text": ", und {claimants} erklären es beide für {retired}",
+      "context": "Spliced onto refusal.malformed when a reshape's new definition has two columns claiming one retirement through replaces. {claimants} names both declaring columns and {retired} is the identifier they both claim.",
+      "source": "cd64a4362f1593ea"
+    },
     "refusal.malformed.fix": {
       "text": "; bearbeiten Sie die Datei von Hand und fügen Sie es hinzu, und führen Sie dann `dinah check` aus, um es zu bestätigen",
       "context": "Spliced onto refusal.malformed after refusal.malformed.at, naming the repair.",
@@ -2892,6 +3017,96 @@
       "text": "; dieser Build liest {floor} bis {ceiling}",
       "context": "Spliced onto refusal.unsupported-version when the refusal names the window this build opens. {floor} and {ceiling} are profile revision identities such as `dinah-core 0.1`, and a translator moves them within the sentence without respelling them.",
       "source": "b5a194329eb77159"
+    },
+    "reshape.applied": {
+      "text": "Diese Werkbank trägt nun die neue Form.",
+      "context": "The first line of a reshape that applied, printed where a preview prints the line saying nothing was written.",
+      "source": "700831486797af13"
+    },
+    "reshape.blocked": {
+      "text": "Blockiert übernommen: {cards}.",
+      "context": "One row of a reshape report, naming the carried cards that arrived still blocked, since a reshape carries a block through untouched.",
+      "source": "7c47d5d8cad54b8d"
+    },
+    "reshape.carry": {
+      "text": "{id} schickt seine Karten an {destination}. Karten: {count}.",
+      "context": "One row of a reshape report: where a retiring column's cards go and how many there are. A preview reads it as what would be carried and an applied run as what was.",
+      "source": "85240e720c94b31d"
+    },
+    "reshape.column.added": {
+      "text": "hinzugefügt {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition adds.",
+      "source": "5fa39f8f1f982b95"
+    },
+    "reshape.column.adopted": {
+      "text": "ausgemustert {id}, eine Kennung, die diese Werkbank nicht mehr nennt",
+      "context": "One row of a reshape report: an identifier a --map entry adopted, which names no live column and so carries no title.",
+      "source": "257a8d8f28296182"
+    },
+    "reshape.column.kept": {
+      "text": "behalten {title} ({id})",
+      "context": "One row of a reshape report: a column the new definition keeps.",
+      "source": "98cc4236e6d825e9"
+    },
+    "reshape.column.retired": {
+      "text": "ausgemustert {title} ({id})",
+      "context": "One row of a reshape report: a live column the new definition drops.",
+      "source": "d60ab9a89eddc730"
+    },
+    "reshape.confirm": {
+      "text": "Führen Sie denselben Befehl erneut mit --yes aus, um ihn anzuwenden.",
+      "context": "The closing line of a reshape preview, naming the flag that carries the run out.",
+      "source": "d58f165d9534cfd3"
+    },
+    "reshape.empty": {
+      "text": "{id} wird ausgemustert, ohne dass eine Karte darin steht.",
+      "context": "One row of a reshape report: a retiring column nothing had to be carried out of.",
+      "source": "b21106442a0be2ab"
+    },
+    "reshape.partial": {
+      "text": "Dieser Lauf hatte bereits mit dem Schreiben begonnen, als er anhielt, daher steht diese Werkbank zwischen ihrer alten und ihrer neuen Form. Es folgt, was er geschrieben hat.",
+      "context": "The first line of a reshape that refused after its write phase had begun, printed where a preview prints the line saying nothing was written and an applied run prints the line saying the shape is on disk. The three openings are different because the three states are, and an operator who is told only which refusal stopped the run cannot tell a half-applied workbench from an untouched one.",
+      "source": "ae9fdb33e82336ba"
+    },
+    "reshape.preview": {
+      "text": "Es wurde nichts geschrieben. Dies ist, was ein Lauf mit --yes täte.",
+      "context": "The first line of a reshape preview, which says at the top that none of the page below has happened.",
+      "source": "d930604dbdecd792"
+    },
+    "reshape.retry": {
+      "text": "Beheben Sie, was die Ablehnung nennt, und führen Sie denselben Befehl mit derselben Quelle erneut aus. Die obigen Schritte werden beim zweiten Lauf übersprungen, und der Rest der Form wird geschrieben.",
+      "context": "The closing line of the report for a reshape that stopped part way through, which is what tells the operator the state is finishable and how. Every write-phase step is idempotent, so the second run does what the first did not.",
+      "source": "5ff52d499cdd5db9"
+    },
+    "reshape.stranded": {
+      "text": "Karten, die in einer Spalte stehen, die dieser Lauf nicht kennt: {count}. Führen Sie `dinah check` aus, um ihre Kennungen zu finden.",
+      "context": "The reshape report's line for cards standing in a column that is in neither the workbench's own sequence nor the new definition. The count is reported rather than the identifiers, because reshape diffs two column lists and `dinah check` is the command that walks every card.",
+      "source": "4d423d479fb37643"
+    },
+    "reshape.updated": {
+      "text": "Die neue Definition hat Spalte {id} geändert.",
+      "context": "One row of a reshape report: a kept column whose anchor the rewrite actually changed, which is what the run recorded a column_updated event for.",
+      "source": "21d7c7ccec3eea74"
+    },
+    "reshape.wrote.added": {
+      "text": "Von der neuen Definition ergänzte Spalten, nun geschrieben und im Fluss: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the columns write-phase step one had already written.",
+      "source": "2552497602e0ea05"
+    },
+    "reshape.wrote.archived": {
+      "text": "Archivierte stillgelegte Spalten: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the retiring columns the archive step had already put into the archive.",
+      "source": "79cb0ecdbbb92915"
+    },
+    "reshape.wrote.carried": {
+      "text": "Aus einer stillzulegenden Spalte übernommene Karten: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the cards the carry had already moved to their destinations.",
+      "source": "6e230ff4563ae377"
+    },
+    "reshape.wrote.updated": {
+      "text": "Aus der neuen Definition neu geschriebene beibehaltene Spalten: {count}.",
+      "context": "One row of the report for a reshape that stopped part way through, counting the kept columns whose anchor the rewrite had already changed.",
+      "source": "cd228857426eace1"
     },
     "schema.basis.description": {
       "text": "Dinah berechnet für jede ändernde Anfrage eine Basis, und nichts hier bietet einen Weg, eine zu schreiben, lassen Sie diese Eigenschaft also unberührt.",
