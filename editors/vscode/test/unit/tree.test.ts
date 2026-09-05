@@ -559,7 +559,7 @@ test("the column row's tooltip says what the row's shape does not", () => {
 				takes_work_up: false,
 				operator_owned: true,
 			}),
-			"Customer approval\nCards are pulled through here.\nOnly the operator moves a card out.",
+			"Customer approval\nA card here waits to be pulled onward.\nOnly the operator moves a card out.",
 		],
 		[
 			"a column awaiting somebody outside says so on its own line",
@@ -569,7 +569,7 @@ test("the column row's tooltip says what the row's shape does not", () => {
 				takes_work_up: false,
 				awaiting_outside: true,
 			}),
-			"Printing\nCards are pulled through here.\nWaiting on somebody outside the workbench.\nAn agent moves a card out.",
+			"Printing\nA card here waits to be pulled onward.\nThis column is waiting on somebody outside the workbench.\nAn agent moves a card out.",
 		],
 		["the join missed the column, so nothing is described", undefined, "x"],
 	];

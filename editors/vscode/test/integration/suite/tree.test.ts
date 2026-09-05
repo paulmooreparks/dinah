@@ -80,9 +80,9 @@ suite("the sidebar tree against a real workbench", () => {
 		assert.deepEqual(
 			rows.map((row) => String(row.tooltip)),
 			[
-				"Intake\nCards are pulled through here.\nAn agent moves a card out.",
+				"Intake\nA card here waits to be pulled onward.\nAn agent moves a card out.",
 				"Doing\nCards are claimed here.\nAn agent moves a card out.",
-				"Done\nCards are pulled through here.\nAn agent moves a card out.",
+				"Done\nA card here waits to be pulled onward.\nAn agent moves a card out.",
 			],
 		);
 	});

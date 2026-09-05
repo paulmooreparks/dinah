@@ -487,10 +487,10 @@ export function columnTooltip(
 	lines.push(
 		view.takes_work_up
 			? "Cards are claimed here."
-			: "Cards are pulled through here.",
+			: "A card here waits to be pulled onward.",
 	);
 	if (view.awaiting_outside) {
-		lines.push("Waiting on somebody outside the workbench.");
+		lines.push("This column is waiting on somebody outside the workbench.");
 	}
 	lines.push(
 		view.operator_owned
