@@ -21,6 +21,3 @@ tsconfig.json
 tsconfig.test.json
 **/*.ts
 **/*.map
-# The icon candidate set and its review page for dinah-372. These are a
-# development-only review artifact and no part of the running extension.
-media/candidates/**
