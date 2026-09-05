@@ -708,6 +708,15 @@ func answerRefusal(request *verb.Request, refusal *contract.Refusal) map[string]
 func request2Args(command string, arguments map[string]any) *verb.Request {
 	req := &verb.Request{Verb: command}
 	for _, param := range verb.Params(command) {
+		// A parameter the table binds to no request field is one no verb
+		// reads, so it is dropped here rather than landing on whatever field
+		// shares its name. workbenches names its depth the same way the
+		// root-scoped reads do and answers it without a request at all, and
+		// assigning it anyway made the declaration and the code disagree
+		// about a value nothing goes on to read.
+		if param.Field == "" {
+			continue
+		}
 		value, ok := arguments[param.Name]
 		if !ok {
 			continue
@@ -881,9 +890,6 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.NoClaim = value
 	case "archived":
 		req.Archived = value
-	case "catalogs":
-		// The version tool always reports catalog coverage, so the marker
-		// carries nothing here.
 	}
 }
 
