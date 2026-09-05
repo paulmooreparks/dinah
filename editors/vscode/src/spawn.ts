@@ -7,7 +7,6 @@
 // goes past cli.ts, which composes --json itself.
 
 import { execFile } from "node:child_process";
-import { chmod, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { SpawnOptions, SpawnOutcome, Spawner } from "./cli";
@@ -58,26 +57,5 @@ export const nodeSpawner: Spawner = (
 		);
 	});
 
-/** Lists a directory, rejecting with ENOENT when it does not exist. */
-export const listDirectory = (dir: string): Promise<string[]> => readdir(dir);
-
 /** Joins a directory and a name the way the host platform spells paths. */
 export const joinPath = (dir: string, name: string): string => join(dir, name);
-
-/**
- * Gives a carried binary its executable bit back.
- *
- * A vsix is a zip, and a zip entry's mode does not survive VS Code's install
- * on Linux or macOS, so a binary carried for exactly those platforms arrives
- * unable to run. Windows has no such bit and needs no call.
- */
-export async function ensureExecutable(path: string): Promise<void> {
-	if (process.platform === "win32") {
-		return;
-	}
-	const info = await stat(path);
-	if ((info.mode & 0o111) === 0o111) {
-		return;
-	}
-	await chmod(path, 0o755);
-}

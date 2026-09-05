@@ -17,7 +17,7 @@ export interface VersionReport {
 }
 
 /** Which rung of the ladder produced the binary this window is using. */
-export type BinarySource = "setting" | "path" | "carried";
+export type BinarySource = "setting" | "path";
 
 /** One workbench a `dinah.ambiguous-workbench` refusal found. */
 export interface Candidate {
@@ -51,14 +51,6 @@ export type BinaryState =
 			readonly path: string;
 			readonly source: BinarySource;
 			readonly version: VersionReport;
-			/**
-			 * Set only when a binary on PATH was passed over for the carried
-			 * one, naming both paths and both versions. The demotion is
-			 * announced rather than silent, because an extension quietly
-			 * driving a different build than the user's terminal is a split
-			 * brain that costs more than it saves.
-			 */
-			readonly demotedFrom?: string;
 	  }
 	| { readonly state: "no-binary" }
 	| {

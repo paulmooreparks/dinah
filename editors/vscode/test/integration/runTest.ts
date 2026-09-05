@@ -5,8 +5,7 @@
 // activated at all, and that can only be asked of a window that opened with
 // nothing else in it.
 
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { chmodSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runTests } from "@vscode/test-electron";
@@ -20,7 +19,6 @@ import {
 	initBench,
 	pinBinary,
 } from "../support/fixtures";
-import type { FixtureRoot } from "../support/fixtures";
 
 const extensionRoot = join(__dirname, "..", "..", "..");
 const repoRoot = join(extensionRoot, "..", "..");
@@ -30,30 +28,7 @@ const suitePath = join(__dirname, "suite", "index");
 interface Launch {
 	readonly suite: string;
 	readonly folder: string;
-	/** A copy of the extension carrying a binary, for the carried-binary run. */
-	readonly extensionPath?: string;
 	readonly env?: Record<string, string | undefined>;
-}
-
-/**
- * Stages a copy of the built extension carrying one binary whose executable
- * bit has been stripped, which is what a vsix install produces on Linux and
- * macOS: a zip entry's mode does not survive it.
- */
-function stageCarried(root: FixtureRoot): string {
-	const staged = join(root.tempRoot, "carried-extension");
-	mkdirSync(join(staged, "bin"), { recursive: true });
-	for (const entry of ["package.json", "dist", "media"]) {
-		cpSync(join(extensionRoot, entry), join(staged, entry), { recursive: true });
-	}
-	// The staged file keeps the name release.yml publishes it under, which is
-	// what the resolver reads the directory for rather than composing.
-	const name =
-		process.platform === "win32" ? "dinah-windows-amd64.exe" : "dinah-linux-amd64";
-	const carried = join(staged, "bin", name);
-	cpSync(join(root.tempRoot, BINARY_NAME), carried);
-	chmodSync(carried, 0o644);
-	return staged;
 }
 
 async function main(): Promise<void> {
@@ -100,24 +75,12 @@ async function main(): Promise<void> {
 	// there can only assert the no-Claim half.
 	moveCard(root, tree, treeCards[0], "doing");
 
-	// AC-15: the carried binary, arriving without its executable bit.
-	const carried = join(fixtures, "carried");
-	initBench(root, carried);
-
 	const launches: Launch[] = [
 		{ suite: "active", folder: active },
 		{ suite: "nested", folder: nestedWork },
 		{ suite: "ambiguous", folder: ambiguous },
 		{ suite: "inactive", folder: bare },
 		{ suite: "tree", folder: tree },
-		{
-			suite: "carried",
-			folder: carried,
-			extensionPath: stageCarried(root),
-			// Nothing named dinah may be on this window's PATH, or rung 2
-			// answers and the carried rung is never reached.
-			env: { PATH: process.platform === "win32" ? "C:\\Windows\\System32" : "/usr/bin:/bin" },
-		},
 	];
 
 	let failed = false;
@@ -149,7 +112,7 @@ async function main(): Promise<void> {
 		process.stdout.write(`\n=== ${launch.suite}: ${launch.folder}\n`);
 		try {
 			await runTests({
-				extensionDevelopmentPath: launch.extensionPath ?? extensionRoot,
+				extensionDevelopmentPath: extensionRoot,
 				extensionTestsPath: suitePath,
 				extensionTestsEnv: overrides,
 				launchArgs: [

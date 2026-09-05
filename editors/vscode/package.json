@@ -46,7 +46,7 @@
       {
         "view": "dinah.workbenchView",
         "when": "dinah.binary == 'missing'",
-        "contents": "Dinah is not installed on this machine, and this build of the extension does not carry a binary for your platform. Install it from [github.com/paulmooreparks/dinah](https://github.com/paulmooreparks/dinah), or set `dinah.path` to a binary you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
+        "contents": "Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.\n[Open the Dinah settings](command:workbench.action.openSettings?%22dinah%22)"
       },
       {
         "view": "dinah.workbenchView",
@@ -283,7 +283,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH, or the one carried inside this extension. A binary path is a property of the machine, so this setting does not travel through settings sync."
+          "markdownDescription": "Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync."
         },
         "dinah.workbench": {
           "type": "string",

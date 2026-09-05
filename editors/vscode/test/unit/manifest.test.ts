@@ -322,6 +322,264 @@ test("the settings are contributed with the scopes their subjects need", () => {
 	assert.equal(watch.default, true);
 });
 
+// The vocabulary an affirmative claim reaches for. This set is deliberately
+// wider than the wording that was in the tree: a guard armed only against the
+// sentence already fixed misses the next one, written a different way, in
+// exactly the way the phrase-by-phrase sweep that found the first one did.
+//
+// `has` and `contains` are here in their third-person singular forms only.
+// "The extension has a dinah binary" is the claim this guard exists to refuse,
+// while "set `dinah.path` to a binary you already have" is honest copy about
+// the reader's own machine, so `have` and `contain` stay out.
+//
+// `has` also has to shed its auxiliary use, which possesses nothing. "The
+// extension has been tested against the dinah release it is paired with"
+// describes the pairing this card kept alive, and the lookahead is what keeps
+// the guard off it.
+const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|had|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
+const POSSESSION = new RegExp(String.raw`\b${POSSESSION_WORD}\b`, "gi");
+
+// Who is said to do the possessing, and what is said to be possessed. Frame
+// one below requires both to be named, because a possession word beside the
+// extension alone says nothing about dinah: "this extension provides a tree
+// view of your workbench" is true, honest, and none of this guard's business.
+const SUBJECT = /\b(?:extensions?|vsix)\b/i;
+const PAYLOAD = /\b(?:dinah|binar(?:y|ies)|cop(?:y|ies)|cli|executable)\b/i;
+
+// A possession word attached straight to the payload, which names no
+// extension at all: "the built-in dinah binary".
+const QUALIFIED_PAYLOAD =
+	/\b(built[- ]in|bundled|embedded|packaged|included|carried|shipped|supplied|provided)\s+(copy|dinah|binary|cli|executable)\b/gi;
+
+// The payload written as "the one", whose antecedent is a dinah binary earlier
+// in the same copy: "the one carried inside this extension". The bare word is
+// deliberately absent from PAYLOAD, since a sentence that counts things ("one
+// view per workbench") would then satisfy frame one; it counts here only where
+// a possession word governs it directly.
+const ANAPHORIC_PAYLOAD = new RegExp(
+	String.raw`\bthe one\b\s+(?:that\s+|which\s+)?(?:is\s+|was\s+)?${POSSESSION_WORD}\b`,
+	"gi",
+);
+
+// Negation is what separates the honest copy from the claim, and it sits on
+// either side of the word: "does not carry a copy", "carries no copy".
+const NEGATED_BEFORE = /\b(not|never|no|without|n't|neither|nor)\s+(\w+\s+)?$/i;
+const NEGATED_AFTER = /^\s*(no|none|nothing|neither)\b/i;
+
+/** Sentence-sized pieces, so a negation in one clause cannot excuse another. */
+function sentencesOf(text: string): string[] {
+	return text.split(/(?<=[.!?])\s+|\n+/);
+}
+
+function negated(sentence: string, at: number, length: number): boolean {
+	return (
+		NEGATED_BEFORE.test(sentence.slice(0, at)) ||
+		NEGATED_AFTER.test(sentence.slice(at + length))
+	);
+}
+
+/**
+ * The sentences in `text` that affirmatively say a dinah binary lives inside
+ * the extension. Three frames, because the claim gets written several ways
+ * round: a sentence naming both the extension and the payload with a
+ * possession word somewhere in it, in either order and at any distance; a
+ * possession word attached straight to the payload; and the payload written as
+ * "the one".
+ *
+ * What these three frames do not reach, written down so that the case list
+ * below is not read as an exhaustive one. A claim split across a sentence
+ * boundary escapes, because the sentence carrying it names neither party ("The
+ * extension is self-contained. It carries dinah."), and sentence-sized
+ * judgement is what makes the negation check trustworthy, so the two go
+ * together. A verb outside the set escapes, whether passive or indirect ("A
+ * dinah binary is distributed with this extension", "This extension installs
+ * dinah for you", "dinah is vendored into this extension"). So does the
+ * payload named as something other than a binary ("the bundled command-line
+ * tool"). Two more classes escape for reasons of their own: the possessor
+ * named as something the SUBJECT vocabulary does not cover ("The marketplace
+ * build embeds dinah so you need not fetch it"), and "the one" separated from
+ * its possession word by an explicit subject ("Leave empty to use the one the
+ * extension supplies"), which ANAPHORIC_PAYLOAD allows only a relative pronoun
+ * and a copula to sit in. A reviewer's own sweep, not this pattern, is the
+ * first line against all five, and KNOWN_ESCAPES below pins the two so that
+ * this paragraph cannot quietly go out of date.
+ */
+function claimsToCarryDinah(text: string): string[] {
+	const found = new Set<string>();
+	for (const sentence of sentencesOf(text)) {
+		// Frame one needs both parties named; the other two carry the payload
+		// in the match itself, so QUALIFIED_PAYLOAD needs no subject at all.
+		const patterns = [QUALIFIED_PAYLOAD];
+		if (SUBJECT.test(sentence)) {
+			patterns.push(ANAPHORIC_PAYLOAD);
+			if (PAYLOAD.test(sentence)) {
+				patterns.push(POSSESSION);
+			}
+		}
+		for (const pattern of patterns) {
+			pattern.lastIndex = 0;
+			for (let m = pattern.exec(sentence); m !== null; m = pattern.exec(sentence)) {
+				if (!negated(sentence, m.index, m[0].length)) {
+					found.add(sentence.trim());
+					break;
+				}
+			}
+		}
+	}
+	return [...found];
+}
+
+// The sentences this guard exists to refuse, written the several ways somebody
+// would actually write them rather than the one way the tree happened to use.
+// They live here as a case rather than in a comment, so that loosening the
+// pattern fails at once and names the frame it stopped catching.
+const CLAIMS_A_CARRIED_BINARY = [
+	"Leave empty to use the one on your PATH, or the one carried inside this extension.",
+	"The dinah binary bundled in this extension is used when nothing is on your PATH.",
+	"A dinah binary is included in this extension.",
+	"This extension includes a dinah binary.",
+	"The extension carries a dinah binary.",
+	"This extension ships with a copy of dinah.",
+	"A dinah binary is packaged with this extension.",
+	"Leave empty to use the one that comes with this extension.",
+	"Leave empty to use the built-in dinah binary.",
+	"Leave empty to use the extension's own copy of dinah.",
+	"If dinah is not on your PATH the extension will fall back to its own copy.",
+	"The extension provides a dinah binary for your platform.",
+	"A copy of dinah is embedded in the extension.",
+	"The extension supplies dinah when it is missing.",
+	"The extension has a dinah binary for every platform.",
+	"The .vsix contains a dinah binary.",
+];
+
+// Copy that says the opposite, or says nothing about where dinah comes from,
+// and has to keep passing. The first four are live strings this extension
+// publishes today, two of them from `src/status.ts` rather than the manifest,
+// and the first of the four is the welcome block without its trailing
+// settings-link line, which carries no possession vocabulary and is walked
+// whole by the corpus test below. A widened pattern is as likely to start
+// refusing honest copy as it is to start catching a claim, and the second
+// group is what proves it did not: seven ordinary sentences about the
+// extension's own features, all of them refused by the first widening and
+// measured at Operator Code Review, plus three that pin the exclusions this
+// pattern makes on purpose (`have` as against `has`, a counted "one" as
+// against an anaphoric one, and `has been` as against `has`).
+const HONEST_COPY = [
+	"Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.",
+	"Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
+	"No dinah binary was found. This extension is a companion to the dinah command-line tool and carries no copy of it.",
+	"Install it from https://github.com/paulmooreparks/dinah#install, or set dinah.path to a binary you already have.",
+	"This extension never carries a dinah binary.",
+	"This extension does not include a copy of dinah.",
+	"This extension has no built-in copy of dinah.",
+	"This text is replaced as soon as the extension has an answer.",
+	"Dinah has a binary for this window but no workbench to go with it.",
+	"This extension provides a tree view of your workbench.",
+	"The extension includes a status bar item showing which workbench this folder resolves to.",
+	"This extension ships with commands for claiming, moving and releasing cards.",
+	"This extension supplies the editor with a view of the cards in your workbench.",
+	"The extension comes with a settings page.",
+	"The extension bundles its own webview assets.",
+	"This extension includes telemetry: none.",
+	"This extension will use a binary you already have.",
+	"The extension provides one view per workbench.",
+	"The extension has been tested against the dinah release it is paired with.",
+];
+
+// Claims the three frames do not reach. They are pinned rather than merely
+// described, because the doc comment on `claimsToCarryDinah` that lists them
+// cannot fail, and a limit nobody can fail is a limit that drifts. A widening
+// that starts catching one of these is welcome; it has to say so here and in
+// that comment before it ships.
+const KNOWN_ESCAPES = [
+	"The marketplace build embeds dinah so you need not fetch it.",
+	"Leave empty to use the one the extension supplies.",
+];
+
+test("the carried-binary guard catches the spellings a writer would reach for", () => {
+	for (const sentence of CLAIMS_A_CARRIED_BINARY) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[sentence],
+			`the guard no longer catches: ${sentence}`,
+		);
+	}
+	for (const sentence of HONEST_COPY) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[],
+			`the guard now refuses honest copy: ${sentence}`,
+		);
+	}
+	for (const sentence of KNOWN_ESCAPES) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[],
+			`the guard now catches a documented escape, so update the doc comment on claimsToCarryDinah: ${sentence}`,
+		);
+	}
+});
+
+test("no manifest string offers the extension itself as a place dinah comes from", () => {
+	// The extension is a companion to the CLI and installs nothing, so every
+	// user-facing string the manifest publishes has to agree with that. The
+	// dinah.path description was the one that did not: it survived the card that
+	// removed the carried binary because that sweep searched for the phrases the
+	// welcome view used, and this sentence shared no word with them.
+	//
+	// In scope: the extension description, both description forms of every
+	// setting, and every welcome block for this view. Out of scope, and pinned
+	// elsewhere: `enumDescriptions` and `markdownEnumDescriptions`, which no
+	// setting here declares, and the status-bar tooltips, which live in
+	// `src/status.ts` and are held by `test/unit/status.test.ts`.
+	const configuration = contributes.configuration as {
+		properties: Record<string, { markdownDescription?: string; description?: string }>;
+	};
+	const strings: { where: string; text: string }[] = [
+		{ where: "the manifest description", text: manifest.description as string },
+	];
+	for (const [key, property] of Object.entries(configuration.properties)) {
+		// Both forms are read. Collecting one or the other would skip the plain
+		// description of any setting that grew a markdown one beside it.
+		if (property.markdownDescription !== undefined) {
+			strings.push({
+				where: `the ${key} setting's markdownDescription`,
+				text: property.markdownDescription,
+			});
+		}
+		if (property.description !== undefined) {
+			strings.push({ where: `the ${key} setting's description`, text: property.description });
+		}
+	}
+	for (const block of welcomeBlocks()) {
+		strings.push({ where: `the welcome block for ${block.when}`, text: block.contents });
+	}
+	// A vacuous pass is the failure mode here, so the corpus is counted twice
+	// over. The derived count fails when the collector above stops reading one
+	// of the manifest's three sources, and the literal count fails when the
+	// published surface shrinks under a guard that would otherwise report a
+	// smaller sweep as a clean one.
+	const declared =
+		1 +
+		Object.values(configuration.properties).reduce(
+			(n, property) =>
+				n +
+				(property.markdownDescription === undefined ? 0 : 1) +
+				(property.description === undefined ? 0 : 1),
+			0,
+		) +
+		welcomeBlocks().length;
+	assert.equal(strings.length, declared);
+	assert.equal(strings.length, 11);
+	for (const { where, text } of strings) {
+		assert.deepEqual(
+			claimsToCarryDinah(text),
+			[],
+			`${where} says a dinah binary lives inside the extension`,
+		);
+	}
+});
+
 test("the manifest declares exactly the commands identity.ts names", () => {
 	const commands = contributes.commands as { command: string; title: string }[];
 	assert.deepEqual(

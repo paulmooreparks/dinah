@@ -25,7 +25,7 @@ sets how often the view re-reads, and `dinah.watchFiles` turns file watching on
 and off.
 
 Install the CLI from the project's own instructions at
-https://github.com/paulmooreparks/dinah.
+https://github.com/paulmooreparks/dinah#install.
 
 ## The version numbers here and the version numbers there
 

@@ -94,15 +94,6 @@ test("a skewed binary shows an error carrying the gate's own diagnostic", () => 
 	assert.ok(view.tooltip.includes("storage format 99"));
 });
 
-test("the announced demotion reaches the tooltip", () => {
-	const view = composeStatus(
-		{ ...GOOD_BINARY, source: "carried", demotedFrom: "used the carried one because" },
-		INSIDE,
-		"source",
-	);
-	assert.ok(view.tooltip.includes("used the carried one because"));
-});
-
 test("the paired release is displayed", () => {
 	const view = composeStatus(GOOD_BINARY, INSIDE, "v0.1.0-dev.42");
 	assert.ok(view.tooltip.includes("extension paired with dinah v0.1.0-dev.42"));
