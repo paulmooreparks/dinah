@@ -188,6 +188,16 @@ type Request struct {
 	// head once discovery has run, since that is the earliest point the
 	// answer is known.
 	WorkbenchSource string
+	// From is the source a reshape reads its new column layout from, as the
+	// caller wrote it: an interchange file or another workbench's directory,
+	// which are the two shapes `dinah init --from` already accepts.
+	From string
+	// Map is the reshape destinations the caller named, each one written
+	// `<retired>=<destination>`, in the order they were written. It is a list
+	// rather than a single value because one run retires as many columns as
+	// the new definition drops, and a later entry for the same retirement
+	// wins over an earlier one.
+	Map []string
 }
 
 // CardView is the card as a response carries it.

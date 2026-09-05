@@ -163,11 +163,12 @@ var Shapes = []Shape{
 		// title dinah add refuses, and hand that reader a repair written
 		// about a file he has not touched.
 		Name:   Malformed,
-		Values: []string{"path", "file", "cardRef", ValueUsage, ValueWorkbench},
+		Values: []string{"path", "file", "cardRef", "claimants", "retired", ValueUsage, ValueWorkbench},
 		Fragments: []Fragment{
 			{Key: "refusal.malformed.at", When: "path"},
 			{Key: "refusal.malformed.in-file", When: "file"},
 			{Key: "refusal.malformed.reads-as-a-card-reference", When: "cardRef"},
+			{Key: "refusal.malformed.claimed-twice", When: "claimants"},
 			{Key: "refusal.malformed.fix-named", When: ValueWorkbench},
 			{Key: "refusal.malformed.fix", When: "path"},
 			{Key: "refusal.malformed.next-file", When: "file"},
@@ -839,6 +840,56 @@ var Shapes = []Shape{
 		Name:      UnknownFormat,
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-format.next"}},
 		NextStep:  []string{"refusal.dinah.unknown-format.next"},
+	},
+	{
+		// A reshape retiring a column live cards still stand in, with
+		// nothing naming where they go. The detail is the column and the
+		// count rides beside it, because the decision the refusal is asking
+		// for is made on both: which station the work continues at, and how
+		// much work is standing there.
+		Name:      ReshapeNeedsDestination,
+		Values:    []string{"cards"},
+		Fragments: []Fragment{{Key: "refusal.dinah.reshape-needs-a-destination.next"}},
+		NextStep:  []string{"refusal.dinah.reshape-needs-a-destination.next"},
+	},
+	{
+		// A reshape that would leave a held card where no owner takes work
+		// up. The detail names the column and the cards ride beside it, so
+		// the reader knows which claims to release rather than being sent to
+		// find them.
+		Name:      ReshapeHeldCardInQueue,
+		Values:    []string{"cards"},
+		Fragments: []Fragment{{Key: "refusal.dinah.reshape-held-card-in-queue.next"}},
+		NextStep:  []string{"refusal.dinah.reshape-held-card-in-queue.next"},
+	},
+	{
+		// A --map entry whose left side carries no card anywhere. The detail
+		// is what the caller typed, so the sentence shows them their own
+		// spelling, and the next step names dinah check, which is the
+		// command that reports a stranded identifier by name.
+		Name:      ReshapeMapSourceEmpty,
+		Fragments: []Fragment{{Key: "refusal.dinah.reshape-map-source-empty.next"}},
+		NextStep:  []string{"refusal.dinah.reshape-map-source-empty.next"},
+	},
+	{
+		// A destination resolving into the set the same run retires. The
+		// detail is the reference as written and the column it resolved to
+		// rides beside it, because a slug or a title gives the reader no way
+		// to see which retirement they landed on.
+		Name:      ReshapeDestinationRetiring,
+		Values:    []string{"column"},
+		Fragments: []Fragment{{Key: "refusal.dinah.reshape-destination-retiring.next"}},
+		NextStep:  []string{"refusal.dinah.reshape-destination-retiring.next"},
+	},
+	{
+		// A destination matching the title of two or more columns the new
+		// definition adds. An added column has no live identifier yet, so
+		// the candidates ride as their positions in the definition's own
+		// columns array, which is the only handle both of them carry.
+		Name:      ReshapeDestinationAmbiguous,
+		Values:    []string{"positions"},
+		Fragments: []Fragment{{Key: "refusal.dinah.reshape-destination-ambiguous.next"}},
+		NextStep:  []string{"refusal.dinah.reshape-destination-ambiguous.next"},
 	},
 }
 

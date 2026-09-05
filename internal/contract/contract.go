@@ -394,6 +394,35 @@ const (
 	// is told so instead of being handed prose where they asked for
 	// structure.
 	UnknownFormat = LayerPrefix + "unknown-format"
+	// ReshapeNeedsDestination is a reshape retiring a column that live cards
+	// still stand in, with neither a replaces declaration on the new
+	// definition nor a --map entry naming where those cards go. The tool
+	// refuses rather than choosing a destination, because which station the
+	// work continues at is the operator's decision and no rule in the flow
+	// answers it.
+	ReshapeNeedsDestination = LayerPrefix + "reshape-needs-a-destination"
+	// ReshapeHeldCardInQueue is a reshape that would leave a held card
+	// standing where no owner takes work up: a retirement carrying its cards
+	// into such a column, or a kept column whose new kind stops taking work
+	// up under a card somebody is already holding. Both are refused before
+	// the write rather than reported by check afterwards.
+	ReshapeHeldCardInQueue = LayerPrefix + "reshape-held-card-in-queue"
+	// ReshapeMapSourceEmpty is a --map whose retired side names no live
+	// column, no column of the new definition, and no card's stored column
+	// either, so the entry would carry nothing. A typed identifier that
+	// matches nothing reads as a refusal rather than as a silent no-op.
+	ReshapeMapSourceEmpty = LayerPrefix + "reshape-map-source-empty"
+	// ReshapeDestinationRetiring is a destination that resolves into the set
+	// of columns this same run retires. Carrying cards there would leave them
+	// standing in a column the run is about to archive, so validation refuses
+	// before anything is written.
+	ReshapeDestinationRetiring = LayerPrefix + "reshape-destination-retiring"
+	// ReshapeDestinationAmbiguous is a destination matching the title of two
+	// or more columns the new definition adds, with no declared identifier on
+	// any of them to break the tie. An added column has no live identifier
+	// yet, so the refusal names each candidate by its position in the new
+	// definition's columns array.
+	ReshapeDestinationAmbiguous = LayerPrefix + "reshape-destination-ambiguous"
 )
 
 // Introduced lists every refusal name Dinah mints beyond the profile's own.
@@ -410,6 +439,8 @@ var Introduced = []string{
 	AmbiguousName, NotRenamable,
 	AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat,
+	ReshapeNeedsDestination, ReshapeHeldCardInQueue, ReshapeMapSourceEmpty,
+	ReshapeDestinationRetiring, ReshapeDestinationAmbiguous,
 }
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
@@ -493,6 +524,15 @@ const (
 	// change and a status change alike, and it carries Field, From and To
 	// exactly as EventWorkbenchUpdated does.
 	EventWorkstreamUpdated = "workstream_updated"
+	// EventColumnUpdated records a rewrite of a column's own anchor, on the
+	// workbench journal, and carries the column's identifier in Note. It
+	// sits beside EventWorkbenchUpdated on the same terms: a column is a
+	// workbench-level entity carrying no journal of its own, so the record of
+	// a write to it belongs to the workbench that holds it. Reshape is the
+	// only writer today, and it writes one line per kept column whose
+	// rendered anchor the new definition actually changed, so a run that
+	// repeats a column unchanged leaves no line behind.
+	EventColumnUpdated = "column_updated"
 	// EventWorkstreamJoined and EventWorkstreamLeft record a card entering
 	// and leaving a workstream, on the card's own journal, because membership
 	// is card-owned and the card is the file that changed. Each carries the
@@ -516,13 +556,13 @@ const (
 // containment does not hold the other way. EventRestored is listed and no
 // command writes it, so a query naming it is accepted and selects nothing.
 //
-// EventWorkbenchUpdated and EventWorkstreamUpdated are the two declared names
-// this list holds out, and each is held out for the same reason: it lands on
-// the workbench's journal or on a workstream's, never on a card's, so no card
-// a query reads can ever carry it. EventCardUpdated is the third of the
-// *_updated family and is listed, because it lands on a card's own journal
-// and an event a card carries that nobody can ask for is exactly what the
-// containment above forbids.
+// EventWorkbenchUpdated, EventWorkstreamUpdated and EventColumnUpdated are the
+// three declared names this list holds out, and each is held out for the same
+// reason: it lands on the workbench's journal or on a workstream's, never on a
+// card's, so no card a query reads can ever carry it. EventCardUpdated is the
+// fourth of the *_updated family and is listed, because it lands on a card's
+// own journal and an event a card carries that nobody can ask for is exactly
+// what the containment above forbids.
 var Events = []string{
 	EventCreated, EventClaimed, EventMoved, EventReleased, EventBlocked,
 	EventUnblocked, EventExpired, EventCommented, EventAttached,

@@ -336,6 +336,26 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
 		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
 	},
+	// reshape's list is the order Reshape evaluates in, which is also the
+	// order a reader meets the refusals in: the workbench and the owner
+	// first, then the source, then each destination as it is resolved, then
+	// the two questions asked once every destination is known.
+	//
+	// dinah.no-workbench is not listed, for the reason mcp's list gives for
+	// leaving it out: it belongs to workbench discovery rather than to any
+	// verb, and no other command's list carries it either.
+	"reshape": {
+		{Refusal: contract.NoOperator, Key: "check.reshape.1"},
+		{Refusal: contract.NoOwner, Key: "check.reshape.2"},
+		{Refusal: contract.UnknownPath, Key: "check.reshape.3"},
+		{Refusal: contract.Malformed, Key: "check.reshape.4"},
+		{Refusal: contract.ReshapeDestinationAmbiguous, Key: "check.reshape.5"},
+		{Refusal: contract.UnknownColumn, Key: "check.reshape.6"},
+		{Refusal: contract.ReshapeDestinationRetiring, Key: "check.reshape.7"},
+		{Refusal: contract.ReshapeMapSourceEmpty, Key: "check.reshape.8"},
+		{Refusal: contract.ReshapeNeedsDestination, Key: "check.reshape.9"},
+		{Refusal: contract.ReshapeHeldCardInQueue, Key: "check.reshape.10"},
+	},
 }
 
 // Checks returns the ordered precondition list of a command, prefixed by the
