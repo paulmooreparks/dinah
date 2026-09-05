@@ -26,17 +26,19 @@
 # One thing changes in your checkout the first time you build without
 # -SkipExtension, and it is worth knowing before it happens. Packaging needs
 # editors/vscode/node_modules, so this script installs those dependencies when
-# they are missing. Go's package walk ignores directories whose names begin
-# with a dot or an underscore, directories named testdata, and vendor
-# directories, and it ignores nothing else, so an npm dependency that ships a
-# Go source file becomes part of this module as soon as those dependencies
-# exist. After that, go build ./..., go vet ./..., go test ./..., and
-# gofmt -l . all descend into that tree, take longer than they did, and can
-# report a file this repository never wrote. CI does not see any of it, because
-# the Go jobs there never install npm packages, and the gofmt job already runs
-# over cmd and internal alone for the same reason. That problem is dinah-274
-# and this script does not fix it. Pass -SkipExtension to keep a checkout that
-# has never packaged the extension free of it.
+# they are missing, and one of them ships a Go source file inside that tree.
+# Your repo-wide Go commands are unaffected, because editors/vscode carries a
+# go.mod of its own and Go's package walk stops at any subdirectory holding
+# one, so
+# go build ./..., go vet ./... and go test ./... never descend into the npm
+# dependencies whatever those dependencies come to contain. dinah-274 put that
+# boundary in place.
+#
+# gofmt is the exception, because it knows nothing about module boundaries and
+# skips only names beginning with a dot. A gofmt -l . you run by hand still
+# walks the npm tree and can name a file this repository never wrote, so scope
+# it the way CI does and run gofmt -l cmd internal instead. The Go jobs in CI
+# never install npm packages at all.
 
 param(
     [switch]$SkipPull,

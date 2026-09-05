@@ -16,6 +16,9 @@ test/**
 scripts/**
 node_modules/**
 esbuild.mjs
+# The module boundary that keeps node_modules out of the dinah Go module
+# (dinah-274). It is a build-time file and the running extension never reads it.
+go.mod
 eslint.config.mjs
 tsconfig.json
 tsconfig.test.json
