@@ -137,6 +137,11 @@ type reshapePlan struct {
 	elements    []*reshapeElement
 	retirements []*reshapeRetirement
 	stranded    int
+	// sequence is the columns sequence as validation read it, which is the
+	// whole of what this plan had a view of. Step five tells an identifier
+	// the plan decided to drop from one that arrived after the plan was made
+	// by asking whether this list carries it.
+	sequence []string
 }
 
 // Reshape carries a live workbench from its current column layout to the one
@@ -187,6 +192,13 @@ func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
 	// take their own: Bench.Run acquires the workbench lock itself at the
 	// first step of the structural protocol, and a lock this package holds
 	// open across it would refuse the archive rather than serialize it.
+	//
+	// What this plan is, therefore, is the run's intent rather than a fact
+	// about the workbench that stays true. Between two write steps another
+	// writer can claim a card, add a column or archive one, so every step
+	// asks its own questions again under the lock it writes beneath. See
+	// applyReshape for what each step re-asks and for what a refusal raised
+	// there leaves behind.
 	plan, err := l.planReshape(req, definition, digest, now)
 	if err != nil {
 		return nil, err
@@ -259,7 +271,7 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 	if err != nil {
 		return nil, err
 	}
-	plan := &reshapePlan{definition: definition, digest: digest}
+	plan := &reshapePlan{definition: definition, digest: digest, sequence: fresh.ColumnSequence()}
 	// Sorting. An element carrying a valid identifier of its own is taken at
 	// that identifier; one carrying none is taken at the identifier the run
 	// derives for its position. Either way the element is kept when the
@@ -522,12 +534,28 @@ func reshapeHeldCards(plan *reshapePlan, fresh *bench.Bench, cards []*bench.Card
 			})
 		}
 	}
+	return reshapeKeptHeldCards(plan, fresh, cards)
+}
+
+// reshapeKeptHeldCards is the kept-column half of that predicate on its own,
+// asked of whatever view of the workbench it is handed.
+//
+// It is a function rather than a loop inside reshapeHeldCards because it is
+// asked twice: once during validation, so that a preview reports the refusal
+// and a confirmed run stops before writing anything, and once again inside
+// rewriteKeptColumns against a view opened under the lock that performs the
+// kind flip. The second ask is the one that decides. A claim is taken under
+// the card's own lock and contends with the workbench lock not at all, so a
+// card claimed after validation read the flow is invisible to the first ask,
+// and the write would otherwise flip the column under it.
+func reshapeKeptHeldCards(plan *reshapePlan, fresh *bench.Bench, cards []*bench.Card) error {
 	for _, element := range plan.elements {
-		if element.live == nil || !element.live.TakesWorkUp() || element.takesWorkUp() {
+		live := fresh.Column(element.id)
+		if live == nil || !live.TakesWorkUp() || element.takesWorkUp() {
 			continue
 		}
-		if held := heldCardIDs(cardsIn(cards, element.live.ID)); len(held) > 0 {
-			return contract.RefuseWith(contract.ReshapeHeldCardInQueue, element.live.Ref(), map[string]string{
+		if held := heldCardIDs(cardsIn(cards, live.ID)); len(held) > 0 {
+			return contract.RefuseWith(contract.ReshapeHeldCardInQueue, live.Ref(), map[string]string{
 				"cards": strings.Join(held, ", "),
 			})
 		}
@@ -630,13 +658,56 @@ func blockedCardIDs(cards []*bench.Card) []string {
 	return blocked
 }
 
+// The windows a reshape's write phase leaves open, named so that a test can
+// say which one it wants a second writer to act in. Each is the interval
+// between two steps, where the run holds no lock and another writer is refused
+// by nothing. The card window is the exception that proves the rule: the carry
+// holds the workbench lock across the whole step, and the window is the one
+// before a single card's own lock is taken, which is where a carry deciding
+// from an earlier read would already have decided.
+const (
+	reshapeStepCarry   = "carry"
+	reshapeStepCard    = "card"
+	reshapeStepRewrite = "rewrite"
+	reshapeStepOrder   = "order"
+)
+
+// interpose gives a test the window between two write-phase steps. It does
+// nothing at all in ordinary use, where the hook is nil.
+func (l *Library) interpose(step string) {
+	if l.Interpose != nil {
+		l.Interpose(step)
+	}
+}
+
 // applyReshape is the write phase, run only once validation has passed and the
 // caller has confirmed. Each step is idempotent against a partially applied
 // prior run of the same source, so a retry finishes what a crash interrupted.
+//
+// Each step takes the locks its own act needs and gives them back, so another
+// writer can act between two of them. Every step therefore asks its own
+// questions again, against a view it opened under the lock that covers what it
+// is about to write, rather than trusting what validation saw. Three of them
+// can refuse at that point: the carry, on a card claimed since, and the kept
+// rewrite, on a column whose kind is flipping under a card claimed since. A
+// refusal there is late, and what it leaves behind is exactly what the earlier
+// steps wrote.
+//
+// That is survivable rather than merely tolerable, and the reason is the
+// idempotency above. Nothing is rolled back, because a partial reshape is a
+// shape dinah check already describes with findings it already has, and
+// because unwinding a carry would mean writing moves nobody decided, which is
+// the practice this verb exists to end. The operator clears what the refusal
+// names, a released claim in both cases, and runs the same source again: the
+// added columns are live so they sort as kept, the carried cards are skipped
+// by the carry, the archived columns are skipped by the archive, and the run
+// finishes the rest. A run that stops here reports itself as not applied,
+// because it did not apply the shape it was asked for.
 func (l *Library) applyReshape(req *Request, plan *reshapePlan, now string, report *ReshapeReport) error {
 	if err := l.writeAddedColumns(req, plan, now); err != nil {
 		return err
 	}
+	l.interpose(reshapeStepCarry)
 	carried, err := l.carryReshapedCards(req, plan, now)
 	if err != nil {
 		return err
@@ -647,11 +718,13 @@ func (l *Library) applyReshape(req *Request, plan *reshapePlan, now string, repo
 	if err := l.archiveRetiredColumns(req, plan, now); err != nil {
 		return err
 	}
+	l.interpose(reshapeStepRewrite)
 	updated, err := l.rewriteKeptColumns(req, plan, now)
 	if err != nil {
 		return err
 	}
 	report.Updated = updated
+	l.interpose(reshapeStepOrder)
 	return l.writeColumnOrder(req, plan, now)
 }
 
@@ -664,7 +737,16 @@ func (l *Library) applyReshape(req *Request, plan *reshapePlan, now string, repo
 // prior attempt rather than duplicating it. Creating the directory tolerates
 // finding it there, writing the anchor is a whole-file rename that has either
 // not run or completed, and the append to the sequence looks for its own
-// identifier first. No placement-disruption check runs, because that check
+// identifier first.
+//
+// One thing a retry does not recover, and the honest place to say so is here.
+// The created events are appended after the sequence, so a crash in that gap
+// leaves the column live and the retry sorts it as kept, and no created event
+// is ever written for it. Recording each event before the sequence append
+// would close that gap and open a smaller one, an event for a column not yet
+// in the flow, so the order stands and the loss is stated rather than fixed:
+// what is lost is a journal line about a column the workbench does carry, and
+// dinah check reads the columns rather than the events. No placement-disruption check runs, because that check
 // guards a single insertion into a stable flow and a reshape replaces the
 // whole flow at once.
 func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string) error {
@@ -731,59 +813,101 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 // and some not, and the ones not moved are carried by the retry, where a
 // single batched write would have to be all or nothing across locks no
 // filesystem takes together.
+//
+// Two locks are taken, and each covers what it protects. The workbench lock is
+// held across the step so that the destination column read at the top of it is
+// the destination every card is carried into: a column another writer archives
+// mid-step would otherwise take cards after it had stopped existing. The
+// card's own lock is taken before the card is read, and every value written
+// comes from that read rather than from the copy validation took, which is the
+// order Library.Do states and gives the reason for. Deciding from the earlier
+// copy would let a claim, a block, a release or a move landing in between be
+// overwritten wholesale by Card.Save, which writes the whole anchor and
+// compares nothing, leaving the card's own journal describing a state the
+// card no longer carries.
 func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string) (map[string]int, error) {
 	carried := map[string]int{}
+	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	if err != nil {
+		return nil, err
+	}
+	defer lock.Release()
+	fresh, err := bench.Open(l.Bench.Root)
+	if err != nil {
+		return nil, err
+	}
 	for _, entry := range plan.retirements {
 		if entry.destination == nil {
 			continue
-		}
-		fresh, err := bench.Open(l.Bench.Root)
-		if err != nil {
-			return nil, err
 		}
 		destination := fresh.Column(entry.destination.id)
 		if destination == nil {
 			return nil, contract.Refuse(contract.UnknownColumn, entry.destination.id)
 		}
 		for _, standing := range entry.cards {
-			card, err := bench.LoadCard(fresh.CardsRoot(), standing.ID)
+			l.interpose(reshapeStepCard)
+			cardLock, err := bench.Acquire(standing.Dir, req.Actor, now)
 			if err != nil {
 				return nil, err
 			}
-			if card.Column != entry.id {
-				// A prior attempt already carried this one, so the retry has
-				// nothing to do for it and says so by counting it.
+			carriedOne, err := l.carryOneCard(req, entry, destination, standing.ID, fresh, now)
+			cardLock.Release()
+			if err != nil {
+				return nil, err
+			}
+			if carriedOne {
 				carried[entry.id]++
-				continue
 			}
-			lock, err := bench.Acquire(card.Dir, req.Actor, now)
-			if err != nil {
-				return nil, err
-			}
-			ev := bench.Event{
-				TS:        now,
-				Event:     contract.EventMoved,
-				Actor:     req.Actor,
-				From:      card.Column,
-				FromTitle: reshapeDepartureTitle(entry),
-				To:        destination.ID,
-				ToTitle:   destination.Title,
-				Reshape:   true,
-			}
-			card.Column = destination.ID
-			if err := card.Save(); err != nil {
-				lock.Release()
-				return nil, err
-			}
-			if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
-				lock.Release()
-				return nil, err
-			}
-			lock.Release()
-			carried[entry.id]++
 		}
 	}
 	return carried, nil
+}
+
+// carryOneCard is the whole of one card's carry, run with that card's lock
+// already held by the caller. It reports whether the card counts as carried,
+// which a card a prior attempt already carried does.
+//
+// Everything it decides, it decides from the card it reads here. The
+// destination is re-tested for taking work up against the card as it now
+// stands, because a card claimed since validation read the flow would
+// otherwise be carried into a column where no owner takes work up, which is
+// the state the severe half of reshapeHeldCards refuses and the state no other
+// guard would ever report.
+func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destination *bench.Column, id string, fresh *bench.Bench, now string) (bool, error) {
+	card, err := bench.LoadCard(fresh.CardsRoot(), id)
+	if err != nil {
+		return false, err
+	}
+	if card.Column != entry.id {
+		// A prior attempt already carried this one, so the retry has nothing
+		// to do for it and says so by counting it.
+		return true, nil
+	}
+	if !entry.destination.takesWorkUp() {
+		if held := heldCardIDs([]*bench.Card{card}); len(held) > 0 {
+			return false, contract.RefuseWith(contract.ReshapeHeldCardInQueue, entry.destination.title(), map[string]string{
+				"cards": strings.Join(held, ", "),
+			})
+		}
+	}
+	ev := bench.Event{
+		TS:        now,
+		Event:     contract.EventMoved,
+		Actor:     req.Actor,
+		From:      card.Column,
+		FromTitle: reshapeDepartureTitle(entry),
+		To:        destination.ID,
+		ToTitle:   destination.Title,
+		Reshape:   true,
+	}
+	card.Column = destination.ID
+	if err := card.Save(); err != nil {
+		return false, err
+	}
+	if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // reshapeDepartureTitle is the title a carried card's moved event records for
@@ -858,15 +982,41 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 // A column whose rendered anchor the rewrite does not change records nothing,
 // so a reshape that only adds and retires leaves no noise on the columns it
 // never touched.
+//
+// The held-card predicate is asked again here, against a view opened under
+// this step's own lock, because this step is where a kind flip happens and
+// validation's answer is by then several acts old. Take the lock, then read,
+// then decide: the same order Library.Do states and columns.go's insertion
+// follows. A refusal raised here is late, and what it leaves behind is
+// described under applyReshape.
 func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string) ([]string, error) {
 	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return nil, err
 	}
 	defer lock.Release()
+	current, err := bench.Open(l.Bench.Root)
+	if err != nil {
+		return nil, err
+	}
+	standing, err := current.Cards()
+	if err != nil {
+		return nil, err
+	}
+	if err := reshapeKeptHeldCards(plan, current, standing); err != nil {
+		return nil, err
+	}
 	var updated []string
 	for _, element := range plan.elements {
 		if element.live == nil {
+			continue
+		}
+		// A column another writer archived after validation read the flow is
+		// left alone rather than rewritten from the definition, because
+		// writing its anchor again would put a directory back under columns/
+		// that the sequence no longer names, which is the very finding this
+		// card ships as check.orphaned-column-directory.
+		if current.Column(element.id) == nil {
 			continue
 		}
 		before := bench.ColumnAnchorText(l.Bench.Root, element.id)
@@ -881,13 +1031,9 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 	if len(updated) == 0 {
 		return nil, nil
 	}
-	fresh, err := bench.Open(l.Bench.Root)
-	if err != nil {
-		return nil, err
-	}
 	for _, id := range updated {
 		ev := bench.Event{TS: now, Event: contract.EventColumnUpdated, Actor: req.Actor, Note: id}
-		if err := bench.AppendEvent(fresh.JournalPath(), ev); err != nil {
+		if err := bench.AppendEvent(current.JournalPath(), ev); err != nil {
 			return nil, err
 		}
 	}
@@ -904,6 +1050,25 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 // definition does not name it. That is the same removal dinah check
 // --migrate-columns already offers, arriving as a consequence of adopting a
 // new shape rather than as a repair somebody asked for.
+//
+// The order written is composed from the sequence this step reads under its
+// own lock, not from the one validation read. Take the lock, then read, then
+// decide, which is what step one already does for this same collection and
+// what columns.go states outright. Writing the earlier snapshot back would
+// drop a column another writer added, leaving its directory behind as
+// check.orphaned-column-directory, and would return a column another writer
+// archived to the sequence with no directory behind it, which is
+// check.stranded-column. Those are the two findings this verb ships a check
+// for, and the run must not be the thing that produces them.
+//
+// An identifier the sequence carries now and did not carry when validation
+// read it is carried forward rather than dropped, at the end of the order. Its
+// position is not preserved, because the new definition decides the flow's
+// order and a reorder is safe under live cards; its membership is, because
+// dropping it would be this run deciding something about a column nobody asked
+// it about. The test is against the sequence validation read rather than
+// against the plan's two lists, so an identifier the plan saw and deliberately
+// dropped stays dropped.
 func (l *Library) writeColumnOrder(req *Request, plan *reshapePlan, now string) error {
 	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
@@ -914,11 +1079,31 @@ func (l *Library) writeColumnOrder(req *Request, plan *reshapePlan, now string) 
 	if err != nil {
 		return err
 	}
-	order := make([]string, 0, len(plan.elements))
-	for _, element := range plan.elements {
-		order = append(order, element.id)
+	sequence := fresh.ColumnSequence()
+	live := map[string]bool{}
+	for _, id := range sequence {
+		live[id] = true
 	}
-	if equalSequences(fresh.ColumnSequence(), order) {
+	seen := map[string]bool{}
+	for _, id := range plan.sequence {
+		seen[id] = true
+	}
+	order := make([]string, 0, len(sequence))
+	for _, element := range plan.elements {
+		if live[element.id] {
+			order = append(order, element.id)
+		}
+	}
+	placed := map[string]bool{}
+	for _, id := range order {
+		placed[id] = true
+	}
+	for _, id := range sequence {
+		if !seen[id] && !placed[id] {
+			order = append(order, id)
+		}
+	}
+	if equalSequences(sequence, order) {
 		return nil
 	}
 	return fresh.SetColumnSequence(order)

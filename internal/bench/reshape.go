@@ -47,6 +47,15 @@ func SourceDigest(data []byte) string {
 // against the same source recomputes the same identifier, finds whatever the
 // first attempt left, and finishes it in place.
 //
+// A derived identifier can in principle land on one a live column already
+// carries, at the same forty-eight bits of exposure ClaimID already accepts.
+// Within a run that is refused rather than resolved, because every identifier
+// this verb resolves, derived or declared, goes through one claimed set and a
+// second claim on one identifier is dinah.malformed. Across runs it would make
+// the element sort as kept and rewrite a column somebody else's definition
+// declared, which is a sentence here rather than a check because narrowing it
+// would mean minting differently than the rest of the tool does.
+//
 // The guarantee is exactly as wide as its inputs. A retry against an edited
 // source hashes differently and derives a different identifier, so it never
 // revisits the crashed attempt's directory; that residue is what

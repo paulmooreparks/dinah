@@ -982,3 +982,231 @@ func countIn(sequence []string, id string) int {
 	}
 	return count
 }
+
+// dropsAftercareIntoIntake retires the occupied aftercare station into the
+// intake column, where no owner takes work up. It is the severe half of the
+// held-card predicate: a card carried there while somebody holds it leaves a
+// claim standing where nothing would ever refuse a claim, because the guards
+// that refuse one run when a claim is taken and not afterwards.
+const dropsAftercareIntoIntake = `{
+  "profile": "dinah-core/0.7",
+  "title": "Fixture",
+  "columns": [
+    { "id": "a00000000001", "title": "Intake", "kind": "intake",
+      "replaces": ["a00000000005"] },
+    { "id": "a00000000002", "title": "Doing", "kind": "work", "capacity": 1 },
+    { "id": "a00000000003", "title": "Review", "kind": "work", "operator_owned": true },
+    { "id": "a00000000004", "title": "Finished", "kind": "done" },
+    { "id": "a00000000006", "title": "Closed", "kind": "done" }
+  ]
+}`
+
+// TestAHeldCardCarriedIntoAQueueColumnIsRefused is dinah-316 AC-5's other
+// half, the one D-3 calls the severe one and the one the code review found no
+// test reached at all: the branch could have been deleted with the suite still
+// green.
+//
+// The milder half, which TestAKindFlipUnderAHeldCardIsRefused covers, leaves a
+// held card where it already stood. This one moves it, into a column the run
+// itself chose for it, and the claim that lands there is one no guard sees:
+// claimableColumn runs when a claim is taken and never again.
+func TestAHeldCardCarriedIntoAQueueColumnIsRefused(t *testing.T) {
+	h := newHarness(t)
+	held := h.readyAt("held", aftercare)
+	h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: held, Holder: "alka"})
+	before := h.digest()
+	source := h.source(dropsAftercareIntoIntake)
+
+	for _, confirm := range []bool{false, true} {
+		_, err := h.reshape(source, confirm)
+		if got := refusalName(t, err); got != contract.ReshapeHeldCardInQueue {
+			t.Errorf("confirm=%v: wanted %s, got %s", confirm, contract.ReshapeHeldCardInQueue, got)
+		}
+		text := refusalText(t, err)
+		// The refusal names the destination rather than the departure,
+		// because the destination is the thing the operator would have to
+		// change, and it names the card because releasing it is the other way
+		// out.
+		if !strings.Contains(text, "Intake") || !strings.Contains(text, h.card(held).ID) {
+			t.Errorf("confirm=%v: wanted the destination and the held card named, got %q", confirm, text)
+		}
+		if after := h.digest(); after != before {
+			t.Errorf("confirm=%v: the refused run wrote to the workbench", confirm)
+		}
+	}
+	if column := h.card(held).Column; column != aftercare {
+		t.Errorf("the refused run carried the card anyway: it stands at %s", column)
+	}
+}
+
+// TestAClaimTakenAfterValidationRefusesTheKindFlip constructs the first of the
+// three interleavings the code review found, rather than reasoning about it.
+//
+// Validation reads the flow under the workbench lock and gives that lock back.
+// A claim takes the card's own lock and contends with the workbench lock not
+// at all, so a claim landing in the window between validation and the kind
+// flip is refused by nothing. The flip then has to ask again, under the lock
+// it writes beneath, or it lands a claim in a column where no owner takes work
+// up: the exact state the validation-time refusal exists to prevent, reached
+// without ever meeting it.
+func TestAClaimTakenAfterValidationRefusesTheKindFlip(t *testing.T) {
+	h := newHarness(t)
+	waiting := h.readyAt("claimed in the window", aftercare)
+	source := h.source(rekindsAftercare)
+
+	// The card is ready while validation reads the flow, so validation's own
+	// pass over the held-card predicate finds nothing to refuse.
+	h.library.Interpose = func(step string) {
+		if step != reshapeStepRewrite {
+			return
+		}
+		h.library.Interpose = nil
+		other := h.second()
+		response := other.Do(&Request{Verb: Claim, Actor: "alka", Card: waiting, Holder: "alka"})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the second writer's claim: %s %s", response.Outcome, response.Refusal)
+		}
+	}
+	_, err := h.reshape(source, true)
+
+	if got := refusalName(t, err); got != contract.ReshapeHeldCardInQueue {
+		t.Fatalf("wanted %s, got %s", contract.ReshapeHeldCardInQueue, got)
+	}
+	if text := refusalText(t, err); !strings.Contains(text, aftercareSlug) || !strings.Contains(text, h.card(waiting).ID) {
+		t.Errorf("wanted the column and the card claimed in the window named, got %q", text)
+	}
+	column := h.library.Bench.Column(aftercare)
+	if column == nil {
+		t.Fatal("the aftercare column is gone")
+	}
+	if !column.TakesWorkUp() {
+		t.Errorf("the kind flipped under the claim: aftercare is now %q", column.Kind)
+	}
+	if holder := h.card(waiting).Holder; holder != "alka" {
+		t.Errorf("wanted the second writer's claim standing, the holder is %q", holder)
+	}
+}
+
+// TestACarryDoesNotOverwriteAClaimTakenAfterValidation constructs the second
+// interleaving. The carry decides a card's fate from the copy it reads, and
+// Card.Save writes the whole anchor with no compare-and-set, so a carry
+// deciding from a copy read before the lock erases whatever landed in between
+// while that writer's own journal line survives. The card's anchor and its
+// history then disagree, which is the divergence the ordinary path has
+// WitnessDivergence to catch.
+//
+// The destination here takes work up, so the claim is legal where it lands and
+// the run is right to finish. What it must not do is finish by forgetting it.
+func TestACarryDoesNotOverwriteAClaimTakenAfterValidation(t *testing.T) {
+	h := newHarness(t)
+	carried := h.readyAt("claimed in the window", aftercare)
+	source := h.source(dropsAftercare)
+
+	h.library.Interpose = func(step string) {
+		if step != reshapeStepCard {
+			return
+		}
+		h.library.Interpose = nil
+		other := h.second()
+		response := other.Do(&Request{Verb: Claim, Actor: "alka", Card: carried, Holder: "alka"})
+		if response.Outcome != contract.OutcomeOK {
+			t.Fatalf("the second writer's claim: %s %s", response.Outcome, response.Refusal)
+		}
+	}
+	if _, err := h.reshape(source, true, aftercare+"="+review); err != nil {
+		t.Fatalf("reshape: %v", err)
+	}
+
+	card := h.card(carried)
+	if card.Column != review {
+		t.Errorf("wanted the card carried to review, it stands at %s", card.Column)
+	}
+	if card.Holder != "alka" || card.State != contract.StateActive {
+		t.Errorf("the carry erased the claim: holder %q, state %q", card.Holder, card.State)
+	}
+	if card.ClaimSince == "" {
+		t.Error("the carry erased the claim stamp")
+	}
+	// The claim event and the carry both stand, in that order, so the card's
+	// history and the card's anchor describe one card.
+	events := h.events(carried)
+	last := events[len(events)-1]
+	if last.Event != contract.EventMoved || !last.Reshape || last.From != aftercare {
+		t.Errorf("wanted the carry last, got %+v", last)
+	}
+	claimed := false
+	for _, event := range events {
+		if event.Event == contract.EventClaimed {
+			claimed = true
+		}
+	}
+	if !claimed {
+		t.Error("the second writer's claim event is not in the card's history")
+	}
+}
+
+// TestTheReorderKeepsWhatAnotherWriterDidToTheSequence constructs the third
+// interleaving, in both directions.
+//
+// Step five used to write back the order validation computed, which is a
+// snapshot of the sequence from before the lock was given up. A column another
+// writer added in the window vanished from the sequence with its directory
+// left on disk, and a column another writer archived came back to the sequence
+// with no directory behind it. Those are check.orphaned-column-directory and
+// check.stranded-column, the two findings this card ships and mirrors, so the
+// run manufactured both of the defects its own new check reports.
+func TestTheReorderKeepsWhatAnotherWriterDidToTheSequence(t *testing.T) {
+	t.Run("a column added in the window stays in the sequence", func(t *testing.T) {
+		h := newHarness(t)
+		h.readyAt("carried", aftercare)
+		var added string
+		h.library.Interpose = func(step string) {
+			if step != reshapeStepOrder {
+				return
+			}
+			h.library.Interpose = nil
+			other := h.second()
+			response := other.NewColumn(&Request{
+				Verb: "column", Actor: "alka", Column: "Later", Kind: "work",
+			})
+			if response.Outcome != contract.OutcomeOK {
+				t.Fatalf("the second writer's column: %s %s", response.Outcome, response.Refusal)
+			}
+			added = response.Column.ID
+		}
+		if _, err := h.reshape(h.source(dropsAftercare), true, aftercare+"="+review); err != nil {
+			t.Fatalf("reshape: %v", err)
+		}
+		if countIn(h.sequence(), added) != 1 {
+			t.Errorf("the reorder dropped the column added in the window: sequence %v, added %s", h.sequence(), added)
+		}
+		if detail, found := finding(h.check(), bench.FindingOrphanedColumnDirectory); found {
+			t.Errorf("the run left an orphaned column directory: %s", detail)
+		}
+	})
+
+	t.Run("a column archived in the window stays out of the sequence", func(t *testing.T) {
+		h := newHarness(t)
+		h.readyAt("carried", aftercare)
+		h.library.Interpose = func(step string) {
+			if step != reshapeStepOrder {
+				return
+			}
+			h.library.Interpose = nil
+			other := h.second()
+			response := other.Archive(&Request{Verb: "archive", Actor: "alka", Ref: closed})
+			if response.Outcome != contract.OutcomeOK {
+				t.Fatalf("the second writer's archive: %s %s", response.Outcome, response.Refusal)
+			}
+		}
+		if _, err := h.reshape(h.source(dropsAftercare), true, aftercare+"="+review); err != nil {
+			t.Fatalf("reshape: %v", err)
+		}
+		if countIn(h.sequence(), closed) != 0 {
+			t.Errorf("the reorder put the archived column back: sequence %v", h.sequence())
+		}
+		if detail, found := finding(h.check(), bench.FindingStrandedColumn); found {
+			t.Errorf("the run stranded a column identifier: %s", detail)
+		}
+	})
+}

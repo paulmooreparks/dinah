@@ -336,10 +336,15 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownRoot, Key: "check.mcp.1"},
 		{Refusal: contract.OutsideRoot, Key: "check.mcp.2"},
 	},
-	// reshape's list is the order Reshape evaluates in, which is also the
-	// order a reader meets the refusals in: the workbench and the owner
+	// reshape's list is the order a reader meets the refusals in, which is
+	// the order the help text reads best in: the workbench and the owner
 	// first, then the source, then each destination as it is resolved, then
-	// the two questions asked once every destination is known.
+	// the two questions asked once every destination is known. It is not the
+	// evaluation order in two places, and saying that it was cost a reviewer
+	// the time to check it: an empty --from raises dinah.malformed before the
+	// source read can raise dinah.unknown-path, and resolveReshapeDestination
+	// tests for a retiring destination ahead of both of the refusals listed
+	// above it.
 	//
 	// dinah.no-workbench is not listed, for the reason mcp's list gives for
 	// leaving it out: it belongs to workbench discovery rather than to any

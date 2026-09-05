@@ -27,6 +27,16 @@ type Library struct {
 	// refuses it there, which is the window a lock taken only around the
 	// write would leave open.
 	Interleave func()
+	// Interpose, when set, is called between the steps of a write phase that
+	// composes several locked acts rather than running inside one, at the
+	// points where the run holds no lock at all. It is the complement of
+	// Interleave: that one drives a second process at a lock it must be
+	// refused by, this one drives a second process through a window where
+	// nothing refuses it, so a test can construct the interleaving a composed
+	// write phase really admits instead of reasoning about it. The step names
+	// which window the run is standing in, because the answer a test wants
+	// differs per step. Reshape is the only caller today.
+	Interpose func(step string)
 }
 
 // New returns a library over an opened bench, on the real clock.
