@@ -17,19 +17,27 @@ import (
 // emitted first, saying what landed and how to finish it, and the refusal
 // follows on stderr with its name leading the stream exactly as it always
 // does. The machine form is the report rather than the bare refusal, and the
-// report carries the refusal's own name in its refusal member, so a script
-// reads one document naming both what stopped the run and what the run did.
+// report carries the refusal's own outcome, name, detail and context, so a
+// script reads one document naming both what stopped the run and what the run
+// did, and reads it under the members the shared refusal document uses.
+//
+// The report is told about the refusal a second time here. The library
+// recorded it already, from the refusal as it was raised; what this call adds
+// is the workbench nameTheWorkbench puts on the refusals whose advice needs
+// one, which is a naming the head does and the library cannot.
 func (s *session) reportReshapeRefusal(report *verb.ReshapeReport, err error) int {
 	refusal, ok := err.(*contract.Refusal)
 	if !ok || report == nil || !report.PartlyApplied() {
 		return s.reportError(err)
 	}
+	refusal = s.nameTheWorkbench(refusal)
+	report.NoteRefusal(refusal)
 	if s.format != formatHuman {
 		s.emitMachine(report)
 	} else {
 		s.renderReshape(report)
 	}
-	return s.writeRefusal(s.nameTheWorkbench(refusal))
+	return s.writeRefusal(refusal)
 }
 
 // renderReshape prints what a reshape did, what it would do, or what it had

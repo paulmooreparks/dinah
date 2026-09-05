@@ -378,6 +378,15 @@ func TestAReshapeRefusedAfterItHadWrittenSaysSo(t *testing.T) {
 // by a script rather than by a person. The machine answer is the report rather
 // than the bare refusal, because a refusal document names what stopped the run
 // and says nothing at all about what the run had already done to the workbench.
+//
+// Leaving the shared refusal document is what makes the rest of this test
+// necessary. That document carries an outcome, a refusal name, a detail and a
+// context, and a report answering in its place has to carry them too: the
+// outcome because CORE-OUT-1 requires every answer to report one, and the
+// detail because the report's own closing line tells its reader to clear what
+// the refusal names, which is a card this document would otherwise never name.
+// The applied run at the foot holds the other half of the outcome member,
+// which belongs to every answer rather than to this path alone.
 func TestTheMachineFormOfAHalfAppliedRunCarriesBothHalves(t *testing.T) {
 	root := newBench(t)
 	if got := runCLI(t, root, "add", "a card the carry cannot take"); got.code != 0 {
@@ -401,8 +410,10 @@ func TestTheMachineFormOfAHalfAppliedRunCarriesBothHalves(t *testing.T) {
 		t.Fatalf("wanted the refusal exit code, got %d\n%s\n%s", got.code, got.out, got.errw)
 	}
 	var answer struct {
+		Outcome string `json:"outcome"`
 		Applied bool   `json:"applied"`
 		Refusal string `json:"refusal"`
+		Detail  string `json:"detail"`
 		Wrote   []struct {
 			Step  string `json:"step"`
 			Count int    `json:"count"`
@@ -411,13 +422,52 @@ func TestTheMachineFormOfAHalfAppliedRunCarriesBothHalves(t *testing.T) {
 	if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
 		t.Fatalf("read the machine answer: %v\n%s", err, got.out)
 	}
+	if answer.Outcome != contract.OutcomeRefused {
+		t.Errorf("wanted the half-applied answer to report the outcome %s, got %q", contract.OutcomeRefused, answer.Outcome)
+	}
 	if answer.Applied {
 		t.Error("the half-applied run reported itself as applied")
 	}
 	if answer.Refusal != contract.Locked {
 		t.Errorf("wanted the report to name %s, got %q", contract.Locked, answer.Refusal)
 	}
+	// The report tells its reader to clear what the refusal names, so it has
+	// to name it. Whether that is a card, a column or the holder of a lock is
+	// the refusal's own answer, and the test is that the machine form carries
+	// the same token the person reading stderr is given, rather than sending a
+	// script after something only the other stream identified.
+	if answer.Detail != "brin" {
+		t.Errorf("wanted the report to name what the refusal names, got %q", answer.Detail)
+	}
+	if !strings.Contains(got.errw, answer.Detail) {
+		t.Errorf("the two streams name different things: %q is not in %q", answer.Detail, got.errw)
+	}
 	if len(answer.Wrote) != 1 || answer.Wrote[0].Step != "added" || answer.Wrote[0].Count != 1 {
 		t.Errorf("wanted one added column recorded, got %+v", answer.Wrote)
+	}
+
+	// Clearing the lock and running the same command again finishes the
+	// shape, and that answer reports an outcome of its own. The member is on
+	// every answer rather than on the refusal path alone, so no caller has to
+	// read anything into its absence.
+	if err := os.Remove(lock); err != nil {
+		t.Fatalf("release the lock: %v", err)
+	}
+	finished := runCLI(t, root, "reshape", "--from", source, "--yes", "--json", "--map", doingID+"="+intakeID)
+	if finished.code != 0 {
+		t.Fatalf("the second run: %d %s\n%s", finished.code, finished.errw, finished.out)
+	}
+	answer.Outcome, answer.Applied, answer.Refusal, answer.Detail, answer.Wrote = "", false, "", "", nil
+	if err := json.Unmarshal([]byte(finished.out), &answer); err != nil {
+		t.Fatalf("read the second machine answer: %v\n%s", err, finished.out)
+	}
+	if answer.Outcome != contract.OutcomeOK {
+		t.Errorf("wanted the applied run to report the outcome %s, got %q", contract.OutcomeOK, answer.Outcome)
+	}
+	if !answer.Applied {
+		t.Errorf("the second run did not report itself as applied:\n%s", finished.out)
+	}
+	if answer.Refusal != "" || answer.Detail != "" {
+		t.Errorf("the applied run named a refusal: %q %q", answer.Refusal, answer.Detail)
 	}
 }

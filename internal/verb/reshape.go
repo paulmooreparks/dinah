@@ -95,12 +95,29 @@ type ReshapeWrite struct {
 // during validation. See applyReshape for what such a run leaves behind and
 // what finishes it.
 type ReshapeReport struct {
+	// Outcome is refused for a run the write phase stopped and ok for every
+	// other answer, preview and apply alike. It carries no omitempty and is
+	// always present, because CORE-OUT-1 requires every answer to report
+	// exactly one outcome and a member a caller has to test for absence
+	// reports none. dinah-346 settled the same question for CheckReport, and
+	// this follows it.
+	//
+	// It is also what PartlyApplied answers, on the wire. A caller reading
+	// refused here has the state that method names, which nothing in the
+	// machine form carried before.
+	Outcome string `json:"outcome"`
 	// Applied is false for a preview, which wrote nothing at all, and true
 	// for a run that completed its write phase.
 	Applied bool `json:"applied"`
-	// Wrote is what the write phase had written when the run stopped, empty
-	// for a preview, for a run refused during validation, and for a run that
-	// applied, whose Applied says the same thing more directly.
+	// Wrote is what the write phase wrote. A preview and a run refused during
+	// validation leave it empty, because neither wrote anything. A run that
+	// applied carries every step that wrote, and a run the write phase
+	// stopped carries the steps that had written when it stopped.
+	//
+	// So it does not answer on its own whether a run was interrupted, and a
+	// caller testing it alone reads an ordinary apply as one. That question
+	// is Applied false together with a Wrote carrying something, which is
+	// what PartlyApplied asks and what Outcome answers on the wire.
 	Wrote []ReshapeWrite `json:"wrote,omitempty"`
 	// Refusal is the name of the refusal that stopped a run whose write
 	// phase had begun, empty everywhere else. It is carried on the report
@@ -108,6 +125,16 @@ type ReshapeReport struct {
 	// ordinary machine refusal, which would say nothing about what was
 	// written.
 	Refusal string `json:"refusal,omitempty"`
+	// Detail names what that refusal was about: the card whose lock stopped
+	// the archive, the column still occupied. The report's own closing line
+	// tells the reader to clear what the refusal names, so the one document
+	// that reader has must carry the name as well as the human error line
+	// does.
+	Detail string `json:"detail,omitempty"`
+	// Context carries the refusal's named values, under the member the shared
+	// refusal document carries them under, and is empty for a refusal that
+	// needs none.
+	Context map[string]string `json:"context,omitempty"`
 	// Source is the --from the run was given, as the caller wrote it.
 	Source string `json:"source"`
 	// Columns is every column of the run, in the order the new definition
@@ -131,6 +158,24 @@ type ReshapeReport struct {
 // two states an operator most needs told apart.
 func (r *ReshapeReport) PartlyApplied() bool {
 	return !r.Applied && len(r.Wrote) > 0
+}
+
+// NoteRefusal records the refusal that stopped a run whose write phase had
+// already begun, so that the single document such a run answers with names
+// both halves: what the run wrote, and what stopped it.
+//
+// Every member it writes comes from the refusal it is handed, so recording is
+// idempotent, and the head records a second time once it has named the
+// workbench on the refusal. That naming belongs to the head, and Context is
+// the member it lands in.
+func (r *ReshapeReport) NoteRefusal(refusal *contract.Refusal) {
+	if refusal == nil {
+		return
+	}
+	r.Outcome = contract.OutcomeRefused
+	r.Refusal = refusal.Name
+	r.Detail = refusal.Detail
+	r.Context = refusal.Extra
 }
 
 // note records what a write-phase step wrote, and records nothing for a step
@@ -271,7 +316,7 @@ func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
 		// other way to learn that. A refusal from validation reaches here
 		// with nothing recorded, so it reads exactly as it always did.
 		if refusal, ok := err.(*contract.Refusal); ok && len(report.Wrote) > 0 {
-			report.Refusal = refusal.Name
+			report.NoteRefusal(refusal)
 		}
 		return report, err
 	}
@@ -673,7 +718,7 @@ func strandedCards(plan *reshapePlan, fresh *bench.Bench, cards []*bench.Card, r
 // composeReshapeReport renders the plan as the report a preview prints and an
 // apply prints again with the counts it reached.
 func composeReshapeReport(source string, plan *reshapePlan) *ReshapeReport {
-	report := &ReshapeReport{Source: source, StrandedCards: plan.stranded}
+	report := &ReshapeReport{Outcome: contract.OutcomeOK, Source: source, StrandedCards: plan.stranded}
 	for _, element := range plan.elements {
 		disposition := ReshapeAdded
 		if element.live != nil {
