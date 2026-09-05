@@ -331,7 +331,12 @@ test("the settings are contributed with the scopes their subjects need", () => {
 // "The extension has a dinah binary" is the claim this guard exists to refuse,
 // while "set `dinah.path` to a binary you already have" is honest copy about
 // the reader's own machine, so `have` and `contain` stay out.
-const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has|contains|built[- ]in|comes? with|came with|own copy)`;
+//
+// `has` also has to shed its auxiliary use, which possesses nothing. "The
+// extension has been tested against the dinah release it is paired with"
+// describes the pairing this card kept alive, and the lookahead is what keeps
+// the guard off it.
+const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|had|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
 const POSSESSION = new RegExp(String.raw`\b${POSSESSION_WORD}\b`, "gi");
 
 // Who is said to do the possessing, and what is said to be possessed. Frame
@@ -390,8 +395,14 @@ function negated(sentence: string, at: number, length: number): boolean {
  * dinah binary is distributed with this extension", "This extension installs
  * dinah for you", "dinah is vendored into this extension"). So does the
  * payload named as something other than a binary ("the bundled command-line
- * tool"). A reviewer's own sweep, not this pattern, is the first line against
- * all three.
+ * tool"). Two more classes escape for reasons of their own: the possessor
+ * named as something the SUBJECT vocabulary does not cover ("The marketplace
+ * build embeds dinah so you need not fetch it"), and "the one" separated from
+ * its possession word by an explicit subject ("Leave empty to use the one the
+ * extension supplies"), which ANAPHORIC_PAYLOAD allows only a relative pronoun
+ * and a copula to sit in. A reviewer's own sweep, not this pattern, is the
+ * first line against all five, and KNOWN_ESCAPES below pins the two so that
+ * this paragraph cannot quietly go out of date.
  */
 function claimsToCarryDinah(text: string): string[] {
 	const found = new Set<string>();
@@ -450,9 +461,9 @@ const CLAIMS_A_CARRIED_BINARY = [
 // refusing honest copy as it is to start catching a claim, and the second
 // group is what proves it did not: seven ordinary sentences about the
 // extension's own features, all of them refused by the first widening and
-// measured at Operator Code Review, plus two that pin the two exclusions this
-// pattern makes on purpose (`have` as against `has`, and a counted "one" as
-// against an anaphoric one).
+// measured at Operator Code Review, plus three that pin the exclusions this
+// pattern makes on purpose (`have` as against `has`, a counted "one" as
+// against an anaphoric one, and `has been` as against `has`).
 const HONEST_COPY = [
 	"Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.",
 	"Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
@@ -472,6 +483,17 @@ const HONEST_COPY = [
 	"This extension includes telemetry: none.",
 	"This extension will use a binary you already have.",
 	"The extension provides one view per workbench.",
+	"The extension has been tested against the dinah release it is paired with.",
+];
+
+// Claims the three frames do not reach. They are pinned rather than merely
+// described, because the doc comment on `claimsToCarryDinah` that lists them
+// cannot fail, and a limit nobody can fail is a limit that drifts. A widening
+// that starts catching one of these is welcome; it has to say so here and in
+// that comment before it ships.
+const KNOWN_ESCAPES = [
+	"The marketplace build embeds dinah so you need not fetch it.",
+	"Leave empty to use the one the extension supplies.",
 ];
 
 test("the carried-binary guard catches the spellings a writer would reach for", () => {
@@ -487,6 +509,13 @@ test("the carried-binary guard catches the spellings a writer would reach for", 
 			claimsToCarryDinah(sentence),
 			[],
 			`the guard now refuses honest copy: ${sentence}`,
+		);
+	}
+	for (const sentence of KNOWN_ESCAPES) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[],
+			`the guard now catches a documented escape, so update the doc comment on claimsToCarryDinah: ${sentence}`,
 		);
 	}
 });
