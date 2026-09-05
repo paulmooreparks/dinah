@@ -322,6 +322,117 @@ test("the settings are contributed with the scopes their subjects need", () => {
 	assert.equal(watch.default, true);
 });
 
+// The vocabulary an affirmative claim reaches for. This set is deliberately
+// wider than the wording that was in the tree: a guard armed only against the
+// sentence already fixed misses the next one, written a different way, in
+// exactly the way the phrase-by-phrase sweep that found the first one did.
+const POSSESSION =
+	/\b(carr(y|ies|ied|ying)|bundl(e|es|ed|ing)|includ(e|es|ed|ing)|ship(s|ped|ping)?|suppl(y|ies|ied|ying)|packag(e|es|ed|ing)|embed(s|ded|ding)?|provid(e|es|ed|ing)|built[- ]in|comes? with|came with|own copy)\b/gi;
+
+// A possession word attached straight to the payload, which names no
+// extension at all: "the built-in dinah binary".
+const QUALIFIED_PAYLOAD =
+	/\b(built[- ]in|bundled|embedded|packaged|included|carried|shipped|supplied|provided)\s+(copy|dinah|binary|cli|executable)\b/gi;
+
+// Negation is what separates the honest copy from the claim, and it sits on
+// either side of the word: "does not carry a copy", "carries no copy".
+const NEGATED_BEFORE = /\b(not|never|no|without|n't|neither|nor)\s+(\w+\s+)?$/i;
+const NEGATED_AFTER = /^\s*(no|none|nothing|neither)\b/i;
+
+/** Sentence-sized pieces, so a negation in one clause cannot excuse another. */
+function sentencesOf(text: string): string[] {
+	return text.split(/(?<=[.!?])\s+|\n+/);
+}
+
+function negated(sentence: string, at: number, length: number): boolean {
+	return (
+		NEGATED_BEFORE.test(sentence.slice(0, at)) ||
+		NEGATED_AFTER.test(sentence.slice(at + length))
+	);
+}
+
+/**
+ * The sentences in `text` that affirmatively say a dinah binary lives inside
+ * the extension. Two frames, because the claim gets written both ways round:
+ * a sentence naming the extension somewhere alongside a possession word, in
+ * either order and at any distance within that sentence, and a possession
+ * word attached straight to the payload.
+ */
+function claimsToCarryDinah(text: string): string[] {
+	const found = new Set<string>();
+	for (const sentence of sentencesOf(text)) {
+		const namesExtension = /\bextensions?\b/i.test(sentence);
+		for (const pattern of [POSSESSION, QUALIFIED_PAYLOAD]) {
+			if (pattern === POSSESSION && !namesExtension) {
+				continue;
+			}
+			pattern.lastIndex = 0;
+			for (let m = pattern.exec(sentence); m !== null; m = pattern.exec(sentence)) {
+				if (!negated(sentence, m.index, m[0].length)) {
+					found.add(sentence.trim());
+					break;
+				}
+			}
+		}
+	}
+	return [...found];
+}
+
+// The sentences this guard exists to refuse, written the several ways somebody
+// would actually write them rather than the one way the tree happened to use.
+// They live here as a case rather than in a comment, so that loosening the
+// pattern fails at once and names the frame it stopped catching.
+const CLAIMS_A_CARRIED_BINARY = [
+	"Leave empty to use the one on your PATH, or the one carried inside this extension.",
+	"The dinah binary bundled in this extension is used when nothing is on your PATH.",
+	"A dinah binary is included in this extension.",
+	"This extension includes a dinah binary.",
+	"The extension carries a dinah binary.",
+	"This extension ships with a copy of dinah.",
+	"A dinah binary is packaged with this extension.",
+	"Leave empty to use the one that comes with this extension.",
+	"Leave empty to use the built-in dinah binary.",
+	"Leave empty to use the extension's own copy of dinah.",
+	"If dinah is not on your PATH the extension will fall back to its own copy.",
+	"The extension provides a dinah binary for your platform.",
+	"A copy of dinah is embedded in the extension.",
+	"The extension supplies dinah when it is missing.",
+];
+
+// Copy that says the opposite, or says nothing about where dinah comes from,
+// and has to keep passing. The first four are live strings this extension
+// publishes today, two of them from `src/status.ts` rather than the manifest,
+// because a widened pattern is as likely to start refusing honest copy as it
+// is to start catching a claim.
+const HONEST_COPY = [
+	"Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.",
+	"Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
+	"No dinah binary was found. This extension is a companion to the dinah command-line tool and carries no copy of it.",
+	"Install it from https://github.com/paulmooreparks/dinah#install, or set dinah.path to a binary you already have.",
+	"This extension never carries a dinah binary.",
+	"This extension does not include a copy of dinah.",
+	"This extension has no built-in copy of dinah.",
+	"This text is replaced as soon as the extension has an answer.",
+	"Dinah has a binary for this window but no workbench to go with it.",
+];
+
+test("the carried-binary guard catches the spellings a writer would reach for", () => {
+	for (const sentence of CLAIMS_A_CARRIED_BINARY) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[sentence],
+			`the guard no longer catches: ${sentence}`,
+		);
+	}
+	for (const sentence of HONEST_COPY) {
+		assert.deepEqual(
+			claimsToCarryDinah(sentence),
+			[],
+			`the guard now refuses honest copy: ${sentence}`,
+		);
+	}
+});
+
 test("no manifest string offers the extension itself as a place dinah comes from", () => {
 	// The extension is a companion to the CLI and installs nothing, so every
 	// user-facing string the manifest publishes has to agree with that. The
@@ -329,11 +440,11 @@ test("no manifest string offers the extension itself as a place dinah comes from
 	// removed the carried binary because that sweep searched for the phrases the
 	// welcome view used, and this sentence shared no word with them.
 	//
-	// The pattern catches an affirmative claim that a binary lives in the
-	// extension. It cannot catch every possible rewording, and a reviewer still
-	// reads the copy; what it does catch is this sentence coming back.
-	const offersItself =
-		/\b(carr(y|ies|ied)|bundl(e|es|ed)|includ(e|es|ed)|ship(s|ped)?|suppl(y|ies|ied))\b[^.]{0,40}\b(in|inside|with|within)\b[^.]{0,24}\bextension\b/i;
+	// In scope: the extension description, both description forms of every
+	// setting, and every welcome block for this view. Out of scope, and pinned
+	// elsewhere: `enumDescriptions` and `markdownEnumDescriptions`, which no
+	// setting here declares, and the status-bar tooltips, which live in
+	// `src/status.ts` and are held by `test/unit/status.test.ts`.
 	const configuration = contributes.configuration as {
 		properties: Record<string, { markdownDescription?: string; description?: string }>;
 	};
@@ -341,25 +452,43 @@ test("no manifest string offers the extension itself as a place dinah comes from
 		{ where: "the manifest description", text: manifest.description as string },
 	];
 	for (const [key, property] of Object.entries(configuration.properties)) {
-		const text = property.markdownDescription ?? property.description;
-		if (text !== undefined) {
-			strings.push({ where: `the ${key} setting`, text });
+		// Both forms are read. Collecting one or the other would skip the plain
+		// description of any setting that grew a markdown one beside it.
+		if (property.markdownDescription !== undefined) {
+			strings.push({
+				where: `the ${key} setting's markdownDescription`,
+				text: property.markdownDescription,
+			});
+		}
+		if (property.description !== undefined) {
+			strings.push({ where: `the ${key} setting's description`, text: property.description });
 		}
 	}
 	for (const block of welcomeBlocks()) {
 		strings.push({ where: `the welcome block for ${block.when}`, text: block.contents });
 	}
-	// A vacuous pass is the failure mode here, so the corpus is asserted non-empty
-	// and the pattern is proved against the sentence this test exists to refuse.
-	assert.ok(strings.length >= 6);
-	assert.ok(
-		offersItself.test("Leave empty to use the one on your PATH, or the one carried inside this extension."),
-		"the pattern no longer matches the sentence this test was written against",
-	);
+	// A vacuous pass is the failure mode here, so the corpus is counted twice
+	// over. The derived count fails when the collector above stops reading one
+	// of the manifest's three sources, and the literal count fails when the
+	// published surface shrinks under a guard that would otherwise report a
+	// smaller sweep as a clean one.
+	const declared =
+		1 +
+		Object.values(configuration.properties).reduce(
+			(n, property) =>
+				n +
+				(property.markdownDescription === undefined ? 0 : 1) +
+				(property.description === undefined ? 0 : 1),
+			0,
+		) +
+		welcomeBlocks().length;
+	assert.equal(strings.length, declared);
+	assert.equal(strings.length, 11);
 	for (const { where, text } of strings) {
-		assert.ok(
-			!offersItself.test(text),
-			`${where} says a dinah binary lives inside the extension: ${text}`,
+		assert.deepEqual(
+			claimsToCarryDinah(text),
+			[],
+			`${where} says a dinah binary lives inside the extension`,
 		);
 	}
 });
