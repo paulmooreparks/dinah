@@ -368,11 +368,11 @@ export interface CardStanding {
  * Block never vary within a state and Release and Unblock never vary at all,
  * so they are folded into the state's own answer rather than recomputed.
  *
- * There is no pull answer. dinah's pull verb takes a destination column and
- * chooses its own card from that column's upstream, so no card-scoped Pull
- * could be aimed at the row that was clicked, and no read-only call publishes
- * the destination-side fact a column-scoped one would need. The item is
- * specified on the card and built by whichever card lands dinah-280.
+ * There is no pull answer here, and there will not be one. dinah's pull verb
+ * takes a destination column and chooses its own card from that column's
+ * upstream, so no card-scoped Pull could be aimed at the row that was clicked.
+ * dinah-375 put the act on the column row, where the verb's own scope is, and
+ * columnActionsFor below is what decides it.
  */
 export function actionsFor(card: CardStanding): string {
 	switch (card.state) {
@@ -388,8 +388,8 @@ export function actionsFor(card: CardStanding): string {
 }
 
 /**
- * The contextValue a column row carries, which decides whether New Card is
- * offered on it.
+ * The contextValue a column row carries, which decides whether New Card and
+ * Pull are offered on it.
  *
  * Capacity is the only column fact this reads, because it is the only one
  * ColumnView publishes. Add can also refuse Locked when the destination column
@@ -402,15 +402,30 @@ export function actionsFor(card: CardStanding): string {
  * gets the bare CONTEXT_COLUMN, which offers neither New Card nor Attach File
  * until the next checkpoint's tree and status answers agree again. That is the
  * same self-heal columnsOf already logs for the same miss.
+ *
+ * dinah-375 added a second, independent axis. Capacity still decides the
+ * open/full half, and a queue column publishing somewhere for a pull to land
+ * takes the .pull suffix on top of it. The test is the column's own
+ * takes_work_up, the same field actionsFor reads to tell a claimable ready
+ * card from one that is only pulled through, so a work column never carries
+ * the suffix even where PullDestination is populated on it (D-2): a work
+ * column's cards are individually actionable already, and a column-level pull
+ * there would step around the per-card Claim rather than adding anything.
  */
 export function columnActionsFor(view: ColumnView | undefined): string {
 	if (view === undefined) {
 		return CONTEXT_COLUMN;
 	}
 	const capacity = view.capacity ?? 0;
-	return capacity > 0 && view.count >= capacity
-		? CONTEXT_COLUMN_FULL
-		: CONTEXT_COLUMN_OPEN;
+	const base =
+		capacity > 0 && view.count >= capacity
+			? CONTEXT_COLUMN_FULL
+			: CONTEXT_COLUMN_OPEN;
+	const pullable =
+		!view.takes_work_up &&
+		view.pull_destination !== undefined &&
+		view.pull_destination !== "";
+	return pullable ? `${base}.pull` : base;
 }
 
 /** The label a state group carries, title-cased from the axis value. */
@@ -474,10 +489,19 @@ export function cardTooltip(
  * keeps the title alone rather than being described from defaults. That is
  * the same conservative miss columnActionsFor takes, and it self-heals on the
  * next checkpoint.
+ *
+ * A queue that publishes a destination names it, because dinah-375 gave the
+ * row an act and a reader who cannot see where the card would land has no way
+ * to judge it. columnsByRef is the join's own index, keyed by the same
+ * columnRef the destination is published as, so resolving the title through it
+ * is the join already made rather than a second convention. It is optional,
+ * and an unresolved key falls back to the raw reference: a stale name still
+ * tells a reader more than silence, and the next checkpoint repairs it.
  */
 export function columnTooltip(
 	view: ColumnView | undefined,
 	node: TreeNode,
+	columnsByRef?: ReadonlyMap<string, ColumnView>,
 ): string {
 	const title = view?.title ?? node.value ?? "";
 	if (view === undefined) {
@@ -489,6 +513,15 @@ export function columnTooltip(
 			? "Cards are claimed here."
 			: "A card here waits to be pulled onward.",
 	);
+	if (
+		!view.takes_work_up &&
+		view.pull_destination !== undefined &&
+		view.pull_destination !== ""
+	) {
+		const destination =
+			columnsByRef?.get(view.pull_destination)?.title ?? view.pull_destination;
+		lines.push(`Right-click to pull the next ready card into ${destination}.`);
+	}
 	if (view.awaiting_outside) {
 		lines.push("This column is waiting on somebody outside the workbench.");
 	}
@@ -595,7 +628,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			return {
 				label: view?.title ?? element.node.value ?? "",
 				description: columnDescription(view, element.node),
-				tooltip: columnTooltip(view, element.node),
+				tooltip: columnTooltip(view, element.node, element.row.data?.columns),
 				contextValue: columnActionsFor(view),
 				collapsibleState: "expanded",
 			};

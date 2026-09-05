@@ -29,7 +29,9 @@ import { runDinah } from "./cli";
 // context: the creation one declines a row whose ColumnView the status join
 // missed, and the editing one falls back to the node's own ref and answers
 // anyway. Both are aliased here so that each registration below names the act
-// it serves rather than the row the act stands on.
+// it serves rather than the row the act stands on. dinah-375's Pull is the
+// column row's third act and needs no alias, because it declines more rows
+// than either of those two and so was given its own name at its own module.
 import type {
 	ColumnCommandContext,
 	ColumnCommandHost,
@@ -60,6 +62,7 @@ import {
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_PULL,
 	COMMAND_REFRESH,
 	COMMAND_RELEASE,
 	COMMAND_UNBLOCK,
@@ -70,6 +73,7 @@ import {
 	TREE_COMMANDS,
 	VIEW_ID,
 } from "./identity";
+import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
 import { joinPath, nodeSpawner } from "./spawn";
 import { composeContextKeys, composeStatus } from "./status";
@@ -497,6 +501,24 @@ export async function activate(
 			await editColumnInstructions(target);
 		},
 	);
+	// The column row's second command takes the flow host rather than the
+	// column one, because a pull mutates the board and columnHost carries no
+	// checkpoint (dinah-375).
+	register(COMMAND_PULL, async (element: TreeElement | undefined) => {
+		const target = contextForPull(
+			element,
+			binary.state === "ok" ? binary.path : "",
+			host,
+			nodeSpawner,
+		);
+		if (target === undefined) {
+			channel.appendLine(
+				`${COMMAND_PULL} was invoked on a row that cannot be pulled from`,
+			);
+			return;
+		}
+		await pullFromColumn(target);
+	});
 	// An attachment row is registered on its own rather than through the loop
 	// above, because it is not a card and carries no CommandContext: the path
 	// it was drawn from is the whole of what opening it needs.

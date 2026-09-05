@@ -21,7 +21,9 @@ import {
 	CONTEXT_CARD_READY_NONE,
 	CONTEXT_COLUMN,
 	CONTEXT_COLUMN_FULL,
+	CONTEXT_COLUMN_FULL_PULL,
 	CONTEXT_COLUMN_OPEN,
+	CONTEXT_COLUMN_OPEN_PULL,
 	CONTEXT_STATE_GROUP,
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
@@ -576,6 +578,56 @@ test("the column row's tooltip says what the row's shape does not", () => {
 	for (const [name, view, expected] of cases) {
 		assert.equal(columnTooltip(view, node), expected, name);
 	}
+});
+
+test("a queue that publishes a destination names it, and resolves the title where it can", () => {
+	// dinah-375 AC-10. The destination is published as a columnRef, which is
+	// what a reader would have to look up themselves; the map is the join's own
+	// index and turns it into the title on the row below. Where the map cannot
+	// answer, the raw reference is shown rather than nothing, because a reader
+	// who can see "spec" can find the column and a reader shown a blank cannot.
+	const node = { kind: "group", axis: "column", value: "x", count: 0 };
+	const queue = column({
+		id: "b",
+		title: "Design Queue",
+		takes_work_up: false,
+		pull_destination: "spec",
+	});
+	const byRef = new Map<string, ColumnView>([
+		["spec", column({ id: "spec", title: "Spec" })],
+	]);
+	assert.equal(
+		columnTooltip(queue, node, byRef),
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into Spec.\nAn agent moves a card out.",
+		"the map resolves the destination's title",
+	);
+	assert.equal(
+		columnTooltip(queue, node, new Map<string, ColumnView>()),
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into spec.\nAn agent moves a card out.",
+		"a map lacking the key falls back to the raw reference",
+	);
+	assert.equal(
+		columnTooltip(queue, node),
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into spec.\nAn agent moves a card out.",
+		"no map at all falls back the same way",
+	);
+	// The line appears for a queue publishing a destination and for nothing
+	// else, so a work column's tooltip is byte-identical to what dinah-373
+	// shipped even when the answer carries a destination for it.
+	assert.equal(
+		columnTooltip(
+			column({ id: "a", title: "Intake", takes_work_up: true, pull_destination: "spec" }),
+			node,
+			byRef,
+		),
+		"Intake\nCards are claimed here.\nAn agent moves a card out.",
+		"a work column is described exactly as before",
+	);
+	assert.equal(
+		columnTooltip(column({ id: "c", title: "Held", takes_work_up: false }), node, byRef),
+		"Held\nA card here waits to be pulled onward.\nAn agent moves a card out.",
+		"a queue publishing no destination is described exactly as before",
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -1476,6 +1528,96 @@ test("a column row says whether it will take another card, from the two fields i
 	for (const [name, view, expected] of cases) {
 		assert.equal(columnActionsFor(view), expected, name);
 	}
+});
+
+test("the pull suffix is decided by the queue's own destination, independently of capacity", () => {
+	// dinah-375 AC-1. Two axes, eight rows: {takes_work_up} x {destination
+	// present} x {capacity reached}. Capacity never gates a pull, because a
+	// pull takes a card out of the queue rather than putting one in, so the
+	// suffix has to appear on the full spelling as well as the open one.
+	//
+	// The work-column rows are the ones this table exists for. PullDestination
+	// is populated on a work column whose immediate downstream also takes work
+	// up (dinah-280 AC-4), so a function that read the destination alone would
+	// offer the act there, and D-2 says it must not.
+	const queue = { takes_work_up: false, pull_destination: "spec" };
+	const cases: [string, ColumnView, string][] = [
+		["a queue with room and a destination", column({ id: "a", ...queue }), CONTEXT_COLUMN_OPEN_PULL],
+		[
+			"a queue at capacity and a destination",
+			column({ id: "a", ...queue, capacity: 3, count: 3 }),
+			CONTEXT_COLUMN_FULL_PULL,
+		],
+		[
+			"a queue whose destination is absent",
+			column({ id: "a", takes_work_up: false }),
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"a queue whose destination is the empty string",
+			column({ id: "a", takes_work_up: false, pull_destination: "" }),
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"a queue at capacity whose destination is absent",
+			column({ id: "a", takes_work_up: false, capacity: 3, count: 3 }),
+			CONTEXT_COLUMN_FULL,
+		],
+		[
+			"a work column carrying a destination all the same",
+			column({ id: "a", takes_work_up: true, pull_destination: "spec" }),
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"a work column at capacity carrying a destination",
+			column({ id: "a", takes_work_up: true, pull_destination: "spec", capacity: 3, count: 3 }),
+			CONTEXT_COLUMN_FULL,
+		],
+		[
+			"a work column with no destination",
+			column({ id: "a", takes_work_up: true }),
+			CONTEXT_COLUMN_OPEN,
+		],
+	];
+	for (const [name, view, expected] of cases) {
+		assert.equal(columnActionsFor(view), expected, name);
+	}
+});
+
+test("the row's own tooltip resolves the destination title through the join's column map", async () => {
+	// dinah-375 AC-11. The table above drives columnTooltip directly with a
+	// map handed to it. This drives the whole join, so a treeItemFor that
+	// stopped passing row.data.columns would show the raw reference here and
+	// go red, rather than passing on the strength of a unit test of an argument
+	// nothing supplies.
+	const { spawner } = stubSpawner({
+		status: {
+			workbench: "Trees",
+			root: "C:\\work\\bench",
+			columns: [
+				column({ id: "intake", title: "Intake", count: 3 }),
+				column({
+					id: "review",
+					title: "Design Queue",
+					takes_work_up: false,
+					pull_destination: "done",
+					count: 2,
+				}),
+				column({ id: "done", title: "Specification", count: 1 }),
+			],
+		},
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const treeView = provider(spawner);
+	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
+	const columns = await treeView.getChildren((await treeView.getChildren())[0]);
+	const item = treeItemFor(columns[1]);
+	assert.equal(
+		item.tooltip,
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into Specification.\nAn agent moves a card out.",
+	);
+	assert.equal(item.contextValue, CONTEXT_COLUMN_OPEN_PULL);
 });
 
 test("the column row's other four fields are what they were before the contextValue moved", async () => {

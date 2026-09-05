@@ -20,6 +20,7 @@ import {
 	COMMAND_EDIT_WORKBENCH_DEFINITION,
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
+	COMMAND_PULL,
 	COMMAND_REFRESH,
 	CONTEXT_CARD_ACTIVE,
 	CONTEXT_CARD_BLOCKED,
@@ -27,7 +28,9 @@ import {
 	CONTEXT_CARD_READY_NONE,
 	CONTEXT_COLUMN,
 	CONTEXT_COLUMN_FULL,
+	CONTEXT_COLUMN_FULL_PULL,
 	CONTEXT_COLUMN_OPEN,
+	CONTEXT_COLUMN_OPEN_PULL,
 	CONTEXT_STATE_GROUP,
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
@@ -713,37 +716,6 @@ test("every menu entry names a command the manifest declares", () => {
 	assert.ok(checked > 0, "no menu entry was scanned at all, so this check proved nothing");
 });
 
-test("nothing in the manifest offers a Pull", () => {
-	// dinah's pull verb takes a destination column and picks its own card from
-	// that column's upstream, so no card-scoped Pull can be aimed at the row
-	// that was clicked, and no read-only call publishes the destination-side
-	// fact a column-scoped one would need. The item is specified on dinah-265
-	// and built by whichever card lands dinah-280. This is the guard that
-	// keeps it from arriving early and mistargeting somebody's board.
-	const serialized = JSON.stringify(contributes);
-	// The two absence assertions below read one string, and a contributions
-	// block that had lost its commands or its menus would satisfy both while
-	// declaring nothing at all. A pull would arrive as a command, a menu entry
-	// or both, so both arrays being populated is what makes their silence mean
-	// something.
-	const commands = contributes.commands as unknown[];
-	const menuEntries = Object.values(
-		contributes.menus as Record<string, unknown[]>,
-	).flat();
-	assert.ok(
-		commands.length > 0 && menuEntries.length > 0,
-		`the contributions declare ${commands.length} commands and ${menuEntries.length} menu entries, so a missing pull proves nothing`,
-	);
-	assert.ok(
-		!serialized.includes("pullInto"),
-		"the manifest declares a pull command dinah cannot aim safely",
-	);
-	assert.ok(
-		!serialized.includes("dinah.column.pull"),
-		"a menu is registered against a column contextValue nothing composes",
-	);
-});
-
 test("the card menus are registered against the four contextValues actionsFor composes", () => {
 	// The manifest's `when` clauses and actionsFor's return values are two
 	// spellings of one set. A contextValue composed in code but named in no
@@ -888,10 +860,13 @@ test("no workbench menu item is offered on a column row, and a state group carri
  * was then the only value a column row could carry. dinah-331 gave that row
  * two suffixed values by capacity and left the bare one for the row whose
  * ColumnView the status join missed, so an equality against the bare value
- * would now reach only that miss. The pattern covers all three, which is the
- * reach the item shipped with.
+ * would now reach only that miss. dinah-375 added a second suffix on the
+ * pullable queue, which is where the anchored pattern would have stopped
+ * matching and the item would have vanished from exactly the rows this card
+ * gives an act to. The pattern covers all five, which is the reach the item
+ * shipped with.
  */
-const COLUMN_ROW_PATTERN = /^dinah\.column(\.open|\.full)?$/;
+const COLUMN_ROW_PATTERN = /^dinah\.column(\.open|\.full)?(\.pull)?$/;
 
 /** The one `when` clause the column row's editing item is registered under. */
 const COLUMN_ROW_CLAUSE = `view == dinah.workbenchView && viewItem =~ /${COLUMN_ROW_PATTERN.source}/`;
@@ -990,7 +965,13 @@ test("the instructions item matches every column row and nothing else", () => {
 	// goes red. A column at capacity and a column the join missed both keep the
 	// item, because editing a column's instructions is not gated on anything the
 	// status join reports.
-	for (const value of [CONTEXT_COLUMN, CONTEXT_COLUMN_OPEN, CONTEXT_COLUMN_FULL]) {
+	for (const value of [
+		CONTEXT_COLUMN,
+		CONTEXT_COLUMN_OPEN,
+		CONTEXT_COLUMN_FULL,
+		CONTEXT_COLUMN_OPEN_PULL,
+		CONTEXT_COLUMN_FULL_PULL,
+	]) {
 		assert.equal(opensOn(matched[0].when, value), true, value);
 	}
 	// A state group, every card state and the three workbench row kinds stay
@@ -1125,8 +1106,17 @@ test("the extension's version is its own and is read from no CLI file", () => {
 const COLUMN_ATTACH_PATTERN = /^dinah\.column\./;
 const CARD_ATTACH_PATTERN = /^dinah\.card\./;
 
-/** The clause New Card is registered under, which matches one value exactly. */
-const NEW_CARD_CLAUSE = `view == dinah.workbenchView && viewItem == ${CONTEXT_COLUMN_OPEN}`;
+/**
+ * The clause New Card is registered under, which matches the open column and
+ * the open pullable queue and nothing else.
+ *
+ * It was an equality until dinah-375, which is the spelling that would have
+ * dropped the item from every queue the moment those queues gained a suffix.
+ * Most queues take a card filed directly into them, so keeping New Card there
+ * is the behaviour dinah-331 shipped rather than a widening.
+ */
+const NEW_CARD_CLAUSE =
+	"view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\.open(\\.pull)?$/";
 
 /**
  * Whether a `when` clause taken from the manifest opens on a given viewItem.
@@ -1241,9 +1231,60 @@ test("New Card is offered on an open column and on no other row in the tree", ()
 	// read, in the manifest, exactly like one that worked.
 	const cases: [string, boolean][] = [
 		[CONTEXT_COLUMN_OPEN, true],
+		[CONTEXT_COLUMN_OPEN_PULL, true],
 		[CONTEXT_COLUMN_FULL, false],
+		[CONTEXT_COLUMN_FULL_PULL, false],
 		[CONTEXT_COLUMN, false],
 		[CONTEXT_CARD_ACTIVE, false],
+		[CONTEXT_WORKBENCH_ROOT, false],
+	];
+	for (const [value, matches] of cases) {
+		assert.equal(opensOn(entries[0].when, value), matches, value);
+	}
+});
+
+test("Pull is declared with a bare title that promises no further prompt", () => {
+	// dinah-375 AC-7. No ellipsis, unlike New Card and Attach File: Pull opens
+	// nothing and acts on the click (D-4), and a trailing ellipsis is this
+	// manifest's own convention for an item that asks first.
+	const commands = contributes.commands as { command: string; title: string }[];
+	const titles = new Map(commands.map((entry) => [entry.command, entry.title]));
+	assert.equal(titles.get(COMMAND_PULL), "Pull");
+	// The palette hides it for the reason it hides every row command: an
+	// invocation from there names no row, so the act has nothing to aim at.
+	const palette = (contributes.menus as Record<string, { command: string; when: string }[]>)
+		.commandPalette;
+	const hidden = palette.filter((entry) => entry.command === COMMAND_PULL);
+	assert.equal(hidden.length, 1, `Pull has ${hidden.length} palette entries`);
+	assert.equal(hidden[0].when, "false");
+});
+
+test("Pull is offered on a pullable queue at either capacity and on no other row", () => {
+	// dinah-375 AC-7. The clause is read back rather than restated, so a
+	// prefix written here by mistake would show up as a row that matches when
+	// the table says it must not. The bare column values are the ones that
+	// matter: a queue publishing no destination carries CONTEXT_COLUMN_OPEN,
+	// and offering Pull there would run the verb with no argument to give it.
+	const menus = contributes.menus as Record<
+		string,
+		{ command: string; when: string; group?: string }[]
+	>;
+	const entries = menus["view/item/context"].filter(
+		(entry) => entry.command === COMMAND_PULL,
+	);
+	assert.equal(entries.length, 1, `Pull has ${entries.length} menu entries`);
+	assert.equal(entries[0].group, "1_column@2");
+	const cases: [string, boolean][] = [
+		[CONTEXT_COLUMN_OPEN_PULL, true],
+		[CONTEXT_COLUMN_FULL_PULL, true],
+		[CONTEXT_COLUMN_OPEN, false],
+		[CONTEXT_COLUMN_FULL, false],
+		[CONTEXT_COLUMN, false],
+		[CONTEXT_CARD_READY_CLAIM, false],
+		[CONTEXT_CARD_READY_NONE, false],
+		[CONTEXT_CARD_ACTIVE, false],
+		[CONTEXT_CARD_BLOCKED, false],
+		[CONTEXT_STATE_GROUP, false],
 		[CONTEXT_WORKBENCH_ROOT, false],
 	];
 	for (const [value, matches] of cases) {
@@ -1284,10 +1325,12 @@ test("the column clause for Attach File reaches both capacities and not the join
 	// column still offers it. A column the join missed offers nothing, which is
 	// what the trailing dot in the pattern buys: dinah.column has no dot after
 	// column and so does not match.
-	const clause = attachClauseFor("1_column@3");
+	const clause = attachClauseFor("1_column@4");
 	const cases: [string, boolean][] = [
 		[CONTEXT_COLUMN_OPEN, true],
 		[CONTEXT_COLUMN_FULL, true],
+		[CONTEXT_COLUMN_OPEN_PULL, true],
+		[CONTEXT_COLUMN_FULL_PULL, true],
 		[CONTEXT_COLUMN, false],
 	];
 	for (const [value, matches] of cases) {
