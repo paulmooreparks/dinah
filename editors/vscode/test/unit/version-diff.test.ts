@@ -10,10 +10,10 @@
 // ref and has nothing earlier to compare against, and an earlier reading that
 // cannot be read.
 //
-// The last of those is the one worth stating plainly. An unreadable earlier
-// reading reports a change rather than no change, because the alternative is a
-// version bump that silently ships nothing. An unreadable later reading throws
-// instead, because that manifest is the one package.mjs is about to package.
+// An unreadable earlier reading reports a change rather than no change,
+// because the alternative is a version bump that silently ships nothing. An
+// unreadable later reading throws instead, because that manifest is the one
+// package.mjs is about to package.
 
 import assert from "node:assert/strict";
 import { join } from "node:path";

@@ -149,10 +149,11 @@ jobs:
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
 
-      # Sorted here, explicitly, on the created_at field the response already
-      # carries. The releases endpoint documents no ordering guarantee, so
-      # nothing leans on the order the list arrives in. Nothing downloads this
-      # release either, because the archive carries no binary. The tag is
+      # The releases are sorted here on the created_at field the response
+      # already carries. The releases endpoint documents no ordering
+      # guarantee, so nothing leans on the order the list arrives in. Nothing
+      # downloads this release either, because the archive carries no
+      # binary. The tag is
       # provenance, and it reaches the build through DINAH_PAIRED_RELEASE and
       # ends up on the status bar's line saying which dinah release this build
       # was tested against.
@@ -224,11 +225,11 @@ jobs:
             This extension is a companion to the dinah command-line tool and does not carry a copy of it. Install dinah yourself, then install this extension from the Extensions view ("Install from VSIX...") or with `code --install-extension`; the extension finds dinah on your PATH or at the location the `dinah.path` setting names, and tells you where to get it if it finds neither.
           files: editors/vscode/vsix/dinah-universal.vsix
 
-      # Dormant until the operator uploads a token. Whether a marketplace
-      # publisher credential may live in this repository's Actions secrets at
-      # all is his call and nobody else's, so the step is skipped whenever the
-      # secret is absent and the run still finishes having attached the
-      # archive to its release.
+      # This step stays dormant until the operator uploads a token. Whether a
+      # marketplace publisher credential may live in this repository's Actions
+      # secrets at all is his call and nobody else's, so the step is skipped
+      # whenever the secret is absent and the run still finishes having
+      # attached the archive to its release.
       #
       # The token reaches vsce through VSCE_PAT, which is where vsce looks by
       # default, rather than through a -p flag that would put it on the

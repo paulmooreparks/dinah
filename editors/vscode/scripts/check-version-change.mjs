@@ -2,9 +2,9 @@
 // the version changed.
 //
 // The comparison lives in version-diff.mjs, where a unit test drives every
-// branch of it. This file is the git-facing wrapper that version-diff.mjs is
-// deliberately not: it reads two paths and writes two workflow outputs, which
-// is the same division of labour version.mjs already draws between the tested
+// branch of it. This file is the git-facing wrapper version-diff.mjs is not.
+// It reads two paths and writes two workflow outputs, which is the same
+// division of labour version.mjs already draws between the tested
 // unpublishedVersion and the two-line callers that supply it a repository
 // root.
 //
