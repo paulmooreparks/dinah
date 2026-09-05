@@ -17,6 +17,7 @@ import { api, folder, until } from "./support";
 interface Row {
 	readonly label: string;
 	readonly description?: string;
+	readonly tooltip?: string;
 	readonly contextValue?: string;
 }
 
@@ -49,14 +50,41 @@ suite("the sidebar tree against a real workbench", () => {
 				"dinah.column.open",
 				`a column of the uncapped fixture bench does not read as open: ${String(row.contextValue)}`,
 			);
-			// The Work word leads and the occupancy follows, which is the whole
-			// of what this row teaches a reader at a glance.
-			assert.match(
-				String(row.description),
-				/^(taken|waiting|none), \d+(\/\d+)?$/,
-				`a column row's description does not read as the Work vocabulary: ${String(row.description)}`,
-			);
 		}
+
+		// Since dinah-373 a column row's description is the occupancy alone,
+		// and its tooltip carries the facts the description used to spend a
+		// word on. Both are pinned as whole strings rather than matched
+		// against a pattern: a row that composed an empty description, which
+		// is what a broken columnDescription produces, satisfies any check
+		// that only asks for the old words to be gone.
+		//
+		// The fixture is the workbench `dinah init` scaffolds, whose three
+		// columns declare no capacity and none of which awaits somebody
+		// outside, with three cards filed into intake and one carried into
+		// doing. That is why the counts below are what they are, and why the
+		// tooltips differ only on the claim-or-pull-through line.
+		const rows = columns.map((element) => reported.tree.getTreeItem(element) as Row);
+		assert.deepEqual(
+			rows.map((row) => row.label),
+			["Intake", "Doing", "Done"],
+		);
+		assert.deepEqual(
+			rows.map((row) => String(row.description)),
+			["2", "1", "0"],
+		);
+		// The tooltip is where this suite earns its keep on this card. The
+		// unit layer reads takes_work_up and operator_owned off JSON
+		// literals, so only a run against the binary proves those are the
+		// names `dinah --json status` emits.
+		assert.deepEqual(
+			rows.map((row) => String(row.tooltip)),
+			[
+				"Intake\nA card here waits to be pulled onward.\nAn agent moves a card out.",
+				"Doing\nCards are claimed here.\nAn agent moves a card out.",
+				"Done\nA card here waits to be pulled onward.\nAn agent moves a card out.",
+			],
+		);
 	});
 
 	test("a card added to the bench reaches a row with a real reference", async () => {

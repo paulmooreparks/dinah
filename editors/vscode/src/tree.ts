@@ -266,27 +266,17 @@ export function joinCards(
 // ---------------------------------------------------------------------------
 
 /**
- * The Work-column word for a column, in the order the CLI's own renderColumns
- * composes it: taken unless the column takes no work up, and waiting whenever
- * it awaits somebody outside, which is the more specific fact and wins.
+ * A column row's description: the occupancy, and one word where it is earned.
  *
- * A column the join missed reads `none`, which is the conservative default:
- * nothing is offered, and the miss self-heals on the next checkpoint.
- */
-export function workWord(view: ColumnView | undefined): string {
-	let work = view?.takes_work_up === true ? "taken" : "none";
-	if (view?.awaiting_outside === true) {
-		work = "waiting";
-	}
-	return work;
-}
-
-/**
- * A column row's description: the Work word, then the occupancy.
+ * The count leads and mostly stands alone, because the tree's own shape
+ * already separates a column that takes work up from one that only holds it:
+ * the first heads Ready and Active groups, the second draws its cards inline.
+ * A column awaiting somebody outside gets the one word the shape cannot
+ * carry, which tells a reader scanning the rows not to go there.
  *
- * The word leads because it is the thing the row exists to teach. A reader
- * glancing down the column rows learns where a card can be taken up before
- * learning how many are standing anywhere.
+ * A declared capacity always shows itself, so an empty limited column reads
+ * `0/3` rather than a bare `0` indistinguishable from a column with no limit.
+ * The CLI's renderColumns composes the same two values the same way.
  */
 export function columnDescription(
 	view: ColumnView | undefined,
@@ -296,7 +286,7 @@ export function columnDescription(
 	const capacity = view?.capacity ?? 0;
 	const occupancy =
 		capacity > 0 ? `${String(count)}/${String(capacity)}` : String(count);
-	return `${workWord(view)}, ${occupancy}`;
+	return view?.awaiting_outside === true ? `${occupancy}, waiting` : occupancy;
 }
 
 /**
@@ -473,6 +463,44 @@ export function cardTooltip(
 }
 
 /**
+ * A column row's hover text: the title, then what the row's shape doesn't say.
+ *
+ * The description carries the count and nothing else, so the facts a reader
+ * used to read off a leading word live here instead: whether a card is
+ * claimed at this column or pulled through it, whether it waits on somebody
+ * outside, and who may move it out.
+ *
+ * A column the status/tree join missed publishes none of those facts, so it
+ * keeps the title alone rather than being described from defaults. That is
+ * the same conservative miss columnActionsFor takes, and it self-heals on the
+ * next checkpoint.
+ */
+export function columnTooltip(
+	view: ColumnView | undefined,
+	node: TreeNode,
+): string {
+	const title = view?.title ?? node.value ?? "";
+	if (view === undefined) {
+		return title;
+	}
+	const lines: string[] = [title];
+	lines.push(
+		view.takes_work_up
+			? "Cards are claimed here."
+			: "A card here waits to be pulled onward.",
+	);
+	if (view.awaiting_outside) {
+		lines.push("This column is waiting on somebody outside the workbench.");
+	}
+	lines.push(
+		view.operator_owned
+			? "Only the operator moves a card out."
+			: "An agent moves a card out.",
+	);
+	return lines.join("\n");
+}
+
+/**
  * The path of a workbench relative to the workspace folder that produced its
  * row, spelled POSIX-style so two same-titled customers read alike on every
  * platform.
@@ -567,7 +595,7 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			return {
 				label: view?.title ?? element.node.value ?? "",
 				description: columnDescription(view, element.node),
-				tooltip: view?.title ?? element.node.value ?? "",
+				tooltip: columnTooltip(view, element.node),
 				contextValue: columnActionsFor(view),
 				collapsibleState: "expanded",
 			};

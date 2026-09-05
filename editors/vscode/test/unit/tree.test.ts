@@ -37,9 +37,9 @@ import {
 	columnActionsFor,
 	columnDescription,
 	columnRef,
+	columnTooltip,
 	relativeTo,
 	treeItemFor,
-	workWord,
 } from "../../src/tree";
 import type { AttachmentListing, CardView, ColumnView } from "../../src/wire";
 
@@ -495,47 +495,87 @@ test("the ready cards of the queue column carry the no-Claim contextValue", asyn
 // AC-4 and AC-5: the column row's description
 // ---------------------------------------------------------------------------
 
-test("the column row leads with the Work word and follows with the count", () => {
+test("the column row's description is the bare count, plus waiting when the column declares it", () => {
+	// dinah-373. takes_work_up no longer reaches the description at all: the
+	// tree's own shape separates a column that takes work up from one that
+	// holds it, so the two rows below read alike. Every case pins the whole
+	// string, because a row that rendered nothing would satisfy a check that
+	// only asked for the old words to be gone.
 	const node = { kind: "group", axis: "column", value: "x", count: 0 };
-	assert.equal(
-		columnDescription(column({ id: "a", takes_work_up: true, count: 4 }), node),
-		"taken, 4",
-	);
-	assert.equal(
-		columnDescription(
-			column({ id: "b", takes_work_up: false, awaiting_outside: true, count: 2 }),
-			node,
-		),
-		"waiting, 2",
-	);
-	assert.equal(
-		columnDescription(
-			column({ id: "c", takes_work_up: false, awaiting_outside: false, count: 7 }),
-			node,
-		),
-		"none, 7",
-	);
-});
-
-test("awaiting_outside wins over takes_work_up, as the CLI's own renderer has it", () => {
-	// renderColumns runs the three values most specific first, so a column
-	// carrying both flags reads waiting. Mirrored rather than re-decided.
-	assert.equal(
-		workWord(column({ id: "a", takes_work_up: true, awaiting_outside: true })),
-		"waiting",
-	);
+	const cases: [string, ColumnView, string][] = [
+		["work is taken up here", column({ id: "a", takes_work_up: true, count: 4 }), "4"],
+		["work is only held here", column({ id: "b", takes_work_up: false, count: 4 }), "4"],
+		[
+			"awaiting somebody outside",
+			column({ id: "c", takes_work_up: false, awaiting_outside: true, count: 2 }),
+			"2, waiting",
+		],
+		[
+			"awaiting outside while also taking work up",
+			column({ id: "d", takes_work_up: true, awaiting_outside: true, count: 4 }),
+			"4, waiting",
+		],
+	];
+	for (const [name, view, expected] of cases) {
+		assert.equal(columnDescription(view, node), expected, name);
+	}
 });
 
 test("a declared capacity shows the count against it, and no capacity shows the count alone", () => {
 	const node = { kind: "group", axis: "column", value: "x", count: 0 };
 	assert.equal(
 		columnDescription(column({ id: "a", capacity: 5, count: 3 }), node),
-		"taken, 3/5",
+		"3/5",
 	);
 	assert.equal(
 		columnDescription(column({ id: "a", capacity: 0, count: 3 }), node),
-		"taken, 3",
+		"3",
 	);
+	// dinah-373 D-1. A limit is a fact about the column whether or not
+	// anything currently sits against it, and the CLI's renderColumns already
+	// reads 0/3 for the same column, so an empty limited column does not
+	// collapse to a bare count that reads like a column with no limit.
+	assert.equal(
+		columnDescription(column({ id: "a", capacity: 3, count: 0 }), node),
+		"0/3",
+	);
+});
+
+test("the column row's tooltip says what the row's shape does not", () => {
+	// dinah-373. The claim-or-pull-through fact the description used to spend
+	// a word on lives here now, so this is its only home.
+	const node = { kind: "group", axis: "column", value: "x", count: 0 };
+	const cases: [string, ColumnView | undefined, string][] = [
+		[
+			"work is taken up here, and an agent moves a card out",
+			column({ id: "a", title: "Intake", takes_work_up: true }),
+			"Intake\nCards are claimed here.\nAn agent moves a card out.",
+		],
+		[
+			"a queue column the operator owns",
+			column({
+				id: "b",
+				title: "Customer approval",
+				takes_work_up: false,
+				operator_owned: true,
+			}),
+			"Customer approval\nA card here waits to be pulled onward.\nOnly the operator moves a card out.",
+		],
+		[
+			"a column awaiting somebody outside says so on its own line",
+			column({
+				id: "c",
+				title: "Printing",
+				takes_work_up: false,
+				awaiting_outside: true,
+			}),
+			"Printing\nA card here waits to be pulled onward.\nThis column is waiting on somebody outside the workbench.\nAn agent moves a card out.",
+		],
+		["the join missed the column, so nothing is described", undefined, "x"],
+	];
+	for (const [name, view, expected] of cases) {
+		assert.equal(columnTooltip(view, node), expected, name);
+	}
 });
 
 // ---------------------------------------------------------------------------
@@ -544,9 +584,9 @@ test("a declared capacity shows the count against it, and no capacity shows the 
 
 test("a column the status join missed decorates conservatively and says so", async () => {
 	// A column deleted between the status and tree calls of one checkpoint.
-	// The row falls back to the group's own value for its label and to the
-	// tree's own count, reads `none` because nothing published otherwise, and
-	// the miss is reported to the output channel.
+	// The row falls back to the group's own value for its label and tooltip
+	// and to the tree's own count for its description, and the miss is
+	// reported to the output channel.
 	const logged: string[] = [];
 	const { spawner } = stubSpawner({
 		status: { workbench: "Trees", columns: [] },
@@ -558,7 +598,11 @@ test("a column the status join missed decorates conservatively and says so", asy
 	const columns = await view.getChildren((await view.getChildren())[0]);
 	const item = treeItemFor(columns[0]);
 	assert.equal(item.label, "intake");
-	assert.equal(item.description, "none, 3");
+	assert.equal(item.description, "3");
+	// The tooltip falls back to the same node value the label does, and says
+	// nothing else: a column that published no facts is not described from
+	// defaults.
+	assert.equal(item.tooltip, "intake");
 	assert.equal(item.contextValue, CONTEXT_COLUMN);
 	assert.ok(
 		logged.some((line) => line.includes("intake")),
@@ -1444,8 +1488,11 @@ test("the column row's other four fields are what they were before the contextVa
 	const columns = await view.getChildren(roots[0]);
 	const item = treeItemFor(columns[0]);
 	assert.equal(item.label, "Intake");
-	assert.equal(item.description, "taken, 3");
-	assert.equal(item.tooltip, "Intake");
+	assert.equal(item.description, "3");
+	assert.equal(
+		item.tooltip,
+		"Intake\nCards are claimed here.\nAn agent moves a card out.",
+	);
 	assert.equal(item.collapsibleState, "expanded");
 	assert.equal(item.contextValue, CONTEXT_COLUMN_OPEN);
 });
