@@ -825,8 +825,9 @@ func (l *Library) interpose(step string) {
 // A refusal from any of them is late, and what it leaves behind is exactly
 // what the earlier steps wrote. The run records that in the report as it goes,
 // so the caller can say which parts landed rather than reporting the workbench
-// as untouched; runReshape prints it, and ReshapeReport.PartlyApplied is how a
-// reader asks.
+// as untouched; runReshape prints it, a Go reader asks
+// ReshapeReport.PartlyApplied, and a reader of the machine form asks the
+// outcome the report carries.
 //
 // That is survivable rather than merely tolerable, and the reason is the
 // idempotency above. Nothing is rolled back, because unwinding a carry would
