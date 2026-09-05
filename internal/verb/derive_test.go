@@ -150,21 +150,26 @@ func TestCommandLineQuotesWhatAReaderWouldHaveToType(t *testing.T) {
 // TestLineQuotesOnlyTheCharactersQuotingActuallyHandles holds shellSpecial to
 // what quoteArgument can honestly do with it. Every character the set declares
 // has to survive a round trip through the quoting and back out again, and the
-// characters a double-quoted token does not render inert have to stay outside
-// the set, since declaring one of them is how Line comes to present a token as
-// handled when retyping it would run something else.
+// characters whose argument boundary a double-quoted token does not restore
+// have to stay outside the set, since declaring one of them is how Line comes
+// to present a boundary it does not hold.
+//
+// The exclusion runs on the boundary rather than on inertness, and the two
+// answer differently. Quoting makes neither a $ nor a % mean itself, and both
+// are members, because quoting is what makes the argument count right for
+// them. The rows below name the characters for which even that is untrue.
 func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 	excluded := []struct {
 		char rune
 		why  string
 	}{
-		{'$', "a POSIX shell expands it inside double quotes"},
-		{'`', "a POSIX shell runs a command substitution inside double quotes and PowerShell escapes the character after it"},
-		{'%', "cmd.exe expands a variable inside double quotes"},
+		{'`', "PowerShell escapes the closing delimiter a backtick stands against, and a POSIX shell opens a command substitution inside double quotes whose unmatched form runs past that delimiter"},
+		{'!', "an interactive bash expands one inside double quotes as readily as outside, and abandons the line where the designator names no event"},
+		{'^', "cmd.exe reads it as its escape character and Microsoft documents no rule for one inside a quoted token, so no membership decision here can rest on documented behaviour"},
 	}
 	for _, out := range excluded {
 		if strings.ContainsRune(shellSpecial, out.char) {
-			t.Errorf("shellSpecial declares %q special and quoting cannot render it inert: %s", out.char, out.why)
+			t.Errorf("shellSpecial declares %q special and quoting does not restore the argument boundary for it: %s", out.char, out.why)
 		}
 	}
 
@@ -186,11 +191,19 @@ func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 	if got := quoteArgument(`C:\temp\`); got != `"C:\temp\\"` {
 		t.Errorf(`a token ending in a backslash rendered as %s, which does not terminate where it appears to`, got)
 	}
-	// $ is excluded, and what the exclusion buys is visible in the rendering
-	// rather than in the constant: a token whose only trigger is the $ is
-	// printed as it stands rather than dressed up as handled.
-	if got := quoteArgument("$HOME"); got != "$HOME" {
-		t.Errorf("a token carrying $ rendered as %q, which quoting does not make inert and must not appear to", got)
+	// The $ and the % earn their places from the same side as the backslash and
+	// against an earlier reading of this test, which pinned the bare rendering
+	// of $HOME on the ground that quoting cannot make a $ inert. Quoting does
+	// not make it inert and does make the count right, so these two assertions
+	// hold the rendering to the boundary the exclusion rule now asks about. A
+	// bare $HOME is no arguments in a POSIX shell where the variable is unset
+	// and two where its value carries a space; a bare %PATH% is as many as the
+	// value has spaces in cmd.exe.
+	if got := quoteArgument("$HOME"); got != `"$HOME"` {
+		t.Errorf("a token carrying $ rendered as %s, which a POSIX shell field-splits into a number of arguments its environment decides", got)
+	}
+	if got := quoteArgument("%PATH%"); got != `"%PATH%"` {
+		t.Errorf("a token carrying %% rendered as %s, which cmd.exe substitutes into the line before it parses one", got)
 	}
 }
 
@@ -203,8 +216,8 @@ func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 // reason, and no single-character row reaches it, because the defect needs a
 // space and a backslash in the same token.
 //
-// So this walks combinations rather than characters. Nineteen fragments, each
-// carrying one trigger or one hazard, are concatenated pairwise into 361
+// So this walks combinations rather than characters. Twenty-one fragments,
+// each carrying one trigger or one hazard, are concatenated pairwise into 441
 // tokens, and each token is rendered beside a following argument and read back
 // by three readers: the rule CommandLineToArgvW documents, a POSIX shell's
 // double-quote rules, and PowerShell's. The invariant every reader has to
@@ -217,12 +230,19 @@ func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 // runtime to it; what a POSIX shell and PowerShell do with it is pinned
 // literally in backticks below, because the honest claim is that the boundary
 // breaks rather than that it survives.
+//
+// The lone $ and % fragments are here for the reverse reason. The table used
+// to reach those two characters only through $HOME and %PATH%, and no reader
+// in this file models an expansion, so a bare rendering of either read back as
+// three tidy arguments and the sweep saw nothing. Neither is rendered bare any
+// more, and the named rows below pin that, because the sweep cannot tell a
+// quoted token from a bare one whose expansion it does not perform.
 func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 	fragments := []string{
 		"", "a", "a b", "  ", "\t",
 		`\`, `\\`, `C:\temp`, `C:\temp\`,
 		`"`, `a"b`,
-		"$HOME", "`id`", "`", "%PATH%",
+		"$HOME", "$", "`id`", "`", "%PATH%", "%",
 		"|", "*", "#", "'",
 	}
 
@@ -240,6 +260,26 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 		{`a"b`, `add "a\"b" next`},
 		{`a\"b`, `add "a\\\"b" next`},
 		{"", `add "" next`},
+		// The $ and the % are quoted although quoting leaves both meaningful,
+		// because the boundary is the only thing Line promises and quoting is
+		// what makes the count right. A bare $HOME is field-split by a POSIX
+		// shell into however many words the environment decides, and a bare
+		// %PATH% is substituted into the line by cmd.exe before it parses one.
+		// These four rows are what an edit reverting either character has to
+		// come through.
+		{"$HOME", `add "$HOME" next`},
+		{"$", `add "$" next`},
+		{"%PATH%", `add "%PATH%" next`},
+		{"%", `add "%" next`},
+		// The ! and the ^ are the reverse case, and they are rendered bare on
+		// purpose. Quoting does not stop an interactive bash expanding a ! or
+		// abandoning the line over one, and no documented rule says what
+		// cmd.exe does with a ^ inside a quoted token, so neither is a member
+		// and Line's comment names both as shapes it makes no claim for. A row
+		// each so that adding one to the set has to be argued here.
+		{"a!b", "add a!b next"},
+		{"ship it! by friday", `add "ship it! by friday" next`},
+		{"a^b", "add a^b next"},
 		// A line break is whitespace, so it quotes the token and is then
 		// emitted as it stands. The rendering spans two physical lines, which
 		// Line's comment now says outright rather than promising one line and
@@ -336,8 +376,10 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 
 			// A POSIX shell reads the boundary. It does not always read the
 			// value back, because it drops a backslash standing before another
-			// backslash, a $ or a backtick, which is the residue shellSpecial
-			// records and which no rendering removes.
+			// backslash, a $ or a backtick, and because it expands a $ inside
+			// double quotes as well as outside. That is the residue
+			// shellSpecial records and which no rendering removes, and
+			// posixReadsBackExactly names both halves of it.
 			posix := splitPOSIX(line)
 			if len(posix) != 3 || posix[0] != "add" || posix[2] != "next" {
 				t.Errorf("%q rendered the line %s, which a POSIX shell reads as %d arguments, %q", token, line, len(posix), posix)
@@ -432,6 +474,29 @@ func splitWindowsCRT(line string) []string {
 // the doc comment on Line names the backtick beside the double quote: the
 // double quote costs the boundary in PowerShell alone, and the backtick costs
 // it here too.
+//
+// It expands a parameter against posixEnv, and it does so because a reader
+// that skipped expansion answered three tidy arguments for a bare $HOME and
+// let the sweep pass over the defect the fourth review found. POSIX 2.6.5
+// field-splits the result of an expansion that happened outside double quotes
+// and never re-parses what an expansion produced, so an unquoted $HOME becomes
+// as many words as its value holds, or none where the value is empty, while a
+// quoted one is a single word whatever the value is. Modelling that is what
+// lets the sweep see a bare $-bearing token rather than take one on trust.
+//
+// The model covers $name and nothing else. A $ that no name follows is
+// literal, which is what a shell does with one, and the special parameters
+// ($$, $?, $@ and the rest) and the ${...} form are read as literal text as
+// well, which is not what a shell does with those. Every token this rendering
+// produces quotes its $ rather than leaving one bare, so no unmodelled form
+// reaches a field-splitting context here; a later edit that stopped quoting
+// the $ would need those forms modelled before this reader could be trusted
+// about them.
+//
+// Expansion also decides the value rather than only the boundary, and the two
+// answers differ: a quoted "$HOME" is one argument, correctly, and that one
+// argument carries the variable's value rather than the token, which is why
+// posixReadsBackExactly refuses a token carrying a $.
 func splitPOSIX(line string) []string {
 	var args []string
 	var cur strings.Builder
@@ -459,6 +524,29 @@ func splitPOSIX(line string) []string {
 			cur.WriteByte(line[i+1])
 			i++
 			started = true
+		case line[i] == '$' && posixNameAt(line, i+1) != "":
+			name := posixNameAt(line, i+1)
+			i += len(name)
+			value := posixEnv[name]
+			if quoted {
+				cur.WriteString(value)
+				started = true
+				break
+			}
+			// An unquoted expansion is field-split, so the value contributes
+			// as many words as it holds fields, and a value holding none
+			// contributes nothing at all: the word disappears where the
+			// expansion was everything it had. That is the whole of the
+			// difference between a bare $HOME and a quoted one, and it is why
+			// the $ is a quoting trigger.
+			for n, field := range strings.Fields(value) {
+				if n > 0 {
+					args = append(args, cur.String())
+					cur.Reset()
+				}
+				cur.WriteString(field)
+				started = true
+			}
 		case line[i] == '"':
 			quoted = !quoted
 			started = true
@@ -517,6 +605,36 @@ func splitPowerShell(line string) []string {
 	return args
 }
 
+// posixEnv is the environment splitPOSIX expands a parameter against. HOME
+// carries a space on purpose, because a value of one word makes a bare and a
+// quoted expansion agree and hides the very difference the sweep is here to
+// catch. Every name absent from the map is unset, which a shell expands to
+// nothing, and an unquoted expansion to nothing removes the word.
+var posixEnv = map[string]string{
+	"HOME": "/home/a b",
+	"PATH": "/usr/bin:/opt/a b/bin",
+}
+
+// posixNameAt returns the parameter name beginning at i, or the empty string
+// where no name begins there. The grammar is POSIX 3.235's name production, an
+// underscore or a letter followed by underscores, letters and digits, and a $
+// standing before anything else is literal. I searched for prior art with
+// grep -rn '^func ' cmd internal before writing it and found no name scanner
+// in the tree; the three shell readers beside it are this file's own.
+func posixNameAt(line string, i int) string {
+	j := i
+	for j < len(line) {
+		c := line[j]
+		alpha := c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+		digit := j > i && c >= '0' && c <= '9'
+		if !alpha && !digit {
+			break
+		}
+		j++
+	}
+	return line[i:j]
+}
+
 // posixReadsBackExactly says whether a POSIX shell recovers token unchanged
 // from quoteArgument's rendering. It does for almost everything, because a
 // backslash standing before an ordinary character is literal inside POSIX
@@ -526,7 +644,19 @@ func splitPowerShell(line string) []string {
 // stands before a $ or a backtick, because POSIX pairs or consumes those and
 // the rendering leaves them as they are. That is the residue shellSpecial
 // records rather than a defect this test should hide.
+//
+// It also does not for any token carrying a $, and that answer is not
+// something splitPOSIX can see. A POSIX shell expands a parameter inside
+// double quotes, so the argument it builds carries the variable's value rather
+// than the token, while splitPOSIX performs no expansion and hands the token
+// straight back. Reporting true here would let the sweep assert a value round
+// trip that a real shell does not make, which is the shape of every defect
+// this card has produced, so the exclusion is stated rather than inherited
+// from the reader's silence.
 func posixReadsBackExactly(token string) bool {
+	if strings.ContainsRune(token, '$') {
+		return false
+	}
 	for i := 0; i < len(token); {
 		if token[i] != '\\' {
 			i++

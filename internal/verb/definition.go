@@ -586,15 +586,43 @@ type Command struct {
 // Line joins Verb and Args into one string for display, quoting an argument
 // that is empty, that carries whitespace, or that carries one of the characters
 // shellSpecial names, so a reader can see where each argument begins and where
-// it ends. That boundary is the property Line holds, and it holds in a POSIX
+// it ends. That boundary is the property Line holds. It holds in a POSIX
 // shell, in cmd.exe and the Windows C runtime, and in PowerShell, for every
-// token that carries neither a double quote nor a backtick of its own. It
-// fails for the double quote in PowerShell alone, which does not read the \"
-// escape. It fails for a backtick in PowerShell, which treats one as an escape
-// wherever it appears including against a closing delimiter, and in a POSIX
-// shell, where a backtick inside double quotes opens a command substitution
-// and an unmatched one runs past the closing quote. Neither is avoidable, and
-// quoting is what makes neither of them inert.
+// token that carries none of a double quote, a backtick, an exclamation mark
+// or a caret, and it holds in cmd.exe for such a token only while the token
+// also carries no line break and no %VAR% whose value carries a double quote
+// of its own.
+//
+// Those four characters are the shapes the quoting does not rescue, and each
+// one fails by its own mechanism. A double quote is escaped as \", which a
+// POSIX shell and the Windows C runtime read back and PowerShell does not, so
+// it costs the boundary in PowerShell alone. A backtick is PowerShell's escape
+// character wherever one stands, including against a closing delimiter, and
+// inside POSIX double quotes it opens a command substitution whose unmatched
+// form runs past that delimiter, so it costs the boundary in both. An
+// interactive bash expands an exclamation mark inside double quotes, where the
+// one position its manual exempts is immediately before the closing quote, and
+// it abandons the line before running it where the designator names no event,
+// so the quoting decides neither what the line means nor whether it runs. A
+// caret is cmd.exe's escape character, and Microsoft's cmd documentation names
+// it as that without saying what one does inside a quoted token, so Line makes
+// no claim for it rather than resting one on a measurement of a single console
+// build.
+//
+// The two cmd.exe conditions are not about those four characters, and the
+// paragraph on line breaks below carries the first. The second is a value
+// arriving from the environment rather than anything in the token, since
+// cmd.exe substitutes a %VAR% into the line before it parses one, so a value
+// carrying a double quote reopens the quoting after the rendering has been
+// read and no rendering of the token can prevent it.
+//
+// Read the four as the boundary answer, because there is a second question
+// with a different answer. shellSpecial's comment gives that one character by
+// character: it asks whether the quoting leaves a character meaning something
+// other than itself, and the $ and the % are yes there while being quoted
+// here. Quoting them is what makes the argument count right, and a shell
+// substitutes them inside the quoting all the same, so what a reader retypes
+// carries the value the variable holds rather than the value the request did.
 //
 // The promise is bounded in one more way, which is the physical shape of the
 // output rather than what a shell does with it. A value carrying a line break
@@ -621,43 +649,90 @@ func (c Command) Line() string {
 	return strings.Join(parts, " ")
 }
 
-// shellSpecial is the set of characters that make Line quote a token. Each one
-// is read as something other than part of a plain word by at least one shell,
-// and each one is inert inside a double-quoted token in all three, so wrapping
-// the token is what answers the set. Two members need their own sentence. The
-// double quote is the delimiter, so quoteArgument escapes it as \", which
-// POSIX shells and the Windows C runtime read back and PowerShell does not,
-// which makes a token carrying a double quote one of the two shapes whose
-// boundary Line cannot hold everywhere. The other is the backtick, which is
-// outside this set for the reason the next paragraph gives, and which costs
-// the boundary in PowerShell and in a POSIX shell rather than costing only the
-// value. The backslash is here because a bare token
-// ending in one escapes the space after it in a POSIX shell and swallows the
-// argument that follows, and because quoting a backslash costs nothing: inside
-// double quotes cmd.exe and PowerShell read it literally, and a POSIX shell
-// reads it literally too unless a ", a backslash, a $ or a backtick follows it.
+// shellSpecial is the set of characters that make Line quote a token. One
+// question decides whether a character may be a member, and it is the
+// boundary: nothing belongs here unless wrapping the token in double quotes
+// leaves the argument count right in all three shells. That is the test the
+// three exclusions below fail, and it is a bar to clear rather than a reason
+// to be here.
 //
-// The set is a list of triggers rather than a census of the characters a shell
-// treats specially. Some stay out because quoting would not help: a POSIX
-// shell expands $ and runs a backtick substitution inside double quotes,
-// PowerShell reads a backtick as its own escape character wherever one
-// appears, an interactive bash expands ! there, and cmd.exe expands %VAR%
-// there. The backtick is the costliest of those, because both readings can
-// reach the closing delimiter. PowerShell escapes a delimiter a backtick
-// stands against, and a POSIX shell reading an unmatched substitution runs
-// straight past one, so the word never terminates. Others
-// stay out because nobody has needed them yet, which is cmd.exe's escape
-// character ^.
+// Most members are here because a bare token carrying one changes the count.
+// The double quote, the single quote and the backslash each escape or open
+// something that swallows the space after the token; the pipe, the ampersand,
+// the semicolon, the angle brackets and the parentheses are POSIX operators
+// that break the word or consume the token beside it; the star, the question
+// mark and the bracket pair expand to as many words as match on disc; a hash
+// at the head of a word turns the rest of the line into a comment; and the $
+// and the % are substituted, which the paragraphs below take separately
+// because they were kept out for four rounds on the wrong question.
+//
+// The tilde and the equals sign are the two members that clear the bar without
+// needing it, and saying so is cheaper than inventing a hazard for them. A
+// bare tilde is expanded to a home directory whose text POSIX does not
+// field-split, and a bare name=value word is an assignment only in command
+// position, which no token Line renders ever occupies, because Line writes the
+// verb first. Both change what a token can be read as rather than how many
+// tokens there are, and quoting either costs nothing, so both stay.
+//
+// Whether the quoting also leaves a character meaning itself is a second
+// question with a different answer, and reading the two as one list is what
+// kept the $ out of this set until the fourth review of this card found it.
+//
+// The double quote is the delimiter, so quoteArgument escapes it as \", which
+// POSIX shells and the Windows C runtime read back and PowerShell does not. It
+// is the one member whose boundary the quoting fails to restore on the
+// strength of the token alone, and Line's comment names it there beside the
+// three shapes that are not members at all. The % fails it too on a value that
+// carries a double quote, which is a condition on the environment rather than
+// on the token, and the residue paragraph below records that one.
+//
+// The backslash is here because a bare token ending in one escapes the space
+// after it in a POSIX shell and swallows the argument that follows, and
+// because quoting a backslash costs nothing: inside double quotes cmd.exe and
+// PowerShell read it literally, and a POSIX shell reads it literally too
+// unless a ", a backslash, a $ or a backtick follows it.
+//
+// The $ and the % are here on the boundary reasoning, and they were kept out
+// on the second question's answer. A POSIX shell field-splits the result of an
+// expansion that did not happen inside double quotes, so a bare $HOME is as
+// many arguments as its value has fields, which is none where the variable is
+// unset and one only on a machine whose value happens to be a single word.
+// Inside double quotes there is no field splitting and no re-parse of what the
+// expansion produced, so "$HOME" is one word whatever it holds. cmd.exe
+// substitutes %PATH% into the line before it parses one, so a bare %PATH%
+// arrives as as many arguments as the substituted text has words, and the
+// quoting holds them together. PowerShell expands a $ in both places and
+// field-splits neither.
+//
+// Membership does not mean the quoting silences the character, and for those
+// two it does not. A POSIX shell and PowerShell still expand a $ inside double
+// quotes, and cmd.exe still expands a %VAR% there, so the token a reader
+// retypes still names a variable rather than carrying the text the request
+// held. That is the same cost the residue paragraph below records for the
+// backslash, and it buys the one property Line promises.
+//
+// Three characters a shell reads specially stay out, each for its own reason.
+// A backtick stays out because quoting does not restore the boundary for one
+// at all: PowerShell escapes the delimiter a backtick stands against, and a
+// POSIX shell reading an unmatched substitution runs straight past it, so the
+// word never terminates. An exclamation mark stays out because an interactive
+// bash expands one inside double quotes, exempting only the position
+// immediately before the closing quote, and abandons the line where the
+// designator names no event, so quoting changes which failure happens rather
+// than whether one does. The caret, which is cmd.exe's escape character, stays
+// out because Microsoft's cmd documentation names it as that without saying
+// what one does inside a quoted token, and a membership decision resting on a
+// measurement of one console build expires without announcing itself.
 //
 // Read what leaving a character out does and does not mean, because the
 // obvious reading is wrong. It means no token is quoted on account of that
 // character. It does not mean such a token is printed bare, because whitespace
 // and every character in the set quote a token too, and a card title is
-// usually several words. So `raise the $HOME limit` renders as
-// "raise the $HOME limit", quoted for its spaces, with the $ sitting inside
-// the quoting and its meaning intact. That is the ordinary input rather than a
-// corner, and it is the reason Line promises a readable boundary and nothing
-// about retyping.
+// usually several words. So `ship it! by friday` renders as
+// "ship it! by friday", quoted for its spaces, with the ! sitting inside the
+// quoting and its meaning to an interactive bash intact. That is the ordinary
+// input rather than a corner, and it is the reason Line promises a readable
+// boundary and nothing about retyping.
 //
 // What quoteArgument escapes, it escapes narrowly. Doubling every backslash
 // would repair a Windows path for a POSIX shell and double every separator of
@@ -675,9 +750,14 @@ func (c Command) Line() string {
 // right. A POSIX shell drops a backslash that precedes another backslash, a $
 // or a backtick. PowerShell keeps both halves of a run this rendering doubled,
 // so a token ending in a backslash comes back from PowerShell carrying one too
-// many. A caller that wants to re-run the call uses Args, which is unquoted
+// many. A $ and a % come back carrying whatever the variable holds, for the
+// reason the membership paragraphs give. The % owes one caveat more, because
+// cmd.exe substitutes before it parses: a value holding a double quote of its own
+// reopens the quoting and costs the boundary after all, which no rendering of
+// the token can prevent, since that text arrives after the rendering has been
+// read. A caller that wants to re-run the call uses Args, which is unquoted
 // and passes through none of this.
-const shellSpecial = "\"'\\|&;<>()*?[]#~="
+const shellSpecial = "\"'\\|&;<>()*?[]#~=$%"
 
 // quoteArgument renders one token so that a reader can tell where it begins
 // and where it ends. An empty token has no bare spelling at all, so it becomes
