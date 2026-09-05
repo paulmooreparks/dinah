@@ -12,7 +12,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { WorkbenchResolution } from "../../src/api";
+import type { CommandHost } from "../../src/cardCommands";
 import type { SpawnOutcome, Spawner } from "../../src/cli";
+import { contextForPull } from "../../src/pullCommands";
 import {
 	COMMAND_OPEN_ATTACHMENT,
 	CONTEXT_CARD_ACTIVE,
@@ -21,7 +23,9 @@ import {
 	CONTEXT_CARD_READY_NONE,
 	CONTEXT_COLUMN,
 	CONTEXT_COLUMN_FULL,
+	CONTEXT_COLUMN_FULL_PULL,
 	CONTEXT_COLUMN_OPEN,
+	CONTEXT_COLUMN_OPEN_PULL,
 	CONTEXT_STATE_GROUP,
 	CONTEXT_WORKBENCH_CANDIDATE,
 	CONTEXT_WORKBENCH_FOREST,
@@ -255,14 +259,20 @@ test("the root is one workbench whose children are the declared columns in order
 		columns.map((element) => treeItemFor(element).label),
 		["Intake", "Customer approval", "Done"],
 	);
-	for (const element of columns) {
-		// All three declare no capacity, so all three take another card and
-		// carry the open suffix. This assertion read the bare CONTEXT_COLUMN
-		// until dinah-331 gave a column row two acts of its own; the bare
-		// value now means only that the status/tree join missed the column,
-		// which the join-miss test below still pins.
-		assert.equal(treeItemFor(element).contextValue, CONTEXT_COLUMN_OPEN);
-	}
+	// All three declare no capacity, so all three take another card and carry
+	// the open spelling. This assertion read the bare CONTEXT_COLUMN until
+	// dinah-331 gave a column row two acts of its own; the bare value now
+	// means only that the status/tree join missed the column, which the
+	// join-miss test below still pins.
+	//
+	// Customer approval is the one row that differs, and dinah-375 is why: it
+	// is a queue with Done standing after it, so it carries the pull suffix.
+	// Intake takes work up, and Done is a queue with nothing after it, so
+	// neither does.
+	assert.deepEqual(
+		columns.map((element) => treeItemFor(element).contextValue),
+		[CONTEXT_COLUMN_OPEN, CONTEXT_COLUMN_OPEN_PULL, CONTEXT_COLUMN_OPEN],
+	);
 });
 
 test("a column draws exactly the state groups the tree returned, two and not three", async () => {
@@ -576,6 +586,40 @@ test("the column row's tooltip says what the row's shape does not", () => {
 	for (const [name, view, expected] of cases) {
 		assert.equal(columnTooltip(view, node), expected, name);
 	}
+});
+
+test("a queue with a column after it names that column, resolving the title where it can", () => {
+	// dinah-375 AC-10. The next column arrives as a ref and, where the
+	// status/tree join answered for it, as its view. The ref alone is what a
+	// reader would have to look up themselves, so the title is shown when
+	// there is one and the raw reference when there is not: a reader who can
+	// see "spec" can find the column and a reader shown a blank cannot.
+	const node = { kind: "group", axis: "column", value: "x", count: 0 };
+	const queue = column({ id: "b", title: "Design Queue", takes_work_up: false });
+	const spec = column({ id: "spec", title: "Spec" });
+	assert.equal(
+		columnTooltip(queue, node, spec, "spec"),
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into Spec.\nAn agent moves a card out.",
+		"the resolved view names the destination's title",
+	);
+	assert.equal(
+		columnTooltip(queue, node, undefined, "spec"),
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into spec.\nAn agent moves a card out.",
+		"a ref the join has not resolved falls back to the raw reference",
+	);
+	// The line appears for a queue with a column after it and for nothing
+	// else, so a work column's tooltip is byte-identical to what dinah-373
+	// shipped even when a column stands after it.
+	assert.equal(
+		columnTooltip(column({ id: "a", title: "Intake", takes_work_up: true }), node, spec, "spec"),
+		"Intake\nCards are claimed here.\nAn agent moves a card out.",
+		"a work column is described as it was before",
+	);
+	assert.equal(
+		columnTooltip(column({ id: "c", title: "Held", takes_work_up: false }), node),
+		"Held\nA card here waits to be pulled onward.\nAn agent moves a card out.",
+		"a queue standing last is described as it was before",
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -986,26 +1030,37 @@ test("a relative path is spelled POSIX-style and is measured segment by segment"
 // AC-17: nothing anywhere offers a Pull
 // ---------------------------------------------------------------------------
 
-test("no row this provider composes ever names a pull", async () => {
+test("only a queue row with a column after it names a pull", async () => {
+	// This stood as "no row this provider composes ever names a pull", the
+	// tree-side twin of the manifest guard dinah-375 D-5 retired, and its
+	// stated reason was that dinah could not aim the act. dinah-280 published
+	// the destination and dinah-375 gave the row the act, so the reason is
+	// discharged and the guard would now refuse the feature it was written
+	// before.
+	//
+	// What is worth keeping is the other half of the claim: no row of any
+	// other kind names a pull. A card row, a state group, an attachment and
+	// the workbench root are all still wrong places for it, and D-2 keeps a
+	// work column out too.
 	const view = await loadedBench();
-	const seen: string[] = [];
+	const seen: [string, string][] = [];
 	const walk = async (element?: TreeElement): Promise<void> => {
 		for (const child of await view.getChildren(element)) {
 			const item = treeItemFor(child);
 			if (item.contextValue !== undefined) {
-				seen.push(item.contextValue);
+				seen.push([child.kind, item.contextValue]);
 			}
 			await walk(child);
 		}
 	};
 	await walk();
 	assert.ok(seen.length > 0, "the walk visited nothing, so it proved nothing");
-	for (const value of seen) {
-		assert.ok(
-			!value.includes("pull"),
-			`a row composed the contextValue ${value}, which names an act dinah cannot aim`,
-		);
-	}
+	const pulls = seen.filter(([, value]) => value.includes("pull"));
+	assert.deepEqual(
+		pulls,
+		[["column", CONTEXT_COLUMN_OPEN_PULL]],
+		"exactly one row of this bench is a queue with a column after it",
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -1476,6 +1531,158 @@ test("a column row says whether it will take another card, from the two fields i
 	for (const [name, view, expected] of cases) {
 		assert.equal(columnActionsFor(view), expected, name);
 	}
+});
+
+test("the pull suffix is decided by the column standing next, independently of capacity", () => {
+	// dinah-375 AC-1. Two axes, eight rows: {takes_work_up} x {a column
+	// stands next} x {capacity reached}. Capacity never gates a pull, because
+	// a pull takes a card out of the queue rather than putting one in, so the
+	// suffix has to appear on the full spelling as well as the open one.
+	//
+	// The work-column rows are the ones this table exists for. A work column
+	// has a column standing after it as readily as a queue does, so a function
+	// that read the next column alone would offer the act there, and D-2 says
+	// it must not.
+	const cases: [string, ColumnView | undefined, string | undefined, string][] = [
+		[
+			"a queue with room and a column after it",
+			column({ id: "a", takes_work_up: false }),
+			"spec",
+			CONTEXT_COLUMN_OPEN_PULL,
+		],
+		[
+			"a queue at capacity with a column after it",
+			column({ id: "a", takes_work_up: false, capacity: 3, count: 3 }),
+			"spec",
+			CONTEXT_COLUMN_FULL_PULL,
+		],
+		[
+			"a queue standing last in the flow",
+			column({ id: "a", takes_work_up: false }),
+			undefined,
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"a queue at capacity standing last in the flow",
+			column({ id: "a", takes_work_up: false, capacity: 3, count: 3 }),
+			undefined,
+			CONTEXT_COLUMN_FULL,
+		],
+		[
+			"a work column with a column after it all the same",
+			column({ id: "a", takes_work_up: true }),
+			"spec",
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"a work column at capacity with a column after it",
+			column({ id: "a", takes_work_up: true, capacity: 3, count: 3 }),
+			"spec",
+			CONTEXT_COLUMN_FULL,
+		],
+		[
+			"a work column standing last in the flow",
+			column({ id: "a", takes_work_up: true }),
+			undefined,
+			CONTEXT_COLUMN_OPEN,
+		],
+		[
+			"a column the status/tree join missed, whatever stands after it",
+			undefined,
+			"spec",
+			CONTEXT_COLUMN,
+		],
+	];
+	for (const [name, view, next, expected] of cases) {
+		assert.equal(columnActionsFor(view, next), expected, name);
+	}
+});
+
+test("the row's own tooltip names the column standing after it, resolved to its title", async () => {
+	// dinah-375 AC-11. The table above drives columnTooltip directly with the
+	// two facts handed to it. This drives the whole join, so a treeItemFor
+	// that stopped passing element.nextColumn would show the raw reference
+	// here and go red, rather than passing on the strength of a unit test of
+	// an argument nothing supplies.
+	const { spawner } = stubSpawner({
+		status: {
+			workbench: "Trees",
+			root: "C:\\work\\bench",
+			columns: [
+				column({ id: "intake", title: "Intake", count: 3 }),
+				column({
+					id: "review",
+					title: "Design Queue",
+					takes_work_up: false,
+					count: 2,
+				}),
+				column({ id: "done", title: "Specification", count: 1 }),
+			],
+		},
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const treeView = provider(spawner);
+	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
+	const columns = await treeView.getChildren((await treeView.getChildren())[0]);
+	const item = treeItemFor(columns[1]);
+	assert.equal(
+		item.tooltip,
+		"Design Queue\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into Specification.\nAn agent moves a card out.",
+	);
+	assert.equal(item.contextValue, CONTEXT_COLUMN_OPEN_PULL);
+});
+
+test("two queues standing in a row each pull into their own next column", async () => {
+	// dinah-375 AC-12, the criterion the operator's OQ-1 ruling was filed
+	// against. Intake and Waiting are both queues, so before the ruling both
+	// rows published the far end of the chain and clicking Intake advanced a
+	// card that was standing in Waiting, out of a row the reader was not
+	// looking at.
+	//
+	// The fixture is the tree fixture the rest of this file already uses, with
+	// a status that makes its first two columns queues. Both destinations are
+	// read off the real provider rather than assembled by hand, so a columnsOf
+	// that walked past a queue would answer "doing" for both rows here.
+	const { spawner } = stubSpawner({
+		status: {
+			workbench: "Trees",
+			root: "C:\\work\\bench",
+			columns: [
+				column({ id: "intake", title: "Intake", takes_work_up: false, count: 3 }),
+				column({ id: "review", title: "Waiting", takes_work_up: false, count: 2 }),
+				column({ id: "done", title: "Doing", takes_work_up: true, count: 1 }),
+			],
+		},
+		tree: THREE_COLUMNS,
+		ls: THREE_LISTING,
+	});
+	const treeView = provider(spawner);
+	await treeView.load([folder({ folder: "C:\\work\\bench" })]);
+	const columns = await treeView.getChildren((await treeView.getChildren())[0]);
+	const [intake, waiting] = columns;
+
+	assert.equal(intake.kind === "column" ? intake.nextColumnRef : undefined, "review");
+	assert.equal(waiting.kind === "column" ? waiting.nextColumnRef : undefined, "done");
+
+	// Both rows offer the act, and each names its own neighbour. The
+	// inequality is the whole point: one destination shared between the two
+	// rows is the defect this criterion pins.
+	assert.equal(treeItemFor(intake).contextValue, CONTEXT_COLUMN_OPEN_PULL);
+	assert.equal(treeItemFor(waiting).contextValue, CONTEXT_COLUMN_OPEN_PULL);
+
+	const host = {} as CommandHost;
+	const first = contextForPull(intake, "dinah", host, spawner);
+	const second = contextForPull(waiting, "dinah", host, spawner);
+	assert.equal(first?.destination, "review", "Intake pulls into Waiting");
+	assert.equal(second?.destination, "done", "Waiting pulls into Doing");
+	assert.notEqual(
+		first?.destination,
+		second?.destination,
+		"neither queue's destination is computed by walking past the other",
+	);
+	assert.equal(first?.label, "Intake");
+	assert.equal(second?.label, "Waiting");
 });
 
 test("the column row's other four fields are what they were before the contextValue moved", async () => {

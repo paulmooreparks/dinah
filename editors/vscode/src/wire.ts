@@ -154,6 +154,19 @@ export interface LegalMove {
 	readonly reject?: boolean;
 }
 
+/**
+ * verb.Response, as far as `dinah pull` answers it on an ok outcome.
+ *
+ * The card is absent when the pull found nothing ready to take, which is the
+ * one ok answer this extension has to tell apart from a pull that moved
+ * something: okEmpty writes the message and its values and no card at all.
+ */
+export interface PullAnswer {
+	readonly card?: CardView;
+	readonly message?: string;
+	readonly message_values?: Record<string, string>;
+}
+
 /** verb.Served, what `dinah --json instructions <ref>` emits. */
 export interface ServedAnswer {
 	readonly legal_moves?: readonly LegalMove[];

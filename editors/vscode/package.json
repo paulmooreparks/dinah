@@ -135,6 +135,10 @@
       {
         "command": "dinah.tree.attachFile",
         "title": "Attach File..."
+      },
+      {
+        "command": "dinah.tree.pull",
+        "title": "Pull"
       }
     ],
     "menus": {
@@ -193,6 +197,10 @@
         },
         {
           "command": "dinah.tree.attachFile",
+          "when": "false"
+        },
+        {
+          "command": "dinah.tree.pull",
           "when": "false"
         }
       ],
@@ -256,18 +264,23 @@
         },
         {
           "command": "dinah.tree.editColumnInstructions",
-          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column(\\.open|\\.full)?$/",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column(\\.open|\\.full)?(\\.pull)?$/",
           "group": "1_column@1"
         },
         {
-          "command": "dinah.tree.newCard",
-          "when": "view == dinah.workbenchView && viewItem == dinah.column.open",
+          "command": "dinah.tree.pull",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\.(open|full)\\.pull$/",
           "group": "1_column@2"
+        },
+        {
+          "command": "dinah.tree.newCard",
+          "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\.open(\\.pull)?$/",
+          "group": "1_column@3"
         },
         {
           "command": "dinah.tree.attachFile",
           "when": "view == dinah.workbenchView && viewItem =~ /^dinah\\.column\\./",
-          "group": "1_column@3"
+          "group": "1_column@4"
         },
         {
           "command": "dinah.tree.attachFile",

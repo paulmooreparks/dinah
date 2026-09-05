@@ -70,6 +70,9 @@ export const COMMAND_NEW_CARD = "dinah.tree.newCard";
 /** The command a workbench, column or card row runs to attach a file. */
 export const COMMAND_ATTACH_FILE = "dinah.tree.attachFile";
 
+/** The command a queue column row runs to pull its head-of-ready card onward. */
+export const COMMAND_PULL = "dinah.tree.pull";
+
 /**
  * Every command this extension contributes, in the order package.json
  * declares them. A manifest test reads this array back, which is what keeps
@@ -91,6 +94,7 @@ export const TREE_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_NEW_CARD,
 	COMMAND_ATTACH_FILE,
+	COMMAND_PULL,
 ];
 
 /**
@@ -119,6 +123,7 @@ export const ROW_COMMANDS: readonly string[] = [
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_NEW_CARD,
 	COMMAND_ATTACH_FILE,
+	COMMAND_PULL,
 ];
 
 /**
@@ -137,8 +142,10 @@ export const GLOBAL_COMMANDS: readonly string[] = [COMMAND_REFRESH];
  *
  * A ready card's differentiator is its own column's published TakesWorkUp,
  * and there is deliberately no pull spelling here: dinah's pull verb takes a
- * destination rather than a card, so no read-only call publishes the fact a
- * card-scoped Pull item would need (dinah-265 D-2, dinah-280).
+ * destination rather than a card, so a card-scoped Pull could never be aimed
+ * at the row that was clicked (dinah-265 D-2). dinah-375 gave the act to the
+ * column row instead, which is the level the verb actually operates at, and
+ * its two contextValues are the suffixed pair below.
  */
 export const CONTEXT_CARD_READY_CLAIM = "dinah.card.ready.claim";
 export const CONTEXT_CARD_READY_NONE = "dinah.card.ready.none";
@@ -164,3 +171,14 @@ export const CONTEXT_STATE_GROUP = "dinah.stateGroup";
  */
 export const CONTEXT_COLUMN_OPEN = "dinah.column.open";
 export const CONTEXT_COLUMN_FULL = "dinah.column.full";
+
+/**
+ * The same two answers on a queue column a pull can be run from (dinah-375).
+ *
+ * Capacity and pullability are independent axes, so the suffix is appended to
+ * whichever of the two above capacity decided rather than replacing it. A pull
+ * takes a card out of the queue rather than putting one in, so a full queue is
+ * as pullable as an open one, and both spellings carry the act.
+ */
+export const CONTEXT_COLUMN_OPEN_PULL = `${CONTEXT_COLUMN_OPEN}.pull`;
+export const CONTEXT_COLUMN_FULL_PULL = `${CONTEXT_COLUMN_FULL}.pull`;
