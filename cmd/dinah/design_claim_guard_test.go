@@ -20,12 +20,16 @@ import (
 // What it protects is narrow, and reading it wider than this is a mistake. It
 // catches the verbatim return of the wordings listed below, and it is robust
 // only to case, to line wrapping, to whitespace, and to where a writer put the
-// hyphens in a compound. A paraphrase of the same claim in words this file has
-// never seen walks straight past it, so the check is a backstop and only a
-// reader catches the general case. The list therefore carries the spellings a
-// writer would reach for rather than only the one that stood in the tree, which
-// is why the unhyphenated form and the founding sentence's own wording are here
-// beside the two retired passages.
+// ASCII hyphens in a compound. A compound spelled with U+2011 or any other
+// non-ASCII dash escapes it, and so does a paraphrase of the same claim in
+// words this file has never seen, so the check is a backstop and only a reader
+// catches the general case. Because the match normalises hyphens, each entry
+// below already answers for every hyphenation of its own wording, so the list
+// wants one entry per claim and a second entry spelling the same claim
+// differently only reports one planted sentence twice. The third entry is a
+// wording neither document carried: it is the project's founding
+// self-description, and it is listed because that is the sentence somebody is
+// likeliest to copy back in from older material.
 
 // retiredClaim is one wording the design documents used to carry, together with
 // the reason it may not come back.
@@ -41,8 +45,9 @@ type retiredClaim struct {
 	why string
 }
 
-// retiredSecondImplementationClaims are the wordings the arbiter rule in
-// format.md and the language paragraph in surfaces.md used to carry.
+// retiredSecondImplementationClaims are the wordings this check refuses, taken
+// from the arbiter rule in format.md, from the language paragraph in
+// surfaces.md, and from the project's founding self-description.
 var retiredSecondImplementationClaims = []retiredClaim{
 	{
 		wording: "the two implementations meet at the contract",
@@ -53,12 +58,8 @@ var retiredSecondImplementationClaims = []retiredClaim{
 		why:     "no rule against sharing code exists, and the conformance suite pins Dinah's own behaviour against what the design documents and the profile say the contract requires",
 	},
 	{
-		wording: "no shared code rule",
-		why:     "the same retired rule spelled without its hyphens, which is how a writer reaching for it in ordinary prose spells it, and no rule against sharing code exists",
-	},
-	{
 		wording: "kept honest by a shared conformance suite",
-		why:     "this is the founding sentence's own wording, which still stands in the Dinah workbench's standing instructions and is therefore the likeliest text copied back into a design document; Dinah.Team shares Dinah's library, so the two are not two implementations kept honest against each other",
+		why:     "this was the project's founding self-description, and although the documents this check reads no longer carry it, the wording survives in older drafts, in card history and in the transcripts this project keeps, so it is the likeliest text somebody copies back into a design document; Dinah.Team shares Dinah's library, so the two are not two implementations kept honest against each other",
 	},
 }
 
