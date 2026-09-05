@@ -339,7 +339,7 @@ test("the settings are contributed with the scopes their subjects need", () => {
 // extension has been tested against the dinah release it is paired with"
 // describes the pairing this card kept alive, and the lookahead is what keeps
 // the guard off it.
-const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|had|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
+const POSSESSION_WORD = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
 const POSSESSION = new RegExp(String.raw`\b${POSSESSION_WORD}\b`, "gi");
 
 // Who is said to do the possessing, and what is said to be possessed. Frame
@@ -453,6 +453,7 @@ const CLAIMS_A_CARRIED_BINARY = [
 	"The extension supplies dinah when it is missing.",
 	"The extension has a dinah binary for every platform.",
 	"The .vsix contains a dinah binary.",
+	"The extension has had a dinah binary since version 2.",
 ];
 
 // Copy that says the opposite, or says nothing about where dinah comes from,
@@ -498,6 +499,77 @@ const KNOWN_ESCAPES = [
 	"The marketplace build embeds dinah so you need not fetch it.",
 	"Leave empty to use the one the extension supplies.",
 ];
+
+// Where the lookahead inside `POSSESSION_WORD` sits is load-bearing, and the
+// corpus above cannot see it. The lookahead is scoped to the `has` alternative
+// alone. Written one group wider, closing over the whole alternation, it would
+// suppress every verb in the set whenever `been` or `already been` followed,
+// leaving a guard that refuses far less while still passing all 38 entries
+// above. The two placements are built here as separate constants and run
+// separately, because a single construction cannot be compared with itself.
+//
+// `POSSESSION_WORD_WIDE_PLACEMENT` was never shipped and is not a second
+// supported form. It exists only so that the test below has something to fail
+// against. Both constants are written out in full rather than derived from one
+// another, so that a reader can diff them by eye.
+//
+// `own copy` is the alternative doing the discriminating, and no verb in the
+// list could do it. `been` is a participle that follows an auxiliary, and none
+// of carries, ships, provides, includes or embeds is an auxiliary, so no verb
+// here is ever immediately followed by `been` in prose anybody would write.
+// `own copy` is a noun phrase rather than a verb, so a dropped-auxiliary slip
+// puts `been` directly after it, which is the one position the wide placement's
+// lookahead tests and the narrow placement never reaches. An editor who
+// reorders or rewords these alternatives should know that dropping `own copy`
+// disarms this case without failing anything.
+const POSSESSION_WORD_NARROW_PLACEMENT = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has(?!\s+(?:been|already\s+been))|contains|built[- ]in|comes? with|came with|own copy)`;
+const POSSESSION_WORD_WIDE_PLACEMENT = String.raw`(?:carr(?:y|ies|ied|ying)|bundl(?:e|es|ed|ing)|includ(?:e|es|ed|ing)|ship(?:s|ped|ping)?|suppl(?:y|ies|ied|ying)|packag(?:e|es|ed|ing)|embed(?:s|ded|ding)?|provid(?:e|es|ed|ing)|has|contains|built[- ]in|comes? with|came with|own copy)(?!\s+(?:been|already\s+been))`;
+
+// The sentence is missing a `has`, and that is deliberate. Restoring it makes
+// the sentence catch under both placements, which would leave the test below
+// passing while proving nothing about where the lookahead sits. Measured with
+// node at implementation time: without `has`, narrow catches and wide does not;
+// with `has`, both catch. Do not correct the grammar.
+const DROPPED_AUXILIARY_SLIP = "The extension's own copy already been verified in-house.";
+
+/**
+ * Frame one alone, run against whichever placement of the lookahead is passed
+ * in. The slip above carries no negation and needs neither the sentence
+ * splitting nor the other two frames, so reproducing `claimsToCarryDinah`
+ * whole here would test nothing this case needs.
+ */
+function frameOneCatches(possessionWord: string, sentence: string): boolean {
+	if (!SUBJECT.test(sentence)) {
+		return false;
+	}
+	if (!PAYLOAD.test(sentence)) {
+		return false;
+	}
+	const pattern = new RegExp(String.raw`\b${possessionWord}\b`, "gi");
+	pattern.lastIndex = 0;
+	return pattern.test(sentence);
+}
+
+test("the lookahead is scoped to `has` alone, and the wider placement is what that refuses", () => {
+	// The narrow constant is a copy of the shipped one, so this is what stops
+	// the two drifting apart and leaving the assertions below pinning a
+	// placement the guard no longer uses.
+	assert.equal(
+		POSSESSION_WORD_NARROW_PLACEMENT,
+		POSSESSION_WORD,
+		"the narrow-placement constant has drifted from the shipped POSSESSION_WORD",
+	);
+	assert.equal(
+		frameOneCatches(POSSESSION_WORD_NARROW_PLACEMENT, DROPPED_AUXILIARY_SLIP),
+		true,
+		`the shipped placement no longer catches: ${DROPPED_AUXILIARY_SLIP}`,
+	);
+	assert.equal(
+		frameOneCatches(POSSESSION_WORD_WIDE_PLACEMENT, DROPPED_AUXILIARY_SLIP),
+		false,
+		"the wide placement now catches this sentence too, so the case has stopped telling the two placements apart and pins nothing",
+	);
+});
 
 test("the carried-binary guard catches the spellings a writer would reach for", () => {
 	for (const sentence of CLAIMS_A_CARRIED_BINARY) {
