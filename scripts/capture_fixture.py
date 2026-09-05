@@ -11,6 +11,7 @@ the binary is what keeps the two from drifting.
 Point DINAH_CAPTURE_BINARY at the build to replay, or leave it unset and the
 script reads dinah-capture.exe out of the temporary directory."""
 import hashlib
+import re
 import json
 import os
 import shlex
@@ -24,7 +25,23 @@ from pathlib import Path
 WD = Path(os.getcwd())
 COMPAT_DIR = WD / "internal" / "bench" / "testdata" / "compat"
 POPULATE = COMPAT_DIR / "populate.txt"
+COMPAT_TEST = WD / "cmd" / "dinah" / "compat_test.go"
 BINARY = Path(os.environ.get("DINAH_CAPTURE_BINARY") or Path(os.environ.get("TEMP", "/tmp")) / "dinah-capture.exe")
+
+
+def populate_inputs() -> list:
+    """Return the files populate.txt names as arguments, read off the test.
+
+    The list used to be written out here as well as in cmd/dinah/compat_test.go,
+    and a card adding a file to the sequence had to remember both. It did not,
+    and the capture failed on the line naming the file it had not copied. The
+    test is the declaration, so the capture reads it rather than keeping a
+    second copy that can fall behind.
+    """
+    body = COMPAT_TEST.read_text(encoding="utf-8")
+    start = body.index("var populateInputs = []string{")
+    end = body.index("}", start)
+    return re.findall(r'"([^"]+)"', body[start:end])
 
 
 def fixture_name() -> str:
@@ -47,7 +64,7 @@ def main() -> int:
         root.mkdir(parents=True, exist_ok=True)
         home.mkdir(parents=True, exist_ok=True)
 
-        for name in ("payload-one.txt", "payload-two.txt", "payload-three.txt", "definition.json"):
+        for name in populate_inputs():
             shutil.copy(COMPAT_DIR / name, root / name)
 
         env = {

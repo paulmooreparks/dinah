@@ -51,3 +51,4 @@ leave sample-3 portfolio-work
 archive workstream/console-redesign
 hand-edit sample-2 column intake
 check --witness
+reshape --from reshape.json --yes
