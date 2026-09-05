@@ -202,6 +202,7 @@ func TestLineQuotesEveryCharacterOutsideTheInertSet(t *testing.T) {
 		{`a${b`, `add "a${b" next`, "a POSIX shell reads a parameter expansion to its own close, so an unmatched ${ swallows the rest of the line the same way"},
 		{`$@`, `add "$@" next`, "POSIX gives the @ parameter its own rule inside double quotes, where it expands to one field per positional parameter, so the count arrives with the shell rather than with the token"},
 		{"cost $@ dollars", `add "cost $@ dollars" next`, "the same rule joins the text before the expansion to the first parameter and the text after it to the last, so a title reading like ordinary prose is as many arguments as the shell holds parameters"},
+		{`${@}`, `add "${@}" next`, "the braces are an optional spelling of the same parameter rather than a different construct, so ${@} expands one field per positional parameter exactly as $@ does, and a promise naming only the $@ spelling would claim the boundary for this token"},
 	}
 	for _, row := range unfinished {
 		if got := (Command{Verb: "add", Args: []string{row.token, "next"}}.Line()); got != row.line {

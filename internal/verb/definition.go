@@ -586,15 +586,16 @@ type Command struct {
 // argument except one that is non-empty and made wholly of the characters
 // shellInert names, so a reader can see where each argument begins and where
 // it ends. That boundary is the property Line holds, and it holds under three
-// conditions. The token carries none of a double quote, an exclamation mark
-// or a caret. The token opens no expansion a shell reads past the closing
-// delimiter to finish, which means no unmatched backtick, no unmatched $( and
-// no unmatched ${. The token carries no $@, which POSIX documents as the one
-// expansion producing several fields inside double quotes. Given those three,
-// the boundary holds in a POSIX shell, in cmd.exe and the Windows C runtime,
-// and in PowerShell, and it holds in cmd.exe for such a token only while the
-// token also carries no line break and no %VAR% whose value carries a double
-// quote of its own.
+// conditions. The token carries none of a double quote, a backtick, an
+// exclamation mark or a caret. The token opens no expansion a shell reads
+// past the closing delimiter to finish, which means no unmatched $( and no
+// unmatched ${. The token carries no expansion that produces several fields
+// inside double quotes, which the @ parameter does in whatever spelling it is
+// written, since POSIX gives that rule to the parameter rather than to a way
+// of writing its name. Given those three, the boundary holds in a POSIX shell, in cmd.exe
+// and the Windows C runtime, and in PowerShell, and it holds in cmd.exe for
+// such a token only while the token also carries no line break and no %VAR%
+// whose value carries a double quote of its own.
 //
 // The rule runs this way round because the other way round did not work.
 // Earlier versions of Line quoted a token that carried one of a list of
@@ -611,9 +612,15 @@ type Command struct {
 // quoting is what fails to rescue them. Each fails by its own mechanism. A
 // double quote is escaped as \", which a POSIX shell and the Windows C
 // runtime read back and PowerShell does not, so it costs the boundary in
-// PowerShell alone. An interactive bash expands an exclamation mark inside
-// double quotes, where the one position its manual exempts is immediately
-// before the closing quote, and it abandons the line before running it where
+// PowerShell alone. A backtick is PowerShell's escape character wherever one
+// stands, so it escapes the closing delimiter it is written against and a
+// balanced pair costs the boundary there exactly as a lone one does, while a
+// POSIX shell runs a command substitution inside the quoting and a matched
+// pair comes back carrying the substitution's output instead of the text; the
+// exclusion is therefore unconditional rather than resting on the pair being
+// unmatched. An interactive bash expands an exclamation mark inside double
+// quotes, where the one position its manual exempts is immediately before
+// the closing quote, and it abandons the line before running it where
 // the designator names no event, so the quoting decides neither what the line
 // means nor whether it runs. A caret is cmd.exe's escape character, and
 // Microsoft's cmd documentation names it as that without saying what one does
@@ -621,22 +628,25 @@ type Command struct {
 // on a measurement of a single console build.
 //
 // The unfinished expansions fail together, which is why they are stated as a
-// class rather than as three characters. A POSIX shell reads a command
+// class rather than as a pair of characters. A POSIX shell reads a command
 // substitution or a parameter expansion to its own close and not to the
 // closing quote, so a token carrying an opening the shell never finds a close
 // for swallows the delimiter, the space after it and the argument beyond, and
-// the word never terminates. An unmatched backtick does that, so does an
-// unmatched $(, and so does an unmatched ${, and PowerShell reads $( the same
-// way. A backtick is worse again, because it is also PowerShell's escape
-// character wherever one stands, including against a closing delimiter.
+// the word never terminates. An unmatched $( does that, and so does an
+// unmatched ${, and PowerShell reads $( the same way. An unmatched backtick
+// fails here too, and it sits in the unconditional list above rather than in
+// this class because matching its pair does not rescue it.
 //
-// A $@ fails differently and is the one shape whose count is decided outside
-// the token. POSIX gives the @ parameter its own rule inside double quotes,
-// where the expansion becomes one field per positional parameter rather than
-// one field, so "cost $@ dollars" is as many arguments as the shell holds
-// parameters, and one only where it holds one. Nothing in the rendering
-// reaches that, since the count arrives with the shell rather than with the
-// value.
+// An expansion of the @ parameter fails differently, and its count is decided
+// outside the token rather than by anything in it. POSIX gives that parameter its
+// own rule inside double quotes, where the expansion becomes one field per
+// positional parameter rather than one field, so "cost $@ dollars" is as many
+// arguments as the shell holds parameters, and one only where it holds one.
+// The rule belongs to the parameter and not to a spelling of it, so ${@} does
+// what $@ does, and bash extends the same behaviour to an array subscripted
+// with @, where "${names[@]}" is one word per element. Nothing in the
+// rendering reaches any of them, since the count arrives with the shell
+// rather than with the value.
 //
 // Read all of it as exceptions to the promise rather than exceptions to the
 // quoting, which is the distinction the inversion turns on. Nothing is
