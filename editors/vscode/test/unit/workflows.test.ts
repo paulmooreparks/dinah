@@ -1,12 +1,12 @@
-// The two workflow files this card's safety sits in, read as text.
+// The workflow files this repository's release safety sits in, read as text.
 //
 // Neither half of the manual checks these mirror can be automated: nobody can
-// plant a file in a dependency tree from a unit test, and nobody can push a
-// red branch from one. But each of those checks also has a half that is a
-// plain file read, and a revert of either edit is silent otherwise. The gofmt
-// scoping would come back as a red job for a reason unrelated to this
-// repository's Go code, and the release gate would go back to publishing on a
-// commit whose extension build failed.
+// plant a file in a dependency tree from a unit test, and nobody can dispatch
+// a real release run from one. But each of those checks also has a half that
+// is a plain file read, and a revert of either edit is silent otherwise. The
+// gofmt scoping would come back as a red job for a reason unrelated to this
+// repository's Go code, and the release gate would go back to publishing
+// without an explicit check that CI reported success.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -104,16 +104,61 @@ test("a beta cut declares its dependencies one card at a time", () => {
 	);
 });
 
-test("the jobs the release gate waits for are still named what it waits for", () => {
-	// release.yml's wait-for-ci selects check runs by name. Moving a job's
-	// body into a composite action leaves the name where it was, and that is
-	// the point: a rename here would strand the gate on checks that never
-	// arrive, and the gate would fail on a timeout rather than on anything
-	// true about the commit.
+test("release.yml waits on ci.yml as a job, not by polling check runs", () => {
+	assert.ok(
+		/\n {2}ci:\n {4}uses: \.\/\.github\/workflows\/ci\.yml\n/.test(release),
+		"release.yml no longer calls ci.yml as a reusable workflow",
+	);
+	assert.ok(
+		/needs: \[compute-version, ci\]/.test(release),
+		"release.yml's build job no longer waits on the ci job",
+	);
+	assert.ok(
+		!release.includes("check-runs") && !release.includes("check_runs"),
+		"release.yml still polls the check-runs API",
+	);
+});
+
+test("release.yml's build and release jobs fail closed on an explicit result check", () => {
+	// D-4: the gate must not rest on GitHub's own default handling of an
+	// unconditioned job at the workflow_call boundary. Each job that consumes
+	// CI's result reads needs.<job>.result directly and requires the literal
+	// string "success", so failure, cancelled and skipped are all refused by
+	// the same comparison. See dinah-363 D-4.
+	const build = release.slice(
+		release.indexOf("\n  build:"),
+		release.indexOf("\n  release:"),
+	);
+	assert.ok(
+		/if: needs\.compute-version\.result == 'success' && needs\.ci\.result == 'success'/.test(
+			build,
+		),
+		"release.yml's build job no longer gates on an explicit needs.ci.result == 'success' check",
+	);
+	const releaseJob = release.slice(
+		release.indexOf("\n  release:"),
+		release.indexOf("\n  cleanup-tag:"),
+	);
+	assert.ok(
+		/if: needs\.compute-version\.result == 'success' && needs\.build\.result == 'success'/.test(
+			releaseJob,
+		),
+		"release.yml's release job no longer gates on an explicit needs.build.result == 'success' check",
+	);
+});
+
+test("ci.yml stays callable and every job bounds its own runtime", () => {
+	assert.ok(
+		/workflow_call:/.test(ci),
+		"ci.yml no longer accepts workflow_call, so release.yml cannot depend on it as a job",
+	);
 	for (const job of ["test", "gofmt", "extension"]) {
+		const body = ci.slice(ci.indexOf(`\n  ${job}:`));
+		const nextJob = body.slice(2).search(/\n {2}\S/);
+		const scoped = nextJob === -1 ? body : body.slice(0, nextJob + 2);
 		assert.ok(
-			new RegExp(`^ {2}${job}:$`, "m").test(ci),
-			`ci.yml no longer has a job named ${job}, which release.yml's gate waits for`,
+			/timeout-minutes:\s*\d+/.test(scoped),
+			`ci.yml's ${job} job has no explicit timeout-minutes`,
 		);
 	}
 });
@@ -136,37 +181,4 @@ test("ci.yml carries an extension job on both platforms this code is sensitive t
 	assert.ok(/^ {2}extension:$/m.test(ci), "ci.yml has no extension job");
 	assert.ok(ci.includes("ubuntu-latest"));
 	assert.ok(ci.includes("windows-latest"));
-});
-
-test("the release gate counts the extension check runs", () => {
-	// The jq select decides which check runs the gate waits for. Without the
-	// extension leg named here, a release publishes on a commit whose
-	// extension build failed.
-	assert.ok(
-		release.includes('(.name | startswith("extension"))'),
-		"release.yml's wait-for-ci does not select the extension check runs",
-	);
-	assert.ok(
-		release.includes("-ge 6"),
-		"release.yml's wait-for-ci threshold is not 6",
-	);
-});
-
-test("no prose statement of the check-run count still says four", () => {
-	// The number was written in four places at 8f3aead: the job-level comment
-	// and three echoes inside the steps. A criterion that fixed only some of
-	// them would leave a stale count in the release log, so this asserts on
-	// the absence rather than on a count that would have to be right.
-	const gate = release.slice(
-		release.indexOf("\n  wait-for-ci:") - 700,
-		release.indexOf("\n  build:"),
-	);
-	for (const stale of ["four check runs", "All four CI checks", "of 4 checks"]) {
-		assert.ok(
-			!gate.includes(stale),
-			`release.yml's wait-for-ci still says "${stale}"`,
-		);
-	}
-	assert.ok(gate.includes("six check runs"));
-	assert.ok(gate.includes("of 6 checks"));
 });

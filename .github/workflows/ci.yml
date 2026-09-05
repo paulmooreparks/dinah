@@ -4,25 +4,30 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call: {}
 
 jobs:
   # The bodies of these two jobs live in composite actions under
   # .github/actions/, because promote.yml runs the same checks against a tree
   # it assembles by cherry-pick and a promoted tree has to be verified in its
-  # own right. The job names stay here, and they stay exactly as they were,
-  # because release.yml's publish gate waits for check runs by name.
+  # own right. release.yml calls this whole file as a reusable workflow and
+  # depends on its outcome through needs:, so nothing here reads these three
+  # job names by string; renaming test, gofmt, or extension does not affect
+  # the release gate. See dinah-363.
   test:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/go-checks
 
   gofmt:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/gofmt-check
@@ -39,6 +44,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: editors/vscode

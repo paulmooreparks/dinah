@@ -28,8 +28,10 @@ CLI, MCP, HTTP, and LSP surfaces to be four of them.
 
 The language is Go: static single binary, trivial cross-compilation, stdlib
 HTTP, cheap concurrency for the servers, and language coherence with the
-hosted product (one brain maintains both; the conformance suite guards the
-no-shared-code rule against the temptation that shared language invites).
+hosted product (one brain maintains both; the conformance suite pins Dinah's
+own behaviour against what this document and the profile say the contract
+requires, and keeps that contract specific enough for an independent
+implementer to build against if one is ever wanted).
 
 ## The machine contract is the verb plus JSON
 
