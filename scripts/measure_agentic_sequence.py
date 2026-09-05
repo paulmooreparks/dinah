@@ -549,10 +549,48 @@ class LiveCounter(Counter):
         )
 
     def probe(self):
-        if shutil.which(self.binary) is None:
+        """Ask the binary one trivial question, and read the answer for the two
+        things a live measurement needs: a usage block, and a record of which
+        tools the run called.
+
+        The second is checked here rather than after the sequence has run,
+        because a run that cannot be checked against the scripted one is not
+        corroboration of anything and there is no reason to pay for it first.
+        """
+        resolved = shutil.which(self.binary)
+        if resolved is None:
             raise CounterUnreachable(
                 "counter live: no %s binary is on PATH" % self.binary
             )
+        self.binary = resolved
+        try:
+            finished = subprocess.run(
+                [self.binary, "-p", "reply with the single word ok",
+                 "--output-format", "json"],
+                capture_output=True, text=True, encoding="utf-8",
+            )
+        except OSError as err:
+            raise CounterUnreachable(
+                "counter live: %s could not be started (%s)"
+                % (self.binary, err.__class__.__name__))
+        if finished.returncode != 0:
+            raise CounterUnreachable(
+                "counter live: %s exited %d on a trivial prompt"
+                % (self.binary, finished.returncode))
+        try:
+            result = json.loads(finished.stdout)
+        except ValueError:
+            raise CounterUnreachable(
+                "counter live: the result of a trivial prompt was not a JSON object")
+        if not isinstance(result.get("usage"), dict):
+            raise CounterUnreachable(
+                "counter live: the result object carries no usage block, so there are "
+                "no real token counts to read")
+        if live_tool_sequence(result) is None:
+            raise CounterUnreachable(
+                "counter live: the result object carries a usage block but no record of "
+                "which tools a run called, so a live run cannot be checked against the "
+                "scripted sequence and cannot corroborate anything")
 
     def measure_run(self, prompt, cwd, env, mcp_config, expected_tools):
         """Run one live sequence and return its input and output token totals."""
