@@ -32,25 +32,31 @@ suite("the sidebar tree against a real workbench", () => {
 
 		const columns = await reported.tree.getChildren(roots[0]);
 		assert.ok(columns.length > 0, "the workbench drew no columns at all");
-		for (const element of columns) {
-			const row = reported.tree.getTreeItem(element) as Row;
-			// Since dinah-331 a column row's contextValue says whether the
-			// column will take another card. This fixture's workbench is the
-			// one `dinah init` scaffolds, whose three columns declare no
-			// wip_limit at all, so every column here is open and the exact
-			// value is what gets asserted. A disjunction over open and full
-			// would let the full half go unexercised while reading as though
-			// it were covered. The bare "dinah.column" fails this assertion,
-			// which is the point: that is what a row carries when the status
-			// and tree answers disagreed about which columns exist, so
-			// refusing it proves the join this suite exists to check actually
-			// delivered a view.
-			assert.equal(
-				row.contextValue,
-				"dinah.column.open",
-				`a column of the uncapped fixture bench does not read as open: ${String(row.contextValue)}`,
-			);
-		}
+		// Since dinah-331 a column row's contextValue says whether the column
+		// will take another card, and since dinah-375 it also says whether a
+		// pull can be run from it. This fixture's workbench is the one
+		// `dinah init` scaffolds, whose three columns declare no wip_limit at
+		// all, so every row here is open and the exact value is asserted. A
+		// disjunction over open and full would let the full half go
+		// unexercised while reading as though it were covered.
+		//
+		// The three columns differ on the second axis, which is why this is a
+		// list rather than one value repeated. Intake is a queue whose
+		// downstream takes work up, so it publishes a destination and carries
+		// the suffix. Doing takes work up itself, so it never carries it
+		// whatever it publishes. Done ends the walk, so it publishes nothing.
+		// This is the assertion that proves pull_destination is a field
+		// `dinah --json status` actually emits, rather than a name a JSON
+		// literal in the unit layer agreed with itself about.
+		//
+		// The bare "dinah.column" fails every row here, which is the point:
+		// that is what a row carries when the status and tree answers
+		// disagreed about which columns exist, so refusing it proves the join
+		// this suite exists to check actually delivered a view.
+		assert.deepEqual(
+			columns.map((element) => String((reported.tree.getTreeItem(element) as Row).contextValue)),
+			["dinah.column.open.pull", "dinah.column.open", "dinah.column.open"],
+		);
 
 		// Since dinah-373 a column row's description is the occupancy alone,
 		// and its tooltip carries the facts the description used to spend a
@@ -76,11 +82,15 @@ suite("the sidebar tree against a real workbench", () => {
 		// The tooltip is where this suite earns its keep on this card. The
 		// unit layer reads takes_work_up and operator_owned off JSON
 		// literals, so only a run against the binary proves those are the
-		// names `dinah --json status` emits.
+		// names `dinah --json status` emits. Intake's third line is dinah-375
+		// riding the same proof: the destination arrives as a column
+		// reference and is resolved to the title below through the join's own
+		// column map, so a row reading "into doing" rather than "into Doing"
+		// would mean the two sides of that join stopped agreeing on the key.
 		assert.deepEqual(
 			rows.map((row) => String(row.tooltip)),
 			[
-				"Intake\nA card here waits to be pulled onward.\nAn agent moves a card out.",
+				"Intake\nA card here waits to be pulled onward.\nRight-click to pull the next ready card into Doing.\nAn agent moves a card out.",
 				"Doing\nCards are claimed here.\nAn agent moves a card out.",
 				"Done\nA card here waits to be pulled onward.\nAn agent moves a card out.",
 			],
