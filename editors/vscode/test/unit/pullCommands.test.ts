@@ -153,7 +153,6 @@ function columnView(over: Partial<ColumnView> = {}): ColumnView {
 		operator_owned: false,
 		awaiting_outside: false,
 		takes_work_up: false,
-		pull_destination: DESTINATION,
 		count: 0,
 		...over,
 	};
@@ -166,12 +165,30 @@ function columnNode(): TreeNode {
 function columnRow(
 	over: Partial<ColumnView> | undefined,
 	row = rowFixture(),
+	nextColumnRef: string | undefined = DESTINATION,
 ): TreeElement {
 	return {
 		kind: "column",
 		row,
 		node: columnNode(),
 		view: over === undefined ? undefined : columnView(over),
+		nextColumnRef,
+	};
+}
+
+/**
+ * The same queue row, standing last in its workbench's flow.
+ *
+ * Spelled as its own builder rather than as an argument to columnRow, because
+ * a default parameter cannot be defeated by passing undefined and a row that
+ * silently kept its neighbour would assert nothing here.
+ */
+function lastColumnRow(): TreeElement {
+	return {
+		kind: "column",
+		row: rowFixture(),
+		node: columnNode(),
+		view: columnView({}),
 	};
 }
 
@@ -209,13 +226,12 @@ test("Pull resolves a context from a pullable queue row and from nothing else", 
 		["a workbench root row", { kind: "root", row: rowFixture() }],
 		["a card row", cardRow()],
 		["a column the status/tree join missed", columnRow(undefined)],
-		["a work column, whatever destination it publishes", columnRow({ takes_work_up: true })],
+		["a work column, whatever stands after it", columnRow({ takes_work_up: true })],
 		[
 			"a work column at the head of two claim-taking columns",
-			columnRow({ takes_work_up: true, pull_destination: "review" }),
+			columnRow({ takes_work_up: true }, rowFixture(), "review"),
 		],
-		["a queue whose destination is absent", columnRow({ pull_destination: undefined })],
-		["a queue whose destination is the empty string", columnRow({ pull_destination: "" })],
+		["a queue standing last in the flow", lastColumnRow()],
 	];
 	for (const [name, element] of cases) {
 		const r = recorder();

@@ -188,6 +188,23 @@ export type TreeElement =
 			readonly row: RootRow;
 			readonly node: TreeNode;
 			readonly view?: ColumnView;
+			/**
+			 * The ref of the AXIS_COLUMN node standing immediately after this
+			 * one in the workbench's own declared flow order, absent when this
+			 * column is last. This is downstreamOf's answer
+			 * (internal/verb/pull.go), read off the tree's own ordering rather
+			 * than recomputed, since that ordering is already the fact
+			 * columnsOf draws the rows in (dinah-375 OQ-1).
+			 */
+			readonly nextColumnRef?: string;
+			/**
+			 * nextColumnRef resolved to its ColumnView through the same
+			 * status/tree join columnsOf already runs, absent when the join
+			 * missed it. A reader holding the ref alone still has enough to
+			 * name the destination in the CLI argv; only the display text
+			 * needs the view, and it falls back to the raw ref.
+			 */
+			readonly nextColumn?: ColumnView;
 	  }
 	| {
 			readonly kind: "group";
@@ -406,24 +423,31 @@ export function actionsFor(card: CardStanding): string {
  * same self-heal columnsOf already logs for the same miss.
  *
  * dinah-375 added a second, independent axis. Capacity still decides the
- * open/full half, and a queue column publishing somewhere for a pull to land
- * takes the .pull suffix on top of it. The test is the column's own
+ * open/full half, and a queue column with a column standing after it in the
+ * flow takes the .pull suffix on top of it. The test is the column's own
  * takes_work_up, the same field actionsFor reads to tell a claimable ready
  * card from one that is only pulled through, so a work column never carries
- * the suffix even where PullDestination is populated on it (D-2): a work
- * column's cards are individually actionable already, and a column-level pull
- * there would step around the per-card Claim rather than adding anything.
+ * the suffix whatever stands downstream of it (D-2): a work column's cards
+ * are individually actionable already, and a column-level pull there would
+ * step around the per-card Claim rather than adding anything.
+ *
+ * The other half of the test is nextColumnRef, the column immediately after
+ * this one in the flow's declared order, and the operator's OQ-1 ruling is
+ * why. A queue offers a pull into its own next column, so a click moves the
+ * card standing in the row that was clicked. The retired reading walked past
+ * any number of intervening queues, which made every queue in a chain publish
+ * one destination and moved a card the reader could not see.
  */
-export function columnActionsFor(view: ColumnView | undefined): string {
+export function columnActionsFor(
+	view: ColumnView | undefined,
+	nextColumnRef?: string,
+): string {
 	if (view === undefined) {
 		return CONTEXT_COLUMN;
 	}
 	const capacity = view.capacity ?? 0;
 	const full = capacity > 0 && view.count >= capacity;
-	const pullable =
-		!view.takes_work_up &&
-		view.pull_destination !== undefined &&
-		view.pull_destination !== "";
+	const pullable = !view.takes_work_up && nextColumnRef !== undefined;
 	if (full) {
 		return pullable ? CONTEXT_COLUMN_FULL_PULL : CONTEXT_COLUMN_FULL;
 	}
@@ -492,18 +516,24 @@ export function cardTooltip(
  * the same conservative miss columnActionsFor takes, and it self-heals on the
  * next checkpoint.
  *
- * A queue that publishes a destination names it, because dinah-375 gave the
- * row an act and a reader who cannot see where the card would land has no way
- * to judge it. columnsByRef is the join's own index, keyed by the same
- * columnRef the destination is published as, so resolving the title through it
- * is the join already made rather than a second convention. It is optional,
- * and an unresolved key falls back to the raw reference: a stale name still
- * tells a reader more than silence, and the next checkpoint repairs it.
+ * A queue with a column after it in the flow names that column, because
+ * dinah-375 gave the row an act and a reader who cannot see where the card
+ * would land has no way to judge it. Both facts arrive resolved from
+ * columnsOf, which does the status/tree join once for the whole row rather
+ * than leaving the tooltip to repeat it.
+ *
+ * nextColumnRef stays a parameter of its own rather than being folded into
+ * nextColumn, because the two can disagree: a column can stand next in the
+ * flow while the join has not resolved its view, the same race columnsOf's
+ * own view lookup already tolerates. Dropping the line in that case would say
+ * nothing is pullable when something is, so it falls back to the raw
+ * reference, which the next checkpoint repairs.
  */
 export function columnTooltip(
 	view: ColumnView | undefined,
 	node: TreeNode,
-	columnsByRef?: ReadonlyMap<string, ColumnView>,
+	nextColumn?: ColumnView,
+	nextColumnRef?: string,
 ): string {
 	const title = view?.title ?? node.value ?? "";
 	if (view === undefined) {
@@ -515,13 +545,8 @@ export function columnTooltip(
 			? "Cards are claimed here."
 			: "A card here waits to be pulled onward.",
 	);
-	if (
-		!view.takes_work_up &&
-		view.pull_destination !== undefined &&
-		view.pull_destination !== ""
-	) {
-		const destination =
-			columnsByRef?.get(view.pull_destination)?.title ?? view.pull_destination;
+	if (!view.takes_work_up && nextColumnRef !== undefined) {
+		const destination = nextColumn?.title ?? nextColumnRef;
 		lines.push(`Right-click to pull the next ready card into ${destination}.`);
 	}
 	if (view.awaiting_outside) {
@@ -630,8 +655,13 @@ export function treeItemFor(element: TreeElement): TreeItemSpec {
 			return {
 				label: view?.title ?? element.node.value ?? "",
 				description: columnDescription(view, element.node),
-				tooltip: columnTooltip(view, element.node, element.row.data?.columns),
-				contextValue: columnActionsFor(view),
+				tooltip: columnTooltip(
+					view,
+					element.node,
+					element.nextColumn,
+					element.nextColumnRef,
+				),
+				contextValue: columnActionsFor(view, element.nextColumnRef),
 				collapsibleState: "expanded",
 			};
 		}
@@ -1262,13 +1292,24 @@ export class DinahTreeProvider {
 		return [...notes, ...this.columnsOf(row, data), ...attachmentEntries];
 	}
 
-	/** The column rows of one workbench, in the flow's own declared order. */
+	/**
+	 * The column rows of one workbench, in the flow's own declared order.
+	 *
+	 * Each row also carries the column standing immediately after it in that
+	 * order, which is what Pull aims at (dinah-375 OQ-1). The order is the
+	 * column axis's declared order, `declaredValues` over `l.Bench.Columns`
+	 * in internal/verb/tree.go, which is the same dense-position slice
+	 * `downstreamOf` walks in internal/verb/pull.go, so the next node here
+	 * names the column the Go side would call downstream. The AXIS_COLUMN
+	 * filter runs before the look-ahead so nothing standing among the column
+	 * nodes could be mistaken for one.
+	 */
 	private columnsOf(row: RootRow, data: WorkbenchData): TreeElement[] {
+		const nodes = (data.root?.children ?? []).filter(
+			(node) => node.axis === AXIS_COLUMN,
+		);
 		const columns: TreeElement[] = [];
-		for (const node of data.root?.children ?? []) {
-			if (node.axis !== AXIS_COLUMN) {
-				continue;
-			}
+		for (const [index, node] of nodes.entries()) {
 			const view = data.columns.get(node.value ?? "");
 			if (view === undefined) {
 				// Only reachable when a column was deleted between the status
@@ -1278,7 +1319,10 @@ export class DinahTreeProvider {
 					`tree names a column status did not: ${node.value ?? "(unnamed)"}`,
 				);
 			}
-			columns.push({ kind: "column", row, node, view });
+			const nextColumnRef = nodes[index + 1]?.value;
+			const nextColumn =
+				nextColumnRef === undefined ? undefined : data.columns.get(nextColumnRef);
+			columns.push({ kind: "column", row, node, view, nextColumnRef, nextColumn });
 		}
 		return columns;
 	}

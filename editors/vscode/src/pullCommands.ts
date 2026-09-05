@@ -28,7 +28,7 @@ export interface PullCommandContext {
 	readonly folder: string;
 	/** The workbench the queue stands in, which the call is pinned to. */
 	readonly root: string;
-	/** What ColumnView.pull_destination named: the column the card lands in. */
+	/** The queue's own next column in the flow, which the card lands in. */
 	readonly destination: string;
 	/** The queue's own title, which the empty-pull message's upstream half falls back to. */
 	readonly label: string;
@@ -39,10 +39,14 @@ export interface PullCommandContext {
  *
  * A column the status/tree join missed carries no ColumnView and yields no
  * context, on the same terms contextForColumn already takes for New Card. A
- * work column, and a queue publishing no destination, are declined here as
- * well rather than left to the caller having read the contextValue correctly:
- * a command is reachable by a keybinding and by another extension, neither of
- * which consults a menu clause.
+ * work column, and a queue with nothing standing after it in the flow, are
+ * declined here as well rather than left to the caller having read the
+ * contextValue correctly: a command is reachable by a keybinding and by
+ * another extension, neither of which consults a menu clause.
+ *
+ * The destination is the row's own nextColumnRef, the column standing
+ * immediately downstream of the clicked queue (dinah-375 OQ-1), so the card
+ * that moves is the one standing where the reader clicked.
  *
  * The absent element is checked by isRow before any field is read off it,
  * which is the one place that check lives (dinah-342).
@@ -59,8 +63,8 @@ export function contextForPull(
 	if (element.view.takes_work_up) {
 		return undefined;
 	}
-	const destination = element.view.pull_destination;
-	if (destination === undefined || destination === "") {
+	const destination = element.nextColumnRef;
+	if (destination === undefined) {
 		return undefined;
 	}
 	const root = element.row.data?.path;
@@ -128,14 +132,16 @@ export async function pullFromColumn(
  * which is what every other string this extension shows already does.
  *
  * Each half falls back to what the caller already holds for that half rather
- * than to one value for both. The clicked queue is the column the pull draws
- * from, so it stands in for a missing upstream. The destination the argv was
- * built from stands in for a missing destination, unresolved to a title but
- * still naming the column the card would land in; columnTooltip falls back to
- * the same raw reference for the same reason. Falling back to the queue for
- * both halves would compose "Nothing in Design Queue is ready to pull into
- * Design Queue.", which tells the reader the card goes back where it already
- * is.
+ * than to one value for both. The clicked queue is always the true immediate
+ * upstream of context.destination, because that destination is defined as the
+ * queue's own next column in the flow rather than a value that may have
+ * walked past it, so the queue stands in for a missing upstream at any chain
+ * length. The destination the argv was built from stands in for a missing
+ * destination, unresolved to a title but still naming the column the card
+ * would land in; columnTooltip falls back to the same raw reference for the
+ * same reason. Falling back to the queue for both halves would compose
+ * "Nothing in Design Queue is ready to pull into Design Queue.", which tells
+ * the reader the card goes back where it already is.
  */
 export function emptyPullMessage(
 	answer: PullAnswer,

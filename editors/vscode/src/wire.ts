@@ -21,7 +21,6 @@ export interface ColumnView {
 	readonly operator_owned: boolean;
 	readonly awaiting_outside: boolean;
 	readonly takes_work_up: boolean;
-	readonly pull_destination?: string;
 	readonly capacity?: number;
 	readonly reject_to?: string;
 	readonly count: number;
