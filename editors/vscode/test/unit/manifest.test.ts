@@ -364,10 +364,7 @@ const POSSESSION = new RegExp(String.raw`\b${POSSESSION_WORD}\b`, "gi");
 // extension alone says nothing about dinah: "this extension provides a tree
 // view of your workbench" is true, honest, and none of this guard's business.
 const SUBJECT = /\b(?:extensions?|vsix)\b/i;
-// The payload vocabulary is a string rather than a literal because
-// NEGATED_AFTER below reads it too, and two hand copies of one word list drift.
-const PAYLOAD_WORD = String.raw`(?:dinah|binar(?:y|ies)|cop(?:y|ies)|cli|executable)`;
-const PAYLOAD = new RegExp(String.raw`\b${PAYLOAD_WORD}\b`, "i");
+const PAYLOAD = /\b(?:dinah|binar(?:y|ies)|cop(?:y|ies)|cli|executable)\b/i;
 
 // A possession word attached straight to the payload, which names no
 // extension at all: "the built-in dinah binary".
@@ -387,27 +384,39 @@ const ANAPHORIC_PAYLOAD = new RegExp(
 // Negation is what separates the honest copy from the claim, and it sits on
 // either side of the word: "does not carry a copy", "carries no copy".
 //
-// Both sides skip at most one word before looking for the negation, because
-// English puts one there often enough that reading only the adjacent word
-// misses ordinary denials. On the before side that word is usually the verb
-// ("does not carry"). On the after side it is usually an intensifier ("bundles
-// absolutely no dinah binary") or the auxiliary of a perfect ("has had no
-// dinah binary since version 3"). The after side read only the adjacent word
-// until dinah-386, so every denial with a word in that position was refused,
-// and the `has had` shape made the omission visible by putting `had` there in
-// every sentence of its kind.
+// Both sides allow one word to stand between the possession word and the
+// negation, because English puts one there often enough that reading only the
+// adjacent word misses ordinary denials. On the before side that word is
+// usually the verb ("does not carry"). On the after side it is the auxiliary
+// of a perfect ("has had no dinah binary since version 3") or an intensifier
+// ("bundles absolutely no dinah binary"). The after side read only the
+// adjacent word until dinah-386, so every denial with a word in that position
+// was refused, and the `has had` shape made the omission visible by putting
+// `had` there in every sentence of its kind.
 //
-// The skipped word may not be the payload. A payload sitting between the
-// possession word and the negation means the possession already reached the
-// payload, so the negation that follows belongs to something later in the
-// sentence: "this extension ships dinah no matter which platform you are on"
-// claims the binary and denies a platform restriction. Without that exclusion
-// the widened check reads five such claims as denials, measured on dinah-386.
+// The after side names the words it will step over rather than accepting any
+// word, and that closed list is the part of this pattern worth reading twice.
+// dinah-386 first wrote the slot as any word other than the payload, which
+// reads an affirmative claim as a denial whenever the object of the possession
+// stands where an intensifier would: "this extension carries everything no
+// matter how you installed it, dinah too" is a claim, and the open slot let it
+// and its whole family through a guard that had been catching them. A closed
+// list cannot make that mistake, because the object of a claim is a noun and
+// no noun is in the list.
+//
+// The list gives two things up, and both are pinned below rather than
+// described here alone. A denial written with an adverb the list does not
+// name, such as "the extension bundles honestly no dinah binary", is refused;
+// that refusal is older than the list, since the adjacent-word-only form
+// refused it too, and it sits in KNOWN_FALSE_REFUSALS. A claim that puts a
+// listed word in front of a negation token doing no negating, such as
+// "bundles absolutely nothing short of a complete dinah CLI", escapes; that
+// escape is the price of the skip itself, whatever the slot allows, and it
+// sits in KNOWN_ESCAPES. Adding a word to the list is a one-line change that
+// owes a case in each direction, per the rule above CLAIMS_A_CARRIED_BINARY.
 const NEGATED_BEFORE = /\b(not|never|no|without|n't|neither|nor)\s+(\w+\s+)?$/i;
-const NEGATED_AFTER = new RegExp(
-	String.raw`^\s*(?:(?!${PAYLOAD_WORD}\b)\w+\s+)?(?:no|none|nothing|neither)\b`,
-	"i",
-);
+const NEGATED_AFTER =
+	/^\s*(?:(?:had|absolutely|literally|precisely|deliberately|simply|genuinely|quite|really|virtually|truly|utterly|entirely)\s+)?(?:no|none|nothing|neither)\b/i;
 
 /** Sentence-sized pieces, so a negation in one clause cannot excuse another. */
 function sentencesOf(text: string): string[] {
@@ -443,8 +452,12 @@ function negated(sentence: string, at: number, length: number): boolean {
  * build embeds dinah so you need not fetch it"), and "the one" separated from
  * its possession word by an explicit subject ("Leave empty to use the one the
  * extension supplies"), which ANAPHORIC_PAYLOAD allows only a relative pronoun
- * and a copula to sit in. A reviewer's own sweep, not this pattern, is the
- * first line against all five, and KNOWN_ESCAPES below pins the two so that
+ * and a copula to sit in. A sixth class comes from the negation check rather
+ * than from the frames: a claim that stands one of the words NEGATED_AFTER
+ * steps over in front of a negation token that negates nothing is read as a
+ * denial and escapes ("this extension bundles absolutely nothing short of a
+ * complete dinah CLI"). A reviewer's own sweep, not this pattern, is the first
+ * line against all six, and KNOWN_ESCAPES below pins three of them so that
  * this paragraph cannot quietly go out of date.
  */
 function claimsToCarryDinah(text: string): string[] {
@@ -485,11 +498,19 @@ function claimsToCarryDinah(text: string): string[] {
 // it had begun refusing, then to arm a widening that was armed for claims
 // alone, and then again when that widening hid a denial from the negation
 // check. Every one of those fixes was right about what prompted it and blind
-// to the other side, and each time the arrays were too thin to notice. A pair
-// costs a line each; a round costs a day.
+// to the other side, and each time the arrays were too thin to notice.
 //
-// The last group of entries is one claim per alternative in POSSESSION_WORD,
-// with the matching denial at the end of HONEST_COPY, so that rewording or
+// The commit that first wrote this rule down broke it in the same diff. Its
+// change to NEGATED_AFTER had two parts, and only the narrower part was given
+// cases, so the guard quietly stopped catching a family of claims and nothing
+// here failed. Review caught that and the sixth fix is what closed it. The
+// rule is worth more for having caught its own author than it would be for
+// having been obeyed, and an editor who reads it as somebody else's problem
+// should know it has already had exactly one exception and that the exception
+// was found by a reader rather than by this file.
+//
+// One claim per alternative in POSSESSION_WORD appears among the entries
+// below, each with its matching denial in HONEST_COPY, so that rewording or
 // reordering the alternation fails on the side it breaks rather than passing
 // on the side it does not.
 const CLAIMS_A_CARRIED_BINARY = [
@@ -531,6 +552,11 @@ const CLAIMS_A_CARRIED_BINARY = [
 	"This extension bundles dinah nothing short of completely.",
 	"The extension includes dinah no matter what your PATH says.",
 	"This extension has dinah no matter how you installed it.",
+	"This extension carries everything no matter how you installed it, dinah too.",
+	"The extension includes everything none of the other extensions do, dinah among them.",
+	"This extension supplies everything no matter what, and dinah is part of it.",
+	"The extension provides everything nothing else does, dinah first among them.",
+	"This extension packages everything no other extension does, dinah among it.",
 ];
 
 // Copy that says the opposite, or says nothing about where dinah comes from,
@@ -555,12 +581,16 @@ const CLAIMS_A_CARRIED_BINARY = [
 //
 // The group after those denies the claim outright, which makes it the copy
 // this guard can least afford to refuse, and it was refused between the
-// `has had` widening and dinah-386. Six of them put an intensifier where the
+// `has had` widening and dinah-386. Most of them put an intensifier where the
 // perfect puts its auxiliary, and those were refused long before either
-// change, so they pin the general shape rather than one card's damage.
+// change, so they pin the general shape rather than one card's damage. There
+// is one denial for every word NEGATED_AFTER steps over, on the same principle
+// as the per-alternative group below, so dropping a word from that closed list
+// fails here and names the denial it has started refusing.
 //
-// The last group is one denial per alternative in POSSESSION_WORD, matching
-// the claims at the end of CLAIMS_A_CARRIED_BINARY one for one.
+// One denial per alternative in POSSESSION_WORD appears among the entries
+// below, matching the per-alternative claims in CLAIMS_A_CARRIED_BINARY one
+// for one.
 const HONEST_COPY = [
 	"Dinah is not installed on this machine. This extension is a companion to the `dinah` command-line tool, and it does not carry a copy of it. Install dinah from [github.com/paulmooreparks/dinah#install](https://github.com/paulmooreparks/dinah#install), or set `dinah.path` to a binary you already have.",
 	"Absolute path to the `dinah` binary. Leave empty to use the one on your PATH. A binary path is a property of the machine, so this setting does not travel through settings sync.",
@@ -597,6 +627,14 @@ const HONEST_COPY = [
 	"This extension includes precisely nothing of dinah.",
 	"The extension ships deliberately no dinah executable.",
 	"This extension provides literally none of the dinah CLI.",
+	"This extension bundles simply nothing of dinah.",
+	"The extension carries genuinely no dinah binary.",
+	"This extension includes quite none of the dinah CLI.",
+	"The extension ships really no dinah executable.",
+	"This extension supplies virtually no dinah tooling of its own.",
+	"The extension packages truly no dinah binary.",
+	"This extension embeds utterly no dinah executable.",
+	"The extension provides entirely no dinah binary.",
 	"This extension carries no dinah binary for you.",
 	"This extension bundles no dinah binary.",
 	"This extension does not include a dinah CLI.",
@@ -615,14 +653,22 @@ const HONEST_COPY = [
 	"This extension does not carry the one you would otherwise fetch.",
 ];
 
-// Claims the three frames do not reach. They are pinned rather than merely
+// Claims this guard does not reach. They are pinned rather than merely
 // described, because the doc comment on `claimsToCarryDinah` that lists them
 // cannot fail, and a limit nobody can fail is a limit that drifts. A widening
 // that starts catching one of these is welcome; it has to say so here and in
 // that comment before it ships.
+//
+// The first two are outside the three frames. The third is inside them and
+// escapes at the negation check instead: `absolutely` is a word NEGATED_AFTER
+// steps over, and `nothing` behind it negates nothing, so the guard reads an
+// emphatic claim as a denial. That is what the skip costs no matter which
+// words the slot allows, and it is the honest half of the repair dinah-386
+// made to the slot.
 const KNOWN_ESCAPES = [
 	"The marketplace build embeds dinah so you need not fetch it.",
 	"Leave empty to use the one the extension supplies.",
+	"This extension bundles absolutely nothing short of a complete dinah CLI.",
 ];
 
 // Honest copy this guard refuses anyway, which is the mirror of the list
@@ -650,10 +696,26 @@ const KNOWN_ESCAPES = [
 // have to be measured against too, so it is filed on dinah-386 rather than
 // taken here. A denial of the same claim that does fit the window is in
 // HONEST_COPY as "The extension uses your dinah, not its own copy."
+//
+// The last two groups are the two sides of the after-side slot. A denial whose
+// intensifier is not one of the words NEGATED_AFTER steps over reads as a
+// claim, and the list of words is closed on purpose, so this group grows by a
+// wording at a time and each wording added to the list owes a denial here
+// moving into HONEST_COPY. A denial that puts the payload itself in the slot
+// ("the extension carries dinah no longer") reads as a claim too, since no
+// payload word is in the list. Both groups were refused before dinah-386
+// touched this pattern, when the slot did not exist at all, so they are limits
+// this guard has always had rather than damage the card did.
 const KNOWN_FALSE_REFUSALS = [
 	"The extension has had trouble locating your dinah executable.",
 	"The extension has trouble locating your dinah executable.",
 	"The extension does not use its own copy of dinah.",
+	"The extension bundles honestly no dinah binary.",
+	"The extension carries frankly none of the dinah CLI.",
+	"This extension supplies categorically no dinah binary.",
+	"The extension carries dinah no longer.",
+	"This extension ships dinah no more.",
+	"The vsix contains dinah no longer, as of version 3.",
 ];
 
 // Where the lookahead inside `POSSESSION_WORD` sits is load-bearing, and the
