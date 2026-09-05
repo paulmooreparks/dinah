@@ -203,18 +203,26 @@ func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
 // reason, and no single-character row reaches it, because the defect needs a
 // space and a backslash in the same token.
 //
-// So this walks combinations rather than characters. Eighteen fragments, each
-// carrying one trigger or one hazard, are concatenated pairwise into 324
+// So this walks combinations rather than characters. Nineteen fragments, each
+// carrying one trigger or one hazard, are concatenated pairwise into 361
 // tokens, and each token is rendered beside a following argument and read back
 // by three readers: the rule CommandLineToArgvW documents, a POSIX shell's
 // double-quote rules, and PowerShell's. The invariant every reader has to
 // agree on is how many arguments the line describes.
+//
+// The lone backtick fragment is here because the balanced `id` was the only
+// backtick this table used to carry, so every combination held an even count
+// and none ever put one against a closing delimiter. A backtick is the shape
+// no quoting makes inert, and the sweep therefore holds only the Windows C
+// runtime to it; what a POSIX shell and PowerShell do with it is pinned
+// literally in backticks below, because the honest claim is that the boundary
+// breaks rather than that it survives.
 func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 	fragments := []string{
 		"", "a", "a b", "  ", "\t",
 		`\`, `\\`, `C:\temp`, `C:\temp\`,
 		`"`, `a"b`,
-		"$HOME", "`id`", "%PATH%",
+		"$HOME", "`id`", "`", "%PATH%",
 		"|", "*", "#", "'",
 	}
 
@@ -232,11 +240,73 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 		{`a"b`, `add "a\"b" next`},
 		{`a\"b`, `add "a\\\"b" next`},
 		{"", `add "" next`},
+		// A line break is whitespace, so it quotes the token and is then
+		// emitted as it stands. The rendering spans two physical lines, which
+		// Line's comment now says outright rather than promising one line and
+		// leaving a --note value to break the promise. This row pins the
+		// decision: escaping the break would put characters in the output that
+		// no shell reads back as a newline.
+		{"two\nlines", "add \"two\nlines\" next"},
 	}
 	for _, row := range named {
 		got := Command{Verb: "add", Args: []string{row.token, "next"}}.Line()
 		if got != row.line {
 			t.Errorf("%q rendered the line %s, want %s", row.token, got, row.line)
+		}
+	}
+
+	// The backtick rows pin the boundary breaking rather than holding, which is
+	// the only honest thing to pin: quoting cannot make a backtick inert, so
+	// there is no rendering for these rows to be held to. They exist so that a
+	// later edit claiming the backtick is handled, by adding it to shellSpecial
+	// or by escaping it, has to come through here and say what changed. Each
+	// row carries the rendering, what PowerShell reads out of it, and what a
+	// POSIX shell reads, where a nil means the line does not parse at all.
+	backticks := []struct {
+		token string
+		line  string
+		pwsh  []string
+		posix []string
+		why   string
+	}{
+		{
+			token: "a b`",
+			line:  "add \"a b`\" next",
+			pwsh:  []string{"add", "a b\" next"},
+			posix: nil,
+			why:   "a backtick against the closing delimiter escapes it in PowerShell, and opens an unmatched substitution that runs past it in a POSIX shell",
+		},
+		{
+			token: "a`",
+			line:  "add a` next",
+			pwsh:  []string{"add", "a next"},
+			posix: nil,
+			why:   "a bare token ending in a backtick escapes the separating space in PowerShell, and opens an unmatched substitution in a POSIX shell",
+		},
+		{
+			token: "`id`",
+			line:  "add `id` next",
+			pwsh:  []string{"add", "id next"},
+			posix: []string{"add", "", "next"},
+			why:   "a balanced pair is no safer: PowerShell escapes the character after each backtick, and a POSIX shell runs the substitution and puts its output in the word",
+		},
+	}
+	for _, row := range backticks {
+		got := Command{Verb: "add", Args: []string{row.token, "next"}}.Line()
+		if got != row.line {
+			t.Errorf("%q rendered the line %s, want %s", row.token, got, row.line)
+			continue
+		}
+		// The Windows C runtime reads a backtick as an ordinary character, so
+		// it is the one reader whose boundary survives all three rows.
+		if want := []string{"add", row.token, "next"}; !reflect.DeepEqual(splitWindowsCRT(got), want) {
+			t.Errorf("%q rendered the line %s, which the Windows C runtime reads as %q rather than %q", row.token, got, splitWindowsCRT(got), want)
+		}
+		if pwsh := splitPowerShell(got); !reflect.DeepEqual(pwsh, row.pwsh) {
+			t.Errorf("%q rendered the line %s, which PowerShell reads as %q rather than %q; %s", row.token, got, pwsh, row.pwsh, row.why)
+		}
+		if posix := splitPOSIX(got); !reflect.DeepEqual(posix, row.posix) {
+			t.Errorf("%q rendered the line %s, which a POSIX shell reads as %q rather than %q; %s", row.token, got, posix, row.posix, row.why)
 		}
 	}
 
@@ -253,6 +323,17 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 				continue
 			}
 
+			// A backtick leaves the other two readers nothing to prove. No
+			// quoting makes one inert, so what a POSIX shell and PowerShell do
+			// with the rendering depends on what stands beside the backtick
+			// rather than on anything this function could have done, and the
+			// backticks rows above pin those outcomes literally. Asserting a
+			// boundary here would assert something false for some of these
+			// tokens and something accidental for the rest.
+			if strings.Contains(token, "`") {
+				continue
+			}
+
 			// A POSIX shell reads the boundary. It does not always read the
 			// value back, because it drops a backslash standing before another
 			// backslash, a $ or a backtick, which is the residue shellSpecial
@@ -264,11 +345,10 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 				t.Errorf("%q rendered the line %s, which a POSIX shell reads the first argument of as %q", token, line, posix[1])
 			}
 
-			// PowerShell reads the boundary for every token that carries
-			// neither a double quote nor a backtick. It reads neither back:
-			// it does not undo the \" escape, and a backtick escapes whatever
-			// follows it, including a closing delimiter.
-			if strings.ContainsAny(token, "\"`") {
+			// PowerShell reads the boundary for every token that carries no
+			// double quote of its own. It does not read the value back, since
+			// it never undoes the \" escape.
+			if strings.Contains(token, `"`) {
 				continue
 			}
 			pwsh := splitPowerShell(line)
@@ -341,12 +421,36 @@ func splitWindowsCRT(line string) []string {
 // including a backslash before an ordinary character, is literal. Modelling
 // that difference from splitWindowsCRT is the point of having both, since the
 // disagreement between them is what a naive single reader would hide.
+//
+// An unescaped backtick opens a command substitution, inside double quotes as
+// well as outside them, and it runs to the next backtick. The substituted text
+// is the output of a command this reader cannot run, so it contributes nothing
+// to the word, which is why a value carrying a balanced pair does not come
+// back. An unmatched backtick runs past the closing quote and past the end of
+// the line, and the word never terminates, so the line does not parse and this
+// reader returns nil rather than a split it cannot justify. That case is why
+// the doc comment on Line names the backtick beside the double quote: the
+// double quote costs the boundary in PowerShell alone, and the backtick costs
+// it here too.
 func splitPOSIX(line string) []string {
 	var args []string
 	var cur strings.Builder
 	started, quoted := false, false
 	for i := 0; i < len(line); i++ {
 		switch {
+		case line[i] == '`':
+			end := i + 1
+			for end < len(line) && line[end] != '`' {
+				if line[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(line) {
+				return nil
+			}
+			i = end
+			started = true
 		case quoted && line[i] == '\\' && i+1 < len(line) && strings.IndexByte("\"\\$`", line[i+1]) >= 0:
 			cur.WriteByte(line[i+1])
 			i++
@@ -378,8 +482,11 @@ func splitPOSIX(line string) []string {
 // splitPowerShell reads a line the way PowerShell parses one: a backtick
 // escapes the character after it, a double quote opens and closes a quoted
 // run, and a backslash is an ordinary character everywhere. It reads no \"
-// escape, which is why a token carrying a double quote is the one shape whose
-// boundary this rendering cannot hold in every shell.
+// escape, which is one of the two reasons this rendering cannot hold a
+// boundary in every shell. The backtick is the other, and it is worse: it
+// escapes whatever follows it here, including a closing delimiter and a
+// separating space, and a POSIX shell reads it as a command substitution
+// rather than as text, so no quoting neutralises it in either reader.
 func splitPowerShell(line string) []string {
 	var args []string
 	var cur strings.Builder

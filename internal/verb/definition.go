@@ -583,17 +583,34 @@ type Command struct {
 	Args []string
 }
 
-// Line joins Verb and Args into one printable line, quoting an argument that
+// Line joins Verb and Args into one printable string, quoting an argument that
 // is empty, that carries whitespace, or that carries one of the characters
 // shellSpecial names, so a reader can see where each argument begins and where
 // it ends. That boundary is the property Line holds, and it holds in a POSIX
 // shell, in cmd.exe and the Windows C runtime, and in PowerShell, for every
-// token that carries no double quote of its own. Line is not a shell-safe
-// rendering and does not try to be one: shellSpecial's comment says which
-// characters keep their meaning inside the quoting and where a retyped value
-// comes back changed. Re-running a command re-parses Args and never this
-// string. It carries no leading program name, because "dinah" is how the
-// displaying surface's own reader invokes the binary rather than something
+// token that carries neither a double quote nor a backtick of its own. It
+// fails for the double quote in PowerShell alone, which does not read the \"
+// escape. It fails for a backtick in PowerShell, which treats one as an escape
+// wherever it appears including against a closing delimiter, and in a POSIX
+// shell, where a backtick inside double quotes opens a command substitution
+// and an unmatched one runs past the closing quote. Neither is avoidable, and
+// quoting is what makes neither of them inert.
+//
+// The rendering is one line for as long as every value in it is. A value
+// carrying a line break is quoted, because a line break is whitespace, and the
+// break is then emitted as it stands, so the rendering spans as many physical
+// lines as the value does and cmd.exe cannot carry it at all. A --note or a
+// description is the realistic source. Rendering the break as \n would put
+// characters in the output that none of the three shells reads back as a
+// newline, which spends the value to buy the display, so Line leaves the value
+// alone and a surface that has one row to draw in truncates or elides what it
+// draws.
+//
+// Line is not a shell-safe rendering and does not try to be one: shellSpecial's
+// comment says which characters keep their meaning inside the quoting and where
+// a retyped value comes back changed. Re-running a command re-parses Args and
+// never this string. It carries no leading program name, because "dinah" is how
+// the displaying surface's own reader invokes the binary rather than something
 // this library asserts about itself.
 func (c Command) Line() string {
 	parts := make([]string, 0, len(c.Args)+1)
@@ -610,8 +627,11 @@ func (c Command) Line() string {
 // the token is what answers the set. Two members need their own sentence. The
 // double quote is the delimiter, so quoteArgument escapes it as \", which
 // POSIX shells and the Windows C runtime read back and PowerShell does not,
-// which makes a token carrying a double quote the one shape whose boundary
-// Line cannot hold everywhere. The backslash is here because a bare token
+// which makes a token carrying a double quote one of the two shapes whose
+// boundary Line cannot hold everywhere. The other is the backtick, which is
+// outside this set for the reason the next paragraph gives and which breaks
+// the boundary in PowerShell and in a POSIX shell rather than only the value.
+// The backslash is here because a bare token
 // ending in one escapes the space after it in a POSIX shell and swallows the
 // argument that follows, and because quoting a backslash costs nothing: inside
 // double quotes cmd.exe and PowerShell read it literally, and a POSIX shell
@@ -619,8 +639,13 @@ func (c Command) Line() string {
 //
 // The set is a list of triggers rather than a census of the characters a shell
 // treats specially. Some stay out because quoting would not help: a POSIX
-// shell expands $ and runs a backtick substitution inside double quotes, an
-// interactive bash expands ! there, and cmd.exe expands %VAR% there. Others
+// shell expands $ and runs a backtick substitution inside double quotes,
+// PowerShell reads a backtick as its own escape character wherever one
+// appears, an interactive bash expands ! there, and cmd.exe expands %VAR%
+// there. The backtick is the costliest of those, because both readings reach
+// the closing delimiter: PowerShell escapes it, and a POSIX shell whose
+// substitution is unmatched runs straight past it, so the word never
+// terminates. Others
 // stay out because nobody has needed them yet, which is cmd.exe's escape
 // character ^.
 //
