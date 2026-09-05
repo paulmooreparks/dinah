@@ -351,3 +351,30 @@ func TestNarratedOnly(t *testing.T) {
 		t.Fatalf("CORE-CODE-1 drives = %v, want [TestNarratedOnly]: the fixture was not read", got)
 	}
 }
+
+// TestACodeLineClosesADocCommentHeader asserts that a line of code ends the
+// doc-comment block a "// TestX ..." line opened, so a comment written after
+// that code line narrates the body rather than declaring the test's purpose.
+// The header opens above a declaration that is not the matching test function,
+// which is the case the three sibling scanner tests never reach: without the
+// closing rule the header would stay open for the rest of the file and every
+// later comment would count. The same source names a second identifier inside
+// the header itself, so a fixture the scanner failed to read at all would not
+// pass this test.
+func TestACodeLineClosesADocCommentHeader(t *testing.T) {
+	source := []byte(`// TestQueueOrder drives one statement.
+//
+// CORE-QUEUE-1 is named in the declared purpose.
+var queueFixture = 1
+
+// CORE-STRAY-1 is narrated here, after a code line closed the header.
+`)
+
+	drives := statementsNamedIn(source)
+	if got, ok := drives["CORE-STRAY-1"]; ok {
+		t.Errorf("CORE-STRAY-1 drives = %v, want it absent from the result", got)
+	}
+	if got := drives["CORE-QUEUE-1"]; len(got) != 1 || got[0] != "TestQueueOrder" {
+		t.Fatalf("CORE-QUEUE-1 drives = %v, want [TestQueueOrder]: the fixture was not read", got)
+	}
+}
