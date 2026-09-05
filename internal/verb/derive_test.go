@@ -147,81 +147,202 @@ func TestCommandLineQuotesWhatAReaderWouldHaveToType(t *testing.T) {
 	}
 }
 
-// TestLineQuotesOnlyTheCharactersQuotingActuallyHandles holds shellSpecial to
-// what quoteArgument can honestly do with it. Every character the set declares
-// has to survive a round trip through the quoting and back out again, and the
-// characters whose argument boundary a double-quoted token does not restore
-// have to stay outside the set, since declaring one of them is how Line comes
-// to present a boundary it does not hold.
+// TestLineQuotesEveryCharacterOutsideTheInertSet holds Line to the rule the
+// operator's ruling of 2026-09-06 replaced the old one with: quote every
+// argument except one made wholly of characters documented as ordinary in all
+// three shells. The rule matters because of how its predecessor failed. That
+// one named the characters to quote, and five consecutive reviews of this card
+// each found one more character it had never named, so each sweep was blind to
+// exactly the character the next round would raise.
 //
-// The exclusion runs on the boundary rather than on inertness, and the two
-// answer differently. Quoting makes neither a $ nor a % mean itself, and both
-// are members, because quoting is what makes the argument count right for
-// them. The rows below name the characters for which even that is untrue.
-func TestLineQuotesOnlyTheCharactersQuotingActuallyHandles(t *testing.T) {
-	excluded := []struct {
+// So this sweep does not walk a set anybody wrote down for it. It walks the
+// whole printable ASCII range, ninety-five characters from the space to the
+// tilde, and asks of each the question the rule asks: a character in
+// shellInert renders bare, and every other character renders quoted and reads
+// back as one argument. Most of those ninety-five have never been discussed on
+// this card, which is the point, because an allowlist earns its keep on the
+// characters nobody raised. The tab is swept beside them, and two non-ASCII
+// tokens stand for the bytes above 0x7F.
+//
+// The four characters quoting does not rescue are pinned separately at the
+// top. They are quoted like everything else now, so the assertion about them
+// is not that they render bare; it is that they are not inert, because
+// admitting one to shellInert would render it bare and Line's comment names
+// all four as shapes it makes no claim for.
+func TestLineQuotesEveryCharacterOutsideTheInertSet(t *testing.T) {
+	unrescued := []struct {
 		char rune
 		why  string
 	}{
+		{'"', "PowerShell does not read the \\\" escape back, so the boundary breaks there whatever the rendering does"},
 		{'`', "PowerShell escapes the closing delimiter a backtick stands against, and a POSIX shell opens a command substitution inside double quotes whose unmatched form runs past that delimiter"},
-		{'!', "an interactive bash expands one inside double quotes as readily as outside, and abandons the line where the designator names no event"},
-		{'^', "cmd.exe reads it as its escape character and Microsoft documents no rule for one inside a quoted token, so no membership decision here can rest on documented behaviour"},
+		{'!', "an interactive bash expands one inside double quotes, exempting only the position immediately before the closing quote, and abandons the line where the designator names no event"},
+		{'^', "cmd.exe reads it as its escape character and Microsoft's cmd documentation says nothing about one inside a quoted token, so no claim here can rest on documented behaviour"},
 	}
-	for _, out := range excluded {
-		if strings.ContainsRune(shellSpecial, out.char) {
-			t.Errorf("shellSpecial declares %q special and quoting does not restore the argument boundary for it: %s", out.char, out.why)
+	for _, out := range unrescued {
+		if strings.ContainsRune(shellInert, out.char) {
+			t.Errorf("shellInert calls %q inert, so Line renders it bare, and quoting does not restore the argument boundary for it either: %s", out.char, out.why)
 		}
 	}
 
-	for _, special := range shellSpecial {
-		token := "a" + string(special) + "b"
-		rendered := quoteArgument(token)
-		if rendered == token {
-			t.Errorf("a token carrying %q rendered unquoted as %q", special, rendered)
+	// The other exceptions are shapes rather than characters, so they are
+	// pinned by their rendering and by a stated reading rather than swept.
+	// Every one of them is quoted, and every one of them still costs the
+	// boundary, which is the clearest statement available that quoting by
+	// default is not the same as quoting being enough. None of the three
+	// readers in this file models any of them, so what a shell does with each
+	// is recorded here in prose and asserted nowhere, which is the honest
+	// arrangement rather than a reader vouching for what it cannot see.
+	unfinished := []struct {
+		token string
+		line  string
+		why   string
+	}{
+		{`a$(b`, `add "a$(b" next`, "a POSIX shell and PowerShell read a command substitution to its own close rather than to the closing quote, so an unmatched $( swallows the delimiter, the space and the argument beyond it"},
+		{`a${b`, `add "a${b" next`, "a POSIX shell reads a parameter expansion to its own close, so an unmatched ${ swallows the rest of the line the same way"},
+		{`$@`, `add "$@" next`, "POSIX gives the @ parameter its own rule inside double quotes, where it expands to one field per positional parameter, so the count arrives with the shell rather than with the token"},
+		{"cost $@ dollars", `add "cost $@ dollars" next`, "the same rule joins the text before the expansion to the first parameter and the text after it to the last, so a title reading like ordinary prose is as many arguments as the shell holds parameters"},
+	}
+	for _, row := range unfinished {
+		if got := (Command{Verb: "add", Args: []string{row.token, "next"}}.Line()); got != row.line {
+			t.Errorf("%q rendered the line %s, want %s; %s", row.token, got, row.line, row.why)
+		}
+	}
+
+	// Every member that is not a letter or a digit carries the documented
+	// reading that admitted it, and the two directions are both checked, so a
+	// member cannot be added without one and a reason cannot outlive its
+	// member.
+	defended := map[rune]string{
+		'.': "POSIX names it in neither quoting list, and it is the dot utility and PowerShell's dot-sourcing operator only in command position, where no rendered argument stands",
+		'-': "POSIX names it in neither quoting list, and a leading dash introduces a parameter name or a switch, which decides how a program reads an argument rather than how many arguments there are",
+		'_': "POSIX names it in neither quoting list and builds its own name production out of it, so it cannot be an operator character there",
+		'/': "POSIX names it in neither quoting list, it is the pathname separator, and PowerShell divides with one only in expression mode",
+	}
+	for _, member := range shellInert {
+		if member >= 'a' && member <= 'z' || member >= 'A' && member <= 'Z' || member >= '0' && member <= '9' {
 			continue
 		}
-		if got := splitWindowsCRT(rendered); len(got) != 1 || got[0] != token {
-			t.Errorf("a token carrying %q rendered as %q, which reads back as %q rather than %q", special, rendered, got, token)
+		if _, ok := defended[member]; !ok {
+			t.Errorf("shellInert admits %q and no documented reading here says why, so it is a character somebody thought was harmless rather than one a shell's manual calls ordinary", member)
+		}
+	}
+	for member := range defended {
+		if !strings.ContainsRune(shellInert, member) {
+			t.Errorf("a documented reading is recorded for %q and shellInert does not admit it, so the reason has outlived its member", member)
 		}
 	}
 
-	// The backslash earns its place in the set from the other side, so it gets
-	// its own assertion: a bare token ending in one escapes the space after it
-	// in a POSIX shell, and quoting is what stops that.
+	// The sweep itself. A character in the set has to render bare, because a
+	// rule that quoted everything would hold every boundary and read as noise;
+	// a character outside it has to be quoted and to survive the round trip.
+	swept := 0
+	for c := 0x20; c <= 0x7E; c++ {
+		swept++
+		checkOneCharacterRendersReadably(t, string(rune(c)))
+	}
+	checkOneCharacterRendersReadably(t, "\t")
+	if swept != 95 {
+		t.Errorf("the sweep covered %d characters of the printable range rather than 95, so it is no longer the whole range", swept)
+	}
+
+	// Two tokens carrying bytes above 0x7F. None of the three references this
+	// set is built from says what such a byte does, so the rule quotes it, and
+	// a card title in German or Japanese is quoted rather than reasoned about.
+	for _, token := range []string{"café", "日本語"} {
+		if rendered := quoteArgument(token); !strings.HasPrefix(rendered, `"`) {
+			t.Errorf("%q rendered as %s, and no document this set cites says what a byte above 0x7F does in any of the three shells", token, rendered)
+		}
+	}
+
+	// A trailing backslash is the shape whose escaping the quoting has to get
+	// right rather than merely trigger on, so it keeps its own literal pin.
 	if got := quoteArgument(`C:\temp\`); got != `"C:\temp\\"` {
 		t.Errorf(`a token ending in a backslash rendered as %s, which does not terminate where it appears to`, got)
 	}
-	// The $ and the % earn their places from the same side as the backslash and
-	// against an earlier reading of this test, which pinned the bare rendering
-	// of $HOME on the ground that quoting cannot make a $ inert. Quoting does
-	// not make it inert and does make the count right, so these two assertions
-	// hold the rendering to the boundary the exclusion rule now asks about. A
-	// bare $HOME is no arguments in a POSIX shell where the variable is unset
-	// and two where its value carries a space; a bare %PATH% is as many as the
-	// value has spaces in cmd.exe.
+	// The $ and the % are quoted although quoting leaves both meaningful,
+	// because the count is what Line promises. A bare $HOME is no arguments in
+	// a POSIX shell where the variable is unset and two where its value carries
+	// a space, and a bare %PATH% is as many as the value has spaces in cmd.exe.
 	if got := quoteArgument("$HOME"); got != `"$HOME"` {
 		t.Errorf("a token carrying $ rendered as %s, which a POSIX shell field-splits into a number of arguments its environment decides", got)
 	}
 	if got := quoteArgument("%PATH%"); got != `"%PATH%"` {
 		t.Errorf("a token carrying %% rendered as %s, which cmd.exe substitutes into the line before it parses one", got)
 	}
+	// The brace pair is the character class that produced the ruling. Nobody
+	// named it for five rounds, the allowlist covers it without anybody naming
+	// it, and the bash manual settles the quoting without a measurement,
+	// because a correctly-formed brace expansion has to carry unquoted braces.
+	for _, token := range []string{"{a,b}", "col{1..3}"} {
+		if got := quoteArgument(token); got != `"`+token+`"` {
+			t.Errorf("%q rendered as %s, and bash reads the bare form as several arguments where the quoted form is one", token, got)
+		}
+	}
+}
+
+// checkOneCharacterRendersReadably renders `add <token> next` for a token built
+// around one character and reads the line back with each shell model that can
+// speak for it. The Windows C runtime speaks for every character, because
+// quoteArgument's escaping is written to the rule CommandLineToArgvW documents
+// and no character in the printable range is special to it beyond the double
+// quote and the backslash it handles. A POSIX shell speaks for every character
+// but the backtick, which opens a substitution no quoting closes, and
+// PowerShell for every character but the backtick and the double quote, whose
+// \" escape it does not read.
+func checkOneCharacterRendersReadably(t *testing.T, char string) {
+	t.Helper()
+	token := "a" + char + "b"
+	rendered := quoteArgument(token)
+	inert := inertThroughout(char)
+	switch {
+	case inert && rendered != token:
+		t.Errorf("%q is in shellInert and a token carrying it rendered as %s rather than bare, so the rendering is noisier than the rule", char, rendered)
+		return
+	case !inert && !strings.HasPrefix(rendered, `"`):
+		t.Errorf("%q is outside shellInert and a token carrying it rendered bare as %s, which is the failure the allowlist exists to prevent: an unconsidered character reaching a shell unquoted", char, rendered)
+		return
+	}
+
+	line := Command{Verb: "add", Args: []string{token, "next"}}.Line()
+	want := []string{"add", token, "next"}
+	if got := splitWindowsCRT(line); !reflect.DeepEqual(got, want) {
+		t.Errorf("a token carrying %q rendered the line %s, which the Windows C runtime reads as %q rather than %q", char, line, got, want)
+	}
+	if !strings.Contains(token, "`") {
+		if got := splitPOSIX(line); len(got) != 3 || got[0] != "add" || got[2] != "next" {
+			t.Errorf("a token carrying %q rendered the line %s, which a POSIX shell reads as %d arguments, %q", char, line, len(got), got)
+		}
+		if !strings.Contains(token, `"`) {
+			if got := splitPowerShell(line); len(got) != 3 || got[0] != "add" || got[2] != "next" {
+				t.Errorf("a token carrying %q rendered the line %s, which PowerShell reads as %d arguments, %q", char, line, len(got), got)
+			}
+		}
+	}
 }
 
 // TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers is the guard for the
-// defect a one-character-at-a-time test cannot see. Quoting is triggered by
-// whitespace as well as by shellSpecial, and the two interact: a token quoted
-// for its spaces carries whatever else it holds inside the quoting, and a
-// trailing backslash then lands against the closing delimiter and escapes it.
-// `dir C:\temp\` followed by `next` printed as one argument for exactly that
-// reason, and no single-character row reaches it, because the defect needs a
-// space and a backslash in the same token.
+// defect a one-character-at-a-time test cannot see. What a character does
+// inside the quoting depends on what stands beside it, and the escaping is
+// where that bites: a trailing backslash lands against the closing delimiter
+// and escapes it, so `dir C:\temp\` followed by `next` printed as one argument
+// rather than two. No single-character row reaches that, because the defect
+// needs the backslash to be last in its token.
 //
-// So this walks combinations rather than characters. Twenty-one fragments,
-// each carrying one trigger or one hazard, are concatenated pairwise into 441
-// tokens, and each token is rendered beside a following argument and read back
-// by three readers: the rule CommandLineToArgvW documents, a POSIX shell's
-// double-quote rules, and PowerShell's. The invariant every reader has to
-// agree on is how many arguments the line describes.
+// So this walks combinations rather than characters. Twenty-seven fragments
+// are concatenated pairwise into 729 tokens, and each token is rendered beside
+// a following argument and read back by three readers: the rule
+// CommandLineToArgvW documents, a POSIX shell's double-quote rules, and
+// PowerShell's. The invariant every reader has to agree on is how many
+// arguments the line describes.
+//
+// Six of the twenty-seven were chosen from the printable range rather than
+// from this card's five rounds of discussion, and the brace pair is one of
+// them. Under the rule this test was written against, the table only ever held
+// characters somebody had already argued about, so each round's sweep was
+// blind to the character the next round would raise. The allowlist covers a
+// character nobody raised, and a table drawn only from the discussion cannot
+// show that, so these six are here to be unremarkable.
 //
 // The lone backtick fragment is here because the balanced `id` was the only
 // backtick this table used to carry, so every combination held an even count
@@ -244,6 +365,10 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 		`"`, `a"b`,
 		"$HOME", "$", "`id`", "`", "%PATH%", "%",
 		"|", "*", "#", "'",
+		"{a,b}", ",", ";", "@", "+", ":",
+	}
+	if len(fragments) != 27 {
+		t.Fatalf("the table holds %d fragments rather than 27, so the doc comment's count of the sweep is wrong", len(fragments))
 	}
 
 	// The named rows come first, because a combination sweep says a property
@@ -271,15 +396,22 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 		{"$", `add "$" next`},
 		{"%PATH%", `add "%PATH%" next`},
 		{"%", `add "%" next`},
-		// The ! and the ^ are the reverse case, and they are rendered bare on
-		// purpose. Quoting does not stop an interactive bash expanding a ! or
-		// abandoning the line over one, and no documented rule says what
-		// cmd.exe does with a ^ inside a quoted token, so neither is a member
-		// and Line's comment names both as shapes it makes no claim for. A row
-		// each so that adding one to the set has to be argued here.
-		{"a!b", "add a!b next"},
+		// The ! and the ^ are quoted like everything else, and the promise
+		// still excludes them. Quoting does not stop an interactive bash
+		// expanding a ! or abandoning the line over one, and Microsoft
+		// documents no rule for a ^ inside a quoted token, so Line's comment
+		// names both as shapes it makes no claim for. Under the rule these
+		// rows were first written against, both rendered bare, and an
+		// implementation that goes back to rendering either bare has to come
+		// through here.
+		{"a!b", `add "a!b" next`},
 		{"ship it! by friday", `add "ship it! by friday" next`},
-		{"a^b", "add a^b next"},
+		{"a^b", `add "a^b" next`},
+		// The brace pair, which is the character five rounds of review never
+		// named. bash reads the bare form as several arguments and the quoted
+		// form as one, and the rule now quotes it without anybody having
+		// argued for it.
+		{"{a,b}", `add "{a,b}" next`},
 		// A line break is whitespace, so it quotes the token and is then
 		// emitted as it stands. The rendering spans two physical lines, which
 		// Line's comment now says outright rather than promising one line and
@@ -298,10 +430,13 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 	// The backtick rows pin the boundary breaking rather than holding, which is
 	// the only honest thing to pin: quoting cannot make a backtick inert, so
 	// there is no rendering for these rows to be held to. They exist so that a
-	// later edit claiming the backtick is handled, by adding it to shellSpecial
-	// or by escaping it, has to come through here and say what changed. Each
-	// row carries the rendering, what PowerShell reads out of it, and what a
-	// POSIX shell reads, where a nil means the line does not parse at all.
+	// later edit claiming the backtick is handled, by admitting it to
+	// shellInert or by escaping it, has to come through here and say what
+	// changed. Each row carries the rendering, what PowerShell reads out of it,
+	// and what a POSIX shell reads, where a nil means the line does not parse
+	// at all. All three tokens are quoted now, and all three still break, which
+	// is the clearest statement available that quoting by default is not the
+	// same as quoting being enough.
 	backticks := []struct {
 		token string
 		line  string
@@ -318,17 +453,17 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 		},
 		{
 			token: "a`",
-			line:  "add a` next",
-			pwsh:  []string{"add", "a next"},
+			line:  "add \"a`\" next",
+			pwsh:  []string{"add", "a\" next"},
 			posix: nil,
-			why:   "a bare token ending in a backtick escapes the separating space in PowerShell, and opens an unmatched substitution in a POSIX shell",
+			why:   "a token ending in a backtick escapes its own closing delimiter in PowerShell, and opens an unmatched substitution in a POSIX shell, so quoting it moves the failure rather than removing it",
 		},
 		{
 			token: "`id`",
-			line:  "add `id` next",
-			pwsh:  []string{"add", "id next"},
+			line:  "add \"`id`\" next",
+			pwsh:  []string{"add", "id\" next"},
 			posix: []string{"add", "", "next"},
-			why:   "a balanced pair is no safer: PowerShell escapes the character after each backtick, and a POSIX shell runs the substitution and puts its output in the word",
+			why:   "a balanced pair is no safer: PowerShell escapes the character after each backtick, which here is the closing delimiter, and a POSIX shell runs the substitution inside the quoting and puts its output in the word",
 		},
 	}
 	for _, row := range backticks {
@@ -374,11 +509,29 @@ func TestLineHoldsItsArgumentBoundaryUnderCombinedTriggers(t *testing.T) {
 				continue
 			}
 
+			// The pairing reaches three shapes splitPOSIX does not model, and
+			// they are skipped here rather than passed. An unmatched $( or ${
+			// runs a POSIX shell past the closing delimiter, and PowerShell
+			// too, since it spells a braced variable the same way; a $@
+			// expands to one field per positional parameter inside POSIX
+			// double quotes, and PowerShell reads it literally, so the skip is
+			// required there and merely conservative here. This reader models
+			// $name and nothing else, so left to itself it would hand back
+			// three tidy arguments and vouch for a line that does not parse.
+			// The pins in
+			// TestLineQuotesEveryCharacterOutsideTheInertSet record what each
+			// shape actually does. Letting the sweep answer for them would be
+			// the defect this card has produced in every round, which is a
+			// reader silently speaking for what it cannot see.
+			if strings.Contains(token, "$(") || strings.Contains(token, "${") || strings.Contains(token, "$@") {
+				continue
+			}
+
 			// A POSIX shell reads the boundary. It does not always read the
 			// value back, because it drops a backslash standing before another
 			// backslash, a $ or a backtick, and because it expands a $ inside
 			// double quotes as well as outside. That is the residue
-			// shellSpecial records and which no rendering removes, and
+			// shellInert records and which no rendering removes, and
 			// posixReadsBackExactly names both halves of it.
 			posix := splitPOSIX(line)
 			if len(posix) != 3 || posix[0] != "add" || posix[2] != "next" {
@@ -642,7 +795,7 @@ func posixNameAt(line string, i int) string {
 // rendering, which POSIX pairs back. It does not when a run of two or more
 // backslashes stands before an ordinary character, or when a single backslash
 // stands before a $ or a backtick, because POSIX pairs or consumes those and
-// the rendering leaves them as they are. That is the residue shellSpecial
+// the rendering leaves them as they are. That is the residue shellInert
 // records rather than a defect this test should hide.
 //
 // It also does not for any token carrying a $, and that answer is not
