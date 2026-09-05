@@ -66,14 +66,6 @@ export type Classification =
 			readonly version: VersionReport;
 	  };
 
-/** The three classifications that demote to the carried binary when one exists. */
-const DEMOTABLE = new Set(["format-skew", "profile-skew", "binary-too-old"]);
-
-/** Whether this classification lets a lower rung answer instead. */
-export function demotes(classification: Classification): boolean {
-	return DEMOTABLE.has(classification.kind);
-}
-
 /** A one-line description of a binary, for a diagnostic that names two of them. */
 export function describeVersion(version: VersionReport): string {
 	return `dinah ${version.tool}, ${version.profile}, format ${String(version.format)}`;
