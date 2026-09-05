@@ -8,12 +8,14 @@
 // without narrowing it again. That is the same separation dinah-330 drew
 // between cardCommands.ts and workbenchCommands.ts.
 //
-// This is the column row's first context-menu entry of any kind. dinah-330
+// This was the column row's first context-menu entry of any kind. dinah-330
 // left the row with none because its one plausible act then was the queue
-// pull, which is state-dependent and waits on dinah-280. Editing a column's
-// instructions carries no comparable gate: every column, in every state, has
-// an instructions file that can be opened, so this command does not wait on
-// dinah-280 for the reason Check and Copy Path did not.
+// pull, which is state-dependent and waited on dinah-280. Editing a column's
+// instructions carried no comparable gate: every column, in every state, has
+// an instructions file that can be opened. The queue pull arrived with
+// dinah-375, on the destination dinah-280 published, and lives in
+// pullCommands.ts because it mutates the board and needs a host that
+// checkpoints, which this module's own host deliberately does not.
 //
 // The command checkpoints nothing. A checkpoint exists to repaint the tree
 // after the board moved, and opening a file for editing moves nothing; the

@@ -29,7 +29,10 @@ import { runDinah } from "./cli";
 // context: the creation one declines a row whose ColumnView the status join
 // missed, and the editing one falls back to the node's own ref and answers
 // anyway. Both are aliased here so that each registration below names the act
-// it serves rather than the row the act stands on.
+// it serves rather than the row the act stands on. dinah-375's Pull is a
+// fourth command on the column row and needs no alias, because it declines
+// more rows than either of those two and so was given its own name at its own
+// module.
 import type {
 	ColumnCommandContext,
 	ColumnCommandHost,
@@ -60,6 +63,7 @@ import {
 	COMMAND_NEW_CARD,
 	COMMAND_OPEN_ATTACHMENT,
 	COMMAND_OPEN_CARD,
+	COMMAND_PULL,
 	COMMAND_REFRESH,
 	COMMAND_RELEASE,
 	COMMAND_UNBLOCK,
@@ -70,6 +74,7 @@ import {
 	TREE_COMMANDS,
 	VIEW_ID,
 } from "./identity";
+import { contextForPull, pullFromColumn } from "./pullCommands";
 import { assertCommandsFullyRegistered } from "./registrationGuard";
 import { joinPath, nodeSpawner } from "./spawn";
 import { composeContextKeys, composeStatus } from "./status";
@@ -475,9 +480,12 @@ export async function activate(
 			await run(target);
 		});
 	}
-	// The column row's one command gets its own registration rather than a
-	// third loop. A loop over a single pair reads as though more were coming,
-	// and this command takes a context and a host neither family above shares.
+	// Four commands stand on the column row, and each is registered on its own
+	// rather than gathered into a third loop: they agree on nothing a loop
+	// could hold, since Edit Instructions, Pull, New Card and Attach File each
+	// compose a different context and the first two do not even share a host.
+	// Edit Instructions is the one that takes the column host, which opens a
+	// file and carries no checkpoint.
 	const columnHost = columnCommandHost(channel);
 	register(
 		COMMAND_EDIT_COLUMN_INSTRUCTIONS,
@@ -497,6 +505,23 @@ export async function activate(
 			await editColumnInstructions(target);
 		},
 	);
+	// Pull takes the flow host rather than the column one, because a pull
+	// mutates the board and columnHost carries no checkpoint (dinah-375).
+	register(COMMAND_PULL, async (element: TreeElement | undefined) => {
+		const target = contextForPull(
+			element,
+			binary.state === "ok" ? binary.path : "",
+			host,
+			nodeSpawner,
+		);
+		if (target === undefined) {
+			channel.appendLine(
+				`${COMMAND_PULL} was invoked on a row that cannot be pulled from`,
+			);
+			return;
+		}
+		await pullFromColumn(target);
+	});
 	// An attachment row is registered on its own rather than through the loop
 	// above, because it is not a card and carries no CommandContext: the path
 	// it was drawn from is the whole of what opening it needs.
