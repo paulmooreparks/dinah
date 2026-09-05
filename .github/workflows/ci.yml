@@ -61,6 +61,46 @@ jobs:
         with:
           go-version-file: go.mod
       - run: npm ci
+
+      # editors/vscode/go.mod fences the npm dependency tree out of the dinah
+      # Go module, because an npm dependency ships Go source under
+      # node_modules and Go's package walk would otherwise compile it
+      # (dinah-274). This job is the only one that installs npm packages, so
+      # it is the only place the boundary can be checked against a tree that
+      # actually holds the hazard.
+      #
+      # Both steps run from the repository root rather than the job's default
+      # working directory, and both name bash explicitly because the Windows
+      # leg of this matrix would otherwise run them under PowerShell.
+      #
+      # The first step proves the hazard is present before the second proves
+      # it is hidden. Without it, a dependency graph that stops vendoring Go
+      # source would leave the second step passing while checking nothing.
+      - name: Confirm the install vendored a Go package under editors/vscode
+        working-directory: .
+        shell: bash
+        run: |
+          mv editors/vscode/go.mod editors/vscode/go.mod.disabled-for-boundary-check
+          found="$(go list ./... | grep editors/vscode || true)"
+          mv editors/vscode/go.mod.disabled-for-boundary-check editors/vscode/go.mod
+          if [ -z "$found" ]; then
+            echo "::error::With editors/vscode/go.mod removed, go list ./... found no package under editors/vscode. Either npm ci did not install anything, or no current dependency vendors Go source. Either way the next step would prove nothing."
+            exit 1
+          fi
+          echo "go list ./... finds these with the boundary removed:"
+          echo "$found"
+
+      - name: Confirm the module boundary hides it
+        working-directory: .
+        shell: bash
+        run: |
+          hidden="$(go list ./... | grep editors/vscode || true)"
+          if [ -n "$hidden" ]; then
+            echo "::error::go list ./... still reports a package under editors/vscode with editors/vscode/go.mod in place:"
+            echo "$hidden"
+            exit 1
+          fi
+
       - run: npm run check-types
       - run: npm run lint
       - run: npm run test:unit
