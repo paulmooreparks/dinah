@@ -127,16 +127,52 @@ test("the drift check reads both places npm keeps the number", async () => {
 	// come back. A lockfile carrying neither site counts as drift for the same
 	// reason: npm moving the number would otherwise retire this guard in
 	// silence.
-	const drifted = [
-		{ version: "0.1.0", packages: { "": { version: "0.1.0" } } },
-		{},
+	//
+	// Each case names the complaints it expects rather than counting them, and
+	// the first two cases drift one site while leaving the other correct. Those
+	// two are what make the check name distinct places: a site's label is a
+	// constant, so a fixture drifting both sites to the same number produces
+	// the expected messages even from a check that read one site twice, and
+	// counting cannot tell those apart either. Under a check narrowed to the
+	// top-level version the first case reports nothing at all.
+	//
+	// The narrowing matters because the drift it would then miss is the one
+	// this card is about. Somebody hand-repairs the version at the top of the
+	// lockfile, packages[""].version keeps the old number, and the next npm
+	// install rewrites the file anyway.
+	const cases = [
+		{
+			lock: { version: "1.0.0", packages: { "": { version: "0.1.0" } } },
+			expected: [
+				'package-lock.json packages[""].version is 0.1.0 and package.json is 1.0.0, so the next npm install rewrites one of them',
+			],
+		},
+		{
+			lock: { version: "0.1.0", packages: { "": { version: "1.0.0" } } },
+			expected: [
+				"package-lock.json version is 0.1.0 and package.json is 1.0.0, so the next npm install rewrites one of them",
+			],
+		},
+		{
+			lock: { version: "0.1.0", packages: { "": { version: "0.2.0" } } },
+			expected: [
+				"package-lock.json version is 0.1.0 and package.json is 1.0.0, so the next npm install rewrites one of them",
+				'package-lock.json packages[""].version is 0.2.0 and package.json is 1.0.0, so the next npm install rewrites one of them',
+			],
+		},
+		{
+			lock: {},
+			expected: [
+				"package-lock.json has no version, so nothing there mirrors package.json's 1.0.0",
+				'package-lock.json has no packages[""].version, so nothing there mirrors package.json\'s 1.0.0',
+			],
+		},
 	];
-	for (const lock of drifted) {
-		const problems = lockfileVersionDrift({ version: "1.0.0" }, lock);
-		assert.equal(
-			problems.length,
-			2,
-			`expected both sites to be reported for ${JSON.stringify(lock)}, got ${problems.join("; ")}`,
+	for (const { lock, expected } of cases) {
+		assert.deepEqual(
+			lockfileVersionDrift({ version: "1.0.0" }, lock),
+			expected,
+			`the drift reported for ${JSON.stringify(lock)} does not name both places npm keeps the version`,
 		);
 	}
 });
