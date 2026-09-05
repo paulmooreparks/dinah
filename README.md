@@ -1,6 +1,6 @@
 # Dinah
 
-<img src="logo/dinah-lantern.svg" align="right" width="256" alt="The Dinah lantern">
+<img src="editors/vscode/media/icon.png" align="right" width="256" alt="The Dinah lantern">
 
 [![CI](https://img.shields.io/github/actions/workflow/status/paulmooreparks/dinah/ci.yml?branch=main&label=CI)](https://github.com/paulmooreparks/dinah/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/paulmooreparks/dinah)](LICENSE)
