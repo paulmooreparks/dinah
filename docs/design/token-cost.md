@@ -5,7 +5,7 @@ that says what each way costs. An agent working a card can ask the MCP head for
 the card, for the instructions of the position it is standing in, and for an
 attachment's bytes. It can equally read those three things off the filesystem
 and keep the MCP head for the coordination acts, which are the pull, the
-comment and the move. The workstream that proposes the second shape rests on an
+comment, and the move. The workstream that proposes the second shape rests on an
 argument about cost, and nobody had measured it.
 
 `scripts/measure_agentic_sequence.py` runs one fixed sequence both ways over
@@ -178,7 +178,7 @@ within-card repeats and across-card repeats as two figures rather than one.
 
 The fixture's instruction layers are this repository's own committed workbench
 text, read with `git show` at the commit named above, and so are the card body,
-the attachment payload and the comments the cards arrive carrying. Invented
+the attachment payload, and the comments the cards arrive carrying. Invented
 prose would have decided the answer in advance, because the served chain is the
 largest single payload in the sequence and its size is the whole question. No
 `dinah` command is ever run against this repository's own workbench, and no run
@@ -190,7 +190,7 @@ directory under a throwaway root it creates and removes.
 The verb run performs all six acts over the MCP head, speaking JSON-RPC on
 stdio to `dinah mcp`.
 
-The file run performs the pull, the comment and the move over the MCP head,
+The file run performs the pull, the comment, and the move over the MCP head,
 because those are the coordination plane and the arbiter is what makes them
 mean anything. It performs the three reads off the filesystem instead: the card
 anchor, the three instruction layers in their own files, and the attachment's
@@ -201,9 +201,8 @@ any MCP read verb during the file run, so a file run that quietly asked for a
 card would stop rather than report a saving it had not made.
 
 The file run still pays for the served instruction chain on its pull and on its
-move, because those verbs serve it whatever the caller does afterwards. That is
-the point of the design rather than a flaw in it. The difference between the two
-runs bounds what a filesystem-first shape can save, and the chain that survives
+move, because those verbs serve it whatever the caller does afterwards. The
+difference between the two runs bounds what a filesystem-first shape can save, and the chain that survives
 in both bounds what stopping the repeated serve can save on top of it.
 
 The two runs are made identical by construction rather than by assertion. Each
@@ -243,7 +242,7 @@ in for accuracy, and two consecutive invocations of the harness print identical
 figures and identical digests.
 
 Every figure the harness prints names the regime that produced it, and the
-harness refuses outright to print any ratio, difference or sum whose operands
+harness refuses outright to print any ratio, difference, or sum whose operands
 came from two regimes. That refusal is the whole of what keeps a local encoder's
 proxy figure from being read as a measurement.
 
@@ -274,19 +273,21 @@ buried in the script, and a member falling through both sets stops the run.
 The envelope figure is measured directly, as the payload marshalled with the
 requested-content members and the instruction member emptied. It is not derived
 by subtraction. A subtractive envelope would make the reconciliation's residual
-identically zero and the check a tautology, which is the one thing that would
-let a miscounted member through unnoticed.
+identically zero, so the check would pass whatever any member cost and a
+miscounted member would go through unnoticed.
 
 The reconciliation is taken against the verb run's context footprint rather than
 against its cumulative billed input, because each attributed figure is counted
-once and the cumulative total counts one payload once per request. A byte-pair
+once and the cumulative total counts one payload once per request. The sum it
+reconciles is the attributed figures together with the tool-definition block
+counted once, so it stands above the attributed figures on their own. A byte-pair
 tokenizer is not additive across concatenation boundaries, so the figures are
 not expected to sum exactly to the footprint. The harness prints the residual on
 every run and exits non-zero when its magnitude leaves the declared bound.
 
 ## What each figure bounds
 
-Three cards wait on this baseline, and a different figure bounds each of them.
+A different figure bounds each of the three cards waiting on this baseline.
 
 - The filesystem-first guidance, dinah-380, is bounded by the difference between
   the two runs, on both the context footprint and the cumulative billed input.
@@ -303,20 +304,23 @@ Three cards wait on this baseline, and a different figure bounds each of them.
 
 ## What the measurement says, including where it argues against the workstream
 
-The findings below are stated plainly because they are this measurement's most
-valuable output, and two of them run against the argument the workstream was
-built on.
+Two of the findings below run against the argument the workstream was built on.
 
 The file run's context footprint came out below the verb run's, so reading the
 content plane off the filesystem does save context. The margin is far smaller
 than the workstream's argument assumes, because the file run still pays for the
 served instruction chain on its own pull and its own move, and because the card
-anchor it reads carries the same prose the card view carries.
+anchor it reads carries most of what the card view serves: the card's
+frontmatter, its seeded links, and its body. The anchor does not carry the
+card's comments, which sit in a sibling directory the file run never opens, so
+the file run is not charged for the comments the verb run's card view serves.
+That gap runs the same way as everything else here, so the true
+filesystem-first saving is smaller still.
 
 The file run's cumulative billed input came out well above the verb run's, so on
 that total the filesystem-first shape costs more rather than less. The reason is
-round trips rather than payload. The file run performs half again as many
-tool-call rounds as the verb run, because a file read is a tool call and a shell
+round trips rather than payload. The file run performs more tool-call rounds
+than the verb run, because a file read is a tool call and a shell
 call is a tool call, and every round pays for the whole conversation so far
 together with the tool-definition block. The harness computes the signed
 difference from the rounds each run actually performed rather than asserting a

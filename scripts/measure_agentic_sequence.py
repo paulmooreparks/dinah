@@ -4,7 +4,7 @@ Dinah's content plane can be read two ways. An agent can ask the MCP head for a
 card, for the instructions of the position it is standing in, and for an
 attachment's bytes; or it can read the same three things off the filesystem and
 keep the MCP head for the coordination acts only, which are the pull, the
-comment and the move. This script runs one fixed sequence both ways over two
+comment, and the move. This script runs one fixed sequence both ways over two
 cards standing in one column, counts the tokens each way, and attributes the
 difference across named contributions rather than reporting a single total.
 
@@ -19,14 +19,14 @@ binary does not ship. Install it into a virtual environment of your own;
 nothing in the build or the test suite reads this file.
 
 The credential is read from the file named by --api-key-file at the moment of
-use and is never printed, logged or written anywhere. Do not export it into a
+use and is never printed, logged, or written anywhere. Do not export it into a
 shell-wide environment: a coding agent that finds ANTHROPIC_API_KEY in its own
 environment may bill its work to that key by usage, which is the cost this
 measurement exists to reduce.
 
 It sits beside scripts/measure_compact_tokens.py and inherits that script's
 discipline. The workbench is rebuilt on every run, so the identifiers,
-revisions, claim stamps and absolute paths in its answers are fresh each time,
+revisions, claim stamps, and absolute paths in its answers are fresh each time,
 and a byte-pair encoder segments random hex unpredictably. Every such span is
 replaced with a fixed stand-in of the same shape before anything is counted,
 and each pinned payload carries a digest so a reader can tell whether a figure
@@ -172,7 +172,7 @@ def digest(text):
 # internal/mcp/mcp.go marshals every tool result with json.MarshalIndent and
 # nothing in the tree calls SetEscapeHTML(false), so a Markdown body reaches an
 # agent on one line with every newline as \n, every quotation mark as \", and
-# every <, > and & as a six-character escape. Attribution needs variants of a
+# every <, >, and & as a six-character escape. Attribution needs variants of a
 # payload counted the way the head would have marshalled them, so the escaping
 # and the indentation are reproduced here and every payload is round-tripped
 # through them before anything is measured. A payload that does not survive the
@@ -767,6 +767,13 @@ COLUMN_INTAKE = "d00000000001"
 COLUMN_WORKING = "d00000000002"
 COLUMN_NEXT = "d00000000003"
 
+# How many cards the fixture knows how to build. The links the cards arrive
+# carrying are a ring, so a card needs another card to link to, and the seeded
+# text is written for a sequence of this size. A --cards above this is refused
+# rather than truncated, because a header figure derived from the argument
+# instead of from the run is a figure the run did not produce.
+FIXTURE_CARDS = 2
+
 
 class Fixture(object):
     """One throwaway workbench, built from one committed definition."""
@@ -832,7 +839,7 @@ class Fixture(object):
         with open(payload_source, "wb") as handle:
             handle.write(self.attachment_bytes.encode("utf-8"))
 
-        for number in (1, 2):
+        for number in range(1, FIXTURE_CARDS + 1):
             answer = json.loads(self.cli("--json", "add", "Card number %d" % number))
             self.cards.append({"ref": "fx-%d" % number, "id": answer["card"]["id"]})
 
@@ -1374,24 +1381,45 @@ class Report(object):
         self.lines.append(text)
 
     def figure(self, label, count, suffix=""):
-        self.lines.append("  %-58s %10d tokens %s%s"
+        self.lines.append("  %-60s %10d tokens %s%s"
                           % (label, count.tokens, regime_label(count.regime),
                              (" " + suffix) if suffix else ""))
 
     def signed(self, label, count, suffix=""):
-        self.lines.append("  %-58s %+10d tokens %s%s"
+        self.lines.append("  %-60s %+10d tokens %s%s"
                           % (label, count.tokens, regime_label(count.regime),
                              (" " + suffix) if suffix else ""))
 
     def measure(self, label, value, unit):
-        self.lines.append("  %-58s %10d %s [not a token count]" % (label, value, unit))
+        self.lines.append("  %-60s %10d %s [not a token count]" % (label, value, unit))
 
     def share(self, label, value):
-        self.lines.append("  %-58s %+10.3f %%  [derived within one regime]"
+        """One figure as a percentage of another, named on the line.
+
+        A share is not a change, so it carries no sign: a forced plus in front
+        of 94.662 reads as a rise where the figure is a fall, and a forced plus
+        in front of 132.838 reads as a rise of that size rather than of 32.838.
+        The direction is spelled out in words beside the number, computed from
+        the number, because these are the lines a reader takes a figure out of.
+        """
+        if value > 100.0:
+            direction = "(above 100 %%, larger by %.3f %%)" % (value - 100.0)
+        elif value < 100.0:
+            direction = "(below 100 %%, smaller by %.3f %%)" % (100.0 - value)
+        else:
+            direction = "(exactly 100 %, the same size)"
+        self.lines.append("  %-60s %10.3f %%  [derived within one regime] %s"
+                          % (label, value, direction))
+
+    def signed_share(self, label, value):
+        """A difference expressed as a percentage, which does carry a sign,
+        because the thing being reported is the direction as much as the
+        size."""
+        self.lines.append("  %-60s %+10.3f %%  [derived within one regime]"
                           % (label, value))
 
     def plain(self, label, value):
-        self.lines.append("  %-58s %s" % (label, value))
+        self.lines.append("  %-60s %s" % (label, value))
 
     def emit(self):
         sys.stdout.write("\n".join(self.lines) + "\n")
@@ -1434,6 +1462,15 @@ def main():
 
 
 def measure(args):
+    # The fixture builds a fixed number of cards, so a request for more is
+    # refused here rather than silently satisfied with fewer. Every other
+    # figure in the header block is a fact of the run that was performed, and
+    # this one has to be one too.
+    if args.cards < 1 or args.cards > FIXTURE_CARDS:
+        raise Failure("--cards %d cannot be run: the fixture builds %d cards, so the "
+                      "sequence carries between 1 and %d"
+                      % (args.cards, FIXTURE_CARDS, FIXTURE_CARDS))
+
     repository = pathlib.Path(__file__).resolve().parents[1]
     repo = Repository(repository, args.commit)
 
@@ -1491,6 +1528,10 @@ def measure(args):
                           comments)
         fixture.build()
         fixture.cards = fixture.cards[:args.cards]
+        if len(fixture.cards) != args.cards:
+            raise Failure("the %s run carries %d cards where %d were asked for, so the "
+                          "header would report a sequence that was not performed"
+                          % (label, len(fixture.cards), args.cards))
         roots.append(fixture.root)
         runs[label] = fixture
 
@@ -1531,9 +1572,9 @@ def measure(args):
                       "(%d requests, computed under no caching; an upper bound on what a "
                       "caching session pays, not a bill)" % (len(rounds) + 1))
     report.say()
-    report.share("footprint, file run as a share of the verb run",
+    report.share("footprint, file run as a share of the verb run's footprint",
                  100.0 * ratio(footprints["file"], footprints["verb"]))
-    report.share("cumulative, file run as a share of the verb run",
+    report.share("cumulative, file run as a share of the verb run's cumulative",
                  100.0 * ratio(cumulatives["file"], cumulatives["verb"]))
     report.signed("footprint, file run less verb run",
                   footprints["file"] - footprints["verb"])
@@ -1611,12 +1652,15 @@ def measure(args):
     report.say("the reconciliation, against the verb run's context footprint")
     attributed = (arrivals + repeats + attribution.reencoding + attribution.envelope
                   + attribution.requested + tool_block)
-    report.figure("sum of the attributed figures plus the requested content", attributed)
+    # The label names the tool block as well as the five figures printed under
+    # "the attributed figures", because a reader adding that section reaches a
+    # total the tool block is missing from and the gap is named nowhere else.
+    report.figure("sum of the attributed figures and the tool block once", attributed)
     report.figure("verb run, context footprint", footprints["verb"])
     residual = footprints["verb"] - attributed
     report.signed("residual", residual)
     residual_share = 100.0 * float(residual.tokens) / float(footprints["verb"].tokens)
-    report.share("residual as a share of the footprint", residual_share)
+    report.signed_share("residual as a share of the footprint", residual_share)
     report.say()
 
     report.say("per-act check, the payload against the figures attributed to it")
@@ -1627,8 +1671,8 @@ def measure(args):
     report.say("what this run does not measure")
     report.plain("listing acts", "none is in the sequence, so no figure here tracks how "
                                  "many cards a workbench holds")
-    report.plain("caching", "the api counter applies no prompt-caching logic, so every "
-                            "figure above is an uncached request size")
+    report.plain("caching", "the %s counter applies no prompt-caching logic, so every "
+                            "figure above is an uncached request size" % counter.name)
     report.plain("the file run's own tools", "Read and Bash belong to the agent harness "
                                              "rather than to this surface, so the tool "
                                              "block counted above is the MCP head's alone")
@@ -1660,8 +1704,8 @@ def reduced_live_run(args, report, counter, layers, body, attachment, attachment
     saying so ahead of the totals."""
     report.say("counter live: this run produces the two headline totals and no attribution, "
                "because a live agent may vary its calls between runs and a varying sequence "
-               "cannot be differenced. AC-6, AC-7, AC-8 and AC-14 are withdrawn under this "
-               "selection, and this run bounds none of dinah-380, dinah-382 or dinah-383 "
+               "cannot be differenced. AC-6, AC-7, AC-8, and AC-14 are withdrawn under this "
+               "selection, and this run bounds none of dinah-380, dinah-382, or dinah-383 "
                "individually.")
     report.say()
     totals_by_run = {}
@@ -1673,6 +1717,10 @@ def reduced_live_run(args, report, counter, layers, body, attachment, attachment
                           comments)
         fixture.build()
         fixture.cards = fixture.cards[:args.cards]
+        if len(fixture.cards) != args.cards:
+            raise Failure("the %s run carries %d cards where %d were asked for, so the "
+                          "header would report a sequence that was not performed"
+                          % (label, len(fixture.cards), args.cards))
         config = os.path.join(fixture.root, "mcp.json")
         with open(config, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(json.dumps({"mcpServers": {"dinah": {
@@ -1686,7 +1734,7 @@ def reduced_live_run(args, report, counter, layers, body, attachment, attachment
                       "(read from the usage block of a real run, so caching applied)")
         report.figure("%s run, output tokens" % label, produced)
     report.say()
-    report.share("cumulative, file run as a share of the verb run",
+    report.share("cumulative, file run as a share of the verb run's cumulative",
                  100.0 * ratio(totals_by_run["file"], totals_by_run["verb"]))
     report.emit()
     return 0
@@ -1695,8 +1743,8 @@ def reduced_live_run(args, report, counter, layers, body, attachment, attachment
 def live_prompt(label, fixture):
     if label == "verb":
         return (TASK_TEXT + " Use the dinah MCP tools for every act, including the reads.")
-    return (TASK_TEXT + " Use the dinah MCP tools only for the pull, the comment and the "
-            "move, and read the card, the instructions and the attachment off the "
+    return (TASK_TEXT + " Use the dinah MCP tools only for the pull, the comment, and the "
+            "move, and read the card, the instructions, and the attachment off the "
             "filesystem under " + fixture.root + " instead.")
 
 
