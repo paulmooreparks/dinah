@@ -583,8 +583,8 @@ type Command struct {
 	Args []string
 }
 
-// Line joins Verb and Args into one printable string, quoting an argument that
-// is empty, that carries whitespace, or that carries one of the characters
+// Line joins Verb and Args into one string for display, quoting an argument
+// that is empty, that carries whitespace, or that carries one of the characters
 // shellSpecial names, so a reader can see where each argument begins and where
 // it ends. That boundary is the property Line holds, and it holds in a POSIX
 // shell, in cmd.exe and the Windows C runtime, and in PowerShell, for every
@@ -596,15 +596,15 @@ type Command struct {
 // and an unmatched one runs past the closing quote. Neither is avoidable, and
 // quoting is what makes neither of them inert.
 //
-// The rendering is one line for as long as every value in it is. A value
-// carrying a line break is quoted, because a line break is whitespace, and the
-// break is then emitted as it stands, so the rendering spans as many physical
-// lines as the value does and cmd.exe cannot carry it at all. A --note or a
-// description is the realistic source. Rendering the break as \n would put
-// characters in the output that none of the three shells reads back as a
-// newline, which spends the value to buy the display, so Line leaves the value
-// alone and a surface that has one row to draw in truncates or elides what it
-// draws.
+// The promise is bounded in one more way, which is the physical shape of the
+// output rather than what a shell does with it. A value carrying a line break
+// is quoted, because a line break is whitespace, and the break is then emitted
+// as it stands, so the rendering spans as many lines as the value does and
+// cmd.exe cannot carry it at all. A --note or a description value is the
+// realistic source. Rendering the break as \n would put characters in the
+// output that none of the three shells reads back as a newline, which spends
+// the value to buy the display, so Line keeps the value and a surface with one
+// row to draw in truncates or elides what it draws.
 //
 // Line is not a shell-safe rendering and does not try to be one: shellSpecial's
 // comment says which characters keep their meaning inside the quoting and where
@@ -629,9 +629,9 @@ func (c Command) Line() string {
 // POSIX shells and the Windows C runtime read back and PowerShell does not,
 // which makes a token carrying a double quote one of the two shapes whose
 // boundary Line cannot hold everywhere. The other is the backtick, which is
-// outside this set for the reason the next paragraph gives and which breaks
-// the boundary in PowerShell and in a POSIX shell rather than only the value.
-// The backslash is here because a bare token
+// outside this set for the reason the next paragraph gives, and which costs
+// the boundary in PowerShell and in a POSIX shell rather than costing only the
+// value. The backslash is here because a bare token
 // ending in one escapes the space after it in a POSIX shell and swallows the
 // argument that follows, and because quoting a backslash costs nothing: inside
 // double quotes cmd.exe and PowerShell read it literally, and a POSIX shell
@@ -642,10 +642,10 @@ func (c Command) Line() string {
 // shell expands $ and runs a backtick substitution inside double quotes,
 // PowerShell reads a backtick as its own escape character wherever one
 // appears, an interactive bash expands ! there, and cmd.exe expands %VAR%
-// there. The backtick is the costliest of those, because both readings reach
-// the closing delimiter: PowerShell escapes it, and a POSIX shell whose
-// substitution is unmatched runs straight past it, so the word never
-// terminates. Others
+// there. The backtick is the costliest of those, because both readings can
+// reach the closing delimiter. PowerShell escapes a delimiter a backtick
+// stands against, and a POSIX shell reading an unmatched substitution runs
+// straight past one, so the word never terminates. Others
 // stay out because nobody has needed them yet, which is cmd.exe's escape
 // character ^.
 //
