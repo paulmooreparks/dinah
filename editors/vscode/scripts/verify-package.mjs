@@ -1,20 +1,21 @@
-// Reads the packaged archives and asserts each one carries exactly the binary
-// it is supposed to, plus the licence text and the marketplace icon.
+// Reads the packaged archive and asserts it carries the licence text and the
+// marketplace icon, and no binary at all.
 //
-// Four failures this catches, and none of them has another witness. A
-// .vscodeignore change can ship all six binaries in every artifact. A staging
-// step can leave the previous target's binary behind. An archive can ship with
-// no statement of the terms it is distributed under, which is what dinah-371
-// found. An archive can ship without the icon its manifest promises, which
-// dinah-372 added. None of the four shows up in a build log, and the person who
-// finds out is a user on the wrong platform, a user with no licence, or every
-// visitor to the marketplace listing.
+// Three failures this catches, and none of them has another witness. An
+// archive can ship with no statement of the terms it is distributed under,
+// which is what dinah-371 found. An archive can ship without the icon its
+// manifest promises, which dinah-372 added. And a binary left in the extension
+// tree by a bad local build is packaged like any other file, which would ship
+// a copy of dinah inside an extension that says it carries none. None of the
+// three shows up in a build log, and the person who finds out is a user with
+// no licence, every visitor to the marketplace listing, or a user driving a
+// build of dinah they never installed.
 
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PLATFORM_TARGETS, UNIVERSAL } from "./targets.mjs";
+import { UNIVERSAL } from "./targets.mjs";
 import { listZipEntries } from "./zip.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -41,7 +42,7 @@ const LICENSE_ENTRY = "extension/LICENSE.txt";
 // tree so that assumption is checked rather than trusted.
 const ICON_ENTRY = "extension/media/icon.png";
 
-/** Every entry under `extension/bin/`, which is where a carried binary lands. */
+/** Every entry under `extension/bin/`, which must now be none. */
 function carriedIn(vsix) {
 	return listZipEntries(vsix)
 		.filter((name) => name.startsWith("extension/bin/"))
@@ -53,9 +54,9 @@ function carriedIn(vsix) {
  * Every binary-looking entry that is NOT under extension/bin/.
  *
  * A staging directory left inside the extension root is packaged like any
- * other file, so an artifact can carry all six binaries without a single one
- * of them being under bin/. Checking bin/ alone would call that archive
- * correct while it was six times the size it should be.
+ * other file, so an archive can carry a binary without it being under bin/.
+ * Checking bin/ alone would call that archive correct while it shipped a copy
+ * of dinah the extension promises not to carry.
  */
 function strayIn(vsix) {
 	return listZipEntries(vsix).filter(
@@ -63,7 +64,7 @@ function strayIn(vsix) {
 	);
 }
 
-function check(label, vsix, expected) {
+function check(label, vsix) {
 	if (!existsSync(vsix)) {
 		problems.push(`${label}: ${vsix} was not produced`);
 		return;
@@ -85,29 +86,14 @@ function check(label, vsix, expected) {
 		);
 	}
 	const carried = carriedIn(vsix);
-	if (expected === undefined) {
-		if (carried.length !== 0) {
-			problems.push(
-				`${label}: carries ${String(carried.length)} file(s) under extension/bin/ (${carried.join(", ")}), and the universal artifact must carry none`,
-			);
-		}
-		return;
-	}
-	if (carried.length !== 1) {
+	if (carried.length !== 0) {
 		problems.push(
-			`${label}: carries ${String(carried.length)} file(s) under extension/bin/ (${carried.join(", ") || "none"}), and exactly one is required`,
+			`${label}: carries ${String(carried.length)} file(s) under extension/bin/ (${carried.join(", ")}), and the universal artifact must carry none`,
 		);
-		return;
-	}
-	if (carried[0] !== expected) {
-		problems.push(`${label}: carries ${carried[0]}, and this target needs ${expected}`);
 	}
 }
 
-for (const { target, binary } of PLATFORM_TARGETS) {
-	check(target, join(outDir, `dinah-${target}.vsix`), binary);
-}
-check(UNIVERSAL, join(outDir, "dinah-universal.vsix"), undefined);
+check(UNIVERSAL, join(outDir, "dinah-universal.vsix"));
 
 if (problems.length > 0) {
 	for (const problem of problems) {
@@ -116,6 +102,4 @@ if (problems.length > 0) {
 	process.exit(1);
 }
 
-process.stdout.write(
-	`Checked ${String(PLATFORM_TARGETS.length)} platform archives and the universal one.\n`,
-);
+process.stdout.write(`Checked the ${UNIVERSAL} archive.\n`);

@@ -52,9 +52,6 @@ function binaryLines(binary: BinaryState, pairedRelease: string): string[] {
 	if (binary.state === "ok") {
 		lines.push(describeVersion(binary.version));
 		lines.push(`binary: ${binary.path} (${binary.source})`);
-		if (binary.demotedFrom) {
-			lines.push(binary.demotedFrom);
-		}
 	} else if (binary.state !== "no-binary") {
 		lines.push(binary.detail);
 		if (binary.path) {
@@ -84,8 +81,8 @@ export function composeStatus(
 			hidden: false,
 			text: "$(checklist) Dinah $(error)",
 			tooltip: [
-				"No dinah binary was found, and this build of the extension carries none for your platform.",
-				"Install it from https://github.com/paulmooreparks/dinah, or set dinah.path to a binary you already have.",
+				"No dinah binary was found. This extension is a companion to the dinah command-line tool and carries no copy of it.",
+				"Install it from https://github.com/paulmooreparks/dinah#install, or set dinah.path to a binary you already have.",
 				...trailer,
 			].join("\n"),
 		};

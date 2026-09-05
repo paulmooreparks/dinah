@@ -68,13 +68,7 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
-      # Every platform vsix carries one binary, so the six are cross-compiled
-      # here. dinah has no cgo, so six cross-builds on one runner cost a few
-      # seconds and buy an archive check that can actually run.
-      - name: Cross-compile the six release binaries
-        shell: bash
-        run: node scripts/build-binaries.mjs .binaries
-      - run: npm run package -- --binaries .binaries
+      - run: npm run package
       - run: npm run verify-package
 
       - name: Upload the packaged extensions
