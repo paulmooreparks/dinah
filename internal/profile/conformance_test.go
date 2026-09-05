@@ -100,13 +100,46 @@ func TestConformanceReport(t *testing.T) {
 		t.Log("  " + row)
 	}
 
-	// A statement listed as out of reach that a test does drive is a stale
-	// exclusion, which the report reports rather than tolerates.
-	for id := range outOfReach {
-		if len(driven[id]) > 0 {
-			t.Errorf("%s is listed as out of reach and is driven by %v", id, driven[id])
-		}
+	for _, fault := range outOfReachDefects(outOfReach, extracted.Statements, driven) {
+		t.Errorf("%s", fault)
 	}
+}
+
+// outOfReachDefects compares the out-of-reach table against the CORE
+// statements a profile document currently publishes and the tests that
+// currently drive them. It returns one message per fault, in sorted order: an
+// entry naming an identifier the document no longer publishes as a CORE
+// statement, and an entry whose statement a test now drives. A healthy table
+// returns nil.
+//
+// The second fault is the stale exclusion the report has always caught. The
+// first is the drift nothing caught before, because the report's main loop
+// walks the statements the document publishes, so an entry left behind when
+// its statement is retired is visited by nothing at all.
+func outOfReachDefects(outOfReach map[string]string, statements []Statement, driven map[string][]string) []string {
+	published := map[string]bool{}
+	for _, statement := range statements {
+		if statement.Class != "CORE" {
+			continue
+		}
+		published[statement.ID] = true
+	}
+
+	var defects []string
+	for _, id := range sortedCatalogKeys(outOfReach) {
+		if !published[id] {
+			defects = append(defects, id+" is listed as out of reach and names no current CORE statement")
+			continue
+		}
+		tests := driven[id]
+		if len(tests) == 0 {
+			continue
+		}
+		sorted := append([]string(nil), tests...)
+		sort.Strings(sorted)
+		defects = append(defects, id+" is listed as out of reach and is driven by "+strings.Join(sorted, ", "))
+	}
+	return defects
 }
 
 // drivenStatements reads every test in the tree and returns the statements
@@ -137,22 +170,10 @@ func drivenStatements(t *testing.T) map[string][]string {
 		if err != nil {
 			return err
 		}
-		current := ""
-		for _, line := range strings.Split(string(source), "\n") {
-			line = strings.TrimRight(line, "\r")
-			if m := testFunction.FindStringSubmatch(line); m != nil {
-				current = m[1]
-			}
-			if m := testDoc.FindStringSubmatch(line); m != nil {
-				current = m[1]
-			}
-			if current == "" {
-				continue
-			}
-			for _, ref := range statementRef.FindAllStringSubmatch(line, -1) {
-				id := ref[1]
-				if !named(driven[id], current) {
-					driven[id] = append(driven[id], current)
+		for id, tests := range statementsNamedIn(source) {
+			for _, test := range tests {
+				if !named(driven[id], test) {
+					driven[id] = append(driven[id], test)
 				}
 			}
 		}
@@ -164,6 +185,54 @@ func drivenStatements(t *testing.T) map[string][]string {
 	return driven
 }
 
+// statementsNamedIn returns the statement identifiers a single test source
+// file's tests are taken to drive, keyed by identifier, each value the
+// sorted, deduplicated list of test names. An identifier counts only when
+// it appears either in the contiguous doc-comment block that begins with a
+// "// TestX ..." line, or on a non-comment line within that test's span. An
+// identifier named only in some other comment inside a test's body does not
+// count, because a comment can narrate a statement without the test
+// asserting anything about it.
+func statementsNamedIn(source []byte) map[string][]string {
+	drives := map[string][]string{}
+	current := ""
+	inDocHeader := false
+	for _, line := range strings.Split(string(source), "\n") {
+		line = strings.TrimRight(line, "\r")
+		trimmed := strings.TrimSpace(line)
+		isComment := strings.HasPrefix(trimmed, "//")
+		if m := testFunction.FindStringSubmatch(line); m != nil {
+			current = m[1]
+			inDocHeader = false
+		}
+		if m := testDoc.FindStringSubmatch(line); m != nil {
+			current = m[1]
+			inDocHeader = true
+		} else if !isComment && trimmed != "" {
+			// A line of code closes the doc-comment header, so every comment
+			// after it narrates the test's body rather than declaring its
+			// purpose.
+			inDocHeader = false
+		}
+		if current == "" {
+			continue
+		}
+		if isComment && !inDocHeader {
+			continue
+		}
+		for _, ref := range statementRef.FindAllStringSubmatch(line, -1) {
+			id := ref[1]
+			if !named(drives[id], current) {
+				drives[id] = append(drives[id], current)
+			}
+		}
+	}
+	for id := range drives {
+		sort.Strings(drives[id])
+	}
+	return drives
+}
+
 // named reports whether a test is already recorded against a statement.
 func named(tests []string, want string) bool {
 	for _, test := range tests {
@@ -172,4 +241,140 @@ func named(tests []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// TestOutOfReachDefectsCatchesAnEntryTheDocumentNoLongerPublishes asserts that
+// a table entry naming an identifier the profile no longer publishes as a CORE
+// statement is reported, which is the drift the report's main loop cannot see.
+func TestOutOfReachDefectsCatchesAnEntryTheDocumentNoLongerPublishes(t *testing.T) {
+	table := map[string]string{"CORE-GONE-1": "retired from the document while its entry stayed behind"}
+	statements := []Statement{{ID: "CORE-LIVE-1", Class: "CORE"}}
+	driven := map[string][]string{}
+
+	defects := outOfReachDefects(table, statements, driven)
+	if len(defects) != 1 {
+		t.Fatalf("defects = %v, want exactly one", defects)
+	}
+	want := "CORE-GONE-1 is listed as out of reach and names no current CORE statement"
+	if defects[0] != want {
+		t.Errorf("defect = %q, want %q", defects[0], want)
+	}
+}
+
+// TestOutOfReachDefectsCatchesAnEntryATestNowDrives asserts that a table entry
+// whose statement the document still publishes and a test now drives is
+// reported as a stale exclusion, naming the tests that drive it.
+func TestOutOfReachDefectsCatchesAnEntryATestNowDrives(t *testing.T) {
+	table := map[string]string{"CORE-LIVE-1": "no verb reaches this in v0"}
+	statements := []Statement{{ID: "CORE-LIVE-1", Class: "CORE"}}
+	driven := map[string][]string{"CORE-LIVE-1": {"TestSecond", "TestFirst"}}
+
+	defects := outOfReachDefects(table, statements, driven)
+	if len(defects) != 1 {
+		t.Fatalf("defects = %v, want exactly one", defects)
+	}
+	want := "CORE-LIVE-1 is listed as out of reach and is driven by TestFirst, TestSecond"
+	if defects[0] != want {
+		t.Errorf("defect = %q, want %q", defects[0], want)
+	}
+}
+
+// TestOutOfReachDefectsPassesAHealthyEntry asserts that an entry whose
+// statement the document publishes and no test drives reports nothing, so the
+// two failing cases above are not passing because every table faults.
+func TestOutOfReachDefectsPassesAHealthyEntry(t *testing.T) {
+	table := map[string]string{"CORE-LIVE-1": "no verb reaches this in v0"}
+	statements := []Statement{{ID: "CORE-LIVE-1", Class: "CORE"}}
+	driven := map[string][]string{"CORE-OTHER-1": {"TestElsewhere"}}
+
+	defects := outOfReachDefects(table, statements, driven)
+	if len(defects) != 0 {
+		t.Errorf("defects = %v, want none", defects)
+	}
+}
+
+// TestADocCommentHeaderNamesTheStatementItsTestDrives asserts that an
+// identifier appearing only in the doc-comment block that begins with a
+// "// TestX ..." line is taken as that test's, since the header is where a
+// test declares its purpose.
+func TestADocCommentHeaderNamesTheStatementItsTestDrives(t *testing.T) {
+	source := []byte(`// TestHeaderOnly drives one statement.
+//
+// The identifier CORE-HEADER-1 is named here and nowhere else in the file.
+func TestHeaderOnly(t *testing.T) {
+    t.Log("the assertion itself names nothing")
+}
+`)
+
+	drives := statementsNamedIn(source)
+	if got := drives["CORE-HEADER-1"]; len(got) != 1 || got[0] != "TestHeaderOnly" {
+		t.Errorf("CORE-HEADER-1 drives = %v, want [TestHeaderOnly]", got)
+	}
+}
+
+// TestACodeLineNamesTheStatementItsTestDrives asserts that an identifier
+// appearing only on a non-comment line inside a test's body is taken as that
+// test's, since an executable line naming a statement is the test working on
+// it.
+func TestACodeLineNamesTheStatementItsTestDrives(t *testing.T) {
+	source := []byte(`// TestCodeOnly drives one statement.
+func TestCodeOnly(t *testing.T) {
+    t.Errorf("CORE-CODE-1 was not honoured")
+}
+`)
+
+	drives := statementsNamedIn(source)
+	if got := drives["CORE-CODE-1"]; len(got) != 1 || got[0] != "TestCodeOnly" {
+		t.Errorf("CORE-CODE-1 drives = %v, want [TestCodeOnly]", got)
+	}
+}
+
+// TestAStrayBodyCommentDoesNotNameAStatement asserts that an identifier
+// appearing only in a comment inside a test's body, which is neither the
+// doc-comment header nor a code line, is absent from the result, because a
+// comment can narrate a statement without the test asserting anything about
+// it. The same source names a second identifier on a code line, so a fixture
+// the scanner failed to read at all would not pass this test.
+func TestAStrayBodyCommentDoesNotNameAStatement(t *testing.T) {
+	source := []byte(`// TestNarratedOnly drives one statement.
+func TestNarratedOnly(t *testing.T) {
+    // CORE-NARRATED-1 is mentioned here for the reader, and asserted nowhere.
+    t.Errorf("CORE-CODE-1 was not honoured")
+}
+`)
+
+	drives := statementsNamedIn(source)
+	if got, ok := drives["CORE-NARRATED-1"]; ok {
+		t.Errorf("CORE-NARRATED-1 drives = %v, want it absent from the result", got)
+	}
+	if got := drives["CORE-CODE-1"]; len(got) != 1 || got[0] != "TestNarratedOnly" {
+		t.Fatalf("CORE-CODE-1 drives = %v, want [TestNarratedOnly]: the fixture was not read", got)
+	}
+}
+
+// TestACodeLineClosesADocCommentHeader asserts that a line of code ends the
+// doc-comment block a "// TestX ..." line opened, so a comment written after
+// that code line narrates the body rather than declaring the test's purpose.
+// The header opens above a declaration that is not the matching test function,
+// which is the case the three sibling scanner tests never reach: without the
+// closing rule the header would stay open for the rest of the file and every
+// later comment would count. The same source names a second identifier inside
+// the header itself, so a fixture the scanner failed to read at all would not
+// pass this test.
+func TestACodeLineClosesADocCommentHeader(t *testing.T) {
+	source := []byte(`// TestQueueOrder drives one statement.
+//
+// CORE-QUEUE-1 is named in the declared purpose.
+var queueFixture = 1
+
+// CORE-STRAY-1 is narrated here, after a code line closed the header.
+`)
+
+	drives := statementsNamedIn(source)
+	if got, ok := drives["CORE-STRAY-1"]; ok {
+		t.Errorf("CORE-STRAY-1 drives = %v, want it absent from the result", got)
+	}
+	if got := drives["CORE-QUEUE-1"]; len(got) != 1 || got[0] != "TestQueueOrder" {
+		t.Fatalf("CORE-QUEUE-1 drives = %v, want [TestQueueOrder]: the fixture was not read", got)
+	}
 }
