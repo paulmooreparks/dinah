@@ -752,7 +752,7 @@ var derivationExemptions = map[string]string{
 	"mcp":         "starts this head; the terminal never builds a Request for it",
 	"path":        "resolves a filesystem path for a shell; the terminal never builds a Request for it",
 	"version":     "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
-	"workbenches": "reaches bench.Enumerate directly rather than through a Library verb (dinah-282); no Request is ever built for it",
+	"workbenches": "enumerates the workbenches on disk directly rather than through a Library verb (dinah-282); no Request is ever built for it",
 	"export":      "Library.Export takes no arguments at all; there is no request to read a value from",
 }
 
